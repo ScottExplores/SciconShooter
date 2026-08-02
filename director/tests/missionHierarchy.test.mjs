@@ -49,6 +49,26 @@ test('Combat Lab uses Mission display copy without renaming compatibility identi
   assert.match(workshop, /never alters another mission by surprise/);
 });
 
+test('Combat Lab exposes direct Mission, Wave, sequence, and checkpoint controls without leaving the canonical preview', async () => {
+  const [app, behaviorFields] = await Promise.all([
+    readDirectorSource('combat-lab', 'CombatLabApp.tsx'),
+    readDirectorSource('combat-lab', 'FormationBehaviorFields.tsx')
+  ]);
+
+  assert.match(app, /<span>Mission<\/span>/);
+  assert.match(app, /<span>Wave<\/span>/);
+  assert.match(app, /Jump to checkpoint/);
+  assert.match(app, /Run Mission/);
+  assert.match(app, /Restart sequence/);
+  assert.match(app, /createFocusedPreviewCampaign\(preview\.campaign/);
+  assert.match(app, /<GameEditorCanvas/);
+  assert.match(behaviorFields, /Entry path/);
+  assert.match(behaviorFields, /Group movement/);
+  assert.match(behaviorFields, /Attack behavior/);
+  assert.match(behaviorFields, /Formation fire/);
+  assert.match(behaviorFields, /Return \/ exit/);
+});
+
 test('Director review and preview accessibility copy uses Mission terminology', async () => {
   const [reviewBoard, levelPreview] = await Promise.all([
     readDirectorSource('review', 'ReviewBoard.tsx'),

@@ -5,9 +5,11 @@ import {
   type GameEditorSnapshot
 } from '@game/components/GameEditorCanvas';
 import { GAME_CONFIG } from '@game/constants';
+import { isMajorBossId } from '@game/game-config/catalog';
 import type { GameCampaignConfig, SpawnEvent, WaveDefinition, WaveEvent } from '@game/game-config/types';
 import { validateGameCampaign } from '@game/game-config/validate';
 import type { GameEngineDebugSnapshot, GameRuntimeState } from '@game/services/gameLogic';
+import { resolveCampaignFormationPackForSpawn } from '@game/services/campaignFormationBudget';
 import type {
   PreviewCommand,
   PreviewCommandResult
@@ -391,8 +393,42 @@ function Workspace({ initialState }: { initialState: GameCampaignDiskState<GameC
     ?? preview.previewWave.events[0]
     ?? null;
   const selectedSpawnEvent = selectedEvent?.kind === 'spawn' ? selectedEvent : null;
+  const selectedFormationPack = useMemo(() => {
+    if (!selectedSpawnEvent || selectedSpawnEvent.patternId === 'single-random' || selectedSpawnEvent.patternId === 'asteroid-lanes') return undefined;
+    const declaredPacks = preview.previewWave.formationPackIds.flatMap((packId) => {
+      const pack = preview.campaign.formationPacks.find((candidate) => candidate.id === packId);
+      return pack ? [pack] : [];
+    });
+    return resolveCampaignFormationPackForSpawn(selectedSpawnEvent, declaredPacks)
+      ?? resolveCampaignFormationPackForSpawn(selectedSpawnEvent, preview.campaign.formationPacks);
+  }, [preview.campaign.formationPacks, preview.previewWave.formationPackIds, selectedSpawnEvent]);
   const selectedLevel = preview.campaign.levels.find((level) => level.id === preview.levelId);
   const selectedWaveIndex = selectedLevel?.waves.findIndex((wave) => wave.id === preview.waveId) ?? -1;
+  const missionOptions = useMemo(
+    () => [...preview.campaign.levels].sort((left, right) => left.order - right.order),
+    [preview.campaign.levels]
+  );
+  const checkpointOptions = useMemo(() => (selectedLevel?.waves.flatMap((wave) => (
+    wave.events.flatMap((event) => {
+      if (event.kind === 'boss') {
+        return [{
+          id: `${wave.id}:${event.id}`,
+          waveId: wave.id,
+          eventId: event.id,
+          label: `Wave ${wave.order} · ${isMajorBossId(event.bossId) ? 'Boss' : 'Mini-boss'} · ${event.label}`
+        }];
+      }
+      if (event.kind === 'spawn' && event.enemies.some((enemy) => enemy.rank === 'elite')) {
+        return [{
+          id: `${wave.id}:${event.id}`,
+          waveId: wave.id,
+          eventId: event.id,
+          label: `Wave ${wave.order} · Elite · ${event.label}`
+        }];
+      }
+      return [];
+    })
+  )) ?? []), [selectedLevel]);
   const previewDevice = PREVIEW_DEVICES.find((device) => device.id === previewDeviceId) ?? PREVIEW_DEVICES[1];
   const previewDimensions = previewLandscape
     ? { width: previewDevice.height, height: previewDevice.width }
@@ -407,11 +443,11 @@ function Workspace({ initialState }: { initialState: GameCampaignDiskState<GameC
   const previewScale = previewScaleMode === 'fit' ? fitPreviewScale : Number(previewScaleMode) / 100;
   const previewScalePercent = Math.round(previewScale * 100);
   const queuedWaves = useMemo(() => {
-    const level = sourceCampaign.levels.find((item) => item.id === sequenceLevelId);
+    const level = preview.campaign.levels.find((item) => item.id === sequenceLevelId);
     if (!level) return [];
     const selected = new Set(queuedWaveIds);
     return level.waves.filter((wave) => selected.has(wave.id)).sort((left, right) => left.order - right.order);
-  }, [queuedWaveIds, sequenceLevelId, sourceCampaign]);
+  }, [preview.campaign.levels, queuedWaveIds, sequenceLevelId]);
   const runtimeSquadLoadout = useMemo(() => {
     try {
       return buildCombatLabRuntimeSquadLoadout(loadout);
@@ -756,15 +792,26 @@ function Workspace({ initialState }: { initialState: GameCampaignDiskState<GameC
   }, [catalog.formations, initialHubCategory, selectItem]);
 
   const selectWave = (levelId: string, waveId: string) => {
-    const item = catalog.byId[`wave:${waveId}`];
-    if (item) selectItem(item);
-    else if (canDiscard()) {
-      replaceSelection(createFocusedPreviewCampaign(sourceCampaign, { kind: 'wave', levelId, waveId }));
+    try {
+      const next = createFocusedPreviewCampaign(preview.campaign, { kind: 'wave', levelId, waveId });
+      replaceSelection(next, `wave:${waveId}`);
       setSequenceLevelId(levelId);
       setQueuedWaveIds((current) => sequenceLevelId === levelId
         ? Array.from(new Set([...current, waveId]))
         : [waveId]);
+      setAuthoringMode('playtest');
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Could not select that Wave', true);
     }
+  };
+
+  const selectMission = (levelId: string) => {
+    const level = preview.campaign.levels.find((candidate) => candidate.id === levelId);
+    const firstWave = level?.waves.slice().sort((left, right) => left.order - right.order)[0];
+    if (!level || !firstWave) return;
+    setSequenceLevelId(level.id);
+    setQueuedWaveIds([firstWave.id]);
+    selectWave(level.id, firstWave.id);
   };
 
   const selectEvent = (event: WaveEvent) => {
@@ -789,28 +836,61 @@ function Workspace({ initialState }: { initialState: GameCampaignDiskState<GameC
       : current.filter((id) => id !== waveId));
   };
 
-  const playQueuedWaves = () => {
-    if (queuedWaves.length === 0) {
+  const startWaveSequence = (levelId: string, waves: readonly WaveDefinition[], label: string) => {
+    if (waves.length === 0) {
       notify('Select at least one wave for the sequence', true);
       return;
     }
-    if (!canDiscard()) return;
-    const first = queuedWaves[0];
+    const first = waves[0];
     try {
-      const next = createFocusedPreviewCampaign(sourceCampaign, {
+      const next = createFocusedPreviewCampaign(preview.campaign, {
         kind: 'wave',
-        levelId: sequenceLevelId,
+        levelId,
         waveId: first.id
       });
+      setSequenceLevelId(levelId);
+      setQueuedWaveIds(waves.map((wave) => wave.id));
       setSequenceActive(true);
       setSequenceIndex(0);
       setBaselineLoadout(cloneLoadout(loadout));
       replaceSelection(next, `wave:${first.id}`, { preserveSequence: true });
       setMobilePanel('waves');
-      notify(`Running ${queuedWaves.length} selected wave${queuedWaves.length === 1 ? '' : 's'} in campaign order`);
+      notify(`${label} · ${waves.length} Wave${waves.length === 1 ? '' : 's'} in campaign order`);
     } catch (error) {
       setSequenceActive(false);
       notify(error instanceof Error ? error.message : 'Could not start the selected waves', true);
+    }
+  };
+
+  const playQueuedWaves = () => startWaveSequence(sequenceLevelId, queuedWaves, 'Running selection');
+
+  const runFullMission = () => {
+    if (!selectedLevel) return;
+    const waves = [...selectedLevel.waves].sort((left, right) => left.order - right.order);
+    startWaveSequence(selectedLevel.id, waves, `Running ${selectedLevel.name}`);
+  };
+
+  const restartWaveSequence = () => startWaveSequence(sequenceLevelId, queuedWaves, 'Restarting sequence');
+
+  const jumpToCheckpoint = (checkpointId: string) => {
+    const checkpoint = checkpointOptions.find((item) => item.id === checkpointId);
+    if (!checkpoint || !selectedLevel) return;
+    try {
+      const next = createFocusedPreviewCampaign(preview.campaign, {
+        kind: 'wave',
+        levelId: selectedLevel.id,
+        waveId: checkpoint.waveId
+      });
+      replaceSelection(next, `wave:${checkpoint.waveId}`);
+      setSelectedEventId(checkpoint.eventId);
+      const event = next.previewWave.events.find((candidate) => candidate.id === checkpoint.eventId);
+      setSelectedPhaseId(event?.kind === 'boss' ? event.phases[0]?.id ?? null : null);
+      setSequenceLevelId(selectedLevel.id);
+      setQueuedWaveIds((current) => Array.from(new Set([...current, checkpoint.waveId])));
+      setAuthoringMode('playtest');
+      notify(`Jumped to ${checkpoint.label}`);
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Could not jump to that checkpoint', true);
     }
   };
 
@@ -832,7 +912,7 @@ function Workspace({ initialState }: { initialState: GameCampaignDiskState<GameC
       return;
     }
     try {
-      const next = createFocusedPreviewCampaign(sourceCampaign, {
+      const next = createFocusedPreviewCampaign(preview.campaign, {
         kind: 'wave',
         levelId: sequenceLevelId,
         waveId: nextWave.id
@@ -844,7 +924,7 @@ function Workspace({ initialState }: { initialState: GameCampaignDiskState<GameC
       setPlaying(false);
       notify(error instanceof Error ? error.message : 'Could not continue the selected waves', true);
     }
-  }, [notify, queuedWaves, replaceSelection, runtimeState?.complete, sequenceActive, sequenceIndex, sequenceLevelId, sourceCampaign]);
+  }, [notify, preview.campaign, queuedWaves, replaceSelection, runtimeState?.complete, sequenceActive, sequenceIndex, sequenceLevelId]);
 
   const updateSelectedEvent = (event: WaveEvent) => {
     const nextWave: WaveDefinition = {
@@ -1275,9 +1355,32 @@ function Workspace({ initialState }: { initialState: GameCampaignDiskState<GameC
               <div className="cl-wave-sequence-actions">
                 <button type="button" aria-label="Previous wave" disabled={selectedWaveIndex <= 0} onClick={() => selectAdjacentWave(-1)}>‹</button>
                 <button type="button" className="is-primary" disabled={queuedWaves.length === 0} onClick={playQueuedWaves}>{sequenceActive ? 'Running' : 'Run selected'}</button>
+                <button type="button" disabled={!selectedLevel} onClick={runFullMission}>Run Mission</button>
+                <button type="button" disabled={queuedWaves.length === 0} onClick={restartWaveSequence}>Restart sequence</button>
                 <button type="button" aria-label="Next wave" disabled={!selectedLevel || selectedWaveIndex < 0 || selectedWaveIndex >= selectedLevel.waves.length - 1} onClick={() => selectAdjacentWave(1)}>›</button>
               </div>
             </header>
+            <div className="cl-wave-pickers">
+              <label>
+                <span>Mission</span>
+                <select value={selectedLevel?.id ?? ''} onChange={(input) => selectMission(input.target.value)}>
+                  {missionOptions.map((level) => <option value={level.id} key={level.id}>{level.order}. {level.name}</option>)}
+                </select>
+              </label>
+              <label>
+                <span>Wave</span>
+                <select value={preview.waveId} onChange={(input) => selectedLevel && selectWave(selectedLevel.id, input.target.value)}>
+                  {selectedLevel?.waves.slice().sort((left, right) => left.order - right.order).map((wave) => <option value={wave.id} key={wave.id}>{wave.order}. {wave.name}</option>)}
+                </select>
+              </label>
+              <label>
+                <span>Jump to checkpoint</span>
+                <select value="" disabled={checkpointOptions.length === 0} onChange={(input) => jumpToCheckpoint(input.target.value)}>
+                  <option value="">{checkpointOptions.length ? 'Elite, mini-boss, or boss…' : 'No checkpoints in this Mission'}</option>
+                  {checkpointOptions.map((checkpoint) => <option value={checkpoint.id} key={checkpoint.id}>{checkpoint.label}</option>)}
+                </select>
+              </label>
+            </div>
             <div className="cl-wave-strip">
               {selectedLevel?.waves.map((wave) => (
                 <div className="cl-wave-choice" key={wave.id}>
@@ -1319,6 +1422,7 @@ function Workspace({ initialState }: { initialState: GameCampaignDiskState<GameC
               onPromote={promoteToLevelEditor}
               promotionMode={promotionMode}
               onPromotionModeChange={setPromotionMode}
+              formationPack={selectedFormationPack}
             />
           ) : <>
             <header className="cl-panel-heading"><div><p>Safe live edits</p><strong>Tuning inspector</strong></div><span>{selectedEvent ? selectedEvent.kind : 'No event'}</span></header>
@@ -1331,6 +1435,7 @@ function Workspace({ initialState }: { initialState: GameCampaignDiskState<GameC
                 onChange={updateSelectedEvent}
                 onReset={resetSelection}
                 onReplay={restart}
+                formationPack={selectedFormationPack}
               />
               {activeSandboxPrototype && activeSandboxDescriptor ? (
                 <section className="cl-sandbox-provenance" role="note">

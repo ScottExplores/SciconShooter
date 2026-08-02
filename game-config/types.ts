@@ -139,11 +139,22 @@ export type MusicId = 'procedural-main';
 export type SpawnPatternId =
   | 'single-random'
   | 'row'
+  | 'staggered-row'
   | 'v'
+  | 'double-v'
   | 'sine'
   | 'pincer'
   | 'grid'
   | 'diamond'
+  | 'crescent'
+  | 'arc'
+  | 'ring'
+  | 'pods'
+  | 'wheel'
+  | 'snake'
+  | 'escort'
+  | 'shield-wall'
+  | 'lanes'
   | 'spiral'
   | 'asteroid-lanes';
 export type SpawnPositionId =
@@ -165,6 +176,67 @@ export type WeaponId = 'aimed-shot' | 'wall-bolt' | 'burst-volley' | 'lane-beam'
 export type ScorecardMetricId = 'wave' | 'targets' | 'coins' | 'flight';
 export type EnemyRank = 'standard' | 'elite';
 export type EnemyAttackPatternId = 'aimed-burst';
+
+export type FormationEntryPathId =
+  | 'sweep-bank-reentry'
+  | 'formation-drop'
+  | 'spiral-entry'
+  | 'paired-flank'
+  | 'diamond-lock'
+  | 'double-helix'
+  | 'side-wall-entry'
+  | 'lane-stagger'
+  | 'ring-assemble'
+  | 'armored-grid'
+  | 'mirrored-swoop'
+  | 'pod-converge'
+  | 'convoy-column';
+
+export type FormationMovementId =
+  | 'gentle-drift'
+  | 'lateral-sweep'
+  | 'expand-collapse'
+  | 'rotating-wheel'
+  | 'snake-weave'
+  | 'split-pods'
+  | 'lane-shift';
+
+export type FormationAttackBehaviorId =
+  | 'single-dive'
+  | 'paired-dive'
+  | 'alternating-wings'
+  | 'leader-escorts'
+  | 'row-sequence'
+  | 'diagonal-groups'
+  | 'sweep-strafe'
+  | 'pincer-pass'
+  | 'ring-collapse'
+  | 'aimed-volley'
+  | 'spread-volley'
+  | 'lane-pass'
+  | 'split-hunt';
+
+export type FormationReturnBehaviorId = 'reform' | 'transform' | 'retreat' | 'exit';
+export type FormationFiringBehaviorId = 'none' | 'post-formation' | 'staggered' | 'priority';
+
+/**
+ * Optional per-encounter choreography overrides. The reusable formation pack
+ * remains the default; an authored Wave can remix one part without cloning
+ * the shape, enemy composition, or the rest of the behavior definition.
+ */
+export interface FormationBehaviorOverride {
+  entryPathId?: FormationEntryPathId;
+  movementId?: FormationMovementId;
+  attackId?: FormationAttackBehaviorId;
+  firingBehavior?: FormationFiringBehaviorId;
+  returnId?: FormationReturnBehaviorId;
+  holdSeconds?: number;
+  telegraphSeconds?: number;
+  attackDurationSeconds?: number;
+  recoverySeconds?: number;
+  attackGroupSize?: number;
+  attackCycles?: number;
+}
 
 export type CampaignMissionRole =
   | 'introduction'
@@ -344,9 +416,24 @@ export interface FormationPackDefinition {
   enemyCount: number;
   totalThreatCost: number;
   entryDirection: 'top' | 'left' | 'right' | 'split';
-  entryPath: string;
+  entryPath: FormationEntryPathId;
   formationShape: SpawnPatternId;
-  firingBehavior: 'none' | 'post-formation' | 'staggered' | 'priority';
+  movementBehavior: FormationMovementId;
+  attackBehavior: FormationAttackBehaviorId;
+  firingBehavior: FormationFiringBehaviorId;
+  returnBehavior: FormationReturnBehaviorId;
+  /** Quiet assembled hold before the first attack warning. */
+  holdSeconds: number;
+  /** Readable preparation window before the selected subgroup attacks. */
+  telegraphSeconds: number;
+  /** Duration for in-formation volleys; dive attacks end when the subgroup reforms. */
+  attackDurationSeconds: number;
+  /** Quiet time after every attack group reforms. */
+  attackRecoverySeconds: number;
+  /** Maximum members selected for one authored attack cycle. */
+  attackGroupSize: number;
+  /** Zero repeats until defeated; positive values end with the authored return behavior. */
+  attackCycles: number;
   synergyAdjustment: number;
   minimumSector: number;
   maximumSimultaneousInstances: number;
@@ -844,6 +931,7 @@ export interface SpawnEvent extends BaseWaveEvent {
    * patternId continues to control entry, hold, dive, and return choreography.
    */
   formationSlots?: FormationSlot[];
+  formationBehavior?: FormationBehaviorOverride;
   enemies: SpawnEnemySetting[];
 }
 

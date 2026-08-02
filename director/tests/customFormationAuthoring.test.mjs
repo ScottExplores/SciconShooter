@@ -24,6 +24,11 @@ const firstSpawn = (campaign) => campaign.levels
   .flatMap((wave) => wave.events)
   .find((event) => event.kind === 'spawn');
 
+const firstGroupedSpawn = (campaign) => campaign.levels
+  .flatMap((level) => level.waves)
+  .flatMap((wave) => wave.events)
+  .find((event) => event.kind === 'spawn' && event.patternId !== 'single-random' && event.patternId !== 'asteroid-lanes');
+
 const bindSpawnToPack = (campaign, spawn, packId) => {
   const pack = campaign.formationPacks.find((candidate) => candidate.id === packId);
   const level = campaign.levels.find((candidate) => candidate.waves.some((wave) => (
@@ -51,6 +56,46 @@ test('server campaign validation accepts a bounded custom formation whose slots 
   bindSpawnToPack(campaign, spawn, 'pack-orbit-v');
 
   assert.deepEqual(validateGameCampaign(campaign), { valid: true, errors: [] });
+});
+
+test('server campaign validation accepts modular formation choreography overrides', async () => {
+  const campaign = await loadCampaign();
+  const spawn = firstGroupedSpawn(campaign);
+  assert.ok(spawn, 'tracked campaign should provide a grouped spawn event');
+  spawn.formationBehavior = {
+    entryPathId: 'ring-assemble',
+    movementId: 'rotating-wheel',
+    attackId: 'ring-collapse',
+    firingBehavior: 'staggered',
+    returnId: 'reform',
+    holdSeconds: 1.4,
+    telegraphSeconds: 0.6,
+    attackDurationSeconds: 1.5,
+    recoverySeconds: 1.1,
+    attackGroupSize: 3,
+    attackCycles: 4
+  };
+
+  assert.deepEqual(validateGameCampaign(campaign), { valid: true, errors: [] });
+});
+
+test('server campaign validation rejects unknown and unsafe modular choreography overrides', async () => {
+  const campaign = await loadCampaign();
+  const spawn = firstGroupedSpawn(campaign);
+  assert.ok(spawn, 'tracked campaign should provide a grouped spawn event');
+  spawn.formationBehavior = {
+    attackId: 'chase-forever',
+    telegraphSeconds: 0.05,
+    attackGroupSize: 0,
+    unsupported: true
+  };
+
+  const result = validateGameCampaign(campaign);
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.some((error) => error.includes('/formationBehavior/attackId')));
+  assert.ok(result.errors.some((error) => error.includes('/formationBehavior/telegraphSeconds')));
+  assert.ok(result.errors.some((error) => error.includes('/formationBehavior/attackGroupSize')));
+  assert.ok(result.errors.some((error) => error.includes('unsupported fields: unsupported')));
 });
 
 test('server campaign validation rejects mismatched, unsafe, duplicate, and ungrouped custom slots', async (t) => {

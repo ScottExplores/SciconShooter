@@ -11,6 +11,7 @@ import type {
   BossHealthPhase,
   BossWeaponSetting,
   EnemyId,
+  FormationPackDefinition,
   MovementPatternId,
   PowerupId,
   SpawnEvent,
@@ -19,6 +20,7 @@ import type {
   WeaponId
 } from '@game/game-config/types';
 import { EditorIcon } from '@director/editor/EditorIcon';
+import { FormationBehaviorFields } from './FormationBehaviorFields';
 
 interface CombatLabInspectorProps {
   event: WaveEvent | null;
@@ -27,6 +29,7 @@ interface CombatLabInspectorProps {
   onChange: (event: WaveEvent) => void;
   onReset: () => void;
   onReplay: () => void;
+  formationPack?: FormationPackDefinition;
 }
 
 const clampNumber = (value: number, min: number, max: number) => (
@@ -99,7 +102,15 @@ const updatePrimaryEnemy = (
   enemies: event.enemies.map((enemy, index) => index === 0 ? update(enemy) : enemy)
 });
 
-function SpawnInspector({ event, onChange }: { event: SpawnEvent; onChange: (event: SpawnEvent) => void }) {
+function SpawnInspector({
+  event,
+  formationPack,
+  onChange
+}: {
+  event: SpawnEvent;
+  formationPack?: FormationPackDefinition;
+  onChange: (event: SpawnEvent) => void;
+}) {
   const enemy = event.enemies[0];
   if (!enemy) return <p className="cl-empty-copy">This spawn has no enemy setting. Reset it or choose an enemy from the Library.</p>;
   const secondaryEnemyIds = new Set(event.enemies.slice(1).map((item) => item.enemyId));
@@ -171,6 +182,9 @@ function SpawnInspector({ event, onChange }: { event: SpawnEvent; onChange: (eve
           <NumberField label="Projectile" value={enemy.projectileSpeed ?? 5} min={0.1} max={30} step={0.1} onChange={(projectileSpeed) => onChange(updatePrimaryEnemy(event, (item) => ({ ...item, projectileSpeed })))} />
           <NumberField label="Burst" value={enemy.burstCount ?? 3} min={1} max={8} onChange={(burstCount) => onChange(updatePrimaryEnemy(event, (item) => ({ ...item, burstCount: Math.round(burstCount) })))} />
         </div>
+      ) : null}
+      {event.patternId !== 'single-random' && event.patternId !== 'asteroid-lanes' ? (
+        <FormationBehaviorFields event={event} pack={formationPack} onChange={onChange} />
       ) : null}
     </>
   );
@@ -324,7 +338,8 @@ export function CombatLabInspector({
   onSelectedPhaseIdChange,
   onChange,
   onReset,
-  onReplay
+  onReplay,
+  formationPack
 }: CombatLabInspectorProps) {
   if (!event) {
     return <div className="cl-empty-state"><EditorIcon name="spawn" /><strong>Select something to test</strong><p>Choose a wave, enemy, formation, boss, weapon, movement pattern, or powerup from the Library.</p></div>;
@@ -355,7 +370,7 @@ export function CombatLabInspector({
         </label>
       </details>
 
-      {event.kind === 'spawn' ? <SpawnInspector event={event} onChange={onChange} /> : null}
+      {event.kind === 'spawn' ? <SpawnInspector event={event} formationPack={formationPack} onChange={onChange} /> : null}
       {event.kind === 'boss' ? <BossInspector event={event} selectedPhaseId={selectedPhaseId} onSelectedPhaseIdChange={onSelectedPhaseIdChange} onChange={onChange} /> : null}
       {event.kind === 'asteroid-belt' ? (
         <div className="cl-inspector-grid">

@@ -31,6 +31,9 @@ const eligibility = (overrides = {}) => ({
   fireDelaySeconds: 2,
   formationFiringBehavior: 'staggered',
   formationState: 'hold',
+  formationGroupReady: true,
+  formationAttackSelected: true,
+  formationAttackActive: true,
   isElite: false,
   spawnFrame: 100,
   currentFrame: 220,
@@ -69,6 +72,37 @@ test('formation-pack fire policy can mute or delay otherwise eligible shooters',
     formationState: 'hold'
   })), true);
   assert.equal(canCampaignEnemyFire(eligibility({ behavior: undefined })), true, 'legacy enemies stay compatible');
+});
+
+test('group-controlled formations stay quiet until assembled and only the active subgroup fires', () => {
+  assert.equal(canCampaignEnemyFire(eligibility({ formationGroupReady: false })), false);
+  assert.equal(canCampaignEnemyFire(eligibility({ formationAttackSelected: false })), false);
+  assert.equal(canCampaignEnemyFire(eligibility({ formationAttackActive: false })), false);
+  assert.equal(canCampaignEnemyFire(eligibility({
+    formationGroupReady: true,
+    formationAttackSelected: true,
+    formationAttackActive: true
+  })), true);
+});
+
+test('post-formation volleys wait for the full group but do not require a dive subgroup', () => {
+  const postFormation = {
+    behavior: 'aimed-burst',
+    formationFiringBehavior: 'post-formation',
+    formationState: 'hold'
+  };
+  assert.equal(canCampaignEnemyFire(eligibility({
+    ...postFormation,
+    formationGroupReady: false,
+    formationAttackSelected: false,
+    formationAttackActive: false
+  })), false);
+  assert.equal(canCampaignEnemyFire(eligibility({
+    ...postFormation,
+    formationGroupReady: true,
+    formationAttackSelected: false,
+    formationAttackActive: false
+  })), true);
 });
 
 test('priority packs recognize pressure roles and resolve the active pack policy', () => {

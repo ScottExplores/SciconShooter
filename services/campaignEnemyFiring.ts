@@ -11,6 +11,9 @@ export interface CampaignEnemyFireEligibility {
   fireDelaySeconds?: number;
   formationFiringBehavior?: FormationPackDefinition['firingBehavior'];
   formationState?: CampaignEnemyFormationState;
+  formationGroupReady?: boolean;
+  formationAttackSelected?: boolean;
+  formationAttackActive?: boolean;
   isElite: boolean;
   spawnFrame: number;
   currentFrame: number;
@@ -32,16 +35,19 @@ export const getCampaignFireDelayFrames = (
 
 const formationAllowsFire = ({
   formationFiringBehavior,
-  formationState
-}: Pick<CampaignEnemyFireEligibility, 'formationFiringBehavior' | 'formationState'>) => {
+  formationState,
+  formationGroupReady,
+  formationAttackSelected,
+  formationAttackActive
+}: Pick<CampaignEnemyFireEligibility, 'formationFiringBehavior' | 'formationState' | 'formationGroupReady' | 'formationAttackSelected' | 'formationAttackActive'>) => {
   if (formationFiringBehavior === 'none') return false;
+  if (formationState === 'entry' || formationState === 'return') return false;
   if (formationFiringBehavior === 'post-formation') {
-    return formationState === undefined || formationState === 'hold';
+    return formationState === undefined || (formationGroupReady !== false && formationState === 'hold');
   }
-  // The runtime already serializes standard shooters. `staggered` therefore
-  // inherits that one-source cadence, while `priority` is resolved by the
-  // deterministic candidate ordering in GameEngine.
-  return true;
+  // Authored staggered and priority formations may only fire from the
+  // subgroup currently selected by the group controller.
+  return formationState === undefined || Boolean(formationGroupReady && formationAttackSelected && formationAttackActive);
 };
 
 export const canCampaignEnemyFire = (input: CampaignEnemyFireEligibility) => {

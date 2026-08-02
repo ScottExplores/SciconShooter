@@ -280,6 +280,7 @@ const createSyntheticSpawnEvent = (
   enemyId: EnemyId = 'drone'
 ): SpawnEvent => {
   const enemy = ENEMY_CATALOG[enemyId];
+  const role = campaign.enemyRoles.find((candidate) => candidate.enemyId === enemyId);
   return {
     id: allocateSyntheticEventId(campaign, `${patternId}-${enemyId}`),
     kind: 'spawn',
@@ -294,6 +295,7 @@ const createSyntheticSpawnEvent = (
     spawnIntervalSeconds: 0.45,
     enemies: [{
       enemyId,
+      ...(role ? { roleId: role.id } : {}),
       spriteKey: enemy.defaultSpriteKey,
       weight: 1,
       health: enemy.baseHealth,
@@ -434,6 +436,12 @@ const focusBossPhase = (
   event: BossEvent,
   phaseId: string
 ): BossEvent => {
+  const phasePreviewEvent = clone(event);
+  // A focused phase starts at full health and therefore bypasses the source
+  // encounter's death/revival transition. Keeping revival can point back to
+  // the newly promoted opening phase and make an otherwise valid Lab preview
+  // fail the campaign's revival ordering rule.
+  delete phasePreviewEvent.revival;
   const phase = event.phases.find((candidate) => candidate.id === phaseId);
   if (!phase) throw new Error(`Unknown boss phase: ${phaseId}`);
   const phaseWeaponIds = phase.weaponSettingIds.length > 0
@@ -449,7 +457,7 @@ const focusBossPhase = (
   };
   if (event.bossId === 'paywall-wall') {
     return {
-      ...event,
+      ...phasePreviewEvent,
       movementPatternId: phase.movementPatternId,
       speed: event.speed * phase.speedMultiplier,
       weapons: clone(weapons),
@@ -469,7 +477,7 @@ const focusBossPhase = (
         weaponSettingIds: remappedWeaponIds
       }));
     return {
-      ...event,
+      ...phasePreviewEvent,
       weapons: clone(weapons),
       phases: [focusedPhase, ...dormantReferencedPhases],
       // A focused phase starts as the opening phase, so an authored revival
@@ -478,7 +486,7 @@ const focusBossPhase = (
     };
   }
   return {
-    ...event,
+    ...phasePreviewEvent,
     weapons: clone(weapons),
     phases: [focusedPhase],
     revival: undefined

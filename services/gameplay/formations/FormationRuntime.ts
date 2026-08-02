@@ -1,12 +1,33 @@
+import type {
+  FormationAttackBehaviorId,
+  FormationBehaviorOverride,
+  FormationEntryPathId,
+  FormationFiringBehaviorId,
+  FormationMovementId,
+  FormationPackDefinition,
+  FormationReturnBehaviorId,
+  SpawnPatternId
+} from '../../../game-config/types';
+
 export type ConfiguredFormationMode =
   | 'row'
+  | 'staggered-row'
   | 'v'
+  | 'double-v'
   | 'sine'
   | 'pincer'
   | 'grid'
   | 'diamond'
-  | 'spiral'
-  | 'escort';
+  | 'crescent'
+  | 'arc'
+  | 'ring'
+  | 'pods'
+  | 'wheel'
+  | 'snake'
+  | 'escort'
+  | 'shield-wall'
+  | 'lanes'
+  | 'spiral';
 
 /**
  * How many hostiles ride in one escort ring before a second pod is started.
@@ -32,12 +53,32 @@ export interface FormationGeometryEvent {
   id: string;
   patternId?: string;
   positionId?: string;
+  entryPathId?: FormationEntryPathId;
   spawnAnchor?: FormationPoint;
   formationSlots?: readonly FormationPoint[];
   enemySpriteKeys?: readonly string[];
   entryDirection?: FormationEntryDirection;
   entryPath?: string;
   entryBehavior?: FormationEntryBehavior;
+}
+
+export interface FormationChoreographyEvent {
+  patternId?: SpawnPatternId | string;
+  formationBehavior?: FormationBehaviorOverride;
+}
+
+export interface ResolvedFormationChoreography {
+  entryPathId: FormationEntryPathId;
+  movementId: FormationMovementId;
+  attackId: FormationAttackBehaviorId;
+  firingBehavior: FormationFiringBehaviorId;
+  returnId: FormationReturnBehaviorId;
+  holdSeconds: number;
+  telegraphSeconds: number;
+  attackDurationSeconds: number;
+  recoverySeconds: number;
+  attackGroupSize: number;
+  attackCycles: number;
 }
 
 export interface FormationViewport {
@@ -80,6 +121,7 @@ export interface FormationEntryPlanInput {
   sideSentry: boolean;
   framesPerSecond: number;
   target: FormationPoint;
+  entryPathId?: FormationEntryPathId;
 }
 
 export interface FormationEntryPlan {
@@ -139,6 +181,18 @@ export interface FormationDiveMotion {
   steering: number;
 }
 
+export interface FormationMovementPointInput {
+  movementId: FormationMovementId;
+  base: FormationPoint;
+  groupCenter: FormationPoint;
+  frame: number;
+  groupSeed: number;
+  index: number;
+  count: number;
+  viewport: FormationViewport;
+  transformCycle?: number;
+}
+
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
 const normalizeAnchor = (anchor: FormationPoint | undefined) => {
@@ -188,8 +242,21 @@ export const resolveConfiguredFormationMode = (
   patternId?: string
 ): ConfiguredFormationMode => {
   const pattern = String(patternId || 'row').toLowerCase();
-  // Checked before 'v' so 'escort' is not swallowed by the substring match.
-  if (pattern.includes('escort') || pattern.includes('pod')) return 'escort';
+  if (pattern.includes('shield-wall')) return 'shield-wall';
+  if (pattern.includes('staggered-row')) return 'staggered-row';
+  if (pattern.includes('double-v')) return 'double-v';
+  if (pattern.includes('crescent')) return 'crescent';
+  if (pattern === 'arc' || pattern.includes('arc-')) return 'arc';
+  if (pattern.includes('ring')) return 'ring';
+  if (pattern.includes('wheel')) return 'wheel';
+  if (pattern.includes('snake') || pattern.includes('chain')) return 'snake';
+  // Checked before the bare 'v' match. Existing escort-pod and pod-converge
+  // events retain the guarded-pod geometry, while the authored plural `pods`
+  // preset remains an independent choreography shape.
+  if (pattern.includes('escort') || pattern.includes('convoy')) return 'escort';
+  if (pattern === 'pod' || pattern.includes('pod-')) return 'escort';
+  if (pattern.includes('pods')) return 'pods';
+  if (pattern === 'lanes' || pattern.includes('lane-')) return 'lanes';
   if (pattern.includes('grid') || pattern.includes('wall')) return 'grid';
   if (pattern.includes('diamond')) return 'diamond';
   if (pattern.includes('spiral')) return 'spiral';
@@ -198,6 +265,116 @@ export const resolveConfiguredFormationMode = (
   if (pattern.includes('v')) return 'v';
   return 'row';
 };
+
+const defaultEntryPathForMode = (mode: ConfiguredFormationMode): FormationEntryPathId => {
+  if (mode === 'spiral' || mode === 'wheel') return 'spiral-entry';
+  if (mode === 'pincer') return 'paired-flank';
+  if (mode === 'diamond' || mode === 'crescent' || mode === 'arc') return 'diamond-lock';
+  if (mode === 'ring') return 'ring-assemble';
+  if (mode === 'pods') return 'pod-converge';
+  if (mode === 'escort') return 'convoy-column';
+  if (mode === 'shield-wall' || mode === 'lanes') return 'lane-stagger';
+  if (mode === 'snake' || mode === 'sine') return 'double-helix';
+  if (mode === 'grid') return 'formation-drop';
+  return 'mirrored-swoop';
+};
+
+const defaultMovementForMode = (mode: ConfiguredFormationMode): FormationMovementId => {
+  if (mode === 'wheel' || mode === 'ring' || mode === 'spiral') return 'rotating-wheel';
+  if (mode === 'crescent' || mode === 'arc' || mode === 'diamond') return 'expand-collapse';
+  if (mode === 'snake' || mode === 'sine') return 'snake-weave';
+  if (mode === 'pods' || mode === 'double-v') return 'split-pods';
+  if (mode === 'lanes' || mode === 'shield-wall') return 'lane-shift';
+  if (mode === 'pincer') return 'lateral-sweep';
+  return 'gentle-drift';
+};
+
+const defaultAttackForMode = (mode: ConfiguredFormationMode): FormationAttackBehaviorId => {
+  if (mode === 'pincer') return 'pincer-pass';
+  if (mode === 'ring' || mode === 'wheel' || mode === 'spiral') return 'ring-collapse';
+  if (mode === 'double-v' || mode === 'pods') return 'alternating-wings';
+  if (mode === 'escort') return 'leader-escorts';
+  if (mode === 'shield-wall' || mode === 'lanes') return 'lane-pass';
+  if (mode === 'diamond' || mode === 'crescent' || mode === 'arc') return 'diagonal-groups';
+  if (mode === 'row' || mode === 'staggered-row' || mode === 'grid') return 'row-sequence';
+  return 'paired-dive';
+};
+
+/** Resolves pack defaults plus a Wave's surgical choreography overrides. */
+export const resolveFormationChoreography = (
+  event: FormationChoreographyEvent,
+  pack?: FormationPackDefinition
+): ResolvedFormationChoreography => {
+  const mode = resolveConfiguredFormationMode(event.patternId);
+  const override = event.formationBehavior;
+  return {
+    entryPathId: override?.entryPathId ?? pack?.entryPath ?? defaultEntryPathForMode(mode),
+    movementId: override?.movementId ?? pack?.movementBehavior ?? defaultMovementForMode(mode),
+    attackId: override?.attackId ?? pack?.attackBehavior ?? defaultAttackForMode(mode),
+    firingBehavior: override?.firingBehavior ?? pack?.firingBehavior ?? 'post-formation',
+    returnId: override?.returnId ?? pack?.returnBehavior ?? 'reform',
+    holdSeconds: clamp(override?.holdSeconds ?? pack?.holdSeconds ?? 1.5, 0.35, 12),
+    telegraphSeconds: clamp(override?.telegraphSeconds ?? pack?.telegraphSeconds ?? 0.65, 0.2, 4),
+    attackDurationSeconds: clamp(
+      override?.attackDurationSeconds ?? pack?.attackDurationSeconds ?? 1.25,
+      0.3,
+      8
+    ),
+    recoverySeconds: clamp(override?.recoverySeconds ?? pack?.attackRecoverySeconds ?? 1.25, 0.35, 12),
+    attackGroupSize: Math.max(1, Math.floor(override?.attackGroupSize ?? pack?.attackGroupSize ?? 2)),
+    attackCycles: Math.max(0, Math.floor(override?.attackCycles ?? pack?.attackCycles ?? 0))
+  };
+};
+
+/** Deterministic subgroup selection keeps every authored attack readable and replayable. */
+export const resolveFormationAttackIndices = (
+  attackId: FormationAttackBehaviorId,
+  cycle: number,
+  count: number,
+  requestedGroupSize: number
+) => {
+  const size = Math.max(0, Math.floor(count));
+  if (size === 0) return [];
+  const groupSize = Math.min(size, Math.max(1, Math.floor(requestedGroupSize)));
+  const normalizedCycle = Math.max(0, Math.floor(cycle));
+  const unique = (values: number[]) => [...new Set(values.map((value) => ((value % size) + size) % size))]
+    .slice(0, groupSize);
+
+  if (attackId === 'paired-dive' || attackId === 'pincer-pass') {
+    const offset = normalizedCycle % Math.ceil(size / 2);
+    return unique([offset, size - 1 - offset]);
+  }
+  if (attackId === 'alternating-wings' || attackId === 'split-hunt') {
+    const half = Math.max(1, Math.ceil(size / 2));
+    const start = normalizedCycle % 2 === 0 ? 0 : Math.floor(size / 2);
+    return unique(Array.from({ length: groupSize }, (_, index) => start + (index % half)));
+  }
+  if (attackId === 'leader-escorts') {
+    const leader = Math.floor((size - 1) / 2);
+    const values = [leader];
+    for (let distance = 1; values.length < groupSize; distance++) values.push(leader - distance, leader + distance);
+    return unique(values);
+  }
+  if (attackId === 'diagonal-groups') {
+    const parity = normalizedCycle % 2;
+    return unique(Array.from({ length: size }, (_, index) => index).filter((index) => index % 2 === parity));
+  }
+  if (attackId === 'ring-collapse') {
+    const step = Math.max(1, Math.floor(size / groupSize));
+    return unique(Array.from({ length: groupSize }, (_, index) => normalizedCycle + index * step));
+  }
+  if (attackId === 'sweep-strafe') {
+    const reverse = normalizedCycle % 2 === 1;
+    return unique(Array.from({ length: groupSize }, (_, index) => reverse ? size - 1 - index : index));
+  }
+
+  const start = (normalizedCycle * groupSize) % size;
+  return unique(Array.from({ length: groupSize }, (_, index) => start + index));
+};
+
+export const isFormationVolleyAttack = (attackId: FormationAttackBehaviorId) => (
+  attackId === 'aimed-volley' || attackId === 'spread-volley'
+);
 
 /**
  * Shapes the loose `single-*`/`*-random` spawn groups fly.
@@ -311,15 +488,52 @@ export const resolveConfiguredFormationTarget = ({
 
   if (usesDnaFleet || usesRingFleet) {
     // Compatibility layouts above intentionally bypass the generic shapes.
-  } else if (mode === 'grid') {
+  } else if (mode === 'ring' || mode === 'wheel') {
+    const ringSize = Math.min(12, count);
+    const ring = Math.floor(index / ringSize);
+    const localIndex = index % ringSize;
+    const localCount = Math.min(ringSize, count - ring * ringSize);
+    const angle = (localIndex / Math.max(1, localCount)) * Math.PI * 2 - Math.PI / 2;
+    const radiusX = Math.min(width * (0.2 + ring * 0.07), mobile ? 92 + ring * 24 : 142 + ring * 30);
+    const radiusY = mobile ? 42 + ring * 20 : 52 + ring * 24;
+    targetCenterX = centerX + Math.cos(angle) * radiusX;
+    targetCenterY = topY + 58 + ring * (mobile ? 70 : 82) + Math.sin(angle) * radiusY;
+  } else if (mode === 'crescent' || mode === 'arc') {
+    const progress = count <= 1 ? 0.5 : index / (count - 1);
+    const angle = Math.PI * (0.12 + progress * 0.76);
+    const radiusX = Math.min(width * 0.38, mobile ? 150 : 230);
+    const radiusY = mobile ? 72 : 88;
+    targetCenterX = centerX + Math.cos(angle) * radiusX;
+    targetCenterY = topY + Math.sin(angle) * radiusY + (mode === 'crescent' ? Math.abs(progress - 0.5) * 28 : 0);
+  } else if (mode === 'pods') {
+    const podCount = count >= 8 ? 4 : 2;
+    const pod = index % podCount;
+    const member = Math.floor(index / podCount);
+    const columns = podCount === 4 ? [-1.35, -0.45, 0.45, 1.35] : [-0.8, 0.8];
+    targetCenterX = centerX + columns[pod] * Math.min(width * 0.2, mobile ? 70 : 104) + (member % 2) * 18 - 9;
+    targetCenterY = topY + member * (mobile ? 42 : 48) + (pod % 2) * 18;
+  } else if (mode === 'snake') {
+    const progress = count <= 1 ? 0 : index / (count - 1);
+    targetCenterX = centerX + Math.sin(progress * Math.PI * 2.35 - Math.PI / 2) * Math.min(width * 0.31, mobile ? 118 : 188);
+    targetCenterY = topY + progress * Math.min(height * 0.26, mobile ? 210 : 248);
+  } else if (mode === 'shield-wall' || mode === 'lanes') {
+    const columns = Math.min(mode === 'lanes' ? 4 : (mobile ? 5 : 7), count);
+    const row = Math.floor(index / columns);
+    const column = index % columns;
+    const rowCount = Math.min(columns, count - row * columns);
+    const gapX = Math.min(mode === 'lanes' ? (mobile ? 72 : 96) : (mobile ? 58 : 72), (width - left * 2) / Math.max(1, columns - 1));
+    targetCenterX = centerX + (column - (rowCount - 1) / 2) * gapX;
+    targetCenterY = topY + row * (mode === 'lanes' ? (mobile ? 76 : 88) : (mobile ? 44 : 50));
+  } else if (mode === 'grid' || mode === 'staggered-row') {
     const columns = Math.min(mobile ? 5 : 8, Math.max(3, Math.ceil(Math.sqrt(count * 1.45))));
     const row = Math.floor(index / columns);
     const column = index % columns;
     const rowCount = Math.min(columns, count - row * columns);
     const gapX = Math.min(mobile ? 58 : 70, (width - left * 2) / Math.max(1, columns - 1));
-    targetCenterX = centerX + (column - (rowCount - 1) / 2) * gapX;
+    targetCenterX = centerX + (column - (rowCount - 1) / 2) * gapX
+      + (mode === 'staggered-row' && row % 2 === 1 ? gapX * 0.5 : 0);
     targetCenterY = topY + row * (mobile ? 48 : 56);
-  } else if (mode === 'v') {
+  } else if (mode === 'v' || mode === 'double-v') {
     const squadSize = Math.min(7, count);
     const squad = Math.floor(index / squadSize);
     const localIndex = index % squadSize;
@@ -328,6 +542,7 @@ export const resolveConfiguredFormationTarget = ({
     const gapX = Math.min(mobile ? 48 : 58, (width - left * 2) / Math.max(1, localCount - 1));
     targetCenterX = centerX + offset * gapX;
     targetCenterY = topY + squad * (mobile ? 70 : 78) + Math.abs(offset) * (mobile ? 17 : 20);
+    if (mode === 'double-v' && squad % 2 === 1) targetCenterX += (squad % 4 === 1 ? -1 : 1) * (mobile ? 42 : 58);
   } else if (mode === 'diamond') {
     const squadSize = Math.min(8, count);
     const squad = Math.floor(index / squadSize);
@@ -399,6 +614,9 @@ export const resolveConfiguredFormationSpawnPoint = ({
   const authoredDirection = normalizeEntryDirection(event.entryDirection);
   const entryPath = normalizeEntryPath(event.entryPath);
   const entryBehavior = normalizeEntryBehavior(event.entryBehavior);
+  const entryPathId = event.entryPathId
+    ?? entryPath as FormationEntryPathId | undefined
+    ?? defaultEntryPathForMode(resolveConfiguredFormationMode(patternId));
   let x = clamp(Number(randomSample) || 0, 0, 0.999999999999) * Math.max(1, width - 56);
   let y = -60;
 
@@ -414,70 +632,54 @@ export const resolveConfiguredFormationSpawnPoint = ({
       : { x, y };
   }
 
-  if (authoredDirection || entryPath || entryBehavior) {
-    const side = getAuthoredEntrySide(event.id, index);
-    const pair = Math.floor(index / 2);
-    let direction = authoredDirection ?? 'top';
-    if (entryBehavior === 'lane') direction = 'top';
-    if (
-      entryBehavior === 'flank'
-      && direction === 'top'
-    ) direction = 'split';
-
-    if (direction === 'left' || direction === 'right' || direction === 'split') {
-      const resolvedSide = direction === 'left'
-        ? -1
-        : direction === 'right'
-          ? 1
-          : side;
-      const sideDepth = pair % 5;
-      x = resolvedSide < 0
-        ? -76 - sideDepth * 16
-        : width + 76 + sideDepth * 16;
-      y = Math.max(18, height * 0.065) + sideDepth * Math.min(28, height * 0.032);
-      if (entryBehavior === 'dive') y -= Math.min(36, height * 0.04);
-      return { x, y };
-    }
-
-    const spread = count <= 1 ? 0.5 : index / Math.max(1, count - 1);
-    const seedNudge = ((getFormationGroupSeed(event.id) % 5) - 2) * 0.012;
-    const topEntryRight = Math.max(20, width - 56);
-    x = clamp(width * (0.12 + spread * 0.76 + seedNudge), 20, topEntryRight);
-    y = -72 - (index % 3) * 18;
-    if (entryPath?.includes('sweep-bank')) {
-      x = side < 0 ? width * 0.08 : width * 0.92;
-      y = -48 - pair * 14;
-    } else if (entryPath?.includes('ring-assemble')) {
-      const angle = (index / Math.max(1, count)) * Math.PI * 2 - Math.PI / 2;
-      x = clamp(
-        width / 2 + Math.cos(angle) * Math.min(width * 0.36, 152),
-        20,
-        topEntryRight
-      );
-      y = -84 - Math.round((Math.sin(angle) + 1) * 18);
-    } else if (entryBehavior === 'dive') {
-      y = -56 - (index % 2) * 12;
-    }
-    return { x, y };
-  }
-
-  const mode = resolveConfiguredFormationMode(patternId);
   const side = (index + getFormationGroupSeed(event.id)) % 2 === 0 ? -1 : 1;
   const pair = Math.floor(index / 2);
-  if (mode === 'pincer') {
+  let direction = authoredDirection ?? 'top';
+  if (entryBehavior === 'lane') direction = 'top';
+  if (entryBehavior === 'flank' && direction === 'top') direction = 'split';
+
+  // Direction is an independent authored dimension. Side and split entries
+  // retain main's off-screen lanes; top entries are then shaped by the resolved
+  // choreography path (pack default or per-Wave override).
+  if (direction === 'left' || direction === 'right' || direction === 'split') {
+    const resolvedSide = direction === 'left' ? -1 : direction === 'right' ? 1 : side;
+    const sideDepth = pair % 5;
+    x = resolvedSide < 0
+      ? -76 - sideDepth * 16
+      : width + 76 + sideDepth * 16;
+    y = Math.max(18, height * 0.065) + sideDepth * Math.min(28, height * 0.032);
+  } else if (entryPathId === 'formation-drop' || entryPathId === 'armored-grid') {
+    x = 24 + (index / Math.max(1, count - 1)) * Math.max(1, width - 72);
+    y = -84 - (index % 4) * 26;
+  } else if (entryPathId === 'paired-flank' || entryPathId === 'mirrored-swoop' || entryPathId === 'side-wall-entry') {
     x = side < 0 ? -72 : width + 72;
     y = Math.max(24, height * 0.08) + pair * 22;
-  } else if (mode === 'spiral') {
+  } else if (entryPathId === 'spiral-entry' || entryPathId === 'ring-assemble') {
     const angle = index * 0.92;
     x = width / 2 + Math.cos(angle) * Math.min(width * 0.42, 190);
     y = -96 - pair * 18;
-  } else if (mode === 'sine') {
+  } else if (entryPathId === 'double-helix') {
     x = 24 + (index / Math.max(1, count - 1)) * Math.max(1, width - 72);
     y = -80 - (Math.sin(index * 1.35) + 1) * 30;
+  } else if (entryPathId === 'lane-stagger') {
+    const lanes = Math.min(5, Math.max(2, count));
+    x = ((index % lanes) + 0.5) * (width / lanes);
+    y = -90 - Math.floor(index / lanes) * 42;
+  } else if (entryPathId === 'pod-converge') {
+    const pod = index % (count >= 8 ? 4 : 2);
+    x = count >= 8
+      ? [width * 0.08, width * 0.32, width * 0.68, width * 0.92][pod]
+      : (pod === 0 ? width * 0.12 : width * 0.88);
+    y = -80 - Math.floor(index / (count >= 8 ? 4 : 2)) * 30;
+  } else if (entryPathId === 'convoy-column') {
+    x = width / 2 + side * (index % 3) * 22;
+    y = -90 - index * 34;
   } else {
     x = side < 0 ? -78 - (index % 3) * 18 : width + 78 + (index % 3) * 18;
     y = -104 - pair * 14;
   }
+
+  if (entryBehavior === 'dive') y -= Math.min(36, height * 0.04);
 
   return { x, y };
 };
@@ -784,11 +986,21 @@ export const resolveFormationDiveMotion = ({
 
 const FORMATION_HOLD_FRAMES: Readonly<Record<ConfiguredFormationMode, number>> = Object.freeze({
   row: 92,
+  'staggered-row': 92,
   v: 84,
+  'double-v': 84,
   sine: 62,
   pincer: 54,
   grid: 104,
   diamond: 76,
+  crescent: 88,
+  arc: 82,
+  ring: 98,
+  pods: 78,
+  wheel: 92,
+  snake: 72,
+  'shield-wall': 112,
+  lanes: 86,
   spiral: 68,
   // Escorts hold longest: the pod is meant to be dismantled in place before
   // anything peels off at the player.
@@ -808,11 +1020,32 @@ export const resolveFormationEntryPlan = ({
   baseVerticalSpeed,
   sideSentry,
   framesPerSecond,
-  target
+  target,
+  entryPathId
 }: FormationEntryPlanInput): FormationEntryPlan => {
   const mode = resolveLooseFormationMode(eventId, patternId);
-  const entryFrames = 44 + (index % 4) * 4 + (mode === 'spiral' ? 12 : 0);
-  const diveCadence = mode === 'grid' ? 14 : mode === 'row' ? 14 : mode === 'v' ? 12 : 10;
+  const legacyEntryPath = normalizeEntryPath(entryPath) as FormationEntryPathId | undefined;
+  const resolvedEntryPath = entryPathId ?? legacyEntryPath ?? defaultEntryPathForMode(mode);
+  const looseFormation = isLooseFormationPattern(patternId);
+  const entryFrames = looseFormation
+    ? 44 + (index % 4) * 4 + (mode === 'spiral' ? 12 : 0)
+    : 48
+      + (index % 4) * 5
+      + (resolvedEntryPath === 'spiral-entry' || resolvedEntryPath === 'ring-assemble' ? 16 : 0)
+      + (resolvedEntryPath === 'convoy-column' ? index * 2 : 0);
+  const diveCadence = looseFormation
+    ? mode === 'grid' || mode === 'row'
+      ? 14
+      : mode === 'v'
+        ? 12
+        : 10
+    : mode === 'grid' || mode === 'shield-wall'
+      ? 18
+      : mode === 'row' || mode === 'staggered-row'
+        ? 20
+        : mode === 'v' || mode === 'double-v'
+          ? 16
+          : 12;
   return {
     mode,
     index,
@@ -829,5 +1062,59 @@ export const resolveFormationEntryPlan = ({
     entryDirection: normalizeEntryDirection(entryDirection),
     entryPath: normalizeEntryPath(entryPath),
     entryBehavior: normalizeEntryBehavior(entryBehavior)
+  };
+};
+
+/** Group movement is sampled from immutable slot geometry, never accumulated. */
+export const resolveFormationMovementPoint = ({
+  movementId,
+  base,
+  groupCenter,
+  frame,
+  groupSeed,
+  index,
+  count,
+  viewport,
+  transformCycle = 0
+}: FormationMovementPointInput): FormationPoint => {
+  const phase = (frame + groupSeed) * 0.018;
+  const memberPhase = phase + index * 0.42;
+  let relativeX = base.x - groupCenter.x;
+  let relativeY = base.y - groupCenter.y;
+  let groupX = 0;
+  let groupY = Math.sin(memberPhase * 1.7) * 2.5;
+
+  if (movementId === 'lateral-sweep') {
+    groupX = Math.sin(phase) * Math.min(viewport.width * 0.12, 58);
+    groupY += Math.cos(phase * 1.4) * 4;
+  } else if (movementId === 'expand-collapse') {
+    const scale = 1 + Math.sin(phase * 1.25) * 0.13;
+    relativeX *= scale;
+    relativeY *= scale;
+    groupX = Math.sin(phase * 0.72) * 10;
+  } else if (movementId === 'rotating-wheel') {
+    const angle = Math.sin(phase * 0.72) * 0.34 + transformCycle * 0.18;
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    const rotatedX = relativeX * cos - relativeY * sin;
+    relativeY = relativeX * sin + relativeY * cos;
+    relativeX = rotatedX;
+  } else if (movementId === 'snake-weave') {
+    groupX = Math.sin(memberPhase * 1.25) * Math.min(viewport.width * 0.055, 28);
+    groupY += Math.cos(memberPhase * 1.05) * 6;
+  } else if (movementId === 'split-pods') {
+    const side = index < Math.ceil(count / 2) ? -1 : 1;
+    groupX = side * (8 + (Math.sin(phase * 1.2) + 1) * 7);
+  } else if (movementId === 'lane-shift') {
+    groupX = Math.sin(phase * 0.88) * Math.min(viewport.width * 0.075, 34);
+    groupY = Math.sin(memberPhase * 0.65) * 3;
+  } else {
+    groupX = Math.sin(phase) * Math.min(viewport.width * 0.045, 20);
+  }
+
+  if (transformCycle % 2 === 1) relativeX *= -1;
+  return {
+    x: groupCenter.x + relativeX + groupX,
+    y: groupCenter.y + relativeY + groupY
   };
 };

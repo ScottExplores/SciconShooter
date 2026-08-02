@@ -32,7 +32,8 @@ import {
   BOSS_CATALOG,
   ENEMY_CATALOG,
   getAssetKeysForRole,
-  isMajorBossId
+  isMajorBossId,
+  SPAWN_PATTERN_CATALOG
 } from '../../../game-config/catalog';
 import { DEFAULT_RECORD_CARD_CONFIG } from '../../../game-config/recordCard';
 import { EditorIcon } from './EditorIcon';
@@ -94,17 +95,8 @@ const ASTEROID_SPRITES = toAssetOptions(getAssetKeysForRole('asteroid'));
 const HUD_ASSETS = toAssetOptions(getAssetKeysForRole('hud'));
 const CARD_ASSETS = toAssetOptions(getAssetKeysForRole('scorecard'));
 
-const PATTERNS: Array<{ value: SpawnPatternId; label: string }> = [
-  { value: 'single-random', label: 'Single / random' },
-  { value: 'row', label: 'Row' },
-  { value: 'v', label: 'V-formation' },
-  { value: 'sine', label: 'Sine wave' },
-  { value: 'pincer', label: 'Pincer' },
-  { value: 'grid', label: 'Formation wall' },
-  { value: 'diamond', label: 'Diamond pack' },
-  { value: 'spiral', label: 'Spiral entry' },
-  { value: 'asteroid-lanes', label: 'Asteroid lanes' }
-];
+const PATTERNS: Array<{ value: SpawnPatternId; label: string }> = Object.values(SPAWN_PATTERN_CATALOG)
+  .map((pattern) => ({ value: pattern.id, label: pattern.label }));
 
 const POSITIONS: Array<{ value: SpawnPositionId; label: string }> = [
   { value: 'random-top', label: 'Random at top' },

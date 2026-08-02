@@ -249,6 +249,7 @@ test('internal Wave cleanup preserves only persistent pickups and player-owned s
 
 test('the authored timer is covered by real squadrons, not by disposable drifters', () => {
   const exports = loadTakeoffPresentation();
+  const engine = fs.readFileSync(path.join(root, 'services', 'gameLogic.ts'), 'utf8');
 
   // Waves used to top themselves up with non-scoring continuity drifters and
   // then delete them again once the clock ran out. Authored formations now
@@ -257,6 +258,9 @@ test('the authored timer is covered by real squadrons, not by disposable drifter
   assert.equal(exports.WAVE_CONTINUITY_MAX_LOOSE_ENEMIES, undefined);
   assert.equal(exports.WAVE_CONTINUITY_LOOSE_ENEMY_INTERVAL_FRAMES, undefined);
   assert.equal(exports.WAVE_CONTINUITY_END_BUFFER_FRAMES, undefined);
+  assert.doesNotMatch(engine, /getLooseConfiguredSpawnEvent/);
+  assert.doesNotMatch(engine, /WAVE_CONTINUITY_LOOSE_ENEMY/);
+  assert.doesNotMatch(engine, /INTERNAL_WAVE_LOOSE_ENTRY/);
 });
 
 test('reward-window projectiles keep moving without combat and expire before takeoff cleanup', () => {

@@ -52,9 +52,25 @@ test('configured squads replace the generic aimed loop with bounded formation-sp
 });
 
 test('runtime and Director share the new formation presets', () => {
-  ['grid', 'diamond', 'spiral'].forEach((pattern) => {
-    assert.match(catalogSource, new RegExp(`${pattern}: \\{ id: '${pattern}'`));
-    assert.match(validatorSource, new RegExp(`'${pattern}'`));
+  [
+    'grid',
+    'diamond',
+    'spiral',
+    'staggered-row',
+    'double-v',
+    'crescent',
+    'arc',
+    'ring',
+    'pods',
+    'wheel',
+    'snake',
+    'escort',
+    'shield-wall',
+    'lanes'
+  ].forEach((pattern) => {
+    const escapedPattern = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    assert.match(catalogSource, new RegExp(`["']?${escapedPattern}["']?: \\{ id: '${escapedPattern}'`));
+    assert.match(validatorSource, new RegExp(`'${escapedPattern}'`));
   });
 });
 
@@ -91,7 +107,9 @@ test('ordinary formations and asteroid belts use separate sprite catalogs', () =
 test('Pixi presents formation assembly pulses and a charged pre-dive frame without changing simulation states', () => {
   assert.match(rendererSource, /getFormationMotionFrameIndex/);
   assert.match(rendererSource, /entity\.formationDiveFrame - engine\.frameCount/);
-  assert.match(rendererSource, /framesUntilDive > 0 && framesUntilDive <= 36/);
+  assert.match(rendererSource, /entity\.formationAttackSelected/);
+  assert.match(rendererSource, /!entity\.formationAttackActive/);
+  assert.match(rendererSource, /framesUntilDive\s*>\s*0\s*&&\s*framesUntilDive\s*<=\s*36/);
   assert.match(rendererSource, /entity\.formationState === 'entry' \|\| entity\.formationState === 'return'/);
   assert.match(rendererSource, /entity\.formationState === 'dive'/);
   assert.match(

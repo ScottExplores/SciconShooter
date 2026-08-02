@@ -191,6 +191,9 @@ test('internal waves advance seamlessly and only Mission boundaries create resul
     engine,
     /recordWaveVictoryKill[\s\S]*?stats\.enemiesDefeated\+\+[\s\S]*?countsTowardCampaignRewards\)[\s\S]*?this\.spawnCoin/
   );
+  assert.doesNotMatch(engine, /internalWaveLooseEntriesRemaining|INTERNAL_WAVE_LOOSE_ENTRY/);
+  assert.doesNotMatch(engine, /getLooseConfiguredSpawnEvent|WAVE_CONTINUITY_LOOSE_ENEMY/);
+  assert.match(engine, /spawnConfiguredEnemies\(\)[\s\S]*?for \(const event of events\)/);
   assert.match(engine, /this\.playerVel = \{ x: 0, y: 0 \};[\s\S]*?this\.playerTilt = 0;[\s\S]*?if \(this\.introFlightFrames > 0\)/);
 });
 

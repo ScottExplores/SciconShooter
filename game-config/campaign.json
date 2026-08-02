@@ -3049,6 +3049,19 @@
               "patternId": "spiral",
               "positionId": "formation-top",
               "spawnIntervalSeconds": 0.40800000000000003,
+              "formationBehavior": {
+                "entryPathId": "spiral-entry",
+                "movementId": "rotating-wheel",
+                "attackId": "ring-collapse",
+                "firingBehavior": "staggered",
+                "returnId": "transform",
+                "holdSeconds": 1.5,
+                "telegraphSeconds": 0.75,
+                "attackDurationSeconds": 1.4,
+                "recoverySeconds": 1.2,
+                "attackGroupSize": 3,
+                "attackCycles": 3
+              },
               "enemies": [
                 {
                   "enemyId": "swarm",
@@ -3584,6 +3597,19 @@
               "patternId": "grid",
               "positionId": "formation-top",
               "spawnIntervalSeconds": 0.48960000000000004,
+              "formationBehavior": {
+                "entryPathId": "formation-drop",
+                "movementId": "lateral-sweep",
+                "attackId": "row-sequence",
+                "firingBehavior": "staggered",
+                "returnId": "reform",
+                "holdSeconds": 1.5,
+                "telegraphSeconds": 0.75,
+                "attackDurationSeconds": 1.4,
+                "recoverySeconds": 1.2,
+                "attackGroupSize": 3,
+                "attackCycles": 3
+              },
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -3863,6 +3889,19 @@
               "patternId": "pincer",
               "positionId": "formation-top",
               "spawnIntervalSeconds": 0.40800000000000003,
+              "formationBehavior": {
+                "entryPathId": "paired-flank",
+                "movementId": "lateral-sweep",
+                "attackId": "pincer-pass",
+                "firingBehavior": "priority",
+                "returnId": "reform",
+                "holdSeconds": 1.5,
+                "telegraphSeconds": 0.75,
+                "attackDurationSeconds": 1.4,
+                "recoverySeconds": 1.2,
+                "attackGroupSize": 2,
+                "attackCycles": 3
+              },
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -4431,6 +4470,19 @@
               "patternId": "diamond",
               "positionId": "formation-top",
               "spawnIntervalSeconds": 0.40800000000000003,
+              "formationBehavior": {
+                "entryPathId": "diamond-lock",
+                "movementId": "expand-collapse",
+                "attackId": "leader-escorts",
+                "firingBehavior": "priority",
+                "returnId": "reform",
+                "holdSeconds": 1.7,
+                "telegraphSeconds": 0.9,
+                "attackDurationSeconds": 1.4,
+                "recoverySeconds": 1.2,
+                "attackGroupSize": 3,
+                "attackCycles": 3
+              },
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -42414,6 +42466,19 @@
               "patternId": "spiral",
               "positionId": "formation-top",
               "spawnIntervalSeconds": 0.40800000000000003,
+              "formationBehavior": {
+                "entryPathId": "spiral-entry",
+                "movementId": "rotating-wheel",
+                "attackId": "ring-collapse",
+                "firingBehavior": "staggered",
+                "returnId": "transform",
+                "holdSeconds": 1.5,
+                "telegraphSeconds": 0.75,
+                "attackDurationSeconds": 1.4,
+                "recoverySeconds": 1.2,
+                "attackGroupSize": 3,
+                "attackCycles": 3
+              },
               "enemies": [
                 {
                   "enemyId": "swarm",
@@ -42949,6 +43014,19 @@
               "patternId": "grid",
               "positionId": "formation-top",
               "spawnIntervalSeconds": 0.48960000000000004,
+              "formationBehavior": {
+                "entryPathId": "formation-drop",
+                "movementId": "lateral-sweep",
+                "attackId": "row-sequence",
+                "firingBehavior": "staggered",
+                "returnId": "reform",
+                "holdSeconds": 1.5,
+                "telegraphSeconds": 0.75,
+                "attackDurationSeconds": 1.4,
+                "recoverySeconds": 1.2,
+                "attackGroupSize": 3,
+                "attackCycles": 3
+              },
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -52499,7 +52577,16 @@
         "sector-hammerhead-line",
         "sector-crownclaw-frontier"
       ],
-      "mobilePerformanceCost": 10
+      "mobilePerformanceCost": 10,
+      "movementBehavior": "gentle-drift",
+      "attackBehavior": "paired-dive",
+      "returnBehavior": "reform",
+      "holdSeconds": 1.8,
+      "telegraphSeconds": 0.7,
+      "attackDurationSeconds": 1.3,
+      "attackRecoverySeconds": 1.15,
+      "attackGroupSize": 2,
+      "attackCycles": 3
     },
     {
       "id": "pack-orbit-grid",
@@ -52534,7 +52621,16 @@
         "sector-hammerhead-line",
         "sector-crownclaw-frontier"
       ],
-      "mobilePerformanceCost": 12
+      "mobilePerformanceCost": 12,
+      "movementBehavior": "lateral-sweep",
+      "attackBehavior": "row-sequence",
+      "returnBehavior": "reform",
+      "holdSeconds": 1.6,
+      "telegraphSeconds": 0.75,
+      "attackDurationSeconds": 1.5,
+      "attackRecoverySeconds": 1.3,
+      "attackGroupSize": 3,
+      "attackCycles": 3
     },
     {
       "id": "pack-citation-spiral",
@@ -52571,7 +52667,16 @@
         "sector-hammerhead-line",
         "sector-crownclaw-frontier"
       ],
-      "mobilePerformanceCost": 14
+      "mobilePerformanceCost": 14,
+      "movementBehavior": "rotating-wheel",
+      "attackBehavior": "alternating-wings",
+      "returnBehavior": "transform",
+      "holdSeconds": 1.45,
+      "telegraphSeconds": 0.7,
+      "attackDurationSeconds": 1.35,
+      "attackRecoverySeconds": 1.15,
+      "attackGroupSize": 3,
+      "attackCycles": 3
     },
     {
       "id": "pack-light-jet-pincer",
@@ -52608,7 +52713,16 @@
         "sector-hammerhead-line",
         "sector-crownclaw-frontier"
       ],
-      "mobilePerformanceCost": 14
+      "mobilePerformanceCost": 14,
+      "movementBehavior": "lateral-sweep",
+      "attackBehavior": "pincer-pass",
+      "returnBehavior": "reform",
+      "holdSeconds": 1.35,
+      "telegraphSeconds": 0.75,
+      "attackDurationSeconds": 1.45,
+      "attackRecoverySeconds": 1.25,
+      "attackGroupSize": 2,
+      "attackCycles": 3
     },
     {
       "id": "pack-jet-pincer",
@@ -52646,7 +52760,16 @@
         "sector-hammerhead-line",
         "sector-crownclaw-frontier"
       ],
-      "mobilePerformanceCost": 17
+      "mobilePerformanceCost": 17,
+      "movementBehavior": "lateral-sweep",
+      "attackBehavior": "pincer-pass",
+      "returnBehavior": "reform",
+      "holdSeconds": 1.25,
+      "telegraphSeconds": 0.7,
+      "attackDurationSeconds": 1.55,
+      "attackRecoverySeconds": 1.2,
+      "attackGroupSize": 3,
+      "attackCycles": 3
     },
     {
       "id": "pack-priority-diamond",
@@ -52683,7 +52806,16 @@
         "sector-hammerhead-line",
         "sector-crownclaw-frontier"
       ],
-      "mobilePerformanceCost": 14
+      "mobilePerformanceCost": 14,
+      "movementBehavior": "expand-collapse",
+      "attackBehavior": "leader-escorts",
+      "returnBehavior": "reform",
+      "holdSeconds": 1.6,
+      "telegraphSeconds": 0.85,
+      "attackDurationSeconds": 1.45,
+      "attackRecoverySeconds": 1.4,
+      "attackGroupSize": 3,
+      "attackCycles": 3
     },
     {
       "id": "pack-dna-helix",
@@ -52721,7 +52853,16 @@
         "sector-hammerhead-line",
         "sector-crownclaw-frontier"
       ],
-      "mobilePerformanceCost": 20
+      "mobilePerformanceCost": 20,
+      "movementBehavior": "snake-weave",
+      "attackBehavior": "alternating-wings",
+      "returnBehavior": "transform",
+      "holdSeconds": 1.45,
+      "telegraphSeconds": 0.8,
+      "attackDurationSeconds": 1.65,
+      "attackRecoverySeconds": 1.35,
+      "attackGroupSize": 3,
+      "attackCycles": 3
     },
     {
       "id": "pack-wall-crossfire",
@@ -52756,7 +52897,16 @@
         "sector-hammerhead-line",
         "sector-crownclaw-frontier"
       ],
-      "mobilePerformanceCost": 18
+      "mobilePerformanceCost": 18,
+      "movementBehavior": "lane-shift",
+      "attackBehavior": "aimed-volley",
+      "returnBehavior": "retreat",
+      "holdSeconds": 1.8,
+      "telegraphSeconds": 0.9,
+      "attackDurationSeconds": 1.8,
+      "attackRecoverySeconds": 1.6,
+      "attackGroupSize": 2,
+      "attackCycles": 2
     },
     {
       "id": "pack-dark-lanes",
@@ -52793,7 +52943,16 @@
         "sector-hammerhead-line",
         "sector-crownclaw-frontier"
       ],
-      "mobilePerformanceCost": 22
+      "mobilePerformanceCost": 22,
+      "movementBehavior": "lane-shift",
+      "attackBehavior": "lane-pass",
+      "returnBehavior": "reform",
+      "holdSeconds": 1.65,
+      "telegraphSeconds": 0.9,
+      "attackDurationSeconds": 1.75,
+      "attackRecoverySeconds": 1.5,
+      "attackGroupSize": 3,
+      "attackCycles": 3
     },
     {
       "id": "pack-prism-ring",
@@ -52828,7 +52987,16 @@
         "sector-hammerhead-line",
         "sector-crownclaw-frontier"
       ],
-      "mobilePerformanceCost": 24
+      "mobilePerformanceCost": 24,
+      "movementBehavior": "rotating-wheel",
+      "attackBehavior": "ring-collapse",
+      "returnBehavior": "transform",
+      "holdSeconds": 1.55,
+      "telegraphSeconds": 0.95,
+      "attackDurationSeconds": 1.85,
+      "attackRecoverySeconds": 1.6,
+      "attackGroupSize": 3,
+      "attackCycles": 3
     },
     {
       "id": "pack-heavy-grid",
@@ -52863,7 +53031,16 @@
         "sector-hammerhead-line",
         "sector-crownclaw-frontier"
       ],
-      "mobilePerformanceCost": 24
+      "mobilePerformanceCost": 24,
+      "movementBehavior": "gentle-drift",
+      "attackBehavior": "row-sequence",
+      "returnBehavior": "reform",
+      "holdSeconds": 1.8,
+      "telegraphSeconds": 1,
+      "attackDurationSeconds": 1.9,
+      "attackRecoverySeconds": 1.7,
+      "attackGroupSize": 4,
+      "attackCycles": 3
     }
   ],
   "miniBosses": [

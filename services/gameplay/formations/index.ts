@@ -6,7 +6,11 @@ export {
   resolveConfiguredFormationSpawnPoint,
   resolveConfiguredFormationTarget,
   resolveFormationEntryMotion,
-  resolveFormationEntryPlan
+  resolveFormationAttackIndices,
+  resolveFormationChoreography,
+  resolveFormationEntryPlan,
+  resolveFormationMovementPoint,
+  isFormationVolleyAttack
 } from './FormationRuntime';
 
 export type {
@@ -18,7 +22,10 @@ export type {
   FormationEntryPlan,
   FormationEntryPlanInput,
   FormationGeometryEvent,
+  FormationChoreographyEvent,
+  FormationMovementPointInput,
   FormationPoint,
+  ResolvedFormationChoreography,
   FormationSpawnPointInput,
   FormationTargetInput,
   FormationViewport

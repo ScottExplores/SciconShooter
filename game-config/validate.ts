@@ -98,9 +98,15 @@ const ENEMY_ROLE_KEYS = [
 const ENEMY_CHARACTERISTICS = ['holder', 'diver', 'kamikaze', 'flanker', 'artillery', 'commander'];
 const FORMATION_PACK_KEYS = [
   'id', 'label', 'enemyRoleIds', 'enemyCount', 'totalThreatCost', 'entryDirection', 'entryPath',
-  'formationShape', 'firingBehavior', 'synergyAdjustment', 'minimumSector',
+  'formationShape', 'movementBehavior', 'attackBehavior', 'firingBehavior', 'returnBehavior',
+  'holdSeconds', 'telegraphSeconds', 'attackDurationSeconds', 'attackRecoverySeconds',
+  'attackGroupSize', 'attackCycles', 'synergyAdjustment', 'minimumSector',
   'maximumSimultaneousInstances', 'recoveryRequiredSeconds', 'compatibleMissionRoles',
   'compatibleSectorIds', 'mobilePerformanceCost'
+];
+const FORMATION_BEHAVIOR_KEYS = [
+  'entryPathId', 'movementId', 'attackId', 'firingBehavior', 'returnId', 'holdSeconds',
+  'telegraphSeconds', 'attackDurationSeconds', 'recoverySeconds', 'attackGroupSize', 'attackCycles'
 ];
 const MINI_BOSS_KEYS = [
   'id', 'bossId', 'label', 'visualIdentity', 'combatRole', 'mainAttacks', 'suitableSectorIds',
@@ -146,7 +152,7 @@ const WAVE_KEYS = [
 ];
 const BASE_EVENT_KEYS = ['id', 'kind', 'label', 'startSeconds', 'durationSeconds', 'delayAfterSeconds', 'blocksWaveClock', 'spawnAnchor'];
 const EVENT_KEYS: Record<string, string[]> = {
-  spawn: [...BASE_EVENT_KEYS, 'count', 'patternId', 'positionId', 'spawnIntervalSeconds', 'formationSlots', 'enemies'],
+  spawn: [...BASE_EVENT_KEYS, 'count', 'patternId', 'positionId', 'spawnIntervalSeconds', 'formationSlots', 'formationBehavior', 'enemies'],
   boss: [...BASE_EVENT_KEYS, 'bossId', 'rigId', 'componentMode', 'componentHealth', 'count', 'spriteKey', 'spriteStyle', 'positionId', 'movementPatternId', 'warningSeconds', 'health', 'speed', 'damage', 'scoreReward', 'powerupDropChance', 'shieldCount', 'sizeMultiplier', 'weapons', 'phases', 'revival', 'timeline'],
   'asteroid-belt': [...BASE_EVENT_KEYS, 'spriteKey', 'spriteStyle', 'count', 'density', 'patternId', 'positionId', 'spawnIntervalSeconds', 'warningSeconds', 'health', 'speed', 'damage', 'scoreValue', 'powerupDropChance'],
   'supply-drop': [...BASE_EVENT_KEYS, 'spriteKey', 'spriteStyle', 'presentKind', 'positionId', 'health', 'speed', 'scoreValue', 'coinDropValue'],
@@ -248,6 +254,21 @@ const ENEMY_FIRE_BEHAVIORS = new Set([
 const ENEMY_ENTRY_BEHAVIORS = new Set(['formation', 'dive', 'flank', 'lane']);
 const FORMATION_ENTRY_DIRECTIONS = new Set(['top', 'left', 'right', 'split']);
 const FORMATION_FIRING_BEHAVIORS = new Set(['none', 'post-formation', 'staggered', 'priority']);
+const FORMATION_ENTRY_PATHS = new Set([
+  'sweep-bank-reentry', 'formation-drop', 'spiral-entry', 'paired-flank', 'diamond-lock',
+  'double-helix', 'side-wall-entry', 'lane-stagger', 'ring-assemble', 'armored-grid',
+  'mirrored-swoop', 'pod-converge', 'convoy-column'
+]);
+const FORMATION_MOVEMENTS = new Set([
+  'gentle-drift', 'lateral-sweep', 'expand-collapse', 'rotating-wheel', 'snake-weave',
+  'split-pods', 'lane-shift'
+]);
+const FORMATION_ATTACK_BEHAVIORS = new Set([
+  'single-dive', 'paired-dive', 'alternating-wings', 'leader-escorts', 'row-sequence',
+  'diagonal-groups', 'sweep-strafe', 'pincer-pass', 'ring-collapse', 'aimed-volley',
+  'spread-volley', 'lane-pass', 'split-hunt'
+]);
+const FORMATION_RETURN_BEHAVIORS = new Set(['reform', 'transform', 'retreat', 'exit']);
 const SUPPORT_RECOMMENDATION_TAGS = new Set([
   'anti-swarm', 'anti-armor', 'lane-control', 'boss-damage', 'survival', 'anti-summon'
 ]);
@@ -506,6 +527,46 @@ const validateFormationSlots = (
       positions.add(key);
     }
   });
+};
+
+const validateFormationBehavior = (
+  value: unknown,
+  path: string,
+  issues: CampaignValidationIssue[],
+  count: unknown
+) => {
+  if (value === undefined) return;
+  if (!isRecord(value)) {
+    pushIssue(issues, path, 'required_object', 'Formation behavior overrides must be an object');
+    return;
+  }
+  checkKeys(value, FORMATION_BEHAVIOR_KEYS, path, issues);
+  if (value.entryPathId !== undefined && (typeof value.entryPathId !== 'string' || !FORMATION_ENTRY_PATHS.has(value.entryPathId))) {
+    pushIssue(issues, `${path}/entryPathId`, 'unknown_reference', `Unknown formation entry path: ${String(value.entryPathId)}`);
+  }
+  if (value.movementId !== undefined && (typeof value.movementId !== 'string' || !FORMATION_MOVEMENTS.has(value.movementId))) {
+    pushIssue(issues, `${path}/movementId`, 'unknown_reference', `Unknown formation movement: ${String(value.movementId)}`);
+  }
+  if (value.attackId !== undefined && (typeof value.attackId !== 'string' || !FORMATION_ATTACK_BEHAVIORS.has(value.attackId))) {
+    pushIssue(issues, `${path}/attackId`, 'unknown_reference', `Unknown formation attack: ${String(value.attackId)}`);
+  }
+  if (value.firingBehavior !== undefined && (typeof value.firingBehavior !== 'string' || !FORMATION_FIRING_BEHAVIORS.has(value.firingBehavior))) {
+    pushIssue(issues, `${path}/firingBehavior`, 'unknown_reference', `Unknown formation firing behavior: ${String(value.firingBehavior)}`);
+  }
+  if (value.returnId !== undefined && (typeof value.returnId !== 'string' || !FORMATION_RETURN_BEHAVIORS.has(value.returnId))) {
+    pushIssue(issues, `${path}/returnId`, 'unknown_reference', `Unknown formation return behavior: ${String(value.returnId)}`);
+  }
+  if (value.holdSeconds !== undefined) checkNumber(value.holdSeconds, `${path}/holdSeconds`, issues, 0.35, 12);
+  if (value.telegraphSeconds !== undefined) checkNumber(value.telegraphSeconds, `${path}/telegraphSeconds`, issues, 0.2, 4);
+  if (value.attackDurationSeconds !== undefined) checkNumber(value.attackDurationSeconds, `${path}/attackDurationSeconds`, issues, 0.3, 8);
+  if (value.recoverySeconds !== undefined) checkNumber(value.recoverySeconds, `${path}/recoverySeconds`, issues, 0.35, 12);
+  if (value.attackGroupSize !== undefined) checkNumber(value.attackGroupSize, `${path}/attackGroupSize`, issues, 1, 48, true);
+  if (value.attackCycles !== undefined) checkNumber(value.attackCycles, `${path}/attackCycles`, issues, 0, 20, true);
+  if (typeof count === 'number'
+    && typeof value.attackGroupSize === 'number'
+    && value.attackGroupSize > count) {
+    pushIssue(issues, `${path}/attackGroupSize`, 'invalid_value', 'Attack group cannot exceed this spawn event count');
+  }
 };
 
 const validateSpriteStyle = (value: unknown, path: string, issues: CampaignValidationIssue[]) => {
@@ -961,10 +1022,32 @@ const validateFormationPackManifest = (value: unknown, issues: CampaignValidatio
     if (typeof pack.entryDirection !== 'string' || !FORMATION_ENTRY_DIRECTIONS.has(pack.entryDirection)) {
       pushIssue(issues, `${path}/entryDirection`, 'unknown_reference', `Unknown formation entry direction: ${String(pack.entryDirection)}`);
     }
-    checkString(pack.entryPath, `${path}/entryPath`, issues, { id: true });
+    if (typeof pack.entryPath !== 'string' || !FORMATION_ENTRY_PATHS.has(pack.entryPath)) {
+      pushIssue(issues, `${path}/entryPath`, 'unknown_reference', `Unknown formation entry path: ${String(pack.entryPath)}`);
+    }
     checkCatalogRef(pack.formationShape, SPAWN_PATTERN_CATALOG, `${path}/formationShape`, issues);
+    if (typeof pack.movementBehavior !== 'string' || !FORMATION_MOVEMENTS.has(pack.movementBehavior)) {
+      pushIssue(issues, `${path}/movementBehavior`, 'unknown_reference', `Unknown formation movement: ${String(pack.movementBehavior)}`);
+    }
+    if (typeof pack.attackBehavior !== 'string' || !FORMATION_ATTACK_BEHAVIORS.has(pack.attackBehavior)) {
+      pushIssue(issues, `${path}/attackBehavior`, 'unknown_reference', `Unknown formation attack: ${String(pack.attackBehavior)}`);
+    }
     if (typeof pack.firingBehavior !== 'string' || !FORMATION_FIRING_BEHAVIORS.has(pack.firingBehavior)) {
       pushIssue(issues, `${path}/firingBehavior`, 'unknown_reference', `Unknown formation firing behavior: ${String(pack.firingBehavior)}`);
+    }
+    if (typeof pack.returnBehavior !== 'string' || !FORMATION_RETURN_BEHAVIORS.has(pack.returnBehavior)) {
+      pushIssue(issues, `${path}/returnBehavior`, 'unknown_reference', `Unknown formation return behavior: ${String(pack.returnBehavior)}`);
+    }
+    checkNumber(pack.holdSeconds, `${path}/holdSeconds`, issues, 0.35, 12);
+    checkNumber(pack.telegraphSeconds, `${path}/telegraphSeconds`, issues, 0.2, 4);
+    checkNumber(pack.attackDurationSeconds, `${path}/attackDurationSeconds`, issues, 0.3, 8);
+    checkNumber(pack.attackRecoverySeconds, `${path}/attackRecoverySeconds`, issues, 0.35, 12);
+    checkNumber(pack.attackGroupSize, `${path}/attackGroupSize`, issues, 1, 48, true);
+    checkNumber(pack.attackCycles, `${path}/attackCycles`, issues, 0, 20, true);
+    if (typeof pack.enemyCount === 'number'
+      && typeof pack.attackGroupSize === 'number'
+      && pack.attackGroupSize > pack.enemyCount) {
+      pushIssue(issues, `${path}/attackGroupSize`, 'invalid_value', 'Formation attack group cannot exceed the pack enemy count');
     }
     checkNumber(pack.synergyAdjustment, `${path}/synergyAdjustment`, issues, -1000000, 1000000);
     checkNumber(pack.minimumSector, `${path}/minimumSector`, issues, 1, 1000, true);
@@ -2737,6 +2820,7 @@ const validateEvent = (
     checkCatalogRef(candidate.positionId, SPAWN_POSITION_CATALOG, `${path}/positionId`, issues);
     checkNumber(candidate.spawnIntervalSeconds, `${path}/spawnIntervalSeconds`, issues, Number.EPSILON, 600);
     validateFormationSlots(candidate.formationSlots, `${path}/formationSlots`, issues, candidate.count, candidate.patternId);
+    validateFormationBehavior(candidate.formationBehavior, `${path}/formationBehavior`, issues, candidate.count);
     validateSpawnEnemies(candidate.enemies, `${path}/enemies`, issues);
     if (
       typeof candidate.count === 'number'

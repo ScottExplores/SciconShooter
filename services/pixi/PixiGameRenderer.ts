@@ -43,6 +43,7 @@ import {
   type PixiEnvironmentWindow
 } from './PixiEnvironment';
 import { PixiTextureBank } from './PixiTextureBank';
+import { sampleFormationEnemyPresentation } from './FormationEnemyPresentation';
 import {
   createSoftRadialLight,
   hideSoftRadialLight,
@@ -1069,7 +1070,13 @@ const getFormationMotionFrameIndex = (engine: GameEngine, entity: Entity) => {
 
   if (entity.formationState === 'hold') {
     const framesUntilDive = entity.formationDiveFrame - engine.frameCount;
-    if (entity.formationDiveFrame > 0 && framesUntilDive > 0 && framesUntilDive <= 36) {
+    if (
+      entity.formationAttackSelected
+      && !entity.formationAttackActive
+      && entity.formationDiveFrame > 0
+      && framesUntilDive > 0
+      && framesUntilDive <= 36
+    ) {
       return clamp(Math.floor((36 - framesUntilDive) / 12), 0, 2);
     }
 
@@ -6039,6 +6046,44 @@ export class PixiGameRenderer {
         view.aura
           .ellipse(0, 0, entity.width * 0.7, entity.height * 0.67)
           .stroke({ color: '#67e8f9', width: 2, alpha: shieldPulse });
+      }
+    } else if (isFormationMotionEnemy(entity) && entity.formationState) {
+      const presentation = sampleFormationEnemyPresentation({
+        angle: entity.angle,
+        formationState: entity.formationState,
+        formationAttackSelected: entity.formationAttackSelected,
+        formationAttackActive: entity.formationAttackActive,
+        formationDiveFrame: entity.formationDiveFrame,
+        currentFrame: engine.frameCount,
+        formationIndex: entity.formationIndex,
+        variant: entity.variant
+      });
+      view.aura.clear();
+      view.root.rotation = presentation.bankRadians;
+
+      if (presentation.telegraphVisible) {
+        const pulseAlpha = 0.24 + presentation.telegraphPulse * 0.2;
+        const readinessAlpha = 0.7 + presentation.telegraphReadiness * 0.3;
+        const radiusScale = 1.08 - presentation.telegraphReadiness * 0.08;
+        const radiusX = Math.max(18, entity.width * 0.62 * radiusScale);
+        const radiusY = Math.max(16, entity.height * 0.56 * radiusScale);
+        const bracketX = Math.max(18, entity.width * 0.64);
+        const bracketY = Math.max(9, entity.height * 0.24);
+        const notch = Math.max(5, Math.min(9, entity.width * 0.13));
+
+        view.aura
+          .ellipse(0, 0, radiusX, radiusY)
+          .stroke({ color: '#fde047', width: 1.5, alpha: pulseAlpha * readinessAlpha });
+        view.aura
+          .moveTo(-bracketX + notch, -bracketY)
+          .lineTo(-bracketX, -bracketY)
+          .lineTo(-bracketX, bracketY)
+          .lineTo(-bracketX + notch, bracketY)
+          .moveTo(bracketX - notch, -bracketY)
+          .lineTo(bracketX, -bracketY)
+          .lineTo(bracketX, bracketY)
+          .lineTo(bracketX - notch, bracketY)
+          .stroke({ color: '#fef08a', width: 2, alpha: (0.38 + presentation.telegraphPulse * 0.32) * readinessAlpha });
       }
     } else if (entity.type === EntityType.ENEMY_DRONE) {
       view.root.rotation = entity.formation === 'spiral'

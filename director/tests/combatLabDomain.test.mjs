@@ -28,6 +28,7 @@ after(async () => {
 
 const catalogModule = await server.ssrLoadModule('/director/src/combat-lab/contentCatalog.ts');
 const experimentModule = await server.ssrLoadModule('/director/src/combat-lab/experimentModel.ts');
+const formationBehaviorModule = await server.ssrLoadModule('/director/src/combat-lab/formationBehaviorModel.ts');
 const validationModule = await server.ssrLoadModule('/game-config/validate.ts');
 
 const {
@@ -44,6 +45,11 @@ const {
   loadCombatLabPreset
 } = experimentModule;
 const {
+  clearFormationBehavior,
+  resolveEditableFormationBehavior,
+  updateFormationBehavior
+} = formationBehaviorModule;
+const {
   migrateLegacyWaveCompletionRule,
   parseGameCampaign,
   validateGameCampaign
@@ -58,6 +64,47 @@ const findEvent = (value, eventId) => {
   }
   return undefined;
 };
+
+test('formation behavior authoring resolves independent pattern defaults and surgical overrides', () => {
+  const source = campaign.levels
+    .flatMap((level) => level.waves)
+    .flatMap((wave) => wave.events)
+    .find((event) => event.kind === 'spawn');
+  assert.ok(source, 'tracked campaign should provide a spawn event');
+  const pincer = { ...structuredClone(source), patternId: 'pincer' };
+  delete pincer.formationBehavior;
+
+  assert.deepEqual(resolveEditableFormationBehavior(pincer), {
+    entryPathId: 'paired-flank',
+    movementId: 'lateral-sweep',
+    attackId: 'pincer-pass',
+    firingBehavior: 'post-formation',
+    returnId: 'reform',
+    holdSeconds: 1.5,
+    telegraphSeconds: 0.65,
+    attackDurationSeconds: 1.25,
+    recoverySeconds: 1.25,
+    attackGroupSize: 2,
+    attackCycles: 0
+  });
+
+  const updated = updateFormationBehavior(pincer, {
+    entryPathId: 'ring-assemble',
+    movementId: 'rotating-wheel',
+    attackId: 'ring-collapse',
+    firingBehavior: 'staggered',
+    returnId: 'exit',
+    attackGroupSize: 4,
+    attackCycles: 3
+  });
+  assert.equal(updated.formationBehavior.entryPathId, 'ring-assemble');
+  assert.equal(updated.formationBehavior.attackId, 'ring-collapse');
+  assert.equal(updated.formationBehavior.returnId, 'exit');
+  assert.equal(updated.formationBehavior.attackGroupSize, 4);
+  assert.equal(updated.formationBehavior.attackCycles, 3);
+  assert.equal(Object.hasOwn(pincer, 'formationBehavior'), false, 'authoring helpers must not mutate source events');
+  assert.equal(Object.hasOwn(clearFormationBehavior(updated), 'formationBehavior'), false);
+});
 
 test('runtime campaign parsing restores only missing legacy completion rules', () => {
   const legacy = structuredClone(campaign);
@@ -90,7 +137,10 @@ test('content catalog discovers every real Combat Lab category without dangling 
   assert.ok(catalog.categories.every((category) => category.items.length > 0));
   assert.equal(new Set(catalog.allItems.map((item) => item.id)).size, catalog.allItems.length);
   assert.equal(Object.keys(catalog.byId).length, catalog.allItems.length);
-  assert.equal(catalog.formations.length, 9);
+  assert.ok(catalog.formations.length >= 20);
+  for (const patternId of ['staggered-row', 'double-v', 'crescent', 'ring', 'wheel', 'snake', 'escort', 'shield-wall', 'lanes']) {
+    assert.ok(catalog.formations.some((item) => item.target.patternId === patternId), patternId);
+  }
   assert.equal(catalog.enemies.length, 4);
   assert.equal(catalog.mainShips.length, 4);
   assert.equal(catalog.miniShips.length, 10);

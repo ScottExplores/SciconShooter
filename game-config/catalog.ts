@@ -570,11 +570,22 @@ export const MUSIC_CATALOG: Record<MusicId, MusicCatalogEntry> = {
 export const SPAWN_PATTERN_CATALOG: Record<SpawnPatternId, NamedCatalogEntry<SpawnPatternId>> = {
   'single-random': { id: 'single-random', label: 'Random singles' },
   row: { id: 'row', label: 'Row' },
+  'staggered-row': { id: 'staggered-row', label: 'Staggered rows' },
   v: { id: 'v', label: 'V formation' },
+  'double-v': { id: 'double-v', label: 'Double V' },
   sine: { id: 'sine', label: 'Sine wave' },
   pincer: { id: 'pincer', label: 'Pincer' },
   grid: { id: 'grid', label: 'Formation wall' },
   diamond: { id: 'diamond', label: 'Diamond pack' },
+  crescent: { id: 'crescent', label: 'Crescent' },
+  arc: { id: 'arc', label: 'Arc' },
+  ring: { id: 'ring', label: 'Escort ring' },
+  pods: { id: 'pods', label: 'Separated pods' },
+  wheel: { id: 'wheel', label: 'Rotating wheel' },
+  snake: { id: 'snake', label: 'Snake chain' },
+  escort: { id: 'escort', label: 'Escort convoy' },
+  'shield-wall': { id: 'shield-wall', label: 'Shield wall' },
+  lanes: { id: 'lanes', label: 'Readable lanes' },
   spiral: { id: 'spiral', label: 'Spiral entry' },
   'asteroid-lanes': { id: 'asteroid-lanes', label: 'Asteroid lanes' }
 };

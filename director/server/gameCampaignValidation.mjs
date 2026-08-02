@@ -214,11 +214,22 @@ const MUSIC_IDS = new Set(['procedural-main']);
 const SPAWN_PATTERNS = new Set([
   'single-random',
   'row',
+  'staggered-row',
   'v',
+  'double-v',
   'sine',
   'pincer',
   'grid',
   'diamond',
+  'crescent',
+  'arc',
+  'ring',
+  'pods',
+  'wheel',
+  'snake',
+  'escort',
+  'shield-wall',
+  'lanes',
   'spiral',
   'asteroid-lanes'
 ]);
@@ -258,7 +269,22 @@ const ENEMY_ENTRY_BEHAVIORS = new Set(['formation', 'dive', 'flank', 'lane']);
 /** What a hull does once it holds a slot. See services/enemyCharacteristics.ts. */
 const ENEMY_CHARACTERISTICS = new Set(['holder', 'diver', 'kamikaze', 'flanker', 'artillery', 'commander']);
 const FORMATION_ENTRY_DIRECTIONS = new Set(['top', 'left', 'right', 'split']);
+const FORMATION_ENTRY_PATHS = new Set([
+  'sweep-bank-reentry', 'formation-drop', 'spiral-entry', 'paired-flank', 'diamond-lock',
+  'double-helix', 'side-wall-entry', 'lane-stagger', 'ring-assemble', 'armored-grid',
+  'mirrored-swoop', 'pod-converge', 'convoy-column'
+]);
+const FORMATION_MOVEMENTS = new Set([
+  'gentle-drift', 'lateral-sweep', 'expand-collapse', 'rotating-wheel',
+  'snake-weave', 'split-pods', 'lane-shift'
+]);
+const FORMATION_ATTACK_BEHAVIORS = new Set([
+  'single-dive', 'paired-dive', 'alternating-wings', 'leader-escorts', 'row-sequence',
+  'diagonal-groups', 'sweep-strafe', 'pincer-pass', 'ring-collapse', 'aimed-volley',
+  'spread-volley', 'lane-pass', 'split-hunt'
+]);
 const FORMATION_FIRING_BEHAVIORS = new Set(['none', 'post-formation', 'staggered', 'priority']);
+const FORMATION_RETURN_BEHAVIORS = new Set(['reform', 'transform', 'retreat', 'exit']);
 const SUPPORT_RECOMMENDATION_TAGS = new Set([
   'anti-swarm', 'anti-armor', 'lane-control', 'boss-damage', 'survival', 'anti-summon'
 ]);
@@ -899,7 +925,9 @@ const validateFormationPackManifest = (packs, errors) => {
     if (!requireObject(pack, location, errors)) return;
     allowedKeys(pack, [
       'id', 'label', 'enemyRoleIds', 'enemyCount', 'totalThreatCost', 'entryDirection', 'entryPath',
-      'formationShape', 'firingBehavior', 'synergyAdjustment', 'minimumSector',
+      'formationShape', 'movementBehavior', 'attackBehavior', 'firingBehavior', 'returnBehavior',
+      'holdSeconds', 'telegraphSeconds', 'attackDurationSeconds', 'attackRecoverySeconds',
+      'attackGroupSize', 'attackCycles', 'synergyAdjustment', 'minimumSector',
       'maximumSimultaneousInstances', 'recoveryRequiredSeconds', 'compatibleMissionRoles',
       'compatibleSectorIds', 'mobilePerformanceCost'
     ], location, errors);
@@ -912,9 +940,18 @@ const validateFormationPackManifest = (packs, errors) => {
     requireNumber(pack.enemyCount, `${location}/enemyCount`, errors, { minimum: 1, maximum: 1000, integer: true });
     requireNumber(pack.totalThreatCost, `${location}/totalThreatCost`, errors, { minimum: Number.EPSILON, maximum: 1000000 });
     requireEnum(pack.entryDirection, FORMATION_ENTRY_DIRECTIONS, `${location}/entryDirection`, errors);
-    requireId(pack.entryPath, `${location}/entryPath`, errors);
+    requireEnum(pack.entryPath, FORMATION_ENTRY_PATHS, `${location}/entryPath`, errors);
     requireEnum(pack.formationShape, SPAWN_PATTERNS, `${location}/formationShape`, errors);
+    requireEnum(pack.movementBehavior, FORMATION_MOVEMENTS, `${location}/movementBehavior`, errors);
+    requireEnum(pack.attackBehavior, FORMATION_ATTACK_BEHAVIORS, `${location}/attackBehavior`, errors);
     requireEnum(pack.firingBehavior, FORMATION_FIRING_BEHAVIORS, `${location}/firingBehavior`, errors);
+    requireEnum(pack.returnBehavior, FORMATION_RETURN_BEHAVIORS, `${location}/returnBehavior`, errors);
+    requireNumber(pack.holdSeconds, `${location}/holdSeconds`, errors, { minimum: 0.35, maximum: 12 });
+    requireNumber(pack.telegraphSeconds, `${location}/telegraphSeconds`, errors, { minimum: 0.2, maximum: 4 });
+    requireNumber(pack.attackDurationSeconds, `${location}/attackDurationSeconds`, errors, { minimum: 0.3, maximum: 8 });
+    requireNumber(pack.attackRecoverySeconds, `${location}/attackRecoverySeconds`, errors, { minimum: 0.35, maximum: 12 });
+    requireNumber(pack.attackGroupSize, `${location}/attackGroupSize`, errors, { minimum: 1, maximum: 48, integer: true });
+    requireNumber(pack.attackCycles, `${location}/attackCycles`, errors, { minimum: 0, maximum: 100, integer: true });
     requireNumber(pack.synergyAdjustment, `${location}/synergyAdjustment`, errors, { minimum: -1000000, maximum: 1000000 });
     requireNumber(pack.minimumSector, `${location}/minimumSector`, errors, { minimum: 1, maximum: 1000, integer: true });
     requireNumber(pack.maximumSimultaneousInstances, `${location}/maximumSimultaneousInstances`, errors, { minimum: 1, maximum: 100, integer: true });
@@ -1787,13 +1824,35 @@ const validateFormationSlots = (slots, location, count, patternId, errors) => {
   });
 };
 
+const validateFormationBehavior = (behavior, location, errors) => {
+  if (behavior === undefined) return;
+  if (!requireObject(behavior, location, errors)) return;
+  allowedKeys(behavior, [
+    'entryPathId', 'movementId', 'attackId', 'firingBehavior', 'returnId',
+    'holdSeconds', 'telegraphSeconds', 'attackDurationSeconds', 'recoverySeconds',
+    'attackGroupSize', 'attackCycles'
+  ], location, errors);
+  if (behavior.entryPathId !== undefined) requireEnum(behavior.entryPathId, FORMATION_ENTRY_PATHS, `${location}/entryPathId`, errors);
+  if (behavior.movementId !== undefined) requireEnum(behavior.movementId, FORMATION_MOVEMENTS, `${location}/movementId`, errors);
+  if (behavior.attackId !== undefined) requireEnum(behavior.attackId, FORMATION_ATTACK_BEHAVIORS, `${location}/attackId`, errors);
+  if (behavior.firingBehavior !== undefined) requireEnum(behavior.firingBehavior, FORMATION_FIRING_BEHAVIORS, `${location}/firingBehavior`, errors);
+  if (behavior.returnId !== undefined) requireEnum(behavior.returnId, FORMATION_RETURN_BEHAVIORS, `${location}/returnId`, errors);
+  if (behavior.holdSeconds !== undefined) requireNumber(behavior.holdSeconds, `${location}/holdSeconds`, errors, { minimum: 0.35, maximum: 12 });
+  if (behavior.telegraphSeconds !== undefined) requireNumber(behavior.telegraphSeconds, `${location}/telegraphSeconds`, errors, { minimum: 0.2, maximum: 4 });
+  if (behavior.attackDurationSeconds !== undefined) requireNumber(behavior.attackDurationSeconds, `${location}/attackDurationSeconds`, errors, { minimum: 0.3, maximum: 8 });
+  if (behavior.recoverySeconds !== undefined) requireNumber(behavior.recoverySeconds, `${location}/recoverySeconds`, errors, { minimum: 0.35, maximum: 12 });
+  if (behavior.attackGroupSize !== undefined) requireNumber(behavior.attackGroupSize, `${location}/attackGroupSize`, errors, { minimum: 1, maximum: 48, integer: true });
+  if (behavior.attackCycles !== undefined) requireNumber(behavior.attackCycles, `${location}/attackCycles`, errors, { minimum: 0, maximum: 100, integer: true });
+};
+
 const validateSpawnEvent = (event, location, errors) => {
-  allowedKeys(event, ['id', 'label', 'kind', 'startSeconds', 'durationSeconds', 'delayAfterSeconds', 'blocksWaveClock', 'spawnAnchor', 'count', 'patternId', 'positionId', 'spawnIntervalSeconds', 'formationSlots', 'enemies'], location, errors);
+  allowedKeys(event, ['id', 'label', 'kind', 'startSeconds', 'durationSeconds', 'delayAfterSeconds', 'blocksWaveClock', 'spawnAnchor', 'count', 'patternId', 'positionId', 'spawnIntervalSeconds', 'formationSlots', 'formationBehavior', 'enemies'], location, errors);
   requireNumber(event.count, `${location}/count`, errors, { minimum: 1, maximum: 10000, integer: true });
   requireEnum(event.patternId, SPAWN_PATTERNS, `${location}/patternId`, errors);
   requireEnum(event.positionId, SPAWN_POSITIONS, `${location}/positionId`, errors);
   requireNumber(event.spawnIntervalSeconds, `${location}/spawnIntervalSeconds`, errors, { minimum: 0.01, maximum: 3600 });
   validateFormationSlots(event.formationSlots, `${location}/formationSlots`, event.count, event.patternId, errors);
+  validateFormationBehavior(event.formationBehavior, `${location}/formationBehavior`, errors);
   if (!Array.isArray(event.enemies) || event.enemies.length === 0) {
     errors.push(`${location}/enemies must be a non-empty array`);
     return;

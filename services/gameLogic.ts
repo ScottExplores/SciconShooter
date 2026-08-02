@@ -203,8 +203,13 @@ import {
   resolveConfiguredFormationSpawnPoint,
   resolveConfiguredFormationTarget,
   resolveFormationEntryMotion,
+  resolveFormationAttackIndices,
+  resolveFormationChoreography,
   resolveFormationEntryPlan,
-  type ConfiguredFormationMode
+  resolveFormationMovementPoint,
+  isFormationVolleyAttack,
+  type ConfiguredFormationMode,
+  type ResolvedFormationChoreography
 } from './gameplay/formations';
 import { ESCORT_POD_SIZE, resolveFormationDiveMotion } from './gameplay/formations/FormationRuntime';
 import {
@@ -777,6 +782,11 @@ export class Entity {
   formationEntryBehavior?: EnemyRoleDefinition['entryBehavior'];
   /** What this hull does once it holds a slot. See services/enemyCharacteristics. */
   campaignCharacteristic?: EnemyCharacteristic;
+  formationChoreography?: ResolvedFormationChoreography;
+  formationGroupReady: boolean = false;
+  formationAttackSelected: boolean = false;
+  formationAttackActive: boolean = false;
+  formationAttackStartedCycle: number = -1;
   encounterGroupSize: number = 1;
   /** Shared Mini-Boss encounter identity used by Campaign fights and isolated Sandbox previews. */
   miniBossLabEncounterId?: string;
@@ -1409,6 +1419,11 @@ type CampaignFormationPackInstanceState = {
   targetCount: number;
   spawnedCount: number;
   retired: boolean;
+  phase: 'assembling' | 'holding' | 'telegraph' | 'attacking' | 'recovering' | 'exiting';
+  phaseStartFrame: number;
+  attackCycle: number;
+  activeIndices: number[];
+  lastUpdatedFrame: number;
 };
 
 type RuntimeBossWeapon = {
@@ -8027,6 +8042,9 @@ export class GameEngine {
             fireDelaySeconds: candidate.campaignFireDelaySeconds,
             formationFiringBehavior: candidate.campaignFormationFiringBehavior,
             formationState: candidate.formationState,
+            formationGroupReady: candidate.formationGroupReady,
+            formationAttackSelected: candidate.formationAttackSelected,
+            formationAttackActive: candidate.formationAttackActive,
             isElite: candidate.isElite,
             spawnFrame: candidate.campaignSpawnFrame,
             currentFrame: this.frameCount,
@@ -8049,15 +8067,21 @@ export class GameEngine {
     const dx = targetX - sourceX;
     const dy = targetY - sourceY;
     const speed = Math.min(7.2, source.projectileSpeed ?? (4.5 + this.wave * 0.42));
+    const formationAttackId = source.formationChoreography?.attackId;
     const authoredBurst = source.campaignFireBehavior === 'aimed-burst'
-      || source.campaignGameplayRole === 'burst-shooter';
+      || source.campaignGameplayRole === 'burst-shooter'
+      || formationAttackId === 'spread-volley';
+    const requestedBurst = formationAttackId === 'spread-volley'
+      ? Math.max(3, source.configuredBurstCount ?? 3)
+      : source.configuredBurstCount ?? 3;
     const burstCount = authoredBurst
-      ? Math.min(source.configuredBurstCount ?? 3, Math.max(1, standardShotCap - activeEnemyShots))
+      ? Math.min(requestedBurst, Math.max(1, standardShotCap - activeEnemyShots))
       : 1;
     const baseAngle = Math.atan2(dy, dx);
     for (let index = 0; index < burstCount; index++) {
       const centered = index - ((burstCount - 1) / 2);
-      const angle = baseAngle + centered * 0.13;
+      const spreadRadians = formationAttackId === 'spread-volley' ? 0.22 : 0.13;
+      const angle = baseAngle + centered * spreadRadians;
       const shot = this.createEntity(EntityType.PROJECTILE, sourceX - 5, sourceY);
       shot.width = this.wave >= 4 ? 12 : 10;
       shot.height = this.wave >= 4 ? 12 : 10;
@@ -8306,6 +8330,9 @@ export class GameEngine {
           fireDelaySeconds: source.campaignFireDelaySeconds,
           formationFiringBehavior: source.campaignFormationFiringBehavior,
           formationState: source.formationState,
+          formationGroupReady: source.formationGroupReady,
+          formationAttackSelected: source.formationAttackSelected,
+          formationAttackActive: source.formationAttackActive,
           isElite: source.isElite,
           spawnFrame: source.campaignSpawnFrame,
           currentFrame: this.frameCount,
@@ -8523,11 +8550,13 @@ export class GameEngine {
     formationPack?: FormationPackDefinition,
     role?: EnemyRoleDefinition | null
   ) {
+    const choreography = resolveFormationChoreography(event, formationPack);
     return resolveConfiguredFormationSpawnPoint({
       event: {
         id: event.id,
         patternId: event.patternId,
         positionId: event.positionId,
+        entryPathId: choreography.entryPathId,
         spawnAnchor: event.spawnAnchor,
         formationSlots: event.formationSlots,
         entryDirection: formationPack?.entryDirection,
@@ -8539,6 +8568,185 @@ export class GameEngine {
       viewport: { width: this.width, height: this.height },
       randomSample: this.nextGameplayRandom()
     });
+  }
+
+  getCampaignFormationPackInstanceMembers(instanceId: string) {
+    return this.entities.filter((entity) => (
+      !entity.markedForDeletion
+      && entity.campaignFormationPackInstanceId === instanceId
+    ));
+  }
+
+  getCampaignFormationPackInstanceCenter(members: readonly Entity[]) {
+    if (members.length === 0) return { x: this.width / 2, y: this.height * 0.18 };
+    return members.reduce((center, member) => ({
+      x: center.x + (member.formationTargetX ?? member.x) / members.length,
+      y: center.y + (member.formationTargetY ?? member.y) / members.length
+    }), { x: 0, y: 0 });
+  }
+
+  beginConfiguredFormationAttack(enemy: Entity, attackCycle: number) {
+    const choreography = enemy.formationChoreography;
+    if (!choreography || isFormationVolleyAttack(choreography.attackId)) return;
+    const enemyCenterX = enemy.x + enemy.width / 2;
+    const enemyCenterY = enemy.y + enemy.height / 2;
+    const laneOffset = ((enemy.formationIndex % 3) - 1) * (this.mobileProfile ? 18 : 28);
+    const aimX = this.player.x + this.player.width / 2 + laneOffset + this.playerVel.x * 6;
+    const aimY = Math.min(this.height + 80, this.player.y + this.player.height * 0.7);
+    const dx = aimX - enemyCenterX;
+    const dy = Math.max(90, aimY - enemyCenterY);
+    const length = Math.max(1, Math.hypot(dx, dy));
+    const diveSpeed = enemy.formationBaseSpeed * (1.28 + Math.min(0.38, this.wave * 0.045));
+
+    if (choreography.attackId === 'sweep-strafe') {
+      const direction = enemy.formationIndex % 2 === 0 ? 1 : -1;
+      enemy.vx = direction * diveSpeed * 1.05;
+      enemy.vy = diveSpeed * 0.62;
+    } else if (choreography.attackId === 'lane-pass') {
+      enemy.vx = clamp(dx * 0.012, -diveSpeed * 0.28, diveSpeed * 0.28);
+      enemy.vy = diveSpeed * 1.08;
+    } else if (choreography.attackId === 'pincer-pass') {
+      const side = enemy.x < this.width / 2 ? 1 : -1;
+      enemy.vx = side * Math.max(diveSpeed * 0.54, Math.abs((dx / length) * diveSpeed));
+      enemy.vy = Math.max(diveSpeed * 0.74, (dy / length) * diveSpeed);
+    } else {
+      enemy.vx = (dx / length) * diveSpeed;
+      enemy.vy = Math.max(diveSpeed * 0.72, (dy / length) * diveSpeed);
+    }
+    enemy.formationState = 'dive';
+    enemy.formationStateFrame = this.frameCount;
+    enemy.formationAttackActive = true;
+    enemy.formationAttackStartedCycle = attackCycle;
+  }
+
+  setCampaignFormationInstancePhase(
+    instance: CampaignFormationPackInstanceState,
+    phase: CampaignFormationPackInstanceState['phase']
+  ) {
+    instance.phase = phase;
+    instance.phaseStartFrame = this.frameCount;
+  }
+
+  updateCampaignFormationPackInstance(instanceId: string) {
+    const instance = this.campaignFormationPackInstances.get(instanceId);
+    if (!instance || instance.retired) return instance;
+    if (instance.lastUpdatedFrame === this.frameCount) return instance;
+    instance.lastUpdatedFrame = this.frameCount;
+    const members = this.getCampaignFormationPackInstanceMembers(instanceId);
+    if (members.length === 0) return instance;
+    const choreography = members[0].formationChoreography;
+    if (!choreography) return instance;
+    const elapsed = this.frameCount - instance.phaseStartFrame;
+    const frames = (seconds: number) => Math.max(1, Math.round(seconds * GAME_CONFIG.FPS));
+
+    if (instance.phase === 'assembling') {
+      members.forEach((member) => {
+        member.formationGroupReady = false;
+        member.formationAttackSelected = false;
+        member.formationAttackActive = false;
+      });
+      const fullySpawned = instance.spawnedCount >= instance.targetCount;
+      const fullyAssembled = fullySpawned && members.every((member) => member.formationState === 'hold');
+      if (fullyAssembled) {
+        members.forEach((member) => { member.formationGroupReady = true; });
+        this.setCampaignFormationInstancePhase(instance, 'holding');
+      }
+      return instance;
+    }
+
+    if (instance.phase === 'holding') {
+      members.forEach((member) => {
+        member.formationGroupReady = true;
+        member.formationAttackSelected = false;
+        member.formationAttackActive = false;
+      });
+      if (elapsed >= frames(choreography.holdSeconds)) {
+        const volleyAttack = isFormationVolleyAttack(choreography.attackId);
+        const eligibleMembers = members.filter((member) => {
+          if (volleyAttack) return true;
+          const characteristic = getEnemyCharacteristicProfile(member.campaignCharacteristic);
+          if (!characteristic.divesFromFormation) return false;
+          return !(member.formation === 'escort'
+            && member.formationIndex % ESCORT_POD_SIZE === 0
+            && this.countLivingEscortsForPod(member) > 0);
+        });
+        const livingIndices = eligibleMembers
+          .map((member) => member.formationIndex)
+          .sort((left, right) => left - right);
+        instance.activeIndices = resolveFormationAttackIndices(
+          choreography.attackId,
+          instance.attackCycle,
+          livingIndices.length,
+          choreography.attackGroupSize
+        ).map((selectionIndex) => livingIndices[selectionIndex]);
+        const selected = new Set(instance.activeIndices);
+        members.forEach((member) => {
+          member.formationAttackSelected = selected.has(member.formationIndex);
+          member.formationDiveFrame = this.frameCount + frames(choreography.telegraphSeconds);
+        });
+        this.setCampaignFormationInstancePhase(instance, 'telegraph');
+      }
+      return instance;
+    }
+
+    if (instance.phase === 'telegraph') {
+      if (elapsed >= frames(choreography.telegraphSeconds)) {
+        this.setCampaignFormationInstancePhase(instance, 'attacking');
+        const selected = new Set(instance.activeIndices);
+        members.forEach((member) => {
+          if (!selected.has(member.formationIndex)) return;
+          member.formationAttackActive = true;
+          member.formationAttackStartedCycle = instance.attackCycle;
+          if (!isFormationVolleyAttack(choreography.attackId)) {
+            this.beginConfiguredFormationAttack(member, instance.attackCycle);
+          }
+        });
+      }
+      return instance;
+    }
+
+    if (instance.phase === 'attacking') {
+      const selected = new Set(instance.activeIndices);
+      const attackMembers = members.filter((member) => selected.has(member.formationIndex));
+      const volleyComplete = isFormationVolleyAttack(choreography.attackId)
+        && elapsed >= frames(choreography.attackDurationSeconds);
+      const motionComplete = !isFormationVolleyAttack(choreography.attackId)
+        && attackMembers.every((member) => (
+          member.formationAttackStartedCycle === instance.attackCycle
+          && member.formationState === 'hold'
+        ));
+      if (volleyComplete || motionComplete || attackMembers.length === 0) {
+        members.forEach((member) => {
+          member.formationAttackSelected = false;
+          member.formationAttackActive = false;
+        });
+        this.setCampaignFormationInstancePhase(instance, 'recovering');
+      }
+      return instance;
+    }
+
+    if (instance.phase === 'recovering' && elapsed >= frames(choreography.recoverySeconds)) {
+      instance.attackCycle++;
+      const cycleSetComplete = choreography.attackCycles > 0
+        && instance.attackCycle >= choreography.attackCycles;
+      if (cycleSetComplete && (choreography.returnId === 'exit' || choreography.returnId === 'retreat')) {
+        members.forEach((member) => {
+          member.formationGroupReady = false;
+          member.formationAttackSelected = true;
+          member.formationAttackActive = true;
+        });
+        this.setCampaignFormationInstancePhase(instance, 'exiting');
+      } else {
+        if (cycleSetComplete) {
+          instance.attackCycle = 0;
+          if (choreography.returnId === 'transform') {
+            members.forEach((member) => { member.formationCycle++; });
+          }
+        }
+        this.setCampaignFormationInstancePhase(instance, 'holding');
+      }
+    }
+    return instance;
   }
 
   configureEnemyFormation(
@@ -8557,6 +8765,7 @@ export class GameEngine {
     const patternId = String(event.patternId || '').toLowerCase();
 
     const formation = this.resolveConfiguredFormationMode(patternId, event.id);
+    const choreography = resolveFormationChoreography(event, formationPack);
     if (formation === 'spiral' && enemy.type === EntityType.ENEMY_DRONE) {
       enemy.width = Math.round(44 * SPIRAL_PAYWALL_INTERCEPTOR_SCALE * REGULAR_ENEMY_SIZE_SCALE);
       enemy.height = Math.round(44 * SPIRAL_PAYWALL_INTERCEPTOR_SCALE * REGULAR_ENEMY_SIZE_SCALE);
@@ -8576,7 +8785,8 @@ export class GameEngine {
       baseVerticalSpeed: enemy.vy,
       sideSentry,
       framesPerSecond: GAME_CONFIG.FPS,
-      target
+      target,
+      entryPathId: choreography.entryPathId
     });
 
     enemy.formation = plan.mode;
@@ -8594,8 +8804,13 @@ export class GameEngine {
     enemy.formationBaseSpeed = plan.baseSpeed;
     enemy.formationCycle = 0;
     enemy.formationEntryDirection = plan.entryDirection;
-    enemy.formationEntryPath = plan.entryPath;
+    enemy.formationEntryPath = choreography.entryPathId || plan.entryPath;
     enemy.formationEntryBehavior = plan.entryBehavior;
+    enemy.formationChoreography = choreography;
+    enemy.formationGroupReady = false;
+    enemy.formationAttackSelected = false;
+    enemy.formationAttackActive = false;
+    enemy.formationAttackStartedCycle = -1;
     enemy.encounterGroupSize = plan.groupSize;
     enemy.vx = 0;
     enemy.vy = 0;
@@ -8685,6 +8900,22 @@ export class GameEngine {
     const targetX = enemy.formationTargetX;
     const targetY = enemy.formationTargetY;
     if (!state || !formation || formation === 'orbit' || targetX === undefined || targetY === undefined) return false;
+    const instanceId = enemy.campaignFormationPackInstanceId;
+    const instance = instanceId ? this.updateCampaignFormationPackInstance(instanceId) : undefined;
+    const choreography = enemy.formationChoreography;
+
+    if (instance?.phase === 'exiting') {
+      const retreating = choreography?.returnId === 'retreat';
+      const speed = Math.max(3.4, enemy.formationBaseSpeed * 1.35);
+      enemy.y += retreating ? -speed : speed;
+      enemy.x += Math.sin((this.frameCount + enemy.formationIndex * 13) * 0.05)
+        * (retreating ? 0.9 : 1.45);
+      enemy.angle = (enemy.formationIndex % 2 === 0 ? 1 : -1) * 0.2;
+      if (enemy.y < -enemy.height - 90 || enemy.y > this.height + enemy.height + 90) {
+        enemy.markedForDeletion = true;
+      }
+      return true;
+    }
 
     if (state === 'entry' || state === 'return') {
       const duration = Math.max(1, enemy.formationEntryFrames || 54);
@@ -8714,25 +8945,12 @@ export class GameEngine {
         enemy.angle = 0;
         enemy.formationState = 'hold';
         enemy.formationStateFrame = this.frameCount;
+        if (state === 'return') enemy.formationAttackActive = false;
       }
       return true;
     }
 
     if (state === 'hold') {
-      const swayByMode: Record<Exclude<EnemyFormationMode, 'orbit'>, number> = {
-        row: 12,
-        v: 16,
-        sine: 22,
-        pincer: 18,
-        grid: 10,
-        diamond: 20,
-        spiral: 28,
-        escort: 14
-      };
-      const groupSway = Math.sin((this.frameCount + enemy.formationGroupSeed) * 0.018) * swayByMode[formation];
-      const formationPulse = formation === 'diamond' || formation === 'spiral'
-        ? Math.sin((this.frameCount + enemy.formationIndex * 11) * 0.035) * 4
-        : 0;
       // Escort rings rotate around their leader so the pod reads as a guarded
       // target rather than a static cluster.
       const escortSpin = formation === 'escort' && enemy.formationIndex % ESCORT_POD_SIZE !== 0
@@ -8742,17 +8960,42 @@ export class GameEngine {
       // Adding it to enemy.x each frame integrated into an unbounded random
       // walk that carried holders off the field, which stalled waves that were
       // waiting on them.
-      const characteristicStrafe = getEnemyCharacteristicProfile(enemy.campaignCharacteristic);
-      const strafeOffset = characteristicStrafe.holdStrafePixels > 0
+      const characteristic = getEnemyCharacteristicProfile(enemy.campaignCharacteristic);
+      const strafeOffset = characteristic.holdStrafePixels > 0
         ? Math.sin((this.frameCount + enemy.formationIndex * 23) * 0.012)
-          * characteristicStrafe.holdStrafePixels
+          * characteristic.holdStrafePixels
         : 0;
-      enemy.x = targetX + groupSway + strafeOffset + (escortSpin?.x ?? 0);
-      enemy.y = targetY + formationPulse + (escortSpin?.y ?? 0)
-        + Math.sin((this.frameCount + enemy.formationIndex * 17) * 0.045) * 2.5;
+      if (choreography) {
+        const members = instanceId ? this.getCampaignFormationPackInstanceMembers(instanceId) : [enemy];
+        const point = resolveFormationMovementPoint({
+          movementId: choreography.movementId,
+          base: { x: targetX, y: targetY },
+          groupCenter: this.getCampaignFormationPackInstanceCenter(members),
+          frame: this.frameCount,
+          groupSeed: enemy.formationGroupSeed,
+          index: enemy.formationIndex,
+          count: enemy.encounterGroupSize,
+          viewport: { width: this.width, height: this.height },
+          transformCycle: enemy.formationCycle
+        });
+        enemy.x = point.x + strafeOffset + (escortSpin?.x ?? 0);
+        enemy.y = point.y + (escortSpin?.y ?? 0);
+      } else {
+        const groupSway = Math.sin((this.frameCount + enemy.formationGroupSeed) * 0.018) * 14;
+        const formationPulse = formation === 'diamond' || formation === 'spiral'
+          ? Math.sin((this.frameCount + enemy.formationIndex * 11) * 0.035) * 4
+          : 0;
+        enemy.x = targetX + groupSway + strafeOffset + (escortSpin?.x ?? 0);
+        enemy.y = targetY + formationPulse + (escortSpin?.y ?? 0)
+          + Math.sin((this.frameCount + enemy.formationIndex * 17) * 0.045) * 2.5;
+      }
       enemy.vx = 0;
       enemy.vy = 0;
       enemy.angle = Math.sin((this.frameCount + enemy.formationGroupSeed) * 0.018) * 0.05;
+
+      // Pack-bound enemies wait for their shared controller. This assembly
+      // barrier prevents early members from attacking while the rest enter.
+      if (instance) return true;
 
       // A pod leader holds its slot until its ring is broken. Diving out from
       // behind live escorts would throw away the whole point of the pod.
@@ -8764,7 +9007,6 @@ export class GameEngine {
       // Holders and artillery never do -- they are the wall the player has to
       // shoot through, and letting every hull dive was what made the whole
       // roster read as one undifferentiated stream.
-      const characteristic = getEnemyCharacteristicProfile(enemy.campaignCharacteristic);
       if (!characteristic.divesFromFormation) return true;
 
       if (this.frameCount >= enemy.formationDiveFrame) {
@@ -8790,7 +9032,8 @@ export class GameEngine {
     if (enemy.y > this.height + 72 || enemy.x < -140 || enemy.x > this.width + 140) {
       // A kamikaze commits: it does not loop back into the block. Letting it
       // re-enter turned a one-way threat into just another diver.
-      if (!getEnemyCharacteristicProfile(enemy.campaignCharacteristic).returnsToFormation) {
+      if (choreography?.returnId === 'exit'
+        || !getEnemyCharacteristicProfile(enemy.campaignCharacteristic).returnsToFormation) {
         enemy.markedForDeletion = true;
         return true;
       }
@@ -8804,6 +9047,7 @@ export class GameEngine {
       enemy.angle = 0;
       enemy.formationState = 'return';
       enemy.formationStateFrame = this.frameCount;
+      enemy.formationAttackActive = false;
       enemy.formationEntryFrames = 46 + (enemy.formationIndex % 4) * 4;
       enemy.formationCycle++;
       enemy.formationDiveFrame = this.frameCount
@@ -8854,6 +9098,7 @@ export class GameEngine {
     const formationPack = countTowardCombatBudget
       ? this.getCampaignFormationPackForSpawn(event)
       : undefined;
+    const formationChoreography = resolveFormationChoreography(event, formationPack);
     const formationInstanceId = formationPack
       ? this.getCampaignFormationPackInstanceId(event.id)
       : undefined;
@@ -8933,7 +9178,7 @@ export class GameEngine {
     enemy.campaignGameplayRole = role?.role;
     enemy.campaignDurabilityClass = role?.durabilityClass;
     enemy.campaignCharacteristic = countTowardCombatBudget
-      ? getEnemyCharacteristicProfile(role?.characteristic, role).id
+      ? getEnemyCharacteristicProfile(role?.characteristic, role ?? undefined).id
       : undefined;
     enemy.campaignThreatCost = countTowardCombatBudget ? threatCost : 0;
     enemy.campaignPerformanceCost = performanceCost;
@@ -8942,7 +9187,9 @@ export class GameEngine {
       ? Math.max(0, Number(role?.fireDelaySeconds) || 0)
       : 0;
     enemy.campaignFormationFiringBehavior = countTowardCombatBudget
-      ? formationPack?.firingBehavior ?? this.getCampaignFormationFiringBehavior(role?.id)
+      ? formationPack
+        ? formationChoreography.firingBehavior
+        : this.getCampaignFormationFiringBehavior(role?.id)
       : 'none';
     enemy.campaignFormationPackId = formationPack?.id;
     enemy.campaignFormationPackInstanceId = formationInstanceId;
@@ -8971,7 +9218,7 @@ export class GameEngine {
       role
     );
     if (formationPack && formationInstanceId) {
-      const nextInstance = formationInstance && !formationInstance.retired
+      const nextInstance: CampaignFormationPackInstanceState = formationInstance && !formationInstance.retired
         ? formationInstance
         : {
             packId: formationPack.id,
@@ -8979,7 +9226,12 @@ export class GameEngine {
             campaignIndex: this.currentCampaignIndex,
             targetCount,
             spawnedCount: 0,
-            retired: false
+            retired: false,
+            phase: 'assembling',
+            phaseStartFrame: this.frameCount,
+            attackCycle: 0,
+            activeIndices: [],
+            lastUpdatedFrame: -1
           };
       nextInstance.targetCount = Math.max(nextInstance.targetCount, targetCount);
       nextInstance.spawnedCount = Math.max(nextInstance.spawnedCount, spawnIndex + 1);
@@ -9106,12 +9358,19 @@ export class GameEngine {
       const cycle = this.getCampaignCycle();
       const formationEvent = !String(event.patternId || '').toLowerCase().includes('single')
         && !String(event.patternId || '').toLowerCase().includes('random');
-      if (cycle > 0 && formationEvent && spawned === 0 && !this.escalationWarningsShown.has(event.id)) {
+      if (formationEvent && spawned === 0 && !this.escalationWarningsShown.has(event.id)) {
         this.escalationWarningsShown.add(event.id);
         const entersFromLeft = (event.id.length + cycle) % 2 === 0;
         const warningX = entersFromLeft ? 36 : this.width - 36;
-        this.spawnFloatingText(warningX, this.height * 0.22, 'SIDE ENTRY', '#fb7185', 15);
-        this.spawnRingEffect(warningX, this.height * 0.22, '#fb7185');
+        const warningColor = cycle > 0 ? '#fb7185' : '#67e8f9';
+        this.spawnFloatingText(
+          warningX,
+          this.height * 0.22,
+          cycle > 0 ? 'SIDE ENTRY' : 'FORMATION INBOUND',
+          warningColor,
+          15
+        );
+        this.spawnRingEffect(warningX, this.height * 0.22, warningColor);
       }
       this.spawnConfiguredEnemyFromEvent(event, spawned, count, difficultyMultiplier);
     }

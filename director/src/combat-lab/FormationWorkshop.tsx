@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { ASSET_CATALOG, ENEMY_CATALOG, SPAWN_PATTERN_CATALOG } from '@game/game-config/catalog';
-import type { FormationSlot, SpawnEvent, SpawnPatternId } from '@game/game-config/types';
+import type { FormationPackDefinition, FormationSlot, SpawnEvent, SpawnPatternId } from '@game/game-config/types';
 import { EditorIcon } from '@director/editor/EditorIcon';
+import { FormationBehaviorFields } from './FormationBehaviorFields';
 import {
   cloneFormationSlots,
   createFormationSlots,
@@ -284,7 +285,8 @@ export function FormationWorkshopInspector({
   onSave,
   onPromote,
   promotionMode,
-  onPromotionModeChange
+  onPromotionModeChange,
+  formationPack
 }: {
   event: SpawnEvent;
   viewport: WorkshopViewport;
@@ -293,6 +295,7 @@ export function FormationWorkshopInspector({
   onPromote: () => void;
   promotionMode: 'event' | 'wave';
   onPromotionModeChange: (mode: 'event' | 'wave') => void;
+  formationPack?: FormationPackDefinition;
 }) {
   const slots = event.formationSlots ?? starterSlotsFor(event);
   const spacing = minimumFormationSpacing(slots, viewport);
@@ -318,7 +321,7 @@ export function FormationWorkshopInspector({
       <div className="cl-formation-inspector__fields">
         <label><span>Formation name</span><input value={event.label} maxLength={100} onChange={(input) => onChange({ ...event, label: input.target.value })} /></label>
         <label><span>Primary enemy</span><select value={primaryEnemy?.enemyId ?? enemyOptions[0].id} onChange={(input) => updatePrimaryEnemy(input.target.value)}>{enemyOptions.map((enemy) => <option key={enemy.id} value={enemy.id}>{enemy.label}</option>)}</select></label>
-        <label><span>Entry & attack style</span><select value={event.patternId} onChange={(input) => onChange({ ...event, patternId: input.target.value as SpawnPatternId })}>{isGroupedChoreography(event.patternId) ? null : <option value={event.patternId}>{SPAWN_PATTERN_CATALOG[event.patternId].label} · convert to edit slots</option>}{GROUPED_CHOREOGRAPHIES.map((pattern) => <option value={pattern.id} key={pattern.id}>{pattern.label}</option>)}</select></label>
+        <label><span>Formation shape</span><select value={event.patternId} onChange={(input) => onChange({ ...event, patternId: input.target.value as SpawnPatternId })}>{isGroupedChoreography(event.patternId) ? null : <option value={event.patternId}>{SPAWN_PATTERN_CATALOG[event.patternId].label} · convert to edit slots</option>}{GROUPED_CHOREOGRAPHIES.map((pattern) => <option value={pattern.id} key={pattern.id}>{pattern.label}</option>)}</select></label>
         <label><span>Spawn gap</span><div className="cl-formation-number"><input type="number" value={event.spawnIntervalSeconds} min={0.05} max={10} step={0.05} onChange={(input) => {
           const spawnIntervalSeconds = Number(input.target.value);
           onChange({
@@ -330,6 +333,8 @@ export function FormationWorkshopInspector({
         <label><span>Encounter duration</span><div className="cl-formation-number"><input type="number" value={event.durationSeconds} min={1} max={3600} step={0.5} onChange={(input) => onChange({ ...event, durationSeconds: Number(input.target.value) })} /><b>s</b></div></label>
         <label><span>Attack order</span><button className="cl-button" type="button" onClick={() => onChange(updateSlotsOnEvent(event, [...slots].reverse()))}>Reverse numbered order</button></label>
       </div>
+
+      <FormationBehaviorFields event={event} pack={formationPack} onChange={onChange} />
 
       <div className="cl-formation-validation" aria-label="Formation validation">
         <div className={safe ? 'is-good' : 'is-warning'}><i /> <strong>Safe zone</strong><span>{safe ? 'All slots fit the authored combat area.' : 'Move highlighted slots into the safe area.'}</span></div>
