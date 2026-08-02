@@ -48,11 +48,11 @@ test('gameplay actions with native effects opt out of delegated menu clicks', ()
   assert.match(overlaySource, /data-audio="none"[\s\S]{0,300}onUpgrade\(type\)/);
 });
 
-test('audio settings acknowledge unmute and SFX volume changes through the UI bus', () => {
+test('audio settings acknowledge unmute and volume changes through the UI bus', () => {
   const appSource = fs.readFileSync(path.join(root, 'App.tsx'), 'utf8');
 
   assert.match(appSource, /const nextMuted = audioService\.toggleMute\(\)/);
   assert.match(appSource, /if \(!nextMuted\) audioService\.playUiSound\('confirm'\)/);
   assert.match(appSource, /setGameSfxVolume[\s\S]{0,260}audioService\.playUiSound\('click'\)/);
-  assert.doesNotMatch(appSource, /setGameMusicVolume|setMusicVolumeLevel/);
+  assert.match(appSource, /setGameMusicVolume[\s\S]{0,260}audioService\.playUiSound\('click'\)/);
 });

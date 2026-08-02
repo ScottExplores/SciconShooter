@@ -75,8 +75,14 @@ const MUSIC_URLS: Record<MusicTrack, string> = {
   boss: `${MUSIC_ROOT}/music-boss.wav`
 };
 
-/** Music sits under the effects, not beside them. */
-const MUSIC_BASE_GAIN = 0.34;
+/**
+ * Music sits UNDER the effects, set by measurement rather than taste: at 0.34
+ * the combat bed's effective RMS (0.051) overpowered every SFX cue (hit 0.006,
+ * player shot 0.024, boss shot 0.043). 0.14 lands it at ~0.021 -- beneath the
+ * player's own fire -- and the pause-menu slider owns it from there.
+ */
+const MUSIC_BASE_GAIN = 0.14;
+const MUSIC_VOLUME_STORAGE_KEY = 'scicon-shooter:music-volume:v1';
 
 const SFX_VOLUME_STORAGE_KEY = 'scicon-shooter:sfx-volume:v1';
 const UI_SAMPLE_KEYS: ReadonlyArray<SampleKey> = [
@@ -764,6 +770,7 @@ class AudioService {
   private musicLoadPromises: Partial<Record<MusicTrack, Promise<AudioBuffer | null>>> = {};
   private currentMusic: MusicTrack | null = null;
   private musicVolumeLevel: number = MAX_VOLUME_LEVEL;
+  private musicVolumeLoaded = false;
 
   private async loadMusic(track: MusicTrack): Promise<AudioBuffer | null> {
     const cached = this.musicBuffers[track];
@@ -789,6 +796,12 @@ class AudioService {
     return promise;
   }
 
+  private ensureMusicVolumeLoaded() {
+    if (this.musicVolumeLoaded) return;
+    this.musicVolumeLoaded = true;
+    this.musicVolumeLevel = this.readStoredVolumeLevel(MUSIC_VOLUME_STORAGE_KEY, MAX_VOLUME_LEVEL);
+  }
+
   private ensureMusicGain(): GainNode | null {
     const ctx = this.ensureAudioContext();
     if (!ctx) return null;
@@ -801,6 +814,7 @@ class AudioService {
   }
 
   private get musicTargetGain() {
+    this.ensureMusicVolumeLoaded();
     return this.muted ? 0 : (this.musicVolumeLevel / MAX_VOLUME_LEVEL) * MUSIC_BASE_GAIN;
   }
 
@@ -849,14 +863,18 @@ class AudioService {
   }
 
   setMusicVolumeLevel(level: number) {
+    this.ensureMusicVolumeLoaded();
     this.musicVolumeLevel = Math.max(0, Math.min(MAX_VOLUME_LEVEL, Math.round(level)));
+    this.storeVolumeLevel(MUSIC_VOLUME_STORAGE_KEY, this.musicVolumeLevel);
     const ctx = this.ctx;
     if (this.musicGain && ctx) {
       this.musicGain.gain.setTargetAtTime(this.musicTargetGain, ctx.currentTime, 0.05);
     }
+    return this.musicVolumeLevel;
   }
 
   getMusicVolumeLevel() {
+    this.ensureMusicVolumeLoaded();
     return this.musicVolumeLevel;
   }
 

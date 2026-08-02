@@ -10,11 +10,13 @@ interface PauseMenuProps {
   waveNumber: number;
   waveTotal: number;
   sfxVolumeLevel: number;
+  musicVolumeLevel: number;
   polishSettings: GamePolishSettings;
   onResume: () => void;
   onQuit: () => void;
   onToggleAudio: () => void;
   onSfxVolumeChange: (level: number) => void;
+  onMusicVolumeChange: (level: number) => void;
   onTogglePolishSetting: (key: keyof GamePolishSettings) => void;
   founderControls?: React.ReactNode;
 }
@@ -100,11 +102,13 @@ const PauseMenu: React.FC<PauseMenuProps> = ({
   waveNumber,
   waveTotal,
   sfxVolumeLevel,
+  musicVolumeLevel,
   polishSettings,
   onResume,
   onQuit,
   onToggleAudio,
   onSfxVolumeChange,
+  onMusicVolumeChange,
   onTogglePolishSetting,
   founderControls
 }) => (
@@ -169,6 +173,12 @@ const PauseMenu: React.FC<PauseMenuProps> = ({
               label="Sound effects"
               level={sfxVolumeLevel}
               onChange={onSfxVolumeChange}
+            />
+            <PauseVolumeSlider
+              id="sci-pause-music-volume-level"
+              label="Music"
+              level={musicVolumeLevel}
+              onChange={onMusicVolumeChange}
             />
             <PauseSettingRow
               label="Screen shake"

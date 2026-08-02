@@ -32,12 +32,14 @@ test('the application has no background-music scheduler, preload, or media-eleme
   assert.doesNotMatch(editorSource, /musicEnabled/);
 });
 
-test('pause settings retain sound effects while removing track and music-volume controls', () => {
+test('pause settings expose sound-effects and music sliders without a legacy track picker', () => {
   assert.match(pauseSource, /label="Sound effects"/);
   assert.match(pauseSource, /sfxVolumeLevel/);
   assert.match(pauseSource, /onSfxVolumeChange/);
-  assert.doesNotMatch(pauseSource, /Mission music|Music volume|musicTrackId|onMusic/);
-  assert.doesNotMatch(appSource, /musicVolumeLevel|musicTrackId|onMusic/);
+  assert.match(pauseSource, /label="Music"/);
+  assert.match(pauseSource, /onMusicVolumeChange/);
+  assert.doesNotMatch(pauseSource, /Mission music|musicTrackId/);
+  assert.doesNotMatch(appSource, /musicTrackId/);
 });
 
 test('all background music binaries and product-facing credits are removed', () => {

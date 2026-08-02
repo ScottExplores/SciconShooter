@@ -68,8 +68,10 @@ test('pause menu uses the generated game interface while preserving real setting
   assert.match(pause, /step=\{1\}/);
   assert.match(pause, /AUDIO_VOLUME_NOTCHES\.map/);
   assert.match(pause, /label="Sound effects"/);
-  assert.doesNotMatch(pause, /Mission music|Music volume|onMusic/);
-  assert.doesNotMatch(app, /musicVolumeLevel|musicTrackId|onMusic/);
+  assert.match(pause, /label="Music"/);
+  assert.match(pause, /id="sci-pause-music-volume-level"/);
+  assert.match(app, /musicVolumeLevel=\{musicVolumeLevel\}/);
+  assert.match(app, /onMusicVolumeChange=\{setGameMusicVolume\}/);
   assert.match(pause, /Mission \{String\(missionNumber\)\.padStart\(2, '0'\)\}/);
   assert.match(pause, /Wave \{waveNumber\}\/\{waveTotal\}/);
   assert.match(pause, /sci-pause-mission-position/);

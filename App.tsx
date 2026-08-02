@@ -1426,6 +1426,7 @@ const App: React.FC = () => {
 
   const [audioMuted, setAudioMuted] = useState(() => audioService.isMuted());
   const [sfxVolumeLevel, setSfxVolumeLevel] = useState(() => audioService.getSfxVolumeLevel());
+  const [musicVolumeLevel, setMusicVolumeLevel] = useState(() => audioService.getMusicVolumeLevel());
 
   useEffect(() => installUiAudioFeedback(document), []);
 
@@ -2738,6 +2739,12 @@ const App: React.FC = () => {
 
   const setGameSfxVolume = (level: number) => {
     setSfxVolumeLevel(audioService.setSfxVolumeLevel(level));
+    setAudioMuted(audioService.isMuted());
+    audioService.playUiSound('click');
+  };
+
+  const setGameMusicVolume = (level: number) => {
+    setMusicVolumeLevel(audioService.setMusicVolumeLevel(level));
     setAudioMuted(audioService.isMuted());
     audioService.playUiSound('click');
   };
@@ -5967,6 +5974,8 @@ const App: React.FC = () => {
           waveNumber={pauseMissionPosition?.waveNumber ?? 1}
           waveTotal={pauseMissionPosition?.waveTotal ?? 1}
           sfxVolumeLevel={sfxVolumeLevel}
+          musicVolumeLevel={musicVolumeLevel}
+          onMusicVolumeChange={setGameMusicVolume}
           polishSettings={polishSettings}
           onResume={() => {
             setOwnerFrameFrozen(false);
