@@ -12,7 +12,7 @@ export interface GameStageProps {
 }
 
 const GameStage: React.FC<GameStageProps> = ({ canvas, hud = false, className = '' }) => (
-  <div className={`scicon-game-stage ${className}`.trim()}>
+  <div className={`scicon-game-stage ${className}`.trim()} data-onboarding-target="flight-stage">
     <GameCanvas {...canvas} />
     {hud ? <UIOverlay {...hud} stats={canvas.stats} /> : null}
   </div>

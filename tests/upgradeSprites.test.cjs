@@ -76,10 +76,12 @@ test('the top HUD uses slim mirrored rails with room for multi-digit match coins
 test('sound controls live in the pause menu instead of consuming gameplay HUD space', () => {
   const app = fs.readFileSync(path.join(root, 'App.tsx'), 'utf8');
   const pauseMenu = fs.readFileSync(path.join(root, 'components', 'PauseMenu.tsx'), 'utf8');
+  const audioSettings = fs.readFileSync(path.join(root, 'components', 'AudioSettingsControls.tsx'), 'utf8');
   const hud = fs.readFileSync(path.join(root, 'components', 'UIOverlay.tsx'), 'utf8');
 
   assert.match(pauseMenu, /Mission Settings/);
-  assert.match(pauseMenu, /Game audio/);
+  assert.match(pauseMenu, /<AudioSettingsControls/);
+  assert.match(audioSettings, /Game audio/);
   assert.match(app, /<PauseMenu/);
   assert.match(app, /audioService\.toggleMute\(\)/);
   assert.doesNotMatch(hud, /onClick=\{toggleMute\}/);

@@ -76,7 +76,7 @@ test('mission launch joins a pending preload with progress, then locks simulatio
   assert.match(readyFlow, /beginRunSession/);
   assert.match(failureFlow, /phase: 'error'/);
   assert.match(failureFlow, /pendingMissionRuntimeRef\.current = null/);
-  assert.match(app, /running: gameState === GameState\.PLAYING && gameRuntimeReady && !ownerFrameFrozen/);
+  assert.match(app, /running:\s*gameState === GameState\.PLAYING\s*&&\s*gameRuntimeReady\s*&&\s*!ownerFrameFrozen\s*&&\s*!onboardingGameplayFreeze/);
   assert.match(app, /onReady: \(\) => completeMissionRuntimeLaunch\(gameId\)/);
   assert.match(app, /onInitializationError: \(error\) => failMissionRuntimeLaunch\(gameId, error\)/);
   assert.match(app, /hud=\{gameRuntimeReady &&/);

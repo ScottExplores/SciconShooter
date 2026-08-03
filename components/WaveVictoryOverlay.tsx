@@ -110,6 +110,7 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
       <div className="wave-victory-stage">
         <section
           className={`wave-record-shell wave-record-shell-mission ${missionMastered ? 'is-mastered' : ''}`}
+          data-onboarding-target="mission-rewards"
           aria-label={`Mission ${summary.stage} completed after ${summary.waveTotal} waves`}
         >
           <div className="wave-record-art" aria-hidden="true">

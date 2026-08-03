@@ -1335,6 +1335,7 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
                       }}
                       type="button"
                       className={`campaign-map-node campaign-map-node--${stateName} campaign-map-node--role-${missionRole} ${nodeState.completed ? 'is-completed' : ''} ${nodeState.unlocked ? 'is-unlocked' : 'is-locked'} ${missionRole === 'major-boss' ? 'campaign-map-node--boss' : ''} ${showLockedBossSilhouette ? 'has-locked-boss-silhouette' : ''} ${selected ? 'is-selected' : ''} ${newNode ? 'is-new' : ''}`}
+                      data-onboarding-target={nodeState.current ? 'campaign-mission' : undefined}
                       data-mission-role={missionRole}
                       style={{
                         '--campaign-node-x': `${mission.mapPosition.x * 100}%`,
@@ -1673,6 +1674,7 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
                       Mission launch for the rest of the week the moment a
                       weekly attempt started. */}
                   <PixelActionButton
+                    data-onboarding-target="campaign-launch"
                     tone={launchReady && !readOnly ? 'green' : 'neutral'}
                     ready={launchReady && !readOnly}
                     shine={launchReady && !readOnly}

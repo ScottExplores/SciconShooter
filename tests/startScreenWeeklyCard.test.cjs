@@ -172,7 +172,7 @@ test('weekly funding and high score share the exact Start Mission chrome with sa
   );
 
   assert.ok(fs.existsSync(framePath));
-  assert.match(source, /<HudPanel className="sci-weekly-funding-shell">/);
+  assert.match(source, /<HudPanel className="sci-weekly-funding-shell"[^>]*>/);
   assert.match(source, /const renderWeeklyFundingCard =/);
   assert.match(source, /sci-weekly-funding-summary/);
   assert.match(source, /Weekly Funding[\s\S]*Weekly high score/);

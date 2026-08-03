@@ -7,7 +7,7 @@ import {
   getProposalFundingMetrics,
   sortProposalsByFunding
 } from '../services/proposalFunding';
-import { ASSETS, DONATION_CONFIG, STORAGE_KEYS } from '../constants';
+import { ASSETS, DONATION_CONFIG } from '../constants';
 import type { WalletRunRecord } from '../services/playerRunService';
 import type { WeeklyProposalRecovery } from '../services/weeklyProposalRecovery';
 import {
@@ -32,7 +32,6 @@ import {
 import SquadHangar from './SquadHangar';
 import PixelActionButton from './PixelActionButton';
 import AudioSettingsControls from './AudioSettingsControls';
-import Tutorial from './Tutorial';
 import { WEEKLY_RUN_STARTING_LIVES } from '../services/weeklyRunGenerator';
 import ShipCarousel from './ShipCarousel';
 import BossArchive, {
@@ -128,6 +127,8 @@ interface StartScreenProps {
   onDismissBossArchiveLaunchError?: () => void;
   /** Opens the standalone ten-life, two-attempt Weekly Run gauntlet. */
   onStartWeeklyRun?: () => void;
+  /** Restarts the progressive flight guide from More without resetting game progress. */
+  onRestartOnboarding?: () => void;
   weeklyRunLaunchError?: string | null;
   onDismissWeeklyRunLaunchError?: () => void;
   weeklyRunActive?: boolean;
@@ -599,8 +600,12 @@ const StatusPill: React.FC<{ children: React.ReactNode; tone?: 'cyan' | 'green' 
   );
 };
 
-const HudPanel: React.FC<{ children: React.ReactNode; className?: string; style?: React.CSSProperties }> = ({ children, className = '', style }) => (
-  <section style={style} className={`relative overflow-hidden rounded-[8px] border border-cyan-300/20 bg-slate-950/72 shadow-[0_0_30px_rgba(8,145,178,0.16)] backdrop-blur-xl ${className}`}>
+const HudPanel: React.FC<React.HTMLAttributes<HTMLElement>> = ({ children, className = '', style, ...props }) => (
+  <section
+    {...props}
+    style={style}
+    className={`relative overflow-hidden rounded-[8px] border border-cyan-300/20 bg-slate-950/72 shadow-[0_0_30px_rgba(8,145,178,0.16)] backdrop-blur-xl ${className}`}
+  >
     <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(34,211,238,0.12),transparent_36%),linear-gradient(135deg,rgba(34,211,238,0.08),transparent_42%,rgba(16,185,129,0.08))]" />
     <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-200/80 to-transparent" />
     <div className="relative z-10 h-full min-h-0 w-full">{children}</div>
@@ -693,6 +698,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
   bossArchiveLaunchError = null,
   onDismissBossArchiveLaunchError,
   onStartWeeklyRun,
+  onRestartOnboarding,
   weeklyRunLaunchError = null,
   onDismissWeeklyRunLaunchError,
   weeklyRunActive = false,
@@ -722,23 +728,6 @@ const StartScreen: React.FC<StartScreenProps> = ({
   });
   const [proposalSearch, setProposalSearch] = useState('');
   const [showFeedback, setShowFeedback] = useState(false);
-  // First-run briefing. Tutorial.tsx existed but nothing ever rendered it, so
-  // no player had ever seen it.
-  const [showTutorial, setShowTutorial] = useState(() => {
-    try {
-      return !window.localStorage.getItem(STORAGE_KEYS.TUTORIAL_SEEN);
-    } catch {
-      return false;
-    }
-  });
-  const dismissTutorial = () => {
-    setShowTutorial(false);
-    try {
-      window.localStorage.setItem(STORAGE_KEYS.TUTORIAL_SEEN, '1');
-    } catch {
-      // A blocked storage write only means the briefing shows again later.
-    }
-  };
   const [showTreasury, setShowTreasury] = useState(false);
   const [showReferral, setShowReferral] = useState(false);
   const [referralCopyStatus, setReferralCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
@@ -1269,6 +1258,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
         )}
 
         <div
+          data-onboarding-target="home-flight-deck"
           className={`sci-hero-ship-stage relative flex w-full items-center justify-center ${compact ? 'sci-hero-ship-stage--compact' : 'min-h-[14rem]'}`}
         >
           <div className="sci-ship-orbit" />
@@ -1341,6 +1331,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
                   type="button"
                   onClick={onOpenCampaignMap}
                   data-campaign-map-trigger="true"
+                  data-onboarding-target="campaign-map"
                   data-attention={campaignNotificationCount > 0 ? 'true' : 'false'}
                   className="sci-home-command-icon sci-home-command-icon--map group col-start-3 row-start-1 justify-self-end"
                   aria-label={campaignNotificationCount > 0
@@ -1376,6 +1367,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
           </p>
           <PixelActionButton
             onClick={onStart}
+            data-onboarding-target="campaign-start"
             aria-label={`${campaignCheckpoint.action}. Mission ${campaignCheckpoint.missionNumber}, ${campaignCheckpoint.waveTotal} WAVES, ${campaignCheckpoint.missionName}.`}
             tone="green"
             ready
@@ -1404,6 +1396,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
         <button
           type="button"
           className="sci-weekly-run-entry"
+          data-onboarding-target="weekly-run"
           data-active={weeklyRunActive ? 'true' : 'false'}
           data-attempts-remaining={weeklyRunAttemptsRemaining}
           onClick={onStartWeeklyRun}
@@ -1460,7 +1453,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
   );
 
   const renderWeeklyFundingCard = ({ compact = false }: { compact?: boolean } = {}) => (
-    <HudPanel className="sci-weekly-funding-shell">
+    <HudPanel className="sci-weekly-funding-shell" data-onboarding-target="weekly-funding">
       <div className={`sci-weekly-funding-content ${compact ? 'sci-weekly-funding-content--compact' : ''}`}>
         <div className={`sci-weekly-funding-summary ${compact ? 'mb-2 pb-2' : 'mb-3 pb-3'} grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 border-b border-cyan-200/14`}>
           <div className="min-w-0">
@@ -1655,6 +1648,11 @@ const StartScreen: React.FC<StartScreenProps> = ({
               aria-label={tabLabel}
               aria-current={active ? 'page' : undefined}
               data-dashboard-tab={tab.id}
+              data-onboarding-target={tab.id === 'hangar'
+                ? 'hangar-nav'
+                : tab.id === 'home'
+                  ? 'home-nav'
+                  : undefined}
               data-active={active ? 'true' : 'false'}
               data-reward-ready={rewardAttention ? 'true' : 'false'}
               data-proposal-ready={proposalAttention ? 'true' : 'false'}
@@ -2127,6 +2125,16 @@ const StartScreen: React.FC<StartScreenProps> = ({
             icon={`${COMMUNICATION_ICON_ROOT}/notifications.png`}
             onClick={onOpenXProfile}
           />
+          {onRestartOnboarding ? (
+            <MoreMenuTile
+              label="Flight Guide"
+              icon={`${COMMUNICATION_ICON_ROOT}/help.png`}
+              onClick={() => {
+                setDashboardTab('home');
+                onRestartOnboarding();
+              }}
+            />
+          ) : null}
         </div>
 
         <button type="button" onClick={() => setShowLegal(true)} className="sci-more-menu__legal">
@@ -2212,8 +2220,6 @@ const StartScreen: React.FC<StartScreenProps> = ({
       className="scicon-start-screen relative h-full min-h-0 overflow-hidden bg-slate-950 text-white"
       data-dashboard-tab={dashboardTab}
     >
-      {showTutorial ? <Tutorial onReady={dismissTutorial} /> : null}
-
       {testChampionWinner && onCloseTestChampionPreview ? (
         <button
           type="button"

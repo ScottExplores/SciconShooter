@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Address } from 'viem';
 import StartScreen from './components/StartScreen';
+import SciconOnboarding, { type OnboardingSurface } from './components/SciconOnboarding';
 import MissionLoadingScreen, { type MissionLoadingPhase } from './components/MissionLoadingScreen';
 import { ArchivedWinner, DonationStatus, FieldUpgradeType, GamePolishSettings, GameState, LeaderboardEntry, MintRecord, PowerupType, Stats, Upgrades, WalletSession } from './types';
 import { audioService } from './services/audioService';
@@ -603,6 +604,8 @@ const App: React.FC = () => {
   const [gameId, setGameId] = useState<number>(0);
   const [gameRuntimeReady, setGameRuntimeReady] = useState(false);
   const [missionLoading, setMissionLoading] = useState<MissionLoadingState | null>(null);
+  const [onboardingRestartNonce, setOnboardingRestartNonce] = useState(0);
+  const [onboardingGameplayFreeze, setOnboardingGameplayFreeze] = useState(false);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [monthlyLeaderboard, setMonthlyLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [archivedWinners, setArchivedWinners] = useState<ArchivedWinner[]>([]);
@@ -5725,6 +5728,29 @@ const App: React.FC = () => {
     </div>
   );
 
+  const onboardingSurface: OnboardingSurface = gameState === GameState.MENU && campaignMapOpen
+    ? 'campaign-map'
+    : gameState === GameState.MENU
+      ? 'menu'
+      : gameState === GameState.PLAYING && isCompetitiveCampaignRun
+        ? 'gameplay'
+        : gameState === GameState.WAVE_COMPLETE
+          && isCompetitiveCampaignRun
+          && Boolean(waveVictorySummary?.stageComplete)
+          ? 'mission-complete'
+          : 'other';
+  const hasCampaignClear = permanentSquadState.campaignProgress.completedMissionIds.length > 0
+    || permanentSquadState.lifetimeStats.campaignMissionsCleared > 0;
+  const onboardingSuspended = Boolean(
+    missionLoading
+    || activeStoryBeat
+    || introMissionLocked
+    || showNameInput
+    || showWeeklyProposalSelection
+    || showMissionRecordPreview
+    || (campaignMapOpen && campaignMapStatus !== 'ready')
+  );
+
   return (
     <div className="relative h-full w-full select-none bg-[#0b1020]">
       {walletRuntimeEnabled ? (
@@ -5800,7 +5826,10 @@ const App: React.FC = () => {
                     });
                   }
                 : undefined,
-              running: gameState === GameState.PLAYING && gameRuntimeReady && !ownerFrameFrozen,
+              running: gameState === GameState.PLAYING
+                && gameRuntimeReady
+                && !ownerFrameFrozen
+                && !onboardingGameplayFreeze,
               onReady: () => completeMissionRuntimeLaunch(gameId),
               onInitializationError: (error) => failMissionRuntimeLaunch(gameId, error),
               onGameOver: async () => {
@@ -5869,15 +5898,23 @@ const App: React.FC = () => {
               onToggleFreeze: isOwnerWallet && isOwnerTestRun
                 ? () => setOwnerFrameFrozen(frozen => !frozen)
                 : undefined,
-              bombLocked: gameState !== GameState.PLAYING || ownerFrameFrozen || introMissionLocked || Boolean(activeStoryBeat),
+              bombLocked: gameState !== GameState.PLAYING
+                || ownerFrameFrozen
+                || onboardingGameplayFreeze
+                || introMissionLocked
+                || Boolean(activeStoryBeat),
               onUseBomb: () => {
-                if (introMissionLocked || activeStoryBeat) return;
+                if (onboardingGameplayFreeze || introMissionLocked || activeStoryBeat) return;
                 setBombCommand({ nonce: Date.now() });
               },
               selectedShipId: activeMissionShipId,
-              shipAbilityLocked: gameState !== GameState.PLAYING || ownerFrameFrozen || introMissionLocked || Boolean(activeStoryBeat),
+              shipAbilityLocked: gameState !== GameState.PLAYING
+                || ownerFrameFrozen
+                || onboardingGameplayFreeze
+                || introMissionLocked
+                || Boolean(activeStoryBeat),
               onUseShipAbility: () => {
-                if (introMissionLocked || activeStoryBeat) return;
+                if (onboardingGameplayFreeze || introMissionLocked || activeStoryBeat) return;
                 setShipAbilityCommand({ nonce: Date.now() });
               },
               fieldUpgradesEnabled: false,
@@ -5977,6 +6014,7 @@ const App: React.FC = () => {
           bossArchiveLaunchError={bossArchiveLaunchError}
           onDismissBossArchiveLaunchError={() => setBossArchiveLaunchError(null)}
           onStartWeeklyRun={startWeeklyRunFromHome}
+          onRestartOnboarding={() => setOnboardingRestartNonce((nonce) => nonce + 1)}
           weeklyRunLaunchError={weeklyRunLaunchError}
           onDismissWeeklyRunLaunchError={() => setWeeklyRunLaunchError(null)}
           weeklyRunActive={weeklySquadState.weeklyCampaignStreak?.finalization.status === 'active'}
@@ -6470,6 +6508,15 @@ const App: React.FC = () => {
           />
         </React.Suspense>
       ) : null}
+
+      <SciconOnboarding
+        profileId={activeProfileId}
+        surface={onboardingSurface}
+        hasCampaignClear={hasCampaignClear}
+        suspended={onboardingSuspended}
+        restartNonce={onboardingRestartNonce}
+        onGameplayFreezeChange={setOnboardingGameplayFreeze}
+      />
 
     </div>
   );

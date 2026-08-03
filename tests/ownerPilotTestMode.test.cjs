@@ -71,7 +71,7 @@ test('engine test mode preserves lives and supports stage and authored-climax ju
 });
 
 test('owner controls provide a separate frame freeze and put mission tools in the normal pause menu', () => {
-  assert.match(appSource, /running: gameState === GameState\.PLAYING && gameRuntimeReady && !ownerFrameFrozen/);
+  assert.match(appSource, /running:\s*gameState === GameState\.PLAYING\s*&&\s*gameRuntimeReady\s*&&\s*!ownerFrameFrozen\s*&&\s*!onboardingGameplayFreeze/);
   assert.match(appSource, /showFreezeControl: isOwnerWallet && isOwnerTestRun/);
   assert.match(appSource, /onToggleFreeze: isOwnerWallet && isOwnerTestRun/);
   assert.match(appSource, /gameState === GameState\.PAUSED && !showTestChampionPreview/);

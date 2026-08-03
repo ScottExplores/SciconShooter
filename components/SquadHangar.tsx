@@ -370,7 +370,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
   };
 
   const renderMainCatalog = () => (
-    <div className="grid grid-cols-4 gap-2 sm:gap-3">
+    <div className="grid grid-cols-4 gap-2 sm:gap-3" data-onboarding-target="hangar-ships">
       {PLAYER_SHIP_ORDER.map((shipId) => {
         const ship = PLAYER_SHIPS[shipId];
         const shipUpgrades = state.shipUpgrades[shipId];
@@ -476,7 +476,10 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_46%,rgba(14,165,233,0.1),transparent_38%),linear-gradient(180deg,rgba(3,8,28,0.18),rgba(3,8,28,0.58))]" />
           <AnimatedTraceLabel>{activeName}</AnimatedTraceLabel>
 
-          <div className="relative mx-auto mt-1 h-[12.75rem] w-full max-w-[26rem] sm:h-[16rem]">
+          <div
+            className="relative mx-auto mt-1 h-[12.75rem] w-full max-w-[26rem] sm:h-[16rem]"
+            data-onboarding-target="hangar-wings"
+          >
             <div
               className={`pointer-events-none absolute top-[-0.25rem] border-cyan-300/65 drop-shadow-[0_0_7px_rgba(34,211,238,0.55)] transition-all duration-300 ${SQUAD_CONNECTOR_POSITION[activePosition]}`}
               data-connector-target={activePosition}
@@ -524,6 +527,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
             </div>
             {activePosition === 'main' ? (
               <PixelActionButton
+                data-onboarding-target="hangar-upgrades"
                 onClick={() => setMode('upgrades')}
                 tone="gold"
                 ready={activeMainUpgradeReady}
