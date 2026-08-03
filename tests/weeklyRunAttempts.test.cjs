@@ -69,3 +69,25 @@ test('verified Weekly Run admission is server-authoritative and database-atomic'
     'Weekly Run gameplay must not unlock before the server reservation resolves'
   );
 });
+
+test('production migration restores the free Weekly Run ledger without purchase dependencies', () => {
+  const migrationsDir = path.join(root, 'supabase', 'migrations');
+  const migrationName = fs.readdirSync(migrationsDir)
+    .find((name) => name.endsWith('_restore_weekly_run_attempt_persistence.sql'));
+
+  assert.ok(migrationName, 'the Weekly Run persistence migration must be tracked');
+  const sql = fs.readFileSync(path.join(migrationsDir, migrationName), 'utf8');
+
+  assert.match(sql, /create table if not exists public\.scicon_weekly_run_attempts/);
+  assert.match(sql, /create table if not exists public\.scicon_weekly_run_attempt_credits/);
+  assert.match(sql, /create or replace function public\.scicon_get_weekly_run_quota/);
+  assert.match(sql, /create or replace function public\.scicon_reserve_weekly_run_attempt/);
+  assert.match(sql, /create or replace function public\.scicon_settle_weekly_run_attempt/);
+  assert.equal(sql.match(/security invoker/g)?.length, 3);
+  assert.match(sql, /scicon_weekly_run_attempts_wallet_week_idx/);
+  assert.match(sql, /revoke all on table public\.scicon_weekly_run_attempts[\s\S]*from public, anon, authenticated/);
+  assert.match(sql, /grant execute on function public\.scicon_reserve_weekly_run_attempt\([\s\S]*to service_role/);
+  assert.doesNotMatch(sql, /scicon_wallet_(?:entitlements|purchase_orders)/);
+  assert.doesNotMatch(sql, /scicon_settle_wallet_purchase/);
+  assert.match(sql, /notify pgrst, 'reload schema'/);
+});
