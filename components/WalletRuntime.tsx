@@ -11,7 +11,6 @@ import {
   connectBaseAccount,
   disconnectBaseAccount,
   getRscBalance,
-  sendRscContinuePayment,
   signBaseAccountMessage,
   switchBaseAccount,
   type RscBalanceSnapshot
@@ -22,6 +21,10 @@ import {
   type WalletPurchaseSettlement
 } from '../services/walletPurchaseService';
 import { readPendingWalletPurchase } from '../services/walletPurchasePendingStore';
+import {
+  executeContinuePayment,
+  type ContinuePaymentSettlement
+} from '../services/continuePaymentService';
 import type { RunReceipt } from '../services/runReceiptService';
 import { claimWeeklyChampionProposal } from '../services/weeklyClaimService';
 import type { ResearchHubProposal } from '../services/researchHubProposals';
@@ -31,7 +34,13 @@ export type WalletRuntimeAction =
   | { nonce: number; type: 'connect' }
   | { nonce: number; type: 'switch-account' }
   | { nonce: number; type: 'disconnect' }
-  | { nonce: number; type: 'continue' }
+  | {
+      nonce: number;
+      type: 'continue';
+      runId: string;
+      startToken: string;
+      expectedContinueSequence: number;
+    }
   | { nonce: number; type: 'refresh-rsc-balance' }
   | { nonce: number; type: 'purchase-rsc'; skuId: RscPurchaseSkuId }
   | { nonce: number; type: 'claim-champion'; weekKey: string; proposal: ResearchHubProposal }
@@ -58,13 +67,11 @@ export interface WalletPurchaseStatusUpdate {
 
 interface WalletRuntimeProps {
   action: WalletRuntimeAction | null;
-  continueCost: number;
   donatedWallets: Record<string, boolean>;
-  isContinuePaymentBusy: boolean;
   walletError: string;
   onActionHandled: (nonce: number) => void;
   onContinueStatusChange: (update: ContinueStatusUpdate) => void;
-  onContinueSuccess: (transactionHash: string) => void;
+  onContinueSuccess: (settlement: ContinuePaymentSettlement) => void;
   onWalletChange: (wallet: WalletSession) => void;
   onWalletError: (message: string) => void;
   /** Optional until App wires the Hangar's Research Coin rail. */
@@ -115,9 +122,7 @@ const getUserFacingMessage = (error: any, fallback: string, tokenLabel = 'RSC') 
 
 const WalletRuntime: React.FC<WalletRuntimeProps> = ({
   action,
-  continueCost,
   donatedWallets,
-  isContinuePaymentBusy,
   walletError,
   onActionHandled,
   onContinueStatusChange,
@@ -368,9 +373,15 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
     };
   }, [activeWalletAddress, onWalletPurchaseStatus, onWalletPurchaseSuccess, refreshRscBalance]);
 
-  const continueWithRsc = useCallback(async () => {
-    if (isContinuePaymentBusy) return;
-
+  const continueWithRsc = useCallback(async ({
+    runId,
+    startToken,
+    expectedContinueSequence
+  }: {
+    runId: string;
+    startToken: string;
+    expectedContinueSequence: number;
+  }) => {
     const address = activeWalletAddress || await connectWallet();
     if (!address) {
       onContinueStatusChange({
@@ -381,19 +392,28 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
     }
 
     try {
-      onContinueStatusChange({ status: 'confirming', error: '', hash: '' });
-      const transactionHash = await sendRscContinuePayment({
-        from: address,
-        amount: continueCost
+      onContinueStatusChange({ status: 'processing', error: '', hash: '' });
+      const settlement = await executeContinuePayment({
+        walletAddress: address,
+        runId,
+        startToken,
+        expectedContinueSequence,
+        onQuote: () => {
+          onContinueStatusChange({ status: 'confirming', error: '', hash: '' });
+        },
+        onSubmitted: (transactionHash) => {
+          onContinueStatusChange({ status: 'confirming', error: '', hash: transactionHash });
+        }
       });
-      onContinueSuccess(transactionHash);
+      onContinueSuccess(settlement);
+      await refreshRscBalance(address);
     } catch (error: any) {
       onContinueStatusChange({
         status: 'error',
         error: getUserFacingMessage(error, 'RSC continue payment was cancelled.')
       });
     }
-  }, [activeWalletAddress, connectWallet, continueCost, isContinuePaymentBusy, onContinueStatusChange, onContinueSuccess]);
+  }, [activeWalletAddress, connectWallet, onContinueStatusChange, onContinueSuccess, refreshRscBalance]);
 
   const claimChampion = useCallback(async (weekKey: string, proposal: ResearchHubProposal) => {
     onChampionClaimStatus('connecting');
@@ -441,7 +461,7 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
       } else if (currentAction.type === 'disconnect') {
         await disconnectWallet();
       } else if (currentAction.type === 'continue') {
-        await continueWithRsc();
+        await continueWithRsc(currentAction);
       } else if (currentAction.type === 'refresh-rsc-balance') {
         await refreshRscBalance();
       } else if (currentAction.type === 'purchase-rsc') {

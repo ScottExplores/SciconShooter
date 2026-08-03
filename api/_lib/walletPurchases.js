@@ -7,8 +7,8 @@ const { getWeeklyRunQuota } = require('./weeklyRunAttempts');
 const {
   BASE_CHAIN_ID,
   MAX_WALLET_PROFILE_TOKENS,
-  RSC_CONTINUE_RECIPIENT_ADDRESS,
   RSC_CONTRACT_ADDRESS,
+  RSC_PURCHASE_RECIPIENT_ADDRESS,
   WALLET_PURCHASE_ORDER_LIFETIME_MS,
   ZERO_ADDRESS,
   configuredStoreRecipient,
@@ -127,7 +127,7 @@ const assertCanonicalOrderTerms = (order) => {
     || !addressPattern.test(recipientAddress)
     || recipientAddress === ZERO_ADDRESS
     || recipientAddress === RSC_CONTRACT_ADDRESS
-    || recipientAddress === RSC_CONTINUE_RECIPIENT_ADDRESS
+    || recipientAddress !== RSC_PURCHASE_RECIPIENT_ADDRESS
     || recipientAddress === walletAddress
     || String(order.amount_raw || '') !== sku.rscAmountRaw
     || Number(order.reward_tokens) !== sku.tokenReward
@@ -192,14 +192,15 @@ const fetchQuotedWalletPurchaseOrder = async ({ walletAddress, skuId, weeklyId =
 
 const fetchWalletPurchaseEntitlements = async (walletAddress) => {
   const rows = await fetchSupabaseJson(
-    `${PURCHASE_ENTITLEMENTS_TABLE}?select=right_support_unlocked,purchased_tokens_total`
+    `${PURCHASE_ENTITLEMENTS_TABLE}?select=right_support_unlocked,purchased_tokens_total,purchased_tokens_available`
       + `&wallet_address=eq.${encodeURIComponent(walletAddress)}&limit=1`,
     { headers: supabaseHeaders() }
   );
   const row = Array.isArray(rows) ? rows[0] : null;
   return {
     rightSupportUnlocked: Boolean(row?.right_support_unlocked),
-    purchasedTokensTotal: Math.max(0, Math.floor(Number(row?.purchased_tokens_total) || 0))
+    purchasedTokensTotal: Math.max(0, Math.floor(Number(row?.purchased_tokens_total) || 0)),
+    purchasedTokensAvailable: Math.max(0, Math.floor(Number(row?.purchased_tokens_available) || 0))
   };
 };
 
@@ -283,6 +284,13 @@ const reuseQuotedWalletPurchaseOrder = async ({
 const createWalletPurchaseQuote = async ({ address, skuId, now = Date.now() }) => {
   const walletAddress = normalizePurchaseWalletAddress(address);
   if (!walletAddress) throw apiError('A valid Base wallet address is required.', 400);
+  if (walletAddress === RSC_PURCHASE_RECIPIENT_ADDRESS) {
+    throw apiError(
+      'This wallet receives Scicon Shooter payments. Switch to a different Base wallet to make a purchase.',
+      409,
+      'wallet_purchase_self_payment_forbidden'
+    );
+  }
   const sku = walletPurchaseSku(skuId);
   if (!sku) throw apiError('This Research Coin purchase is not available.', 400, 'wallet_purchase_sku_invalid');
   if (!sku.enabled) {
@@ -552,6 +560,13 @@ const settleWalletPurchase = async ({
       })
     });
   } catch (error) {
+    if (/rsc_payment_replayed|wallet_purchase_payment_replayed/i.test(error?.message || '')) {
+      throw apiError(
+        'This Research Coin transfer has already been claimed.',
+        409,
+        'wallet_purchase_payment_replayed'
+      );
+    }
     if (/wallet_purchase_token_headroom_required/i.test(error?.message || '')) {
       throw apiError(
         'Your RSC payment is confirmed, but the full Token reward will not fit yet. Spend Tokens, then press the purchase button again to finish the pending credit.',

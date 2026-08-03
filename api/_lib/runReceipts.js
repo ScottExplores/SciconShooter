@@ -586,6 +586,7 @@ const createReservedRunStart = async (gameVersion = 'unknown', options = {}) => 
 };
 
 const verifyRunReceipt = (receiptToken) => verifyPayload(receiptToken, 'run-receipt');
+const verifyRunStart = (startToken) => verifyPayload(startToken, 'run-start');
 
 module.exports = {
   createReservedRunStart,
@@ -594,5 +595,6 @@ module.exports = {
   getReceiptSecret,
   reissueStoredRunReceipt,
   signPayload,
+  verifyRunStart,
   verifyRunReceipt
 };

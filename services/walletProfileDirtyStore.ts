@@ -48,8 +48,8 @@ const createWriteId = () => (
   ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 14)}`
 );
 
-const cloneSnapshot = (snapshot: WalletProfileSnapshot): WalletProfileSnapshot => (
-  JSON.parse(JSON.stringify(snapshot)) as WalletProfileSnapshot
+const cloneSnapshot = <T,>(snapshot: T): T => (
+  JSON.parse(JSON.stringify(snapshot)) as T
 );
 
 const comparableSnapshot = (snapshot: WalletProfileSnapshot) => {
@@ -413,5 +413,49 @@ export const rebaseWalletProfileDirtyAfterServerPurchase = ({
     expectedRevision: savedProfile.revision,
     baseSnapshot: savedProfile.snapshot,
     snapshot: rebasedSnapshot
+  });
+};
+
+/**
+ * A Hangar spend changes both the Token balance and durable loadout fields on
+ * the server. Rebase unrelated local writes without allowing a queued browser
+ * snapshot to undo that canonical upgrade when it is flushed afterward.
+ */
+export const rebaseWalletProfileDirtyAfterServerTokenSpend = ({
+  address,
+  savedProfile
+}: {
+  address: string;
+  savedProfile: WalletProfileRecord;
+}) => {
+  const purchaseRebase = rebaseWalletProfileDirtyAfterServerPurchase({
+    address,
+    savedProfile
+  });
+  if (!purchaseRebase) return null;
+
+  const serverWeekly = savedProfile.snapshot.weeklyState;
+  const protectedSnapshot = cloneSnapshot(purchaseRebase.snapshot);
+  protectedSnapshot.weeklyState.unlockedSlots = cloneSnapshot(serverWeekly.unlockedSlots);
+  protectedSnapshot.weeklyState.ownedMiniShips = cloneSnapshot(serverWeekly.ownedMiniShips);
+  protectedSnapshot.weeklyState.shipUpgrades = cloneSnapshot(serverWeekly.shipUpgrades);
+  (['left', 'right'] as const).forEach((slot) => {
+    const equippedId = protectedSnapshot.weeklyState.equipped[slot];
+    if (
+      !protectedSnapshot.weeklyState.unlockedSlots[slot]
+      || (equippedId && !protectedSnapshot.weeklyState.ownedMiniShips[equippedId])
+    ) {
+      protectedSnapshot.weeklyState.equipped[slot] = null;
+    }
+  });
+  protectedSnapshot.permanentState.lifetimeStats.hangarUpgradesPurchased =
+    savedProfile.snapshot.permanentState.lifetimeStats.hangarUpgradesPurchased;
+
+  return replaceWalletProfileDirty({
+    address,
+    current: purchaseRebase,
+    expectedRevision: savedProfile.revision,
+    baseSnapshot: savedProfile.snapshot,
+    snapshot: protectedSnapshot
   });
 };

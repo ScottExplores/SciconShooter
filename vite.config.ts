@@ -13,6 +13,9 @@ const weeklyClaimHandler = require('./api/weekly-claim.js');
 const mintAuthorizationHandler = require('./api/mint-authorization.js');
 const mintRecordsHandler = require('./api/mint-records.js');
 const walletProfileHandler = require('./api/_lib/walletProfileRoute.js');
+const walletPurchaseHandler = require('./api/_lib/walletPurchaseRoute.js');
+const continuePaymentHandler = require('./api/_lib/continuePaymentRoute.js');
+const walletTokenSpendHandler = require('./api/_lib/walletTokenSpendRoute.js');
 const { handlePlayerRuns } = require('./api/_lib/playerRuns.js');
 const recordMetadataHandler = require('./api/record-metadata.js');
 const recordCardHandler = require('./api/record-card.js');
@@ -139,6 +142,18 @@ const localApiRoutes = () => ({
     mount('/api/wallet-profile', async (req, res) => {
       if (useRemotePersistence) return proxyPublicApi('/api/wallet-profile', req, res);
       return walletProfileHandler(req, res);
+    });
+    mount('/api/wallet-purchases', async (req, res) => {
+      if (useRemotePersistence) return proxyPublicApi('/api/wallet-purchases', req, res);
+      return walletPurchaseHandler(req, res);
+    });
+    mount('/api/continue-payments', async (req, res) => {
+      if (useRemotePersistence) return proxyPublicApi('/api/continue-payments', req, res);
+      return continuePaymentHandler(req, res);
+    });
+    mount('/api/wallet-token-spends', async (req, res) => {
+      if (useRemotePersistence) return proxyPublicApi('/api/wallet-token-spends', req, res);
+      return walletTokenSpendHandler(req, res);
     });
     mount('/api/player-runs', async (req, res) => {
       if (useRemotePersistence) return proxyPublicApi('/api/player-runs', req, res);

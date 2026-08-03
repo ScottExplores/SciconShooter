@@ -48,6 +48,7 @@ export interface WeeklyRunAttemptQuota {
 export interface WalletPurchaseEntitlements {
   rightSupportUnlocked: boolean;
   purchasedTokensTotal: number;
+  purchasedTokensAvailable: number;
 }
 
 export interface WalletPurchaseSettlement {
@@ -113,7 +114,7 @@ const validQuotedStoreRecipient = (
     !/^0x[0-9a-f]{40}$/.test(recipient)
     || recipient === ZERO_ADDRESS
     || recipient === DONATION_CONFIG.RSC_CONTRACT_ADDRESS.toLowerCase()
-    || recipient === DONATION_CONFIG.RECIPIENT_ADDRESS.toLowerCase()
+    || recipient !== DONATION_CONFIG.RECIPIENT_ADDRESS.toLowerCase()
     || recipient === walletAddress.toLowerCase()
   ) return null;
   return recipient as Address;
@@ -193,6 +194,13 @@ export const createWalletPurchaseQuote = async ({
   walletAddress: Address;
   skuId: RscPurchaseSkuId;
 }): Promise<WalletPurchaseQuote> => {
+  if (walletAddress.toLowerCase() === DONATION_CONFIG.RECIPIENT_ADDRESS.toLowerCase()) {
+    throw new WalletPurchaseRequestError(
+      'This wallet receives Scicon Shooter payments. Switch to a different Base wallet to make a purchase.',
+      409,
+      'wallet_purchase_self_payment_forbidden'
+    );
+  }
   if (!RSC_PURCHASE_SKUS[skuId].enabled) {
     throw new WalletPurchaseRequestError(
       'Token packs are coming soon while the server-authoritative Token economy is completed.',

@@ -2,25 +2,21 @@ const BASE_CHAIN_ID = 8453;
 const RSC_DECIMALS = 18;
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 const RSC_CONTRACT_ADDRESS = '0xfbb75a59193a3525a8825bebe7d4b56899e2f7e1';
-const RSC_CONTINUE_RECIPIENT_ADDRESS = '0x3a8d692aabdd4981080a8f6af8375a21359464bf';
+const RSC_PURCHASE_RECIPIENT_ADDRESS = '0x3a8d692aabdd4981080a8f6af8375a21359464bf';
+const RSC_CONTINUE_RECIPIENT_ADDRESS = RSC_PURCHASE_RECIPIENT_ADDRESS;
 const MAX_WALLET_PROFILE_TOKENS = 1_000_000_000;
 const WALLET_PURCHASE_ORDER_LIFETIME_MS = 15 * 60 * 1000;
 const addressPattern = /^0x[0-9a-f]{40}$/;
 const RSC_TOKEN_EXCHANGE_ENABLED = (
-  String(process.env.ENABLE_RSC_TOKEN_EXCHANGE || '').trim().toLowerCase() === 'true'
+  String(process.env.ENABLE_RSC_TOKEN_EXCHANGE || 'true').trim().toLowerCase() === 'true'
 );
 
 const configuredStoreRecipient = (purchaserAddress = '') => {
-  const address = String(process.env.RSC_STORE_RECIPIENT_ADDRESS || '').trim().toLowerCase();
   const purchaser = String(purchaserAddress || '').trim().toLowerCase();
-  if (
-    !addressPattern.test(address)
-    || address === ZERO_ADDRESS
-    || address === RSC_CONTRACT_ADDRESS
-    || address === RSC_CONTINUE_RECIPIENT_ADDRESS
-    || (addressPattern.test(purchaser) && address === purchaser)
-  ) return null;
-  return address;
+  if (addressPattern.test(purchaser) && purchaser === RSC_PURCHASE_RECIPIENT_ADDRESS) {
+    return null;
+  }
+  return RSC_PURCHASE_RECIPIENT_ADDRESS;
 };
 
 const WALLET_PURCHASE_SKUS = Object.freeze({
@@ -81,6 +77,7 @@ module.exports = {
   RSC_CONTINUE_RECIPIENT_ADDRESS,
   RSC_CONTRACT_ADDRESS,
   RSC_DECIMALS,
+  RSC_PURCHASE_RECIPIENT_ADDRESS,
   RSC_TOKEN_EXCHANGE_ENABLED,
   ZERO_ADDRESS,
   WALLET_PURCHASE_ORDER_LIFETIME_MS,
