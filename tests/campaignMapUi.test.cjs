@@ -94,7 +94,13 @@ test('Campaign Map prioritizes actionable records and mastery details over redun
   assert.doesNotMatch(mapSource, /campaign-map-power-guide/);
   assert.doesNotMatch(mapSource, /campaign-map-support-tags/);
   assert.match(mapSource, /campaign-map-records/);
-  assert.match(mapSource, /campaign-map-objectives/);
+  assert.match(mapSource, /campaign-map-selection-stars/);
+  assert.match(mapSource, /campaign-map-objectives campaign-map-objectives--compact/);
+  assert.ok(
+    mapSource.indexOf('campaign-map-objectives--compact') < mapSource.indexOf('campaign-map-records'),
+    'mastery stars should sit beside the selected Mission heading before the records grid'
+  );
+  assert.doesNotMatch(mapSource, /<span><small>Stars<\/small><strong>/);
   assert.match(mapSource, /3-star mastery set/);
 });
 
@@ -125,6 +131,10 @@ test('regular nodes use numbered celestial buttons, completed nodes are distinct
   assert.match(mapSource, /data-campaign-route-edge/);
   assert.match(mapStyles, /\.campaign-map-node--completed:not\(\.campaign-map-node--boss\) \.campaign-map-node-core/);
   assert.match(mapStyles, /\.campaign-map-node-cleared/);
+  assert.match(mapStyles, /\.campaign-map-node\.is-selected:not\(\.campaign-map-node--boss\) \.campaign-map-node-core[\s\S]*?background: transparent;[\s\S]*?box-shadow: none/);
+  assert.match(mapStyles, /\.campaign-map-node--completed:not\(\.campaign-map-node--boss\) \.campaign-map-node-core,[\s\S]*?background: transparent/);
+  assert.match(mapStyles, /\.campaign-map-node:focus-visible[\s\S]*?outline: none;[\s\S]*?\.campaign-map-node:focus-visible \.campaign-map-node-ring/);
+  assert.match(mapStyles, /\.campaign-map-selection-art--celestial[\s\S]*?background: transparent;[\s\S]*?border: 0;[\s\S]*?clip-path: none/);
 });
 
 test('Campaign Map centers the initial long route before paint and reserves smooth motion for later navigation', () => {
@@ -144,6 +154,7 @@ test('Campaign celestial motion is limited to selected, current, and hovered nod
   assert.match(mapStyles, /\.campaign-map-node\.is-selected \.campaign-map-celestial__sprite/);
   assert.match(mapStyles, /@media \(hover: hover\) and \(pointer: fine\)/);
   assert.doesNotMatch(baseCelestialSpriteRule, /animation:/);
+  assert.match(mapStyles, /\.campaign-map-selection-art--celestial \.campaign-map-celestial__sprite[\s\S]*?campaign-map-selection-celestial-spin 18s linear infinite/);
   assert.match(mapStyles, /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.campaign-map-celestial__sprite[\s\S]*?animation: none !important/);
 });
 

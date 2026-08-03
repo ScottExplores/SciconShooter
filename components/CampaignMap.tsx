@@ -1588,7 +1588,7 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
                 </div>
                 <div className={`campaign-map-selection-grid campaign-map-selection-grid--${selectedMissionRole}`}>
                   <div
-                    className={`campaign-map-selection-art ${selectedLockedBossSilhouette ? 'is-locked-boss-silhouette' : ''}`}
+                    className={`campaign-map-selection-art ${selectedMissionRole !== 'major-boss' ? 'campaign-map-selection-art--celestial' : ''} ${selectedLockedBossSilhouette ? 'is-locked-boss-silhouette' : ''}`}
                     style={{ '--campaign-node-tint': selectedMission.tint } as React.CSSProperties}
                   >
                     {selectedMissionRole === 'major-boss' && selectedMission.bossPreview?.previewUrl ? (
@@ -1608,13 +1608,29 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
                       {selectedRevealed && selectedMission.bossEventId && selectedState.completed ? (
                         <span className="campaign-map-boss-tag">{selectedMission.bossName ?? 'Boss encounter'}</span>
                       ) : null}
+                      {selectedRevealed ? (
+                        <span className="campaign-map-selection-stars" aria-label={`${selectedState.stars} of 3 stars earned`}>
+                          <span aria-hidden="true">
+                            {Array.from({ length: 3 }, (_, index) => index < selectedState.stars ? '\u2605' : '\u2606').join('')}
+                          </span>
+                          <b>{selectedState.stars}/3</b>
+                        </span>
+                      ) : null}
                     </div>
+                    {selectedRevealed ? (
+                      <div className="campaign-map-objectives campaign-map-objectives--compact" aria-label="Mission mastery objectives">
+                        {selectedMission.starObjectives.map((objective, index) => (
+                          <span key={objective.id} className={selectedRecord?.earnedStarIds.includes(objective.id) ? 'is-earned' : ''}>
+                            <b aria-hidden="true">{index + 1}</b>{objective.label}<em>+{objective.rewardCoins}</em>
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                 </div>
                 {selectedRevealed ? (
                   <>
                     <div className="campaign-map-records">
-                      <span><small>Stars</small><strong>{selectedState.stars}/3</strong></span>
                       <span><small>Best score</small><strong>{(selectedRecord?.bestScore ?? 0).toLocaleString()}</strong></span>
                       <span><small>Best time</small><strong>{formatTime(selectedRecord?.bestClearTimeMs ?? null)}</strong></span>
                       <span><small>{selectedState.completed ? 'Replay total' : 'Base clear'}</small><strong>{selectedState.completed ? selectedReplayReward : selectedBaseClearReward} coins</strong></span>
@@ -1625,13 +1641,6 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
                       {selectedMasterySetBonus > 0 ? (
                         <span><small>3-star mastery set</small><strong>+{selectedMasterySetBonus} coins</strong></span>
                       ) : null}
-                    </div>
-                    <div className="campaign-map-objectives" aria-label="Mission mastery objectives">
-                      {selectedMission.starObjectives.map((objective, index) => (
-                        <span key={objective.id} className={selectedRecord?.earnedStarIds.includes(objective.id) ? 'is-earned' : ''}>
-                          <b aria-hidden="true">{index + 1}</b>{objective.label}<em>+{objective.rewardCoins}</em>
-                        </span>
-                      ))}
                     </div>
                     {selectedMissionBranches.map((branch) => {
                       const branchState = getDisplayedBranchState(branch);

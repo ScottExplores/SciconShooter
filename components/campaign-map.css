@@ -74,7 +74,6 @@
 }
 
 .campaign-map-close:focus-visible,
-.campaign-map-node:focus-visible,
 .campaign-map-branch-node:focus-visible,
 .campaign-map-branch-unlock-notice button:focus-visible,
 .campaign-map-current-button:focus-visible,
@@ -365,7 +364,7 @@
 
 .campaign-map-node--completed:not(.campaign-map-node--boss) .campaign-map-node-core,
 .campaign-map-node.is-completed:not(.campaign-map-node--boss) .campaign-map-node-core {
-  background: linear-gradient(135deg, rgba(6, 95, 70, 0.94), rgba(2, 44, 34, 0.98));
+  background: transparent;
 }
 
 .campaign-map-node--completed .campaign-map-node-stage-number,
@@ -436,6 +435,22 @@
   box-shadow: inset 0 0 14px rgba(34, 211, 238, 0.3), 0 0 18px rgba(34, 211, 238, 0.6);
 }
 
+.campaign-map-node.is-selected:not(.campaign-map-node--boss) .campaign-map-node-core {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.campaign-map-node.is-selected:not(.campaign-map-node--boss) .campaign-map-celestial::before {
+  inset: 4%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--campaign-node-tint) 38%, transparent), transparent 68%);
+  filter: blur(2px);
+}
+
+.campaign-map-node.is-selected:not(.campaign-map-node--boss) .campaign-map-celestial__sprite {
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--campaign-node-tint) 70%, #67e8f9));
+}
+
 .campaign-map-node.is-selected.is-locked {
   opacity: 0.78;
 }
@@ -455,6 +470,15 @@
   transform: none;
   border-color: color-mix(in srgb, var(--campaign-node-tint) 54%, #67e8f9);
   box-shadow: 0 0 10px color-mix(in srgb, var(--campaign-node-tint) 24%, transparent);
+}
+
+.campaign-map-node:focus-visible {
+  outline: none;
+}
+
+.campaign-map-node:focus-visible .campaign-map-node-ring {
+  border-color: #fef08a;
+  box-shadow: 0 0 5px rgba(250, 204, 21, 0.9), 0 0 14px rgba(250, 204, 21, 0.52);
 }
 
 .campaign-map-node:not(.campaign-map-node--boss) .campaign-map-node-core {
@@ -901,6 +925,24 @@
   font-size: 0.78rem;
 }
 
+.campaign-map-selection-art--celestial {
+  overflow: visible;
+  background: transparent;
+  border: 0;
+  clip-path: none;
+}
+
+.campaign-map-selection-art--celestial .campaign-map-celestial::before {
+  inset: 2%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--campaign-node-tint) 34%, transparent), transparent 70%);
+  filter: blur(2px);
+}
+
+.campaign-map-selection-art--celestial .campaign-map-celestial__sprite {
+  animation: campaign-map-selection-celestial-spin 18s linear infinite;
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--campaign-node-tint) 60%, #67e8f9));
+}
+
 .campaign-map-selection-mission-number {
   color: #e0f2fe;
   font: 900 1.55rem/1 var(--font-arcade, ui-monospace), monospace;
@@ -930,6 +972,24 @@
   font: 900 clamp(0.95rem, 4vw, 1.2rem)/1.1 var(--font-arcade, ui-sans-serif), sans-serif;
   letter-spacing: 0.035em;
   text-transform: uppercase;
+}
+
+.campaign-map-selection-stars {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 0.35rem;
+  align-items: center;
+  margin-left: auto;
+  color: #facc15;
+  font: 900 0.64rem/1 ui-monospace, monospace;
+  letter-spacing: 0.08em;
+  filter: drop-shadow(0 0 4px rgba(250, 204, 21, 0.46));
+}
+
+.campaign-map-selection-stars b {
+  color: #fef3c7;
+  font-size: 0.54rem;
+  letter-spacing: 0.02em;
 }
 
 .campaign-map-selection-copy p {
@@ -1023,6 +1083,19 @@
   color: #fde68a;
   font-style: normal;
   font-weight: 900;
+}
+
+.campaign-map-selection-copy .campaign-map-objectives--compact {
+  grid-template-columns: 1fr;
+  gap: 0.16rem;
+  margin-top: 0.34rem;
+}
+
+.campaign-map-selection-copy .campaign-map-objectives--compact span {
+  min-height: 0;
+  padding: 0.2rem 0.3rem;
+  font-size: 0.5rem;
+  line-height: 1.05;
 }
 
 .campaign-map-mastery-branch-link {
@@ -1696,6 +1769,10 @@
   50% { transform: translate3d(0, -3px, 0); }
 }
 
+@keyframes campaign-map-selection-celestial-spin {
+  to { transform: rotate(360deg); }
+}
+
 @keyframes campaign-map-spin {
   to { transform: rotate(360deg); }
 }
@@ -1858,7 +1935,10 @@
     -webkit-line-clamp: 1;
   }
 
-  .campaign-map-selection-grid,
+  .campaign-map-selection-grid {
+    min-height: 3.3rem;
+  }
+
   .campaign-map-selection-art {
     height: 3.3rem;
   }
