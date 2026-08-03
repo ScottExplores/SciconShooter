@@ -366,6 +366,10 @@ export const DONATION_CONFIG = {
   GAME_URL: "https://sciconshooter.xyz"
 };
 
+// Paid Token packs stay visibly staged but unavailable until their remaining
+// balance and Hangar spending move behind the server-authoritative ledger.
+const RSC_TOKEN_EXCHANGE_ENABLED = false;
+
 /**
  * Public purchase descriptions used by the wallet UI. The server keeps its own
  * authoritative copy of these immutable terms and never trusts values supplied
@@ -392,35 +396,35 @@ export const RSC_PURCHASE_SKUS = Object.freeze({
     grantsRightSupport: false,
     enabled: true
   }),
-  'tokens-50': Object.freeze({
-    id: 'tokens-50',
-    label: '50 Tokens',
-    rscAmount: '1',
-    rscAmountRaw: '1000000000000000000',
-    tokenReward: 50,
-    weeklyAttemptReward: 0,
-    grantsRightSupport: false,
-    enabled: false
-  }),
-  'tokens-250': Object.freeze({
-    id: 'tokens-250',
-    label: '250 Tokens',
-    rscAmount: '5',
-    rscAmountRaw: '5000000000000000000',
-    tokenReward: 250,
-    weeklyAttemptReward: 0,
-    grantsRightSupport: false,
-    enabled: false
-  }),
   'tokens-500': Object.freeze({
     id: 'tokens-500',
     label: '500 Tokens',
-    rscAmount: '10',
-    rscAmountRaw: '10000000000000000000',
+    rscAmount: '1',
+    rscAmountRaw: '1000000000000000000',
     tokenReward: 500,
     weeklyAttemptReward: 0,
     grantsRightSupport: false,
-    enabled: false
+    enabled: RSC_TOKEN_EXCHANGE_ENABLED
+  }),
+  'tokens-2500': Object.freeze({
+    id: 'tokens-2500',
+    label: '2,500 Tokens',
+    rscAmount: '5',
+    rscAmountRaw: '5000000000000000000',
+    tokenReward: 2500,
+    weeklyAttemptReward: 0,
+    grantsRightSupport: false,
+    enabled: RSC_TOKEN_EXCHANGE_ENABLED
+  }),
+  'tokens-5000': Object.freeze({
+    id: 'tokens-5000',
+    label: '5,000 Tokens',
+    rscAmount: '10',
+    rscAmountRaw: '10000000000000000000',
+    tokenReward: 5000,
+    weeklyAttemptReward: 0,
+    grantsRightSupport: false,
+    enabled: RSC_TOKEN_EXCHANGE_ENABLED
   })
 } as const);
 

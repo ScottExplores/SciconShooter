@@ -100,10 +100,10 @@ export const MAIN_SHIP_FIRE_RATE_MAX_LEVEL = FIRE_RATE_MAX_LEVEL;
 // The hull's signature move. Each level makes it hit harder and reach wider,
 // so the ship a player chose for its move keeps improving at that move.
 export const MAIN_SHIP_ABILITY_MAX_LEVEL = 5;
-// Campaign runs start at 3 hearts and top out at 5. Survivability is a short,
-// deliberate track there: the deep ten-heart ladder made late Campaign
-// Missions trivial, and Weekly Run ignores it entirely at a flat 10 lives.
-export const CAMPAIGN_MAX_STARTING_LIVES = 5;
+// Campaign runs start at 3 hearts and can be permanently reinforced to the
+// runtime's ten-heart ceiling. Weekly Run ignores this track and remains fixed
+// at ten lives so the competitive rules stay identical for every pilot.
+export const CAMPAIGN_MAX_STARTING_LIVES = 10;
 
 /**
  * Every Mission authors three mastery objectives (complete, performance,
@@ -463,11 +463,11 @@ export const MAIN_SHIP_UPGRADES: ReadonlyArray<{
   {
     id: 'startingHearts',
     name: 'Starting Hearts',
-    description: 'Adds one starting heart to Campaign Missions, up to five. Weekly Run always starts at ten.',
+    description: 'Adds one starting heart to Campaign Missions, up to ten. Weekly Run always starts at ten.',
     // Survivability is intentionally a premium track. Early fire-rate and
     // movement choices stay accessible while later hearts require deliberate
     // saving instead of becoming the automatic cheapest upgrade.
-    costs: [180, 420]
+    costs: [180, 320, 560, 900, 1400, 2100, 3000]
   }
 ];
 

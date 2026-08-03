@@ -6,6 +6,7 @@ const { getWeeklyBoundaryMeta, getWeekRange } = require('../../shared/weeklyComp
 const { getWeeklyRunQuota } = require('./weeklyRunAttempts');
 const {
   BASE_CHAIN_ID,
+  MAX_WALLET_PROFILE_TOKENS,
   RSC_CONTINUE_RECIPIENT_ADDRESS,
   RSC_CONTRACT_ADDRESS,
   WALLET_PURCHASE_ORDER_LIFETIME_MS,
@@ -65,6 +66,32 @@ const publicWeeklyRunQuota = (quota) => ({
   attemptsRemaining: quota.attemptsRemaining,
   resetAt: quota.resetAt
 });
+
+const sanitizedProfileTokenBalance = (value) => (
+  Number.isSafeInteger(value)
+    && value >= 0
+    && value <= MAX_WALLET_PROFILE_TOKENS
+    ? value
+    : MAX_WALLET_PROFILE_TOKENS
+);
+
+const assertWalletPurchaseTokenHeadroom = ({ sku, profile }) => {
+  if (!sku || sku.tokenReward <= 0) return;
+  const weeklyState = profile?.snapshot?.weeklyState;
+  const coins = sanitizedProfileTokenBalance(weeklyState?.coins);
+  const durableCoins = sanitizedProfileTokenBalance(weeklyState?.durableCampaignCoins);
+  const headroom = Math.min(
+    MAX_WALLET_PROFILE_TOKENS - coins,
+    MAX_WALLET_PROFILE_TOKENS - durableCoins
+  );
+  if (headroom >= sku.tokenReward) return;
+  const spendRequired = sku.tokenReward - headroom;
+  throw apiError(
+    `Spend at least ${spendRequired.toLocaleString('en-US')} Tokens before buying this pack so its full reward can be credited.`,
+    409,
+    'wallet_purchase_token_headroom_required'
+  );
+};
 
 const assertCanonicalOrderTerms = (order) => {
   const sku = walletPurchaseSku(order?.sku_id);
@@ -280,6 +307,7 @@ const createWalletPurchaseQuote = async ({ address, skuId, now = Date.now() }) =
   }
   const profile = await ensureWalletProfile(walletAddress, now);
   if (!profile) throw apiError('The wallet profile could not be prepared for this purchase.', 503);
+  assertWalletPurchaseTokenHeadroom({ sku, profile });
   if (sku.weeklyAttemptReward > 0) {
     const quota = await getWeeklyRunQuota({ address: walletAddress, now });
     if (quota.attemptsRemaining > 0) {
@@ -352,6 +380,7 @@ const createWalletPurchaseQuote = async ({ address, skuId, now = Date.now() }) =
       profile: latestProfile,
       entitlements: latestEntitlements
     });
+    assertWalletPurchaseTokenHeadroom({ sku, profile: latestProfile });
     const racedQuote = await reuseQuotedWalletPurchaseOrder({
       walletAddress,
       sku,
@@ -419,7 +448,7 @@ const verifyWalletPurchaseReceipt = async ({
     );
   }
   const recipientAddress = String(order.recipient_address || '').toLowerCase();
-  const { decodeEventLog } = await import('viem');
+  const { decodeEventLog } = require('viem');
   const matchingTransfers = (receipt.logs || []).flatMap((log) => {
     if (String(log.address || '').toLowerCase() !== RSC_CONTRACT_ADDRESS) return [];
     try {
@@ -509,17 +538,29 @@ const settleWalletPurchase = async ({
     transactionHash: normalizedHash,
     publicClient: chainClient
   });
-  const result = await fetchSupabaseJson(`rpc/${SETTLE_PURCHASE_RPC}`, {
-    method: 'POST',
-    headers: supabaseHeaders(),
-    body: JSON.stringify({
-      p_wallet_address: walletAddress,
-      p_order_id: normalizedOrderId,
-      p_transaction_hash: verified.transactionHash,
-      p_log_index: verified.logIndex,
-      p_payment_block_time: verified.paymentBlockTime
-    })
-  });
+  let result;
+  try {
+    result = await fetchSupabaseJson(`rpc/${SETTLE_PURCHASE_RPC}`, {
+      method: 'POST',
+      headers: supabaseHeaders(),
+      body: JSON.stringify({
+        p_wallet_address: walletAddress,
+        p_order_id: normalizedOrderId,
+        p_transaction_hash: verified.transactionHash,
+        p_log_index: verified.logIndex,
+        p_payment_block_time: verified.paymentBlockTime
+      })
+    });
+  } catch (error) {
+    if (/wallet_purchase_token_headroom_required/i.test(error?.message || '')) {
+      throw apiError(
+        'Your RSC payment is confirmed, but the full Token reward will not fit yet. Spend Tokens, then press the purchase button again to finish the pending credit.',
+        409,
+        'wallet_purchase_token_headroom_required'
+      );
+    }
+    throw error;
+  }
   const rpcResult = Array.isArray(result) ? result[0] : result;
   if (!rpcResult?.accepted) {
     throw apiError('The wallet purchase could not be applied.', 409, 'wallet_purchase_not_applied');
@@ -536,6 +577,7 @@ module.exports = {
   PURCHASE_ORDERS_TABLE,
   SETTLE_PURCHASE_RPC,
   assertCanonicalOrderTerms,
+  assertWalletPurchaseTokenHeadroom,
   createWalletPurchaseQuote,
   fetchWalletPurchaseEntitlements,
   fetchWalletPurchaseOrder,

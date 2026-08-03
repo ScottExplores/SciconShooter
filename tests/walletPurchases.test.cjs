@@ -4,6 +4,8 @@ const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
 
+process.env.ENABLE_RSC_TOKEN_EXCHANGE = 'true';
+
 const root = path.resolve(__dirname, '..');
 const read = (...segments) => fs.readFileSync(path.join(root, ...segments), 'utf8');
 const loadCommonJsModule = (relativePath, dependencies, globals = {}) => {
@@ -39,6 +41,7 @@ const {
 } = require('../api/_lib/walletPurchaseCatalog');
 const {
   assertCanonicalOrderTerms,
+  assertWalletPurchaseTokenHeadroom,
   verifyWalletPurchaseReceipt
 } = require('../api/_lib/walletPurchases');
 const {
@@ -49,9 +52,11 @@ const {
 const WALLET = '0x1111111111111111111111111111111111111111';
 const HASH = `0x${'ab'.repeat(32)}`;
 
-const profileWithRightSupport = (rightSupportUnlocked) => ({
+const profileWithRightSupport = (rightSupportUnlocked, coins = 0) => ({
   snapshot: {
     weeklyState: {
+      coins,
+      durableCampaignCoins: coins,
       unlockedSlots: { right: rightSupportUnlocked }
     }
   }
@@ -149,7 +154,7 @@ const publicClientFor = ({
   getBlock: async () => ({ timestamp: 2_000_000_000n })
 });
 
-test('wallet purchase catalog enables right support and exact 3 RSC Weekly Run attempts', () => {
+test('wallet purchase catalog enables support, Weekly attempts, and exact 500 Tokens-per-RSC packs', () => {
   assert.equal(BASE_CHAIN_ID, 8453);
   assert.equal(ZERO_ADDRESS, '0x0000000000000000000000000000000000000000');
   assert.equal(RSC_CONTRACT_ADDRESS, '0xfbb75a59193a3525a8825bebe7d4b56899e2f7e1');
@@ -167,9 +172,9 @@ test('wallet purchase catalog enables right support and exact 3 RSC Weekly Run a
     {
       'right-support': { amount: '10', reward: 0, right: true, weeklyAttempt: 0, enabled: true },
       'weekly-run-attempt': { amount: '3', reward: 0, right: false, weeklyAttempt: 1, enabled: true },
-      'tokens-50': { amount: '1', reward: 50, right: false, weeklyAttempt: 0, enabled: false },
-      'tokens-250': { amount: '5', reward: 250, right: false, weeklyAttempt: 0, enabled: false },
-      'tokens-500': { amount: '10', reward: 500, right: false, weeklyAttempt: 0, enabled: false }
+      'tokens-500': { amount: '1', reward: 500, right: false, weeklyAttempt: 0, enabled: true },
+      'tokens-2500': { amount: '5', reward: 2500, right: false, weeklyAttempt: 0, enabled: true },
+      'tokens-5000': { amount: '10', reward: 5000, right: false, weeklyAttempt: 0, enabled: true }
     }
   );
   const clientConstants = read('constants.ts');
@@ -177,7 +182,19 @@ test('wallet purchase catalog enables right support and exact 3 RSC Weekly Run a
     assert.match(clientConstants, new RegExp(`'${sku.id}'`));
     assert.match(clientConstants, new RegExp(`rscAmountRaw: '${sku.rscAmountRaw}'`));
   });
-  assert.match(clientConstants, /'tokens-50':[\s\S]*?enabled: false/);
+  assert.match(clientConstants, /'tokens-500':[\s\S]*?tokenReward: 500[\s\S]*?enabled: RSC_TOKEN_EXCHANGE_ENABLED/);
+  assert.match(clientConstants, /const RSC_TOKEN_EXCHANGE_ENABLED = false/);
+
+  const releaseGatedCatalog = loadCommonJsModule(
+    'api/_lib/walletPurchaseCatalog.js',
+    {},
+    { process: { env: { ENABLE_RSC_TOKEN_EXCHANGE: 'false' } } }
+  );
+  assert.equal(releaseGatedCatalog.WALLET_PURCHASE_SKUS['right-support'].enabled, true);
+  assert.equal(releaseGatedCatalog.WALLET_PURCHASE_SKUS['weekly-run-attempt'].enabled, true);
+  assert.equal(releaseGatedCatalog.WALLET_PURCHASE_SKUS['tokens-500'].enabled, false);
+  assert.equal(releaseGatedCatalog.WALLET_PURCHASE_SKUS['tokens-2500'].enabled, false);
+  assert.equal(releaseGatedCatalog.WALLET_PURCHASE_SKUS['tokens-5000'].enabled, false);
 
   const originalRecipient = process.env.RSC_STORE_RECIPIENT_ADDRESS;
   try {
@@ -223,8 +240,9 @@ test('stored quote terms must exactly match the immutable server catalog', () =>
     () => assertCanonicalOrderTerms({ ...orderFor(), wallet_address: ZERO_ADDRESS }),
     /integrity checks/
   );
+  assert.equal(assertCanonicalOrderTerms(orderFor('tokens-500')).id, 'tokens-500');
   assert.throws(
-    () => assertCanonicalOrderTerms(orderFor('tokens-50')),
+    () => assertCanonicalOrderTerms({ ...orderFor('tokens-500'), reward_tokens: 50 }),
     /integrity checks/
   );
   assert.throws(
@@ -234,6 +252,34 @@ test('stored quote terms must exactly match the immutable server catalog', () =>
     }),
     /integrity checks/
   );
+});
+
+test('paid Token headroom is exact while non-Token products bypass the limit', () => {
+  assert.doesNotThrow(() => assertWalletPurchaseTokenHeadroom({
+    sku: WALLET_PURCHASE_SKUS['tokens-500'],
+    profile: profileWithRightSupport(false, 999_999_500)
+  }));
+  assert.throws(
+    () => assertWalletPurchaseTokenHeadroom({
+      sku: WALLET_PURCHASE_SKUS['tokens-500'],
+      profile: profileWithRightSupport(false, 999_999_501)
+    }),
+    (error) => error.code === 'wallet_purchase_token_headroom_required'
+  );
+  const durableTooHigh = profileWithRightSupport(false, 999_999_500);
+  durableTooHigh.snapshot.weeklyState.coins = 999_999_000;
+  durableTooHigh.snapshot.weeklyState.durableCampaignCoins = 999_999_501;
+  assert.throws(
+    () => assertWalletPurchaseTokenHeadroom({
+      sku: WALLET_PURCHASE_SKUS['tokens-500'],
+      profile: durableTooHigh
+    }),
+    (error) => error.code === 'wallet_purchase_token_headroom_required'
+  );
+  assert.doesNotThrow(() => assertWalletPurchaseTokenHeadroom({
+    sku: WALLET_PURCHASE_SKUS['right-support'],
+    profile: profileWithRightSupport(false, 1_000_000_000)
+  }));
 });
 
 test('Weekly Run attempt quotes are week-bound, expire by cutoff, and expose +1 for 3 RSC', async () => {
@@ -287,6 +333,26 @@ test('Weekly Run attempt quotes cannot charge while a wallet still has an entry'
       now: Date.parse('2026-08-02T20:00:00.000Z')
     }),
     (error) => error?.code === 'weekly_run_attempts_still_available'
+  );
+});
+
+test('Token pack quotes require enough room for the complete paid reward', async () => {
+  const purchases = loadWalletPurchasesForQuoteTest({
+    profile: profileWithRightSupport(false, 999_999_750),
+    fetchSupabaseJson: async () => {
+      throw new Error('A headroom failure must happen before any order query.');
+    }
+  });
+
+  await assert.rejects(
+    purchases.createWalletPurchaseQuote({
+      address: WALLET,
+      skuId: 'tokens-500'
+    }),
+    (error) => (
+      error.code === 'wallet_purchase_token_headroom_required'
+      && /Spend at least 250 Tokens/.test(error.message)
+    )
   );
 });
 
@@ -578,7 +644,97 @@ test('receipt verification requires Base, a quote-window payment, wallet sender,
   );
 });
 
-test('ordinary profile saves cannot mint the RSC-only right entitlement or inject purchase credits', () => {
+test('an enabled Token pack quotes, verifies, recovers full credit, and resumes idempotently', async () => {
+  const now = 2_000_000_000_000;
+  let order = null;
+  let rpcCalls = 0;
+  const paidProfile = profileWithRightSupport(false, 500);
+  const purchases = loadWalletPurchasesForQuoteTest({
+    profile: profileWithRightSupport(false, 0),
+    latestProfile: paidProfile,
+    fetchSupabaseJson: async (requestPath, options = {}) => {
+      if (requestPath.startsWith('scicon_wallet_entitlements?')) {
+        return [{ right_support_unlocked: false, purchased_tokens_total: 500 }];
+      }
+      if (requestPath.startsWith('rpc/scicon_settle_wallet_purchase')) {
+        rpcCalls += 1;
+        if (rpcCalls === 1) {
+          throw new Error('Supabase request failed: wallet_purchase_token_headroom_required');
+        }
+        order = {
+          ...order,
+          status: 'fulfilled',
+          transaction_hash: HASH,
+          log_index: 11,
+          fulfilled_at: new Date(now).toISOString(),
+          updated_at: new Date(now).toISOString()
+        };
+        return { accepted: true, duplicate: false };
+      }
+      if (requestPath.includes('status=eq.quoted') && !options.method) return [];
+      if (requestPath.startsWith('scicon_wallet_purchase_orders?select=*') && options.method === 'POST') {
+        order = JSON.parse(options.body);
+        return [{ ...order }];
+      }
+      if (requestPath.startsWith('scicon_wallet_purchase_orders?select=')) {
+        return order ? [{ ...order }] : [];
+      }
+      throw new Error(`Unexpected Token settlement request: ${requestPath}`);
+    }
+  });
+
+  const quote = await purchases.createWalletPurchaseQuote({
+    address: WALLET,
+    skuId: 'tokens-500',
+    now
+  });
+  assert.equal(quote.rscAmount, '1');
+  assert.equal(quote.tokenReward, 500);
+
+  const tokenLog = await transferLog({
+    amountRaw: WALLET_PURCHASE_SKUS['tokens-500'].rscAmountRaw,
+    logIndex: 11
+  });
+  await assert.rejects(
+    purchases.settleWalletPurchase({
+      address: WALLET,
+      orderId: quote.orderId,
+      transactionHash: HASH,
+      now,
+      publicClient: publicClientFor({ logs: [tokenLog] })
+    }),
+    (error) => (
+      error.code === 'wallet_purchase_token_headroom_required'
+      && /payment is confirmed[\s\S]*pending credit/i.test(error.message)
+    )
+  );
+  assert.equal(order.status, 'quoted');
+
+  const first = await purchases.settleWalletPurchase({
+    address: WALLET,
+    orderId: quote.orderId,
+    transactionHash: HASH,
+    now,
+    publicClient: publicClientFor({ logs: [tokenLog] })
+  });
+  assert.equal(first.accepted, true);
+  assert.equal(first.duplicate, false);
+  assert.equal(first.skuId, 'tokens-500');
+  assert.equal(first.tokenReward, 500);
+  assert.equal(first.profile, paidProfile);
+
+  const duplicate = await purchases.settleWalletPurchase({
+    address: WALLET,
+    orderId: quote.orderId,
+    transactionHash: HASH,
+    now,
+    publicClient: publicClientFor({ logs: [] })
+  });
+  assert.equal(duplicate.duplicate, true);
+  assert.equal(rpcCalls, 2);
+});
+
+test('ordinary profile saves cannot mint the RSC-only right entitlement or fake purchase-ledger metadata', () => {
   const now = Date.UTC(2026, 7, 2, 19);
   const incoming = sanitizeWalletSnapshot({
     weeklyState: { unlockedSlots: { right: true } },
@@ -613,6 +769,7 @@ test('wallet purchase API is session-bound and same-origin, while runtime expose
   const client = read('services', 'walletPurchaseService.ts');
   const pending = read('services', 'walletPurchasePendingStore.ts');
   const baseWallet = read('services', 'baseAccountWallet.ts');
+  const rscPresentation = read('services', 'rscBalancePresentation.ts');
 
   assert.match(route, /assertSameOrigin\(req\)/);
   assert.match(route, /readWalletProfileSession\(req\)/);
@@ -633,6 +790,8 @@ test('wallet purchase API is session-bound and same-origin, while runtime expose
   assert.match(runtime, /type: 'refresh-rsc-balance'/);
   assert.match(client, /loadAuthenticatedWalletProfile\(walletAddress, \{ interactive: true \}\)/);
   assert.match(client, /assertQuoteMatchesPublishedTerms/);
+  assert.match(client, /validQuotedStoreRecipient\([\s\S]*quote\.recipientAddress/);
+  assert.doesNotMatch(client, /VITE_RSC_STORE_RECIPIENT_ADDRESS/);
   assert.match(client, /recipient === ZERO_ADDRESS/);
   assert.match(client, /recipient === DONATION_CONFIG\.RSC_CONTRACT_ADDRESS\.toLowerCase\(\)/);
   assert.match(client, /recipient === walletAddress\.toLowerCase\(\)/);
@@ -644,6 +803,8 @@ test('wallet purchase API is session-bound and same-origin, while runtime expose
   assert.match(pending, /callsId/);
   assert.match(pending, /transactionHash/);
   assert.match(baseWallet, /export const getRscBalance/);
+  assert.match(rscPresentation, /export const formatWholeRscBalance/);
+  assert.match(rscPresentation, /raw \/ \(10n \*\* BigInt\(safeDecimals\)\)/);
   assert.match(baseWallet, /export const sendRscPurchaseTransfer/);
   assert.match(baseWallet, /onSubmitted\?\.\(callsId\)/);
   const purchaseSuccessHandler = app.slice(
@@ -729,6 +890,9 @@ test('local purchase migration is service-role-only and settles rewards atomical
   assert.match(sql, /wallet_address <> '0x0000000000000000000000000000000000000000'/);
   assert.match(sql, /wallet_purchase_already_owned/);
   assert.match(sql, /purchased_tokens_total[\s\S]*excluded\.purchased_tokens_total/);
+  assert.match(sql, /wallet_purchase_token_headroom_required/);
+  assert.match(sql, /to_jsonb\(v_coins \+ v_order\.reward_tokens\)/);
+  assert.doesNotMatch(sql, /to_jsonb\(least\(1000000000, v_coins/);
   assert.match(sql, /revision = revision \+ 1/);
   assert.match(sql, /revoke all on function public\.scicon_settle_wallet_purchase[\s\S]*from public, anon, authenticated/);
   assert.doesNotMatch(sql, /create policy/i);
@@ -751,7 +915,30 @@ test('additive Weekly Run purchase migration grants one server-only week credit 
   assert.match(sql, /public\.scicon_weekly_run_attempt_credits\.purchased_attempts[\s\S]*\+ excluded\.purchased_attempts/);
   assert.match(sql, /wallet_purchase_payment_replayed/);
   assert.match(sql, /if v_order\.status = 'fulfilled'[\s\S]*'duplicate', true/);
+  assert.match(sql, /wallet_purchase_token_headroom_required/);
+  assert.match(sql, /purchased_tokens_total >= 0/);
   assert.match(sql, /enable row level security/);
   assert.match(sql, /revoke all on table public\.scicon_weekly_run_attempt_credits[\s\S]*from public, anon, authenticated/);
   assert.match(sql, /grant execute on function public\.scicon_get_weekly_run_quota\(text, text\)[\s\S]*to service_role/);
+});
+
+test('Token exchange migration pins every enabled pack to exactly 500 Tokens per RSC', () => {
+  const migrationName = fs.readdirSync(path.join(root, 'supabase', 'migrations'))
+    .find((name) => name.endsWith('_enable_rsc_token_exchange.sql'));
+  assert.ok(migrationName, 'the Token exchange migration must exist');
+  const sql = read('supabase', 'migrations', migrationName);
+
+  assert.match(sql, /^begin;/m);
+  assert.match(sql, /drop constraint if exists scicon_wallet_purchase_orders_terms_check/);
+  assert.match(sql, /sku_id = 'tokens-500'[\s\S]*amount_raw = 1000000000000000000[\s\S]*reward_tokens = 500/);
+  assert.match(sql, /sku_id = 'tokens-2500'[\s\S]*amount_raw = 5000000000000000000[\s\S]*reward_tokens = 2500/);
+  assert.match(sql, /sku_id = 'tokens-5000'[\s\S]*amount_raw = 10000000000000000000[\s\S]*reward_tokens = 5000/);
+  assert.equal(
+    (sql.match(/reward_weekly_id is null/g) || []).length >= 4,
+    true,
+    'support and Token products must not inherit a weekly reward scope'
+  );
+  assert.match(sql, /500 Tokens per RSC exchange rate/);
+  assert.match(sql, /purchased_tokens_total >= 0/);
+  assert.match(sql, /commit;/);
 });

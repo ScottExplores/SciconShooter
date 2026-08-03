@@ -31,6 +31,7 @@ const snapshot = (
       profileId,
       weekKey: '2026-07-19',
       coins,
+      durableCampaignCoins: coins,
       unlockedSlots: { left: true, right: false },
       ownedMiniShips: { 'citation-dart': 1 },
       equipped: { left: 'citation-dart', right: null },
@@ -143,6 +144,36 @@ test('semantic comparison ignores regenerated timestamps and minted ownership', 
   right.permanentState.mintedMiniShips = ['citation-dart'];
 
   assert.equal(dirtyStore.walletProfileSnapshotsEqual(left, right), true);
+});
+
+test('semantic comparison ignores cloud-regenerated Campaign metadata timestamps', async () => {
+  global.window = { localStorage: createStorage() };
+  const dirtyStore = await import('../services/walletProfileDirtyStore.ts');
+  const left = snapshot(WALLET_A);
+  left.permanentState.campaignProgress = {
+    campaignCompleted: false,
+    updatedAt: '2026-07-23T00:00:00.000Z',
+    branchProgress: {
+      completedBranchIds: [],
+      updatedAt: '2026-07-23T00:00:00.000Z'
+    }
+  };
+  const right = structuredClone(left);
+  right.permanentState.campaignProgress.updatedAt = '2026-07-23T00:00:02.000Z';
+  right.permanentState.campaignProgress.branchProgress.updatedAt = '2026-07-23T00:00:02.000Z';
+
+  assert.equal(dirtyStore.walletProfileSnapshotsEqual(left, right), true);
+
+  const local = structuredClone(left);
+  local.weeklyState.coins = 125;
+  local.weeklyState.durableCampaignCoins = 125;
+  const merged = dirtyStore.mergeWalletProfileSnapshots({
+    address: WALLET_A,
+    baseSnapshot: left,
+    localSnapshot: local,
+    remoteSnapshot: right
+  });
+  assert.equal(merged.weeklyState.coins, 125);
 });
 
 test('semantic comparison ignores Boss Archive schema migration versions', async () => {
@@ -291,7 +322,7 @@ test('purchase settlement preserves local writes while rebasing the server-owned
   assert.equal(rebased.snapshot.selectedShipId, 'bio');
 });
 
-test('purchase-aware conflict rebase overlays only right support and adopts the server revision', async () => {
+test('purchase-aware conflict rebase combines server and queued local balance deltas', async () => {
   global.window = { localStorage: createStorage() };
   const dirtyStore = await import('../services/walletProfileDirtyStore.ts');
   const base = snapshot(WALLET_A, { coins: 100 });
@@ -330,9 +361,77 @@ test('purchase-aware conflict rebase overlays only right support and adopts the 
   assert.equal(rebased.baseSnapshot.weeklyState.coins, 125);
   assert.equal(rebased.baseSnapshot.selectedShipId, 'eth');
   assert.equal(rebased.snapshot.weeklyState.unlockedSlots.right, true);
-  assert.equal(rebased.snapshot.weeklyState.coins, 75);
+  assert.equal(rebased.snapshot.weeklyState.coins, 100);
+  assert.equal(rebased.snapshot.weeklyState.durableCampaignCoins, 100);
   assert.equal(rebased.snapshot.weeklyState.weeklyStats.runs, 4);
   assert.equal(rebased.snapshot.permanentState.lifetimeStats.runs, 4);
   assert.equal(rebased.snapshot.stats.totalCoins, 175);
   assert.equal(rebased.snapshot.selectedShipId, 'bio');
+});
+
+test('paid Token credit survives local spending exactly once across duplicate settlement resumes', async () => {
+  global.window = { localStorage: createStorage() };
+  const dirtyStore = await import('../services/walletProfileDirtyStore.ts');
+  const base = snapshot(WALLET_A, { coins: 100 });
+  const local = snapshot(WALLET_A, { coins: 75 });
+  dirtyStore.markWalletProfileDirty({
+    address: WALLET_A,
+    expectedRevision: 10,
+    baseSnapshot: base,
+    snapshot: local
+  });
+
+  const paid = snapshot(WALLET_A, { coins: 600 });
+  const first = dirtyStore.rebaseWalletProfileDirtyAfterServerPurchase({
+    address: WALLET_A,
+    savedProfile: {
+      walletAddress: WALLET_A,
+      profileId: `wallet:${WALLET_A}`,
+      revision: 11,
+      snapshot: paid
+    }
+  });
+  assert.equal(first.snapshot.weeklyState.coins, 575);
+  assert.equal(first.snapshot.weeklyState.durableCampaignCoins, 575);
+
+  const duplicate = dirtyStore.rebaseWalletProfileDirtyAfterServerPurchase({
+    address: WALLET_A,
+    savedProfile: {
+      walletAddress: WALLET_A,
+      profileId: `wallet:${WALLET_A}`,
+      revision: 11,
+      snapshot: paid
+    }
+  });
+  assert.equal(duplicate.snapshot.weeklyState.coins, 575);
+  assert.equal(duplicate.snapshot.weeklyState.durableCampaignCoins, 575);
+});
+
+test('purchase rebase adopts the server economy when settlement crosses a weekly boundary', async () => {
+  global.window = { localStorage: createStorage() };
+  const dirtyStore = await import('../services/walletProfileDirtyStore.ts');
+  const base = snapshot(WALLET_A, { coins: 100 });
+  const local = snapshot(WALLET_A, { coins: 75 });
+  dirtyStore.markWalletProfileDirty({
+    address: WALLET_A,
+    expectedRevision: 4,
+    baseSnapshot: base,
+    snapshot: local
+  });
+
+  const paid = snapshot(WALLET_A, { coins: 500 });
+  paid.weeklyState.weekKey = '2026-07-26';
+  const rebased = dirtyStore.rebaseWalletProfileDirtyAfterServerPurchase({
+    address: WALLET_A,
+    savedProfile: {
+      walletAddress: WALLET_A,
+      profileId: `wallet:${WALLET_A}`,
+      revision: 5,
+      snapshot: paid
+    }
+  });
+
+  assert.equal(rebased.snapshot.weeklyState.weekKey, '2026-07-26');
+  assert.equal(rebased.snapshot.weeklyState.coins, 500);
+  assert.equal(rebased.snapshot.weeklyState.durableCampaignCoins, 500);
 });

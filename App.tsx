@@ -97,8 +97,6 @@ import {
   upgradeMiniShip,
   type MainShipUpgradeId,
   type MiniShipId,
-  CAMPAIGN_BASE_STARTING_LIVES,
-  CAMPAIGN_MAX_STARTING_LIVES,
   CAMPAIGN_MISSION_MASTERY_STARS,
   type PermanentSquadState,
   type RuntimeSquadLoadout,
@@ -191,6 +189,10 @@ import {
   type WalletProfileSnapshot
 } from './services/walletProfileService';
 import {
+  getWalletProfileSyncFailurePolicy,
+  WALLET_PROFILE_SYNC_BUSY_MESSAGE
+} from './services/walletProfileSyncPolicy';
+import {
   discardWalletProfileDirty,
   markWalletProfileDirty,
   rebaseWalletProfileDirtyAfterServerPurchase,
@@ -201,13 +203,13 @@ import { getStageName } from './services/stagePresentation';
 import { DEFAULT_GAME_CAMPAIGN } from './services/levelConfig';
 import type { CampaignMasteryObjectiveDefinition } from './game-config/types';
 import {
-  WEEKLY_RUN_STARTING_LIVES,
   WEEKLY_RUN_INITIAL_STAGE_COUNT,
   WEEKLY_RUN_STAGE_CHUNK,
   getWeeklyRunDepth,
   buildWeeklyRunCampaign,
   getWeeklyRunEntryPoint
 } from './services/weeklyRunGenerator';
+import { resolveRunStartingLives } from './services/runStartingLives';
 import {
   BOSS_ARCHIVE_CATALOG,
   buildBossReplayCampaign,
@@ -703,6 +705,7 @@ const App: React.FC = () => {
     'guest' | 'authenticating' | 'ready' | 'syncing' | 'error'
   >('guest');
   const [walletProfileAuthorizationNonce, setWalletProfileAuthorizationNonce] = useState(0);
+  const [walletProfileRetryNonce, setWalletProfileRetryNonce] = useState(0);
   const [walletRuntimeEnabled, setWalletRuntimeEnabled] = useState(() => (
     Boolean(localStorage.getItem(STORAGE_KEYS.WALLET_ADDRESS))
   ));
@@ -863,6 +866,8 @@ const App: React.FC = () => {
   const walletProfileLocalBaselineRef = useRef<WalletProfileSnapshot | null>(null);
   const walletProfileSaveChainRef = useRef<Promise<void>>(Promise.resolve());
   const walletProfileSessionChainRef = useRef<Promise<void>>(Promise.resolve());
+  const walletProfileSyncRetryCountRef = useRef(0);
+  const walletProfileSyncNotBeforeRef = useRef(0);
   const rewardClaimInFlightRef = useRef(false);
   const proposalRefreshNonceRef = useRef(0);
   const weeklyLeaderProposalIdRef = useRef<string | null>(null);
@@ -1922,6 +1927,36 @@ const App: React.FC = () => {
           setWalletError('');
           return;
         }
+        if (
+          error instanceof WalletProfileRequestError
+          && error.code === 'profile_sync_busy'
+        ) {
+          const policy = getWalletProfileSyncFailurePolicy(error, 0);
+          console.warn('Wallet profile sync remains queued', error);
+          const queued = readWalletProfileDirty(normalizedAddress);
+          if (queued) {
+            walletProfileRevisionRef.current = queued.expectedRevision;
+            walletProfileSyncedSnapshotRef.current = queued.baseSnapshot;
+            walletProfileLocalBaselineRef.current = hydrateActiveProfile({
+              profileId: getWalletProfileId(normalizedAddress),
+              snapshot: queued.snapshot,
+              founderSandbox: isOwnerWallet
+            });
+          }
+          walletProfileSyncRetryCountRef.current = 1;
+          walletProfileSyncNotBeforeRef.current = policy.retryDelayMs === null
+            ? Number.POSITIVE_INFINITY
+            : Date.now() + policy.retryDelayMs;
+          // hydrateActiveProfile releases its autosave guard in the preceding
+          // microtask. Publish `ready` afterward so the retry effect observes
+          // the conflict-merged queued snapshot instead of stale React state.
+          window.queueMicrotask(() => {
+            if (!isCurrent()) return;
+            setWalletProfileStatus(policy.status);
+            setWalletError(policy.message);
+          });
+          return;
+        }
         console.error('Wallet profile authentication failed', error);
         setWalletProfileStatus('error');
         setWalletError(
@@ -2012,6 +2047,7 @@ const App: React.FC = () => {
   }, [activeWalletAddress]);
 
   useEffect(() => {
+    let retryTimer: number | null = null;
     if (
       !activeWalletAddress
       || walletProfileHydratingRef.current
@@ -2043,18 +2079,34 @@ const App: React.FC = () => {
     const comparisonSnapshot = currentDirty?.snapshot
       ?? walletProfileSyncedSnapshotRef.current
       ?? walletProfileLocalBaselineRef.current;
-    if (
-      comparisonSnapshot
-      && walletProfileSnapshotsEqual(snapshot, comparisonSnapshot)
-    ) return undefined;
+    const snapshotChanged = !comparisonSnapshot
+      || !walletProfileSnapshotsEqual(snapshot, comparisonSnapshot);
+    if (!snapshotChanged && !currentDirty) return undefined;
 
-    markWalletProfileDirty({
-      address: normalizedAddress,
-      expectedRevision: walletProfileRevisionRef.current,
-      baseSnapshot: walletProfileSyncedSnapshotRef.current,
-      snapshot
-    });
+    if (snapshotChanged) {
+      markWalletProfileDirty({
+        address: normalizedAddress,
+        expectedRevision: walletProfileRevisionRef.current,
+        baseSnapshot: walletProfileSyncedSnapshotRef.current,
+        snapshot
+      });
+      walletProfileSyncRetryCountRef.current = 0;
+      walletProfileSyncNotBeforeRef.current = 0;
+    }
     if (walletProfileStatus !== 'ready') return undefined;
+
+    const retryDelayRemaining = walletProfileSyncNotBeforeRef.current - Date.now();
+    if (retryDelayRemaining > 0) {
+      if (Number.isFinite(retryDelayRemaining)) {
+        retryTimer = window.setTimeout(() => {
+          if (walletProfileAddressRef.current !== normalizedAddress) return;
+          setWalletProfileRetryNonce((current) => current + 1);
+        }, retryDelayRemaining);
+      }
+      return () => {
+        if (retryTimer !== null) window.clearTimeout(retryTimer);
+      };
+    }
 
     const saveTimer = window.setTimeout(() => {
       walletProfileSaveChainRef.current = walletProfileSaveChainRef.current
@@ -2063,37 +2115,75 @@ const App: React.FC = () => {
           if (walletProfileAddressRef.current !== normalizedAddress) return;
           try {
             const saved = await flushDirtyWalletProfile(normalizedAddress);
-            if (!saved) return;
+            if (!saved) {
+              if (!readWalletProfileDirty(normalizedAddress)) {
+                walletProfileSyncRetryCountRef.current = 0;
+                walletProfileSyncNotBeforeRef.current = 0;
+                setWalletError((current) => (
+                  current === WALLET_PROFILE_SYNC_BUSY_MESSAGE ? '' : current
+                ));
+              }
+              return;
+            }
             if (walletProfileAddressRef.current !== normalizedAddress) return;
             walletProfileRevisionRef.current = saved.revision;
             walletProfileSyncedSnapshotRef.current = saved.snapshot;
             cacheWalletProfile(saved);
+            walletProfileSyncRetryCountRef.current = 0;
+            walletProfileSyncNotBeforeRef.current = 0;
+            setWalletError((current) => (
+              current === WALLET_PROFILE_SYNC_BUSY_MESSAGE ? '' : current
+            ));
           } catch (error) {
             if (walletProfileAddressRef.current !== normalizedAddress) return;
-            console.error('Wallet profile sync failed', error);
-            setWalletProfileStatus('error');
-            setWalletError(
-              error instanceof WalletProfileRequestError
-                && error.code === 'profile_conflict'
-                ? 'This wallet changed on both devices. This device save is preserved and was not overwritten.'
-                : error instanceof WalletProfileRequestError && error.status === 409
-                ? 'This profile changed on another device. Reconnect this wallet to load its newest save.'
-                : 'Your wallet profile is saved on this device, but cloud sync needs to reconnect.'
-            );
+            const retryAttempt = walletProfileSyncRetryCountRef.current;
+            const policy = getWalletProfileSyncFailurePolicy(error, retryAttempt);
+            if (policy.status === 'ready') {
+              console.warn('Wallet profile sync remains queued', error);
+              const queued = readWalletProfileDirty(normalizedAddress);
+              if (queued) {
+                walletProfileRevisionRef.current = queued.expectedRevision;
+                walletProfileSyncedSnapshotRef.current = queued.baseSnapshot;
+                walletProfileLocalBaselineRef.current = hydrateActiveProfile({
+                  profileId: expectedProfileId,
+                  snapshot: queued.snapshot,
+                  founderSandbox: false
+                });
+              }
+              walletProfileSyncRetryCountRef.current = retryAttempt + 1;
+              walletProfileSyncNotBeforeRef.current = policy.retryDelayMs === null
+                ? Number.POSITIVE_INFINITY
+                : Date.now() + policy.retryDelayMs;
+              window.queueMicrotask(() => {
+                if (walletProfileAddressRef.current !== normalizedAddress) return;
+                setWalletProfileStatus(policy.status);
+                setWalletError(policy.message);
+              });
+              return;
+            } else {
+              console.error('Wallet profile sync failed', error);
+            }
+            setWalletProfileStatus(policy.status);
+            setWalletError(policy.message);
           }
         });
     }, 650);
 
-    return () => window.clearTimeout(saveTimer);
+    return () => {
+      window.clearTimeout(saveTimer);
+      if (retryTimer !== null) window.clearTimeout(retryTimer);
+    };
   }, [
     activeProfileId,
     activeWalletAddress,
+    hydrateActiveProfile,
     isOwnerWallet,
     permanentSquadState,
     playerNameInput,
     selectedShipId,
     stats.highScore,
     stats.totalCoins,
+    walletProfileRetryNonce,
     walletProfileStatus,
     weeklySquadState
   ]);
@@ -2107,10 +2197,25 @@ const App: React.FC = () => {
         maxAttempts: 1
       })
         .then((saved) => {
-          if (!saved || walletProfileAddressRef.current !== address) return;
+          if (walletProfileAddressRef.current !== address) return;
+          if (!saved) {
+            if (!readWalletProfileDirty(address)) {
+              walletProfileSyncRetryCountRef.current = 0;
+              walletProfileSyncNotBeforeRef.current = 0;
+              setWalletError((current) => (
+                current === WALLET_PROFILE_SYNC_BUSY_MESSAGE ? '' : current
+              ));
+            }
+            return;
+          }
           walletProfileRevisionRef.current = saved.revision;
           walletProfileSyncedSnapshotRef.current = saved.snapshot;
           cacheWalletProfile(saved);
+          walletProfileSyncRetryCountRef.current = 0;
+          walletProfileSyncNotBeforeRef.current = 0;
+          setWalletError((current) => (
+            current === WALLET_PROFILE_SYNC_BUSY_MESSAGE ? '' : current
+          ));
         })
         .catch(() => {
           // The address-scoped local record survives when the browser cannot
@@ -2657,12 +2762,11 @@ const App: React.FC = () => {
     // same footing: exactly ten lives, regardless of Campaign Starting Hearts.
     // A recovered active attempt resumes its last secured checkpoint life count
     // instead of silently refilling to ten after a reload.
-    const startingLives = runMode === 'weekly-streak'
-      ? Math.max(1, Math.min(WEEKLY_RUN_STARTING_LIVES, carriedWeeklyLives ?? WEEKLY_RUN_STARTING_LIVES))
-      : Math.min(
-        CAMPAIGN_MAX_STARTING_LIVES,
-        CAMPAIGN_BASE_STARTING_LIVES + squadLoadout.upgrades.startingHearts
-      );
+    const startingLives = resolveRunStartingLives({
+      weeklyRun: runMode === 'weekly-streak',
+      startingHeartLevel: squadLoadout.upgrades.startingHearts,
+      carriedWeeklyLives
+    });
     setActiveRunLifeCapacity(startingLives);
     const weeklyRunKeyForLaunch = weeklyStreakForLaunch
       ? `${weeklyStreakForLaunch.weeklyId}:${weeklyStreakForLaunch.startNodeId}:${weeklyStreakForLaunch.createdAtMs}`
@@ -6052,6 +6156,10 @@ const App: React.FC = () => {
   };
 
   const openRscSwap = async () => {
+    const accepted = window.confirm(
+      'You are leaving Scicon Shooter to open the Aerodrome RSC swap on Base. Continue?'
+    );
+    if (!accepted) return;
     await openExternalUrl(DONATION_CONFIG.RSC_SWAP_URL);
   };
 

@@ -12,6 +12,7 @@ import {
   readWalletProfileDirty,
   rebaseWalletProfileDirty,
   replaceWalletProfileDirty,
+  walletProfileSnapshotsEqual,
   WalletProfileMergeConflictError
 } from './walletProfileDirtyStore';
 import {
@@ -647,6 +648,20 @@ export const flushDirtyWalletProfile = async (
         );
       }
 
+      // A visibility/pagehide save can race the normal autosave with the same
+      // expected revision. If the other request already committed the exact
+      // logical snapshot, the 409 is an acknowledgement rather than a
+      // cross-device conflict. Rebase it without issuing another write.
+      if (walletProfileSnapshotsEqual(dirty.snapshot, remote.snapshot)) {
+        latestSaved = remote;
+        rebaseWalletProfileDirty({
+          address: walletAddress,
+          sentWriteId: dirty.writeId,
+          savedProfile: remote
+        });
+        continue;
+      }
+
       const currentDirty = readWalletProfileDirty(walletAddress) ?? dirty;
       let mergedSnapshot;
       try {
@@ -682,9 +697,9 @@ export const flushDirtyWalletProfile = async (
 
   if (readWalletProfileDirty(walletAddress)) {
     throw new WalletProfileRequestError(
-      'Wallet profile changed repeatedly while saving. It remains queued on this device.',
+      'Wallet cloud sync is busy. This device save remains queued and will retry.',
       409,
-      'profile_conflict'
+      'profile_sync_busy'
     );
   }
   return latestSaved;

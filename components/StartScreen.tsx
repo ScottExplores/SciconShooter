@@ -2239,8 +2239,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
           }}
           onUnlockSlot={onUnlockSquadSlot}
           onPurchaseWithRsc={onPurchaseWithRsc}
-          onRequestWalletConnect={onRequestWalletConnect}
-          onRefreshRscBalance={onRefreshRscBalance}
+          onOpenRscSwap={onOpenSwap}
           onPurchaseMini={onPurchaseMiniShip}
           onUpgradeMini={onUpgradeMiniShip}
           onDowngradeMini={onDowngradeMiniShip}
@@ -2281,8 +2280,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
           }}
           onUnlockSlot={onUnlockSquadSlot}
           onPurchaseWithRsc={onPurchaseWithRsc}
-          onRequestWalletConnect={onRequestWalletConnect}
-          onRefreshRscBalance={onRefreshRscBalance}
+          onOpenRscSwap={onOpenSwap}
           onPurchaseMini={onPurchaseMiniShip}
           onUpgradeMini={onUpgradeMiniShip}
           onDowngradeMini={onDowngradeMiniShip}

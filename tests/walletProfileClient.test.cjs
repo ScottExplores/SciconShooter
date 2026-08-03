@@ -39,12 +39,37 @@ test('wallet transitions preserve dirty state and serialize cookie-changing acti
   assert.match(dirtyStore, /scicon_wallet_profile_dirty_v1:/);
   assert.match(service, /flushDirtyWalletProfile/);
   assert.match(service, /mergeWalletProfileSnapshots/);
+  assert.match(service, /walletProfileSnapshotsEqual\(dirty\.snapshot, remote\.snapshot\)/);
+  assert.match(service, /sentWriteId: dirty\.writeId/);
+  assert.match(service, /profile_sync_busy/);
   assert.match(app, /walletProfileSessionChainRef/);
   assert.match(app, /markWalletProfileDirty/);
   assert.match(app, /pagehide/);
   assert.match(app, /visibilitychange/);
   assert.match(route, /expectedWalletAddress !== session\.walletAddress/);
   assert.match(service, /action: 'logout',[\s\S]*walletAddress:/);
+  assert.match(dirtyStore, /delete campaignProgress\.updatedAt/);
+  assert.match(dirtyStore, /delete campaignProgress\.branchProgress\.updatedAt/);
+  assert.match(app, /const queued = readWalletProfileDirty\(normalizedAddress\)[\s\S]*snapshot: queued\.snapshot/);
+  assert.match(app, /retryDelayRemaining[\s\S]*setWalletProfileRetryNonce/);
+  assert.match(app, /if \(!readWalletProfileDirty\(normalizedAddress\)\)[\s\S]*WALLET_PROFILE_SYNC_BUSY_MESSAGE/);
+});
+
+test('same-device sync churn stays recoverable with bounded retry backoff', async () => {
+  const { getWalletProfileSyncFailurePolicy } = await import('../services/walletProfileSyncPolicy.ts');
+
+  const busy = { status: 409, code: 'profile_sync_busy' };
+  assert.deepEqual(getWalletProfileSyncFailurePolicy(busy, 0), {
+    status: 'ready',
+    message: 'Cloud save is busy. This device save is safe; saving will retry automatically or on your next wallet action.',
+    retryDelayMs: 800
+  });
+  assert.equal(getWalletProfileSyncFailurePolicy(busy, 3).retryDelayMs, 6400);
+  assert.equal(getWalletProfileSyncFailurePolicy(busy, 4).retryDelayMs, null);
+
+  const conflict = { status: 409, code: 'profile_conflict' };
+  assert.equal(getWalletProfileSyncFailurePolicy(conflict, 0).status, 'error');
+  assert.equal(getWalletProfileSyncFailurePolicy(conflict, 0).retryDelayMs, null);
 });
 
 test('routine wallet disconnect preserves the verified device session for seamless reconnects', () => {

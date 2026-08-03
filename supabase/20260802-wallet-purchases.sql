@@ -16,7 +16,7 @@ create table if not exists public.scicon_wallet_entitlements (
     ),
   right_support_unlocked boolean not null default false,
   purchased_tokens_total bigint not null default 0
-    check (purchased_tokens_total between 0 and 1000000000),
+    check (purchased_tokens_total >= 0),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -243,6 +243,31 @@ begin
     raise exception 'wallet_purchase_already_owned';
   end if;
 
+  v_snapshot := coalesce(v_profile.snapshot, '{}'::jsonb);
+  v_weekly := coalesce(v_snapshot -> 'weeklyState', '{}'::jsonb);
+  v_slots := coalesce(v_weekly -> 'unlockedSlots', '{}'::jsonb);
+  v_coins := case
+    when coalesce(v_weekly ->> 'coins', '') ~ '^\d{1,10}$'
+      then least(1000000000, (v_weekly ->> 'coins')::bigint)
+    else 0
+  end;
+  v_durable_tokens := case
+    when coalesce(v_weekly ->> 'durableCampaignCoins', '') ~ '^\d{1,10}$'
+      then least(v_coins, (v_weekly ->> 'durableCampaignCoins')::bigint)
+    else 0
+  end;
+  if v_order.reward_tokens > 0
+    and (
+      v_coins > 1000000000 - v_order.reward_tokens
+      or v_durable_tokens > 1000000000 - v_order.reward_tokens
+    )
+  then
+    -- The verified payment remains quoted and can be settled again after the
+    -- pilot spends enough Tokens. Never fulfill a paid order for a partial
+    -- reward merely because the profile balance is near its safety ceiling.
+    raise exception 'wallet_purchase_token_headroom_required';
+  end if;
+
   insert into public.scicon_wallet_entitlements (
     wallet_address,
     right_support_unlocked,
@@ -260,37 +285,20 @@ begin
   set
     right_support_unlocked = public.scicon_wallet_entitlements.right_support_unlocked
       or excluded.right_support_unlocked,
-    purchased_tokens_total = least(
-      1000000000,
-      public.scicon_wallet_entitlements.purchased_tokens_total
-        + excluded.purchased_tokens_total
-    ),
+    purchased_tokens_total = public.scicon_wallet_entitlements.purchased_tokens_total
+      + excluded.purchased_tokens_total,
     updated_at = v_now;
-
-  v_snapshot := coalesce(v_profile.snapshot, '{}'::jsonb);
-  v_weekly := coalesce(v_snapshot -> 'weeklyState', '{}'::jsonb);
-  v_slots := coalesce(v_weekly -> 'unlockedSlots', '{}'::jsonb);
-  v_coins := case
-    when coalesce(v_weekly ->> 'coins', '') ~ '^\d{1,10}$'
-      then least(1000000000, (v_weekly ->> 'coins')::bigint)
-    else 0
-  end;
-  v_durable_tokens := case
-    when coalesce(v_weekly ->> 'durableCampaignCoins', '') ~ '^\d{1,10}$'
-      then least(v_coins, (v_weekly ->> 'durableCampaignCoins')::bigint)
-    else 0
-  end;
 
   v_weekly := jsonb_set(
     v_weekly,
     '{coins}',
-    to_jsonb(least(1000000000, v_coins + v_order.reward_tokens)),
+    to_jsonb(v_coins + v_order.reward_tokens),
     true
   );
   v_weekly := jsonb_set(
     v_weekly,
     '{durableCampaignCoins}',
-    to_jsonb(least(1000000000, v_durable_tokens + v_order.reward_tokens)),
+    to_jsonb(v_durable_tokens + v_order.reward_tokens),
     true
   );
   if v_order.grants_right_support then

@@ -61,6 +61,19 @@ const comparableSnapshot = (snapshot: WalletProfileSnapshot) => {
   delete comparable.weeklyState.updatedAt;
   delete comparable.permanentState.updatedAt;
   delete comparable.permanentState.mintedMiniShips;
+  // The cloud sanitizer stamps these presentation metadata fields on every
+  // read. They do not represent player progress and must not make an unchanged
+  // second read look like another device edited the Campaign.
+  const campaignProgress = comparable.permanentState.campaignProgress as {
+    updatedAt?: unknown;
+    branchProgress?: { updatedAt?: unknown };
+  } | undefined;
+  if (campaignProgress) {
+    delete campaignProgress.updatedAt;
+    if (campaignProgress.branchProgress) {
+      delete campaignProgress.branchProgress.updatedAt;
+    }
+  }
   // Archive schema versions describe the local sanitizer, not player progress.
   // Ignore them while comparing saves so a normal v1 -> v2 migration cannot be
   // mistaken for a second-device progression conflict.
@@ -329,11 +342,12 @@ export const mergeWalletProfileSnapshots = ({
   };
 };
 
+const MAX_PROFILE_COINS = 1_000_000_000;
+
 /**
- * Rebase local writes after an RSC purchase changed the cloud revision. The
- * settlement is authoritative only for the right-support entitlement, so every
- * other field comes from the queued local snapshot even when a normal
- * three-way merge would report a conflict.
+ * Rebase local writes after an RSC purchase changed the cloud revision. Store
+ * settlements own the right-support entitlement and any paid Token credit;
+ * unrelated queued progress remains local until the next normal profile save.
  */
 export const rebaseWalletProfileDirtyAfterServerPurchase = ({
   address,
@@ -359,10 +373,39 @@ export const rebaseWalletProfileDirtyAfterServerPurchase = ({
     savedProfile.snapshot.weeklyState.unlockedSlots.right
   );
   const rebasedSnapshot = cloneSnapshot(current.snapshot);
-  rebasedSnapshot.weeklyState.unlockedSlots = {
-    ...rebasedSnapshot.weeklyState.unlockedSlots,
-    right: authoritativeRight
-  };
+  const baseWeekly = current.baseSnapshot?.weeklyState ?? null;
+  const localWeekly = current.snapshot.weeklyState;
+  const serverWeekly = savedProfile.snapshot.weeklyState;
+  const sameWeeklyEconomy = (
+    localWeekly.weekKey === serverWeekly.weekKey
+    && (!baseWeekly || baseWeekly.weekKey === serverWeekly.weekKey)
+  );
+
+  if (sameWeeklyEconomy) {
+    const baseCoins = baseWeekly?.coins ?? 0;
+    const baseDurableCoins = baseWeekly?.durableCampaignCoins ?? 0;
+    const mergedCoins = integer(
+      serverWeekly.coins + (localWeekly.coins - baseCoins),
+      0,
+      MAX_PROFILE_COINS
+    );
+    const mergedDurableCoins = integer(
+      serverWeekly.durableCampaignCoins
+        + (localWeekly.durableCampaignCoins - baseDurableCoins),
+      0,
+      mergedCoins
+    );
+    rebasedSnapshot.weeklyState.coins = mergedCoins;
+    rebasedSnapshot.weeklyState.durableCampaignCoins = mergedDurableCoins;
+    rebasedSnapshot.weeklyState.unlockedSlots = {
+      ...rebasedSnapshot.weeklyState.unlockedSlots,
+      right: authoritativeRight
+    };
+  } else {
+    // A purchase that settles across the weekly boundary must not carry the
+    // expired week's local balance into the new competition week.
+    rebasedSnapshot.weeklyState = cloneSnapshot(savedProfile.snapshot).weeklyState;
+  }
 
   return replaceWalletProfileDirty({
     address: walletAddress,

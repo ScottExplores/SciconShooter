@@ -273,10 +273,10 @@ test('Weekly Run starting lives are fixed and independent of Hangar upgrades', (
   const startingLivesStart = app.indexOf('const startingLives');
   const startingLivesEnd = app.indexOf('const weeklyRunKeyForLaunch', startingLivesStart);
   const startingLivesBlock = app.slice(startingLivesStart, startingLivesEnd);
-  assert.match(startingLivesBlock, /runMode === 'weekly-streak'/);
-  assert.match(startingLivesBlock, /carriedWeeklyLives \?\? WEEKLY_RUN_STARTING_LIVES/);
-  assert.match(startingLivesBlock, /Math\.min\(WEEKLY_RUN_STARTING_LIVES/);
-  assert.match(startingLivesBlock, /CAMPAIGN_MAX_STARTING_LIVES/);
+  assert.match(startingLivesBlock, /resolveRunStartingLives\(\{/);
+  assert.match(startingLivesBlock, /weeklyRun: runMode === 'weekly-streak'/);
+  assert.match(startingLivesBlock, /startingHeartLevel: squadLoadout\.upgrades\.startingHearts/);
+  assert.match(startingLivesBlock, /carriedWeeklyLives/);
   // Starting Hearts is a Campaign-only track; it must not reach the Weekly Run.
-  assert.match(squad, /CAMPAIGN_MAX_STARTING_LIVES = 5/);
+  assert.match(squad, /CAMPAIGN_MAX_STARTING_LIVES = 10/);
 });

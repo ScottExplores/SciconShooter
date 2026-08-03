@@ -662,7 +662,7 @@ Detailed main-path authored grants: Wave + Mission clear ${money(totals.clearCoi
 
 ## Exact persistent sink inventory
 
-- One complete main-ship set costs **${money(upgradeReference.fullMainShipCoins)}** per ship: Fire Rate ${money(sum(upgradeReference.mainUpgradeCosts.fireRate))}, Movement Speed ${money(sum(upgradeReference.mainUpgradeCosts.speed))}, and Starting Hearts ${money(healthTrackCoins)}. All four ships cost ${money(upgradeReference.allFourMainShipsCoins)}.
+- One complete main-ship set costs **${money(upgradeReference.fullMainShipCoins)}** per ship: Fire Rate ${money(sum(upgradeReference.mainUpgradeCosts.fireRate))}, Movement Speed ${money(sum(upgradeReference.mainUpgradeCosts.speed))}, Signature Move ${money(sum(upgradeReference.mainUpgradeCosts.ability))}, and Starting Hearts ${money(healthTrackCoins)}. All four ships cost ${money(upgradeReference.allFourMainShipsCoins)}.
 - Fire Rate remains accessible at **${money(upgradeReference.mainUpgradeCosts.fireRate[0])}** and Speed at **${money(upgradeReference.mainUpgradeCosts.speed[0])}**. Fire Rate keeps the shipped first 21 prices exactly, then adds 28 premium purchases for Tiers 4-7.
 - Starting Hearts cost **${healthCosts.map(money).join(' / ')}**, totaling **${money(healthTrackCoins)}**. Three base hearts plus seven purchases produces the hard **10-heart cap**.
 - Squad-slot gates are **${money(upgradeReference.slotCosts.left)}** for left and **${money(upgradeReference.slotCosts.right)}** for right. The left unlock includes Citation Dart at level 1.
@@ -696,7 +696,7 @@ ${simulation.sectorRows.map((sector, index) => {
   }).join('\n')}
 
 - Sector 1 covers multiple low-cost Speed/Fire upgrades without replay, while the first heart is deliberately no longer the cheapest purchase.
-- The health curve is ${decimal(healthTrackCoins / 2680)}x the former 2,680-coin curve. Expected authored Campaign income can max health only by deferring offense and support purchases.
+- The restored seven-step health curve costs ${money(healthTrackCoins)}. Expected authored Campaign income can max health only by deferring offense and support purchases.
 - The seven-tier Fire Rate tail is a deliberate long-term sink: 49 purchases cost ${money(sum(upgradeReference.mainUpgradeCosts.fireRate))} per ship, while the complete authored Campaign funds only part of that track before repeatable rewards and combat drops.
 
 ## Support affordability checkpoints

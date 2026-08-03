@@ -104,8 +104,11 @@ const requestWalletPurchase = async <T>(body: Record<string, unknown>): Promise<
 
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 
-const configuredStoreRecipient = (walletAddress: Address): Address | null => {
-  const recipient = String(import.meta.env.VITE_RSC_STORE_RECIPIENT_ADDRESS || '').trim().toLowerCase();
+const validQuotedStoreRecipient = (
+  value: string,
+  walletAddress: Address
+): Address | null => {
+  const recipient = String(value || '').trim().toLowerCase();
   if (
     !/^0x[0-9a-f]{40}$/.test(recipient)
     || recipient === ZERO_ADDRESS
@@ -122,7 +125,10 @@ const assertQuoteMatchesPublishedTerms = (
   skuId: RscPurchaseSkuId
 ) => {
   const sku = RSC_PURCHASE_SKUS[skuId];
-  const storeRecipient = configuredStoreRecipient(walletAddress);
+  const storeRecipient = validQuotedStoreRecipient(
+    quote.recipientAddress,
+    walletAddress
+  );
   if (!sku.enabled) {
     throw new WalletPurchaseRequestError(
       'Token packs are coming soon while the server-authoritative Token economy is completed.',
@@ -132,9 +138,9 @@ const assertQuoteMatchesPublishedTerms = (
   }
   if (!storeRecipient) {
     throw new WalletPurchaseRequestError(
-      'Research Coin store purchases are not configured yet.',
-      503,
-      'wallet_purchase_store_not_configured'
+      'The purchase quote did not contain a safe Research Coin store address.',
+      409,
+      'wallet_purchase_quote_mismatch'
     );
   }
   if (

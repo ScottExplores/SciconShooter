@@ -5,6 +5,7 @@ import {
   type RscPurchaseSkuId
 } from '../constants';
 import type { RscBalanceSnapshot } from '../services/baseAccountWallet';
+import { formatWholeRscBalance } from '../services/rscBalancePresentation';
 import type { WalletPurchaseStatusUpdate } from './WalletRuntime';
 import {
   isPlayerShipUnlocked,
@@ -45,6 +46,11 @@ import PixelActionButton from './PixelActionButton';
 
 type HangarPosition = 'main' | SquadSlotId;
 type HangarMode = 'catalog' | 'upgrades';
+const TOKEN_EXCHANGE_SKU_IDS = [
+  'tokens-500',
+  'tokens-2500',
+  'tokens-5000'
+] as const satisfies ReadonlyArray<RscPurchaseSkuId>;
 
 interface SquadHangarProps {
   state: WeeklySquadState;
@@ -59,8 +65,7 @@ interface SquadHangarProps {
   onSelectMainShip: (id: PlayerShipId) => void;
   onUnlockSlot: (slot: SquadSlotId) => void;
   onPurchaseWithRsc: (skuId: RscPurchaseSkuId) => void;
-  onRequestWalletConnect: () => void;
-  onRefreshRscBalance: () => void;
+  onOpenRscSwap: () => void;
   onPurchaseMini: (id: MiniShipId) => void;
   onUpgradeMini: (id: MiniShipId) => void;
   onDowngradeMini: (id: MiniShipId) => void;
@@ -254,8 +259,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
   onSelectMainShip,
   onUnlockSlot,
   onPurchaseWithRsc,
-  onRequestWalletConnect,
-  onRefreshRscBalance,
+  onOpenRscSwap,
   onPurchaseMini,
   onUpgradeMini,
   onDowngradeMini,
@@ -344,6 +348,24 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
   const activeName = activePosition === 'main'
     ? mainShipName.replace(/ ship$/i, '')
     : activeMini?.name || `${activePosition} wing`;
+  const isTokenExchangePurchase = Boolean(
+    walletPurchaseStatus.skuId
+    && (TOKEN_EXCHANGE_SKU_IDS as ReadonlyArray<RscPurchaseSkuId>)
+      .includes(walletPurchaseStatus.skuId)
+  );
+  const isRightSupportPurchase = walletPurchaseStatus.skuId === 'right-support'
+    && walletPurchaseStatus.status !== 'idle';
+  const rightSupportMessage = walletPurchaseStatus.status === 'error'
+    ? walletPurchaseStatus.error || 'The right support purchase could not be completed. Try again.'
+    : walletPurchaseStatus.status === 'confirmed'
+      ? 'Right support unlocked and saved to this wallet profile.'
+      : walletPurchaseStatus.status === 'connecting'
+        ? 'Connecting your Base wallet for the right support purchase...'
+        : walletPurchaseStatus.status === 'authorizing'
+          ? 'Preparing the secure right support quote...'
+          : walletPurchaseStatus.status === 'confirming'
+            ? 'Confirm the 10 RSC right support transfer in your wallet.'
+            : 'Verifying the right support payment on Base...';
 
   const choosePosition = (position: HangarPosition) => {
     if (position !== 'main' && !state.unlockedSlots[position]) {
@@ -391,10 +413,13 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
     const rightPurchaseBusy = slot === 'right'
       && walletPurchaseStatus.skuId === 'right-support'
       && purchaseBusy;
-    const rscAvailable = rscBalance ? Number(rscBalance.formatted) : 0;
+    const rightSupportCostRaw = BigInt(RSC_PURCHASE_SKUS['right-support'].rscAmountRaw);
+    const hasRightSupportRsc = Boolean(
+      rscBalance && rscBalance.raw >= rightSupportCostRaw
+    );
     const slotUnlockReady = !unlocked && (
       founderSandbox
-      || (slot === 'right' ? rscAvailable >= 10 : state.coins >= unlockCost)
+      || (slot === 'right' ? hasRightSupportRsc : state.coins >= unlockCost)
     );
     const unlockLabel = slot === 'right' && !founderSandbox ? '10 RSC' : `${unlockCost} Tokens`;
 
@@ -527,18 +552,17 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
           />
           <CurrencyRail
             icon={ASSETS.REAL_RSC_ICON}
-            value={rscBalanceStatus === 'loading' ? '...' : rscBalance?.formatted ?? (walletConnected ? '--' : 'Connect')}
+            value={rscBalanceStatus === 'loading'
+              ? '...'
+              : rscBalance
+                ? formatWholeRscBalance(rscBalance)
+                : walletConnected
+                  ? '--'
+                  : 'Connect'}
             label="Research Coin"
             tone="blue"
-            onOptions={() => {
-              if (!walletConnected) {
-                onRequestWalletConnect();
-                return;
-              }
-              setShowTokenExchange(true);
-              onRefreshRscBalance();
-            }}
-            optionsLabel={walletConnected ? 'Open Research Coin options' : 'Connect wallet for Research Coin options'}
+            onOptions={onOpenRscSwap}
+            optionsLabel="Open Aerodrome to get Research Coin"
           />
         </div>
         {showTokenExchange ? (
@@ -546,12 +570,12 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-[0.62rem] font-black uppercase tracking-[0.12em] text-cyan-100">Token Exchange</p>
-                <p className="mt-0.5 text-[0.55rem] text-slate-400">Token packs will open after server-protected Token balances are ready.</p>
+                <p className="mt-0.5 text-[0.55rem] text-slate-400">Exchange Research Coin for permanent Tokens at 500 Tokens per RSC.</p>
               </div>
               <button type="button" onClick={() => setShowTokenExchange(false)} className="h-7 w-7 border border-cyan-200/30 text-sm font-black text-cyan-100" aria-label="Close Token exchange">X</button>
             </div>
             <div className="mt-2 grid grid-cols-3 gap-1.5">
-              {(['tokens-50', 'tokens-250', 'tokens-500'] as const).map((skuId) => {
+              {TOKEN_EXCHANGE_SKU_IDS.map((skuId) => {
                 const sku = RSC_PURCHASE_SKUS[skuId];
                 const busy = walletPurchaseStatus.status !== 'idle'
                   && walletPurchaseStatus.status !== 'confirmed'
@@ -566,7 +590,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
                     className="min-h-12 px-1 text-[0.55rem] font-black uppercase"
                   >
                     <span className="flex flex-col items-center leading-tight">
-                      <span>{sku.tokenReward} Tokens</span>
+                      <span>{sku.tokenReward.toLocaleString()} Tokens</span>
                       {sku.enabled ? (
                         <span className="mt-1 flex items-center gap-1 text-emerald-200"><img src={ASSETS.REAL_RSC_ICON} alt="" className="h-4 w-4 object-contain" />{sku.rscAmount} RSC</span>
                       ) : (
@@ -577,8 +601,8 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
                 );
               })}
             </div>
-            <p className="mt-2 text-center text-[0.52rem] font-bold uppercase text-cyan-100/70">Right support is the only enabled RSC purchase in this build.</p>
-            {walletPurchaseStatus.status !== 'idle' ? (
+            <p className="mt-2 text-center text-[0.52rem] font-bold uppercase text-cyan-100/70">Every pack grants 500 Tokens per 1 RSC after its Base receipt is verified.</p>
+            {isTokenExchangePurchase && walletPurchaseStatus.status !== 'idle' ? (
               <p className={`mt-2 text-center text-[0.56rem] font-bold ${walletPurchaseStatus.status === 'error' ? 'text-red-200' : walletPurchaseStatus.status === 'confirmed' ? 'text-emerald-200' : 'text-cyan-100'}`} role="status">
                 {walletPurchaseStatus.status === 'error'
                   ? walletPurchaseStatus.error
@@ -640,6 +664,15 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
               {renderSquadMini('right')}
             </div>
           </div>
+
+          {isRightSupportPurchase ? (
+            <p
+              className={`relative mx-auto mt-1 max-w-[24rem] border px-2 py-1.5 text-center text-[0.58rem] font-bold ${walletPurchaseStatus.status === 'error' ? 'border-red-300/35 bg-red-950/70 text-red-100' : walletPurchaseStatus.status === 'confirmed' ? 'border-emerald-300/35 bg-emerald-950/65 text-emerald-100' : 'border-cyan-300/30 bg-slate-950/75 text-cyan-100'}`}
+              role="status"
+            >
+              {rightSupportMessage}
+            </p>
+          ) : null}
 
         </section>
 

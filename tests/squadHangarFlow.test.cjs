@@ -20,7 +20,7 @@ test('weekly competition rollover preserves permanent Hangar progression and res
   // 'homing-missile' ability -- so the hull must not sell a duplicate track.
   assert.doesNotMatch(source, /id: 'missile'/);
   assert.doesNotMatch(source, /MAIN_SHIP_MISSILE_MAX_LEVEL/);
-  assert.match(source, /CAMPAIGN_MAX_STARTING_LIVES = 5/);
+  assert.match(source, /CAMPAIGN_MAX_STARTING_LIVES = 10/);
   assert.match(source, /CAMPAIGN_BASE_STARTING_LIVES = 3/);
   assert.match(source, /SQUAD_PROFILE_VERSION = 4/);
   assert.match(source, /LEFT_SQUAD_SLOT_UNLOCK_COST = 50/);
@@ -54,8 +54,8 @@ test('weekly competition rollover preserves permanent Hangar progression and res
   assert.match(source, /entry\.purchaseCost \* \(0\.55 \+ currentLevel \* 0\.15\)/);
   assert.match(source, /60, 90, 130, 190, 270, 360, 480,[\s\S]*?2600, 3050, 3550, 4100, 4700, 5350, 6050/);
   assert.match(source, /costs: \[55, 85, 130, 200, 300, 440, 625\]/);
-  // Starting Hearts is now a short Campaign-only track: 3 lives to 5.
-  assert.match(source, /costs: \[180, 420\]/);
+  // Starting Hearts is a premium Campaign-only track: 3 lives to 10.
+  assert.match(source, /costs: \[180, 320, 560, 900, 1400, 2100, 3000\]/);
   assert.match(source, /if \(slot === 'left'\) \{[\s\S]*?\[FIRST_LEFT_WING_MINI_SHIP_ID\]: next\.ownedMiniShips\[FIRST_LEFT_WING_MINI_SHIP_ID\] \|\| 1/);
   assert.match(source, /next\.equipped = \{ \.\.\.next\.equipped, left: FIRST_LEFT_WING_MINI_SHIP_ID \}/);
   assert.match(source, /mini_ship_awarded/);
@@ -108,6 +108,7 @@ test('the Hangar is available to device Pilots while minted ship locks remain vi
 test('the Hangar uses one position-driven squad bay and four-column fleet catalogs', () => {
   const hangar = read('components', 'SquadHangar.tsx');
   const startScreen = read('components', 'StartScreen.tsx');
+  const app = read('App.tsx');
   const miniCatalog = hangar.slice(
     hangar.indexOf('const renderMiniCatalog = () =>'),
     hangar.indexOf('\n  return (', hangar.indexOf('const renderMiniCatalog = () =>'))
@@ -161,9 +162,19 @@ test('the Hangar uses one position-driven squad bay and four-column fleet catalo
   assert.match(hangar, /rightPurchaseStatus === 'connecting'[\s\S]*?'CONNECTING'/);
   assert.match(hangar, /rightPurchaseStatus === 'error'[\s\S]*?'TRY AGAIN'/);
   assert.match(hangar, /label="Research Coin"/);
-  assert.match(hangar, /if \(!walletConnected\) \{\s*onRequestWalletConnect\(\);\s*return;/);
-  assert.match(startScreen, /onRequestWalletConnect=\{onRequestWalletConnect\}/);
+  assert.match(hangar, /onOptions=\{onOpenRscSwap\}/);
+  assert.match(startScreen, /onOpenRscSwap=\{onOpenSwap\}/);
+  assert.match(hangar, /formatWholeRscBalance\(rscBalance\)/);
+  assert.match(hangar, /rscBalance\.raw >= rightSupportCostRaw/);
+  assert.match(app, /window\.confirm\([\s\S]*Aerodrome RSC swap on Base/);
+  assert.match(app, /if \(!accepted\) return;[\s\S]*DONATION_CONFIG\.RSC_SWAP_URL/);
   assert.match(hangar, /label="Tokens"/);
+  assert.match(hangar, /TOKEN_EXCHANGE_SKU_IDS = \[[\s\S]*'tokens-500'[\s\S]*'tokens-2500'[\s\S]*'tokens-5000'/);
+  assert.match(hangar, /500 Tokens per 1 RSC/);
+  assert.match(hangar, /isTokenExchangePurchase && walletPurchaseStatus\.status !== 'idle'/);
+  assert.match(hangar, /isRightSupportPurchase[\s\S]*role="status"/);
+  assert.match(hangar, /walletPurchaseStatus\.error \|\| 'The right support purchase could not be completed/);
+  assert.match(hangar, /sku\.tokenReward\.toLocaleString\(\)/);
   assert.match(hangar, /rsc-coin-flip-v1\/rsc-coin-pixel-front\.png/);
   assert.match(hangar, /const costLabel = founderSandbox \? 'TEST' : atMax \? 'MAX' : nextCost === 0 \? 'FREE'/);
   assert.match(hangar, /aria-label=\{actionLabel\}/);
