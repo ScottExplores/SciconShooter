@@ -61,3 +61,19 @@ test('GameEngine routes ram and projectile damage through the clamped transition
   assert.match(engine, /this\.syncPlayerLives\(resolvePlayerRevivalLives\(lives, GAME_CONFIG\.MAX_LIVES\)\)/);
   assert.doesNotMatch(engine, /this\.lives\s*-=/);
 });
+
+test('Campaign Mission boundaries refill permanent hearts while internal and Weekly waves carry damage', () => {
+  const engine = fs.readFileSync(path.join(root, 'services', 'gameLogic.ts'), 'utf8');
+  const canvas = fs.readFileSync(path.join(root, 'components', 'GameCanvas.tsx'), 'utf8');
+  const app = fs.readFileSync(path.join(root, 'App.tsx'), 'utf8');
+  const hud = fs.readFileSync(path.join(root, 'components', 'UIOverlay.tsx'), 'utf8');
+
+  const boundaryStart = engine.indexOf('const stageBoundary =');
+  const internalWaveStart = engine.indexOf('} else {', engine.indexOf('if (stageBoundary)', boundaryStart));
+  const boundaryBlock = engine.slice(boundaryStart, internalWaveStart);
+  assert.match(boundaryBlock, /if \(this\.refillLivesAtMissionBoundary\)[\s\S]*?this\.syncPlayerLives\(this\.startingLives\)/);
+  assert.match(canvas, /refillLivesAtMissionBoundary\?: boolean/);
+  assert.match(app, /refillLivesAtMissionBoundary: !isWeeklyCampaignRun/);
+  assert.match(hud, /lifeCapacityMissionRef\.current !== stats\.wave[\s\S]*?lifeCapacityRef\.current = Math\.max\(1, lifeCapacity \?\? stats\.lives\)/);
+  assert.match(app, /lifeCapacity: activeRunLifeCapacity/);
+});

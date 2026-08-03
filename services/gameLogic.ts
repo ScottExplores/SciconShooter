@@ -1547,6 +1547,8 @@ export interface GameEngineOptions {
   playerShipId?: PlayerShipId;
   initialLevelId?: string;
   initialWaveId?: string;
+  /** Campaign Missions refill at level boundaries; endurance modes opt out. */
+  refillLivesAtMissionBoundary?: boolean;
   testMode?: boolean;
   squadLoadout?: RuntimeSquadLoadout;
   /** Fixed seed used by preview and deterministic tests. Production omits this. */
@@ -2378,6 +2380,7 @@ export class GameEngine {
   private squadLoadout: RuntimeSquadLoadout | null;
   private readonly squadCompanions: ActiveSquadCompanion[];
   private readonly startingLives: number;
+  private readonly refillLivesAtMissionBoundary: boolean;
   private readonly previewBossCollisionMask?: BossCollisionMask;
   private readonly previewBossCollisionEventId?: string;
   private readonly previewBossArtworkDesignSize?: BossPreviewArtworkDesignSize;
@@ -2432,6 +2435,7 @@ export class GameEngine {
     this.audioEnabled = options.audioEnabled ?? !this.previewMode;
     this.initialLevelId = options.initialLevelId;
     this.initialWaveId = options.initialWaveId;
+    this.refillLivesAtMissionBoundary = options.refillLivesAtMissionBoundary ?? true;
     this.testMode = Boolean(options.testMode);
     this.squadLoadout = options.squadLoadout ?? null;
     this.squadCompanions = (options.squadLoadout?.companions ?? []).map((companion, index) => ({
@@ -5284,6 +5288,9 @@ export class GameEngine {
     this.campaignComplete = false;
     this.keepEntitiesForNextWave();
     if (stageBoundary) {
+      if (this.refillLivesAtMissionBoundary) {
+        this.syncPlayerLives(this.startingLives);
+      }
       // Overdrive is a per-Mission run of good play, not a permanent stat.
       this.missionOverdriveLevel = 0;
       this.beginWavePresentation('mission');
@@ -5929,14 +5936,17 @@ export class GameEngine {
       return;
     }
 
-    if (cinematicPause) {
+    if (this.introFlightFrames > 0) {
+      // The protected ship entrance is presentation, not combat. Let it finish
+      // behind Brian's briefing while the Mission clock, weapons, collisions,
+      // and hostile scheduling remain paused below this branch.
+      this.updateIntroFlight();
       this.updatePassiveEntities();
       this.bgY = (this.bgY + 1) % this.height;
       return;
     }
 
-    if (this.introFlightFrames > 0) {
-      this.updateIntroFlight();
+    if (cinematicPause) {
       this.updatePassiveEntities();
       this.bgY = (this.bgY + 1) % this.height;
       return;

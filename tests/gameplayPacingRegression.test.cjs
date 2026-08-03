@@ -8,23 +8,24 @@ const appSource = fs.readFileSync(path.join(root, 'App.tsx'), 'utf8');
 const engineSource = fs.readFileSync(path.join(root, 'services', 'gameLogic.ts'), 'utf8');
 const campaign = JSON.parse(fs.readFileSync(path.join(root, 'game-config', 'campaign.json'), 'utf8'));
 
-test('Brian pauses the opening flight before its protected combat intro begins', () => {
+test('the ship completes its protected entrance before Brian pauses combat', () => {
   assert.match(appSource, /isTransmissionOpen:\s*introMissionLocked\s*\|\|\s*Boolean\(activeStoryBeat\)/);
 
   const updateStart = engineSource.indexOf('update(cinematicPause: boolean = false)');
-  const transmissionGate = engineSource.indexOf('if (cinematicPause)', updateStart);
-  const introGate = engineSource.indexOf('if (this.introFlightFrames > 0)', transmissionGate);
+  const introGate = engineSource.indexOf('if (this.introFlightFrames > 0)', updateStart);
+  const transmissionGate = engineSource.indexOf('if (cinematicPause)', introGate);
   const enemySpawn = engineSource.indexOf('this.spawnEnemies()', transmissionGate);
 
   assert.ok(updateStart >= 0);
-  assert.ok(transmissionGate > updateStart);
-  assert.ok(introGate > transmissionGate);
-  assert.ok(enemySpawn > introGate);
+  assert.ok(introGate > updateStart);
+  assert.ok(transmissionGate > introGate);
+  assert.ok(enemySpawn > transmissionGate);
   assert.match(
-    engineSource.slice(transmissionGate, introGate),
-    /if \(cinematicPause\)[\s\S]*?return;/,
-    'the cinematic must return before updateIntroFlight can consume its frame budget'
+    engineSource.slice(introGate, transmissionGate),
+    /if \(this\.introFlightFrames > 0\)[\s\S]*?this\.updateIntroFlight\(\)[\s\S]*?return;/,
+    'the non-combat ship entrance must remain visible behind the transmission'
   );
+  assert.match(engineSource.slice(transmissionGate, enemySpawn), /if \(cinematicPause\)[\s\S]*?return;/);
 });
 
 test('formations stay visual and ten sector bosses provide an intentional five-second loot window', () => {

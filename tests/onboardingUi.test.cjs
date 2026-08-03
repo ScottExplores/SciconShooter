@@ -10,13 +10,20 @@ const readSource = (...segments) => fs.readFileSync(path.join(repositoryRoot, ..
 const appSource = readSource('App.tsx');
 const onboardingSource = readSource('components', 'SciconOnboarding.tsx');
 const startScreenSource = readSource('components', 'StartScreen.tsx');
+const canvasSource = readSource('components', 'GameCanvas.tsx');
+const hudSource = readSource('components', 'UIOverlay.tsx');
 
 const EXPECTED_MILESTONES = [
   'flight-steer',
   'flight-bomb',
-  'mission-hangar',
-  'hangar-upgrades',
-  'hangar-fleet',
+  'flight-special',
+  'mission-home',
+  'rewards-open',
+  'rewards-achievements',
+  'rewards-daily',
+  'rewards-daily-claim',
+  'rewards-close',
+  'hangar-nav',
   'hangar-wings',
 ];
 
@@ -71,8 +78,10 @@ const loadOnboardingModule = () => {
         declineOnboarding: (state) => state,
         getNextOnboardingStepId: () => null,
         loadOnboardingProgress: () => ({ decision: 'unasked' }),
+        ONBOARDING_GAMEPLAY_ACTION_EVENT: 'scicon:onboarding-gameplay-action',
         restartOnboarding: () => ({ decision: 'active' }),
         saveOnboardingProgress: () => true,
+        skipOnboardingStep: (state) => state,
       };
     }
     return require(request);
@@ -107,8 +116,16 @@ test('first-flight guide is opt-in, concise, action-driven, and never clicks for
   assert.match(onboardingSource, />\s*No thanks\s*</i);
   assert.match(onboardingSource, />\s*Guide me\s*</i);
   assert.match(onboardingSource, /addEventListener\(currentStep\.activationEvent/);
-  assert.match(onboardingSource, /fallbackTarget: 'hangar-nav'/);
+  assert.equal((onboardingSource.match(/activationEvent: ONBOARDING_GAMEPLAY_ACTION_EVENT/g) ?? []).length, 2);
+  assert.match(hudSource, /dispatchEvent\(new CustomEvent\(ONBOARDING_GAMEPLAY_ACTION_EVENT,[\s\S]*?target: button\.dataset\.onboardingTarget/);
+  assert.match(onboardingSource, /target === currentStep\.target[\s\S]*?window\.addEventListener\(ONBOARDING_GAMEPLAY_ACTION_EVENT/);
+  assert.match(onboardingSource, /currentStep\.id === 'flight-steer' \? 'Skip movement' : 'Skip step'/);
+  assert.match(onboardingSource, /skipOnboardingStep\(progress, currentStep\.id\)/);
   assert.match(onboardingSource, />\s*End guide\s*</i);
+  assert.match(onboardingSource, /completion: 'daily-gift-confirmed'/);
+  assert.match(onboardingSource, /completion: 'left-wing-confirmed'/);
+  assert.match(onboardingSource, /dailyGiftClaimedToday \|\| skipRewardEconomy/);
+  assert.match(onboardingSource, /\? leftWingUnlocked/);
   assert.doesNotMatch(onboardingSource, /targetElement\?\.click\(|\.click\(\)/);
   assert.match(onboardingSource, /onGameplayFreezeChange\?\.\(inviteOpen\)/);
   assert.match(onboardingSource, /prefers-reduced-motion:\s*reduce/);
@@ -118,9 +135,11 @@ test('first-flight guide is opt-in, concise, action-driven, and never clicks for
 test('all action anchors remain mounted on the surfaces that own them', () => {
   const contracts = [
     ['components/GameCanvas.tsx', ['flight-stage']],
-    ['components/UIOverlay.tsx', ['flight-bomb']],
-    ['components/WaveVictoryOverlay.tsx', ['mission-hangar']],
-    ['components/SquadHangar.tsx', ['hangar-upgrades', 'hangar-fleet', 'hangar-wings']],
+    ['components/UIOverlay.tsx', ['flight-bomb', 'flight-special']],
+    ['components/WaveVictoryOverlay.tsx', ['mission-home']],
+    ['components/StartScreen.tsx', ['rewards-open', 'hangar-nav']],
+    ['components/RewardCenter.tsx', ['rewards-achievements', 'rewards-daily', 'rewards-daily-claim', 'rewards-close']],
+    ['components/SquadHangar.tsx', ['hangar-wings']],
   ];
 
   for (const [relativePath, targets] of contracts) {
@@ -130,6 +149,17 @@ test('all action anchors remain mounted on the surfaces that own them', () => {
       assert.ok(source.includes(`'${target}'`) || source.includes(`"${target}"`), `${relativePath} is missing ${target}`);
     }
   }
+});
+
+test('flight controls remain ordered and Mission completion routes the guide Home', () => {
+  assert.match(appSource, /onboardingBombLocked = onboardingStepId === 'flight-steer'/);
+  assert.match(appSource, /onboardingAbilityLocked = onboardingStepId === 'flight-steer'[\s\S]*?onboardingStepId === 'flight-bomb'/);
+  assert.match(appSource, /guideRequiresHome=\{onboardingStepId === 'mission-home'\}/);
+  assert.match(appSource, /dailyGiftClaimedToday=\{onboardingDailyGiftStatus\.claimedToday\}/);
+  assert.match(appSource, /leftWingUnlocked=\{weeklySquadState\.unlockedSlots\.left\}/);
+  assert.match(appSource, /bombLocked: onboardingGameplayFreeze[\s\S]*?onboardingBombLocked[\s\S]*?introMissionLocked/);
+  assert.match(canvasSource, /!bombLockedRef\.current[\s\S]*?engine\.triggerBomb\(\)/);
+  assert.match(canvasSource, /engine\.triggerBomb\(\)[\s\S]*?ONBOARDING_GAMEPLAY_ACTION_EVENT[\s\S]*?target: 'flight-bomb'/);
 });
 
 test('More still exposes a Flight Guide replay that returns Home before restarting', () => {

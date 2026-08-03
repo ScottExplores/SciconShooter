@@ -11,7 +11,7 @@ export interface WaveVictoryOverlayProps {
   onContinue: () => void;
   bossArchiveReplay?: boolean;
   campaignSettlement?: CampaignCompletionSettlement | null;
-  guideRequiresHangar?: boolean;
+  guideRequiresHome?: boolean;
   onOpenHangar?: () => void;
   onOpenCampaignMap?: () => void;
   onReturnHome?: () => void;
@@ -32,7 +32,7 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
   onContinue,
   bossArchiveReplay = false,
   campaignSettlement = null,
-  guideRequiresHangar = false,
+  guideRequiresHome = false,
   onOpenHangar,
   onOpenCampaignMap,
   onReturnHome
@@ -221,8 +221,8 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
             className="wave-victory-continue"
             type="button"
             onClick={onContinue}
-            disabled={guideRequiresHangar}
-            aria-disabled={guideRequiresHangar}
+            disabled={guideRequiresHome}
+            aria-disabled={guideRequiresHome}
           >
             <span>{primaryAction.prefix}</span>
             <strong>{primaryAction.target}</strong>
@@ -230,9 +230,10 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
           {onOpenHangar && !bossArchiveReplay ? (
             <button
               className="wave-victory-secondary is-hangar"
-              data-onboarding-target="mission-hangar"
               type="button"
               onClick={onOpenHangar}
+              disabled={guideRequiresHome}
+              aria-disabled={guideRequiresHome}
             >
               <span>Spend Tokens</span>
               <strong>Hangar</strong>
@@ -243,8 +244,8 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
               className="wave-victory-secondary is-map"
               type="button"
               onClick={onOpenCampaignMap}
-              disabled={guideRequiresHangar}
-              aria-disabled={guideRequiresHangar}
+              disabled={guideRequiresHome}
+              aria-disabled={guideRequiresHome}
             >
               <span>Campaign</span>
               <strong>Map</strong>
@@ -253,10 +254,9 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
           {onReturnHome ? (
             <button
               className="wave-victory-secondary is-home"
+              data-onboarding-target="mission-home"
               type="button"
               onClick={onReturnHome}
-              disabled={guideRequiresHangar}
-              aria-disabled={guideRequiresHangar}
             >
               <span>Return</span>
               <strong>Home</strong>

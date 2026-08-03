@@ -3,6 +3,7 @@ import { FieldUpgradeType, Stats } from '../types';
 import { FIELD_UPGRADE_CONFIG, GAME_CONFIG, getFieldUpgradeFlaskCost, getFieldUpgradeLevel } from '../constants';
 import { BASE_FLASK_CHARGE_MAX, getFlaskProgress } from '../services/flaskProgress';
 import { DEFAULT_GAME_CAMPAIGN, getPrimaryAssetPath } from '../services/levelConfig';
+import { ONBOARDING_GAMEPLAY_ACTION_EVENT } from '../services/onboardingProgress';
 import type { PlayerShipId } from '../services/playerShipService';
 import { formatTokenAmount } from '../services/tokenTerminology';
 import {
@@ -30,6 +31,8 @@ export interface UIOverlayProps {
   bombLocked?: boolean;
   /** Shows an infinite count and keeps the preview bomb action enabled. */
   unlimitedBombs?: boolean;
+  /** Permanent capacity for this Mission; temporary Extra Hearts may exceed it. */
+  lifeCapacity?: number;
 }
 
 type HudIconName = 'play' | 'pause' | 'freeze' | 'lab' | 'ship' | 'heart' | 'bomb' | 'flask' | 'bolt' | 'plus';
@@ -184,6 +187,18 @@ const SYNTHETIC_TOUCH_CLICK_WINDOW_MS = 800;
 const useMultitouchAction = (onActivate?: () => void) => {
   const suppressSyntheticClickUntilRef = useRef(0);
 
+  const activate = (button: HTMLButtonElement) => {
+    if (!onActivate) return;
+    onActivate();
+    // The guide listens to the same successful activation used by every input
+    // path. A raw pointer event can otherwise advance before the gameplay
+    // callback runs or miss keyboard/legacy touch activation entirely.
+    button.dispatchEvent(new CustomEvent(ONBOARDING_GAMEPLAY_ACTION_EVENT, {
+      bubbles: true,
+      detail: { target: button.dataset.onboardingTarget }
+    }));
+  };
+
   return {
     onPointerDown: (event: React.PointerEvent<HTMLButtonElement>) => {
       // Non-primary touch pointers do not reliably synthesize click in iOS and
@@ -191,7 +206,7 @@ const useMultitouchAction = (onActivate?: () => void) => {
       if ((event.pointerType !== 'touch' && event.pointerType !== 'pen') || !onActivate) return;
       event.preventDefault();
       suppressSyntheticClickUntilRef.current = Date.now() + SYNTHETIC_TOUCH_CLICK_WINDOW_MS;
-      onActivate();
+      activate(event.currentTarget);
     },
     onPointerUp: (event: React.PointerEvent<HTMLButtonElement>) => {
       if (event.pointerType === 'touch' || event.pointerType === 'pen') {
@@ -204,7 +219,7 @@ const useMultitouchAction = (onActivate?: () => void) => {
       if (typeof window.PointerEvent !== 'undefined' || !onActivate) return;
       event.preventDefault();
       suppressSyntheticClickUntilRef.current = Date.now() + SYNTHETIC_TOUCH_CLICK_WINDOW_MS;
-      onActivate();
+      activate(event.currentTarget);
     },
     onTouchEnd: () => {
       if (typeof window.PointerEvent === 'undefined') {
@@ -218,7 +233,7 @@ const useMultitouchAction = (onActivate?: () => void) => {
         suppressSyntheticClickUntilRef.current = 0;
         return;
       }
-      onActivate?.();
+      activate(event.currentTarget);
     }
   };
 };
@@ -240,7 +255,8 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
   onUpgrade,
   bombIconSrc = getPrimaryAssetPath(DEFAULT_GAME_CAMPAIGN.hudAssets.bombIconAssetKey),
   bombLocked = false,
-  unlimitedBombs = false
+  unlimitedBombs = false,
+  lifeCapacity
 }) => {
   useEffect(() => {
     if (!showLabGlow) return;
@@ -265,8 +281,14 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
   const abilityReady = abilityCooldown <= 0 && !shipAbilityLocked;
   const abilityRevealDegrees = Math.round((1 - Math.min(1, abilityCooldown / abilityCooldownMax)) * 360);
   const abilitySeconds = Math.max(1, Math.ceil((abilityCooldown / abilityCooldownMax) * abilityDefinition.cooldownSeconds));
-  const lifeCapacityRef = useRef(Math.max(1, stats.lives));
-  lifeCapacityRef.current = Math.max(lifeCapacityRef.current, stats.lives);
+  const lifeCapacityMissionRef = useRef(stats.wave);
+  const lifeCapacityRef = useRef(Math.max(1, lifeCapacity ?? stats.lives));
+  if (lifeCapacityMissionRef.current !== stats.wave) {
+    lifeCapacityMissionRef.current = stats.wave;
+    lifeCapacityRef.current = Math.max(1, lifeCapacity ?? stats.lives);
+  } else {
+    lifeCapacityRef.current = Math.max(lifeCapacityRef.current, lifeCapacity ?? 0, stats.lives);
+  }
   const remainingLifePct = Math.max(0, Math.min(100, (stats.lives / lifeCapacityRef.current) * 100));
   const bombActionHandlers = useMultitouchAction(onUseBomb);
   const shipAbilityActionHandlers = useMultitouchAction(onUseShipAbility);
@@ -396,6 +418,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
           <button
             type="button"
             data-audio="none"
+            data-onboarding-target="flight-special"
             {...shipAbilityActionHandlers}
             disabled={!abilityReady}
             className={`relative flex h-[4.375rem] w-[4.375rem] items-center justify-center overflow-hidden rounded-[22px] border shadow-[0_18px_44px_rgba(0,0,0,0.38)] backdrop-blur-md transition active:scale-95 ${

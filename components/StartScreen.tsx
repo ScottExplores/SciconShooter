@@ -2332,6 +2332,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
               ? 'sci-reward-edge-trigger--achievement-ready'
               : ''
           ].filter(Boolean).join(' ')}
+          data-onboarding-target="rewards-open"
           onClick={() => openRewardCenter(
             !dailyGiftStatus.isAvailable && claimableAchievementCount > 0 ? 'achievements' : 'daily'
           )}

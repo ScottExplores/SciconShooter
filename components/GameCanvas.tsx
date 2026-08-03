@@ -34,6 +34,7 @@ import { waitForGameplayAssetPreload } from '../services/gameplayAssetPreloadBud
 import { createModularBossWeaponSocketPoseSampler } from '../services/pixi/boss-rigs/ModularBossWeaponSocketRuntime';
 import { resolveCampaignBossArtwork } from '../services/pixi/boss-rigs/CampaignBossArtworkRegistry';
 import type { BossModularProjectileVisualKind } from '../services/gameplay/bosses/BossProjectilePresentationRuntime';
+import { ONBOARDING_GAMEPLAY_ACTION_EVENT } from '../services/onboardingProgress';
 
 export const preloadGameplayAssets = async () => {
   const productionAssetWarmup = Promise.all([
@@ -130,6 +131,8 @@ export interface GameCanvasProps {
   onCampaignProgress?: (summary: WaveVictorySummary) => void;
   onWaveVictory?: (summary: WaveVictorySummary) => void;
   isTransmissionOpen?: boolean;
+  /** Blocks direct keyboard bomb input while a modal or tutorial lesson owns it. */
+  bombLocked?: boolean;
   bombCommand?: { nonce: number } | null;
   shipAbilityCommand?: { nonce: number } | null;
   continueCommand?: { nonce: number; lives: number } | null;
@@ -146,6 +149,8 @@ export interface GameCanvasProps {
   campaign?: GameCampaign;
   levelId?: string;
   waveId?: string;
+  /** Campaign Missions refill at level boundaries; endless modes may opt out. */
+  refillLivesAtMissionBoundary?: boolean;
   previewMode?: boolean;
   audioEnabled?: boolean;
   autoFire?: boolean;
@@ -198,6 +203,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   onCampaignProgress,
   onWaveVictory,
   isTransmissionOpen = false,
+  bombLocked = false,
   bombCommand = null,
   shipAbilityCommand = null,
   continueCommand = null,
@@ -209,6 +215,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   campaign,
   levelId,
   waveId,
+  refillLivesAtMissionBoundary = true,
   previewMode = false,
   audioEnabled = !previewMode,
   autoFire = false,
@@ -280,6 +287,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const timeScaleRef = useRef(clampPreviewTimeScale(timeScale));
   const previewInvincibleRef = useRef(previewInvincible);
   const isTransmissionOpenRef = useRef(isTransmissionOpen);
+  const bombLockedRef = useRef(bombLocked);
   const onStatsChangeRef = useRef(onStatsChange);
   const onGameOverRef = useRef(onGameOver);
   const onReadyRef = useRef(onReady);
@@ -304,6 +312,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     playerShipUrl,
     squadLoadout
   };
+  bombLockedRef.current = bombLocked;
 
   useEffect(() => {
     onStatsChangeRef.current = onStatsChange;
@@ -845,6 +854,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         squadLoadout: initialLoadout.squadLoadout,
         initialLevelId: levelId,
         initialWaveId: waveId,
+        refillLivesAtMissionBoundary,
         testMode: testModeRef.current,
         randomSeed: previewMode ? previewSeed : randomSeed,
         previewBossCollisionEventId: activeBossArtwork?.eventId,
@@ -998,7 +1008,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       keys[e.key] = true;
       if (autoFire) keys[' '] = true;
       engine.handleInput(keys, engine.touchPos);
-      if (!e.repeat && (e.key === 'b' || e.key === 'B') && engine.triggerBomb()) {
+      if (!bombLockedRef.current && !e.repeat && (e.key === 'b' || e.key === 'B') && engine.triggerBomb()) {
+        window.dispatchEvent(new CustomEvent(ONBOARDING_GAMEPLAY_ACTION_EVENT, {
+          detail: { target: 'flight-bomb' }
+        }));
         publishHudStats(true);
       }
     };
@@ -1306,7 +1319,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       pendingRenderer?.destroy();
       pendingRenderer = null;
     };
-  }, [activeBossArtwork, audioEnabled, campaign, previewMode, previewSeed, previewShipAbilityNoCooldown, previewStartingLives, previewUnlimitedBombs, previewViewportHeight, previewViewportWidth, randomSeed, setupPlayerShipIdDependency, setupPlayerShipUrlDependency, setupSquadLoadoutDependency]);
+  }, [activeBossArtwork, audioEnabled, campaign, previewMode, previewSeed, previewShipAbilityNoCooldown, previewStartingLives, previewUnlimitedBombs, previewViewportHeight, previewViewportWidth, randomSeed, refillLivesAtMissionBoundary, setupPlayerShipIdDependency, setupPlayerShipUrlDependency, setupSquadLoadoutDependency]);
 
   return (
     <div

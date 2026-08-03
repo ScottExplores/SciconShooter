@@ -161,6 +161,7 @@ import {
   beginBossArchiveFightEconomy,
   claimAchievement as claimAchievementReward,
   claimDailyGift as claimDailyGiftReward,
+  getDailyGiftStatus,
   markBossArchiveViewed,
   recordBossVictory,
   recordLifetimeRun,
@@ -634,6 +635,7 @@ const RESUME_COUNTDOWN_STEP_MS = 1_000;
 const App: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>(GameState.MENU);
   const [gameId, setGameId] = useState<number>(0);
+  const [activeRunLifeCapacity, setActiveRunLifeCapacity] = useState(GAME_CONFIG.PLAYER_LIVES);
   const [gameRuntimeReady, setGameRuntimeReady] = useState(false);
   const [missionLoading, setMissionLoading] = useState<MissionLoadingState | null>(null);
   const [onboardingRestartNonce, setOnboardingRestartNonce] = useState(0);
@@ -2661,6 +2663,7 @@ const App: React.FC = () => {
         CAMPAIGN_MAX_STARTING_LIVES,
         CAMPAIGN_BASE_STARTING_LIVES + squadLoadout.upgrades.startingHearts
       );
+    setActiveRunLifeCapacity(startingLives);
     const weeklyRunKeyForLaunch = weeklyStreakForLaunch
       ? `${weeklyStreakForLaunch.weeklyId}:${weeklyStreakForLaunch.startNodeId}:${weeklyStreakForLaunch.createdAtMs}`
       : null;
@@ -6184,6 +6187,10 @@ const App: React.FC = () => {
     || showMissionRecordPreview
     || (campaignMapOpen && campaignMapStatus !== 'ready')
   );
+  const onboardingDailyGiftStatus = getDailyGiftStatus(permanentSquadState);
+  const onboardingBombLocked = onboardingStepId === 'flight-steer';
+  const onboardingAbilityLocked = onboardingStepId === 'flight-steer'
+    || onboardingStepId === 'flight-bomb';
 
   return (
     <div className="relative h-full w-full select-none bg-[#0b1020]">
@@ -6296,6 +6303,10 @@ const App: React.FC = () => {
               onCampaignProgress: handleCampaignProgress,
               onWaveVictory: showWaveVictory,
               isTransmissionOpen: introMissionLocked || Boolean(activeStoryBeat),
+              bombLocked: onboardingGameplayFreeze
+                || onboardingBombLocked
+                || introMissionLocked
+                || Boolean(activeStoryBeat),
               bombCommand,
               shipAbilityCommand,
               continueCommand,
@@ -6316,6 +6327,7 @@ const App: React.FC = () => {
               waveId: activeBossReplay?.waveId
                 ?? (activeCampaignBranch ? getCampaignBranchRuntimeWaveId(activeCampaignBranch) : undefined)
                 ?? (isCampaignRun ? activeCampaignLaunch?.waveId : undefined),
+              refillLivesAtMissionBoundary: !isWeeklyCampaignRun,
               randomSeed: activeBossArchiveRun?.seed,
               testMode: isOwnerTestRun,
               testWaveCommand,
@@ -6348,22 +6360,25 @@ const App: React.FC = () => {
               bombLocked: gameState !== GameState.PLAYING
                 || ownerFrameFrozen
                 || onboardingGameplayFreeze
+                || onboardingBombLocked
                 || introMissionLocked
                 || Boolean(activeStoryBeat),
               onUseBomb: () => {
-                if (onboardingGameplayFreeze || introMissionLocked || activeStoryBeat) return;
+                if (onboardingGameplayFreeze || onboardingBombLocked || introMissionLocked || activeStoryBeat) return;
                 setBombCommand({ nonce: Date.now() });
               },
               selectedShipId: activeMissionShipId,
               shipAbilityLocked: gameState !== GameState.PLAYING
                 || ownerFrameFrozen
                 || onboardingGameplayFreeze
+                || onboardingAbilityLocked
                 || introMissionLocked
                 || Boolean(activeStoryBeat),
               onUseShipAbility: () => {
-                if (onboardingGameplayFreeze || introMissionLocked || activeStoryBeat) return;
+                if (onboardingGameplayFreeze || onboardingAbilityLocked || introMissionLocked || activeStoryBeat) return;
                 setShipAbilityCommand({ nonce: Date.now() });
               },
+              lifeCapacity: activeRunLifeCapacity,
               fieldUpgradesEnabled: false,
               onUpgrade: handleFieldUpgrade
             } : false}
@@ -6390,7 +6405,7 @@ const App: React.FC = () => {
             campaignSettlement={isCampaignRun && campaignResultPresentation?.summaryId === waveVictorySummary.id
               ? campaignResultPresentation.settlement
               : null}
-            guideRequiresHangar={onboardingStepId === 'mission-hangar'}
+            guideRequiresHome={onboardingStepId === 'mission-home'}
             onOpenHangar={isCompetitiveCampaignRun ? openSquadHangar : undefined}
             onOpenCampaignMap={isCampaignRun
               ? () => openCampaignMap(
@@ -6987,6 +7002,9 @@ const App: React.FC = () => {
         onGameplayFreezeChange={handleOnboardingGameplayFreezeChange}
         onInvitationDecision={handleOnboardingInvitationDecision}
         onStepChange={setOnboardingStepId}
+        dailyGiftClaimedToday={onboardingDailyGiftStatus.claimedToday}
+        leftWingUnlocked={weeklySquadState.unlockedSlots.left}
+        skipRewardEconomy={isOwnerWallet}
       />
 
     </div>

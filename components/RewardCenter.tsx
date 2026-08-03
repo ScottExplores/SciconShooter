@@ -191,6 +191,7 @@ const RewardCenter: React.FC<RewardCenterProps> = ({
             ref={closeButtonRef}
             type="button"
             className="sci-reward-close"
+            data-onboarding-target="rewards-close"
             onClick={onClose}
             aria-label="Close reward center"
           >
@@ -202,6 +203,7 @@ const RewardCenter: React.FC<RewardCenterProps> = ({
           <button
             type="button"
             role="tab"
+            data-onboarding-target="rewards-daily"
             aria-selected={tab === 'daily'}
             className={tab === 'daily' ? 'is-active' : ''}
             onClick={() => setTab('daily')}
@@ -211,6 +213,7 @@ const RewardCenter: React.FC<RewardCenterProps> = ({
           <button
             type="button"
             role="tab"
+            data-onboarding-target="rewards-achievements"
             aria-selected={tab === 'achievements'}
             className={tab === 'achievements' ? 'is-active' : ''}
             onClick={() => setTab('achievements')}
@@ -282,6 +285,7 @@ const RewardCenter: React.FC<RewardCenterProps> = ({
                       ].filter(Boolean).join(' ')}
                       data-state={cardState}
                       data-tier={giftTier}
+                      data-onboarding-target={isClaimable ? 'rewards-daily-claim' : undefined}
                       disabled={!isClaimable}
                       aria-label={cardLabel}
                       aria-current={isToday ? 'step' : undefined}

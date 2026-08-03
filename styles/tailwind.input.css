@@ -497,6 +497,13 @@
   border-top: 1px solid rgb(103 232 249 / 0.14);
 }
 
+.sci-onboarding__lesson-controls {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.55rem;
+}
+
 .sci-onboarding__skip {
   padding: 0.5rem 0.15rem;
   color: rgb(148 163 184);
@@ -512,6 +519,19 @@
 
 .sci-onboarding__skip:hover,
 .sci-onboarding__skip:focus-visible { color: rgb(224 242 254); }
+
+.sci-onboarding__end {
+  padding: 0.5rem 0.15rem;
+  color: rgb(100 116 139);
+  font-family: monospace;
+  font-size: 0.5rem;
+  font-weight: 850;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
+.sci-onboarding__end:hover,
+.sci-onboarding__end:focus-visible { color: rgb(203 213 225); }
 
 .sci-onboarding__instruction {
   min-width: 0;

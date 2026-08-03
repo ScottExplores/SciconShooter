@@ -1,11 +1,29 @@
-export const ONBOARDING_VERSION = 3 as const;
+export const ONBOARDING_VERSION = 4 as const;
 
-export const ONBOARDING_STEP_IDS = [
+/** Emitted by gameplay controls only after their action callback actually runs. */
+export const ONBOARDING_GAMEPLAY_ACTION_EVENT = 'scicon:onboarding-gameplay-action' as const;
+
+const LEGACY_ONBOARDING_VERSION = 3 as const;
+const LEGACY_ONBOARDING_STEP_IDS = [
   'flight-steer',
   'flight-bomb',
   'mission-hangar',
   'hangar-upgrades',
   'hangar-fleet',
+  'hangar-wings',
+] as const;
+
+export const ONBOARDING_STEP_IDS = [
+  'flight-steer',
+  'flight-bomb',
+  'flight-special',
+  'mission-home',
+  'rewards-open',
+  'rewards-achievements',
+  'rewards-daily',
+  'rewards-daily-claim',
+  'rewards-close',
+  'hangar-nav',
   'hangar-wings',
 ] as const;
 
@@ -26,6 +44,7 @@ export interface OnboardingStorage {
 }
 
 export const ONBOARDING_STORAGE_PREFIX = `scicon:onboarding:v${ONBOARDING_VERSION}`;
+const LEGACY_ONBOARDING_STORAGE_PREFIX = `scicon:onboarding:v${LEGACY_ONBOARDING_VERSION}`;
 
 const ONBOARDING_STEP_ID_SET = new Set<string>(ONBOARDING_STEP_IDS);
 const ONBOARDING_DECISIONS = new Set<OnboardingDecision>([
@@ -52,6 +71,9 @@ export const normalizeOnboardingProfileId = (profileId?: string | null): string 
 
 export const onboardingStorageKey = (profileId?: string | null): string =>
   `${ONBOARDING_STORAGE_PREFIX}:${encodeURIComponent(normalizeOnboardingProfileId(profileId))}`;
+
+const legacyOnboardingStorageKey = (profileId?: string | null): string =>
+  `${LEGACY_ONBOARDING_STORAGE_PREFIX}:${encodeURIComponent(normalizeOnboardingProfileId(profileId))}`;
 
 export const createOnboardingProgress = (
   profileId?: string | null,
@@ -105,6 +127,77 @@ export const sanitizeOnboardingProgress = (
   };
 };
 
+/**
+ * Moves the previous six-step guide forward without surprising pilots who had
+ * already finished or declined it. Active pilots retain their real progress;
+ * anyone already inside the old Hangar section resumes at its equivalent point
+ * instead of being stranded on a Mission-only target.
+ */
+const migrateLegacyOnboardingProgress = (
+  value: unknown,
+  profileId?: string | null,
+): OnboardingProgressState | null => {
+  const fallback = createOnboardingProgress(profileId);
+  if (!isRecord(value) || value.version !== LEGACY_ONBOARDING_VERSION) return null;
+
+  const storedProfileId = normalizeOnboardingProfileId(
+    typeof value.profileId === 'string' ? value.profileId : null,
+  );
+  if (storedProfileId !== fallback.profileId) return null;
+
+  const rawDecision = typeof value.decision === 'string'
+    && ONBOARDING_DECISIONS.has(value.decision as OnboardingDecision)
+    ? value.decision as OnboardingDecision
+    : 'unasked';
+  const legacyCompleted = new Set(
+    Array.isArray(value.completedStepIds)
+      ? value.completedStepIds.filter(
+          (stepId): stepId is (typeof LEGACY_ONBOARDING_STEP_IDS)[number] => (
+            typeof stepId === 'string'
+            && (LEGACY_ONBOARDING_STEP_IDS as readonly string[]).includes(stepId)
+          ),
+        )
+      : [],
+  );
+
+  if (rawDecision === 'complete' || rawDecision === 'declined') {
+    return {
+      ...fallback,
+      decision: rawDecision,
+      completedStepIds: [...ONBOARDING_STEP_IDS],
+    };
+  }
+  if (rawDecision !== 'active') return fallback;
+
+  const completed = new Set<OnboardingStepId>();
+  if (legacyCompleted.has('flight-steer')) completed.add('flight-steer');
+  if (legacyCompleted.has('flight-bomb')) completed.add('flight-bomb');
+
+  const reachedLegacyHangar = LEGACY_ONBOARDING_STEP_IDS.slice(2).some((stepId) => (
+    legacyCompleted.has(stepId)
+  ));
+  if (reachedLegacyHangar) {
+    [
+      'flight-special',
+      'mission-home',
+      'rewards-open',
+      'rewards-achievements',
+      'rewards-daily',
+      'rewards-daily-claim',
+      'rewards-close',
+      'hangar-nav',
+    ].forEach((stepId) => completed.add(stepId as OnboardingStepId));
+  }
+  if (legacyCompleted.has('hangar-wings')) completed.add('hangar-wings');
+
+  const completedStepIds = ONBOARDING_STEP_IDS.filter((stepId) => completed.has(stepId));
+  return {
+    ...fallback,
+    decision: completedStepIds.length === ONBOARDING_STEP_IDS.length ? 'complete' : 'active',
+    completedStepIds,
+  };
+};
+
 export const loadOnboardingProgress = (
   profileId?: string | null,
   storage: OnboardingStorage | null = resolveBrowserStorage(),
@@ -114,8 +207,17 @@ export const loadOnboardingProgress = (
 
   try {
     const saved = storage.getItem(onboardingStorageKey(fallback.profileId));
-    if (!saved) return fallback;
-    return sanitizeOnboardingProgress(JSON.parse(saved), fallback.profileId);
+    if (saved) return sanitizeOnboardingProgress(JSON.parse(saved), fallback.profileId);
+
+    const legacySaved = storage.getItem(legacyOnboardingStorageKey(fallback.profileId));
+    if (!legacySaved) return fallback;
+    const migrated = migrateLegacyOnboardingProgress(
+      JSON.parse(legacySaved),
+      fallback.profileId,
+    );
+    if (!migrated) return fallback;
+    saveOnboardingProgress(migrated, storage);
+    return migrated;
   } catch {
     return fallback;
   }
@@ -184,7 +286,10 @@ export const completeOnboardingStep = (
   };
 };
 
-/** Backward-compatible semantic alias for callers that still say "skip". */
+/** Skips one lesson while leaving the rest of the guide active. */
+export const skipOnboardingStep = completeOnboardingStep;
+
+/** Backward-compatible alias for the old all-or-nothing guide dismissal. */
 export const skipOnboarding = declineOnboarding;
 
 export const resetOnboardingProgress = (

@@ -13,8 +13,10 @@ import {
   declineOnboarding,
   getNextOnboardingStepId,
   loadOnboardingProgress,
+  ONBOARDING_GAMEPLAY_ACTION_EVENT,
   restartOnboarding,
   saveOnboardingProgress,
+  skipOnboardingStep,
   type OnboardingProgressState,
   type OnboardingStepId
 } from '../services/onboardingProgress';
@@ -30,7 +32,8 @@ type OnboardingStepDefinition = {
   title: string;
   body: string;
   instruction: string;
-  activationEvent: 'click' | 'pointerdown' | 'drag';
+  activationEvent: 'click' | 'drag' | typeof ONBOARDING_GAMEPLAY_ACTION_EVENT;
+  completion?: 'action' | 'daily-gift-confirmed' | 'left-wing-confirmed';
 };
 
 /**
@@ -55,45 +58,90 @@ export const SCICON_ONBOARDING_STEPS: readonly OnboardingStepDefinition[] = [
     title: 'Use a bomb',
     body: 'Bombs clear danger around you. You can press this with a second finger while steering.',
     instruction: 'Press the highlighted bomb',
-    activationEvent: 'pointerdown'
+    activationEvent: ONBOARDING_GAMEPLAY_ACTION_EVENT
   },
   {
-    id: 'mission-hangar',
+    id: 'flight-special',
+    surface: 'gameplay',
+    target: 'flight-special',
+    title: 'Fire your special move',
+    body: 'Every ship has a rechargeable signature move. Its icon fills back in when the move is ready again.',
+    instruction: 'Press the highlighted special move',
+    activationEvent: ONBOARDING_GAMEPLAY_ACTION_EVENT
+  },
+  {
+    id: 'mission-home',
     surface: 'mission-complete',
-    target: 'mission-hangar',
-    fallbackSurface: 'menu',
-    fallbackTarget: 'hangar-nav',
-    title: 'Bank the reward',
-    body: 'Mission Tokens are saved for permanent ship and support upgrades. Open the Hangar now.',
+    target: 'mission-home',
+    title: 'Return to command',
+    body: 'Your Mission reward is secured. Return Home to collect your first daily gift and prepare a support ship.',
+    instruction: 'Press Return Home',
+    activationEvent: 'click'
+  },
+  {
+    id: 'rewards-open',
+    surface: 'menu',
+    target: 'rewards-open',
+    title: 'Open pilot rewards',
+    body: 'Daily gifts and permanent achievement rewards live together in the Reward Center.',
+    instruction: 'Press the highlighted reward icon',
+    activationEvent: 'click'
+  },
+  {
+    id: 'rewards-achievements',
+    surface: 'menu',
+    target: 'rewards-achievements',
+    title: 'Track achievements',
+    body: 'Achievements are permanent, tiered goals. Completed tiers turn ready and pay Tokens when collected.',
+    instruction: 'Press Achievements',
+    activationEvent: 'click'
+  },
+  {
+    id: 'rewards-daily',
+    surface: 'menu',
+    target: 'rewards-daily',
+    title: 'Check in every day',
+    body: 'Daily Gifts build a 30-day streak. A new pilot\'s Day 1 gift is exactly enough for the first left support slot.',
+    instruction: 'Press Daily Gifts',
+    activationEvent: 'click'
+  },
+  {
+    id: 'rewards-daily-claim',
+    surface: 'menu',
+    target: 'rewards-daily-claim',
+    title: 'Claim today\'s gift',
+    body: 'Press the highlighted gift to secure its Tokens. The guide advances only after the reward is safely recorded.',
+    instruction: 'Press today\'s highlighted gift',
+    activationEvent: 'click',
+    completion: 'daily-gift-confirmed'
+  },
+  {
+    id: 'rewards-close',
+    surface: 'menu',
+    target: 'rewards-close',
+    title: 'Tokens secured',
+    body: 'Your first daily gift pays the full 50-Token cost of deploying a left-wing Citation Dart.',
+    instruction: 'Close the Reward Center',
+    activationEvent: 'click'
+  },
+  {
+    id: 'hangar-nav',
+    surface: 'menu',
+    target: 'hangar-nav',
+    title: 'Open the Hangar',
+    body: 'The Hangar manages your main ship, permanent upgrades, and left or right support slots.',
     instruction: 'Press Hangar',
-    activationEvent: 'click'
-  },
-  {
-    id: 'hangar-upgrades',
-    surface: 'menu',
-    target: 'hangar-upgrades',
-    title: 'Inspect upgrades',
-    body: 'Each ship keeps its own permanent firepower, handling, and survival upgrades.',
-    instruction: 'Press Upgrade',
-    activationEvent: 'click'
-  },
-  {
-    id: 'hangar-fleet',
-    surface: 'menu',
-    target: 'hangar-fleet',
-    title: 'Choose a ship',
-    body: 'Return to the fleet to compare your ships. Selecting one does not spend Tokens.',
-    instruction: 'Press Fleet',
     activationEvent: 'click'
   },
   {
     id: 'hangar-wings',
     surface: 'menu',
     target: 'hangar-wings',
-    title: 'Add support',
-    body: 'Support ships fill the left and right wing slots and bring their own combat roles.',
-    instruction: 'Touch a support slot',
-    activationEvent: 'click'
+    title: 'Deploy Citation Dart',
+    body: 'Unlock the left wing for 50 Tokens. This one action awards Citation Dart and equips it for your next Mission.',
+    instruction: 'Press the highlighted left wing',
+    activationEvent: 'click',
+    completion: 'left-wing-confirmed'
   }
 ] as const;
 
@@ -174,6 +222,12 @@ export interface SciconOnboardingProps {
   onInvitationDecision?: (accepted: boolean) => void;
   onStepChange?: (stepId: OnboardingStepId | null) => void;
   onComplete?: () => void;
+  /** Confirmed permanent reward state; a button press alone must not advance. */
+  dailyGiftClaimedToday?: boolean;
+  /** Confirmed squad state; a rejected or unaffordable unlock must not advance. */
+  leftWingUnlocked?: boolean;
+  /** Founder sandboxes cannot claim daily rewards and must never deadlock here. */
+  skipRewardEconomy?: boolean;
 }
 
 const getVisibleTarget = (targetName: string): HTMLElement | null => {
@@ -201,7 +255,10 @@ const SciconOnboarding: React.FC<SciconOnboardingProps> = ({
   onGameplayFreezeChange,
   onInvitationDecision,
   onStepChange,
-  onComplete
+  onComplete,
+  dailyGiftClaimedToday = false,
+  leftWingUnlocked = false,
+  skipRewardEconomy = false
 }) => {
   const [progress, setProgress] = useState<OnboardingProgressState>(() => (
     loadOnboardingProgress(profileId)
@@ -264,6 +321,12 @@ const SciconOnboarding: React.FC<SciconOnboardingProps> = ({
     && !inviteOpen
   );
 
+  const advanceStep = useCallback((stepId: OnboardingStepId) => {
+    const next = completeOnboardingStep(progress, stepId);
+    persist(next);
+    if (next.decision === 'complete') onComplete?.();
+  }, [onComplete, persist, progress]);
+
   useEffect(() => {
     onStepChange?.(currentStepId);
     return () => onStepChange?.(null);
@@ -294,15 +357,18 @@ const SciconOnboarding: React.FC<SciconOnboardingProps> = ({
   }, [locateTarget, shouldShow]);
 
   useEffect(() => {
-    if (!currentStep || !shouldShow || !targetElement) return undefined;
+    if (
+      !currentStep
+      || !shouldShow
+      || !targetElement
+      || (currentStep.completion && currentStep.completion !== 'action')
+    ) return undefined;
     const actionKey = `${currentStep.id}:${currentStep.activationEvent}`;
     handledActionRef.current = null;
     const handleTargetAction = () => {
       if (handledActionRef.current === actionKey) return;
       handledActionRef.current = actionKey;
-      const next = completeOnboardingStep(progress, currentStep.id);
-      persist(next);
-      if (next.decision === 'complete') onComplete?.();
+      advanceStep(currentStep.id);
     };
 
     if (currentStep.activationEvent === 'drag') {
@@ -335,9 +401,37 @@ const SciconOnboarding: React.FC<SciconOnboardingProps> = ({
       };
     }
 
+    if (currentStep.activationEvent === ONBOARDING_GAMEPLAY_ACTION_EVENT) {
+      const handleGameplayAction = (event: Event) => {
+        const target = event instanceof CustomEvent
+          && typeof event.detail?.target === 'string'
+          ? event.detail.target
+          : null;
+        if (target === currentStep.target) handleTargetAction();
+      };
+      window.addEventListener(ONBOARDING_GAMEPLAY_ACTION_EVENT, handleGameplayAction, true);
+      return () => window.removeEventListener(ONBOARDING_GAMEPLAY_ACTION_EVENT, handleGameplayAction, true);
+    }
+
     targetElement.addEventListener(currentStep.activationEvent, handleTargetAction, true);
     return () => targetElement.removeEventListener(currentStep.activationEvent, handleTargetAction, true);
-  }, [currentStep, onComplete, persist, progress, shouldShow, targetElement]);
+  }, [advanceStep, currentStep, shouldShow, targetElement]);
+
+  useEffect(() => {
+    if (!currentStep) return;
+    const confirmed = currentStep.completion === 'daily-gift-confirmed'
+      ? dailyGiftClaimedToday || skipRewardEconomy
+      : currentStep.completion === 'left-wing-confirmed'
+        ? leftWingUnlocked
+        : false;
+    if (confirmed) advanceStep(currentStep.id);
+  }, [
+    advanceStep,
+    currentStep,
+    dailyGiftClaimedToday,
+    leftWingUnlocked,
+    skipRewardEconomy
+  ]);
 
   const measure = useCallback(() => {
     const root = rootRef.current;
@@ -437,7 +531,14 @@ const SciconOnboarding: React.FC<SciconOnboardingProps> = ({
     onInvitationDecision?.(accepted);
   }, [onInvitationDecision, persist, progress]);
 
-  const handleSkip = useCallback(() => {
+  const handleSkipStep = useCallback(() => {
+    if (!currentStep) return;
+    const next = skipOnboardingStep(progress, currentStep.id);
+    persist(next);
+    if (next.decision === 'complete') onComplete?.();
+  }, [currentStep, onComplete, persist, progress]);
+
+  const handleEndGuide = useCallback(() => {
     persist(declineOnboarding(progress));
     onInvitationDecision?.(false);
   }, [onInvitationDecision, persist, progress]);
@@ -465,7 +566,7 @@ const SciconOnboarding: React.FC<SciconOnboardingProps> = ({
           <p className="sci-onboarding__eyebrow">Flight Assist</p>
           <h2 id="sci-onboarding-invite-title">Want quick guidance?</h2>
           <p id="sci-onboarding-invite-body">
-            A short, hands-on guide can point out steering, bombs, rewards, and the Hangar.
+            A hands-on guide covers steering, bombs, your special move, rewards, and your first support ship.
           </p>
           <div className="sci-onboarding__invite-actions">
             <PixelActionButton tone="neutral" onClick={() => handleInvitation(false)}>
@@ -533,9 +634,14 @@ const SciconOnboarding: React.FC<SciconOnboardingProps> = ({
         </div>
 
         <div className="sci-onboarding__actions">
-          <button type="button" className="sci-onboarding__skip" onClick={handleSkip}>
-            End guide
-          </button>
+          <div className="sci-onboarding__lesson-controls">
+            <button type="button" className="sci-onboarding__skip" onClick={handleSkipStep}>
+              {currentStep.id === 'flight-steer' ? 'Skip movement' : 'Skip step'}
+            </button>
+            <button type="button" className="sci-onboarding__end" onClick={handleEndGuide}>
+              End guide
+            </button>
+          </div>
           <strong className="sci-onboarding__instruction">
             {targetElement ? currentStep.instruction : 'Locating…'}
           </strong>
