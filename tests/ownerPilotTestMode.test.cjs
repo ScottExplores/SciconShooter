@@ -74,7 +74,7 @@ test('owner controls provide a separate frame freeze and put mission tools in th
   assert.match(appSource, /running:\s*gameState === GameState\.PLAYING\s*&&\s*gameRuntimeReady\s*&&\s*!ownerFrameFrozen\s*&&\s*!onboardingGameplayFreeze/);
   assert.match(appSource, /showFreezeControl: isOwnerWallet && isOwnerTestRun/);
   assert.match(appSource, /onToggleFreeze: isOwnerWallet && isOwnerTestRun/);
-  assert.match(appSource, /gameState === GameState\.PAUSED && !showTestChampionPreview/);
+  assert.match(appSource, /gameState === GameState\.PAUSED && !resumeCountdownActive && !showTestChampionPreview/);
   assert.match(appSource, /Founder Test Controls/);
   assert.match(appSource, /Select mission/);
   assert.match(appSource, /Jump to Mission \{stats\.wave\} boss/);

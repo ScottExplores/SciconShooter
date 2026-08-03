@@ -8,13 +8,37 @@ export { preloadGameplayAssets } from './GameCanvas';
 export interface GameStageProps {
   canvas: GameCanvasProps;
   hud?: false | Omit<UIOverlayProps, 'stats'>;
+  resumeCountdown?: number | null;
   className?: string;
 }
 
-const GameStage: React.FC<GameStageProps> = ({ canvas, hud = false, className = '' }) => (
+const GameStage: React.FC<GameStageProps> = ({
+  canvas,
+  hud = false,
+  resumeCountdown = null,
+  className = ''
+}) => (
   <div className={`scicon-game-stage ${className}`.trim()} data-onboarding-target="flight-stage">
     <GameCanvas {...canvas} />
     {hud ? <UIOverlay {...hud} stats={canvas.stats} /> : null}
+    {resumeCountdown !== null ? (
+      <div
+        className="scicon-resume-countdown"
+        role="status"
+        aria-live="assertive"
+        aria-atomic="true"
+        aria-label={`Mission resumes in ${resumeCountdown}`}
+      >
+        <span className="scicon-resume-countdown__label" aria-hidden="true">Resuming in</span>
+        <strong
+          key={resumeCountdown}
+          className="scicon-resume-countdown__number arcade-font"
+          aria-hidden="true"
+        >
+          {resumeCountdown}
+        </strong>
+      </div>
+    ) : null}
   </div>
 );
 

@@ -20,7 +20,6 @@ interface PauseMenuProps {
   onMusicVolumeChange: (level: number) => void;
   onTogglePolishSetting: (key: keyof GamePolishSettings) => void;
   quitLabel?: string;
-  quitWarning?: string;
   founderControls?: React.ReactNode;
 }
 
@@ -68,7 +67,6 @@ const PauseMenu: React.FC<PauseMenuProps> = ({
   onMusicVolumeChange,
   onTogglePolishSetting,
   quitLabel = 'Exit Run',
-  quitWarning,
   founderControls
 }) => (
   <div className="sci-pause-overlay">
@@ -100,6 +98,13 @@ const PauseMenu: React.FC<PauseMenuProps> = ({
 
           <div className="sci-pause-actions">
             <PixelActionButton
+              tone="danger"
+              onClick={onQuit}
+              className="sci-pause-action sci-pause-action--quit"
+            >
+              <span>{quitLabel}</span>
+            </PixelActionButton>
+            <PixelActionButton
               tone="green"
               shine
               onClick={onResume}
@@ -107,21 +112,10 @@ const PauseMenu: React.FC<PauseMenuProps> = ({
             >
               <span>Resume Mission</span>
             </PixelActionButton>
-            <PixelActionButton
-              tone="neutral"
-              onClick={onQuit}
-              className="sci-pause-action sci-pause-action--quit"
-            >
-              <span>{quitLabel}</span>
-            </PixelActionButton>
           </div>
-          {quitWarning ? (
-            <p className="sci-pause-quit-warning" role="note">{quitWarning}</p>
-          ) : null}
 
           <div className="sci-pause-settings" role="group" aria-label="Mission settings">
             <div className="sci-pause-settings__title">
-              <img src={`${INTERFACE_ROOT}/icons/system/settings.png`} alt="" aria-hidden="true" />
               <span>Mission Settings</span>
             </div>
             <AudioSettingsControls

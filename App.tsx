@@ -599,6 +599,9 @@ const defaultPowerupUses: Record<PowerupType, number> = {
   [PowerupType.RESEARCH_BEAM]: 0
 };
 
+const RESUME_COUNTDOWN_START = 3;
+const RESUME_COUNTDOWN_STEP_MS = 1_000;
+
 const App: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>(GameState.MENU);
   const [gameId, setGameId] = useState<number>(0);
@@ -743,6 +746,8 @@ const App: React.FC = () => {
   const [testFlaskCommand, setTestFlaskCommand] = useState<{ nonce: number; charge: number } | null>(null);
   const [showTestChampionPreview, setShowTestChampionPreview] = useState(false);
   const [ownerFrameFrozen, setOwnerFrameFrozen] = useState(false);
+  const [resumeCountdown, setResumeCountdown] = useState<number | null>(null);
+  const resumeCountdownActive = resumeCountdown !== null;
   const [introMissionLocked, setIntroMissionLocked] = useState(false);
   const [donatedWallets] = useState<Record<string, boolean>>(() => {
     try {
@@ -844,6 +849,67 @@ const App: React.FC = () => {
   useEffect(() => {
     gameStateRef.current = gameState;
   }, [gameState]);
+
+  const beginResumeCountdown = useCallback(() => {
+    if (gameStateRef.current !== GameState.PAUSED) return;
+    setOwnerFrameFrozen(false);
+    setResumeCountdown(current => current ?? RESUME_COUNTDOWN_START);
+  }, []);
+
+  useEffect(() => {
+    if (!resumeCountdownActive) return undefined;
+    if (gameState !== GameState.PAUSED) {
+      setResumeCountdown(null);
+      return undefined;
+    }
+
+    let current = RESUME_COUNTDOWN_START;
+    let timeoutId: number | null = null;
+    let cancelled = false;
+
+    const clearTick = () => {
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+    };
+
+    const scheduleTick = () => {
+      if (cancelled || document.hidden) return;
+      timeoutId = window.setTimeout(() => {
+        timeoutId = null;
+        if (cancelled || document.hidden) return;
+        if (current > 1) {
+          current -= 1;
+          setResumeCountdown(current);
+          scheduleTick();
+          return;
+        }
+
+        setResumeCountdown(null);
+        setOwnerFrameFrozen(false);
+        setGameState(GameState.PLAYING);
+      }, RESUME_COUNTDOWN_STEP_MS);
+    };
+
+    const handleVisibilityChange = () => {
+      clearTick();
+      if (document.hidden) return;
+      current = RESUME_COUNTDOWN_START;
+      setResumeCountdown(current);
+      scheduleTick();
+    };
+
+    setResumeCountdown(current);
+    scheduleTick();
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      cancelled = true;
+      clearTick();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [gameState, resumeCountdownActive]);
 
   // Warm the wallet chunk during idle so the first Connect click can open its
   // popup while the browser still honours the user activation.
@@ -5808,6 +5874,7 @@ const App: React.FC = () => {
         <React.Suspense fallback={null}>
           <GameStage
             key={gameId}
+            resumeCountdown={resumeCountdown}
             canvas={{
               stats,
               onStatsChange: (nextStats) => {
@@ -5890,7 +5957,11 @@ const App: React.FC = () => {
               testBossCommand,
               testFlaskCommand
             }}
-            hud={gameRuntimeReady && (gameState === GameState.PLAYING || (gameState === GameState.PAUSED && isOwnerWallet && isOwnerTestRun)) ? {
+            hud={gameRuntimeReady && (
+              gameState === GameState.PLAYING
+              || resumeCountdownActive
+              || (gameState === GameState.PAUSED && isOwnerWallet && isOwnerTestRun)
+            ) ? {
               showLabGlow,
               onDisableLabGlow: () => setShowLabGlow(false),
               isUpgradeReady: false,
@@ -5899,7 +5970,12 @@ const App: React.FC = () => {
               showFreezeControl: isOwnerWallet && isOwnerTestRun,
               onPause: () => {
                 setOwnerFrameFrozen(false);
-                setGameState(gameState === GameState.PAUSED ? GameState.PLAYING : GameState.PAUSED);
+                if (gameState === GameState.PAUSED) {
+                  beginResumeCountdown();
+                  return;
+                }
+                setResumeCountdown(null);
+                setGameState(GameState.PAUSED);
               },
               onToggleFreeze: isOwnerWallet && isOwnerTestRun
                 ? () => setOwnerFrameFrozen(frozen => !frozen)
@@ -6144,7 +6220,7 @@ const App: React.FC = () => {
         </div>
       ) : null}
 
-      {gameState === GameState.PAUSED && !showTestChampionPreview && (
+      {gameState === GameState.PAUSED && !resumeCountdownActive && !showTestChampionPreview && (
         <PauseMenu
           audioMuted={audioMuted}
           missionNumber={pauseMissionPosition?.levelNumber ?? Math.max(1, Math.floor(stats.wave))}
@@ -6156,13 +6232,7 @@ const App: React.FC = () => {
           onMusicVolumeChange={setGameMusicVolume}
           polishSettings={polishSettings}
           quitLabel={isWeeklyCampaignRun ? 'Forfeit Run' : 'Exit Run'}
-          quitWarning={isWeeklyCampaignRun
-            ? 'Forfeiting consumes this attempt. Its score will not be saved.'
-            : undefined}
-          onResume={() => {
-            setOwnerFrameFrozen(false);
-            setGameState(GameState.PLAYING);
-          }}
+          onResume={beginResumeCountdown}
           onQuit={isBossArchiveRun
             ? returnToBossArchive
             : isWeeklyCampaignRun

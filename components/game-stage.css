@@ -12,6 +12,94 @@
   font-family: Orbitron, Inter, ui-sans-serif, system-ui, sans-serif;
 }
 
+@keyframes scicon-resume-countdown-arrive {
+  0% {
+    opacity: 0;
+    transform: scale(1.38);
+    filter: blur(5px);
+  }
+  22% {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+  }
+  78% {
+    opacity: 1;
+    transform: scale(0.96);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 0.15;
+    transform: scale(0.82);
+    filter: blur(1px);
+  }
+}
+
+.scicon-resume-countdown {
+  position: absolute;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 0.2rem;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(34, 211, 238, 0.04) 0 24%, transparent 58%),
+    radial-gradient(circle at 50% 50%, transparent 0 54%, rgba(2, 6, 23, 0.28) 100%);
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.scicon-resume-countdown::before,
+.scicon-resume-countdown::after {
+  position: absolute;
+  left: 50%;
+  width: min(74%, 19rem);
+  height: 1px;
+  content: '';
+  background: linear-gradient(90deg, transparent, rgba(103, 232, 249, 0.84), transparent);
+  box-shadow: 0 0 0.8rem rgba(34, 211, 238, 0.38);
+  transform: translateX(-50%);
+}
+
+.scicon-resume-countdown::before {
+  top: calc(50% - 5.2rem);
+}
+
+.scicon-resume-countdown::after {
+  top: calc(50% + 5.2rem);
+}
+
+.scicon-resume-countdown__label {
+  color: #a5f3fc;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: clamp(0.62rem, 2.8vw, 0.82rem);
+  font-weight: 900;
+  letter-spacing: 0.28em;
+  text-shadow: 0 0 0.75rem rgba(34, 211, 238, 0.82);
+  text-transform: uppercase;
+}
+
+.scicon-resume-countdown__number {
+  color: #ecfeff;
+  font-size: clamp(5.75rem, 31vw, 9rem);
+  font-weight: 950;
+  line-height: 0.95;
+  text-shadow:
+    0 0 2px #ffffff,
+    0 0 0.55rem rgba(103, 232, 249, 0.94),
+    0 0 1.8rem rgba(14, 165, 233, 0.72),
+    0.22rem 0.22rem 0 rgba(8, 47, 73, 0.72);
+  animation: scicon-resume-countdown-arrive 1s steps(10, end) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scicon-resume-countdown__number {
+    animation: none;
+  }
+}
+
 /* Fixed-size local previews should respond to their simulated screen rather than
    the desktop browser that contains the Director. Production remains media-query driven. */
 .scicon-game-stage--compact-preview .scicon-hud-shell {

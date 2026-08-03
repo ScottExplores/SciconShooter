@@ -1,6 +1,6 @@
 import React from 'react';
 
-export type PixelActionTone = 'gold' | 'cyan' | 'green' | 'neutral';
+export type PixelActionTone = 'gold' | 'cyan' | 'green' | 'neutral' | 'danger';
 
 const PIXEL_ACTION_SPRITES: Partial<Record<PixelActionTone, string>> = Object.freeze({
   gold: '/game-art/generated/ui/scicon-pixel-action-buttons-v1/upgrade-panel.png',

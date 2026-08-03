@@ -210,19 +210,8 @@
 
 .sci-pause-actions {
   display: grid;
-  grid-template-columns: 1fr 0.7fr;
+  grid-template-columns: 0.7fr 1fr;
   gap: 0.42rem;
-}
-
-.sci-pause-quit-warning {
-  margin: -0.08rem 0 0;
-  color: rgb(254 202 202 / 0.86);
-  font-size: 0.55rem;
-  font-weight: 800;
-  letter-spacing: 0.055em;
-  line-height: 1.35;
-  text-align: right;
-  text-transform: uppercase;
 }
 
 .sci-pause-action.sci-pixel-action {
@@ -250,7 +239,7 @@
 }
 
 .sci-pause-action--quit {
-  color: #f8fafc;
+  color: #fff7f7;
 }
 
 .sci-pause-settings {
@@ -282,13 +271,6 @@
   font-weight: 900;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-}
-
-.sci-pause-settings__title img {
-  width: 1.05rem;
-  height: 1.05rem;
-  object-fit: contain;
-  image-rendering: pixelated;
 }
 
 .sci-pause-setting {

@@ -1675,6 +1675,16 @@
   --sci-pixel-fixture-hot: #ecfeff;
 }
 
+.sci-pixel-action[data-tone='danger'] {
+  --sci-pixel-top: #fecaca;
+  --sci-pixel-mid: #dc2626;
+  --sci-pixel-bottom: #7f1d1d;
+  --sci-pixel-edge: #fff1f2;
+  --sci-pixel-rail: #fb7185;
+  --sci-pixel-fixture: #f87171;
+  --sci-pixel-fixture-hot: #fff1f2;
+}
+
 .sci-pixel-action__chrome {
   position: absolute;
   inset: 1px;

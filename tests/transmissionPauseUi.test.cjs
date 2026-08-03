@@ -46,6 +46,7 @@ test('pause menu uses the generated game interface while preserving real setting
   const pause = fs.readFileSync(path.join(root, 'components', 'PauseMenu.tsx'), 'utf8');
   const audioSettings = fs.readFileSync(path.join(root, 'components', 'AudioSettingsControls.tsx'), 'utf8');
   const css = fs.readFileSync(path.join(root, 'styles', 'pause-menu.css'), 'utf8');
+  const actionCss = fs.readFileSync(path.join(root, 'styles', 'tailwind.input.css'), 'utf8');
 
   assert.match(app, /<PauseMenu/);
   assert.match(app, /onToggleAudio=\{toggleGameAudio\}/);
@@ -61,7 +62,14 @@ test('pause menu uses the generated game interface while preserving real setting
   assert.match(audioSettings, /aria-pressed=\{enabled\}/);
   assert.match(pause, /PixelActionButton/);
   assert.match(pause, /tone="green"/);
-  assert.match(pause, /tone="neutral"/);
+  assert.match(pause, /tone="danger"/);
+  assert.ok(
+    pause.indexOf('sci-pause-action--quit') < pause.indexOf('sci-pause-action--resume'),
+    'forfeit must be the left/first action and resume the right/second action'
+  );
+  assert.doesNotMatch(pause, /quitWarning/);
+  assert.doesNotMatch(pause, /icons\/system\/settings\.png/);
+  assert.doesNotMatch(app, /Forfeiting consumes this attempt/);
   assert.match(pause, /sci-pause-setting__toggle-track/);
   assert.match(audioSettings, /type="range"/);
   assert.match(audioSettings, /min=\{0\}/);
@@ -85,6 +93,8 @@ test('pause menu uses the generated game interface while preserving real setting
   assert.match(css, /\.sci-pause-volume__notches/);
   assert.match(css, /\.sci-pause-mission-position \{/);
   assert.match(css, /\.sci-pause-mission-position__wave \{/);
+  assert.match(css, /grid-template-columns: 0\.7fr 1fr/);
+  assert.match(actionCss, /\.sci-pixel-action\[data-tone='danger'\]/);
   assert.match(css, /grid-template-columns: repeat\(6, 1fr\)/);
   assert.doesNotMatch(css, /pause-menu-frame\.png/);
   assert.doesNotMatch(css, /resume-button\.png/);
