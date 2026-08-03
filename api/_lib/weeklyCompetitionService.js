@@ -19,13 +19,15 @@ const COMPETITIONS_TABLE = process.env.SUPABASE_WEEKLY_COMPETITIONS_TABLE || 'sc
 const PROPOSAL_CACHE_TABLE = process.env.SUPABASE_PROPOSAL_CACHE_TABLE || 'scicon_proposal_cache';
 const WEEKLY_PROPOSAL_CACHE_PREFIX = 'researchhub-open-preregistrations:week:';
 // Vercel Hobby daily crons may execute anywhere inside their scheduled hour.
-// Capture the complete feed during the final hour, then use the newest
-// pre-cutoff snapshot available. A normal public proposal request may improve
-// freshness only when its response proves that it contains the complete feed.
-const MAX_CUTOFF_SNAPSHOT_AGE_MS = 61 * 60 * 1000;
-const CUTOFF_SNAPSHOT_CAPTURE_WINDOW_MS = 61 * 60 * 1000;
+// A two-hour window gives both Pacific time offsets a full, reliable capture
+// opportunity before the Sunday noon boundary. The snapshot is still required
+// for proposal ranking, but it must never prevent the winner itself from being
+// archived.
+const MAX_CUTOFF_SNAPSHOT_AGE_MS = 121 * 60 * 1000;
+const CUTOFF_SNAPSHOT_CAPTURE_WINDOW_MS = 121 * 60 * 1000;
 const STABLE_WINNER_MAX_ATTEMPTS = 3;
 const SCORE_SUBMISSION_SETTLEMENT_MS = 5 * 60 * 1000;
+const RECENT_COMPETITION_BACKFILL_WEEKS = 3;
 const DEFAULT_ALLOCATION_RSC = 100;
 const CLAIM_WINDOW_MS = 72 * 60 * 60 * 1000;
 const LEADER_PROPOSAL_SELECT = 'name,score,wave,date,wallet_address,run_id,verified,proposal_id,proposal_title,proposal_url,proposal_author';
@@ -120,7 +122,32 @@ const winnersMatch = (left, right) => {
     && Number(left?.wave || 1) === Number(right?.wave || 1);
 };
 
-const buildCompetitionRow = ({ weekKey, start, end, winner, proposal, existing, observedAt }) => {
+const proposalFromWinnerRecord = (winner) => {
+  const id = String(winner?.proposal_id || '').trim();
+  const title = String(winner?.proposal_title || '').trim();
+  if (!/^\d{1,20}$/.test(id) || !title) return null;
+
+  const rawUrl = String(winner?.proposal_url || '').trim();
+  const rawImageUrl = String(winner?.proposal_image_url || '').trim();
+  return {
+    id,
+    title: title.slice(0, 180),
+    url: /^https?:\/\//i.test(rawUrl) ? rawUrl : 'https://www.researchhub.com/fund',
+    author: String(winner?.proposal_author || '').trim().slice(0, 100) || 'ResearchHub researcher',
+    imageUrl: /^https?:\/\//i.test(rawImageUrl) ? rawImageUrl : null
+  };
+};
+
+const buildCompetitionRow = ({
+  weekKey,
+  start,
+  end,
+  winner,
+  proposal,
+  proposalVerifiedAtCutoff = Boolean(proposal),
+  existing,
+  observedAt
+}) => {
   const now = observedAt || new Date();
   const finalizedAt = existing?.finalized_at ? new Date(existing.finalized_at) : now;
   const safeFinalizedAt = Number.isFinite(finalizedAt.getTime()) ? finalizedAt : now;
@@ -136,7 +163,7 @@ const buildCompetitionRow = ({ weekKey, start, end, winner, proposal, existing, 
     week_key: weekKey,
     starts_at: start.toISOString(),
     ends_at: end.toISOString(),
-    status: 'claimed',
+    status: proposal && proposalVerifiedAtCutoff ? 'claimed' : 'finalized',
     winner_run_id: winner.run_id || null,
     winner_name: winner.name,
     winner_wallet: winner.wallet_address || null,
@@ -144,11 +171,11 @@ const buildCompetitionRow = ({ weekKey, start, end, winner, proposal, existing, 
     winning_wave: winner.wave || 1,
     finalized_at: safeFinalizedAt.toISOString(),
     claim_deadline: claimDeadline.toISOString(),
-    proposal_id: proposal.id,
-    proposal_title: proposal.title,
-    proposal_url: proposal.url,
-    proposal_author: proposal.author,
-    proposal_image_url: proposal.imageUrl || null,
+    proposal_id: proposal?.id || null,
+    proposal_title: proposal?.title || null,
+    proposal_url: proposal?.url || null,
+    proposal_author: proposal?.author || null,
+    proposal_image_url: proposal?.imageUrl || null,
     allocation_rsc: allocationRsc,
     allocation_tx_hash: existing?.allocation_tx_hash || null,
     champion_token_id: existing?.champion_token_id || null,
@@ -282,29 +309,61 @@ const resolveProposalAtWeeklyCutoff = async ({
   ), { statusCode: 409 });
 };
 
-const resolveStableWinnerAndProposal = async ({
-  initialWinner,
-  weekKey,
-  start,
-  end,
-  observedAt
-}) => {
-  let winner = initialWinner;
-
-  for (let attempt = 0; attempt < STABLE_WINNER_MAX_ATTEMPTS; attempt += 1) {
-    const proposalResolution = await resolveProposalAtWeeklyCutoff({
+const resolveProposalForArchivedWinner = async ({ winner, weekKey, start, end }) => {
+  try {
+    const resolution = await resolveProposalAtWeeklyCutoff({
       proposalId: winner.proposal_id,
       weekKey,
       start,
-      end,
-      observedAt
+      end
     });
+    return { ...resolution, resolutionPending: false, verifiedAtCutoff: true };
+  } catch (error) {
+    // The leaderboard row preserves a proposal the leader selected while the
+    // week was open. It can safely repair history without ranking an old week
+    // from today's ResearchHub feed.
+    const preservedProposal = proposalFromWinnerRecord(winner);
+    if (preservedProposal) {
+      console.warn('Weekly proposal cutoff resolution unavailable; preserving the winner selection:', {
+        weekKey,
+        error: error?.message || String(error)
+      });
+      return {
+        proposal: preservedProposal,
+        selectionSource: 'winner_record',
+        resolutionPending: true,
+        verifiedAtCutoff: false,
+        resolutionWarning: error?.message || 'Cutoff proposal snapshot unavailable.'
+      };
+    }
+
+    // Winner history and proposal allocation are separate concerns. Archive
+    // the champion now and leave proposal verification pending instead of
+    // dropping the entire Past Picks row when an external feed is unavailable.
+    console.error('Weekly proposal resolution pending; archiving winner without a proposal:', {
+      weekKey,
+      error: error?.message || String(error)
+    });
+    return {
+      proposal: null,
+      selectionSource: 'pending',
+      resolutionPending: true,
+      verifiedAtCutoff: false,
+      resolutionWarning: error?.message || 'Cutoff proposal snapshot unavailable.'
+    };
+  }
+};
+
+const resolveStableWinner = async ({ initialWinner, weekKey }) => {
+  let winner = initialWinner;
+
+  for (let attempt = 0; attempt < STABLE_WINNER_MAX_ATTEMPTS; attempt += 1) {
     const latestWinner = await readTopEligibleScore(weekKey);
     if (!latestWinner) {
       throw Object.assign(new Error('The weekly leader disappeared during finalization.'), { statusCode: 409 });
     }
     if (winnersMatch(winner, latestWinner)) {
-      return { winner: latestWinner, proposalResolution };
+      return latestWinner;
     }
     winner = latestWinner;
   }
@@ -328,7 +387,7 @@ const saveCompetition = async (row) => {
     const { proposal_image_url: _proposalImageUrl, ...compatibleRow } = row;
     saved = await save(compatibleRow);
   }
-  return Array.isArray(saved) ? saved[0] : row;
+  return Array.isArray(saved) ? (saved[0] || row) : row;
 };
 
 const finalizeWeeklyCompetition = async (
@@ -358,33 +417,74 @@ const finalizeWeeklyCompetition = async (
     }
 
     const actualWinner = await readTopEligibleScore(weekKey);
-    if (!actualWinner || winnerMatchesCompetition(actualWinner, existingCompetition)) {
+    if (!actualWinner) {
       return { finalized: false, weekKey, reason: 'Competition is already locked.', competition: existingCompetition };
     }
 
-    const stableResult = await resolveStableWinnerAndProposal({
-      initialWinner: actualWinner,
-      weekKey,
-      start,
-      end,
-      observedAt: finalizationObservedAt
-    });
-    if (winnerMatchesCompetition(stableResult.winner, existingCompetition)) {
+    if (winnerMatchesCompetition(actualWinner, existingCompetition)) {
+      if (existingCompetition.proposal_id || existingCompetition.status === 'claimed') {
+        return { finalized: false, weekKey, reason: 'Competition is already locked.', competition: existingCompetition };
+      }
+      const proposalResolution = await resolveProposalForArchivedWinner({
+        winner: actualWinner,
+        weekKey,
+        start,
+        end
+      });
+      if (!proposalResolution.proposal) {
+        return {
+          finalized: false,
+          proposalResolutionPending: true,
+          weekKey,
+          reason: 'Winner is archived; proposal verification is still pending.',
+          competition: existingCompetition
+        };
+      }
+      const enrichedCompetition = await saveCompetition(buildCompetitionRow({
+        weekKey,
+        start,
+        end,
+        winner: actualWinner,
+        proposal: proposalResolution.proposal,
+        proposalVerifiedAtCutoff: proposalResolution.verifiedAtCutoff,
+        existing: existingCompetition,
+        observedAt: finalizationObservedAt
+      }));
+      return {
+        finalized: false,
+        enriched: true,
+        proposalSelectionSource: proposalResolution.selectionSource,
+        weekKey,
+        reason: 'Archived winner proposal was restored.',
+        competition: enrichedCompetition
+      };
+    }
+
+    const stableWinner = await resolveStableWinner({ initialWinner: actualWinner, weekKey });
+    if (winnerMatchesCompetition(stableWinner, existingCompetition)) {
       return { finalized: false, weekKey, reason: 'Competition is already locked.', competition: existingCompetition };
     }
+    const proposalResolution = await resolveProposalForArchivedWinner({
+      winner: stableWinner,
+      weekKey,
+      start,
+      end
+    });
     const repairedCompetition = await saveCompetition(buildCompetitionRow({
       weekKey,
       start,
       end,
-      winner: stableResult.winner,
-      proposal: stableResult.proposalResolution.proposal,
+      winner: stableWinner,
+      proposal: proposalResolution.proposal,
+      proposalVerifiedAtCutoff: proposalResolution.verifiedAtCutoff,
       existing: existingCompetition,
       observedAt: finalizationObservedAt
     }));
     return {
       finalized: false,
       repaired: true,
-      proposalSelectionSource: stableResult.proposalResolution.selectionSource,
+      proposalSelectionSource: proposalResolution.selectionSource,
+      proposalResolutionPending: proposalResolution.resolutionPending,
       weekKey,
       reason: 'Archived winner reconciled with the final weekly leaderboard.',
       competition: repairedCompetition
@@ -396,19 +496,20 @@ const finalizeWeeklyCompetition = async (
     return { finalized: false, weekKey, reason: 'No eligible scores were submitted for this week.' };
   }
 
-  const stableResult = await resolveStableWinnerAndProposal({
-    initialWinner: winner,
+  const stableWinner = await resolveStableWinner({ initialWinner: winner, weekKey });
+  const proposalResolution = await resolveProposalForArchivedWinner({
+    winner: stableWinner,
     weekKey,
     start,
-    end,
-    observedAt: finalizationObservedAt
+    end
   });
   const competition = await saveCompetition(buildCompetitionRow({
     weekKey,
     start,
     end,
-    winner: stableResult.winner,
-    proposal: stableResult.proposalResolution.proposal,
+    winner: stableWinner,
+    proposal: proposalResolution.proposal,
+    proposalVerifiedAtCutoff: proposalResolution.verifiedAtCutoff,
     observedAt: finalizationObservedAt
   }));
 
@@ -420,16 +521,18 @@ const finalizeWeeklyCompetition = async (
       body: JSON.stringify({
         event: 'scicon_weekly_champion_finalized',
         competition,
-        proposalSelectionSource: stableResult.proposalResolution.selectionSource
+        proposalSelectionSource: proposalResolution.selectionSource
       })
     }).catch((error) => console.error('Weekly champion webhook failed:', error));
   }
 
   const notification = await sendBaseNotificationBroadcast({
     title: 'Weekly champion locked',
-    message: stableResult.proposalResolution.selectionSource === 'manual'
-      ? `${stableResult.winner.name} won with ${Number(stableResult.winner.score).toLocaleString('en-US')} points and directed the weekly pick to ${stableResult.proposalResolution.proposal.title}.`
-      : `${stableResult.winner.name} won with ${Number(stableResult.winner.score).toLocaleString('en-US')} points. ${stableResult.proposalResolution.proposal.title} was selected as the most-funded eligible fallback.`,
+    message: proposalResolution.proposal && !proposalResolution.resolutionPending
+      ? (proposalResolution.selectionSource === 'automatic_fallback'
+          ? `${stableWinner.name} won with ${Number(stableWinner.score).toLocaleString('en-US')} points. ${proposalResolution.proposal.title} was selected as the most-funded eligible fallback.`
+          : `${stableWinner.name} won with ${Number(stableWinner.score).toLocaleString('en-US')} points and directed the weekly pick to ${proposalResolution.proposal.title}.`)
+      : `${stableWinner.name} won with ${Number(stableWinner.score).toLocaleString('en-US')} points. Proposal verification is pending.`,
     targetPath: '/?view=trophies'
   }).catch((error) => {
     console.error('Base champion notification failed:', error);
@@ -440,14 +543,62 @@ const finalizeWeeklyCompetition = async (
     finalized: true,
     weekKey,
     competition,
-    proposalSelectionSource: stableResult.proposalResolution.selectionSource,
-    replacedProposalId: stableResult.proposalResolution.replacedProposalId || null,
+    proposalSelectionSource: proposalResolution.selectionSource,
+    proposalResolutionPending: proposalResolution.resolutionPending,
+    replacedProposalId: proposalResolution.replacedProposalId || null,
     notification
   };
 };
 
+const ensureRecentWeeklyCompetitions = async ({
+  observedAt = new Date(),
+  existingCompetitions,
+  lookbackWeeks = RECENT_COMPETITION_BACKFILL_WEEKS
+} = {}) => {
+  const recoveryObservedAt = observedAt instanceof Date ? observedAt : new Date(observedAt);
+  if (!Number.isFinite(recoveryObservedAt.getTime())) {
+    throw Object.assign(new Error('Invalid weekly recovery observation time.'), { statusCode: 400 });
+  }
+
+  const safeLookback = Math.max(1, Math.min(8, Math.floor(Number(lookbackWeeks) || 1)));
+  const competitions = Array.isArray(existingCompetitions)
+    ? existingCompetitions
+    : await readWeeklyCompetitions(Math.max(24, safeLookback));
+  const archivedWeekKeys = new Set(competitions.map((competition) => competition?.week_key).filter(Boolean));
+  const results = [];
+  let weekKey = getPreviousWeekKey(recoveryObservedAt);
+
+  for (let index = 0; index < safeLookback; index += 1) {
+    const range = getWeekRange(weekKey);
+    const nextWeekKey = getPreviousWeekKey(range.start);
+    if (
+      !archivedWeekKeys.has(weekKey)
+      && range.end.getTime() + SCORE_SUBMISSION_SETTLEMENT_MS <= recoveryObservedAt.getTime()
+    ) {
+      try {
+        const result = await finalizeWeeklyCompetition(weekKey, { observedAt: recoveryObservedAt });
+        results.push({ weekKey, ok: true, result });
+        if (result.competition) archivedWeekKeys.add(weekKey);
+      } catch (error) {
+        console.error('Weekly competition recovery failed:', {
+          weekKey,
+          error: error?.message || String(error)
+        });
+        results.push({ weekKey, ok: false, error: error?.message || String(error) });
+      }
+    }
+    weekKey = nextWeekKey;
+  }
+
+  const changed = results.some(({ result }) => (
+    result?.finalized || result?.repaired || result?.enriched
+  ));
+  return { attempted: results.length > 0, changed, results };
+};
+
 module.exports = {
   captureWeeklyProposalCutoffSnapshot,
+  ensureRecentWeeklyCompetitions,
   finalizeWeeklyCompetition,
   getPreviousWeekKey,
   getWeekRange,

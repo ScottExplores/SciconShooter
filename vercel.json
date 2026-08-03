@@ -33,19 +33,15 @@
   "crons": [
     {
       "path": "/api/finalize-weekly-competition",
-      "schedule": "59 18 * * 0"
+      "schedule": "0 18 * * 0"
     },
     {
       "path": "/api/finalize-weekly-competition",
-      "schedule": "59 19 * * 0"
+      "schedule": "10 19 * * 0"
     },
     {
       "path": "/api/finalize-weekly-competition",
       "schedule": "10 20 * * 0"
-    },
-    {
-      "path": "/api/finalize-weekly-competition",
-      "schedule": "10 21 * * 0"
     }
   ],
   "rewrites": [

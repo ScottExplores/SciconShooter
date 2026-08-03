@@ -53,19 +53,21 @@ test('App supplies only its verified recovery record to the chooser', () => {
   assert.match(app, /pilotName=\{missionRecordPilotName \|\| playerNameInput \|\| 'PILOT'\}/);
 });
 
-test('App refreshes the current weekly leader quietly while the Home dashboard remains open', () => {
+test('App refreshes the current weekly leader and Past Picks while the Home dashboard remains open', () => {
   const app = read('App.tsx');
 
   assert.match(app, /const \[loadingLeaderboard, setLoadingLeaderboard\] = useState<boolean>\(true\)/);
   assert.match(app, /BACKGROUND_LEADERBOARD_REFRESH_MS = 60_000/);
   assert.match(app, /const fetchScores = async \(background = false\)/);
   assert.match(app, /if \(!background && !alreadyHasData\) \{\s*setLoadingLeaderboard\(true\)/);
-  assert.match(app, /const refreshScoresInBackground = \(\) => \{\s*if \(!document\.hidden\) void fetchScores\(true\)/);
-  assert.match(app, /window\.setInterval\(\s*refreshScoresInBackground,\s*BACKGROUND_LEADERBOARD_REFRESH_MS/);
-  assert.match(app, /window\.addEventListener\('focus', refreshScoresInBackground\)/);
+  assert.match(app, /const refreshDashboardInBackground = \(\) => \{\s*if \(!document\.hidden\) void Promise\.all\(\[fetchScores\(true\), fetchArchivedWinners\(\)\]\)/);
+  assert.match(app, /window\.setInterval\(\s*refreshDashboardInBackground,\s*BACKGROUND_LEADERBOARD_REFRESH_MS/);
+  assert.match(app, /window\.addEventListener\('focus', refreshDashboardInBackground\)/);
   assert.match(app, /document\.addEventListener\('visibilitychange', handleDashboardVisibilityChange\)/);
-  assert.match(app, /window\.removeEventListener\('focus', refreshScoresInBackground\)/);
+  assert.match(app, /window\.removeEventListener\('focus', refreshDashboardInBackground\)/);
   assert.match(app, /document\.removeEventListener\('visibilitychange', handleDashboardVisibilityChange\)/);
+  assert.match(app, /if \(!active \|\| winners === null\) return;\s*setArchivedWinners\(winners\)/);
+  assert.match(read('services', 'winnerArchiveService.ts'), /Promise<ArchivedWinner\[\] \| null>/);
 });
 
 test('App prefers the initial leader but still loads proposals if the leaderboard stalls', () => {

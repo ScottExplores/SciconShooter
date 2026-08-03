@@ -1277,6 +1277,7 @@ const App: React.FC = () => {
     let cancelDeferredFetch: (() => void) | null = null;
     let leaderboardRefreshId: number | null = null;
     let scoreFetchInFlight = false;
+    let archiveFetchInFlight = false;
 
     const fetchScores = async (background = false) => {
       if (!active || scoreFetchInFlight) return;
@@ -1304,19 +1305,22 @@ const App: React.FC = () => {
     };
 
     const fetchArchivedWinners = async () => {
+      if (!active || archiveFetchInFlight) return;
+      archiveFetchInFlight = true;
       const winners = await getArchivedWeeklyWinners();
-      if (!active) return;
+      archiveFetchInFlight = false;
+      if (!active || winners === null) return;
       setArchivedWinners(winners);
     };
 
     const fetchDashboardData = () => {
       void Promise.all([fetchScores(), fetchArchivedWinners()]);
     };
-    const refreshScoresInBackground = () => {
-      if (!document.hidden) void fetchScores(true);
+    const refreshDashboardInBackground = () => {
+      if (!document.hidden) void Promise.all([fetchScores(true), fetchArchivedWinners()]);
     };
     const handleDashboardVisibilityChange = () => {
-      if (document.visibilityState === 'visible') refreshScoresInBackground();
+      if (document.visibilityState === 'visible') refreshDashboardInBackground();
     };
 
     if (gameState === GameState.GAMEOVER) {
@@ -1327,10 +1331,10 @@ const App: React.FC = () => {
         timeoutMs: 2200
       });
       leaderboardRefreshId = window.setInterval(
-        refreshScoresInBackground,
+        refreshDashboardInBackground,
         BACKGROUND_LEADERBOARD_REFRESH_MS
       );
-      window.addEventListener('focus', refreshScoresInBackground);
+      window.addEventListener('focus', refreshDashboardInBackground);
       document.addEventListener('visibilitychange', handleDashboardVisibilityChange);
     }
 
@@ -1340,7 +1344,7 @@ const App: React.FC = () => {
       if (leaderboardRefreshId !== null) {
         window.clearInterval(leaderboardRefreshId);
       }
-      window.removeEventListener('focus', refreshScoresInBackground);
+      window.removeEventListener('focus', refreshDashboardInBackground);
       document.removeEventListener('visibilitychange', handleDashboardVisibilityChange);
     };
   }, [gameState, leaderboard.length]);
@@ -5423,7 +5427,9 @@ const App: React.FC = () => {
     if (status === 'confirmed') {
       trackEvent('weekly_champion_claimed');
       trackEvent('proposal_selected');
-      void getArchivedWeeklyWinners().then(setArchivedWinners);
+      void getArchivedWeeklyWinners().then((winners) => {
+        if (winners !== null) setArchivedWinners(winners);
+      });
     }
   };
 

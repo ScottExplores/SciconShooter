@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
   captureWeeklyProposalCutoffSnapshot,
+  ensureRecentWeeklyCompetitions,
   finalizeWeeklyCompetition,
   getPreviousWeekKey,
   getWeekRange,
@@ -472,7 +473,7 @@ test('re-finalization never rewrites an archive with a confirmed allocation tran
   assert.equal(requestCount, 1);
 });
 
-test('cutoff snapshot capture is DST-safe across the final Hobby cron hour and rejects late responses', async (context) => {
+test('cutoff snapshot capture is DST-safe across the reliable Hobby cron window and rejects late responses', async (context) => {
   const originalFetch = global.fetch;
   const originalUrl = process.env.SUPABASE_URL;
   const originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -539,8 +540,8 @@ test('cutoff snapshot capture is DST-safe across the final Hobby cron hour and r
   assert.equal(writes.length, 1);
 
   const winterCapture = await captureWeeklyProposalCutoffSnapshot({
-    observedAt: new Date('2026-01-04T19:59:00.000Z'),
-    completedAt: new Date('2026-01-04T19:59:02.000Z')
+    observedAt: new Date('2026-01-04T18:05:00.000Z'),
+    completedAt: new Date('2026-01-04T18:05:02.000Z')
   });
   assert.equal(winterCapture.captured, true);
   assert.equal(winterCapture.weekKey, '2025-12-28');
@@ -655,7 +656,7 @@ test('an old week without a cutoff snapshot is never reranked from today’s fee
   assert.equal(liveFeedCalled, false);
 });
 
-test('finalization fails closed without a protected cutoff snapshot and performs no archive write', async (context) => {
+test('finalization archives the winner even when proposal verification is pending', async (context) => {
   const originalFetch = global.fetch;
   const originalUrl = process.env.SUPABASE_URL;
   const originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -700,12 +701,84 @@ test('finalization fails closed without a protected cutoff snapshot and performs
     else process.env.SUPABASE_SERVICE_ROLE_KEY = originalKey;
   });
 
-  await assert.rejects(
-    finalizeWeeklyCompetition('2020-02-02', {
-      observedAt: shortlyAfterCutoff('2020-02-02')
-    }),
-    (error) => error.statusCode === 409 && /cutoff snapshot is unavailable/i.test(error.message)
-  );
-  assert.equal(archiveWriteCount, 0);
+  const result = await finalizeWeeklyCompetition('2020-02-02', {
+    observedAt: shortlyAfterCutoff('2020-02-02')
+  });
+  assert.equal(result.finalized, true);
+  assert.equal(result.proposalResolutionPending, true);
+  assert.equal(result.competition.status, 'finalized');
+  assert.equal(result.competition.winner_name, 'Offline Feed Winner');
+  assert.equal(result.competition.winning_score, 9000);
+  assert.equal(result.competition.proposal_id, null);
+  assert.equal(archiveWriteCount, 1);
   assert.equal(liveFeedCalled, false);
+});
+
+test('recovery backfills the two most recent missing Past Picks from final leaderboard records', async (context) => {
+  const originalFetch = global.fetch;
+  const originalUrl = process.env.SUPABASE_URL;
+  const originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  process.env.SUPABASE_URL = 'https://example.supabase.co';
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-key';
+
+  const winnersByWeek = new Map([
+    ['2026-07-26', {
+      name: 'SCOTT', score: 30286, wave: 8, date: '2026-07-30T12:00:00.000Z',
+      wallet_address: '0xscott', run_id: '0b865716-0000-4000-8000-000000000000', verified: true
+    }],
+    ['2026-07-19', {
+      name: 'COLE DELYEA', score: 93433, wave: 7, date: '2026-07-24T12:00:00.000Z',
+      wallet_address: '0xcole', run_id: 'c54245cc-0000-4000-8000-000000000000', verified: true,
+      proposal_id: '32342', proposal_title: 'Preserved weekly proposal',
+      proposal_url: 'https://www.researchhub.com/post/32342/preserved-weekly-proposal',
+      proposal_author: 'Researcher'
+    }]
+  ]);
+  const savedRows = [];
+
+  global.fetch = async (url, options = {}) => {
+    const requestUrl = String(url);
+    if (requestUrl.includes('scicon_weekly_competitions') && options.method !== 'POST') {
+      return new Response('[]', { status: 200 });
+    }
+    if (requestUrl.includes('scicon_leaderboard')) {
+      const decodedRequestUrl = decodeURIComponent(requestUrl);
+      const matchingEntry = [...winnersByWeek.entries()].find(([weekKey]) => (
+        decodedRequestUrl.includes(`date=gte.${getWeekRange(weekKey).start.toISOString()}`)
+      ));
+      return new Response(JSON.stringify(matchingEntry ? [matchingEntry[1]] : []), { status: 200 });
+    }
+    if (requestUrl.includes('scicon_proposal_cache')) {
+      return new Response('[]', { status: 200 });
+    }
+    if (options.method === 'POST') {
+      const row = JSON.parse(options.body);
+      savedRows.push(row);
+      return new Response(JSON.stringify([row]), { status: 200 });
+    }
+    return new Response('[]', { status: 200 });
+  };
+
+  context.after(() => {
+    global.fetch = originalFetch;
+    if (originalUrl === undefined) delete process.env.SUPABASE_URL;
+    else process.env.SUPABASE_URL = originalUrl;
+    if (originalKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    else process.env.SUPABASE_SERVICE_ROLE_KEY = originalKey;
+  });
+
+  const recovery = await ensureRecentWeeklyCompetitions({
+    observedAt: new Date('2026-08-03T01:00:00.000Z'),
+    existingCompetitions: [{ week_key: '2026-07-12' }],
+    lookbackWeeks: 3
+  });
+
+  assert.equal(recovery.changed, true);
+  assert.deepEqual(recovery.results.map((entry) => entry.weekKey), ['2026-07-26', '2026-07-19']);
+  assert.deepEqual(savedRows.map((row) => row.week_key), ['2026-07-26', '2026-07-19']);
+  assert.equal(savedRows[0].winner_name, 'SCOTT');
+  assert.equal(savedRows[0].status, 'finalized');
+  assert.equal(savedRows[1].winner_name, 'COLE DELYEA');
+  assert.equal(savedRows[1].status, 'finalized');
+  assert.equal(savedRows[1].proposal_id, '32342');
 });

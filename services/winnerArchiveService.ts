@@ -67,13 +67,13 @@ const normalizeWinner = (winner: RawWinner): ArchivedWinner | null => {
   };
 };
 
-export const getArchivedWeeklyWinners = async (): Promise<ArchivedWinner[]> => {
+export const getArchivedWeeklyWinners = async (): Promise<ArchivedWinner[] | null> => {
   try {
     const response = await fetch(WINNERS_API_URL, {
       headers: { Accept: 'application/json' }
     });
 
-    if (!response.ok) return [];
+    if (!response.ok) return null;
 
     const payload = await response.json();
     const winners = Array.isArray(payload?.competitions) ? payload.competitions : [];
@@ -83,6 +83,6 @@ export const getArchivedWeeklyWinners = async (): Promise<ArchivedWinner[]> => {
       .map(normalizeWinner)
       .filter((winner): winner is ArchivedWinner => Boolean(winner));
   } catch {
-    return [];
+    return null;
   }
 };
