@@ -1440,7 +1440,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
           aria-label={weeklyRunActive
             ? `Resume Weekly Run. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`
             : weeklyRunAttemptsRemaining > 0
-              ? `Start Weekly Run. ${WEEKLY_RUN_STARTING_LIVES} lives, ${weeklyRunAttemptsRemaining} attempt${weeklyRunAttemptsRemaining === 1 ? '' : 's'} remain, ${WEEKLY_RUN_ATTEMPT_LIMIT} free attempts each week, endless escalating waves and bosses, scored on the weekly board. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`
+              ? `Start Weekly Run. ${WEEKLY_RUN_STARTING_LIVES} lives, ${weeklyRunAttemptsRemaining} attempt${weeklyRunAttemptsRemaining === 1 ? '' : 's'} remain, endless escalating waves and bosses, scored on the weekly board. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`
               : needsServerVerification
                 ? `Verify any purchased Weekly Run attempts with the server. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`
                 : `Weekly Run attempts used. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`}
@@ -1459,7 +1459,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
               {weeklyRunActive
                 ? 'In Progress · Endless'
                 : weeklyRunAttemptsRemaining > 0
-                  ? `${WEEKLY_RUN_STARTING_LIVES} Lives · ${weeklyRunAttemptsRemaining} Attempt${weeklyRunAttemptsRemaining === 1 ? '' : 's'} Left · ${WEEKLY_RUN_ATTEMPT_LIMIT} Free/Week`
+                  ? `${WEEKLY_RUN_STARTING_LIVES} Lives · ${weeklyRunAttemptsRemaining} Attempt${weeklyRunAttemptsRemaining === 1 ? '' : 's'} Left`
                   : needsServerVerification
                     ? 'Checking Wallet Attempts'
                     : 'Extra Attempts Available'}
@@ -2133,15 +2133,6 @@ const StartScreen: React.FC<StartScreenProps> = ({
         <header className="sci-more-menu__header">
           <p className="sci-more-menu__eyebrow">Scicon Shooter</p>
           <h2>Menu</h2>
-          <p>
-            Play missions and climb the weekly leaderboard. When the round closes Sunday at noon Pacific,
-            the finalized No. 1 pilot chooses an eligible ResearchHub proposal for the announced
-            {` ${weeklyAllocation.allocationRsc} RSC`} funding allocation.
-          </p>
-          <p>
-            Guests can play, upgrade their squad, and save Pilot progress on this device. Connect a
-            Base Account for minted items, wallet actions, and onchain Mission Records.
-          </p>
         </header>
 
         <section className="sci-pause-settings sci-more-audio-settings" aria-label="Audio settings">

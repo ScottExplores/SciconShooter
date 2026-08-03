@@ -26,7 +26,9 @@ import {
 } from '../playerShipMotion';
 import {
   PLAYER_WEAPON_FRAME_URLS,
+  getPlayerProjectileUpgradePresentation,
   getPlayerWeaponFrames,
+  getPlayerWeaponFlightFrameIndex,
   getPlayerWeaponLaunchFrameIndex
 } from '../playerWeaponVisuals';
 import { RESEARCH_IMPACT_FRAME_URLS, SHIP_ABILITY_FRAME_URLS } from '../shipAbilityService';
@@ -3062,6 +3064,8 @@ export class PixiGameRenderer {
     view.body.clear();
     view.trail.clear();
     view.aura.clear();
+    view.trail.blendMode = 'normal';
+    view.aura.blendMode = 'normal';
     view.sprite.visible = false;
     view.sprite.position.set(0, 0);
     view.sprite.rotation = 0;
@@ -3355,22 +3359,74 @@ export class PixiGameRenderer {
       return;
     }
     if (playerShot) {
-      const frames = getPlayerWeaponFrames(entity.weaponKind, entity.weaponVisualLevel);
-      const launchFrame = getPlayerWeaponLaunchFrameIndex(
-        engineFrame - entity.weaponVisualStartFrame,
-        frames.length
+      const frames = getPlayerWeaponFrames(
+        entity.weaponKind,
+        entity.weaponVisualLevel,
+        entity.weaponVisualFamily
       );
+      const weaponAge = engineFrame - entity.weaponVisualStartFrame;
+      const launchFrame = this.reducedMotion
+        ? getPlayerWeaponLaunchFrameIndex(weaponAge, frames.length)
+        : getPlayerWeaponFlightFrameIndex(weaponAge, frames.length, entity.weaponVisualLevel);
       const textureKey = frames[launchFrame];
       this.setTexture(view, textureKey);
       view.sprite.tint = '#ffffff';
       view.sprite.alpha = 1;
+      const presentation = getPlayerProjectileUpgradePresentation(entity.weaponVisualLevel);
+      const pulse = this.reducedMotion
+        ? 1
+        : 1 + Math.sin(
+          engineFrame * (0.18 + presentation.level * 0.018)
+          + entity.weaponVisualStartFrame * 0.23
+        ) * presentation.pulseAmount;
+      const visualScale = presentation.spriteScale * pulse;
       const unitWidth = entity.projectileUnitWidth || entity.width;
       const unitHeight = entity.projectileUnitHeight || entity.height;
-      const visualWidth = Math.max(34, unitWidth * 2.05);
-      const visualHeight = Math.max(48, unitHeight * 1.2);
+      const visualWidth = Math.max(34, unitWidth * 2.05) * visualScale;
+      const visualHeight = Math.max(48, unitHeight * 1.2) * visualScale;
       view.sprite.width = visualWidth;
       view.sprite.height = visualHeight;
       view.root.rotation = Math.atan2(entity.vy, entity.vx) + Math.PI / 2;
+      if (presentation.trailLength > 0) {
+        const trailStart = visualHeight * 0.2;
+        const reducedTrail = this.reducedMotion
+          || engine.performanceMode
+          || !engine.polishSettings.highDensityParticles;
+        view.trail.blendMode = 'add';
+        view.trail.moveTo(0, trailStart).lineTo(0, trailStart + presentation.trailLength)
+          .stroke({
+            color,
+            width: presentation.trailWidth,
+            alpha: presentation.trailAlpha
+          });
+        view.trail.moveTo(0, trailStart).lineTo(0, trailStart + presentation.trailLength * 0.58)
+          .stroke({
+            color: '#ffffff',
+            width: Math.max(0.8, presentation.trailWidth * 0.42),
+            alpha: presentation.trailAlpha * 0.56
+          });
+        const sparkCount = this.reducedMotion
+          ? 0
+          : reducedTrail
+            ? Math.min(1, presentation.sparkCount)
+            : presentation.sparkCount;
+        for (let spark = 0; spark < sparkCount; spark++) {
+          const phase = engineFrame * 0.22 + entity.weaponVisualStartFrame * 0.17 + spark * 2.1;
+          const depth = (spark + 1) / (sparkCount + 1);
+          const sparkX = Math.sin(phase) * (3 + presentation.level * 0.8);
+          const sparkY = trailStart + presentation.trailLength * depth;
+          const sparkSize = 0.8 + presentation.level * 0.16;
+          view.trail.rect(
+            sparkX - sparkSize / 2,
+            sparkY - sparkSize / 2,
+            sparkSize,
+            sparkSize
+          ).fill({
+            color: spark % 2 === 0 ? '#ffffff' : color,
+            alpha: presentation.trailAlpha * (0.5 + 0.5 * Math.cos(phase))
+          });
+        }
+      }
       const visualPattern = entity.maxShotVisualPattern;
       if (visualPattern?.length) {
         const copies = this.ensureProjectileCopySprites(view, visualPattern.length);

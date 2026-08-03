@@ -119,6 +119,6 @@ test('Research keeps tight fire-rate tiers while BIO swaps to equal-damage strai
   assert.match(engineSource, /hasPlayerShotCapacity\(bioPrimaryPlan\.simulationEntityCount\)/);
   assert.match(engineSource, /'bio-primary'/);
   assert.match(engineSource, /const weaponSpeed = 10/);
-  assert.match(engineSource, /b\.weaponVisualLevel = 0/);
+  assert.match(engineSource, /b\.weaponVisualLevel = overdrivePrimary \? this\.missionOverdriveLevel : 0/);
   assert.doesNotMatch(engineSource, /if \(bioLaserEquipped\)/);
 });

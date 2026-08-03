@@ -45,8 +45,12 @@ import { audioService } from './audioService';
 import { BASE_FLASK_CHARGE_MAX, FLASK_CHARGE_PER_COIN, getChargeForStoredFlasks, getFlaskProgress } from './flaskProgress';
 import {
   PLAYER_WEAPON_FRAME_URLS,
+  getPlayerProjectileUpgradePresentation,
   getPlayerWeaponFrames,
-  getPlayerWeaponLaunchFrameIndex
+  getPlayerWeaponFlightFrameIndex,
+  getPlayerWeaponLaunchFrameIndex,
+  getPlayerShipWeaponVisualFamily,
+  type PlayerWeaponVisualFamily
 } from './playerWeaponVisuals';
 import {
   BIO_GENOME_LANCE_FRAME_URLS,
@@ -835,6 +839,8 @@ export class Entity {
   weaponKind: PlayerWeaponKind = 'pulse';
   /** Presentation-only gun level used to select projectile art; never changes the collision box. */
   weaponVisualLevel: number = 0;
+  /** Optional hull palette used only by upgraded primary-fire artwork. */
+  weaponVisualFamily?: PlayerWeaponVisualFamily;
   /** Simulation-frame timestamp used only to play the launch art once. */
   weaponVisualStartFrame: number = 0;
   /** One bounded simulation entity that renders and spends several Max Shot rounds. */
@@ -6955,7 +6961,10 @@ export class GameEngine {
     b.color = bulletColor;
     b.isPlayerShot = true;
     b.weaponKind = weaponKind;
-    b.weaponVisualLevel = 0;
+    b.weaponVisualLevel = overdrivePrimary ? this.missionOverdriveLevel : 0;
+    b.weaponVisualFamily = overdrivePrimary
+      ? getPlayerShipWeaponVisualFamily(this.playerShipId)
+      : undefined;
     b.weaponVisualStartFrame = this.frameCount;
     b.maxShotVisualPattern = maxShotVisualPattern;
     b.projectileUnitWidth = projectileGeometry.unitWidth;
@@ -20613,17 +20622,63 @@ export class GameEngine {
            ctx.textBaseline = 'middle';
            ctx.fillText(e.text, 0, 0);
         } else if (e.isPlayerShot) {
-          const weaponFrames = getPlayerWeaponFrames(e.weaponKind, e.weaponVisualLevel);
-          const launchFrame = getPlayerWeaponLaunchFrameIndex(
+          const weaponFrames = getPlayerWeaponFrames(
+            e.weaponKind,
+            e.weaponVisualLevel,
+            e.weaponVisualFamily
+          );
+          const launchFrame = getPlayerWeaponFlightFrameIndex(
             this.frameCount - e.weaponVisualStartFrame,
-            weaponFrames.length
+            weaponFrames.length,
+            e.weaponVisualLevel
           );
           const weaponFrame = getReadyImage(weaponFrames[launchFrame]);
           if (weaponFrame) {
-            const visualWidth = Math.max(34, (e.projectileUnitWidth || e.width) * 2.05);
-            const visualHeight = Math.max(48, (e.projectileUnitHeight || e.height) * 1.2);
+            const presentation = getPlayerProjectileUpgradePresentation(e.weaponVisualLevel);
+            const pulse = 1 + Math.sin(
+              this.frameCount * (0.18 + presentation.level * 0.018)
+              + e.weaponVisualStartFrame * 0.23
+            ) * presentation.pulseAmount;
+            const visualScale = presentation.spriteScale * pulse;
+            const visualWidth = Math.max(34, (e.projectileUnitWidth || e.width) * 2.05) * visualScale;
+            const visualHeight = Math.max(48, (e.projectileUnitHeight || e.height) * 1.2) * visualScale;
             ctx.imageSmoothingEnabled = false;
             ctx.rotate(Math.atan2(e.vy, e.vx) + Math.PI / 2);
+            if (presentation.trailLength > 0) {
+              const trailStart = visualHeight * 0.2;
+              const reducedTrail = this.shouldUseLeanEffects();
+              ctx.save();
+              ctx.globalCompositeOperation = 'lighter';
+              ctx.strokeStyle = e.color || '#67e8f9';
+              ctx.globalAlpha = presentation.trailAlpha;
+              ctx.lineCap = 'round';
+              ctx.lineWidth = presentation.trailWidth;
+              ctx.beginPath();
+              ctx.moveTo(0, trailStart);
+              ctx.lineTo(0, trailStart + presentation.trailLength);
+              ctx.stroke();
+              ctx.strokeStyle = '#ffffff';
+              ctx.globalAlpha = presentation.trailAlpha * 0.56;
+              ctx.lineWidth = Math.max(0.8, presentation.trailWidth * 0.42);
+              ctx.beginPath();
+              ctx.moveTo(0, trailStart);
+              ctx.lineTo(0, trailStart + presentation.trailLength * 0.58);
+              ctx.stroke();
+              const sparkCount = reducedTrail
+                ? Math.min(1, presentation.sparkCount)
+                : presentation.sparkCount;
+              for (let spark = 0; spark < sparkCount; spark++) {
+                const phase = this.frameCount * 0.22 + e.weaponVisualStartFrame * 0.17 + spark * 2.1;
+                const depth = (spark + 1) / (sparkCount + 1);
+                const sparkX = Math.sin(phase) * (3 + presentation.level * 0.8);
+                const sparkY = trailStart + presentation.trailLength * depth;
+                const sparkSize = 0.8 + presentation.level * 0.16;
+                ctx.fillStyle = spark % 2 === 0 ? '#ffffff' : (e.color || '#67e8f9');
+                ctx.globalAlpha = presentation.trailAlpha * (0.5 + 0.5 * Math.cos(phase));
+                ctx.fillRect(sparkX - sparkSize / 2, sparkY - sparkSize / 2, sparkSize, sparkSize);
+              }
+              ctx.restore();
+            }
             if (e.maxShotVisualPattern?.length) {
               const bundleAge = Math.max(0, this.frameCount - e.weaponVisualStartFrame);
               const projectileSpeed = Math.max(1, Math.hypot(e.vx, e.vy));

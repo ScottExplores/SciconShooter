@@ -123,7 +123,7 @@ test('every player ship has eight monotonic four-frame launch animations', () =>
   assert.equal(frameCount, 128);
 });
 
-test('BIO uses its green level-zero launch family while the other ships keep Research level zero', () => {
+test('primary shots preload every level and Projectile Upgrade selects hull-themed progression art', () => {
   const visuals = fs.readFileSync(path.join(root, 'services', 'playerWeaponVisuals.ts'), 'utf8');
   const engine = fs.readFileSync(path.join(root, 'services', 'gameLogic.ts'), 'utf8');
   const pixi = fs.readFileSync(path.join(root, 'services', 'pixi', 'PixiGameRenderer.ts'), 'utf8');
@@ -131,12 +131,14 @@ test('BIO uses its green level-zero launch family while the other ships keep Res
   assert.equal((visuals.match(/frame-[1234]\.png/g) || []).length, 128);
   assert.match(visuals, /UNIVERSAL_PLAYER_WEAPON_FRAMES = research\[0\]/);
   assert.match(visuals, /BIO_PRIMARY_PLAYER_WEAPON_FRAMES = bio\[0\]/);
-  assert.match(visuals, /PLAYER_WEAPON_FRAME_URLS = \[[\s\S]*\.\.\.UNIVERSAL_PLAYER_WEAPON_FRAMES,[\s\S]*\.\.\.BIO_PRIMARY_PLAYER_WEAPON_FRAMES/);
-  assert.match(visuals, /if \(weaponKind === 'bio-primary'\) return BIO_PRIMARY_PLAYER_WEAPON_FRAMES/);
-  assert.match(visuals, /return UNIVERSAL_PLAYER_WEAPON_FRAMES/);
+  assert.match(visuals, /PLAYER_WEAPON_FRAME_URLS = Object\.freeze\(\[[\s\S]*\.\.\.research\.flat\(\),[\s\S]*\.\.\.bio\.flat\(\),[\s\S]*\.\.\.eth\.flat\(\),[\s\S]*\.\.\.btc\.flat\(\)/);
+  assert.match(visuals, /const family = familyOverride \?\? getPlayerWeaponVisualFamily\(weaponKind\)/);
+  assert.match(visuals, /return PLAYER_WEAPON_VISUALS\[family\]\[visualLevel\]/);
   assert.match(engine, /weaponVisualLevel: number = 0/);
+  assert.match(engine, /weaponVisualFamily\?: PlayerWeaponVisualFamily/);
   assert.match(engine, /weaponVisualStartFrame: number = 0/);
-  assert.match(engine, /b\.weaponVisualLevel = 0/);
+  assert.match(engine, /b\.weaponVisualLevel = overdrivePrimary \? this\.missionOverdriveLevel : 0/);
+  assert.match(engine, /getPlayerShipWeaponVisualFamily\(this\.playerShipId\)/);
   assert.match(engine, /const weaponKind: PlayerWeaponKind = 'pulse'/);
   assert.match(engine, /this\.playerShipId === 'bio'[\s\S]*getBioPrimaryShotPlan/);
   assert.match(engine, /'bio-primary'/);
@@ -148,9 +150,11 @@ test('BIO uses its green level-zero launch family while the other ships keep Res
   assert.doesNotMatch(engine, /const angle = randomRange\(-0\.035, 0\.035\)/);
   assert.match(engine, /\.\.\.PLAYER_WEAPON_FRAME_URLS/);
   assert.match(pixi, /\.\.\.PLAYER_WEAPON_FRAME_URLS/);
-  assert.match(pixi, /getPlayerWeaponFrames\(entity\.weaponKind, entity\.weaponVisualLevel\)/);
+  assert.match(pixi, /getPlayerWeaponFrames\([\s\S]*?entity\.weaponKind,[\s\S]*?entity\.weaponVisualLevel,[\s\S]*?entity\.weaponVisualFamily[\s\S]*?\)/);
   assert.match(pixi, /engineFrame - entity\.weaponVisualStartFrame/);
   assert.match(pixi, /const textureKey = frames\[launchFrame\]/);
+  assert.match(pixi, /getPlayerProjectileUpgradePresentation\(entity\.weaponVisualLevel\)/);
+  assert.match(pixi, /view\.trail\.blendMode = 'add'/);
   assert.doesNotMatch(pixi, /if \(playerShot\) \{[\s\S]{0,1200}view\.aura\.ellipse/);
   assert.match(engine, /ctx\.globalCompositeOperation = e\.isPlayerShot \? 'source-over' : 'lighter'/);
   assert.match(engine, /ctx\.shadowBlur = e\.isPlayerShot\s*\? 0/);

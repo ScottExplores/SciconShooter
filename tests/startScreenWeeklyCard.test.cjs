@@ -33,14 +33,13 @@ test('Home offers the Campaign entry point and the Weekly Run as separate contro
   assert.match(source, /disabled=\{attemptsExhausted\}/);
   assert.match(source, /needsServerVerification = !weeklyRunActive[\s\S]*weeklyRunAttemptQuotaUnknown/);
   assert.match(source, /WEEKLY_RUN_STARTING_LIVES\} Lives · \$\{weeklyRunAttemptsRemaining\} Attempt/);
-  assert.match(source, /WEEKLY_RUN_ATTEMPT_LIMIT\} Free\/Week/);
   assert.match(appSource, /weeklyRunAttemptsRemaining=\{weeklyRunAttemptQuotaOwner === activeWalletAddress\?\.toLowerCase\(\)[\s\S]*weeklyRunAttemptQuota\.attemptsRemaining[\s\S]*getWeeklyRunAttemptsRemaining\(weeklySquadState\)\}/);
   assert.match(appSource, /weeklyRunAttemptQuotaUnknown=\{Boolean\([\s\S]*walletProfileStatus === 'ready'/);
   assert.match(source, /onClick=\{onStart\}/);
   assert.match(source, /\{campaignCheckpoint\.waveTotal\} WAVES/);
 });
 
-test('the Weekly Run drawer omits the ship thumbnail and sells one paid attempt after the free five', () => {
+test('the Weekly Run drawer omits the ship thumbnail and keeps its quota copy compact', () => {
   const entry = source.slice(
     source.indexOf('const renderWeeklyRunEntry'),
     source.indexOf('const renderWeeklyFundingCard')
@@ -56,7 +55,8 @@ test('the Weekly Run drawer omits the ship thumbnail and sells one paid attempt 
   assert.match(entry, /const attemptsExhausted = !weeklyRunActive[\s\S]*const showAttemptPurchase = attemptsExhausted/);
   assert.match(entry, /weekly-run-attempt/);
   assert.match(entry, /onPurchaseWithRsc\(weeklyAttemptSkuId\)/);
-  assert.match(entry, /WEEKLY_RUN_ATTEMPT_LIMIT\} Free\/Week/);
+  assert.doesNotMatch(entry, /Free\/Week/);
+  assert.doesNotMatch(entry, /free attempts each week/);
   assert.doesNotMatch(entry, /weeklyRunAttemptsRemaining\}\/\$\{WEEKLY_RUN_ATTEMPT_LIMIT/);
   assert.match(entry, /\+1 Attempt/);
   assert.match(entry, /3 RSC/);

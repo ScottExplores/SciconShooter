@@ -112,4 +112,6 @@ test('More keeps compact audio controls without the oversized settings artwork',
   assert.match(aboutDashboard, /<AudioSettingsControls/);
   assert.match(aboutDashboard, /idPrefix="sci-more"/);
   assert.doesNotMatch(aboutDashboard, /icons\/system\/settings\.png/);
+  assert.doesNotMatch(aboutDashboard, /Play missions and climb the weekly leaderboard/);
+  assert.doesNotMatch(aboutDashboard, /Guests can play, upgrade their squad/);
 });

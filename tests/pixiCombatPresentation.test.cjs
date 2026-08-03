@@ -44,7 +44,7 @@ test('BIO uses bounded green primary projectiles while its old continuous beam s
   assert.match(engine, /this\.playerShipId === 'bio'[\s\S]*getBioPrimaryShotPlan/);
   assert.match(engine, /weaponKind: 'bio-primary'/);
   assert.doesNotMatch(engine, /if \(bioLaserEquipped\)/);
-  assert.match(renderer, /getPlayerWeaponFrames\(entity\.weaponKind, entity\.weaponVisualLevel\)/);
+  assert.match(renderer, /getPlayerWeaponFrames\([\s\S]*?entity\.weaponKind,[\s\S]*?entity\.weaponVisualLevel,[\s\S]*?entity\.weaponVisualFamily[\s\S]*?\)/);
   assert.match(renderer, /engine\.isBioBeamFiring\(\)/);
 });
 
