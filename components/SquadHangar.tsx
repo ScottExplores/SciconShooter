@@ -578,20 +578,13 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
         </section>
 
         <section className="bg-[#080f2c] px-3 pb-4 pt-3 sm:px-5">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <div
-              className="grid gap-px border border-cyan-200/22 bg-cyan-200/20 p-px"
-              style={{ gridTemplateColumns: `repeat(${FIRE_RATE_TIER_COUNT}, minmax(0, 1fr))` }}
-            >
-              {Array.from({ length: FIRE_RATE_TIER_COUNT }, (_, index) => index + 1).map((tierId) => (
-                <button key={tierId} type="button" disabled={tierId !== tier} className={`min-h-9 px-1.5 text-[0.52rem] font-black uppercase sm:px-2 sm:text-[0.58rem] ${tierId === tier ? 'bg-blue-600 text-white' : 'bg-slate-900/90 text-slate-500'}`}>T{tierId}</button>
-              ))}
+          {mode === 'upgrades' ? (
+            <div className="mb-3 flex justify-end">
+              <button type="button" onClick={() => setMode('catalog')} className="min-h-9 border border-cyan-200/30 bg-cyan-300/8 px-3 text-[0.62rem] font-black uppercase text-cyan-100">Fleet</button>
             </div>
-            {mode === 'upgrades' ? <button type="button" onClick={() => setMode('catalog')} className="min-h-9 border border-cyan-200/30 bg-cyan-300/8 px-3 text-[0.62rem] font-black uppercase text-cyan-100">Fleet</button> : null}
-          </div>
-          {/* The tier strip is the fire-rate ladder; this names what the ladder
-              is actually feeding for the selected hull. Patterns belong to the
-              ship -- ETH flies the triple spread -- and Overdrive amplifies it. */}
+          ) : null}
+          {/* Patterns belong to the selected hull, and Overdrive amplifies them
+              without replacing that ship's primary-weapon identity. */}
           <p className="sci-weapon-spec">
             Weapon: {PLAYER_SHIP_WEAPON_SPECS[mainShipId] ?? PLAYER_SHIP_WEAPON_SPECS.researchhub}
           </p>

@@ -51,9 +51,8 @@ export const getWeaponOverdriveTier = (level: number): WeaponOverdriveTier => (
 );
 
 /**
- * Each hull's primary-weapon identity, shown beside the Hangar's T1-T7 fire
- * rate strip. The pattern is the ship, and Overdrive amplifies it rather than
- * replacing it.
+ * Each hull's primary-weapon identity, shown in the Hangar weapon details.
+ * The pattern is the ship, and Overdrive amplifies it rather than replacing it.
  */
 export const PLAYER_SHIP_WEAPON_SPECS: Readonly<Record<string, string>> = Object.freeze({
   researchhub: 'Pulse column - one tight centre lane, fastest tier ramp',

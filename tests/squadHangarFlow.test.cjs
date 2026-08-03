@@ -192,8 +192,8 @@ test('main ship upgrade cards show the matching existing gameplay sprites', () =
   assert.match(hangar, /upgradeId === 'ability'\s*\?\s*getShipAbilityDefinition\(shipId\)\.iconUrl/);
   assert.match(hangar, /getMainShipFireRateTier\(activeMainShipUpgrades\.fireRate\)/);
   assert.match(hangar, /getMainShipFireRateTierProgress\(activeMainShipUpgrades\.fireRate\)/);
-  assert.match(hangar, /Array\.from\(\{ length: FIRE_RATE_TIER_COUNT \}/);
-  assert.match(hangar, /repeat\(\$\{FIRE_RATE_TIER_COUNT\}, minmax\(0, 1fr\)\)/);
+  assert.doesNotMatch(hangar, /Array\.from\(\{ length: FIRE_RATE_TIER_COUNT \}/);
+  assert.doesNotMatch(hangar, /repeat\(\$\{FIRE_RATE_TIER_COUNT\}, minmax\(0, 1fr\)\)/);
   assert.match(hangar, /const maxLevel = getMainShipUpgradeMaxLevel\(upgrade\.id\)/);
   spriteNames.forEach((name) => {
     assert.match(hangar, new RegExp(`/game-art/powerups/${name.replace('.', '\\.')}`));

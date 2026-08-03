@@ -71,7 +71,7 @@ test('fire patterns belong to the hull: ETH flies the triple spread', () => {
   assert.doesNotMatch(engine, /isPowerupActive\(PowerupType\.TRIPLE_SHOT\)/);
   assert.doesNotMatch(engine, /isPowerupActive\(PowerupType\.DOUBLE_SHOT\)/);
 
-  // The Hangar names each hull's weapon identity beside the tier strip.
+  // The Hangar names each hull's weapon identity in its weapon details.
   const specs = overdrive.PLAYER_SHIP_WEAPON_SPECS;
   for (const ship of ['researchhub', 'bio', 'eth', 'btc']) {
     assert.ok(specs[ship], `${ship} has a weapon spec`);
