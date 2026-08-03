@@ -24,6 +24,8 @@ const PROFILES_TABLE = process.env.SUPABASE_WALLET_PROFILES_TABLE || 'scicon_wal
 const CHALLENGES_TABLE = process.env.SUPABASE_WALLET_PROFILE_CHALLENGES_TABLE || 'scicon_wallet_profile_challenges';
 const BOSS_ARCHIVE_RESULTS_TABLE = process.env.SUPABASE_BOSS_ARCHIVE_RESULTS_TABLE
   || 'scicon_boss_archive_challenge_results';
+const WALLET_ENTITLEMENTS_TABLE = process.env.SUPABASE_WALLET_ENTITLEMENTS_TABLE
+  || 'scicon_wallet_entitlements';
 const BOSS_ARCHIVE_PROGRESS_VERSION = 2;
 const BOSS_ARCHIVE_DAILY_ATTEMPT_LIMIT = 3;
 const BOSS_ARCHIVE_DIFFICULTY_IDS = Object.freeze(['easy', 'medium', 'heroic']);
@@ -2624,25 +2626,101 @@ const ensureWalletProfile = async (address, now = Date.now()) => {
 };
 
 /**
- * A normal profile save may spend or earn gameplay Tokens, but it cannot grant
- * the RSC-only right support entitlement. Existing cloud profiles with the slot
- * already unlocked are grandfathered; a brand-new revision cannot self-assert
- * it. Purchased Token totals live only in the service-role purchase ledger and
- * are never accepted from the profile snapshot.
+ * A normal profile save may earn gameplay Tokens, equip owned ships, and save
+ * unrelated progress. Paid reserve and all Token-priced Hangar progression are
+ * server-owned: only the atomic spend RPC may lower that reserve or change the
+ * protected loadout fields. A browser save therefore cannot erase purchased
+ * value, replay an upgrade, or self-assert the RSC-only right support slot.
  */
 const preserveWalletPurchaseServerState = ({
   currentSnapshot,
-  incomingSnapshot
-}) => ({
-  ...incomingSnapshot,
-  weeklyState: {
-    ...incomingSnapshot.weeklyState,
-    unlockedSlots: {
-      ...incomingSnapshot.weeklyState.unlockedSlots,
-      right: Boolean(currentSnapshot?.weeklyState?.unlockedSlots?.right)
-    }
+  incomingSnapshot,
+  purchasedTokensAvailable = 0
+}) => {
+  const currentWeekly = currentSnapshot?.weeklyState ?? null;
+  const incomingWeekly = incomingSnapshot.weeklyState;
+  const protectedTokens = integer(purchasedTokensAvailable, 0, 1_000_000_000);
+  const incomingCoins = integer(incomingWeekly.coins, 0, 1_000_000_000);
+  const protectedCoins = Math.max(incomingCoins, protectedTokens);
+  const incomingDurable = Math.min(
+    protectedCoins,
+    integer(incomingWeekly.durableCampaignCoins, 0, 1_000_000_000)
+  );
+  const protectedDurable = Math.min(
+    protectedCoins,
+    Math.max(incomingDurable, protectedTokens)
+  );
+  if (!currentWeekly) {
+    return {
+      ...incomingSnapshot,
+      weeklyState: {
+        ...incomingWeekly,
+        coins: protectedCoins,
+        durableCampaignCoins: protectedDurable,
+        unlockedSlots: {
+          ...incomingWeekly.unlockedSlots,
+          right: false
+        }
+      }
+    };
   }
-});
+
+  const serverOwnedMiniShips = asObject(currentWeekly.ownedMiniShips);
+  const incomingEquipped = asObject(incomingWeekly.equipped);
+  const currentEquipped = asObject(currentWeekly.equipped);
+  const serverSlots = {
+    left: Boolean(asObject(currentWeekly.unlockedSlots).left),
+    right: Boolean(asObject(currentWeekly.unlockedSlots).right)
+  };
+  const equipped = {};
+  ['left', 'right'].forEach((slot) => {
+    const requested = incomingEquipped[slot];
+    const fallback = currentEquipped[slot];
+    equipped[slot] = serverSlots[slot]
+      && typeof requested === 'string'
+      && serverOwnedMiniShips[requested]
+      ? requested
+      : serverSlots[slot]
+        && typeof fallback === 'string'
+        && serverOwnedMiniShips[fallback]
+        ? fallback
+        : null;
+  });
+
+  return {
+    ...incomingSnapshot,
+    weeklyState: {
+      ...incomingWeekly,
+      coins: protectedCoins,
+      durableCampaignCoins: protectedDurable,
+      unlockedSlots: serverSlots,
+      ownedMiniShips: currentWeekly.ownedMiniShips,
+      equipped,
+      shipUpgrades: currentWeekly.shipUpgrades
+    },
+    permanentState: {
+      ...incomingSnapshot.permanentState,
+      lifetimeStats: {
+        ...incomingSnapshot.permanentState.lifetimeStats,
+        hangarUpgradesPurchased: integer(
+          currentSnapshot?.permanentState?.lifetimeStats?.hangarUpgradesPurchased,
+          0,
+          1_000_000_000
+        )
+      }
+    }
+  };
+};
+
+const fetchPurchasedTokensAvailable = async (walletAddress) => {
+  const rows = await fetchSupabaseJson(
+    `${WALLET_ENTITLEMENTS_TABLE}?select=purchased_tokens_available`
+      + `&wallet_address=eq.${encodeURIComponent(walletAddress)}&limit=1`,
+    { headers: supabaseHeaders() }
+  );
+  const row = Array.isArray(rows) ? rows[0] : null;
+  return integer(row?.purchased_tokens_available, 0, 1_000_000_000);
+};
 
 const writeWalletProfileSnapshotCas = async ({ profile, snapshot, now }) => {
   const sanitizedSnapshot = sanitizeWalletSnapshot(
@@ -2993,9 +3071,13 @@ const saveWalletProfile = async ({
       now
     });
   }
+  const purchasedTokensAvailable = current
+    ? await fetchPurchasedTokensAvailable(walletAddress)
+    : 0;
   sanitizedSnapshot = preserveWalletPurchaseServerState({
     currentSnapshot: current?.snapshot ?? null,
-    incomingSnapshot: sanitizedSnapshot
+    incomingSnapshot: sanitizedSnapshot,
+    purchasedTokensAvailable
   });
   sanitizedSnapshot = preserveCampaignBranchServerState({
     currentSnapshot: current?.snapshot ?? null,
@@ -3056,6 +3138,7 @@ module.exports = {
   createWeeklyState,
   ensureWalletProfile,
   fetchWalletProfile,
+  fetchPurchasedTokensAvailable,
   fetchBossArchiveDailyLedger,
   getBossArchiveChallengeConfig,
   getWalletProfileChallenge,

@@ -11,6 +11,9 @@ test('local development relays persistent APIs when server credentials are absen
   assert.match(viteConfig, /proxyPublicApi\('\/api\/leaderboard'/);
   assert.match(viteConfig, /proxyPublicApi\('\/api\/run-receipts'/);
   assert.match(viteConfig, /proxyPublicApi\('\/api\/player-runs'/);
+  assert.match(viteConfig, /proxyPublicApi\('\/api\/wallet-purchases'/);
+  assert.match(viteConfig, /proxyPublicApi\('\/api\/continue-payments'/);
+  assert.match(viteConfig, /proxyPublicApi\('\/api\/wallet-token-spends'/);
   assert.match(viteConfig, /proxyPublicApi\('\/api\/record-card'/);
   assert.doesNotMatch(viteConfig, /scicon-local-development-receipt-secret/);
 });

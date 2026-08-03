@@ -58,6 +58,14 @@
       "destination": "/api/mint-records?route=wallet-purchases"
     },
     {
+      "source": "/api/continue-payments",
+      "destination": "/api/mint-records?route=continue-payments"
+    },
+    {
+      "source": "/api/wallet-token-spends",
+      "destination": "/api/mint-records?route=wallet-token-spends"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

@@ -33,16 +33,12 @@ create table if not exists public.scicon_wallet_purchase_orders (
   chain_id integer not null check (chain_id = 8453),
   token_address text not null
     check (token_address = '0xfbb75a59193a3525a8825bebe7d4b56899e2f7e1'),
-  recipient_address text not null
-    check (
-      recipient_address = lower(recipient_address)
-      and recipient_address ~ '^0x[0-9a-f]{40}$'
-      -- The API additionally requires this to match the separately configured
-      -- RSC store recipient and rejects the existing continue-payment address.
-      and recipient_address <> '0x0000000000000000000000000000000000000000'
-      and recipient_address <> '0xfbb75a59193a3525a8825bebe7d4b56899e2f7e1'
-      and recipient_address <> '0x3a8d692aabdd4981080a8f6af8375a21359464bf'
-    ),
+  -- Store and Continue payments intentionally settle to the same canonical
+  -- founder wallet. Production settlement must claim their Transfer logs in
+  -- the shared scicon_rsc_payment_receipts ledger before granting a benefit.
+  recipient_address text not null check (
+    recipient_address = '0x3a8d692aabdd4981080a8f6af8375a21359464bf'
+  ),
   amount_raw numeric(78, 0) not null check (amount_raw > 0),
   reward_tokens integer not null check (reward_tokens between 0 and 1000000000),
   grants_right_support boolean not null default false,

@@ -41,6 +41,12 @@ import {
   type WalletPurchaseSettlement,
   type WeeklyRunAttemptQuota
 } from './services/walletPurchaseService';
+import type { ContinuePaymentSettlement } from './services/continuePaymentService';
+import {
+  applyWalletTokenSpend,
+  WalletTokenSpendRequestError,
+  type WalletTokenSpendAction
+} from './services/walletTokenSpendService';
 import {
   finishRunSession,
   startRunSession,
@@ -196,6 +202,7 @@ import {
   discardWalletProfileDirty,
   markWalletProfileDirty,
   rebaseWalletProfileDirtyAfterServerPurchase,
+  rebaseWalletProfileDirtyAfterServerTokenSpend,
   readWalletProfileDirty,
   walletProfileSnapshotsEqual
 } from './services/walletProfileDirtyStore';
@@ -866,6 +873,12 @@ const App: React.FC = () => {
   const walletProfileLocalBaselineRef = useRef<WalletProfileSnapshot | null>(null);
   const walletProfileSaveChainRef = useRef<Promise<void>>(Promise.resolve());
   const walletProfileSessionChainRef = useRef<Promise<void>>(Promise.resolve());
+  const walletTokenSpendInFlightRef = useRef(false);
+  const walletTokenSpendPendingRef = useRef(new Map<string, {
+    spendId: string;
+    expectedRevision: number;
+    action: WalletTokenSpendAction;
+  }>());
   const walletProfileSyncRetryCountRef = useRef(0);
   const walletProfileSyncNotBeforeRef = useRef(0);
   const rewardClaimInFlightRef = useRef(false);
@@ -1322,62 +1335,6 @@ const App: React.FC = () => {
         : { ...current, bossArchive, updatedAt: new Date().toISOString() };
     });
   }, [updatePermanentSquadState]);
-  const handleUnlockSquadSlot = useCallback((slot: SquadSlotId) => {
-    if (isOwnerWallet) return;
-    updateWeeklySquadState((current) => unlockSquadSlot(current, slot));
-  }, [isOwnerWallet, updateWeeklySquadState]);
-
-  const handlePurchaseMiniShip = useCallback((id: MiniShipId) => {
-    if (isOwnerWallet) return;
-    updateWeeklySquadState((current) => purchaseMiniShip(current, id));
-  }, [isOwnerWallet, updateWeeklySquadState]);
-
-  const handleUpgradeMiniShip = useCallback((id: MiniShipId) => {
-    if (isOwnerWallet) {
-      updateWeeklySquadState((current) => adjustFounderMiniShipLevel(current, id, 1), false);
-      return;
-    }
-    updateWeeklySquadState((current) => upgradeMiniShip(current, id));
-  }, [isOwnerWallet, updateWeeklySquadState]);
-
-  const handleDowngradeMiniShip = useCallback((id: MiniShipId) => {
-    if (!isOwnerWallet) return;
-    updateWeeklySquadState((current) => adjustFounderMiniShipLevel(current, id, -1), false);
-  }, [isOwnerWallet, updateWeeklySquadState]);
-
-  const handleEquipMiniShip = useCallback((slot: SquadSlotId, id: MiniShipId | null) => {
-    updateWeeklySquadState((current) => equipMiniShip(current, slot, id), !isOwnerWallet);
-  }, [isOwnerWallet, updateWeeklySquadState]);
-
-  const handleUpgradeMainShip = useCallback((id: MainShipUpgradeId) => {
-    if (isOwnerWallet) {
-      // Founder adjustments are a debug affordance, not a purchase, so they do
-      // not feed the Hangar Engineer achievement.
-      updateWeeklySquadState((current) => adjustFounderMainShipUpgrade(current, usableShipId, id, 1), false);
-      return;
-    }
-    updateWeeklySquadState((current) => {
-      const next = upgradeMainShip(current, usableShipId, id);
-      // upgradeMainShip returns the same state when the purchase is refused for
-      // cost or max level, so only a real change counts.
-      if (next !== current) {
-        updatePermanentSquadState((permanent) => ({
-          ...permanent,
-          lifetimeStats: {
-            ...permanent.lifetimeStats,
-            hangarUpgradesPurchased: permanent.lifetimeStats.hangarUpgradesPurchased + 1
-          },
-          updatedAt: new Date().toISOString()
-        }));
-      }
-      return next;
-    });
-  }, [isOwnerWallet, updatePermanentSquadState, updateWeeklySquadState, usableShipId]);
-
-  const handleDowngradeMainShip = useCallback((id: MainShipUpgradeId) => {
-    if (!isOwnerWallet) return;
-    updateWeeklySquadState((current) => adjustFounderMainShipUpgrade(current, usableShipId, id, -1), false);
-  }, [isOwnerWallet, updateWeeklySquadState, usableShipId]);
   const beginRunSession = useCallback((testRun: boolean, runMode: ActiveRunMode) => {
     if (runSessionPromiseRef.current) return;
 
@@ -1760,6 +1717,211 @@ const App: React.FC = () => {
       selectedShipId: nextShip
     } satisfies WalletProfileSnapshot;
   }, []);
+
+  const applyAuthoritativeHangarSpend = useCallback(async (
+    action: WalletTokenSpendAction
+  ) => {
+    if (!activeWalletAddress || walletProfileStatus !== 'ready') {
+      setWalletError(
+        activeWalletAddress
+          ? 'Reconnect this wallet profile before spending Tokens.'
+          : 'Connect a wallet to use purchased Tokens in the Hangar.'
+      );
+      return false;
+    }
+    if (walletTokenSpendInFlightRef.current) return false;
+
+    const normalizedAddress = activeWalletAddress.toLowerCase();
+    const pendingSpend = walletTokenSpendPendingRef.current.get(normalizedAddress);
+    if (
+      pendingSpend
+      && JSON.stringify(pendingSpend.action) !== JSON.stringify(action)
+    ) {
+      setWalletError('Finish retrying the previous Hangar purchase before starting another.');
+      return false;
+    }
+    walletTokenSpendInFlightRef.current = true;
+    setWalletError('');
+
+    const spendTask = walletProfileSaveChainRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        const flushedProfile = await flushDirtyWalletProfile(normalizedAddress);
+        if (walletProfileAddressRef.current !== normalizedAddress) {
+          throw new Error('The connected wallet changed before the Hangar purchase completed.');
+        }
+        if (flushedProfile) {
+          walletProfileRevisionRef.current = flushedProfile.revision;
+          walletProfileSyncedSnapshotRef.current = flushedProfile.snapshot;
+          cacheWalletProfile(flushedProfile);
+        }
+
+        const pending = walletTokenSpendPendingRef.current.get(normalizedAddress) ?? {
+          spendId: crypto.randomUUID(),
+          expectedRevision: walletProfileRevisionRef.current,
+          action
+        };
+        walletTokenSpendPendingRef.current.set(normalizedAddress, pending);
+        const settlement = await applyWalletTokenSpend(pending);
+        if (
+          walletProfileAddressRef.current !== normalizedAddress
+          || settlement.profile.walletAddress.toLowerCase() !== normalizedAddress
+        ) {
+          throw new Error('The Hangar purchase returned a different wallet profile.');
+        }
+
+        const rebasedDirty = rebaseWalletProfileDirtyAfterServerTokenSpend({
+          address: normalizedAddress,
+          savedProfile: settlement.profile
+        });
+        cacheWalletProfile(settlement.profile);
+        walletProfileRevisionRef.current = settlement.profile.revision;
+        walletProfileSyncedSnapshotRef.current = settlement.profile.snapshot;
+        const hydratedSnapshot = hydrateActiveProfile({
+          profileId: settlement.profile.profileId,
+          snapshot: rebasedDirty?.snapshot ?? settlement.profile.snapshot,
+          founderSandbox: false
+        });
+        walletProfileLocalBaselineRef.current = hydratedSnapshot;
+        weeklySquadStateRef.current = hydratedSnapshot.weeklyState;
+        permanentSquadStateRef.current = hydratedSnapshot.permanentState;
+
+        if (rebasedDirty) {
+          const rebasedProfile = await flushDirtyWalletProfile(normalizedAddress);
+          if (
+            rebasedProfile
+            && walletProfileAddressRef.current === normalizedAddress
+          ) {
+            cacheWalletProfile(rebasedProfile);
+            walletProfileRevisionRef.current = rebasedProfile.revision;
+            walletProfileSyncedSnapshotRef.current = rebasedProfile.snapshot;
+            const finalSnapshot = hydrateActiveProfile({
+              profileId: rebasedProfile.profileId,
+              snapshot: rebasedProfile.snapshot,
+              founderSandbox: false
+            });
+            walletProfileLocalBaselineRef.current = finalSnapshot;
+            weeklySquadStateRef.current = finalSnapshot.weeklyState;
+            permanentSquadStateRef.current = finalSnapshot.permanentState;
+          }
+        }
+        setWalletProfileStatus('ready');
+        setWalletError('');
+        walletTokenSpendPendingRef.current.delete(normalizedAddress);
+        return true;
+      });
+    walletProfileSaveChainRef.current = spendTask.then(
+      () => undefined,
+      () => undefined
+    );
+
+    try {
+      return await spendTask;
+    } catch (error) {
+      console.error('Wallet Token spend failed:', error);
+      if (
+        error instanceof WalletTokenSpendRequestError
+        && error.status >= 400
+        && error.status < 500
+      ) {
+        walletTokenSpendPendingRef.current.delete(normalizedAddress);
+      }
+      setWalletError(
+        error instanceof Error
+          ? error.message
+          : 'The Hangar Token purchase could not be completed.'
+      );
+      return false;
+    } finally {
+      walletTokenSpendInFlightRef.current = false;
+    }
+  }, [activeWalletAddress, hydrateActiveProfile, walletProfileStatus]);
+
+  const handleUnlockSquadSlot = useCallback((slot: SquadSlotId) => {
+    if (isOwnerWallet) return;
+    if (activeWalletAddress) {
+      if (slot === 'left') {
+        void applyAuthoritativeHangarSpend({ kind: 'unlock-left-slot' });
+      }
+      return;
+    }
+    updateWeeklySquadState((current) => unlockSquadSlot(current, slot));
+  }, [activeWalletAddress, applyAuthoritativeHangarSpend, isOwnerWallet, updateWeeklySquadState]);
+
+  const handlePurchaseMiniShip = useCallback((id: MiniShipId) => {
+    if (isOwnerWallet) return;
+    if (activeWalletAddress) {
+      void applyAuthoritativeHangarSpend({ kind: 'purchase-mini-ship', miniShipId: id });
+      return;
+    }
+    updateWeeklySquadState((current) => purchaseMiniShip(current, id));
+  }, [activeWalletAddress, applyAuthoritativeHangarSpend, isOwnerWallet, updateWeeklySquadState]);
+
+  const handleUpgradeMiniShip = useCallback((id: MiniShipId) => {
+    if (isOwnerWallet) {
+      updateWeeklySquadState((current) => adjustFounderMiniShipLevel(current, id, 1), false);
+      return;
+    }
+    if (activeWalletAddress) {
+      void applyAuthoritativeHangarSpend({ kind: 'upgrade-mini-ship', miniShipId: id });
+      return;
+    }
+    updateWeeklySquadState((current) => upgradeMiniShip(current, id));
+  }, [activeWalletAddress, applyAuthoritativeHangarSpend, isOwnerWallet, updateWeeklySquadState]);
+
+  const handleDowngradeMiniShip = useCallback((id: MiniShipId) => {
+    if (!isOwnerWallet) return;
+    updateWeeklySquadState((current) => adjustFounderMiniShipLevel(current, id, -1), false);
+  }, [isOwnerWallet, updateWeeklySquadState]);
+
+  const handleEquipMiniShip = useCallback((slot: SquadSlotId, id: MiniShipId | null) => {
+    updateWeeklySquadState((current) => equipMiniShip(current, slot, id), !isOwnerWallet);
+  }, [isOwnerWallet, updateWeeklySquadState]);
+
+  const handleUpgradeMainShip = useCallback((id: MainShipUpgradeId) => {
+    if (isOwnerWallet) {
+      // Founder adjustments are a debug affordance, not a purchase, so they do
+      // not feed the Hangar Engineer achievement.
+      updateWeeklySquadState((current) => adjustFounderMainShipUpgrade(current, usableShipId, id, 1), false);
+      return;
+    }
+    if (activeWalletAddress) {
+      void applyAuthoritativeHangarSpend({
+        kind: 'upgrade-main-ship',
+        shipId: usableShipId,
+        upgradeId: id
+      });
+      return;
+    }
+    updateWeeklySquadState((current) => {
+      const next = upgradeMainShip(current, usableShipId, id);
+      // upgradeMainShip returns the same state when the purchase is refused for
+      // cost or max level, so only a real change counts.
+      if (next !== current) {
+        updatePermanentSquadState((permanent) => ({
+          ...permanent,
+          lifetimeStats: {
+            ...permanent.lifetimeStats,
+            hangarUpgradesPurchased: permanent.lifetimeStats.hangarUpgradesPurchased + 1
+          },
+          updatedAt: new Date().toISOString()
+        }));
+      }
+      return next;
+    });
+  }, [
+    activeWalletAddress,
+    applyAuthoritativeHangarSpend,
+    isOwnerWallet,
+    updatePermanentSquadState,
+    updateWeeklySquadState,
+    usableShipId
+  ]);
+
+  const handleDowngradeMainShip = useCallback((id: MainShipUpgradeId) => {
+    if (!isOwnerWallet) return;
+    updateWeeklySquadState((current) => adjustFounderMainShipUpgrade(current, usableShipId, id, -1), false);
+  }, [isOwnerWallet, updateWeeklySquadState, usableShipId]);
 
   const createWalletSeedSnapshot = useCallback((
     walletAddress: string,
@@ -5074,7 +5236,7 @@ const App: React.FC = () => {
     setGameState(GameState.GAMEOVER);
   };
 
-  const requestWalletRuntimeAction = useCallback((type: 'connect' | 'switch-account' | 'disconnect' | 'continue') => {
+  const requestWalletRuntimeAction = useCallback((type: 'connect' | 'switch-account' | 'disconnect') => {
     // Kick the chunk off immediately as well, so a first-ever click does not
     // have to wait on a cold network fetch before the popup can open.
     warmWalletRuntime();
@@ -5109,6 +5271,18 @@ const App: React.FC = () => {
   }, [activeWalletAddress, connectWallet]);
 
   const requestRscPurchase = useCallback(async (skuId: RscPurchaseSkuId) => {
+    if (isOwnerWallet) {
+      if (skuId === 'right-support') {
+        handleUnlockSquadSlot('right');
+        return;
+      }
+      setWalletPurchaseStatus({
+        status: 'error',
+        skuId,
+        error: 'This wallet receives Scicon Shooter payments. Switch to a different Base wallet to make a purchase.'
+      });
+      return;
+    }
     if (!RSC_PURCHASE_SKUS[skuId].enabled) {
       setWalletPurchaseStatus({
         status: 'error',
@@ -5117,11 +5291,6 @@ const App: React.FC = () => {
       });
       return;
     }
-    if (isOwnerWallet && skuId === 'right-support') {
-      handleUnlockSquadSlot('right');
-      return;
-    }
-
     setWalletPurchaseStatus({ status: 'connecting', skuId });
     if (activeWalletAddress && walletProfileStatus === 'ready') {
       const normalizedAddress = activeWalletAddress.toLowerCase();
@@ -5626,10 +5795,40 @@ const App: React.FC = () => {
     requestWalletRuntimeAction('switch-account');
   }, [requestWalletRuntimeAction]);
 
-  const handleContinueWithRsc = useCallback(() => {
+  const handleContinueWithRsc = useCallback(async () => {
     if (isContinuePaymentBusy || runReceipt || runReceiptPromiseRef.current) return;
-    requestWalletRuntimeAction('continue');
-  }, [isContinuePaymentBusy, requestWalletRuntimeAction, runReceipt]);
+    setContinuePaymentStatus('processing');
+    setContinuePaymentError('');
+    setContinuePaymentHash('');
+    try {
+      const sessionPromise = runSessionPromiseRef.current ?? startRunSession({
+        testRun: isOwnerTestRun,
+        playerShipId: activeRunShipIdRef.current,
+        runMode: 'standard',
+        profileId: weeklySquadStateRef.current.profileId
+      });
+      runSessionPromiseRef.current = sessionPromise;
+      const session = await sessionPromise;
+      if (session.localOnly || !session.startToken) {
+        throw new Error('Secure Continues require an online run session. Check your connection, then start a new run.');
+      }
+      warmWalletRuntime();
+      setWalletRuntimeEnabled(true);
+      walletActionNonceRef.current += 1;
+      setWalletRuntimeAction({
+        type: 'continue',
+        nonce: walletActionNonceRef.current,
+        runId: session.runId,
+        startToken: session.startToken,
+        expectedContinueSequence: continuesUsed + 1
+      });
+    } catch (error) {
+      setContinuePaymentStatus('error');
+      setContinuePaymentError(
+        error instanceof Error ? error.message : 'The Continue could not be prepared.'
+      );
+    }
+  }, [continuesUsed, isContinuePaymentBusy, isOwnerTestRun, runReceipt]);
 
   const handleWalletRuntimeActionHandled = useCallback((nonce: number) => {
     setWalletRuntimeAction((current) => current?.nonce === nonce ? null : current);
@@ -5652,18 +5851,18 @@ const App: React.FC = () => {
     }
   }, []);
 
-  const handleContinueSuccess = useCallback((transactionHash: string) => {
-    setContinuePaymentHash(transactionHash);
+  const handleContinueSuccess = useCallback((settlement: ContinuePaymentSettlement) => {
+    setContinuePaymentHash(settlement.transactionHash);
     setContinuePaymentStatus('success');
     setContinuePaymentError('');
-    setContinuesUsed(prev => prev + 1);
+    setContinuesUsed(settlement.continueSequence);
     setShowNameInput(false);
     setActiveStoryBeat(null);
     setStats(prev => ({
       ...prev,
-      lives: 5
+      lives: settlement.livesReward
     }));
-    setContinueCommand({ nonce: Date.now(), lives: 5 });
+    setContinueCommand({ nonce: Date.now(), lives: settlement.livesReward });
     setGameState(GameState.PLAYING);
     audioService.playSound('powerup');
 
@@ -6306,9 +6505,7 @@ const App: React.FC = () => {
         <React.Suspense fallback={null}>
           <WalletRuntime
             action={walletRuntimeAction}
-            continueCost={continueRscCost}
             donatedWallets={donatedWallets}
-            isContinuePaymentBusy={isContinuePaymentBusy}
             walletError={walletError}
             onActionHandled={handleWalletRuntimeActionHandled}
             onContinueStatusChange={handleContinueStatusChange}

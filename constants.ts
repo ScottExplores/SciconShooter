@@ -366,9 +366,9 @@ export const DONATION_CONFIG = {
   GAME_URL: "https://sciconshooter.xyz"
 };
 
-// Paid Token packs stay visibly staged but unavailable until their remaining
-// balance and Hangar spending move behind the server-authoritative ledger.
-const RSC_TOKEN_EXCHANGE_ENABLED = false;
+// Paid Token packs use the server-authoritative purchase and Token reserve
+// ledger. The API independently verifies every exact RSC transfer on Base.
+const RSC_TOKEN_EXCHANGE_ENABLED = true;
 
 /**
  * Public purchase descriptions used by the wallet UI. The server keeps its own

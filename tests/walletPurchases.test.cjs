@@ -29,12 +29,11 @@ const loadCommonJsModule = (relativePath, dependencies, globals = {}) => {
   factory(moduleBox.exports, localRequire, moduleBox, filename, path.dirname(filename));
   return moduleBox.exports;
 };
-const STORE_RECIPIENT = '0x2222222222222222222222222222222222222222';
-process.env.RSC_STORE_RECIPIENT_ADDRESS = STORE_RECIPIENT;
 const {
   BASE_CHAIN_ID,
   RSC_CONTINUE_RECIPIENT_ADDRESS,
   RSC_CONTRACT_ADDRESS,
+  RSC_PURCHASE_RECIPIENT_ADDRESS,
   WALLET_PURCHASE_SKUS,
   ZERO_ADDRESS,
   configuredStoreRecipient
@@ -50,6 +49,8 @@ const {
 } = require('../api/_lib/walletProfiles');
 
 const WALLET = '0x1111111111111111111111111111111111111111';
+const ARBITRARY_RECIPIENT = '0x2222222222222222222222222222222222222222';
+const STORE_RECIPIENT = RSC_PURCHASE_RECIPIENT_ADDRESS;
 const HASH = `0x${'ab'.repeat(32)}`;
 
 const profileWithRightSupport = (rightSupportUnlocked, coins = 0) => ({
@@ -159,8 +160,8 @@ test('wallet purchase catalog enables support, Weekly attempts, and exact 500 To
   assert.equal(ZERO_ADDRESS, '0x0000000000000000000000000000000000000000');
   assert.equal(RSC_CONTRACT_ADDRESS, '0xfbb75a59193a3525a8825bebe7d4b56899e2f7e1');
   assert.equal(RSC_CONTINUE_RECIPIENT_ADDRESS, '0x3a8d692aabdd4981080a8f6af8375a21359464bf');
+  assert.equal(RSC_PURCHASE_RECIPIENT_ADDRESS, RSC_CONTINUE_RECIPIENT_ADDRESS);
   assert.equal(configuredStoreRecipient(), STORE_RECIPIENT);
-  assert.notEqual(configuredStoreRecipient(), RSC_CONTINUE_RECIPIENT_ADDRESS);
   assert.deepEqual(
     Object.fromEntries(Object.values(WALLET_PURCHASE_SKUS).map((sku) => [sku.id, {
       amount: sku.rscAmount,
@@ -183,7 +184,7 @@ test('wallet purchase catalog enables support, Weekly attempts, and exact 500 To
     assert.match(clientConstants, new RegExp(`rscAmountRaw: '${sku.rscAmountRaw}'`));
   });
   assert.match(clientConstants, /'tokens-500':[\s\S]*?tokenReward: 500[\s\S]*?enabled: RSC_TOKEN_EXCHANGE_ENABLED/);
-  assert.match(clientConstants, /const RSC_TOKEN_EXCHANGE_ENABLED = false/);
+  assert.match(clientConstants, /const RSC_TOKEN_EXCHANGE_ENABLED = true/);
 
   const releaseGatedCatalog = loadCommonJsModule(
     'api/_lib/walletPurchaseCatalog.js',
@@ -196,20 +197,19 @@ test('wallet purchase catalog enables support, Weekly attempts, and exact 500 To
   assert.equal(releaseGatedCatalog.WALLET_PURCHASE_SKUS['tokens-2500'].enabled, false);
   assert.equal(releaseGatedCatalog.WALLET_PURCHASE_SKUS['tokens-5000'].enabled, false);
 
+  assert.equal(configuredStoreRecipient(WALLET), STORE_RECIPIENT);
+  assert.equal(configuredStoreRecipient(STORE_RECIPIENT), null);
   const originalRecipient = process.env.RSC_STORE_RECIPIENT_ADDRESS;
   try {
-    process.env.RSC_STORE_RECIPIENT_ADDRESS = RSC_CONTINUE_RECIPIENT_ADDRESS;
-    assert.equal(configuredStoreRecipient(), null);
-    process.env.RSC_STORE_RECIPIENT_ADDRESS = ZERO_ADDRESS;
-    assert.equal(configuredStoreRecipient(), null);
-    process.env.RSC_STORE_RECIPIENT_ADDRESS = RSC_CONTRACT_ADDRESS;
-    assert.equal(configuredStoreRecipient(), null);
-    process.env.RSC_STORE_RECIPIENT_ADDRESS = WALLET;
-    assert.equal(configuredStoreRecipient(WALLET), null);
-    process.env.RSC_STORE_RECIPIENT_ADDRESS = 'not-an-address';
-    assert.equal(configuredStoreRecipient(), null);
+    process.env.RSC_STORE_RECIPIENT_ADDRESS = ARBITRARY_RECIPIENT;
+    assert.equal(
+      configuredStoreRecipient(),
+      STORE_RECIPIENT,
+      'deployment configuration must not redirect in-game RSC payments'
+    );
   } finally {
-    process.env.RSC_STORE_RECIPIENT_ADDRESS = originalRecipient;
+    if (originalRecipient === undefined) delete process.env.RSC_STORE_RECIPIENT_ADDRESS;
+    else process.env.RSC_STORE_RECIPIENT_ADDRESS = originalRecipient;
   }
 });
 
@@ -220,14 +220,7 @@ test('stored quote terms must exactly match the immutable server catalog', () =>
     () => assertCanonicalOrderTerms({ ...orderFor(), amount_raw: '2' }),
     /integrity checks/
   );
-  assert.throws(
-    () => assertCanonicalOrderTerms({
-      ...orderFor(),
-      recipient_address: RSC_CONTINUE_RECIPIENT_ADDRESS
-    }),
-    /integrity checks/
-  );
-  for (const recipientAddress of [ZERO_ADDRESS, RSC_CONTRACT_ADDRESS, WALLET]) {
+  for (const recipientAddress of [ZERO_ADDRESS, RSC_CONTRACT_ADDRESS, WALLET, ARBITRARY_RECIPIENT]) {
     assert.throws(
       () => assertCanonicalOrderTerms({
         ...orderFor(),
@@ -527,7 +520,7 @@ test('durable purchase entitlements independently block already-owned quotes', a
   );
 });
 
-test('already-owned and unsafe-address quote requests fail before creating an order', async () => {
+test('already-owned and self-payment quote requests fail before creating an order', async () => {
   let orderWrites = 0;
   const fetchSupabaseJson = async (requestPath, options = {}) => {
     if (requestPath.startsWith('scicon_wallet_entitlements?')) {
@@ -556,20 +549,14 @@ test('already-owned and unsafe-address quote requests fail before creating an or
     (error) => error.statusCode === 400
   );
 
-  const originalRecipient = process.env.RSC_STORE_RECIPIENT_ADDRESS;
-  try {
-    process.env.RSC_STORE_RECIPIENT_ADDRESS = WALLET;
-    const unsafeRecipientPurchases = loadWalletPurchasesForQuoteTest({ fetchSupabaseJson });
-    await assert.rejects(
-      unsafeRecipientPurchases.createWalletPurchaseQuote({
-        address: WALLET,
-        skuId: 'right-support'
-      }),
-      (error) => error.code === 'wallet_purchase_store_not_configured'
-    );
-  } finally {
-    process.env.RSC_STORE_RECIPIENT_ADDRESS = originalRecipient;
-  }
+  const selfPaymentPurchases = loadWalletPurchasesForQuoteTest({ fetchSupabaseJson });
+  await assert.rejects(
+    selfPaymentPurchases.createWalletPurchaseQuote({
+      address: STORE_RECIPIENT,
+      skuId: 'right-support'
+    }),
+    (error) => error.code === 'wallet_purchase_self_payment_forbidden'
+  );
   assert.equal(orderWrites, 0);
 });
 
@@ -734,6 +721,51 @@ test('an enabled Token pack quotes, verifies, recovers full credit, and resumes 
   assert.equal(rpcCalls, 2);
 });
 
+test('a transfer already claimed by any RSC purchase purpose returns a clear conflict', async () => {
+  const now = 2_000_000_000_000;
+  let order = null;
+  const purchases = loadWalletPurchasesForQuoteTest({
+    fetchSupabaseJson: async (requestPath, options = {}) => {
+      if (requestPath.startsWith('scicon_wallet_entitlements?')) return [];
+      if (requestPath.startsWith('rpc/scicon_settle_wallet_purchase')) {
+        throw new Error('Supabase request failed: rsc_payment_replayed');
+      }
+      if (requestPath.includes('status=eq.quoted') && !options.method) return [];
+      if (requestPath.startsWith('scicon_wallet_purchase_orders?select=*') && options.method === 'POST') {
+        order = JSON.parse(options.body);
+        return [{ ...order }];
+      }
+      if (requestPath.startsWith('scicon_wallet_purchase_orders?select=')) {
+        return order ? [{ ...order }] : [];
+      }
+      throw new Error(`Unexpected replay settlement request: ${requestPath}`);
+    }
+  });
+  const quote = await purchases.createWalletPurchaseQuote({
+    address: WALLET,
+    skuId: 'tokens-500',
+    now
+  });
+  const tokenLog = await transferLog({
+    amountRaw: WALLET_PURCHASE_SKUS['tokens-500'].rscAmountRaw
+  });
+
+  await assert.rejects(
+    purchases.settleWalletPurchase({
+      address: WALLET,
+      orderId: quote.orderId,
+      transactionHash: HASH,
+      now,
+      publicClient: publicClientFor({ logs: [tokenLog] })
+    }),
+    (error) => (
+      error.statusCode === 409
+      && error.code === 'wallet_purchase_payment_replayed'
+      && /already been claimed/i.test(error.message)
+    )
+  );
+});
+
 test('ordinary profile saves cannot mint the RSC-only right entitlement or fake purchase-ledger metadata', () => {
   const now = Date.UTC(2026, 7, 2, 19);
   const incoming = sanitizeWalletSnapshot({
@@ -794,6 +826,7 @@ test('wallet purchase API is session-bound and same-origin, while runtime expose
   assert.doesNotMatch(client, /VITE_RSC_STORE_RECIPIENT_ADDRESS/);
   assert.match(client, /recipient === ZERO_ADDRESS/);
   assert.match(client, /recipient === DONATION_CONFIG\.RSC_CONTRACT_ADDRESS\.toLowerCase\(\)/);
+  assert.match(client, /recipient !== DONATION_CONFIG\.RECIPIENT_ADDRESS\.toLowerCase\(\)/);
   assert.match(client, /recipient === walletAddress\.toLowerCase\(\)/);
   assert.match(client, /resumePendingWalletPurchase/);
   assert.match(client, /wallet_purchase_in_progress/);
@@ -883,9 +916,8 @@ test('local purchase migration is service-role-only and settles rewards atomical
   assert.doesNotMatch(sql, /sku_id = 'tokens-50'/);
   assert.match(sql, /p_payment_block_time < v_order\.created_at - interval '30 seconds'/);
   assert.match(sql, /p_payment_block_time > v_order\.expires_at/);
-  assert.match(sql, /recipient_address <> '0x3a8d692aabdd4981080a8f6af8375a21359464bf'/);
-  assert.match(sql, /recipient_address <> '0x0000000000000000000000000000000000000000'/);
-  assert.match(sql, /recipient_address <> '0xfbb75a59193a3525a8825bebe7d4b56899e2f7e1'/);
+  assert.match(sql, /recipient_address = '0x3a8d692aabdd4981080a8f6af8375a21359464bf'/);
+  assert.doesNotMatch(sql, /recipient_address <> '0x3a8d692aabdd4981080a8f6af8375a21359464bf'/);
   assert.match(sql, /recipient_address <> wallet_address/);
   assert.match(sql, /wallet_address <> '0x0000000000000000000000000000000000000000'/);
   assert.match(sql, /wallet_purchase_already_owned/);
@@ -924,12 +956,12 @@ test('additive Weekly Run purchase migration grants one server-only week credit 
 
 test('Token exchange migration pins every enabled pack to exactly 500 Tokens per RSC', () => {
   const migrationName = fs.readdirSync(path.join(root, 'supabase', 'migrations'))
-    .find((name) => name.endsWith('_enable_rsc_token_exchange.sql'));
-  assert.ok(migrationName, 'the Token exchange migration must exist');
+    .find((name) => name.endsWith('_install_founder_rsc_purchase_rails.sql'));
+  assert.ok(migrationName, 'the founder RSC purchase rail migration must exist');
   const sql = read('supabase', 'migrations', migrationName);
 
   assert.match(sql, /^begin;/m);
-  assert.match(sql, /drop constraint if exists scicon_wallet_purchase_orders_terms_check/);
+  assert.match(sql, /constraint scicon_wallet_purchase_orders_terms_check check/);
   assert.match(sql, /sku_id = 'tokens-500'[\s\S]*amount_raw = 1000000000000000000[\s\S]*reward_tokens = 500/);
   assert.match(sql, /sku_id = 'tokens-2500'[\s\S]*amount_raw = 5000000000000000000[\s\S]*reward_tokens = 2500/);
   assert.match(sql, /sku_id = 'tokens-5000'[\s\S]*amount_raw = 10000000000000000000[\s\S]*reward_tokens = 5000/);
