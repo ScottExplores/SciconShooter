@@ -91,11 +91,15 @@ test('continuing into the next Mission makes death retry that Mission from its f
   );
 });
 
-test('Campaign mastery results surface an upgrade that became affordable after reward credit', () => {
+test('Campaign mastery settlement still detects newly affordable upgrades without cluttering the Mission result card', () => {
   assert.match(appSource, /newlyAffordableUpgrade: string \| null/);
   assert.match(appSource, /getNewlyAffordableSquadUpgrade\(weeklyBeforeCredit, credit\.state\.coins, usableShipId\)/);
-  assert.match(appSource, /newlyAffordableUpgrade=\{isCampaignRun/);
-  assert.match(overlaySource, /Upgrade now affordable: \{newlyAffordableUpgrade\}/);
+  assert.doesNotMatch(appSource, /newlyAffordableUpgrade=\{isCampaignRun/);
+  assert.doesNotMatch(overlaySource, /Campaign reward breakdown|Mission Mastered|Next Mission unlocked|Upgrade now affordable|wave-record-reward-chip/);
+  assert.match(overlaySource, /className="wave-record-stars"/);
+  assert.match(overlaySource, /className="wave-victory-secondary is-hangar"/);
+  assert.match(overlaySource, /className="wave-victory-secondary is-map"/);
+  assert.match(overlaySource, /className="wave-victory-secondary is-home"/);
 });
 
 test('the victory overlay uses the layered Scicon reveal packs and shows mission metrics', () => {
@@ -105,7 +109,8 @@ test('the victory overlay uses the layered Scicon reveal packs and shows mission
   assert.match(overlaySource, /record-card-body\.png/);
   assert.match(overlaySource, /'Victory'/);
   assert.match(overlaySource, />Enemies</);
-  assert.match(overlaySource, />Coins</);
+  assert.match(overlaySource, />Tokens</);
+  assert.doesNotMatch(overlaySource, />Coins</);
   assert.match(overlaySource, />Flight</);
   assert.match(overlaySource, /Continue/);
   assert.match(overlaySource, /Mission \{summary\.stage\}/);

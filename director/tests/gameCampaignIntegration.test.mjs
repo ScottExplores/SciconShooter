@@ -142,7 +142,7 @@ const makeLegacyCampaign = () => ({
       scoreTarget: 2000,
       durationSeconds: null,
       loopWaves: true,
-      availablePowerupIds: ['shield', 'double-shot'],
+      availablePowerupIds: ['shield', 'projectile-upgrade'],
       scorecard: {
         trigger: 'mission-end',
         title: 'Mission Record',

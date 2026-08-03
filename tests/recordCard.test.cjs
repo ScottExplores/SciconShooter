@@ -59,6 +59,8 @@ test('record card embeds encounter art and meaningful run values', async () => {
     assert.match(res.body, /MISSION RECORD/);
     assert.match(res.body, /ACE/);
     assert.match(res.body, /12,345/);
+    assert.match(res.body, />TOKENS<\/text>/);
+    assert.doesNotMatch(res.body, />COINS<\/text>/);
     assert.match(res.body, /Citation Storm/);
     assert.match(res.body, /JUL 10, 2026 - 12:00 PM UTC/);
     assert.match(res.body, /data:image\/png;base64,/);

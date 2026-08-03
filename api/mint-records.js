@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const { fetchSupabaseJson, supabaseHeaders } = require('./_lib/supabase');
 const { handlePlayerRuns } = require('./_lib/playerRuns');
 const walletProfileHandler = require('./_lib/walletProfileRoute');
+const walletPurchaseHandler = require('./_lib/walletPurchaseRoute');
 
 const MINTS_TABLE = process.env.SUPABASE_MINT_RECORDS_TABLE || 'scicon_mint_records';
 const RECEIPTS_TABLE = process.env.SUPABASE_RUN_RECEIPTS_TABLE || 'scicon_run_receipts';
@@ -86,6 +87,7 @@ const verifyCurrentTokenOwnership = async (rows, wallet) => {
 module.exports = async (req, res) => {
   if (req.query?.route === 'player-runs') return handlePlayerRuns(req, res);
   if (req.query?.route === 'wallet-profile') return walletProfileHandler(req, res);
+  if (req.query?.route === 'wallet-purchases') return walletPurchaseHandler(req, res);
 
   try {
     if (req.method === 'GET') {

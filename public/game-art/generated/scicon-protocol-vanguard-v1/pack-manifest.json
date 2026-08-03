@@ -1,0 +1,20 @@
+{
+  "id": "scicon-protocol-vanguard-v1",
+  "label": "Protocol Vanguard",
+  "kind": "enemy-animation-pack",
+  "frameSize": {
+    "width": 256,
+    "height": 256
+  },
+  "frames": [
+    "enemies/protocol-vanguard/frames/protocol-vanguard-01-neutral.png",
+    "enemies/protocol-vanguard/frames/protocol-vanguard-02-charge.png",
+    "enemies/protocol-vanguard/frames/protocol-vanguard-03-fire.png",
+    "enemies/protocol-vanguard/frames/protocol-vanguard-04-damage.png"
+  ],
+  "animation": {
+    "fps": 7,
+    "loop": true
+  },
+  "notes": "Distinct mid-tier campaign enemy. Stronger behavior is communicated through silhouette and animation instead of enlarged base-enemy art or a persistent elite ring."
+}

@@ -7,12 +7,13 @@ process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-key';
 
 const { signPayload } = require('../api/_lib/runReceipts');
 const leaderboardHandler = require('../api/leaderboard');
-const { getCurrentWeekRange } = require('../shared/weeklyCompetitionBoundary.js');
+const { getCurrentWeekRange, getWeekRange } = require('../shared/weeklyCompetitionBoundary.js');
 
 const makeReceipt = (runId = crypto.randomUUID(), overrides = {}) => signPayload({
   type: 'run-receipt',
   runId,
   gameVersion: 'test',
+  runMode: 'weekly-streak',
   startedAt: Date.now() - 60_000,
   finishedAt: Date.now(),
   expiresAt: Date.now() + 60_000,
@@ -172,6 +173,35 @@ test('leaderboard rejects signed Pilot Test receipts before touching storage', a
   }
 });
 
+test('leaderboard rejects a signed Campaign or standard receipt before touching storage', async () => {
+  const originalFetch = global.fetch;
+  let fetchCalled = false;
+  global.fetch = async () => {
+    fetchCalled = true;
+    return jsonResponse([]);
+  };
+
+  try {
+    const res = makeResponse();
+    await leaderboardHandler({
+      method: 'POST',
+      body: {
+        name: 'campaign pilot',
+        receiptToken: makeReceipt(crypto.randomUUID(), { runMode: 'standard' })
+      },
+      headers: {},
+      socket: { remoteAddress: '127.0.0.41' }
+    }, res);
+
+    assert.equal(res.statusCode, 403);
+    assert.equal(res.body.code, 'WEEKLY_RUN_REQUIRED');
+    assert.match(res.body.error, /only a verified Weekly Run/i);
+    assert.equal(fetchCalled, false);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
 test('leaderboard treats a replayed run ID as an idempotent save', async () => {
   const runId = crypto.randomUUID();
   const originalFetch = global.fetch;
@@ -306,6 +336,67 @@ test('leaderboard returns the top 100 all-time and weekly scores', async () => {
   } finally {
     global.fetch = originalFetch;
   }
+});
+
+test('leaderboard can read one exact historical week without relying on the all-time top 100', async () => {
+  const originalFetch = global.fetch;
+  const weekKey = '2026-07-05';
+  const range = getWeekRange(weekKey);
+  const historicalWeekRows = [{
+    name: 'PAST PILOT',
+    score: 17,
+    wave: 3,
+    date: new Date(range.start.getTime() + 60_000).toISOString(),
+    wallet_address: null,
+    donated: false,
+    proposal_id: null,
+    proposal_title: null,
+    proposal_url: null,
+    proposal_author: null,
+    run_id: 'past-week-run',
+    verified: true,
+    receipt_hash: 'past-week-hash'
+  }];
+  const requests = [];
+
+  global.fetch = async (url) => {
+    requests.push(String(url));
+    return jsonResponse(historicalWeekRows);
+  };
+
+  try {
+    const res = makeResponse();
+    await leaderboardHandler({
+      method: 'GET',
+      query: { weekKey },
+      headers: {},
+      socket: { remoteAddress: '127.0.0.1' }
+    }, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.weekKey, weekKey);
+    assert.equal(res.body.weekScores.length, 1);
+    assert.equal(res.body.weekScores[0].name, 'PAST PILOT');
+    assert.equal(requests.length, 1);
+    assert.match(requests[0], new RegExp(`date=gte\\.${encodeURIComponent(range.start.toISOString())}`));
+    assert.match(requests[0], new RegExp(`date=lt\\.${encodeURIComponent(range.end.toISOString())}`));
+    assert.match(requests[0], /limit=100/);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('leaderboard rejects an invalid exact week key', async () => {
+  const res = makeResponse();
+  await leaderboardHandler({
+    method: 'GET',
+    query: { weekKey: '2026-07-06' },
+    headers: {},
+    socket: { remoteAddress: '127.0.0.1' }
+  }, res);
+
+  assert.equal(res.statusCode, 400);
+  assert.match(res.body.error, /Sunday formatted as YYYY-MM-DD/);
 });
 
 test('the current weekly leader can attach one eligible proposal to the verified run', async () => {

@@ -257,3 +257,82 @@ test('simultaneous weekly economy changes and null-base races remain conflicts',
     remoteSnapshot: snapshot(WALLET_B)
   }), /cannot cross wallet boundaries/i);
 });
+
+test('purchase settlement preserves local writes while rebasing the server-owned right support unlock', async () => {
+  global.window = { localStorage: createStorage() };
+  const dirtyStore = await import('../services/walletProfileDirtyStore.ts');
+  const base = snapshot(WALLET_A);
+  const local = structuredClone(base);
+  local.weeklyState.coins = 145;
+  local.selectedShipId = 'bio';
+  dirtyStore.markWalletProfileDirty({
+    address: WALLET_A,
+    expectedRevision: 6,
+    baseSnapshot: base,
+    snapshot: local
+  });
+
+  const remote = structuredClone(base);
+  remote.weeklyState.unlockedSlots.right = true;
+  const rebased = dirtyStore.rebaseWalletProfileDirtyAfterServerPurchase({
+    address: WALLET_A,
+    savedProfile: {
+      walletAddress: WALLET_A,
+      profileId: `wallet:${WALLET_A}`,
+      revision: 7,
+      snapshot: remote
+    }
+  });
+
+  assert.equal(rebased.expectedRevision, 7);
+  assert.equal(rebased.baseSnapshot.weeklyState.unlockedSlots.right, true);
+  assert.equal(rebased.snapshot.weeklyState.unlockedSlots.right, true);
+  assert.equal(rebased.snapshot.weeklyState.coins, 145);
+  assert.equal(rebased.snapshot.selectedShipId, 'bio');
+});
+
+test('purchase-aware conflict rebase overlays only right support and adopts the server revision', async () => {
+  global.window = { localStorage: createStorage() };
+  const dirtyStore = await import('../services/walletProfileDirtyStore.ts');
+  const base = snapshot(WALLET_A, { coins: 100 });
+  const local = snapshot(WALLET_A, {
+    coins: 75,
+    runs: 4,
+    totalCoins: 175,
+    selectedShipId: 'bio'
+  });
+  const original = dirtyStore.markWalletProfileDirty({
+    address: WALLET_A,
+    expectedRevision: 8,
+    baseSnapshot: base,
+    snapshot: local
+  });
+  const remote = snapshot(WALLET_A, {
+    coins: 125,
+    runs: 9,
+    totalCoins: 450,
+    selectedShipId: 'eth'
+  });
+  remote.weeklyState.unlockedSlots.right = true;
+
+  const rebased = dirtyStore.rebaseWalletProfileDirtyAfterServerPurchase({
+    address: WALLET_A,
+    savedProfile: {
+      walletAddress: WALLET_A,
+      profileId: `wallet:${WALLET_A}`,
+      revision: 9,
+      snapshot: remote
+    }
+  });
+
+  assert.notEqual(rebased.writeId, original.writeId);
+  assert.equal(rebased.expectedRevision, 9);
+  assert.equal(rebased.baseSnapshot.weeklyState.coins, 125);
+  assert.equal(rebased.baseSnapshot.selectedShipId, 'eth');
+  assert.equal(rebased.snapshot.weeklyState.unlockedSlots.right, true);
+  assert.equal(rebased.snapshot.weeklyState.coins, 75);
+  assert.equal(rebased.snapshot.weeklyState.weeklyStats.runs, 4);
+  assert.equal(rebased.snapshot.permanentState.lifetimeStats.runs, 4);
+  assert.equal(rebased.snapshot.stats.totalCoins, 175);
+  assert.equal(rebased.snapshot.selectedShipId, 'bio');
+});

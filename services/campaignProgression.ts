@@ -466,7 +466,7 @@ const getMissionStarObjectives = (
     { id: `${level.id}:complete`, label: 'Complete the Mission', kind: 'complete', target: 1, rewardCoins: baseReward },
     {
       id: `${level.id}:coins`,
-      label: `Collect ${Math.max(8, level.waves.length * 4 + number)} coins`,
+      label: `Collect ${Math.max(8, level.waves.length * 4 + number)} Tokens`,
       kind: 'coins-at-least',
       target: Math.max(8, level.waves.length * 4 + number),
       rewardCoins: baseReward + 6

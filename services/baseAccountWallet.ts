@@ -4,6 +4,7 @@ import {
   createPublicClient,
   encodeFunctionData,
   erc20Abi,
+  formatUnits,
   http,
   parseUnits,
   stringToHex,
@@ -45,6 +46,46 @@ const publicClient = createPublicClient({
   chain: base,
   transport: http(DONATION_CONFIG.BASE_RPC_URL)
 });
+
+let cachedRscDecimals: number | null = null;
+
+const readRscDecimals = async (): Promise<number> => {
+  if (cachedRscDecimals !== null) return cachedRscDecimals;
+  const decimals = await publicClient.readContract({
+    address: DONATION_CONFIG.RSC_CONTRACT_ADDRESS as Address,
+    abi: erc20Abi,
+    functionName: 'decimals'
+  } as any) as number;
+  cachedRscDecimals = Number(decimals);
+  return cachedRscDecimals;
+};
+
+export interface RscBalanceSnapshot {
+  address: Address;
+  raw: bigint;
+  formatted: string;
+  decimals: number;
+  symbol: 'RSC';
+}
+
+export const getRscBalance = async (address: Address): Promise<RscBalanceSnapshot> => {
+  const [decimals, raw] = await Promise.all([
+    readRscDecimals(),
+    publicClient.readContract({
+      address: DONATION_CONFIG.RSC_CONTRACT_ADDRESS as Address,
+      abi: erc20Abi,
+      functionName: 'balanceOf',
+      args: [address]
+    } as any) as Promise<bigint>
+  ]);
+  return {
+    address,
+    raw,
+    formatted: formatUnits(raw, decimals),
+    decimals,
+    symbol: 'RSC'
+  };
+};
 
 const builderCodeSuffix = Attribution.toDataSuffix({
   codes: [DONATION_CONFIG.BUILDER_CODE]
@@ -164,11 +205,7 @@ export const sendRscContinuePayment = async ({
   amount: number;
 }): Promise<Hex> => {
   const contractAddress = DONATION_CONFIG.RSC_CONTRACT_ADDRESS as Address;
-  const decimals = await publicClient.readContract({
-    address: contractAddress,
-    abi: erc20Abi,
-    functionName: 'decimals'
-  } as any) as number;
+  const decimals = await readRscDecimals();
   const amountInWei = parseUnits(amount.toString(), decimals);
   const available = await publicClient.readContract({
     address: contractAddress,
@@ -192,5 +229,43 @@ export const sendRscContinuePayment = async ({
         args: [DONATION_CONFIG.RECIPIENT_ADDRESS as Address, amountInWei]
       })
     }]
+  });
+};
+
+export const sendRscPurchaseTransfer = async ({
+  from,
+  recipient,
+  amountRaw,
+  onSubmitted
+}: {
+  from: Address;
+  recipient: Address;
+  amountRaw: bigint;
+  onSubmitted?: (callsId: Hex) => void;
+}): Promise<Hex> => {
+  if (amountRaw <= 0n) throw new Error('The RSC purchase amount must be positive.');
+  const contractAddress = DONATION_CONFIG.RSC_CONTRACT_ADDRESS as Address;
+  const available = await publicClient.readContract({
+    address: contractAddress,
+    abi: erc20Abi,
+    functionName: 'balanceOf',
+    args: [from]
+  } as any) as bigint;
+  if (available < amountRaw) {
+    const decimals = await readRscDecimals();
+    throw new Error(`You need ${formatUnits(amountRaw, decimals)} RSC on Base for this purchase.`);
+  }
+  return sendAttributedBaseCalls({
+    from,
+    calls: [{
+      to: contractAddress,
+      value: '0x0',
+      data: encodeFunctionData({
+        abi: erc20Abi,
+        functionName: 'transfer',
+        args: [recipient, amountRaw]
+      })
+    }],
+    onSubmitted
   });
 };

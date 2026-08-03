@@ -925,9 +925,10 @@ export const PIXI_WAVE_PRESENTATION_TEXTURE_URLS = Object.freeze([
 
 const getPowerupFrames = (powerup: PowerupType): readonly string[] => {
   switch (powerup) {
+    case PowerupType.OVERDRIVE:
     case PowerupType.TRIPLE_SHOT:
     case PowerupType.DOUBLE_SHOT:
-      return ASSETS.POWERUP_OVERDRIVE_SPREAD_FRAMES;
+      return ASSETS.POWERUP_PROJECTILE_UPGRADE_FRAMES;
     case PowerupType.MAX_SHOT:
       return [ASSETS.POWERUP_MAX_SHOT];
     case PowerupType.MAGNET:
@@ -939,7 +940,7 @@ const getPowerupFrames = (powerup: PowerupType): readonly string[] => {
     case PowerupType.RESEARCH_BEAM:
       return ASSETS.POWERUP_RESEARCH_BEAM_FRAMES;
     default:
-      return ASSETS.POWERUP_OVERDRIVE_SPREAD_FRAMES;
+      return ASSETS.POWERUP_PROJECTILE_UPGRADE_FRAMES;
   }
 };
 
@@ -994,7 +995,7 @@ export const PIXI_GAMEPLAY_TEXTURE_URLS = Object.freeze([
   ...ASSETS.PIXI_BOSS_PAYWALL_BOLT_FRAMES,
   ...ASSETS.PIXI_BOSS_THRUSTER_FRAMES,
   ...PLAYER_SHIP_STEERING_FRAME_URLS,
-  ...ASSETS.POWERUP_OVERDRIVE_SPREAD_FRAMES,
+  ...ASSETS.POWERUP_PROJECTILE_UPGRADE_FRAMES,
   ASSETS.POWERUP_MAX_SHOT,
   ...ASSETS.POWERUP_MAGNET_FRAMES,
   ...ASSETS.POWERUP_SHIELD_FRAMES,
@@ -1147,6 +1148,15 @@ const getDefaultEntityTexture = (engine: GameEngine, entity: Entity) => {
   if (entity.spriteFrames?.length) {
     if (entity.type === EntityType.BOSS) {
       return entity.spriteFrames[clamp(entity.bossDecayStage, 0, entity.spriteFrames.length - 1)];
+    }
+    // Protocol Vanguard art encodes simulation states rather than a looping
+    // idle animation: neutral, charge, fire, damage. Never cycle the damage
+    // frame while the unit is simply holding formation.
+    if (entity.campaignRoleId === 'role-protocol-vanguard' && entity.spriteFrames.length >= 4) {
+      if (entity.flashFrames > 0) return entity.spriteFrames[3];
+      if (engine.frameCount - entity.campaignLastFireFrame <= 8) return entity.spriteFrames[2];
+      if (entity.formationAttackSelected || entity.formationAttackActive) return entity.spriteFrames[1];
+      return entity.spriteFrames[0];
     }
     if (entity.type === EntityType.ENEMY_INVADER && entity.spriteFrames.length >= 5) {
       return entity.spriteFrames[getPaywallBastionFrameIndex(engine, entity)];

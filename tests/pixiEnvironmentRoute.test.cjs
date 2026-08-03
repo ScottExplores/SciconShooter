@@ -109,7 +109,9 @@ test('ground sectors use terrain aircraft and never turn the river route into an
       .filter((event) => event.kind === 'spawn' && Array.isArray(event.enemies));
     assert.ok(combatSpawns.length > 0, `${stage.id} retains authored combat spawns`);
     assert.ok(combatSpawns.every((event) => event.enemies.every((enemy) => (
-      enemy.spriteKey.startsWith('PIXI_JET_') || enemy.spriteKey === 'ENEMY_JOURNAL_FRAMES'
+      enemy.spriteKey.startsWith('PIXI_JET_')
+      || enemy.spriteKey === 'ENEMY_JOURNAL_FRAMES'
+      || enemy.spriteKey === 'CAMPAIGN_ENEMY_PROTOCOL_VANGUARD_FRAMES'
     ))));
   }
 

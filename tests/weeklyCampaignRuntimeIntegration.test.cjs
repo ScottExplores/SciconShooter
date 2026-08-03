@@ -124,12 +124,12 @@ test('weekly streak proof and the server-issued run token are bound to Weekly mo
 test('Campaign Missions never post to the weekly high-score board', () => {
   const appSource = read('App.tsx');
 
-  // Leaderboard eligibility is its own flag. Campaign runs are excluded from
-  // it, but must stay inside isNonCompetitiveRun's inverse so they keep
-  // awarding lifetime stats, mastery, and Hangar credits.
+  // Leaderboard eligibility is owned exclusively by Weekly Run. Campaign
+  // remains outside isNonCompetitiveRun so it still awards lifetime stats,
+  // mastery, and Hangar credits without touching the weekly score.
   assert.match(
     appSource,
-    /const isWeeklyLeaderboardRun = !isNonCompetitiveRun && !isCompetitiveCampaignRun;/
+    /const isWeeklyLeaderboardRun = isWeeklyCampaignRun && !isNonCompetitiveRun;/
   );
   assert.doesNotMatch(
     appSource,

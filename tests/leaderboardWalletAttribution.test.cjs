@@ -27,6 +27,7 @@ const makeReceipt = (runId = crypto.randomUUID(), overrides = {}) => signPayload
   startedAt: Date.now() - 60_000,
   finishedAt: Date.now(),
   expiresAt: Date.now() + 60_000,
+  runMode: 'weekly-streak',
   metrics: {
     score: 4321,
     wave: 4,

@@ -37,12 +37,12 @@ test('the HUD uses enlarged sprite-only upgrade buttons with cost and appropriat
   assert.doesNotMatch(source, /style=\{\{ width: `\$\{Math\.min\(100, \(level \/ config\.maxLevel\)/);
 });
 
-test('the top HUD uses slim mirrored rails with room for multi-digit match coins', () => {
+test('the top HUD uses slim mirrored rails with room for multi-digit match Tokens', () => {
   const source = fs.readFileSync(path.join(root, 'components', 'UIOverlay.tsx'), 'utf8');
   const styles = fs.readFileSync(path.join(root, 'styles', 'tailwind.input.css'), 'utf8');
 
   assert.doesNotMatch(source, /Wave \{stats\.wave\}/);
-  assert.match(source, /aria-label=\{`\$\{stats\.coins\} coins collected this match`\}/);
+  assert.match(source, /aria-label=\{`\$\{formatTokenAmount\(stats\.coins\)\} collected this match`\}/);
   assert.match(source, /matchCoin: '\/game-art\/generated\/rsc-coin-flip-v1\/rsc-coin-pixel-front\.png'/);
   assert.match(source, /src=\{compactHudAssets\.matchCoin\}/);
   assert.match(source, />\s*x\{stats\.coins\}\s*</);

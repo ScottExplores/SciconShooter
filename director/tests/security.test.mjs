@@ -123,7 +123,7 @@ test('real-run imports use only fixed-origin GETs and return a sensitive-field-f
         { trait_type: 'Score', value: 12500 },
         { trait_type: 'Wave', value: 3 },
         { trait_type: 'Targets Defeated', value: 84 },
-        { trait_type: 'Coins Collected', value: 26 },
+        { trait_type: 'Tokens Collected', value: 26 },
         { trait_type: 'Flight Time', value: '02:18' },
         { trait_type: 'Game Version', value: '2.1.0' },
         { trait_type: 'Integrity', value: 'server-verified' }

@@ -11,7 +11,8 @@ const {
 const {
   getCurrentWeekRange,
   getPreviousWeekKey,
-  getWeekRange
+  getWeekRange,
+  WEEKLY_SCORE_SETTLEMENT_MS
 } = require('../../shared/weeklyCompetitionBoundary.js');
 
 const LEADERBOARD_TABLE = process.env.SUPABASE_LEADERBOARD_TABLE || 'scicon_leaderboard';
@@ -26,10 +27,10 @@ const WEEKLY_PROPOSAL_CACHE_PREFIX = 'researchhub-open-preregistrations:week:';
 const MAX_CUTOFF_SNAPSHOT_AGE_MS = 121 * 60 * 1000;
 const CUTOFF_SNAPSHOT_CAPTURE_WINDOW_MS = 121 * 60 * 1000;
 const STABLE_WINNER_MAX_ATTEMPTS = 3;
-const SCORE_SUBMISSION_SETTLEMENT_MS = 5 * 60 * 1000;
 const RECENT_COMPETITION_BACKFILL_WEEKS = 3;
 const DEFAULT_ALLOCATION_RSC = 100;
 const CLAIM_WINDOW_MS = 72 * 60 * 60 * 1000;
+const TERMINAL_WEEKLY_COMPETITION_STATUSES = new Set(['finalized', 'claimed', 'funded', 'expired']);
 const LEADER_PROPOSAL_SELECT = 'name,score,wave,date,wallet_address,run_id,verified,proposal_id,proposal_title,proposal_url,proposal_author';
 const LEADER_PROPOSAL_IMAGE_SELECT = `${LEADER_PROPOSAL_SELECT},proposal_image_url`;
 const PILOT_TEST_WALLET = String(
@@ -77,6 +78,19 @@ const readWeeklyCompetitions = async (limit = 24) => {
   });
   return Array.isArray(rows) ? rows : [];
 };
+
+const isTerminalWeeklyCompetition = (competition) => (
+  TERMINAL_WEEKLY_COMPETITION_STATUSES.has(String(competition?.status || '').toLowerCase())
+);
+
+const getCompletedWeeklyCompetitionKeys = (competitions = []) => (
+  [...new Set(
+    (Array.isArray(competitions) ? competitions : [])
+      .filter(isTerminalWeeklyCompetition)
+      .map((competition) => String(competition?.week_key || '').trim())
+      .filter(Boolean)
+  )]
+);
 
 const readTopEligibleScore = async (weekKey) => {
   const { start, end } = getWeekRange(weekKey);
@@ -179,6 +193,36 @@ const buildCompetitionRow = ({
     allocation_rsc: allocationRsc,
     allocation_tx_hash: existing?.allocation_tx_hash || null,
     champion_token_id: existing?.champion_token_id || null,
+    updated_at: now.toISOString()
+  };
+};
+
+const buildExpiredCompetitionRow = ({ weekKey, start, end, existing, observedAt }) => {
+  const now = observedAt || new Date();
+  const allocationRsc = Number(existing?.allocation_rsc)
+    || Number(process.env.WEEKLY_ALLOCATION_RSC)
+    || DEFAULT_ALLOCATION_RSC;
+
+  return {
+    week_key: weekKey,
+    starts_at: start.toISOString(),
+    ends_at: end.toISOString(),
+    status: 'expired',
+    winner_run_id: null,
+    winner_name: null,
+    winner_wallet: null,
+    winning_score: null,
+    winning_wave: null,
+    finalized_at: now.toISOString(),
+    claim_deadline: null,
+    proposal_id: null,
+    proposal_title: null,
+    proposal_url: null,
+    proposal_author: null,
+    proposal_image_url: null,
+    allocation_rsc: allocationRsc,
+    allocation_tx_hash: null,
+    champion_token_id: null,
     updated_at: now.toISOString()
   };
 };
@@ -399,7 +443,7 @@ const finalizeWeeklyCompetition = async (
   if (!Number.isFinite(finalizationObservedAt.getTime())) {
     throw Object.assign(new Error('Invalid weekly finalization observation time.'), { statusCode: 400 });
   }
-  if (end.getTime() + SCORE_SUBMISSION_SETTLEMENT_MS > finalizationObservedAt.getTime()) {
+  if (end.getTime() + WEEKLY_SCORE_SETTLEMENT_MS > finalizationObservedAt.getTime()) {
     const error = new Error('An open competition cannot be finalized until its score-submission settlement window closes.');
     error.statusCode = 409;
     throw error;
@@ -493,7 +537,20 @@ const finalizeWeeklyCompetition = async (
 
   const winner = await readTopEligibleScore(weekKey);
   if (!winner) {
-    return { finalized: false, weekKey, reason: 'No eligible scores were submitted for this week.' };
+    const competition = await saveCompetition(buildExpiredCompetitionRow({
+      weekKey,
+      start,
+      end,
+      existing: existingCompetition,
+      observedAt: finalizationObservedAt
+    }));
+    return {
+      finalized: true,
+      empty: true,
+      weekKey,
+      reason: 'No eligible scores were submitted; the empty week is closed.',
+      competition
+    };
   }
 
   const stableWinner = await resolveStableWinner({ initialWinner: winner, weekKey });
@@ -564,7 +621,7 @@ const ensureRecentWeeklyCompetitions = async ({
   const competitions = Array.isArray(existingCompetitions)
     ? existingCompetitions
     : await readWeeklyCompetitions(Math.max(24, safeLookback));
-  const archivedWeekKeys = new Set(competitions.map((competition) => competition?.week_key).filter(Boolean));
+  const completedWeekKeys = new Set(getCompletedWeeklyCompetitionKeys(competitions));
   const results = [];
   let weekKey = getPreviousWeekKey(recoveryObservedAt);
 
@@ -572,13 +629,13 @@ const ensureRecentWeeklyCompetitions = async ({
     const range = getWeekRange(weekKey);
     const nextWeekKey = getPreviousWeekKey(range.start);
     if (
-      !archivedWeekKeys.has(weekKey)
-      && range.end.getTime() + SCORE_SUBMISSION_SETTLEMENT_MS <= recoveryObservedAt.getTime()
+      !completedWeekKeys.has(weekKey)
+      && range.end.getTime() + WEEKLY_SCORE_SETTLEMENT_MS <= recoveryObservedAt.getTime()
     ) {
       try {
         const result = await finalizeWeeklyCompetition(weekKey, { observedAt: recoveryObservedAt });
         results.push({ weekKey, ok: true, result });
-        if (result.competition) archivedWeekKeys.add(weekKey);
+        if (isTerminalWeeklyCompetition(result.competition)) completedWeekKeys.add(weekKey);
       } catch (error) {
         console.error('Weekly competition recovery failed:', {
           weekKey,
@@ -600,6 +657,7 @@ module.exports = {
   captureWeeklyProposalCutoffSnapshot,
   ensureRecentWeeklyCompetitions,
   finalizeWeeklyCompetition,
+  getCompletedWeeklyCompetitionKeys,
   getPreviousWeekKey,
   getWeekRange,
   isAuthorized,

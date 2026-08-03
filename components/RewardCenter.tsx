@@ -11,6 +11,7 @@ import {
   type DailyGiftReward
 } from '../services/rewardProgression';
 import type { PermanentSquadState } from '../services/squadProgression';
+import { formatTokenAmount } from '../services/tokenTerminology';
 import PixelActionButton from './PixelActionButton';
 
 const CALENDAR_ICON = '/game-art/generated/ui/scicon-dashboard-icons-v1/selected/weekly-calendar-selected.png';
@@ -119,7 +120,7 @@ const RewardCenter: React.FC<RewardCenterProps> = ({
     setClaimNotice({
       id: Date.now(),
       title: ship ? `${ship.name} unlocked` : 'Daily gift secured',
-      detail: ship ? 'Ship added to your Hangar' : 'Research coins added',
+      detail: ship ? 'Ship added to your Hangar' : 'Tokens added',
       coins: confirmedReward.coins
     });
   };
@@ -174,7 +175,7 @@ const RewardCenter: React.FC<RewardCenterProps> = ({
             <div>
               <strong>{claimNotice.title}</strong>
               <span>{claimNotice.detail}</span>
-              <b>+{claimNotice.coins.toLocaleString()} coins</b>
+              <b>+{formatTokenAmount(claimNotice.coins)}</b>
             </div>
           </div>
         ) : null}
@@ -248,8 +249,8 @@ const RewardCenter: React.FC<RewardCenterProps> = ({
                   const isToday = reward.day === dailyStatus.claimableDay;
                   const ship = reward.shipId ? PLAYER_SHIPS[reward.shipId] : null;
                   const rewardName = ship
-                    ? `${ship.name} ship and ${reward.coins.toLocaleString()} coins`
-                    : `${reward.coins.toLocaleString()} coins`;
+                    ? `${ship.name} ship and ${formatTokenAmount(reward.coins)}`
+                    : formatTokenAmount(reward.coins);
                   const cardState = isClaimed
                     ? 'claimed'
                     : !isToday
@@ -290,8 +291,8 @@ const RewardCenter: React.FC<RewardCenterProps> = ({
                       <div className="sci-daily-art">
                         <img src={ship?.assetUrl || ASSETS.RSC_TOKEN} alt="" />
                       </div>
-                      <strong>{ship ? `Unlock ${ship.name}` : `${reward.coins} coins`}</strong>
-                      {ship && <small>+ {reward.coins} coins</small>}
+                      <strong>{ship ? `Unlock ${ship.name}` : formatTokenAmount(reward.coins)}</strong>
+                      {ship && <small>+ {formatTokenAmount(reward.coins)}</small>}
                       {isClaimed && <span className="sci-daily-check" aria-label="Claimed">&#10003;</span>}
                     </button>
                   );

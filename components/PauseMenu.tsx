@@ -1,5 +1,6 @@
 import React from 'react';
 import type { GamePolishSettings } from '../types';
+import type { MatchMusicTrackId } from '../services/audioService';
 import PixelActionButton from './PixelActionButton';
 import AudioSettingsControls from './AudioSettingsControls';
 import '../styles/pause-menu.css';
@@ -12,12 +13,14 @@ interface PauseMenuProps {
   waveTotal: number;
   sfxVolumeLevel: number;
   musicVolumeLevel: number;
+  matchMusicTrackId: MatchMusicTrackId;
   polishSettings: GamePolishSettings;
   onResume: () => void;
   onQuit: () => void;
   onToggleAudio: () => void;
   onSfxVolumeChange: (level: number) => void;
   onMusicVolumeChange: (level: number) => void;
+  onMatchMusicTrackChange: (trackId: MatchMusicTrackId) => void;
   onTogglePolishSetting: (key: keyof GamePolishSettings) => void;
   quitLabel?: string;
   founderControls?: React.ReactNode;
@@ -59,12 +62,14 @@ const PauseMenu: React.FC<PauseMenuProps> = ({
   waveTotal,
   sfxVolumeLevel,
   musicVolumeLevel,
+  matchMusicTrackId,
   polishSettings,
   onResume,
   onQuit,
   onToggleAudio,
   onSfxVolumeChange,
   onMusicVolumeChange,
+  onMatchMusicTrackChange,
   onTogglePolishSetting,
   quitLabel = 'Exit Run',
   founderControls
@@ -123,9 +128,11 @@ const PauseMenu: React.FC<PauseMenuProps> = ({
               audioMuted={audioMuted}
               sfxVolumeLevel={sfxVolumeLevel}
               musicVolumeLevel={musicVolumeLevel}
+              matchMusicTrackId={matchMusicTrackId}
               onToggleAudio={onToggleAudio}
               onSfxVolumeChange={onSfxVolumeChange}
               onMusicVolumeChange={onMusicVolumeChange}
+              onMatchMusicTrackChange={onMatchMusicTrackChange}
             />
             <PauseSettingRow
               label="Screen shake"

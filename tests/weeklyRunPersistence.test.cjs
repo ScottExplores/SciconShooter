@@ -291,12 +291,13 @@ test('a deep generated Weekly Run receipt is not capped by authored Campaign mis
   }
 });
 
-test('server Weekly Run reservations give each guest or wallet identity exactly two attempts per week', async () => {
+test('server Weekly Run reservations give guests five free attempts and keep wallet quota identity-bound', async () => {
   clearWeeklyRunAttemptMemoryForTests();
   const baseNow = Date.now();
-  const firstProof = activeGeneratedStreak({ now: baseNow, depth: 1 }).state;
-  const secondProof = activeGeneratedStreak({ now: baseNow + 2_000, depth: 1 }).state;
-  const thirdProof = activeGeneratedStreak({ now: baseNow + 4_000, depth: 1 }).state;
+  const proofs = Array.from({ length: 6 }, (_, index) => (
+    activeGeneratedStreak({ now: baseNow + index * 2_000, depth: 1 }).state
+  ));
+  const firstProof = proofs[0];
   const guestOptions = (proof) => ({
     runMode: 'weekly-streak',
     profileId: 'pilot:weekly-attempt-guest',
@@ -310,16 +311,26 @@ test('server Weekly Run reservations give each guest or wallet identity exactly 
   ]);
   assert.equal(first.runId, duplicate.runId);
   assert.equal(first.weeklyAttempt.attemptNumber, 1);
+  assert.equal(first.weeklyAttempt.freeAttempts, 5);
+  assert.equal(first.weeklyAttempt.purchasedAttempts, 0);
   assert.equal(first.weeklyAttempt.attemptsUsed, 1);
-  assert.equal(first.weeklyAttempt.attemptsRemaining, 1);
+  assert.equal(first.weeklyAttempt.attemptsRemaining, 4);
 
-  const second = await createReservedRunStart('weekly-attempt-test', guestOptions(secondProof));
-  assert.notEqual(second.runId, first.runId);
-  assert.equal(second.weeklyAttempt.attemptNumber, 2);
-  assert.equal(second.weeklyAttempt.attemptsUsed, 2);
-  assert.equal(second.weeklyAttempt.attemptsRemaining, 0);
+  const subsequent = [];
+  for (let index = 1; index < 5; index += 1) {
+    subsequent.push(await createReservedRunStart(
+      'weekly-attempt-test',
+      guestOptions(proofs[index])
+    ));
+  }
+  assert.notEqual(subsequent[0].runId, first.runId);
+  assert.equal(subsequent[0].weeklyAttempt.attemptNumber, 2);
+  assert.equal(subsequent[0].weeklyAttempt.attemptsRemaining, 3);
+  assert.equal(subsequent[3].weeklyAttempt.attemptNumber, 5);
+  assert.equal(subsequent[3].weeklyAttempt.attemptsUsed, 5);
+  assert.equal(subsequent[3].weeklyAttempt.attemptsRemaining, 0);
   await assert.rejects(
-    () => createReservedRunStart('weekly-attempt-test', guestOptions(thirdProof)),
+    () => createReservedRunStart('weekly-attempt-test', guestOptions(proofs[5])),
     (error) => {
       assert.equal(error.statusCode, 409);
       assert.deepEqual(error.details, ['weekly_run_attempts_exhausted']);
@@ -336,6 +347,9 @@ test('server Weekly Run reservations give each guest or wallet identity exactly 
   });
   assert.equal(walletStart.identity.kind, 'wallet');
   assert.equal(walletStart.weeklyAttempt.attemptNumber, 1);
+  assert.equal(walletStart.weeklyAttempt.freeAttempts, 5);
+  assert.equal(walletStart.weeklyAttempt.purchasedAttempts, 0);
+  assert.equal(walletStart.weeklyAttempt.attemptsRemaining, 4);
 });
 
 test('generated Weekly Run deliberate-end proofs can never mint a score receipt', async () => {

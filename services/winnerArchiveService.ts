@@ -3,6 +3,12 @@ import { ArchivedWinner } from '../types';
 const WINNERS_API_URL = (import.meta.env.VITE_WEEKLY_COMPETITIONS_API_URL as string | undefined)?.trim() || '/api/weekly-competitions';
 
 type RawWinner = Record<string, any>;
+const TERMINAL_COMPETITION_STATUSES = new Set(['finalized', 'claimed', 'funded', 'expired']);
+
+export interface WeeklyCompetitionArchive {
+  winners: ArchivedWinner[];
+  completedWeekKeys: string[];
+}
 
 const asString = (value: unknown, maxLength = 500): string | undefined => {
   if (typeof value !== 'string') return undefined;
@@ -21,6 +27,10 @@ const safeUrl = (value: unknown) => {
   const url = asString(value);
   return url && /^https?:\/\//i.test(url) ? url : undefined;
 };
+
+const isTerminalCompetition = (winner: RawWinner) => (
+  TERMINAL_COMPETITION_STATUSES.has(asString(winner.status, 20)?.toLowerCase() || '')
+);
 
 const formatPeriodLabel = (winner: RawWinner) => {
   const periodStart = asString(winner.starts_at);
@@ -67,7 +77,7 @@ const normalizeWinner = (winner: RawWinner): ArchivedWinner | null => {
   };
 };
 
-export const getArchivedWeeklyWinners = async (): Promise<ArchivedWinner[] | null> => {
+export const getArchivedWeeklyWinners = async (): Promise<WeeklyCompetitionArchive | null> => {
   try {
     const response = await fetch(WINNERS_API_URL, {
       headers: { Accept: 'application/json' }
@@ -76,12 +86,23 @@ export const getArchivedWeeklyWinners = async (): Promise<ArchivedWinner[] | nul
     if (!response.ok) return null;
 
     const payload = await response.json();
-    const winners = Array.isArray(payload?.competitions) ? payload.competitions : [];
-
-    return winners
+    const competitions = (Array.isArray(payload?.competitions) ? payload.competitions : [])
       .filter((winner): winner is RawWinner => Boolean(winner) && typeof winner === 'object' && !Array.isArray(winner))
+      .filter(isTerminalCompetition);
+    const payloadCompletedWeekKeys = (Array.isArray(payload?.completedWeekKeys) ? payload.completedWeekKeys : [])
+      .map((weekKey: unknown) => asString(weekKey, 20))
+      .filter((weekKey: string | undefined): weekKey is string => Boolean(weekKey));
+    const completedWeekKeys = [...new Set([
+      ...payloadCompletedWeekKeys,
+      ...competitions
+        .map((competition) => asString(competition.week_key, 20))
+        .filter((weekKey): weekKey is string => Boolean(weekKey))
+    ])];
+    const winners = competitions
       .map(normalizeWinner)
       .filter((winner): winner is ArchivedWinner => Boolean(winner));
+
+    return { winners, completedWeekKeys };
   } catch {
     return null;
   }

@@ -11,7 +11,8 @@ export interface WaveVictoryOverlayProps {
   onContinue: () => void;
   bossArchiveReplay?: boolean;
   campaignSettlement?: CampaignCompletionSettlement | null;
-  newlyAffordableUpgrade?: string | null;
+  guideRequiresHangar?: boolean;
+  onOpenHangar?: () => void;
   onOpenCampaignMap?: () => void;
   onReturnHome?: () => void;
 }
@@ -31,7 +32,8 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
   onContinue,
   bossArchiveReplay = false,
   campaignSettlement = null,
-  newlyAffordableUpgrade = null,
+  guideRequiresHangar = false,
+  onOpenHangar,
   onOpenCampaignMap,
   onReturnHome
 }) => {
@@ -42,23 +44,13 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
     && campaignSettlement.previousStars < 3
     && campaignSettlement.stars === 3
   );
-  const specialNoticeCount = campaignSettlement
-    ? Number(Boolean(campaignSettlement.newlyUnlockedMissionId))
-      + Number(campaignSettlement.newlyUnlockedBranchIds.length > 0)
-      + Number(campaignSettlement.firstClear && Boolean(summary.bossEncounterId))
-      + Number(missionMastered)
-      + Number(Boolean(newlyAffordableUpgrade))
-    : 0;
-  const visibleGrantLimit = Math.max(1, 3 - specialNoticeCount);
-  const visibleGrants = campaignSettlement?.grants.slice(0, visibleGrantLimit) ?? [];
-  const hiddenGrantCount = Math.max(0, (campaignSettlement?.grants.length ?? 0) - visibleGrants.length);
   const earnedStars = Math.max(0, Math.min(3, campaignSettlement?.stars ?? 0));
   const newStarCount = Math.max(0, campaignSettlement?.newStarIds.length ?? 0);
   const newBestLabels = campaignSettlement
     ? [
         campaignSettlement.newBestScore ? 'score' : '',
         campaignSettlement.newBestTime ? 'time' : '',
-        campaignSettlement.newBestCoins ? 'coins' : ''
+        campaignSettlement.newBestCoins ? 'Tokens' : ''
       ].filter(Boolean)
     : [];
   const newBestNotice = newBestLabels.length > 0
@@ -146,7 +138,7 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
                 <strong>{summary.enemiesDefeated.toLocaleString()}</strong>
               </div>
               <div>
-                <span>Coins</span>
+                <span>Tokens</span>
                 <strong>{summary.coinsCollected.toLocaleString()}</strong>
               </div>
               <div>
@@ -174,36 +166,6 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
 
             {campaignSettlement ? (
               <div className="wave-record-campaign-details">
-                <div className="wave-record-rewards" aria-label="Campaign reward breakdown">
-                  {visibleGrants.length > 0 ? visibleGrants.map((grant) => (
-                    <span className={`wave-record-reward-chip is-${grant.kind}`} key={grant.id} title={grant.label}>
-                      {grant.label} <b>+{grant.amount.toLocaleString()}</b>
-                    </span>
-                  )) : (
-                    <span className="wave-record-reward-chip is-saved">
-                      {campaignSettlement.duplicate ? 'Reward already credited' : 'Progress saved'}
-                    </span>
-                  )}
-                  {campaignSettlement.newlyUnlockedMissionId ? (
-                    <span className="wave-record-reward-chip is-unlock">Next Mission unlocked</span>
-                  ) : null}
-                  {campaignSettlement.newlyUnlockedBranchIds.length > 0 ? (
-                    <span className="wave-record-reward-chip is-unlock">Bonus route unlocked</span>
-                  ) : null}
-                  {missionMastered ? (
-                    <span className="wave-record-reward-chip is-mastered">Mission Mastered</span>
-                  ) : null}
-                  {newlyAffordableUpgrade ? (
-                    <span className="wave-record-reward-chip is-affordable">
-                      Upgrade now affordable: {newlyAffordableUpgrade}
-                    </span>
-                  ) : null}
-                  {campaignSettlement.firstClear && summary.bossEncounterId ? (
-                    <span className="wave-record-reward-chip is-boss-unlock">Boss Archive unlocked</span>
-                  ) : null}
-                  {hiddenGrantCount > 0 ? <span className="wave-record-reward-more">+{hiddenGrantCount} more</span> : null}
-                </div>
-
                 <div
                   className="wave-record-stars"
                   aria-label={`${earnedStars} of 3 mastery stars earned${newStarCount > 0 ? `, ${newStarCount} new` : ''}`}
@@ -255,18 +217,47 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
         </header>
 
         <div className="wave-victory-actions">
-          <button className="wave-victory-continue" type="button" onClick={onContinue}>
+          <button
+            className="wave-victory-continue"
+            type="button"
+            onClick={onContinue}
+            disabled={guideRequiresHangar}
+            aria-disabled={guideRequiresHangar}
+          >
             <span>{primaryAction.prefix}</span>
             <strong>{primaryAction.target}</strong>
           </button>
+          {onOpenHangar && !bossArchiveReplay ? (
+            <button
+              className="wave-victory-secondary is-hangar"
+              data-onboarding-target="mission-hangar"
+              type="button"
+              onClick={onOpenHangar}
+            >
+              <span>Spend Tokens</span>
+              <strong>Hangar</strong>
+            </button>
+          ) : null}
           {onOpenCampaignMap && !bossArchiveReplay ? (
-            <button className="wave-victory-secondary" type="button" onClick={onOpenCampaignMap}>
+            <button
+              className="wave-victory-secondary is-map"
+              type="button"
+              onClick={onOpenCampaignMap}
+              disabled={guideRequiresHangar}
+              aria-disabled={guideRequiresHangar}
+            >
               <span>Campaign</span>
               <strong>Map</strong>
             </button>
           ) : null}
           {onReturnHome ? (
-            <button className="wave-victory-secondary" type="button" onClick={onReturnHome}>
+            <button
+              className="wave-victory-secondary is-home"
+              type="button"
+              onClick={onReturnHome}
+              disabled={guideRequiresHangar}
+              aria-disabled={guideRequiresHangar}
+            >
               <span>Return</span>
               <strong>Home</strong>
             </button>

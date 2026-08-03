@@ -50,7 +50,7 @@ module.exports = async (req, res) => {
         { trait_type: 'Wave', value: record.wave, display_type: 'number' },
         { trait_type: 'Encounter', value: record.encounter },
         { trait_type: 'Targets Defeated', value: record.targetsDefeated, display_type: 'number' },
-        { trait_type: 'Coins Collected', value: record.coinsCollected, display_type: 'number' },
+        { trait_type: 'Tokens Collected', value: record.coinsCollected, display_type: 'number' },
         { trait_type: 'Flight Time', value: record.durationLabel },
         { trait_type: 'Ship', value: record.playerShipId },
         { trait_type: 'Game Version', value: record.gameVersion },

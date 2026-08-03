@@ -315,7 +315,7 @@ export const buildCampaignBranchRuntimeCampaign = (
       name: branch.displayName,
       description: isPresentDrop
         ? 'Recover as many encrypted ResearchHub supply packages as possible.'
-        : 'Clear the optional mastery encounter to secure its one-time Research Coin reward.',
+        : 'Clear the optional mastery encounter to secure its one-time Token reward.',
       order: 1,
       backgroundId: mission.backgroundId,
       musicId: mission.musicId,

@@ -10,7 +10,7 @@ const {
 } = require('./walletProfiles');
 const { readOptionalWalletProfileSession } = require('./walletProfileAuth');
 const {
-  WEEKLY_RUN_ATTEMPT_LIMIT,
+  WEEKLY_RUN_FREE_ATTEMPT_LIMIT,
   attemptKeyFor,
   reserveWeeklyRunAttempt,
   settleWeeklyRunAttempt
@@ -270,6 +270,10 @@ const createRunStart = (
   }
   if (weeklyAttemptReservation) {
     const expectedAttemptKey = attemptKeyFor(weeklyCampaignBinding);
+    const purchasedAttempts = Math.floor(Number(weeklyAttemptReservation.purchasedAttempts));
+    const attemptsUsed = Math.floor(Number(weeklyAttemptReservation.attemptsUsed));
+    const attemptsRemaining = Math.floor(Number(weeklyAttemptReservation.attemptsRemaining));
+    const dynamicCapacity = WEEKLY_RUN_FREE_ATTEMPT_LIMIT + purchasedAttempts;
     if (
       !generatedWeeklyRun
       || weeklyAttemptReservation.weeklyId !== weeklyCampaignBinding.weeklyId
@@ -278,7 +282,14 @@ const createRunStart = (
       || !/^[0-9a-f-]{36}$/i.test(String(weeklyAttemptReservation.runId || ''))
       || !Number.isInteger(weeklyAttemptReservation.attemptNumber)
       || weeklyAttemptReservation.attemptNumber < 1
-      || weeklyAttemptReservation.attemptNumber > WEEKLY_RUN_ATTEMPT_LIMIT
+      || Number(weeklyAttemptReservation.freeAttempts) !== WEEKLY_RUN_FREE_ATTEMPT_LIMIT
+      || !Number.isInteger(purchasedAttempts)
+      || purchasedAttempts < 0
+      || !Number.isInteger(attemptsUsed)
+      || attemptsUsed < weeklyAttemptReservation.attemptNumber
+      || attemptsUsed > dynamicCapacity
+      || !Number.isInteger(attemptsRemaining)
+      || attemptsRemaining !== dynamicCapacity - attemptsUsed
     ) {
       const error = new Error('Weekly Run attempt reservation does not match this run.');
       error.statusCode = 422;
@@ -319,8 +330,12 @@ const createRunStart = (
     ...(weeklyAttemptReservation ? {
       weeklyAttempt: {
         attemptNumber: weeklyAttemptReservation.attemptNumber,
+        weeklyId: weeklyAttemptReservation.weeklyId,
+        freeAttempts: weeklyAttemptReservation.freeAttempts,
+        purchasedAttempts: weeklyAttemptReservation.purchasedAttempts,
         attemptsUsed: weeklyAttemptReservation.attemptsUsed,
         attemptsRemaining: weeklyAttemptReservation.attemptsRemaining,
+        resetAt: weeklyAttemptReservation.resetAt,
         resetAtMs: weeklyAttemptReservation.resetAtMs
       }
     } : {}),
@@ -472,6 +487,7 @@ const finishRun = async (startToken, rawMetrics, req) => {
     type: 'run-receipt',
     runId: start.runId,
     gameVersion: start.gameVersion,
+    runMode: startRunMode,
     startedAt: start.issuedAt,
     finishedAt: receiptFinishedAt,
     expiresAt: receiptFinishedAt + RECEIPT_LIFETIME_MS,
@@ -485,6 +501,7 @@ const finishRun = async (startToken, rawMetrics, req) => {
   const receipt = {
     runId: start.runId,
     gameVersion: start.gameVersion,
+    runMode: receiptPayload.runMode,
     startedAt: new Date(start.issuedAt).toISOString(),
     finishedAt: new Date(receiptFinishedAt).toISOString(),
     expiresAt: new Date(receiptPayload.expiresAt).toISOString(),
@@ -521,6 +538,7 @@ const reissueStoredRunReceipt = (row) => {
     type: 'run-receipt',
     runId: String(row.run_id),
     gameVersion: String(row.game_version || 'unknown').slice(0, 32),
+    runMode: row.run_mode === 'weekly-streak' ? 'weekly-streak' : 'standard',
     startedAt: startedAt.getTime(),
     finishedAt: finishedAt.getTime(),
     expiresAt,
@@ -532,6 +550,7 @@ const reissueStoredRunReceipt = (row) => {
   return {
     runId: receiptPayload.runId,
     gameVersion: receiptPayload.gameVersion,
+    runMode: receiptPayload.runMode,
     startedAt: startedAt.toISOString(),
     finishedAt: finishedAt.toISOString(),
     expiresAt: new Date(expiresAt).toISOString(),

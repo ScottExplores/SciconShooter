@@ -99,3 +99,17 @@ test('pause menu uses the generated game interface while preserving real setting
   assert.doesNotMatch(css, /pause-menu-frame\.png/);
   assert.doesNotMatch(css, /resume-button\.png/);
 });
+
+test('More keeps compact audio controls without the oversized settings artwork', () => {
+  const start = fs.readFileSync(path.join(root, 'components', 'StartScreen.tsx'), 'utf8');
+  const aboutDashboardStart = start.indexOf('const AboutDashboard');
+  const aboutDashboardEnd = start.indexOf("dashboardTab === 'hangar'", aboutDashboardStart);
+  const aboutDashboard = start.slice(aboutDashboardStart, aboutDashboardEnd);
+
+  assert.ok(aboutDashboardStart >= 0, 'More dashboard should remain present');
+  assert.match(aboutDashboard, /aria-label="Audio settings"/);
+  assert.match(aboutDashboard, /<span>Audio Settings<\/span>/);
+  assert.match(aboutDashboard, /<AudioSettingsControls/);
+  assert.match(aboutDashboard, /idPrefix="sci-more"/);
+  assert.doesNotMatch(aboutDashboard, /icons\/system\/settings\.png/);
+});

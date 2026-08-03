@@ -59,9 +59,88 @@ test('mixed-size mobile formations pack deterministically without any assembled 
   });
 });
 
+test('a settling cohort keeps its shape clear of target slots reserved by another event', () => {
+  const reserved = Array.from({ length: 6 }, (_, index) => ({
+    id: `alpha-${index}`,
+    order: index,
+    x: 82 + (index % 3) * 58,
+    y: 90 + Math.floor(index / 3) * 58,
+    width: 52,
+    height: 52
+  }));
+  const incoming = reserved.map((member, index) => ({
+    ...member,
+    id: `beta-${index}`
+  }));
+  const reservedBefore = structuredClone(reserved);
+  const first = runtime.resolveNonOverlappingFormationCohortPositions(
+    incoming,
+    reserved,
+    bounds,
+    padding
+  );
+  const repeated = runtime.resolveNonOverlappingFormationCohortPositions(
+    incoming,
+    reserved,
+    bounds,
+    padding
+  );
+
+  assert.deepEqual(first, repeated, 'concurrent event placement is deterministic');
+  assert.deepEqual(reserved, reservedBefore, 'the already-reserved cohort never moves');
+  const incomingById = new Map(incoming.map((member) => [member.id, member]));
+  const positioned = first.map((point) => ({ ...incomingById.get(point.id), ...point }));
+  positioned.forEach((member) => {
+    reserved.forEach((reservation) => {
+      assert.equal(overlaps(member, reservation), false, `${member.id} stays clear of ${reservation.id}`);
+    });
+  });
+});
+
+test('collision-safe slot reassignment eases from the live position without a snap', () => {
+  const input = {
+    current: { x: 42, y: -18 },
+    previousTarget: { x: 118, y: 104 },
+    resolvedTarget: { x: 196, y: 132 }
+  };
+  const plan = runtime.resolveFormationSlotTransition(input);
+  const repeated = runtime.resolveFormationSlotTransition(input);
+  assert.deepEqual(plan, repeated, 'slot correction is deterministic');
+  assert.equal(plan.changed, true);
+  assert.deepEqual(plan.start, input.current, 'the rendered position, never the old slot, owns frame zero');
+  assert.deepEqual(plan.target, input.resolvedTarget);
+  assert.ok(plan.durationFrames >= 20 && plan.durationFrames <= 36);
+
+  const samples = Array.from({ length: plan.durationFrames + 1 }, (_, frame) => (
+    runtime.sampleFormationSlotTransition({
+      start: plan.start,
+      target: plan.target,
+      progress: frame / plan.durationFrames
+    })
+  ));
+  assert.deepEqual(samples[0], input.current, 'reassignment cannot teleport on its first frame');
+  assert.deepEqual(samples.at(-1), input.resolvedTarget, 'settling finishes exactly on the safe slot');
+  samples.slice(1).forEach((sample, index) => {
+    const previous = samples[index];
+    const step = Math.hypot(sample.x - previous.x, sample.y - previous.y);
+    assert.ok(step < 10, `frame ${index + 1} stays within the bounded settle speed`);
+    assert.ok(sample.x >= previous.x, 'this fixture advances monotonically toward its slot');
+  });
+});
+
 test('the engine applies separation only to assembled holders before collision work', () => {
   assert.match(engineSource, /separateAssembledFormationMembers\(\);\s*this\.checkCollisions\(\)/);
-  assert.match(engineSource, /if \(member\.formationState !== 'hold'\) return;/);
-  assert.match(engineSource, /member\.formationState === 'hold' \? member\.x/);
-  assert.match(engineSource, /campaignFormationPackInstanceId[\s\S]*?sourceEventId/);
+  assert.match(engineSource, /members\.every\(\(member\) => member\.formationState === 'hold'\)/);
+  assert.match(engineSource, /const cohortSpawned = spawnedCount >= targetCount/);
+  assert.match(engineSource, /cohortSpawned && members\.some\(\(member\) => !member\.formationSlotLocked\)/);
+  assert.match(engineSource, /resolveNonOverlappingFormationCohortPositions\([\s\S]*?reservedTargets/);
+  assert.match(engineSource, /assembledHolders\.push\(\.\.\.members\)[\s\S]*?globallySeparated = resolveNonOverlappingFormationPositions/);
+  assert.doesNotMatch(engineSource, /member\.x = transition\.target\.x/);
+  assert.match(engineSource, /resolveFormationSlotTransition\([\s\S]*?formationStartX = transition\.start\.x/);
+  assert.match(engineSource, /sampleFormationSlotTransition\([\s\S]*?formationSlotTransitionActive = false/);
+  assert.match(engineSource, /if \(!enemy\.formationGroupReady\)[\s\S]*?enemy\.x = targetX[\s\S]*?return true/);
+  assert.match(engineSource, /enemy\.x = lerp\(targetX, point\.x \+ strafeOffset/);
+  assert.match(engineSource, /entity\.formationState === 'entry' \|\| entity\.formationState === 'hold'/);
+  assert.match(engineSource, /enemy\.formationCohortId = this\.getCampaignFormationPackInstanceId\(event\.id\)/);
+  assert.match(engineSource, /this\.isSameFormationCohort\(entity, leader\)/);
 });

@@ -49,14 +49,12 @@ export const ASSETS = {
 
   // Real RSC Token (Clean Bottle)
   REAL_RSC_ICON: "/game-art/tokens/rsc-bottle.png",
-  POWERUP_OVERDRIVE_SPREAD: "/game-art/powerups/overdrive-spread.png",
-  POWERUP_OVERDRIVE_SPREAD_FRAMES: [
-    "/game-art/generated/powerups/scicon-powerup-idle-pack-v1/overdrive-spread/frames/overdrive-spread-01-rest.png",
-    "/game-art/generated/powerups/scicon-powerup-idle-pack-v1/overdrive-spread/frames/overdrive-spread-02-core-rise.png",
-    "/game-art/generated/powerups/scicon-powerup-idle-pack-v1/overdrive-spread/frames/overdrive-spread-03-energy-pulse.png",
-    "/game-art/generated/powerups/scicon-powerup-idle-pack-v1/overdrive-spread/frames/overdrive-spread-04-peak-glint.png",
-    "/game-art/generated/powerups/scicon-powerup-idle-pack-v1/overdrive-spread/frames/overdrive-spread-05-rim-travel.png",
-    "/game-art/generated/powerups/scicon-powerup-idle-pack-v1/overdrive-spread/frames/overdrive-spread-06-settle.png"
+  POWERUP_PROJECTILE_UPGRADE: "/game-art/generated/powerups/scicon-projectile-upgrade-v1/projectile-upgrade.png",
+  // The generated pickup is intentionally a single-frame icon. Keeping it in
+  // an array lets both renderers share the same frame-selection path without
+  // implying that animation frames exist.
+  POWERUP_PROJECTILE_UPGRADE_FRAMES: [
+    "/game-art/generated/powerups/scicon-projectile-upgrade-v1/projectile-upgrade.png"
   ],
   POWERUP_MAX_SHOT: "/game-art/generated/powerups/scicon-max-shot-v1/max-shot-pickup.png",
   POWERUP_MAX_SHOT_AURA: "/game-art/generated/powerups/scicon-max-shot-v1/max-shot-aura.png",
@@ -255,6 +253,12 @@ export const ASSETS = {
   CAMPAIGN_ENEMY_LASER_HUNTER: "/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/laser-hunter.png",
   CAMPAIGN_ENEMY_LASER_STALKER: "/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/laser-stalker.png",
   CAMPAIGN_ENEMY_ORBIT_DISC: "/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/orbit-disc.png",
+  CAMPAIGN_ENEMY_PROTOCOL_VANGUARD_FRAMES: [
+    "/game-art/generated/scicon-protocol-vanguard-v1/enemies/protocol-vanguard/frames/protocol-vanguard-01-neutral.png",
+    "/game-art/generated/scicon-protocol-vanguard-v1/enemies/protocol-vanguard/frames/protocol-vanguard-02-charge.png",
+    "/game-art/generated/scicon-protocol-vanguard-v1/enemies/protocol-vanguard/frames/protocol-vanguard-03-fire.png",
+    "/game-art/generated/scicon-protocol-vanguard-v1/enemies/protocol-vanguard/frames/protocol-vanguard-04-damage.png"
+  ],
   CAMPAIGN_ENEMY_PRISM_ARTILLERY: "/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/prism-artillery.png",
   CAMPAIGN_ENEMY_RING_SENTINEL: "/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/ring-sentinel.png",
   CAMPAIGN_ENEMY_SHIELD_RAMMER: "/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/shield-rammer.png",
@@ -361,6 +365,66 @@ export const DONATION_CONFIG = {
   X_PROFILE_URL: "https://x.com/ScottExplores29",
   GAME_URL: "https://sciconshooter.xyz"
 };
+
+/**
+ * Public purchase descriptions used by the wallet UI. The server keeps its own
+ * authoritative copy of these immutable terms and never trusts values supplied
+ * by the browser. `rscAmountRaw` uses ResearchCoin's verified 18 decimals.
+ */
+export const RSC_PURCHASE_SKUS = Object.freeze({
+  'right-support': Object.freeze({
+    id: 'right-support',
+    label: 'Unlock right support',
+    rscAmount: '10',
+    rscAmountRaw: '10000000000000000000',
+    tokenReward: 0,
+    weeklyAttemptReward: 0,
+    grantsRightSupport: true,
+    enabled: true
+  }),
+  'weekly-run-attempt': Object.freeze({
+    id: 'weekly-run-attempt',
+    label: '+1 Weekly Run attempt',
+    rscAmount: '3',
+    rscAmountRaw: '3000000000000000000',
+    tokenReward: 0,
+    weeklyAttemptReward: 1,
+    grantsRightSupport: false,
+    enabled: true
+  }),
+  'tokens-50': Object.freeze({
+    id: 'tokens-50',
+    label: '50 Tokens',
+    rscAmount: '1',
+    rscAmountRaw: '1000000000000000000',
+    tokenReward: 50,
+    weeklyAttemptReward: 0,
+    grantsRightSupport: false,
+    enabled: false
+  }),
+  'tokens-250': Object.freeze({
+    id: 'tokens-250',
+    label: '250 Tokens',
+    rscAmount: '5',
+    rscAmountRaw: '5000000000000000000',
+    tokenReward: 250,
+    weeklyAttemptReward: 0,
+    grantsRightSupport: false,
+    enabled: false
+  }),
+  'tokens-500': Object.freeze({
+    id: 'tokens-500',
+    label: '500 Tokens',
+    rscAmount: '10',
+    rscAmountRaw: '10000000000000000000',
+    tokenReward: 500,
+    weeklyAttemptReward: 0,
+    grantsRightSupport: false,
+    enabled: false
+  })
+} as const);
+
+export type RscPurchaseSkuId = keyof typeof RSC_PURCHASE_SKUS;
 
 export const STORAGE_KEYS = {
   PLAYER_STATS: "rh_player_stats",

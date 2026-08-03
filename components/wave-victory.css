@@ -319,81 +319,7 @@
 
 .wave-record-campaign-details {
   display: grid;
-  gap: 5px;
-  padding-top: 6px;
-}
-
-.wave-record-rewards {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 3px;
-  min-height: 30px;
-  overflow: hidden;
-}
-
-.wave-record-reward-chip,
-.wave-record-reward-more {
-  max-width: 48%;
-  overflow: hidden;
-  border: 1px solid rgba(103, 245, 255, 0.2);
-  background: rgba(3, 22, 41, 0.72);
-  padding: 3px 5px;
-  color: #a5f3fc;
-  font-size: 7px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  line-height: 1;
-  text-overflow: ellipsis;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.wave-record-reward-chip b {
-  color: #fff3a6;
-  font-family: 'Orbitron', 'Rajdhani', sans-serif;
-}
-
-.wave-record-reward-chip.is-first-clear,
-.wave-record-reward-chip.is-boss,
-.wave-record-reward-chip.is-star,
-.wave-record-reward-chip.is-unlock,
-.wave-record-reward-chip.is-boss-unlock {
-  border-color: rgba(255, 229, 95, 0.38);
-  color: #fff3a6;
-}
-
-.wave-record-reward-chip.is-mastered {
-  border-color: rgba(255, 229, 95, 0.72);
-  background: rgba(250, 204, 21, 0.12);
-  color: #fff5a3;
-  text-shadow: 0 0 7px rgba(255, 229, 95, 0.6);
-}
-
-.wave-record-reward-chip.is-affordable {
-  max-width: 100%;
-  border-color: rgba(255, 229, 95, 0.62);
-  background: linear-gradient(90deg, rgba(113, 63, 18, 0.42), rgba(6, 78, 59, 0.28));
-  color: #fef3c7;
-  text-shadow: 0 0 7px rgba(255, 229, 95, 0.42);
-}
-
-.wave-record-reward-chip.is-unlock,
-.wave-record-reward-chip.is-boss-unlock {
-  border-color: rgba(127, 255, 200, 0.4);
-  color: var(--wave-mint);
-}
-
-.wave-record-reward-chip.is-saved {
-  max-width: 100%;
-  color: #94a3b8;
-}
-
-.wave-record-reward-more {
-  border-color: transparent;
-  background: transparent;
-  color: #94a3b8;
+  padding-top: 8px;
 }
 
 .wave-record-stars {
@@ -401,9 +327,9 @@
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 7px;
-  min-height: 23px;
-  border-top: 1px solid rgba(103, 245, 255, 0.12);
-  padding-top: 4px;
+  min-height: 31px;
+  border-block: 1px solid rgba(103, 245, 255, 0.16);
+  padding: 5px 2px;
   color: #93c5fd;
   font-size: 8px;
   font-weight: 900;
@@ -579,7 +505,7 @@
   bottom: 1.5%;
   z-index: 12;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 7px;
   width: min(86vw, 316px);
   transform: translateX(-50%);
@@ -593,6 +519,7 @@
   gap: 7px;
   min-width: 0;
   min-height: 39px;
+  overflow: hidden;
   border: 1px solid rgba(151, 255, 215, 0.72);
   clip-path: polygon(13px 0, 100% 0, 100% calc(100% - 13px), calc(100% - 13px) 100%, 0 100%, 0 13px);
   color: white;
@@ -609,13 +536,37 @@
 }
 
 .wave-victory-secondary {
+  grid-column: span 2;
+  flex-direction: column;
+  gap: 1px;
   border-color: rgba(103, 245, 255, 0.42);
   background: linear-gradient(145deg, rgba(9, 31, 56, 0.96), rgba(10, 51, 75, 0.94));
   box-shadow: 0 0 0 2px rgba(2, 8, 23, 0.78), 0 0 16px rgba(14, 165, 233, 0.12);
 }
 
+.wave-victory-secondary.is-hangar {
+  border-color: rgba(255, 229, 95, 0.58);
+  background: linear-gradient(145deg, rgba(79, 47, 8, 0.96), rgba(115, 77, 12, 0.92));
+  box-shadow: 0 0 0 2px rgba(24, 15, 2, 0.82), 0 0 18px rgba(250, 204, 21, 0.16);
+}
+
+.wave-victory-secondary.is-map {
+  border-color: rgba(103, 245, 255, 0.58);
+  background: linear-gradient(145deg, rgba(6, 45, 72, 0.97), rgba(8, 91, 115, 0.92));
+}
+
+.wave-victory-secondary.is-home {
+  border-color: rgba(148, 163, 184, 0.5);
+  background: linear-gradient(145deg, rgba(17, 24, 39, 0.98), rgba(30, 41, 59, 0.94));
+}
+
 .wave-victory-secondary:nth-child(2):last-child {
   grid-column: 1 / -1;
+}
+
+.wave-victory-secondary:nth-child(2):nth-last-child(2),
+.wave-victory-secondary:nth-child(3):last-child {
+  grid-column: span 3;
 }
 
 .wave-victory-continue:hover,
@@ -651,15 +602,25 @@
 
 .wave-victory-secondary span {
   color: #9ddff5;
-  font-size: 9px;
+  max-width: 100%;
+  overflow: hidden;
+  font-size: clamp(6px, 1.8vw, 8px);
   font-weight: 800;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.05em;
+  line-height: 1.05;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .wave-victory-secondary strong {
+  max-width: 100%;
+  overflow: hidden;
   color: white;
-  font-size: 11px;
-  letter-spacing: 0.08em;
+  font-size: clamp(9px, 2.8vw, 11px);
+  letter-spacing: 0.05em;
+  line-height: 1.05;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 @keyframes waveVictoryBackdropIn {
@@ -827,10 +788,6 @@
   .wave-record-result-grid {
     min-height: 40px;
     padding: 4px 2px;
-  }
-
-  .wave-record-rewards {
-    min-height: 22px;
   }
 
   .wave-record-stars {

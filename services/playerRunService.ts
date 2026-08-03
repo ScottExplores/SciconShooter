@@ -20,6 +20,7 @@ const parseReceipt = (value: unknown): RunReceipt | null => {
 
   return {
     runId,
+    runMode: raw.runMode === 'weekly-streak' ? 'weekly-streak' : 'standard',
     gameVersion: String(raw.gameVersion || 'unknown'),
     startedAt: String(raw.startedAt || ''),
     finishedAt: String(raw.finishedAt || ''),

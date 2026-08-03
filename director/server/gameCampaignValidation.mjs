@@ -39,6 +39,7 @@ const CAMPAIGN_ENEMY_ASSET_KEYS = [
   'CAMPAIGN_ENEMY_LASER_STALKER',
   'CAMPAIGN_ENEMY_ORBIT_DISC',
   'CAMPAIGN_ENEMY_PRISM_ARTILLERY',
+  'CAMPAIGN_ENEMY_PROTOCOL_VANGUARD_FRAMES',
   'CAMPAIGN_ENEMY_RING_SENTINEL',
   'CAMPAIGN_ENEMY_SHIELD_RAMMER',
   'CAMPAIGN_ENEMY_WALL_SNIPER_LEFT',
@@ -197,7 +198,7 @@ const MAJOR_BOSS_IDS = new Set([
   'frontier-crownclaw', 'nullwake-revenant'
 ]);
 const BOSS_RIG_IDS = new Set(['open-orbit', 'citation-storm', 'paywall-siege', 'crown-claw']);
-const POWERUP_IDS = new Set(['double-shot', 'triple-shot', 'max-shot', 'magnet', 'shield', 'research-beam', 'extra-life']);
+const POWERUP_IDS = new Set(['projectile-upgrade', 'max-shot', 'magnet', 'shield', 'research-beam', 'extra-life']);
 const BACKGROUND_IDS = new Set([
   'open-orbit',
   'citation-storm',

@@ -128,7 +128,7 @@ export const ACHIEVEMENT_DEFINITIONS: readonly AchievementDefinition[] = [
   {
     id: 'coin-collector',
     title: 'Grant Collector',
-    description: 'Collect {target} research coins',
+    description: 'Collect {target} Tokens',
     metric: 'coinsCollected',
     targets: [100, 500, 1500, 5000, 10000],
     rewards: [65, 100, 135, 180, 220]

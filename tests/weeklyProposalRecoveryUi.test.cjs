@@ -55,19 +55,32 @@ test('App supplies only its verified recovery record to the chooser', () => {
 
 test('App refreshes the current weekly leader and Past Picks while the Home dashboard remains open', () => {
   const app = read('App.tsx');
+  const archiveService = read('services', 'winnerArchiveService.ts');
+  const competitionsApi = read('api', 'weekly-competitions.js');
 
   assert.match(app, /const \[loadingLeaderboard, setLoadingLeaderboard\] = useState<boolean>\(true\)/);
   assert.match(app, /BACKGROUND_LEADERBOARD_REFRESH_MS = 60_000/);
-  assert.match(app, /const fetchScores = async \(background = false\)/);
+  assert.match(app, /const fetchDashboardData = async \(background = false\)/);
   assert.match(app, /if \(!background && !alreadyHasData\) \{\s*setLoadingLeaderboard\(true\)/);
-  assert.match(app, /const refreshDashboardInBackground = \(\) => \{\s*if \(!document\.hidden\) void Promise\.all\(\[fetchScores\(true\), fetchArchivedWinners\(\)\]\)/);
+  assert.match(app, /Promise\.all\(\[\s*getLeaderboardData\(\),\s*getArchivedWeeklyWinners\(\)\s*\]\)/);
+  assert.match(app, /resolveWeeklyDashboardPublication\(archive\.completedWeekKeys\)/);
+  assert.match(app, /getLeaderboardWeekScores\(publication\.visibleWeekKey\)/);
+  assert.match(app, /presentedWeeklyScores === null/);
+  assert.match(app, /setMonthlyLeaderboard\(presentedWeeklyScores\);\s*setArchivedWinners\(archive\.winners\)/);
+  assert.match(app, /setWeeklyPresentationTime\(publication\.presentationTime\)/);
+  assert.match(app, /if \(!document\.hidden\) void fetchDashboardData\(true\)/);
   assert.match(app, /window\.setInterval\(\s*refreshDashboardInBackground,\s*BACKGROUND_LEADERBOARD_REFRESH_MS/);
   assert.match(app, /window\.addEventListener\('focus', refreshDashboardInBackground\)/);
   assert.match(app, /document\.addEventListener\('visibilitychange', handleDashboardVisibilityChange\)/);
   assert.match(app, /window\.removeEventListener\('focus', refreshDashboardInBackground\)/);
   assert.match(app, /document\.removeEventListener\('visibilitychange', handleDashboardVisibilityChange\)/);
-  assert.match(app, /if \(!active \|\| winners === null\) return;\s*setArchivedWinners\(winners\)/);
-  assert.match(read('services', 'winnerArchiveService.ts'), /Promise<ArchivedWinner\[\] \| null>/);
+  assert.match(app, /if \(archive === null\) return/);
+  assert.match(app, /getWeeklyPresentationMeta\(\)/);
+  assert.match(app, /presentation\.publishesAt\.getTime\(\) - Date\.now\(\)/);
+  assert.match(app, /weeklyPublishRefreshId = window\.setTimeout\(refreshWeeklyPublication, 500\)/);
+  assert.match(archiveService, /Promise<WeeklyCompetitionArchive \| null>/);
+  assert.match(archiveService, /return \{ winners, completedWeekKeys \}/);
+  assert.match(competitionsApi, /completedWeekKeys: getCompletedWeeklyCompetitionKeys\(competitions\)/);
 });
 
 test('App prefers the initial leader but still loads proposals if the leaderboard stalls', () => {

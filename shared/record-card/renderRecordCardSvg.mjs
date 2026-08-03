@@ -6,7 +6,7 @@ const XML_ENTITIES = Object.freeze({
   '"': '&quot;'
 });
 
-export const RECORD_CARD_RENDER_VERSION = '2026-07-22-mission-1';
+export const RECORD_CARD_RENDER_VERSION = '2026-08-02-token-1';
 
 const buildShipQuery = (playerShipId) => (
   playerShipId ? `&ship=${encodeURIComponent(String(playerShipId))}` : ''
@@ -48,7 +48,7 @@ const DEFAULT_COPY = Object.freeze({
   metricLabels: Object.freeze({
     wave: 'MISSION',
     targets: 'TARGETS',
-    coins: 'COINS',
+    coins: 'TOKENS',
     flight: 'FLIGHT'
   })
 });
@@ -194,6 +194,11 @@ export const escapeRecordCardXml = (value) => String(value ?? '').replace(
 
 const optionalString = (value, fallback) => typeof value === 'string' ? value : fallback;
 
+const tokenMetricLabel = (value, fallback) => optionalString(value, fallback).replace(
+  /\b(?:research\s+)?coins?\b/gi,
+  (term) => (/s$/i.test(term) ? 'TOKENS' : 'TOKEN')
+);
+
 const finiteNumber = (value, fallback, minimum, maximum) => {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return fallback;
@@ -230,7 +235,7 @@ export const resolveRecordCardPresentation = (presentation = {}) => ({
     metricLabels: {
       wave: optionalString(presentation.copy?.metricLabels?.wave, DEFAULT_COPY.metricLabels.wave),
       targets: optionalString(presentation.copy?.metricLabels?.targets, DEFAULT_COPY.metricLabels.targets),
-      coins: optionalString(presentation.copy?.metricLabels?.coins, DEFAULT_COPY.metricLabels.coins),
+      coins: tokenMetricLabel(presentation.copy?.metricLabels?.coins, DEFAULT_COPY.metricLabels.coins),
       flight: optionalString(presentation.copy?.metricLabels?.flight, DEFAULT_COPY.metricLabels.flight)
     }
   },

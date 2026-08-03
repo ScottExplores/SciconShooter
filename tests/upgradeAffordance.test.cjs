@@ -39,7 +39,7 @@ test('Hangar readiness follows exact affordability, ownership, equip, and max-le
   assert.match(hangar, /activeMainUpgradeReady = MAIN_SHIP_UPGRADES\.some/);
   assert.match(hangar, /activeMiniOwned[\s\S]*?activeMiniLevel < MINI_SHIP_MAX_LEVEL[\s\S]*?state\.coins >= activeMiniUpgradeCost/);
   assert.match(hangar, /!activeMiniOwned[\s\S]*?state\.coins >= activeMini\.purchaseCost/);
-  assert.match(hangar, /const slotUnlockReady = !unlocked && \(founderSandbox \|\| state\.coins >= unlockCost\)/);
+  assert.match(hangar, /const slotUnlockReady = !unlocked && \([\s\S]*founderSandbox[\s\S]*slot === 'right' \? rscAvailable >= 10 : state\.coins >= unlockCost[\s\S]*\);/);
   assert.doesNotMatch(hangar, /ready=\{!activeMiniEquipped\}/);
   assert.match(hangar, /disabled=\{activeMiniEquipped\}/);
   assert.match(hangar, /ready=\{!atMax && state\.coins >= cost\}/);

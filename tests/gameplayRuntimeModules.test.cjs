@@ -111,8 +111,8 @@ test('formation geometry is deterministic across custom, built-in, and entry pla
     target: firstTarget
   });
   assert.equal(plan.mode, 'spiral');
-  assert.equal(plan.entryFrames, 64);
-  assert.equal(plan.diveFrame, 252);
+  assert.equal(plan.entryFrames, 74);
+  assert.equal(plan.diveFrame, 266);
   assert.equal(plan.seed, 88);
   assert.equal(plan.baseSpeed, 2.2);
   assert.deepEqual(plan.target, firstTarget);
@@ -132,7 +132,7 @@ test('formation geometry is deterministic across custom, built-in, and entry pla
     framesPerSecond: 60,
     target: firstTarget
   });
-  assert.equal(sentryPlan.diveFrame, 904, 'wall sentries retain the twelve-second hold');
+  assert.equal(sentryPlan.diveFrame, 918, 'wall sentries retain the twelve-second hold');
 });
 
 test('authored pack directions and role behaviors deterministically vary formation entries', () => {

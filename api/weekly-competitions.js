@@ -1,6 +1,7 @@
 const {
   ensureRecentWeeklyCompetitions,
   finalizeWeeklyCompetition,
+  getCompletedWeeklyCompetitionKeys,
   isAuthorized,
   parseBody,
   readWeeklyCompetitions,
@@ -14,7 +15,11 @@ module.exports = async (req, res) => {
       let competitions = await readWeeklyCompetitions();
       const recovery = await ensureRecentWeeklyCompetitions({ existingCompetitions: competitions });
       if (recovery.changed) competitions = await readWeeklyCompetitions();
-      return sendJson(res, 200, { competitions, recovery });
+      return sendJson(res, 200, {
+        competitions,
+        completedWeekKeys: getCompletedWeeklyCompetitionKeys(competitions),
+        recovery
+      });
     }
     if (req.method === 'POST') {
       if (!isAuthorized(req)) return sendJson(res, 401, { error: 'Unauthorized' });

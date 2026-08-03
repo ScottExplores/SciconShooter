@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "id": "scicon-match-music-v1",
+  "generator": "tools/generate-match-music.mjs",
+  "provenance": {
+    "type": "project-owned original procedural synthesis",
+    "samplesUsed": false,
+    "thirdPartyMelodiesUsed": false,
+    "note": "Deterministic synthesis only. These compositions do not imitate or derive from a named recording."
+  },
+  "sharedTiming": {
+    "bpm": 148,
+    "bars": 8,
+    "meter": "4/4",
+    "loop": true,
+    "reason": "Matching grids and durations keep playlist crossfades rhythmically coherent."
+  },
+  "mixPolicy": {
+    "intent": "In-match beds with baked headroom for player shots, enemy fire, warnings, and defeat/victory stingers.",
+    "renderPeak": 0.54,
+    "seamFadeMilliseconds": 6,
+    "integrationNote": "Route through the existing music bus; do not normalize these files upward per track."
+  },
+  "tracks": [
+    {
+      "id": "open-orbit-relay",
+      "title": "Open Orbit Relay",
+      "url": "/audio/scicon-match-music-v1/music-open-orbit-relay.wav",
+      "key": "E minor",
+      "intensity": "standard",
+      "use": "Opening and standard combat waves",
+      "character": "Forward rolling bass, bright relay arpeggio, compact call-and-response lead.",
+      "loop": true,
+      "sha256": "3e239f0e1a1c5b78e7c2ae75040a79ec4f82fbceedd4f03e02f8cd45117a171a",
+      "durationSeconds": 12.973,
+      "sampleRateHz": 32000,
+      "channels": 1,
+      "bitDepth": 16,
+      "byteLength": 830314,
+      "measuredSamplePeakDbfs": -5.15,
+      "measuredRmsDbfs": -20.34,
+      "seamEndpointDelta": 0
+    },
+    {
+      "id": "ion-veil-pursuit",
+      "title": "Ion Veil Pursuit",
+      "url": "/audio/scicon-match-music-v1/music-ion-veil-pursuit.wav",
+      "key": "F-sharp minor",
+      "intensity": "elevated",
+      "use": "Mid-run combat and denser formations",
+      "character": "Syncopated bass, glassy pulse figures, and a restrained ascending pursuit motif.",
+      "loop": true,
+      "sha256": "f29395571544991f24032ea4d2f66be0846190a3bd14b0dab25837be1ac411f7",
+      "durationSeconds": 12.973,
+      "sampleRateHz": 32000,
+      "channels": 1,
+      "bitDepth": 16,
+      "byteLength": 830314,
+      "measuredSamplePeakDbfs": -5.15,
+      "measuredRmsDbfs": -20.9,
+      "seamEndpointDelta": 0
+    },
+    {
+      "id": "event-horizon-run",
+      "title": "Event Horizon Run",
+      "url": "/audio/scicon-match-music-v1/music-event-horizon-run.wav",
+      "key": "D phrygian",
+      "intensity": "high",
+      "use": "Late-run pressure and boss-adjacent combat",
+      "character": "Dark drone, phrygian stabs, galloped accents, and sparse warning-range melody.",
+      "loop": true,
+      "sha256": "e1b2bcc156f1d44cf4b121e41cd6b53a184528969fea62cbe50a28e268680dc3",
+      "durationSeconds": 12.973,
+      "sampleRateHz": 32000,
+      "channels": 1,
+      "bitDepth": 16,
+      "byteLength": 830314,
+      "measuredSamplePeakDbfs": -5.15,
+      "measuredRmsDbfs": -20.71,
+      "seamEndpointDelta": 0
+    }
+  ]
+}

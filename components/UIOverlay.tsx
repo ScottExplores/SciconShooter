@@ -4,6 +4,7 @@ import { FIELD_UPGRADE_CONFIG, GAME_CONFIG, getFieldUpgradeFlaskCost, getFieldUp
 import { BASE_FLASK_CHARGE_MAX, getFlaskProgress } from '../services/flaskProgress';
 import { DEFAULT_GAME_CAMPAIGN, getPrimaryAssetPath } from '../services/levelConfig';
 import type { PlayerShipId } from '../services/playerShipService';
+import { formatTokenAmount } from '../services/tokenTerminology';
 import {
   getShipAbilityDefinition
 } from '../services/shipAbilityService';
@@ -302,7 +303,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
               <span className="sci-compact-status-hud__separator" aria-hidden="true" />
             </div>
 
-            <div className="relative z-10 flex h-full min-w-0 flex-1 items-center pl-[0.3rem] pr-[0.75rem]" aria-label={`${stats.coins} coins collected this match`}>
+            <div className="relative z-10 flex h-full min-w-0 flex-1 items-center pl-[0.3rem] pr-[0.75rem]" aria-label={`${formatTokenAmount(stats.coins)} collected this match`}>
               <div className="relative h-[1.5rem] w-[1.5rem] shrink-0">
                 <img
                   src={compactHudAssets.matchCoin}
@@ -372,6 +373,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
         <button
           type="button"
           data-audio="none"
+          data-onboarding-target="flight-bomb"
           {...bombActionHandlers}
           disabled={!canUseBomb}
           className={`relative flex h-[4.375rem] w-[4.375rem] items-center justify-center rounded-[22px] border shadow-[0_18px_44px_rgba(0,0,0,0.38)] backdrop-blur-md transition active:scale-95 ${

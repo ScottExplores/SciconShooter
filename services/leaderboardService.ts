@@ -112,6 +112,31 @@ const readRemoteLeaderboardData = async (): Promise<LeaderboardData> => {
   return { scores, monthlyScores };
 };
 
+export const getLeaderboardWeekScores = async (
+  weekKey: string
+): Promise<LeaderboardEntry[] | null> => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(weekKey)) return null;
+
+  try {
+    const separator = API_URL.includes('?') ? '&' : '?';
+    const response = await fetch(`${API_URL}${separator}weekKey=${encodeURIComponent(weekKey)}`, {
+      method: 'GET',
+      headers: { Accept: 'application/json' }
+    });
+
+    if (!response.ok) return null;
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) return null;
+
+    const data = await response.json();
+    if (data?.weekKey !== weekKey || !Array.isArray(data?.weekScores)) return null;
+    return dedupeAndSort(data.weekScores, WEEKLY_SCORE_LIMIT);
+  } catch (error) {
+    console.error('Weekly leaderboard error:', error);
+    return null;
+  }
+};
+
 const writeRemoteLeaderboardData = async (
   entry: LeaderboardEntry,
   receipt: RunReceipt

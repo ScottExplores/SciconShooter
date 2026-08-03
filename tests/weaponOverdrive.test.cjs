@@ -23,7 +23,7 @@ const load = () => {
 
 const overdrive = load();
 
-test('Overdrive runs six tiers that strictly escalate and recolour every level', () => {
+test('Projectile Upgrade runs six tiers that strictly escalate and recolour every level', () => {
   const tiers = overdrive.WEAPON_OVERDRIVE_TIERS;
   assert.equal(tiers.length, overdrive.WEAPON_OVERDRIVE_MAX_LEVEL + 1);
   assert.equal(tiers[0].damageScale, 1);
@@ -45,7 +45,7 @@ test('Overdrive runs six tiers that strictly escalate and recolour every level',
   assert.equal(overdrive.getWeaponOverdriveTier(99).level, overdrive.WEAPON_OVERDRIVE_MAX_LEVEL);
 });
 
-test('Overdrive is mission-scoped and amplifies primary fire only', () => {
+test('Projectile Upgrade is mission-scoped and amplifies primary fire only', () => {
   const engine = read('services', 'gameLogic.ts');
 
   // Resets at the Mission boundary and at run start: a run of good play, not a
@@ -57,7 +57,7 @@ test('Overdrive is mission-scoped and amplifies primary fire only', () => {
   // primary fire is amplified.
   assert.match(engine, /\(weaponKind === 'pulse' \|\| weaponKind === 'bio-primary'\)\n\s*&& this\.missionOverdriveLevel > 0/);
   // At cap the pickup pays score instead of vanishing.
-  assert.match(engine, /MAX OVERDRIVE \+250/);
+  assert.match(engine, /MAX PROJECTILE UPGRADE \+250/);
 });
 
 test('fire patterns belong to the hull: ETH flies the triple spread', () => {
@@ -65,9 +65,12 @@ test('fire patterns belong to the hull: ETH flies the triple spread', () => {
 
   assert.match(engine, /const spreadLanes = this\.playerShipId === 'eth'/);
   assert.match(engine, /const hasSpread = this\.playerShipId === 'eth'/);
-  // The legacy pattern pickups must not drop; both authored ids grant Overdrive.
+  // New content uses one semantic pickup. The old ids remain runtime aliases
+  // only so an in-flight saved run from an older release can still resolve.
+  assert.match(engine, /'projectile-upgrade': PowerupType\.OVERDRIVE/);
   assert.match(engine, /'double-shot': PowerupType\.OVERDRIVE/);
   assert.match(engine, /'triple-shot': PowerupType\.OVERDRIVE/);
+  assert.match(engine, /Array\.from\(new Set\(/);
   assert.doesNotMatch(engine, /isPowerupActive\(PowerupType\.TRIPLE_SHOT\)/);
   assert.doesNotMatch(engine, /isPowerupActive\(PowerupType\.DOUBLE_SHOT\)/);
 
@@ -79,6 +82,36 @@ test('fire patterns belong to the hull: ETH flies the triple spread', () => {
   assert.match(specs.eth, /triple/i);
   const hangar = read('components', 'SquadHangar.tsx');
   assert.match(hangar, /PLAYER_SHIP_WEAPON_SPECS\[mainShipId\]/);
+});
+
+test('Projectile Upgrade scales each round without widening its authored lane radius', () => {
+  const base = overdrive.getWeaponOverdriveProjectileGeometry(10, 28, 36, 0);
+  const upgraded = overdrive.getWeaponOverdriveProjectileGeometry(10, 28, 36, 5);
+
+  assert.deepEqual(base, { unitWidth: 10, unitHeight: 28, bundleWidth: 82 });
+  assert.deepEqual(upgraded, { unitWidth: 16, unitHeight: 45, bundleWidth: 88 });
+  assert.equal(
+    upgraded.bundleWidth - upgraded.unitWidth,
+    base.bundleWidth - base.unitWidth,
+    'Max Shot/spread offsets stay fixed while only the projectile grows'
+  );
+
+  const engine = read('services', 'gameLogic.ts');
+  assert.match(engine, /const bundleWidth = projectileGeometry\.bundleWidth/);
+  assert.doesNotMatch(engine, /b\.width = Math\.round\(b\.width \* overdriveTier\.sizeScale\)/);
+});
+
+test('production content exposes one canonical Projectile Upgrade pickup', () => {
+  const catalog = read('game-config', 'catalog.ts');
+  const types = read('game-config', 'types.ts');
+  const campaign = read('game-config', 'campaign.json');
+  const directorValidation = read('director', 'server', 'gameCampaignValidation.mjs');
+
+  assert.match(catalog, /'projectile-upgrade': \{ id: 'projectile-upgrade', label: 'Projectile Upgrade', runtimeType: 'OVERDRIVE'/);
+  assert.match(types, /export type PowerupId = 'projectile-upgrade'/);
+  assert.match(directorValidation, /POWERUP_IDS = new Set\(\['projectile-upgrade'/);
+  assert.match(campaign, /"projectile-upgrade"/);
+  assert.doesNotMatch(campaign, /"(?:double|triple)-shot"/);
 });
 
 test('mission clear sweeps fallen coins to the player instead of losing them', () => {

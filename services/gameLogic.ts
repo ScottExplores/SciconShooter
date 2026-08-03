@@ -88,6 +88,7 @@ import {
   type EnemyCharacteristic
 } from './enemyCharacteristics';
 import {
+  getWeaponOverdriveProjectileGeometry,
   getWeaponOverdriveTier,
   WEAPON_OVERDRIVE_MAX_LEVEL
 } from './weaponOverdrive';
@@ -207,7 +208,10 @@ import {
   resolveFormationChoreography,
   resolveFormationEntryPlan,
   resolveFormationMovementPoint,
+  resolveFormationSlotTransition,
+  resolveNonOverlappingFormationCohortPositions,
   resolveNonOverlappingFormationPositions,
+  sampleFormationSlotTransition,
   isFormationVolleyAttack,
   type ConfiguredFormationMode,
   type ResolvedFormationChoreography
@@ -785,6 +789,14 @@ export class Entity {
   /** What this hull does once it holds a slot. See services/enemyCharacteristics. */
   campaignCharacteristic?: EnemyCharacteristic;
   formationChoreography?: ResolvedFormationChoreography;
+  /** Immutable identity for one authored spawn cohort, independent of its reusable pack. */
+  formationCohortId?: string;
+  /** Set once the complete cohort has settled into collision-safe target slots. */
+  formationSlotLocked: boolean = false;
+  /** True only while easing from an authored slot to its one locked safe slot. */
+  formationSlotTransitionActive: boolean = false;
+  /** Frame when assembled formation motion began, used for a no-snap blend-in. */
+  formationMotionStartFrame: number = -1;
   formationGroupReady: boolean = false;
   formationAttackSelected: boolean = false;
   formationAttackActive: boolean = false;
@@ -873,6 +885,8 @@ export class Entity {
   campaignPerformanceCost: number = 1;
   campaignFireBehavior?: EnemyRoleDefinition['fireBehavior'];
   campaignFireDelaySeconds: number = 0;
+  /** Simulation-owned timestamp for stateful authored enemy firing art. */
+  campaignLastFireFrame: number = -999;
   campaignFormationFiringBehavior?: FormationPackDefinition['firingBehavior'];
   campaignFormationPackId?: string;
   campaignFormationPackInstanceId?: string;
@@ -1081,7 +1095,7 @@ const GAMEPLAY_ASSET_URLS = [
   ...PLAYER_WEAPON_FRAME_URLS,
   ...SHIP_ABILITY_FRAME_URLS,
   ...RESEARCH_IMPACT_FRAME_URLS,
-  ...ASSETS.POWERUP_OVERDRIVE_SPREAD_FRAMES,
+  ...ASSETS.POWERUP_PROJECTILE_UPGRADE_FRAMES,
   ASSETS.POWERUP_MAX_SHOT,
   ...ASSETS.POWERUP_MAGNET_FRAMES,
   ...ASSETS.POWERUP_SHIELD_FRAMES,
@@ -6898,15 +6912,7 @@ export class GameEngine {
       ),
       0
     ) || 0;
-    const bundleWidth = bulletWidth + maxVisualOffset * 2;
-    const b = this.createEntity(
-      EntityType.PROJECTILE,
-      this.player.x + this.player.width / 2 - bundleWidth / 2 + offsetX,
-      this.player.y + this.player.height * 0.12 + yOffset
-    );
-    const angle = angleBias;
-    b.width = bundleWidth;
-    b.height = isBioPrimary
+    const baseBulletHeight = isBioPrimary
       ? 28
       : isBioLaser
       ? Math.round(34 + bioLaserLevel * 6)
@@ -6923,6 +6929,27 @@ export class GameEngine {
             : weaponKind === 'plasma'
               ? 34
               : 28;
+    // Mission Overdrive amplifies the hull's PRIMARY fire only. Signature-move
+    // projectiles scale through their own Hangar track, and stacking both
+    // would double-dip the balance.
+    const overdrivePrimary = (weaponKind === 'pulse' || weaponKind === 'bio-primary')
+      && this.missionOverdriveLevel > 0;
+    const overdriveTier = getWeaponOverdriveTier(this.missionOverdriveLevel);
+    const projectileGeometry = getWeaponOverdriveProjectileGeometry(
+      bulletWidth,
+      baseBulletHeight,
+      maxVisualOffset,
+      overdrivePrimary ? this.missionOverdriveLevel : 0
+    );
+    const bundleWidth = projectileGeometry.bundleWidth;
+    const b = this.createEntity(
+      EntityType.PROJECTILE,
+      this.player.x + this.player.width / 2 - bundleWidth / 2 + offsetX,
+      this.player.y + this.player.height * 0.12 + yOffset
+    );
+    const angle = angleBias;
+    b.width = bundleWidth;
+    b.height = projectileGeometry.unitHeight;
     b.vx = Math.sin(angle) * speed;
     b.vy = -Math.cos(angle) * speed;
     b.color = bulletColor;
@@ -6931,19 +6958,9 @@ export class GameEngine {
     b.weaponVisualLevel = 0;
     b.weaponVisualStartFrame = this.frameCount;
     b.maxShotVisualPattern = maxShotVisualPattern;
-    b.projectileUnitWidth = bulletWidth;
-    b.projectileUnitHeight = b.height;
-    // Mission Overdrive amplifies the hull's PRIMARY fire only. Signature-move
-    // projectiles scale through their own Hangar track, and stacking both
-    // would double-dip the balance.
-    const overdrivePrimary = (weaponKind === 'pulse' || weaponKind === 'bio-primary')
-      && this.missionOverdriveLevel > 0;
-    const overdriveTier = getWeaponOverdriveTier(this.missionOverdriveLevel);
+    b.projectileUnitWidth = projectileGeometry.unitWidth;
+    b.projectileUnitHeight = projectileGeometry.unitHeight;
     if (overdrivePrimary) {
-      b.width = Math.round(b.width * overdriveTier.sizeScale);
-      b.height = Math.round(b.height * overdriveTier.sizeScale);
-      b.projectileUnitWidth = Math.round(bulletWidth * overdriveTier.sizeScale);
-      b.projectileUnitHeight = b.height;
       if (overdriveTier.color) b.color = overdriveTier.color;
     }
     const baseDamage = isBioPrimary
@@ -8095,6 +8112,7 @@ export class GameEngine {
     const burstCount = authoredBurst
       ? Math.min(requestedBurst, Math.max(1, standardShotCap - activeEnemyShots))
       : 1;
+    source.campaignLastFireFrame = this.frameCount;
     const baseAngle = Math.atan2(dy, dx);
     for (let index = 0; index < burstCount; index++) {
       const centered = index - ((burstCount - 1) / 2);
@@ -8605,6 +8623,7 @@ export class GameEngine {
 
   separateAssembledFormationMembers() {
     const groups = new Map<string, Entity[]>();
+    const assembledHolders: Entity[] = [];
     for (const entity of this.entities) {
       if (
         entity.markedForDeletion
@@ -8613,7 +8632,8 @@ export class GameEngine {
         || entity.formationTargetX === undefined
         || entity.formationTargetY === undefined
       ) continue;
-      const groupId = entity.campaignFormationPackInstanceId
+      const groupId = entity.formationCohortId
+        || entity.campaignFormationPackInstanceId
         || (entity.sourceEventId
           ? `event:${entity.sourceEventId}`
           : `formation:${entity.formation}:${entity.formationGroupSeed}`);
@@ -8629,23 +8649,136 @@ export class GameEngine {
       maxY: this.height * 0.58
     };
     for (const members of groups.values()) {
-      if (members.length <= 1 || !members.some((member) => member.formationState === 'hold')) continue;
-      const resolved = resolveNonOverlappingFormationPositions(
-        members.map((member) => ({
+      const packInstanceId = members[0].campaignFormationPackInstanceId;
+      const packInstance = packInstanceId
+        ? this.campaignFormationPackInstances.get(packInstanceId)
+        : undefined;
+      const sourceEventId = members[0].sourceEventId;
+      const targetCount = Math.max(...members.map((member) => member.encounterGroupSize));
+      const spawnedCount = packInstance
+        ? packInstance.spawnedCount
+        : sourceEventId
+          ? (this.configuredSpawnCounts.get(sourceEventId) ?? 0)
+          : targetCount;
+      const cohortSpawned = spawnedCount >= targetCount;
+
+      // Resolve one collision-safe layout as soon as the complete cohort exists.
+      // Crucially, changing a target never writes the entity's live x/y. Every
+      // changed member begins a short transition from its current rendered
+      // position, so a late spawn cannot make the early arrivals snap sideways.
+      if (cohortSpawned && members.some((member) => !member.formationSlotLocked)) {
+        const reservedTargets = this.entities
+          .filter((entity) => (
+            !entity.markedForDeletion
+            && entity.formationState !== undefined
+            && entity.formation !== 'orbit'
+            && (entity.formationState === 'entry' || entity.formationState === 'hold')
+            && entity.formationTargetX !== undefined
+            && entity.formationTargetY !== undefined
+            && !members.includes(entity)
+            && !this.isSameFormationCohort(entity, members[0])
+          ))
+          .map((entity) => ({
+            id: entity.id,
+            order: entity.formationIndex,
+            x: entity.formationTargetX ?? entity.x,
+            y: entity.formationTargetY ?? entity.y,
+            width: entity.width,
+            height: entity.height
+          }));
+        const lockedTargets = resolveNonOverlappingFormationCohortPositions(
+          members.map((member) => ({
+            id: member.id,
+            order: member.formationIndex,
+            x: member.formationTargetX ?? member.x,
+            y: member.formationTargetY ?? member.y,
+            width: member.width,
+            height: member.height
+          })),
+          reservedTargets,
+          bounds,
+          this.mobileProfile ? 5 : 6
+        );
+        const lockedTargetById = new Map(lockedTargets.map((point) => [point.id, point]));
+        members.forEach((member) => {
+          const point = lockedTargetById.get(member.id);
+          if (!point) return;
+          const transition = resolveFormationSlotTransition({
+            current: { x: member.x, y: member.y },
+            previousTarget: {
+              x: member.formationTargetX ?? member.x,
+              y: member.formationTargetY ?? member.y
+            },
+            resolvedTarget: point
+          });
+          member.formationTargetX = transition.target.x;
+          member.formationTargetY = transition.target.y;
+          member.formationSlotLocked = true;
+          if (!transition.changed) return;
+          member.formationStartX = transition.start.x;
+          member.formationStartY = transition.start.y;
+          member.formationState = 'entry';
+          member.formationStateFrame = this.frameCount;
+          member.formationEntryFrames = transition.durationFrames;
+          member.formationSlotTransitionActive = true;
+          member.formationGroupReady = false;
+          member.vx = 0;
+          member.vy = 0;
+          member.angle = 0;
+        });
+      }
+
+      const cohortSettled = cohortSpawned
+        && members.every((member) => member.formationSlotLocked)
+        && members.every((member) => member.formationState === 'hold');
+      if (!cohortSettled) continue;
+
+      // Loose (non-pack) groups share the same assembly barrier as authored
+      // packs. Previously their first arrivals could sway, fire, or dive while
+      // the tail of the group was still entering, which looked like formation
+      // slots were being shuffled.
+      if (!packInstance && members.some((member) => !member.formationGroupReady)) {
+        members.forEach((member) => {
+          member.formationGroupReady = true;
+          member.formationMotionStartFrame = this.frameCount;
+          member.formationDiveFrame = Math.max(
+            member.formationDiveFrame,
+            this.frameCount + 24 + (member.formationIndex % 6) * 6
+          );
+        });
+      }
+      if (members.every((member) => member.formationGroupReady)) {
+        assembledHolders.push(...members);
+      }
+    }
+
+    // A pack's authored motion can bring two otherwise valid cohorts together
+    // after their slots were locked. Resolve all assembled holders as one
+    // collision field on every simulation tick; divers and returning enemies
+    // remain intentionally unrestricted.
+    if (assembledHolders.length > 1) {
+      const orderedHolders = [...assembledHolders].sort((left, right) => (
+        String(left.formationCohortId ?? left.sourceEventId ?? '').localeCompare(
+          String(right.formationCohortId ?? right.sourceEventId ?? '')
+        )
+        || left.formationIndex - right.formationIndex
+        || left.id.localeCompare(right.id)
+      ));
+      const globallySeparated = resolveNonOverlappingFormationPositions(
+        orderedHolders.map((member, order) => ({
           id: member.id,
-          order: member.formationIndex,
-          x: member.formationState === 'hold' ? member.x : (member.formationTargetX ?? member.x),
-          y: member.formationState === 'hold' ? member.y : (member.formationTargetY ?? member.y),
+          order,
+          x: member.x,
+          y: member.y,
           width: member.width,
           height: member.height
         })),
         bounds,
         this.mobileProfile ? 5 : 6
       );
-      const pointById = new Map(resolved.map((point) => [point.id, point]));
-      members.forEach((member) => {
-        if (member.formationState !== 'hold') return;
-        const point = pointById.get(member.id);
+      const globalPointById = new Map(globallySeparated.map((point) => [point.id, point]));
+      orderedHolders.forEach((member) => {
+        const point = globalPointById.get(member.id);
         if (!point) return;
         member.x = point.x;
         member.y = point.y;
@@ -8716,7 +8849,10 @@ export class GameEngine {
       const fullySpawned = instance.spawnedCount >= instance.targetCount;
       const fullyAssembled = fullySpawned && members.every((member) => member.formationState === 'hold');
       if (fullyAssembled) {
-        members.forEach((member) => { member.formationGroupReady = true; });
+        members.forEach((member) => {
+          if (!member.formationGroupReady) member.formationMotionStartFrame = this.frameCount;
+          member.formationGroupReady = true;
+        });
         this.setCampaignFormationInstancePhase(instance, 'holding');
       }
       return instance;
@@ -8875,6 +9011,9 @@ export class GameEngine {
     enemy.formationEntryPath = choreography.entryPathId || plan.entryPath;
     enemy.formationEntryBehavior = plan.entryBehavior;
     enemy.formationChoreography = choreography;
+    enemy.formationSlotLocked = false;
+    enemy.formationSlotTransitionActive = false;
+    enemy.formationMotionStartFrame = -1;
     enemy.formationGroupReady = false;
     enemy.formationAttackSelected = false;
     enemy.formationAttackActive = false;
@@ -8947,6 +9086,23 @@ export class GameEngine {
     };
   }
 
+  /** Cohort identity is authoritative; legacy metadata is only a compatibility fallback. */
+  isSameFormationCohort(left: Entity, right: Entity) {
+    if (left.formationCohortId || right.formationCohortId) {
+      return Boolean(left.formationCohortId)
+        && left.formationCohortId === right.formationCohortId;
+    }
+    if (left.campaignFormationPackInstanceId || right.campaignFormationPackInstanceId) {
+      return Boolean(left.campaignFormationPackInstanceId)
+        && left.campaignFormationPackInstanceId === right.campaignFormationPackInstanceId;
+    }
+    if (left.sourceEventId || right.sourceEventId) {
+      return Boolean(left.sourceEventId) && left.sourceEventId === right.sourceEventId;
+    }
+    return left.formation === right.formation
+      && left.formationGroupSeed === right.formationGroupSeed;
+  }
+
   /** Escorts still alive in the same pod as the given leader. */
   countLivingEscortsForPod(leader: Entity) {
     const podIndex = Math.floor(leader.formationIndex / ESCORT_POD_SIZE);
@@ -8954,7 +9110,7 @@ export class GameEngine {
     for (const entity of this.entities) {
       if (entity.markedForDeletion || entity === leader) continue;
       if (entity.formation !== 'escort') continue;
-      if (entity.formationGroupSeed !== leader.formationGroupSeed) continue;
+      if (!this.isSameFormationCohort(entity, leader)) continue;
       if (Math.floor(entity.formationIndex / ESCORT_POD_SIZE) !== podIndex) continue;
       if (entity.formationIndex % ESCORT_POD_SIZE === 0) continue;
       alive++;
@@ -8991,26 +9147,36 @@ export class GameEngine {
       const eased = progress * progress * (3 - 2 * progress);
       const startX = enemy.formationStartX ?? enemy.x;
       const startY = enemy.formationStartY ?? enemy.y;
-      const entryMotion = resolveFormationEntryMotion({
-        mode: formation,
-        index: enemy.formationIndex,
-        groupSeed: enemy.formationGroupSeed,
-        progress,
-        viewportWidth: this.width,
-        entryDirection: enemy.formationEntryDirection,
-        entryPath: enemy.formationEntryPath,
-        entryBehavior: enemy.formationEntryBehavior
-      });
-      enemy.x = lerp(startX, targetX, eased) + entryMotion.xOffset;
-      enemy.y = lerp(startY, targetY, eased) + entryMotion.yOffset;
+      const slotTransitionPoint = enemy.formationSlotTransitionActive
+        ? sampleFormationSlotTransition({
+            start: { x: startX, y: startY },
+            target: { x: targetX, y: targetY },
+            progress
+          })
+        : null;
+      const entryMotion = slotTransitionPoint
+        ? null
+        : resolveFormationEntryMotion({
+            mode: formation,
+            index: enemy.formationIndex,
+            groupSeed: enemy.formationGroupSeed,
+            progress,
+            viewportWidth: this.width,
+            entryDirection: enemy.formationEntryDirection,
+            entryPath: enemy.formationEntryPath,
+            entryBehavior: enemy.formationEntryBehavior
+          });
+      enemy.x = slotTransitionPoint?.x ?? (lerp(startX, targetX, eased) + (entryMotion?.xOffset ?? 0));
+      enemy.y = slotTransitionPoint?.y ?? (lerp(startY, targetY, eased) + (entryMotion?.yOffset ?? 0));
       enemy.vx = 0;
       enemy.vy = 0;
-      enemy.angle = entryMotion.angle;
+      enemy.angle = entryMotion?.angle ?? 0;
 
       if (progress >= 1) {
         enemy.x = targetX;
         enemy.y = targetY;
         enemy.angle = 0;
+        enemy.formationSlotTransitionActive = false;
         enemy.formationState = 'hold';
         enemy.formationStateFrame = this.frameCount;
         if (state === 'return') enemy.formationAttackActive = false;
@@ -9019,6 +9185,24 @@ export class GameEngine {
     }
 
     if (state === 'hold') {
+      // Early arrivals wait on their immutable slot until every member has
+      // assembled. This applies to loose events as well as authored packs;
+      // otherwise the first arrival begins moving while later members still
+      // target the original geometry and the squad visibly shuffles.
+      if (!enemy.formationGroupReady) {
+        enemy.x = targetX;
+        enemy.y = targetY;
+        enemy.vx = 0;
+        enemy.vy = 0;
+        enemy.angle = 0;
+        return true;
+      }
+      const motionProgress = clamp(
+        (this.frameCount - Math.max(0, enemy.formationMotionStartFrame)) / 24,
+        0,
+        1
+      );
+      const motionBlend = motionProgress * motionProgress * (3 - 2 * motionProgress);
       // Escort rings rotate around their leader so the pod reads as a guarded
       // target rather than a static cluster.
       const escortSpin = formation === 'escort' && enemy.formationIndex % ESCORT_POD_SIZE !== 0
@@ -9046,16 +9230,24 @@ export class GameEngine {
           viewport: { width: this.width, height: this.height },
           transformCycle: enemy.formationCycle
         });
-        enemy.x = point.x + strafeOffset + (escortSpin?.x ?? 0);
-        enemy.y = point.y + (escortSpin?.y ?? 0);
+        enemy.x = lerp(targetX, point.x + strafeOffset + (escortSpin?.x ?? 0), motionBlend);
+        enemy.y = lerp(targetY, point.y + (escortSpin?.y ?? 0), motionBlend);
       } else {
         const groupSway = Math.sin((this.frameCount + enemy.formationGroupSeed) * 0.018) * 14;
         const formationPulse = formation === 'diamond' || formation === 'spiral'
           ? Math.sin((this.frameCount + enemy.formationIndex * 11) * 0.035) * 4
           : 0;
-        enemy.x = targetX + groupSway + strafeOffset + (escortSpin?.x ?? 0);
-        enemy.y = targetY + formationPulse + (escortSpin?.y ?? 0)
-          + Math.sin((this.frameCount + enemy.formationIndex * 17) * 0.045) * 2.5;
+        enemy.x = lerp(
+          targetX,
+          targetX + groupSway + strafeOffset + (escortSpin?.x ?? 0),
+          motionBlend
+        );
+        enemy.y = lerp(
+          targetY,
+          targetY + formationPulse + (escortSpin?.y ?? 0)
+            + Math.sin((this.frameCount + enemy.formationIndex * 17) * 0.045) * 2.5,
+          motionBlend
+        );
       }
       enemy.vx = 0;
       enemy.vy = 0;
@@ -9139,7 +9331,7 @@ export class GameEngine {
         && !entity.markedForDeletion
         && entity.hp > 0
         && entity.formationState === 'hold'
-        && entity.formationGroupSeed === leader.formationGroupSeed
+        && this.isSameFormationCohort(entity, leader)
         && getEnemyCharacteristicProfile(entity.campaignCharacteristic).divesFromFormation
       ))
       .sort((left, right) => (
@@ -9261,6 +9453,7 @@ export class GameEngine {
       : 'none';
     enemy.campaignFormationPackId = formationPack?.id;
     enemy.campaignFormationPackInstanceId = formationInstanceId;
+    enemy.formationCohortId = this.getCampaignFormationPackInstanceId(event.id);
     enemy.campaignSpawnFrame = this.frameCount;
     enemy.campaignFiller = !countTowardCombatBudget;
     if (
@@ -18240,8 +18433,9 @@ export class GameEngine {
 
   spawnPowerup(x: number, y: number, forcedPowerupId?: string) {
     const powerupIdToType: Record<string, PowerupType> = {
-      // Authored waves still reference the legacy pickup ids. Both now grant
-      // Overdrive: fire patterns belong to the hull, the pickup amplifies it.
+      'projectile-upgrade': PowerupType.OVERDRIVE,
+      // Backward compatibility for saved runs and historical authored data.
+      // New Campaign content uses only the canonical projectile-upgrade id.
       'double-shot': PowerupType.OVERDRIVE,
       'triple-shot': PowerupType.OVERDRIVE,
       'max-shot': PowerupType.MAX_SHOT,
@@ -18262,7 +18456,9 @@ export class GameEngine {
     ]);
     const configuredIds = this.getCurrentLevelDefinition()?.availablePowerupIds;
     const allowed = Array.isArray(configuredIds) && configuredIds.length > 0
-      ? configuredIds.map((id) => powerupIdToType[id]).filter((type): type is PowerupType => Boolean(type))
+      ? Array.from(new Set(
+          configuredIds.map((id) => powerupIdToType[id]).filter((type): type is PowerupType => Boolean(type))
+        ))
       : Array.from(weights.keys()).filter((type) => type !== PowerupType.EXTRA_LIFE);
     const candidates = allowed.length > 0 ? allowed : [PowerupType.OVERDRIVE];
     const totalWeight = candidates.reduce((sum, candidate) => sum + (weights.get(candidate) || 0.01), 0);
@@ -18620,7 +18816,7 @@ export class GameEngine {
       // maxed run still wants to grab it.
       if (this.missionOverdriveLevel >= WEAPON_OVERDRIVE_MAX_LEVEL) {
         this.stats.score += 250;
-        this.spawnFloatingText(cx, cy - 20, "MAX OVERDRIVE +250", "#f472b6");
+        this.spawnFloatingText(cx, cy - 20, "MAX PROJECTILE UPGRADE +250", "#f472b6");
         this.spawnRingEffect(cx, cy, "#f472b6");
       } else {
         this.missionOverdriveLevel++;
@@ -20178,7 +20374,8 @@ export class GameEngine {
         ctx.shadowBlur = 12;
         ctx.shadowColor = '#67e8f9';
 
-        let frames: readonly string[] = ASSETS.POWERUP_OVERDRIVE_SPREAD_FRAMES;
+        let frames: readonly string[] = ASSETS.POWERUP_PROJECTILE_UPGRADE_FRAMES;
+        if (type === PowerupType.OVERDRIVE) frames = ASSETS.POWERUP_PROJECTILE_UPGRADE_FRAMES;
         if (type === PowerupType.MAGNET) frames = ASSETS.POWERUP_MAGNET_FRAMES;
         if (type === PowerupType.SHIELD) frames = ASSETS.POWERUP_SHIELD_FRAMES;
         if (type === PowerupType.EXTRA_LIFE) frames = ['/game-art/powerups/extra-life.png'];

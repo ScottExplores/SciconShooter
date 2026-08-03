@@ -95,6 +95,14 @@ test('achievements advance through permanent progressive tiers', () => {
 test('reward claims persist atomically, guard double taps, and report confirmed rewards', () => {
   const app = read('App.tsx');
   const squad = read('services', 'squadProgression.ts');
+  const dailyClaimHandler = app.slice(
+    app.indexOf('const handleClaimDailyGift'),
+    app.indexOf('const handleClaimAchievement')
+  );
+  const achievementClaimHandler = app.slice(
+    app.indexOf('const handleClaimAchievement'),
+    app.indexOf('const handleOpenRewardCenter')
+  );
 
   assert.match(app, /claimDailyGiftReward\(permanentSquadState\)/);
   assert.match(app, /rewardClaimInFlightRef\.current/);
@@ -103,7 +111,8 @@ test('reward claims persist atomically, guard double taps, and report confirmed 
     2,
     'founder sandbox daily and achievement claims must not persist into the device Pilot'
   );
-  assert.doesNotMatch(app, /if \(!activeWalletAddress\) \{[\s\S]*connectWallet\(\);[\s\S]*return null;/);
+  assert.doesNotMatch(dailyClaimHandler, /connectWallet\(\)/);
+  assert.doesNotMatch(achievementClaimHandler, /connectWallet\(\)/);
   assert.match(app, /permanentSquadState\.profileId !== activeProfileId[\s\S]*weeklySquadState\.profileId !== activeProfileId/);
   assert.match(app, /savePermanentSquadState\(nextPermanentState\)/);
   assert.match(app, /saveWeeklySquadState\(nextWeeklyState\)/);
@@ -146,7 +155,8 @@ test('the Reward Center routes pending rewards and celebrates only confirmed cla
   assert.match(center, /DAILY_GIFT_REWARDS\.map/);
   assert.match(center, /ACHIEVEMENT_DEFINITIONS\.map/);
   assert.match(center, /sci-reward-claim-celebration/);
-  assert.match(center, /\+\{claimNotice\.coins\.toLocaleString\(\)\} coins/);
+  assert.match(center, /\+\{formatTokenAmount\(claimNotice\.coins\)\}/);
+  assert.doesNotMatch(center, /Research coins added|\bcoins<| coins`/i);
   assert.match(center, /confirmedReward = onClaimDailyGift\(\);[\s\S]*if \(!confirmedReward\)[\s\S]*setClaimNotice/);
   assert.match(center, /confirmedCoins = onClaimAchievement\(id\);[\s\S]*if \(confirmedCoins === null\)[\s\S]*setClaimNotice/);
   assert.match(center, /claimInFlightRef\.current/);

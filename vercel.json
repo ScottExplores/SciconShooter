@@ -54,6 +54,10 @@
       "destination": "/api/mint-records?route=wallet-profile"
     },
     {
+      "source": "/api/wallet-purchases",
+      "destination": "/api/mint-records?route=wallet-purchases"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

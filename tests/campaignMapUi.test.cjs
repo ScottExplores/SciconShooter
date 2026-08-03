@@ -39,6 +39,17 @@ test('Campaign Map offers a one-tap return after manual route exploration', () =
   assert.match(mapSource, /requestAnimationFrame\(\(\) => centerMissionNode\(progress\.recommendedMissionId\)\)/);
 });
 
+test('an unlocked route selection immediately becomes the visual current node without committing progression', () => {
+  assert.match(mapSource, /const mapCurrentMissionId = \([\s\S]*?!selectedBranch[\s\S]*?selectedState\?\.unlocked[\s\S]*?selectedMission\.id : progress\.recommendedMissionId/);
+  assert.match(mapSource, /const selectedMapCurrent = Boolean\([\s\S]*?selectedMission\.id === mapCurrentMissionId/);
+  assert.match(mapSource, /const mapCurrent = mission\.id === mapCurrentMissionId/);
+  assert.match(mapSource, /data-map-current=\{mapCurrent \? 'true' : undefined\}/);
+  assert.match(mapSource, /\{mapCurrent \? \([\s\S]*?className="campaign-map-ship-marker"/);
+  assert.match(mapSource, /aria-current=\{mapCurrent \? 'step' : undefined\}/);
+  assert.match(mapSource, /campaign-map-selection-state--\$\{selectedMapCurrent \? 'current'/);
+  assert.match(mapSource, /if \(routeSelectionRequest\) onSelectRoute\?\.\(routeSelectionRequest\)/);
+});
+
 test('Campaign Map always starts or retries a Mission from Wave 1', () => {
   assert.match(mapSource, /const selectedLaunchWaveId = selectedMission\?\.waveIds\[0\] \?\? null/);
   assert.match(mapSource, /waveId: selectedLaunchWaveId \?\? selectedMission\.waveIds\[0\]/);
@@ -102,6 +113,13 @@ test('Campaign Map prioritizes actionable records and mastery details over redun
   );
   assert.doesNotMatch(mapSource, /<span><small>Stars<\/small><strong>/);
   assert.match(mapSource, /3-star mastery set/);
+});
+
+test('each mastery objective identifies its payout as Tokens with the compact token sprite', () => {
+  assert.match(mapSource, /CAMPAIGN_TOKEN_ICON_URL = '\/game-art\/generated\/rsc-coin-flip-v1\/rsc-coin-pixel-front\.png'/);
+  assert.match(mapSource, /aria-label=\{`\$\{formatTokenAmount\(objective\.rewardCoins\)\} reward`\}/);
+  assert.match(mapSource, /<img src=\{CAMPAIGN_TOKEN_ICON_URL\} alt="" aria-hidden="true" draggable=\{false\} \/>/);
+  assert.match(mapStyles, /\.campaign-map-objectives em img[\s\S]*?width: 0\.78rem;[\s\S]*?image-rendering: pixelated/);
 });
 
 test('locked boss nodes use their canonical preview only as a silhouette and never substitute another boss', () => {
@@ -182,6 +200,14 @@ test('Home map and boss commands use icon-only buttons with shared new-item atte
   assert.doesNotMatch(startScreenSource, /src="\/game-art\/bosses\/final-boss-sentinel\.png"/);
   assert.doesNotMatch(startScreenSource, /M\{String\(campaignCheckpoint\.missionNumber\)\.padStart\('2', '0'\)\}/);
   assert.doesNotMatch(startScreenSource, />\s*Map\s*<\/span>/);
+  const mapCommandStart = startScreenSource.indexOf('data-campaign-map-trigger="true"');
+  const mapCommandEnd = startScreenSource.indexOf('</button>', mapCommandStart);
+  assert.ok(mapCommandStart >= 0 && mapCommandEnd > mapCommandStart);
+  assert.doesNotMatch(
+    startScreenSource.slice(mapCommandStart, mapCommandEnd),
+    /sci-home-command-icon__badge|>\s*9\+?\s*</,
+    'Campaign Map may pulse for new content but must not show an unexplained numeric badge'
+  );
   assert.match(homeStyles, /\.sci-home-command-icon \{[\s\S]*?border: 0;[\s\S]*?background: transparent;[\s\S]*?box-shadow: none;/);
   assert.match(homeStyles, /\.sci-home-command-icon\[data-attention='true'\] \.sci-home-command-icon__art \{[\s\S]*?sci-home-command-attention-art/);
   assert.match(homeStyles, /drop-shadow\(0 0 0\.72rem rgb\(250 204 21 \/ 0\.96\)\)/);
@@ -265,7 +291,7 @@ test('Campaign Lab presents authored encounter and live performance telemetry wi
   assert.match(mapSource, />Projectiles P \/ E<\/small>/);
   assert.match(mapSource, />Clear time<\/small>/);
   assert.match(mapSource, />Damage received<\/small>/);
-  assert.match(mapSource, />Coins earned<\/small>/);
+  assert.match(mapSource, />Tokens earned<\/small>/);
   assert.match(mapSource, />Weekly points earned<\/small>/);
   assert.match(mapSource, />Player DPS<\/small>/);
   assert.match(mapSource, />Enemy average TTK<\/small>/);

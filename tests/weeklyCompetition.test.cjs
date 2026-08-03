@@ -4,13 +4,17 @@ const {
   captureWeeklyProposalCutoffSnapshot,
   ensureRecentWeeklyCompetitions,
   finalizeWeeklyCompetition,
+  getCompletedWeeklyCompetitionKeys,
   getPreviousWeekKey,
   getWeekRange,
   resolveProposalAtWeeklyCutoff
 } = require('../api/_lib/weeklyCompetitionService');
 const {
   getCurrentWeekRange,
-  getWeeklyBoundaryMeta
+  getWeeklyBoundaryMeta,
+  getWeeklyPresentationMeta,
+  resolveWeeklyDashboardPublication,
+  WEEKLY_SCORE_SETTLEMENT_MS
 } = require('../shared/weeklyCompetitionBoundary.js');
 
 const shortlyAfterCutoff = (weekKey) => new Date(getWeekRange(weekKey).end.getTime() + 6 * 60 * 1000);
@@ -66,6 +70,54 @@ test('weekly card metadata rolls to the next Sunday at the cutoff', () => {
   );
 });
 
+test('the public weekly board and Past Pick share one five-minute publication boundary', () => {
+  assert.equal(WEEKLY_SCORE_SETTLEMENT_MS, 5 * 60 * 1000);
+
+  const finalizing = getWeeklyPresentationMeta(new Date('2026-07-12T19:03:00.000Z'), 'en-US');
+  assert.equal(finalizing.weekKey, '2026-07-05');
+  assert.equal(finalizing.scoringWeekKey, '2026-07-12');
+  assert.equal(finalizing.isFinalizing, true);
+  assert.equal(finalizing.publishesAt.toISOString(), '2026-07-12T19:05:00.000Z');
+
+  const published = getWeeklyPresentationMeta(new Date('2026-07-12T19:05:00.000Z'), 'en-US');
+  assert.equal(published.weekKey, '2026-07-12');
+  assert.equal(published.scoringWeekKey, '2026-07-12');
+  assert.equal(published.isFinalizing, false);
+  assert.equal(published.endLabel, 'Jul 19');
+});
+
+test('the dashboard holds the outgoing board until its exact prior week is terminal', () => {
+  const afterSettlement = new Date('2026-07-12T19:06:00.000Z');
+  const held = resolveWeeklyDashboardPublication([], afterSettlement);
+  assert.equal(held.waitingForArchive, true);
+  assert.equal(held.requiredArchiveWeekKey, '2026-07-05');
+  assert.equal(held.visibleWeekKey, '2026-07-05');
+  assert.equal(new Date(held.presentationTime).toISOString(), '2026-07-12T19:04:59.999Z');
+
+  // The completed key may represent a winner archive or an empty expired week.
+  const published = resolveWeeklyDashboardPublication(['2026-07-05'], afterSettlement);
+  assert.equal(published.waitingForArchive, false);
+  assert.equal(published.visibleWeekKey, '2026-07-12');
+  assert.equal(published.presentationTime, afterSettlement.getTime());
+});
+
+test('completed week keys include terminal empty weeks but exclude stale open rows', () => {
+  assert.deepEqual(getCompletedWeeklyCompetitionKeys([
+    { week_key: '2026-07-05', status: 'expired' },
+    { week_key: '2026-06-28', status: 'finalized' },
+    { week_key: '2026-06-21', status: 'open' },
+    { week_key: '2026-07-05', status: 'expired' }
+  ]), ['2026-07-05', '2026-06-28']);
+});
+
+test('the dashboard settlement window does not require an archive before finalization is eligible', () => {
+  const duringSettlement = new Date('2026-07-12T19:03:00.000Z');
+  const publication = resolveWeeklyDashboardPublication([], duringSettlement);
+  assert.equal(publication.waitingForArchive, false);
+  assert.equal(publication.visibleWeekKey, '2026-07-05');
+  assert.equal(publication.presentationTime, duringSettlement.getTime());
+});
+
 test('an open weekly competition cannot be finalized', async () => {
   const openWeekKey = getCurrentWeekRange().weekKey;
 
@@ -98,6 +150,102 @@ test('a closed week waits for in-flight score submissions before finalization', 
   }
 });
 
+test('finalization persists an expired terminal row when a closed week has no scores', async (context) => {
+  const originalFetch = global.fetch;
+  const originalUrl = process.env.SUPABASE_URL;
+  const originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  process.env.SUPABASE_URL = 'https://example.supabase.co';
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-key';
+  const savedRows = [];
+
+  global.fetch = async (url, options = {}) => {
+    const requestUrl = String(url);
+    if (requestUrl.includes('scicon_weekly_competitions') && options.method === 'POST') {
+      const row = JSON.parse(options.body);
+      savedRows.push(row);
+      return new Response(JSON.stringify([row]), { status: 200 });
+    }
+    if (requestUrl.includes('scicon_weekly_competitions') || requestUrl.includes('scicon_leaderboard')) {
+      return new Response('[]', { status: 200 });
+    }
+    throw new Error(`Unexpected request: ${requestUrl}`);
+  };
+
+  context.after(() => {
+    global.fetch = originalFetch;
+    if (originalUrl === undefined) delete process.env.SUPABASE_URL;
+    else process.env.SUPABASE_URL = originalUrl;
+    if (originalKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    else process.env.SUPABASE_SERVICE_ROLE_KEY = originalKey;
+  });
+
+  const result = await finalizeWeeklyCompetition('2020-01-05', {
+    observedAt: shortlyAfterCutoff('2020-01-05')
+  });
+
+  assert.equal(result.finalized, true);
+  assert.equal(result.empty, true);
+  assert.equal(result.competition.status, 'expired');
+  assert.equal(result.competition.winner_name, null);
+  assert.equal(result.competition.winning_score, null);
+  assert.equal(savedRows.length, 1);
+  assert.deepEqual(savedRows[0], result.competition);
+});
+
+test('recovery finalizes a stale open row and skips only terminal weeks', async (context) => {
+  const originalFetch = global.fetch;
+  const originalUrl = process.env.SUPABASE_URL;
+  const originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  process.env.SUPABASE_URL = 'https://example.supabase.co';
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-key';
+  const staleOpenCompetition = {
+    week_key: '2026-07-26',
+    status: 'open',
+    allocation_rsc: 100
+  };
+  const savedRows = [];
+
+  global.fetch = async (url, options = {}) => {
+    const requestUrl = String(url);
+    if (requestUrl.includes('scicon_weekly_competitions') && options.method === 'POST') {
+      const row = JSON.parse(options.body);
+      savedRows.push(row);
+      return new Response(JSON.stringify([row]), { status: 200 });
+    }
+    if (requestUrl.includes('scicon_weekly_competitions')) {
+      return new Response(JSON.stringify([staleOpenCompetition]), { status: 200 });
+    }
+    if (requestUrl.includes('scicon_leaderboard')) {
+      return new Response('[]', { status: 200 });
+    }
+    throw new Error(`Unexpected request: ${requestUrl}`);
+  };
+
+  context.after(() => {
+    global.fetch = originalFetch;
+    if (originalUrl === undefined) delete process.env.SUPABASE_URL;
+    else process.env.SUPABASE_URL = originalUrl;
+    if (originalKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    else process.env.SUPABASE_SERVICE_ROLE_KEY = originalKey;
+  });
+
+  const recovery = await ensureRecentWeeklyCompetitions({
+    observedAt: new Date('2026-08-03T01:00:00.000Z'),
+    existingCompetitions: [
+      staleOpenCompetition,
+      { week_key: '2026-07-19', status: 'finalized' }
+    ],
+    lookbackWeeks: 2
+  });
+
+  assert.equal(recovery.changed, true);
+  assert.deepEqual(recovery.results.map((entry) => entry.weekKey), ['2026-07-26']);
+  assert.equal(recovery.results[0].result.empty, true);
+  assert.equal(savedRows.length, 1);
+  assert.equal(savedRows[0].week_key, '2026-07-26');
+  assert.equal(savedRows[0].status, 'expired');
+});
+
 test('a closed week becomes finalizable exactly when the five-minute settlement window closes', async (context) => {
   const weekKey = '2020-01-05';
   const { end } = getWeekRange(weekKey);
@@ -125,11 +273,14 @@ test('a closed week becomes finalizable exactly when the five-minute settlement 
     observedAt: new Date(end.getTime() + 5 * 60 * 1000)
   });
 
-  assert.equal(result.finalized, false);
+  assert.equal(result.finalized, true);
+  assert.equal(result.empty, true);
+  assert.equal(result.competition.status, 'expired');
   assert.match(result.reason, /no eligible scores/i);
-  assert.equal(requests.length, 2);
+  assert.equal(requests.length, 3);
   assert.ok(requests.some((request) => request.url.includes('scicon_weekly_competitions')));
   assert.ok(requests.some((request) => request.url.includes('scicon_leaderboard')));
+  assert.ok(requests.some((request) => request.options.method === 'POST'));
 });
 
 test('finalization locks the top eligible score for a closed week', async (context) => {
@@ -769,7 +920,7 @@ test('recovery backfills the two most recent missing Past Picks from final leade
 
   const recovery = await ensureRecentWeeklyCompetitions({
     observedAt: new Date('2026-08-03T01:00:00.000Z'),
-    existingCompetitions: [{ week_key: '2026-07-12' }],
+    existingCompetitions: [{ week_key: '2026-07-12', status: 'finalized' }],
     lookbackWeeks: 3
   });
 

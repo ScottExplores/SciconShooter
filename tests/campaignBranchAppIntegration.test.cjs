@@ -23,7 +23,7 @@ test('failure and interruption discard provisional coins while retaining an expl
   assert.match(appSource, /setStats\(\(current\) => \(\{ \.\.\.current, coins: 0, totalCoins: baseline \}\)\)/);
   assert.match(appSource, /Supply Signal Lost/);
   assert.match(appSource, /Retry Supply Drop/);
-  assert.match(appSource, /Provisional coins were discarded/);
+  assert.match(appSource, /Provisional Tokens were discarded/);
 });
 
 test('successful branch completion has a stable receipt, special result panel, and disabled claimed route', () => {

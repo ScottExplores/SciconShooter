@@ -1,4 +1,22 @@
 
+export const MATCH_MUSIC_TRACKS = [
+  { id: 'combat', name: 'Research Velocity', url: '/audio/scicon-audio-v1/music-combat.wav' },
+  { id: 'open-orbit-relay', name: 'Open Orbit Relay', url: '/audio/scicon-match-music-v1/music-open-orbit-relay.wav' },
+  { id: 'ion-veil-pursuit', name: 'Ion Veil Pursuit', url: '/audio/scicon-match-music-v1/music-ion-veil-pursuit.wav' },
+  { id: 'event-horizon-run', name: 'Event Horizon Run', url: '/audio/scicon-match-music-v1/music-event-horizon-run.wav' }
+] as const;
+
+export type MatchMusicTrackId = (typeof MATCH_MUSIC_TRACKS)[number]['id'];
+
+const DEFAULT_MATCH_MUSIC_TRACK_ID: MatchMusicTrackId = 'combat';
+const MATCH_MUSIC_TRACK_IDS = new Set<string>(MATCH_MUSIC_TRACKS.map((track) => track.id));
+const isMatchMusicTrackId = (value: unknown): value is MatchMusicTrackId => (
+  typeof value === 'string' && MATCH_MUSIC_TRACK_IDS.has(value)
+);
+const getMatchMusicTrack = (id: MatchMusicTrackId) => (
+  MATCH_MUSIC_TRACKS.find((track) => track.id === id) ?? MATCH_MUSIC_TRACKS[0]
+);
+
 type GameSoundType = 'shoot' | 'boss_shoot' | 'boss_cannon' | 'boss_machinegun' | 'boss_alert' | 'impact' | 'explode' | 'coin' | 'powerup' | 'hit' | 'boss_roar' | 'electricity' | 'siren' | 'launch' | 'wave' | 'mission_victory' | 'gameover' | 'missile' | 'bomb';
 type SampleKey =
   | 'player-shot'
@@ -66,13 +84,27 @@ const MAX_VOLUME_LEVEL = 5;
  * waves, and boss swaps in for encounters -- the swap is the cue that a boss
  * has arrived, before the player has even seen it.
  */
-export type MusicTrack = 'menu' | 'combat' | 'boss';
+export type MusicTrack = 'menu' | 'boss' | 'defeat' | MatchMusicTrackId;
 
 const MUSIC_ROOT = '/audio/scicon-audio-v1';
 const MUSIC_URLS: Record<MusicTrack, string> = {
   menu: `${MUSIC_ROOT}/music-menu.wav`,
-  combat: `${MUSIC_ROOT}/music-combat.wav`,
-  boss: `${MUSIC_ROOT}/music-boss.wav`
+  boss: `${MUSIC_ROOT}/music-boss.wav`,
+  defeat: `${MUSIC_ROOT}/stinger-defeat.wav`,
+  combat: getMatchMusicTrack('combat').url,
+  'open-orbit-relay': getMatchMusicTrack('open-orbit-relay').url,
+  'ion-veil-pursuit': getMatchMusicTrack('ion-veil-pursuit').url,
+  'event-horizon-run': getMatchMusicTrack('event-horizon-run').url
+};
+
+const MUSIC_LOOPS: Record<MusicTrack, boolean> = {
+  menu: true,
+  boss: true,
+  defeat: false,
+  combat: true,
+  'open-orbit-relay': true,
+  'ion-veil-pursuit': true,
+  'event-horizon-run': true
 };
 
 /**
@@ -83,6 +115,7 @@ const MUSIC_URLS: Record<MusicTrack, string> = {
  */
 const MUSIC_BASE_GAIN = 0.14;
 const MUSIC_VOLUME_STORAGE_KEY = 'scicon-shooter:music-volume:v1';
+const MATCH_MUSIC_STORAGE_KEY = 'scicon-shooter:match-music:v1';
 
 const SFX_VOLUME_STORAGE_KEY = 'scicon-shooter:sfx-volume:v1';
 const UI_SAMPLE_KEYS: ReadonlyArray<SampleKey> = [
@@ -114,6 +147,7 @@ class AudioService {
 
   constructor() {
     this.sfxVolumeLevel = this.readStoredVolumeLevel(SFX_VOLUME_STORAGE_KEY, MAX_VOLUME_LEVEL);
+    this.matchMusicTrackId = this.readStoredMatchMusicTrack();
 
     // Only tiny interface cues are fetched eagerly. Mission combat assets warm
     // in the background and are never allowed to block gameplay launch.
@@ -209,6 +243,15 @@ class AudioService {
       window.localStorage?.setItem(storageKey, String(level));
     } catch {
       // The level still applies for this session when storage is unavailable.
+    }
+  }
+
+  private readStoredMatchMusicTrack(): MatchMusicTrackId {
+    try {
+      const storedValue = window.localStorage?.getItem(MATCH_MUSIC_STORAGE_KEY);
+      return isMatchMusicTrackId(storedValue) ? storedValue : DEFAULT_MATCH_MUSIC_TRACK_ID;
+    } catch {
+      return DEFAULT_MATCH_MUSIC_TRACK_ID;
     }
   }
 
@@ -764,15 +807,15 @@ class AudioService {
 
   // ---------------------------------------------------------------- music
   //
-  // The game shipped with no music at all. These loops run on their own gain
-  // bus so music can be balanced against, or silenced independently of, the
-  // sound effects.
+  // Project-owned synthesized music runs on its own gain bus so it can be
+  // balanced against, or silenced independently of, the sound effects.
 
   private musicGain: GainNode | null = null;
   private musicSource: AudioBufferSourceNode | null = null;
   private musicBuffers: Partial<Record<MusicTrack, AudioBuffer>> = {};
   private musicLoadPromises: Partial<Record<MusicTrack, Promise<AudioBuffer | null>>> = {};
   private currentMusic: MusicTrack | null = null;
+  private matchMusicTrackId: MatchMusicTrackId = DEFAULT_MATCH_MUSIC_TRACK_ID;
   private musicVolumeLevel: number = MAX_VOLUME_LEVEL;
   private musicVolumeLoaded = false;
   private musicPaused = false;
@@ -876,7 +919,7 @@ class AudioService {
 
     const source = ctx.createBufferSource();
     source.buffer = buffer;
-    source.loop = true;
+    source.loop = MUSIC_LOOPS[track];
     source.connect(gain);
     const startAt = ctx.currentTime;
     const offset = buffer.duration > 0 ? this.musicPlaybackOffset % buffer.duration : 0;
@@ -956,6 +999,21 @@ class AudioService {
 
   getCurrentMusic() {
     return this.currentMusic;
+  }
+
+  setMatchMusicTrackId(trackId: MatchMusicTrackId) {
+    if (!isMatchMusicTrackId(trackId)) return this.matchMusicTrackId;
+    this.matchMusicTrackId = trackId;
+    try {
+      window.localStorage?.setItem(MATCH_MUSIC_STORAGE_KEY, trackId);
+    } catch {
+      // The selected track still applies for this session.
+    }
+    return this.matchMusicTrackId;
+  }
+
+  getMatchMusicTrackId() {
+    return this.matchMusicTrackId;
   }
 
   isMusicPaused() {

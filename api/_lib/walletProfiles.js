@@ -2473,7 +2473,10 @@ const sanitizeWeeklyState = (rawValue, profileId, now) => {
     weeklyStats: isCurrentWeek
       ? {
           runs: integer(weeklyStats.runs, 0, 1_000_000),
-          weeklyRunAttempts: integer(weeklyStats.weeklyRunAttempts, 0, 2),
+          // Browser state mirrors only the five free weekly entries. Any paid
+          // entries stay in the server-owned wallet/week credit ledger and are
+          // never trusted from a profile upload.
+          weeklyRunAttempts: integer(weeklyStats.weeklyRunAttempts, 0, 5),
           score: integer(weeklyStats.score, 0, 1_000_000_000),
           enemiesDefeated: integer(weeklyStats.enemiesDefeated, 0, 1_000_000_000),
           coinsEarned: integer(weeklyStats.coinsEarned, 0, 1_000_000_000)
@@ -2598,6 +2601,48 @@ const fetchWalletProfile = async (address, now = Date.now()) => {
   );
   return rowToProfile(Array.isArray(rows) ? rows[0] : null, now);
 };
+
+const ensureWalletProfile = async (address, now = Date.now()) => {
+  const walletAddress = normalizeWalletAddress(address);
+  if (!walletAddress) throw apiError('A valid Base wallet address is required.', 400);
+  const existing = await fetchWalletProfile(walletAddress, now);
+  if (existing) return existing;
+  const rows = await fetchSupabaseJson(`${PROFILES_TABLE}?on_conflict=wallet_address`, {
+    method: 'POST',
+    headers: supabaseHeaders({
+      Prefer: 'resolution=ignore-duplicates,return=representation'
+    }),
+    body: JSON.stringify({
+      wallet_address: walletAddress,
+      revision: 1,
+      snapshot: sanitizeWalletSnapshot({}, walletAddress, now),
+      updated_at: isoNow(now)
+    })
+  });
+  return rowToProfile(Array.isArray(rows) ? rows[0] : null, now)
+    || fetchWalletProfile(walletAddress, now);
+};
+
+/**
+ * A normal profile save may spend or earn gameplay Tokens, but it cannot grant
+ * the RSC-only right support entitlement. Existing cloud profiles with the slot
+ * already unlocked are grandfathered; a brand-new revision cannot self-assert
+ * it. Purchased Token totals live only in the service-role purchase ledger and
+ * are never accepted from the profile snapshot.
+ */
+const preserveWalletPurchaseServerState = ({
+  currentSnapshot,
+  incomingSnapshot
+}) => ({
+  ...incomingSnapshot,
+  weeklyState: {
+    ...incomingSnapshot.weeklyState,
+    unlockedSlots: {
+      ...incomingSnapshot.weeklyState.unlockedSlots,
+      right: Boolean(currentSnapshot?.weeklyState?.unlockedSlots?.right)
+    }
+  }
+});
 
 const writeWalletProfileSnapshotCas = async ({ profile, snapshot, now }) => {
   const sanitizedSnapshot = sanitizeWalletSnapshot(
@@ -2948,6 +2993,10 @@ const saveWalletProfile = async ({
       now
     });
   }
+  sanitizedSnapshot = preserveWalletPurchaseServerState({
+    currentSnapshot: current?.snapshot ?? null,
+    incomingSnapshot: sanitizedSnapshot
+  });
   sanitizedSnapshot = preserveCampaignBranchServerState({
     currentSnapshot: current?.snapshot ?? null,
     incomingSnapshot: sanitizedSnapshot,
@@ -3005,6 +3054,7 @@ module.exports = {
   createWeeklyCampaignStreakRunBinding,
   createWalletProfileChallenge,
   createWeeklyState,
+  ensureWalletProfile,
   fetchWalletProfile,
   fetchBossArchiveDailyLedger,
   getBossArchiveChallengeConfig,
@@ -3020,6 +3070,7 @@ module.exports = {
   validateFinalizedWeeklyCampaignStreakProof,
   preserveBossArchiveServerState,
   preserveCampaignBranchServerState,
+  preserveWalletPurchaseServerState,
   recordBossArchiveDifficultyResult,
   reserveBossArchiveDailyAttempt,
   saveWalletProfile

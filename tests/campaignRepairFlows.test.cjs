@@ -24,16 +24,17 @@ test('the wave-three helmet disappears as soon as its component is destroyed', (
   assert.match(engine, /boss\.bossDecayStage = helmetDestroyed[\s\S]*?\? healthRatio <= 0\.2 \? 4 : healthRatio <= 0\.45 \? 3 : 2/);
 });
 
-test('story transmissions are remembered per beat for the current local day', () => {
+test('story transmissions are remembered per beat, day, and active player profile', () => {
   const schedule = read('services', 'storyTransmissionSchedule.ts');
   const app = read('App.tsx');
 
   assert.match(schedule, /scicon:story-transmissions:daily:v1/);
   assert.match(schedule, /getStoryBeatDailyId = \(beat: Pick<StoryBeat, 'phase' \| 'title'>\)/);
   assert.match(schedule, /parsed\.dayKey !== dayKey/);
-  assert.match(app, /!hasSeenStoryBeatToday\(introBeat\)/);
-  assert.match(app, /markStoryBeatSeenToday\(activeStoryBeat\)/);
-  assert.match(app, /!hasSeenStoryBeatToday\(nextBeat\)/);
+  assert.match(schedule, /getScopedStoryStorageKey/);
+  assert.match(app, /!hasSeenStoryBeatTodayForProfile\(introBeat, launchProfileId\)/);
+  assert.match(app, /markStoryBeatSeenTodayForProfile\(activeStoryBeat, activeProfileId\)/);
+  assert.match(app, /!hasSeenStoryBeatTodayForProfile\(nextBeat, activeProfileId\)/);
 });
 
 test('the More menu no longer advertises the source repository', () => {

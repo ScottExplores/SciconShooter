@@ -54,6 +54,7 @@ test('Mission settlements stay out of weekly competition and credit each Mission
   assert.match(appSource, /campaignRunCreditedEnemiesRef\.current \+= creditedEnemies/);
   assert.match(appSource, /lifetimeStats: completion\.settlement\.duplicate[\s\S]*?enemiesDefeated: currentPermanent\.lifetimeStats\.enemiesDefeated \+ creditedEnemies/);
   assert.match(appSource, /const unsettledLifetimeCampaignEnemies = isCampaignRun[\s\S]*?stats\.enemiesDefeated - campaignRunCreditedEnemiesRef\.current/);
-  assert.match(appSource, /if \(!isNonCompetitiveRun && squadRunAppliedGameIdRef\.current !== gameId\) \{[\s\S]*?applySquadRunResult/);
+  assert.match(appSource, /if \(isWeeklyLeaderboardRun && squadRunAppliedGameIdRef\.current !== gameId\) \{[\s\S]*?applySquadRunResult/);
+  assert.doesNotMatch(appSource, /if \(!isNonCompetitiveRun && squadRunAppliedGameIdRef\.current !== gameId\) \{/);
   assert.match(appSource, /if \(!isNonCompetitiveRun && permanentRunAppliedGameIdRef\.current !== gameId\) \{[\s\S]*?recordLifetimeRun/);
 });

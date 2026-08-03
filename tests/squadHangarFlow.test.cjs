@@ -74,7 +74,7 @@ test('guest runs save device Pilot Hangar and Boss Archive progress while wallet
   assert.doesNotMatch(squad, /state\.profileId === 'guest'/);
   assert.match(squad, /bossArchive: createBossArchiveProgress\(\)/);
   assert.match(squad, /normalizeBossArchiveEventIds/);
-  assert.match(app, /Coins fund permanent Hangar upgrades/);
+  assert.match(app, /Tokens fund permanent Hangar upgrades/);
   assert.match(app, /const \[pilotProfile\] = useState\(initializeLocalPilotProfile\)/);
   assert.match(app, /loadWeeklySquadState\(pilotProfile\.id\)/);
   assert.match(app, /loadPermanentSquadState\(pilotProfile\.id\)/);
@@ -83,7 +83,7 @@ test('guest runs save device Pilot Hangar and Boss Archive progress while wallet
   assert.match(app, /getWalletProfileId\(normalizedAddress\)/);
   assert.match(app, /saveAuthenticatedWalletProfile\(\{/);
   assert.match(app, /const unsettledLifetimeCampaignEnemies = isCampaignRun/);
-  assert.match(app, /if \(!isNonCompetitiveRun && squadRunAppliedGameIdRef\.current !== gameId\)/);
+  assert.match(app, /if \(isWeeklyLeaderboardRun && squadRunAppliedGameIdRef\.current !== gameId\)/);
   assert.match(app, /if \(!isNonCompetitiveRun && permanentRunAppliedGameIdRef\.current !== gameId\)/);
   assert.match(app, /saveScore\(name, score, wave, \{[\s\S]*walletAddress: activeWalletAddress/);
 });
@@ -107,6 +107,7 @@ test('the Hangar is available to device Pilots while minted ship locks remain vi
 
 test('the Hangar uses one position-driven squad bay and four-column fleet catalogs', () => {
   const hangar = read('components', 'SquadHangar.tsx');
+  const startScreen = read('components', 'StartScreen.tsx');
   const miniCatalog = hangar.slice(
     hangar.indexOf('const renderMiniCatalog = () =>'),
     hangar.indexOf('\n  return (', hangar.indexOf('const renderMiniCatalog = () =>'))
@@ -151,11 +152,18 @@ test('the Hangar uses one position-driven squad bay and four-column fleet catalo
   assert.doesNotMatch(hangar, /aria-label="Return home"/);
   assert.doesNotMatch(hangar, /min-h-\[25rem\]/);
   assert.match(hangar, /rsc-coin-pixel\.png/);
-  assert.match(hangar, /resources\/crystal\.png/);
+  assert.match(hangar, /ASSETS\.REAL_RSC_ICON/);
   assert.match(hangar, /const activeMainShipUpgrades = state\.shipUpgrades\[mainShipId\]/);
   assert.match(hangar, /const shipUpgrades = state\.shipUpgrades\[shipId\]/);
   assert.match(hangar, /const unlockCost = SQUAD_SLOT_UNLOCK_COST\[slot\]/);
-  assert.match(hangar, /\{unlockCost\} coins/);
+  assert.match(hangar, /slot === 'right' && !founderSandbox \? '10 RSC' : `\$\{unlockCost\} Tokens`/);
+  assert.match(hangar, /onPurchaseWithRsc\('right-support'\)/);
+  assert.match(hangar, /rightPurchaseStatus === 'connecting'[\s\S]*?'CONNECTING'/);
+  assert.match(hangar, /rightPurchaseStatus === 'error'[\s\S]*?'TRY AGAIN'/);
+  assert.match(hangar, /label="Research Coin"/);
+  assert.match(hangar, /if \(!walletConnected\) \{\s*onRequestWalletConnect\(\);\s*return;/);
+  assert.match(startScreen, /onRequestWalletConnect=\{onRequestWalletConnect\}/);
+  assert.match(hangar, /label="Tokens"/);
   assert.match(hangar, /rsc-coin-flip-v1\/rsc-coin-pixel-front\.png/);
   assert.match(hangar, /const costLabel = founderSandbox \? 'TEST' : atMax \? 'MAX' : nextCost === 0 \? 'FREE'/);
   assert.match(hangar, /aria-label=\{actionLabel\}/);
@@ -178,7 +186,7 @@ test('mini ship selection opens details on a second tap and supports unlocks the
   assert.match(hangar, /onClick=\{\(\) => onEquipMini\(activePosition, activeMiniId\)\}/);
   assert.match(hangar, /activeMiniEquipped \? 'Equipped' : 'Equip'/);
   assert.match(hangar, /Tap the selected mini ship again to view details/);
-  assert.match(hangar, /activeMini\.purchaseCost === 0 \? 'Unlock free' : `Unlock \$\{activeMini\.purchaseCost\.toLocaleString\(\)\} coins`/);
+  assert.match(hangar, /activeMini\.purchaseCost === 0 \? 'Unlock free' : `Unlock \$\{activeMini\.purchaseCost\.toLocaleString\(\)\} Tokens`/);
 });
 
 test('main ship upgrade cards show the matching existing gameplay sprites', () => {
@@ -248,7 +256,7 @@ test('minted ship locks replay their animation without re-locking the guest Hang
   assert.match(html, /@keyframes sci-ship-lock-rattle/);
 });
 
-test('companions use the real engine and Overdrive Spread stays on the main ship', () => {
+test('companions use the real engine and Projectile Upgrade stays on the main ship', () => {
   const engine = read('services', 'gameLogic.ts');
   const renderer = read('services', 'pixi', 'PixiGameRenderer.ts');
 
@@ -259,7 +267,7 @@ test('companions use the real engine and Overdrive Spread stays on the main ship
   assert.doesNotMatch(engine, /sampleTripleShotSideAngleRadians\(side, Math\.random\(\)\)/);
   assert.match(engine, /angleBias: sideAngle/);
   // The spread pickup is gone: triple spread is the ETH hull's identity, and
-  // the pickup that replaced it (Overdrive) amplifies the hull's own fire.
+  // the Projectile Upgrade pickup amplifies the hull's own fire.
   assert.match(engine, /const spreadLanes = this\.playerShipId === 'eth'/);
   assert.match(engine, /this\.missionOverdriveLevel\+\+/);
   assert.doesNotMatch(engine, /OVERDRIVE SPREAD!/);
@@ -291,9 +299,9 @@ test('main ship upgrades remain isolated to the selected ship through the Hangar
   assert.match(app, /buildRuntimeSquadLoadout\(campaignLabState, runShipId\)/);
 });
 
-test('gameplay pickups use animated transparent PNG artwork instead of founder portraits', () => {
+test('gameplay pickups use transparent PNG artwork instead of founder portraits', () => {
   const renderer = read('services', 'pixi', 'PixiGameRenderer.ts');
-  const iconNames = ['overdrive-spread.png', 'magnet.png', 'shield.png', 'research-beam.png'];
+  const iconNames = ['magnet.png', 'shield.png', 'research-beam.png'];
 
   iconNames.forEach((name) => {
     const icon = fs.readFileSync(path.join(root, 'public', 'game-art', 'powerups', name));
@@ -307,7 +315,7 @@ test('gameplay pickups use animated transparent PNG artwork instead of founder p
     renderer.indexOf('const isEnemyType')
   );
   assert.doesNotMatch(mapping, /FOUNDER_/);
-  assert.match(mapping, /POWERUP_OVERDRIVE_SPREAD_FRAMES/);
+  assert.match(mapping, /POWERUP_PROJECTILE_UPGRADE_FRAMES/);
   assert.match(mapping, /POWERUP_MAGNET_FRAMES/);
   assert.match(mapping, /POWERUP_SHIELD_FRAMES/);
   assert.match(mapping, /POWERUP_RESEARCH_BEAM_FRAMES/);

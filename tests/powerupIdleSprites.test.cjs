@@ -46,13 +46,12 @@ test('power-up idle pack has four fixed-registration six-frame PNG animations', 
   }
 });
 
-test('both renderers advance PNG power-up frames without scaling the pickup', () => {
+test('both renderers advance the animated PNG power-up frames without scaling the pickup', () => {
   const constants = fs.readFileSync(path.join(root, 'constants.ts'), 'utf8');
   const pixi = fs.readFileSync(path.join(root, 'services', 'pixi', 'PixiGameRenderer.ts'), 'utf8');
   const canvas = fs.readFileSync(path.join(root, 'services', 'gameLogic.ts'), 'utf8');
 
   for (const key of [
-    'POWERUP_OVERDRIVE_SPREAD_FRAMES',
     'POWERUP_MAGNET_FRAMES',
     'POWERUP_SHIELD_FRAMES',
     'POWERUP_RESEARCH_BEAM_FRAMES'
@@ -65,4 +64,21 @@ test('both renderers advance PNG power-up frames without scaling the pickup', ()
   assert.match(pixi, /view\.root\.scale\.set\(1\)/);
   assert.match(pixi, /view\.root\.rotation = 0/);
   assert.match(canvas, /const frameIndex = Math\.floor\(\(this\.frameCount \+ e\.variant\) \/ 8\) % frames\.length/);
+});
+
+test('Projectile Upgrade uses the generated one-frame icon in both renderers', () => {
+  const constants = fs.readFileSync(path.join(root, 'constants.ts'), 'utf8');
+  const pixi = fs.readFileSync(path.join(root, 'services', 'pixi', 'PixiGameRenderer.ts'), 'utf8');
+  const canvas = fs.readFileSync(path.join(root, 'services', 'gameLogic.ts'), 'utf8');
+  const relativePath = 'game-art/generated/powerups/scicon-projectile-upgrade-v1/projectile-upgrade.png';
+  const filePath = path.join(publicRoot, ...relativePath.split('/'));
+
+  assert.deepEqual(readPngSize(filePath), { width: 1254, height: 1254, colorType: 6 });
+  assert.match(
+    constants,
+    /POWERUP_PROJECTILE_UPGRADE_FRAMES: \[\s*"\/game-art\/generated\/powerups\/scicon-projectile-upgrade-v1\/projectile-upgrade\.png"\s*\]/
+  );
+  assert.match(pixi, /case PowerupType\.OVERDRIVE:[\s\S]*?return ASSETS\.POWERUP_PROJECTILE_UPGRADE_FRAMES/);
+  assert.match(pixi, /\.\.\.ASSETS\.POWERUP_PROJECTILE_UPGRADE_FRAMES/);
+  assert.match(canvas, /\.\.\.ASSETS\.POWERUP_PROJECTILE_UPGRADE_FRAMES/);
 });

@@ -328,3 +328,47 @@ export const mergeWalletProfileSnapshots = ({
     permanentState: { ...merged.permanentState, profileId }
   };
 };
+
+/**
+ * Rebase local writes after an RSC purchase changed the cloud revision. The
+ * settlement is authoritative only for the right-support entitlement, so every
+ * other field comes from the queued local snapshot even when a normal
+ * three-way merge would report a conflict.
+ */
+export const rebaseWalletProfileDirtyAfterServerPurchase = ({
+  address,
+  savedProfile
+}: {
+  address: string;
+  savedProfile: WalletProfileRecord;
+}) => {
+  const walletAddress = normalizeWalletAddress(address);
+  const profileId = walletProfileId(walletAddress);
+  if (
+    savedProfile.walletAddress.toLowerCase() !== walletAddress
+    || savedProfile.profileId !== profileId
+    || !hasExpectedProfileId(savedProfile.snapshot, profileId)
+  ) {
+    throw new Error('Wallet purchase response did not match the intended wallet.');
+  }
+
+  const current = readWalletProfileDirty(walletAddress);
+  if (!current) return null;
+
+  const authoritativeRight = Boolean(
+    savedProfile.snapshot.weeklyState.unlockedSlots.right
+  );
+  const rebasedSnapshot = cloneSnapshot(current.snapshot);
+  rebasedSnapshot.weeklyState.unlockedSlots = {
+    ...rebasedSnapshot.weeklyState.unlockedSlots,
+    right: authoritativeRight
+  };
+
+  return replaceWalletProfileDirty({
+    address: walletAddress,
+    current,
+    expectedRevision: savedProfile.revision,
+    baseSnapshot: savedProfile.snapshot,
+    snapshot: rebasedSnapshot
+  });
+};

@@ -1,5 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
+  ASSETS,
+  RSC_PURCHASE_SKUS,
+  type RscPurchaseSkuId
+} from '../constants';
+import type { RscBalanceSnapshot } from '../services/baseAccountWallet';
+import type { WalletPurchaseStatusUpdate } from './WalletRuntime';
+import {
   isPlayerShipUnlocked,
   PLAYABLE_PLAYER_SHIP_IDS,
   PLAYER_SHIPS,
@@ -45,9 +52,15 @@ interface SquadHangarProps {
   mainShipName: string;
   shipUnlocks: PlayerShipUnlocks;
   walletConnected: boolean;
+  rscBalance: RscBalanceSnapshot | null;
+  rscBalanceStatus: 'idle' | 'loading' | 'ready' | 'error';
+  walletPurchaseStatus: WalletPurchaseStatusUpdate;
   founderSandbox?: boolean;
   onSelectMainShip: (id: PlayerShipId) => void;
   onUnlockSlot: (slot: SquadSlotId) => void;
+  onPurchaseWithRsc: (skuId: RscPurchaseSkuId) => void;
+  onRequestWalletConnect: () => void;
+  onRefreshRscBalance: () => void;
   onPurchaseMini: (id: MiniShipId) => void;
   onUpgradeMini: (id: MiniShipId) => void;
   onDowngradeMini: (id: MiniShipId) => void;
@@ -203,20 +216,26 @@ const CurrencyRail = ({
   icon,
   value,
   label,
-  tone
+  tone,
+  onOptions,
+  optionsLabel
 }: {
   icon: string;
-  value: number;
+  value: number | string;
   label: string;
   tone: 'gold' | 'blue';
+  onOptions: () => void;
+  optionsLabel: string;
 }) => (
   <div className={`grid min-w-0 grid-cols-[2.25rem_minmax(0,1fr)_2rem] items-center border px-1.5 py-1 ${tone === 'gold' ? 'border-yellow-200/35 bg-yellow-300/10' : 'border-cyan-200/35 bg-cyan-300/10'}`}>
     <img src={icon} alt="" className="h-8 w-8 object-contain" />
     <div className="min-w-0 px-1 text-center">
-      <p className="truncate text-base font-black leading-none text-white">{value.toLocaleString()}</p>
+      <p className="truncate text-base font-black leading-none text-white">
+        {typeof value === 'number' ? value.toLocaleString() : value}
+      </p>
       <p className="truncate text-[0.5rem] font-bold uppercase tracking-[0.08em] text-slate-400">{label}</p>
     </div>
-    <button type="button" title={`${label} options coming soon`} className={`flex h-7 w-7 items-center justify-center border text-xl font-black ${tone === 'gold' ? 'border-yellow-200/45 bg-yellow-300 text-slate-950' : 'border-cyan-200/45 bg-cyan-300 text-slate-950'}`}>
+    <button type="button" onClick={onOptions} aria-label={optionsLabel} className={`flex h-7 w-7 items-center justify-center border text-xl font-black ${tone === 'gold' ? 'border-yellow-200/45 bg-yellow-300 text-slate-950' : 'border-cyan-200/45 bg-cyan-300 text-slate-950'}`}>
       <span aria-hidden="true">+</span>
     </button>
   </div>
@@ -228,9 +247,15 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
   mainShipName,
   shipUnlocks,
   walletConnected,
+  rscBalance,
+  rscBalanceStatus,
+  walletPurchaseStatus,
   founderSandbox = false,
   onSelectMainShip,
   onUnlockSlot,
+  onPurchaseWithRsc,
+  onRequestWalletConnect,
+  onRefreshRscBalance,
   onPurchaseMini,
   onUpgradeMini,
   onDowngradeMini,
@@ -241,6 +266,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
   const [activePosition, setActivePosition] = useState<HangarPosition>('main');
   const [mode, setMode] = useState<HangarMode>('catalog');
   const [selectedMiniId, setSelectedMiniId] = useState<MiniShipId | null>(null);
+  const [showTokenExchange, setShowTokenExchange] = useState(false);
   const [upgradeFeedback, setUpgradeFeedback] = useState<{ target: string; label: string; nonce: number } | null>(null);
   const playerSelectionFrame = useAnimationFrame(
     PLAYER_SELECTION_FRAME_COUNT,
@@ -321,7 +347,11 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
 
   const choosePosition = (position: HangarPosition) => {
     if (position !== 'main' && !state.unlockedSlots[position]) {
-      onUnlockSlot(position);
+      if (position === 'right' && !founderSandbox) {
+        onPurchaseWithRsc('right-support');
+      } else {
+        onUnlockSlot(position);
+      }
       return;
     }
     if (position === activePosition && mode === 'upgrades') {
@@ -341,24 +371,57 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
     const miniId = state.equipped[slot];
     const entry = miniId ? MINI_SHIP_BY_ID[miniId] : null;
     const active = activePosition === slot;
-    const slotUnlockReady = !unlocked && (founderSandbox || state.coins >= unlockCost);
+    const purchaseBusy = walletPurchaseStatus.status !== 'idle'
+      && walletPurchaseStatus.status !== 'confirmed'
+      && walletPurchaseStatus.status !== 'error';
+    const rightPurchaseStatus = slot === 'right' && walletPurchaseStatus.skuId === 'right-support'
+      ? walletPurchaseStatus.status
+      : 'idle';
+    const rightPurchaseStage = rightPurchaseStatus === 'connecting'
+      ? 'CONNECTING'
+      : rightPurchaseStatus === 'authorizing'
+        ? 'AUTHORIZE'
+        : rightPurchaseStatus === 'confirming'
+          ? 'CONFIRM RSC'
+          : rightPurchaseStatus === 'settling'
+            ? 'VERIFYING'
+            : rightPurchaseStatus === 'error'
+              ? 'TRY AGAIN'
+              : 'LOCK';
+    const rightPurchaseBusy = slot === 'right'
+      && walletPurchaseStatus.skuId === 'right-support'
+      && purchaseBusy;
+    const rscAvailable = rscBalance ? Number(rscBalance.formatted) : 0;
+    const slotUnlockReady = !unlocked && (
+      founderSandbox
+      || (slot === 'right' ? rscAvailable >= 10 : state.coins >= unlockCost)
+    );
+    const unlockLabel = slot === 'right' && !founderSandbox ? '10 RSC' : `${unlockCost} Tokens`;
 
     return (
       <button
         type="button"
         onClick={() => choosePosition(slot)}
-        disabled={!unlocked && !slotUnlockReady}
+        disabled={!unlocked && slot === 'right' && purchaseBusy}
+        data-onboarding-target={slot === 'left' ? 'hangar-wings' : undefined}
         data-upgrade-ready={slotUnlockReady ? 'true' : 'false'}
         className="sci-upgrade-ready-frame relative flex aspect-square w-[5.25rem] shrink-0 items-center justify-center disabled:cursor-not-allowed disabled:opacity-55 sm:w-[6.25rem]"
-        aria-label={unlocked ? `${slot} wing${entry ? `, ${entry.name}` : ', empty'}` : `Unlock ${slot} wing for ${unlockCost} coins`}
+        aria-label={unlocked
+          ? `${slot} wing${entry ? `, ${entry.name}` : ', empty'}`
+          : rightPurchaseBusy
+            ? `${rightPurchaseStage.toLowerCase()} for right wing purchase`
+            : `Unlock ${slot} wing for ${unlockLabel}`}
       >
         <span className={`absolute inset-[13%] ${active ? 'sci-hangar-active-light' : ''}`}>
           {active ? <AnimatedSelector size="ship" color="lime" className="absolute inset-0 h-full w-full scale-[1.8]" /> : <span className="absolute inset-0 rotate-45 border border-cyan-300/35 bg-cyan-300/5" />}
         </span>
         {!unlocked ? (
           <span className="relative z-10 flex min-h-14 min-w-16 flex-col items-center justify-center border border-slate-400/55 bg-slate-800/90 px-2 text-slate-200" aria-hidden="true">
-            <span className="text-sm font-black">LOCK</span>
-            <span className="mt-0.5 whitespace-nowrap text-[0.5rem] font-black uppercase text-yellow-200">{unlockCost} coins</span>
+            <span className={`${rightPurchaseBusy ? 'text-[0.58rem]' : 'text-sm'} font-black`}>{slot === 'right' ? rightPurchaseStage : 'LOCK'}</span>
+            <span className="mt-0.5 flex items-center gap-1 whitespace-nowrap text-[0.5rem] font-black uppercase text-yellow-200">
+              {slot === 'right' && !founderSandbox ? <img src={ASSETS.REAL_RSC_ICON} alt="" className="h-4 w-4 object-contain" /> : null}
+              {unlockLabel}
+            </span>
           </span>
         ) : entry ? (
           <AnimatedMiniShip entry={entry} className="relative z-10 h-[62%] w-[62%] object-contain drop-shadow-[0_0_10px_rgba(103,232,249,0.6)]" />
@@ -417,7 +480,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
           const costLabel = founderSandbox ? 'TEST' : atMax ? 'MAX' : nextCost === 0 ? 'FREE' : nextCost.toLocaleString();
           const actionLabel = atMax
             ? `Select ${entry.name}, level ${level} of ${MINI_SHIP_MAX_LEVEL}, maximum level`
-            : `Select ${entry.name}, level ${level} of ${MINI_SHIP_MAX_LEVEL}, ${owned ? 'next upgrade' : 'unlock'} costs ${nextCost} coins`;
+            : `Select ${entry.name}, level ${level} of ${MINI_SHIP_MAX_LEVEL}, ${owned ? 'next upgrade' : 'unlock'} costs ${nextCost} Tokens`;
           return (
             <button
               key={entry.id}
@@ -454,9 +517,84 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
 
       <header className="relative z-10 border-b border-cyan-200/18 bg-slate-950/88 p-2">
         <div className="grid min-w-0 grid-cols-2 gap-2">
-          <CurrencyRail icon="/game-art/tokens/rsc-coin-pixel.png" value={state.coins} label="Research coins" tone="gold" />
-          <CurrencyRail icon="/game-art/generated/ui/scicon-interface-pack-v1/resources/crystal.png" value={0} label="Continue tokens" tone="blue" />
+          <CurrencyRail
+            icon="/game-art/tokens/rsc-coin-pixel.png"
+            value={state.coins}
+            label="Tokens"
+            tone="gold"
+            onOptions={() => setShowTokenExchange(true)}
+            optionsLabel="Buy Tokens with Research Coin"
+          />
+          <CurrencyRail
+            icon={ASSETS.REAL_RSC_ICON}
+            value={rscBalanceStatus === 'loading' ? '...' : rscBalance?.formatted ?? (walletConnected ? '--' : 'Connect')}
+            label="Research Coin"
+            tone="blue"
+            onOptions={() => {
+              if (!walletConnected) {
+                onRequestWalletConnect();
+                return;
+              }
+              setShowTokenExchange(true);
+              onRefreshRscBalance();
+            }}
+            optionsLabel={walletConnected ? 'Open Research Coin options' : 'Connect wallet for Research Coin options'}
+          />
         </div>
+        {showTokenExchange ? (
+          <section className="mt-2 border border-cyan-200/30 bg-[#07152a]/98 p-2 shadow-[0_0_20px_rgba(34,211,238,0.16)]" aria-label="Token exchange">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[0.62rem] font-black uppercase tracking-[0.12em] text-cyan-100">Token Exchange</p>
+                <p className="mt-0.5 text-[0.55rem] text-slate-400">Token packs will open after server-protected Token balances are ready.</p>
+              </div>
+              <button type="button" onClick={() => setShowTokenExchange(false)} className="h-7 w-7 border border-cyan-200/30 text-sm font-black text-cyan-100" aria-label="Close Token exchange">X</button>
+            </div>
+            <div className="mt-2 grid grid-cols-3 gap-1.5">
+              {(['tokens-50', 'tokens-250', 'tokens-500'] as const).map((skuId) => {
+                const sku = RSC_PURCHASE_SKUS[skuId];
+                const busy = walletPurchaseStatus.status !== 'idle'
+                  && walletPurchaseStatus.status !== 'confirmed'
+                  && walletPurchaseStatus.status !== 'error';
+                return (
+                  <PixelActionButton
+                    key={skuId}
+                    type="button"
+                    tone="cyan"
+                    disabled={busy || !sku.enabled}
+                    onClick={() => onPurchaseWithRsc(skuId)}
+                    className="min-h-12 px-1 text-[0.55rem] font-black uppercase"
+                  >
+                    <span className="flex flex-col items-center leading-tight">
+                      <span>{sku.tokenReward} Tokens</span>
+                      {sku.enabled ? (
+                        <span className="mt-1 flex items-center gap-1 text-emerald-200"><img src={ASSETS.REAL_RSC_ICON} alt="" className="h-4 w-4 object-contain" />{sku.rscAmount} RSC</span>
+                      ) : (
+                        <span className="mt-1 text-yellow-200">Coming soon</span>
+                      )}
+                    </span>
+                  </PixelActionButton>
+                );
+              })}
+            </div>
+            <p className="mt-2 text-center text-[0.52rem] font-bold uppercase text-cyan-100/70">Right support is the only enabled RSC purchase in this build.</p>
+            {walletPurchaseStatus.status !== 'idle' ? (
+              <p className={`mt-2 text-center text-[0.56rem] font-bold ${walletPurchaseStatus.status === 'error' ? 'text-red-200' : walletPurchaseStatus.status === 'confirmed' ? 'text-emerald-200' : 'text-cyan-100'}`} role="status">
+                {walletPurchaseStatus.status === 'error'
+                  ? walletPurchaseStatus.error
+                  : walletPurchaseStatus.status === 'confirmed'
+                    ? 'Purchase confirmed. Your wallet profile is updated.'
+                    : walletPurchaseStatus.status === 'connecting'
+                      ? 'Connecting wallet...'
+                      : walletPurchaseStatus.status === 'authorizing'
+                        ? 'Preparing secure quote...'
+                        : walletPurchaseStatus.status === 'confirming'
+                          ? 'Confirm the RSC transfer...'
+                          : 'Verifying purchase...'}
+              </p>
+            ) : null}
+          </section>
+        ) : null}
         {founderSandbox ? (
           <p className="mt-2 border border-cyan-300/35 bg-cyan-300/10 px-2 py-1 text-center text-[0.55rem] font-black uppercase tracking-[0.12em] text-cyan-100">
             Founder test loadout - changes are temporary
@@ -476,10 +614,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_46%,rgba(14,165,233,0.1),transparent_38%),linear-gradient(180deg,rgba(3,8,28,0.18),rgba(3,8,28,0.58))]" />
           <AnimatedTraceLabel>{activeName}</AnimatedTraceLabel>
 
-          <div
-            className="relative mx-auto mt-1 h-[12.75rem] w-full max-w-[26rem] sm:h-[16rem]"
-            data-onboarding-target="hangar-wings"
-          >
+          <div className="relative mx-auto mt-1 h-[12.75rem] w-full max-w-[26rem] sm:h-[16rem]">
             <div
               className={`pointer-events-none absolute top-[-0.25rem] border-cyan-300/65 drop-shadow-[0_0_7px_rgba(34,211,238,0.55)] transition-all duration-300 ${SQUAD_CONNECTOR_POSITION[activePosition]}`}
               data-connector-target={activePosition}
@@ -562,7 +697,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
                 disabled={!founderSandbox && state.coins < activeMini.purchaseCost}
                 tone="gold"
                 ready={activeMiniUnlockReady}
-                aria-label={activeMini.purchaseCost === 0 ? `Unlock ${activeMini.name} for free` : `Unlock ${activeMini.name} for ${activeMini.purchaseCost} coins`}
+                aria-label={activeMini.purchaseCost === 0 ? `Unlock ${activeMini.name} for free` : `Unlock ${activeMini.name} for ${activeMini.purchaseCost} Tokens`}
                 className="min-h-11 min-w-[7.5rem] px-3 text-[0.65rem] font-black uppercase"
               >
                 <span className="flex items-center justify-center gap-1.5">
@@ -580,7 +715,14 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
         <section className="bg-[#080f2c] px-3 pb-4 pt-3 sm:px-5">
           {mode === 'upgrades' ? (
             <div className="mb-3 flex justify-end">
-              <button type="button" onClick={() => setMode('catalog')} className="min-h-9 border border-cyan-200/30 bg-cyan-300/8 px-3 text-[0.62rem] font-black uppercase text-cyan-100">Fleet</button>
+              <button
+                type="button"
+                data-onboarding-target="hangar-fleet"
+                onClick={() => setMode('catalog')}
+                className="min-h-9 border border-cyan-200/30 bg-cyan-300/8 px-3 text-[0.62rem] font-black uppercase text-cyan-100"
+              >
+                Fleet
+              </button>
             </div>
           ) : null}
           {/* Patterns belong to the selected hull, and Overdrive amplifies them
@@ -671,7 +813,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
                         ready={!atMax && state.coins >= cost}
                         className="mt-3 min-h-9 w-full px-2 text-[0.58rem] font-black uppercase"
                       >
-                        {atMax ? 'Max level' : `${cost} coins`}
+                        {atMax ? 'Max level' : `${cost} Tokens`}
                       </PixelActionButton>
                     )}
                   </article>
@@ -732,7 +874,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
                     ready={activeMiniUpgradeReady}
                     className="mt-3 min-h-9 w-full px-2 text-[0.58rem] font-black uppercase"
                   >
-                    {activeMiniLevel >= MINI_SHIP_MAX_LEVEL ? 'Max level' : `Upgrade ${getMiniShipUpgradeCost(activeMini.id, activeMiniLevel)} coins`}
+                    {activeMiniLevel >= MINI_SHIP_MAX_LEVEL ? 'Max level' : `Upgrade ${getMiniShipUpgradeCost(activeMini.id, activeMiniLevel)} Tokens`}
                   </PixelActionButton>
                 ) : (
                   <PixelActionButton
@@ -745,7 +887,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
                     ready={activeMiniUnlockReady}
                     className="mt-3 min-h-9 w-full px-2 text-[0.58rem] font-black uppercase"
                   >
-                    {activeMini.purchaseCost === 0 ? 'Unlock free' : `Unlock ${activeMini.purchaseCost.toLocaleString()} coins`}
+                    {activeMini.purchaseCost === 0 ? 'Unlock free' : `Unlock ${activeMini.purchaseCost.toLocaleString()} Tokens`}
                   </PixelActionButton>
                 )}
               </div>

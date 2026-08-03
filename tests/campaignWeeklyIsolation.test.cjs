@@ -15,6 +15,8 @@ const TEST_CAMPAIGN = {
   fps: 60,
   recordCard: {},
   hudAssets: {},
+  miniBosses: [],
+  sectors: [],
   campaignBranches: [],
   levels: [{
     id: 'isolation-mission',
@@ -91,6 +93,10 @@ const squadProgression = compileService('squadProgression.ts', {
   '../shared/weeklyCompetitionBoundary.browser': {
     getWeeklyBoundaryMeta: () => ({ weekKey: '2026-07-26' })
   },
+  // The browser adapter is TypeScript in the production graph. This CJS
+  // harness uses the behavior-identical shared runtime instead of asking Node
+  // to resolve a .ts module from transpiled output.
+  '../shared/weeklyRunPlan.browser': require('../shared/weeklyRunPlan.js'),
   './playerShipService': {
     PLAYABLE_PLAYER_SHIP_IDS: ['researchhub', 'bio', 'eth', 'btc']
   },
@@ -237,6 +243,7 @@ test('crediting Campaign rewards changes only the shared Campaign coin reserve, 
   assert.equal(rolled.weekKey, '2026-08-02');
   assert.deepEqual(rolled.weeklyStats, {
     runs: 0,
+    weeklyRunAttempts: 0,
     score: 0,
     enemiesDefeated: 0,
     coinsEarned: 0
@@ -283,9 +290,17 @@ test('App isolates Campaign reward grants and keeps Campaign off the weekly boar
   assert.doesNotMatch(appSource, /isNonCompetitiveRun\s*=\s*[^;]*isCampaignRun/);
   assert.match(
     appSource,
-    /if\s*\(\s*!isNonCompetitiveRun\s*&&\s*squadRunAppliedGameIdRef\.current\s*!==\s*gameId\s*\)\s*\{[\s\S]{0,500}?applySquadRunResult\(/
+    /if\s*\(\s*isWeeklyLeaderboardRun\s*&&\s*squadRunAppliedGameIdRef\.current\s*!==\s*gameId\s*\)\s*\{[\s\S]{0,500}?applySquadRunResult\(/
   );
-  assert.match(appSource, /coinsCollected:\s*isCampaignRun\s*\?\s*0\s*:\s*stats\.coins/);
+  assert.doesNotMatch(
+    appSource,
+    /if\s*\(\s*!isNonCompetitiveRun\s*&&\s*squadRunAppliedGameIdRef\.current\s*!==\s*gameId\s*\)/
+  );
+  assert.match(appSource, /coinsCollected:\s*stats\.coins/);
+  assert.match(
+    appSource,
+    /if\s*\(\s*!isNonCompetitiveRun\s*&&\s*permanentRunAppliedGameIdRef\.current\s*!==\s*gameId\s*\)[\s\S]{0,500}?recordLifetimeRun\(/
+  );
   assert.match(
     appSource,
     /if\s*\(\s*!isCampaignRun\s*&&\s*!isNonCompetitiveRun\s*&&\s*summary\.bossEncounterId\s*\)/
@@ -293,7 +308,7 @@ test('App isolates Campaign reward grants and keeps Campaign off the weekly boar
   // Campaign is progression, not a weekly entry. The name prompt and the
   // submit path hang off leaderboard eligibility, which excludes Campaign,
   // while the payout paths above still run for it.
-  assert.match(appSource, /const isWeeklyLeaderboardRun = !isNonCompetitiveRun && !isCompetitiveCampaignRun;/);
+  assert.match(appSource, /const isWeeklyLeaderboardRun = isWeeklyCampaignRun && !isNonCompetitiveRun;/);
   assert.match(appSource, /setShowNameInput\(isWeeklyLeaderboardRun\)/);
   assert.match(
     appSource,

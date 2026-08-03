@@ -1311,6 +1311,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   return (
     <div
       ref={hostRef}
+      data-onboarding-target={previewMode ? undefined : 'flight-stage'}
       tabIndex={previewMode ? 0 : undefined}
       aria-label={previewMode ? 'Live Scicon Shooter wave preview' : 'Scicon Shooter mission'}
       className="absolute left-0 top-0 z-0 block h-full w-full overflow-hidden"

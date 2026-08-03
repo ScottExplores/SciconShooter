@@ -1,4 +1,8 @@
 import React from 'react';
+import {
+  MATCH_MUSIC_TRACKS,
+  type MatchMusicTrackId
+} from '../services/audioService';
 import '../styles/pause-menu.css';
 
 export interface AudioSettingsControlsProps {
@@ -6,9 +10,11 @@ export interface AudioSettingsControlsProps {
   audioMuted: boolean;
   sfxVolumeLevel: number;
   musicVolumeLevel: number;
+  matchMusicTrackId: MatchMusicTrackId;
   onToggleAudio: () => void;
   onSfxVolumeChange: (level: number) => void;
   onMusicVolumeChange: (level: number) => void;
+  onMatchMusicTrackChange: (trackId: MatchMusicTrackId) => void;
 }
 
 const AUDIO_VOLUME_NOTCHES = Array.from({ length: 6 }, (_, index) => index);
@@ -80,6 +86,29 @@ const AudioToggleRow: React.FC<{
   </button>
 );
 
+const MatchMusicSelector: React.FC<{
+  id: string;
+  trackId: MatchMusicTrackId;
+  onChange: (trackId: MatchMusicTrackId) => void;
+}> = ({ id, trackId, onChange }) => (
+  <label className="sci-pause-track" htmlFor={id}>
+    <span>Match music</span>
+    <span className="sci-pause-track__select">
+      <select
+        id={id}
+        value={trackId}
+        aria-label="Match music track"
+        onChange={(event) => onChange(event.currentTarget.value as MatchMusicTrackId)}
+      >
+        {MATCH_MUSIC_TRACKS.map((track) => (
+          <option key={track.id} value={track.id}>{track.name}</option>
+        ))}
+      </select>
+      <span aria-hidden="true">▾</span>
+    </span>
+  </label>
+);
+
 /**
  * The one canonical audio-settings surface. Both the pause overlay and the
  * More dashboard bind these controls to the same AudioService-backed state.
@@ -89,9 +118,11 @@ const AudioSettingsControls: React.FC<AudioSettingsControlsProps> = ({
   audioMuted,
   sfxVolumeLevel,
   musicVolumeLevel,
+  matchMusicTrackId,
   onToggleAudio,
   onSfxVolumeChange,
-  onMusicVolumeChange
+  onMusicVolumeChange,
+  onMatchMusicTrackChange
 }) => (
   <>
     <AudioToggleRow enabled={!audioMuted} onToggle={onToggleAudio} />
@@ -106,6 +137,11 @@ const AudioSettingsControls: React.FC<AudioSettingsControlsProps> = ({
       label="Music"
       level={musicVolumeLevel}
       onChange={onMusicVolumeChange}
+    />
+    <MatchMusicSelector
+      id={`${idPrefix}-match-music-track`}
+      trackId={matchMusicTrackId}
+      onChange={onMatchMusicTrackChange}
     />
   </>
 );

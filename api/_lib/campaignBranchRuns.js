@@ -116,7 +116,7 @@ const calculateSettlementReward = (branch, destroyedByType, collectedPresentCoin
     || performanceCoins < 0
     || performanceCoins > Math.min(destroyedValueCeiling, performanceCeiling)
   ) {
-    throw apiError('Campaign bonus route coin results do not match the authored targets.', 422, 'branch_result_invalid');
+    throw apiError('Campaign bonus route Token totals do not match the authored targets.', 422, 'branch_result_invalid');
   }
   const baseCoins = integer(branch?.completionReward?.baseCoins, 0, 1_000_000);
   const oneTimeBonusCoins = integer(branch?.completionReward?.oneTimeBonusCoins, 0, 1_000_000);

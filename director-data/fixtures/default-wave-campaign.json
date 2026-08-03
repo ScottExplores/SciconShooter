@@ -71,8 +71,7 @@
   ],
   "powerups": [
     { "id": "shield", "label": "Shield", "weight": 0.15 },
-    { "id": "double-shot", "label": "Double Shot", "weight": 0.28 },
-    { "id": "triple-shot", "label": "Triple Shot", "weight": 0.24 },
+    { "id": "projectile-upgrade", "label": "Projectile Upgrade", "weight": 0.52 },
     { "id": "magnet", "label": "Magnet", "weight": 0.14 },
     { "id": "research-beam", "label": "Research Beam", "weight": 0.1 },
     { "id": "extra-life", "label": "Extra Life", "weight": 0.09 }

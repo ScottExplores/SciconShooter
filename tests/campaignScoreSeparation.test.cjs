@@ -13,7 +13,23 @@ test('Campaign records no score and reaches no leaderboard', () => {
   // construction, not by a conditional somewhere downstream.
   assert.match(
     app,
-    /const isWeeklyLeaderboardRun = !isNonCompetitiveRun && !isCompetitiveCampaignRun/
+    /const isWeeklyLeaderboardRun = isWeeklyCampaignRun && !isNonCompetitiveRun/
+  );
+
+  // The local Weekly Run card reads weeklyStats.score, so only an actual
+  // Weekly Run may update that state. Campaign lifetime settlement remains on
+  // its separate permanent-state path.
+  assert.match(
+    app,
+    /if \(isWeeklyLeaderboardRun && squadRunAppliedGameIdRef\.current !== gameId\) \{[\s\S]{0,420}applySquadRunResult/
+  );
+  assert.doesNotMatch(
+    app,
+    /if \(!isNonCompetitiveRun && squadRunAppliedGameIdRef\.current !== gameId\)/
+  );
+  assert.match(
+    app,
+    /if \(!isNonCompetitiveRun && permanentRunAppliedGameIdRef\.current !== gameId\) \{[\s\S]{0,420}recordLifetimeRun/
   );
 
   // Campaign must not write a high score either. This used to key off

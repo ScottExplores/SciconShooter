@@ -73,17 +73,17 @@ const CampaignBranchResultOverlay: React.FC<CampaignBranchResultOverlayProps> = 
       <dl className="mt-3 grid gap-1.5 text-[10px] font-bold uppercase tracking-[0.08em]">
         <div className="flex justify-between border-b border-white/8 px-1 py-1.5"><dt className="text-slate-400">Base route reward</dt><dd className="text-yellow-100">+{result.kind === 'present-drop' ? result.baseCacheReward : result.baseCompletionReward}</dd></div>
         {result.kind === 'present-drop' ? (
-          <div className="flex justify-between border-b border-white/8 px-1 py-1.5"><dt className="text-slate-400">Collected present coins</dt><dd className="text-yellow-100">+{result.collectedPresentCoins}</dd></div>
+          <div className="flex justify-between border-b border-white/8 px-1 py-1.5"><dt className="text-slate-400">Present Tokens collected</dt><dd className="text-yellow-100">+{result.collectedPresentCoins}</dd></div>
         ) : null}
         <div className="flex justify-between border-b border-white/8 px-1 py-1.5"><dt className="text-slate-400">One-time completion bonus</dt><dd className="text-yellow-100">+{result.oneTimeCompletionBonus}</dd></div>
         <div className="mt-1 flex items-center justify-between border border-yellow-200/35 bg-yellow-300/10 px-3 py-2.5">
-          <dt className="font-black text-yellow-100">Total coins earned</dt>
+          <dt className="font-black text-yellow-100">Total Tokens earned</dt>
           <dd className="text-xl font-black text-yellow-200">{result.duplicate ? 0 : result.totalCoins}</dd>
         </div>
       </dl>
 
       <p className="mt-3 text-center text-[9px] font-bold uppercase tracking-[0.1em] text-emerald-200">
-        {result.duplicate ? 'Reward was already secured. No duplicate coins were added.' : 'Reward secured once / Main Mission checkpoint preserved'}
+        {result.duplicate ? 'Reward was already secured. No duplicate Tokens were added.' : 'Reward secured once / Main Mission checkpoint preserved'}
       </p>
       {result.newlyAffordableUpgrade ? (
         <p className="mt-2 border border-yellow-200/30 bg-yellow-300/10 px-3 py-2 text-center text-[9px] font-black uppercase tracking-[0.1em] text-yellow-100">

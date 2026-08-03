@@ -21,12 +21,18 @@ export const getStoryBeatDailyId = (beat: Pick<StoryBeat, 'phase' | 'title'>) =>
   `${beat.phase}:${beat.title}`
 );
 
+const getScopedStoryStorageKey = (profileId: string) => {
+  const normalizedProfileId = String(profileId || 'guest').trim().toLowerCase() || 'guest';
+  return `${STORY_TRANSMISSION_STORAGE_KEY}:${normalizedProfileId}`;
+};
+
 const readDailyState = (
   storage: StoryTransmissionStorage,
-  dayKey: string
+  dayKey: string,
+  storageKey = STORY_TRANSMISSION_STORAGE_KEY
 ): DailyStoryTransmissionState => {
   try {
-    const value = storage.getItem(STORY_TRANSMISSION_STORAGE_KEY);
+    const value = storage.getItem(storageKey);
     if (!value) return { dayKey, beatIds: [] };
     const parsed = JSON.parse(value) as Partial<DailyStoryTransmissionState>;
     if (parsed.dayKey !== dayKey || !Array.isArray(parsed.beatIds)) {
@@ -64,4 +70,38 @@ export const markStoryBeatSeenToday = (
   const beatId = getStoryBeatDailyId(beat);
   if (!state.beatIds.includes(beatId)) state.beatIds.push(beatId);
   storage.setItem(STORY_TRANSMISSION_STORAGE_KEY, JSON.stringify(state));
+};
+
+/**
+ * First-flight narrative state is profile-scoped so a second guest or wallet
+ * on the same device still receives Brian's briefing and its guide invitation.
+ * The legacy browser-global helpers remain above for old daily transmissions.
+ */
+export const hasSeenStoryBeatTodayForProfile = (
+  beat: Pick<StoryBeat, 'phase' | 'title'>,
+  profileId: string,
+  storageOverride?: StoryTransmissionStorage | null,
+  now = new Date()
+) => {
+  const storage = storageOverride === undefined ? getBrowserStorage() : storageOverride;
+  if (!storage) return false;
+  const dayKey = getLocalStoryDayKey(now);
+  const state = readDailyState(storage, dayKey, getScopedStoryStorageKey(profileId));
+  return state.beatIds.includes(getStoryBeatDailyId(beat));
+};
+
+export const markStoryBeatSeenTodayForProfile = (
+  beat: Pick<StoryBeat, 'phase' | 'title'>,
+  profileId: string,
+  storageOverride?: StoryTransmissionStorage | null,
+  now = new Date()
+) => {
+  const storage = storageOverride === undefined ? getBrowserStorage() : storageOverride;
+  if (!storage) return;
+  const dayKey = getLocalStoryDayKey(now);
+  const storageKey = getScopedStoryStorageKey(profileId);
+  const state = readDailyState(storage, dayKey, storageKey);
+  const beatId = getStoryBeatDailyId(beat);
+  if (!state.beatIds.includes(beatId)) state.beatIds.push(beatId);
+  storage.setItem(storageKey, JSON.stringify(state));
 };

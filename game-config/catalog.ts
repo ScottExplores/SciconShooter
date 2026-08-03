@@ -93,6 +93,7 @@ export const BUILT_IN_ASSET_CATALOG: Readonly<Record<BuiltInAssetKey, AssetCatal
   CAMPAIGN_ENEMY_LASER_HUNTER: asset('CAMPAIGN_ENEMY_LASER_HUNTER', 'Laser Hunter', ASSETS.CAMPAIGN_ENEMY_LASER_HUNTER, ['enemy', 'boss', 'scorecard']),
   CAMPAIGN_ENEMY_LASER_STALKER: asset('CAMPAIGN_ENEMY_LASER_STALKER', 'Laser Stalker', ASSETS.CAMPAIGN_ENEMY_LASER_STALKER, ['enemy', 'scorecard']),
   CAMPAIGN_ENEMY_ORBIT_DISC: asset('CAMPAIGN_ENEMY_ORBIT_DISC', 'Orbit Disc', ASSETS.CAMPAIGN_ENEMY_ORBIT_DISC, ['enemy', 'scorecard']),
+  CAMPAIGN_ENEMY_PROTOCOL_VANGUARD_FRAMES: asset('CAMPAIGN_ENEMY_PROTOCOL_VANGUARD_FRAMES', 'Protocol Vanguard', ASSETS.CAMPAIGN_ENEMY_PROTOCOL_VANGUARD_FRAMES, ['enemy']),
   CAMPAIGN_ENEMY_PRISM_ARTILLERY: asset('CAMPAIGN_ENEMY_PRISM_ARTILLERY', 'Prism Artillery', ASSETS.CAMPAIGN_ENEMY_PRISM_ARTILLERY, ['enemy', 'boss', 'scorecard']),
   CAMPAIGN_ENEMY_RING_SENTINEL: asset('CAMPAIGN_ENEMY_RING_SENTINEL', 'Ring Sentinel', ASSETS.CAMPAIGN_ENEMY_RING_SENTINEL, ['enemy', 'boss', 'scorecard']),
   CAMPAIGN_ENEMY_SHIELD_RAMMER: asset('CAMPAIGN_ENEMY_SHIELD_RAMMER', 'Shield Rammer', ASSETS.CAMPAIGN_ENEMY_SHIELD_RAMMER, ['enemy', 'scorecard']),
@@ -530,8 +531,7 @@ export const isMajorBossId = (id: unknown): id is BossId => (
 );
 
 export const POWERUP_CATALOG: Record<PowerupId, PowerupCatalogEntry> = {
-  'double-shot': { id: 'double-shot', label: 'Double Shot', runtimeType: 'DOUBLE_SHOT', defaultWeight: 0.36 },
-  'triple-shot': { id: 'triple-shot', label: 'Triple Shot', runtimeType: 'TRIPLE_SHOT', defaultWeight: 0.34 },
+  'projectile-upgrade': { id: 'projectile-upgrade', label: 'Projectile Upgrade', runtimeType: 'OVERDRIVE', defaultWeight: 0.7 },
   'max-shot': { id: 'max-shot', label: 'Max Shot', runtimeType: 'MAX_SHOT', defaultWeight: 0.055 },
   magnet: { id: 'magnet', label: 'Magnet', runtimeType: 'MAGNET', defaultWeight: 0.12 },
   shield: { id: 'shield', label: 'Shield', runtimeType: 'SHIELD', defaultWeight: 0.1 },

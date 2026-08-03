@@ -21,6 +21,7 @@ const makeReceipt = (runId) => signPayload({
   type: 'run-receipt',
   runId,
   gameVersion: 'test',
+  runMode: 'weekly-streak',
   startedAt: Date.now() - 60_000,
   finishedAt: Date.now(),
   expiresAt: Date.now() + 60_000,

@@ -145,8 +145,7 @@ const BACKGROUNDS: Array<{ value: BackgroundId; label: string }> = [
 ];
 
 const POWERUPS: Array<{ id: PowerupId; label: string }> = [
-  { id: 'double-shot', label: 'Double shot' },
-  { id: 'triple-shot', label: 'Triple shot' },
+  { id: 'projectile-upgrade', label: 'Projectile Upgrade' },
   { id: 'max-shot', label: 'Max Shot' },
   { id: 'magnet', label: 'Magnet' },
   { id: 'shield', label: 'Shield' },

@@ -15,6 +15,8 @@ const TEST_CAMPAIGN = {
   fps: 60,
   recordCard: {},
   hudAssets: {},
+  miniBosses: [{ bossId: 'test-elite' }],
+  sectors: [{ majorBossId: 'gatekeeper', missionIds: ['mission-1', 'mission-2'] }],
   campaignBranches: [{
     branchId: 'mission-1-supply-cache',
     sourceMissionId: 'mission-1',
@@ -136,6 +138,7 @@ const progression = compileService('campaignProgression.ts', {
     ].includes(bossId)
   },
   '../services/campaignGraph.ts': campaignGraph,
+  '../shared/weeklyRunPlan.browser': require('../shared/weeklyRunPlan.js'),
   './campaignGraph': campaignGraph,
   './campaignBranchProgression': branchProgression,
   './levelConfig': levelConfigStub
@@ -148,6 +151,7 @@ const bossArchiveProgressionStub = {
 };
 
 const squad = compileService('squadProgression.ts', {
+  '../shared/weeklyRunPlan.browser': require('../shared/weeklyRunPlan.js'),
   '../shared/weeklyCompetitionBoundary.browser': {
     getWeeklyBoundaryMeta: () => ({ weekKey: '2026-07-26' })
   },
@@ -243,7 +247,7 @@ test('Mission definitions prefer authored Campaign metadata and preserve compati
     },
     masteryObjectives: [
       { id: 'mission-1:complete', label: 'Finish the route', kind: 'complete', target: 1, rewardCoins: 7 },
-      { id: 'mission-1:coins', label: 'Collect 12 coins', kind: 'coins-at-least', target: 12, rewardCoins: 11 },
+      { id: 'mission-1:coins', label: 'Collect 12 Tokens', kind: 'coins-at-least', target: 12, rewardCoins: 11 },
       { id: 'mission-1:time', label: 'Clear in 40s or less', kind: 'time-at-most', target: 40, rewardCoins: 19 }
     ],
     mapPosition: { x: 0.18, y: 0.64 },
@@ -758,6 +762,7 @@ test('weekly rollover preserves unspent one-time Campaign coins, receipts, and p
   assert.equal(rolled.durableCampaignCoins, credited.state.durableCampaignCoins);
   assert.deepEqual(rolled.weeklyStats, {
     runs: 0,
+    weeklyRunAttempts: 0,
     score: 0,
     enemiesDefeated: 0,
     coinsEarned: 0
@@ -790,12 +795,13 @@ test('seasonal coins are spent before durable Campaign coins and spent rewards a
     coins: 570,
     durableCampaignCoins: 550
   }, 'right');
-  assert.equal(durableSpend.coins, 70);
-  assert.equal(durableSpend.durableCampaignCoins, 70);
+  assert.equal(durableSpend.coins, 570);
+  assert.equal(durableSpend.durableCampaignCoins, 550);
+  assert.equal(durableSpend.unlockedSlots.right, false);
 
   const rolled = squad.rollWeeklySquadStateForward(durableSpend, '2026-08-02');
-  assert.equal(rolled.coins, 70 + squad.WEEKLY_STARTING_COINS);
-  assert.equal(rolled.durableCampaignCoins, 70);
+  assert.equal(rolled.coins, 550 + squad.WEEKLY_STARTING_COINS);
+  assert.equal(rolled.durableCampaignCoins, 550);
 });
 
 test('completion rejects locked Missions and locked Waves instead of advancing injected progress', () => {

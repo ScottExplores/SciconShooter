@@ -45,6 +45,7 @@ export type BuiltInAssetKey =
   | 'CAMPAIGN_ENEMY_LASER_HUNTER'
   | 'CAMPAIGN_ENEMY_LASER_STALKER'
   | 'CAMPAIGN_ENEMY_ORBIT_DISC'
+  | 'CAMPAIGN_ENEMY_PROTOCOL_VANGUARD_FRAMES'
   | 'CAMPAIGN_ENEMY_PRISM_ARTILLERY'
   | 'CAMPAIGN_ENEMY_RING_SENTINEL'
   | 'CAMPAIGN_ENEMY_SHIELD_RAMMER'
@@ -123,7 +124,7 @@ export type CampaignMiniBossId = Extract<
   | 'gridline-sentries'
 >;
 export type BossRigId = 'open-orbit' | 'citation-storm' | 'paywall-siege' | 'crown-claw';
-export type PowerupId = 'double-shot' | 'triple-shot' | 'max-shot' | 'magnet' | 'shield' | 'research-beam' | 'extra-life';
+export type PowerupId = 'projectile-upgrade' | 'max-shot' | 'magnet' | 'shield' | 'research-beam' | 'extra-life';
 export type BackgroundId =
   | 'open-orbit'
   | 'citation-storm'
@@ -1314,7 +1315,7 @@ export interface BossCatalogEntry {
 export interface PowerupCatalogEntry {
   id: PowerupId;
   label: string;
-  runtimeType: 'DOUBLE_SHOT' | 'TRIPLE_SHOT' | 'MAX_SHOT' | 'MAGNET' | 'SHIELD' | 'RESEARCH_BEAM' | 'EXTRA_LIFE';
+  runtimeType: 'OVERDRIVE' | 'MAX_SHOT' | 'MAGNET' | 'SHIELD' | 'RESEARCH_BEAM' | 'EXTRA_LIFE';
   /** Current random drop weight; zero means supported but not randomly selected. */
   defaultWeight: number;
 }

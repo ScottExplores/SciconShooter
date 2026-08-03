@@ -1,6 +1,10 @@
 const createWeeklyCompetitionBoundary = () => {
 const WEEK_TIME_ZONE = 'America/Los_Angeles';
 const WEEK_BOUNDARY_HOUR = 12;
+// A score receipt can finish before cutoff while its verified leaderboard write
+// is still in flight. Keep the public rollover behind this short settlement
+// window so the new board and the archived Past Pick can publish together.
+const WEEKLY_SCORE_SETTLEMENT_MS = 5 * 60 * 1000;
 
 const weekdayIndexes = {
   Sun: 0,
@@ -140,6 +144,65 @@ const getPreviousWeekKey = (now = new Date()) => {
   return calendarDateKey(shiftCalendarDate(current.startCalendarDate, -7));
 };
 
+const getWeeklyPresentationMeta = (now = new Date(), locale) => {
+  const instant = toDate(now);
+  const scoringWeek = getCurrentWeekRange(instant);
+  const publishAt = new Date(scoringWeek.start.getTime() + WEEKLY_SCORE_SETTLEMENT_MS);
+  const isFinalizing = instant.getTime() < publishAt.getTime();
+  const presentationInstant = isFinalizing
+    ? new Date(scoringWeek.start.getTime() - 1)
+    : instant;
+  const visibleWeek = getWeeklyBoundaryMeta(presentationInstant, locale);
+
+  return {
+    ...visibleWeek,
+    scoringWeekKey: scoringWeek.weekKey,
+    isFinalizing,
+    publishesAt: isFinalizing
+      ? publishAt
+      : new Date(visibleWeek.endsAt.getTime() + WEEKLY_SCORE_SETTLEMENT_MS)
+  };
+};
+
+const resolveWeeklyDashboardPublication = (completedWeekKeys = [], now = new Date()) => {
+  const observedAt = toDate(now);
+  const presentation = getWeeklyPresentationMeta(observedAt);
+  if (presentation.isFinalizing) {
+    return {
+      presentationTime: observedAt.getTime(),
+      visibleWeekKey: presentation.weekKey,
+      waitingForArchive: false,
+      requiredArchiveWeekKey: presentation.weekKey
+    };
+  }
+
+  const immediatelyPriorWeekKey = getWeeklyBoundaryMeta(
+    new Date(presentation.startsAt.getTime() - 1)
+  ).weekKey;
+  const completedWeekKeySet = new Set(
+    (Array.isArray(completedWeekKeys) ? completedWeekKeys : [])
+      .filter((weekKey) => typeof weekKey === 'string')
+  );
+  if (completedWeekKeySet.has(immediatelyPriorWeekKey)) {
+    return {
+      presentationTime: observedAt.getTime(),
+      visibleWeekKey: presentation.weekKey,
+      waitingForArchive: false,
+      requiredArchiveWeekKey: immediatelyPriorWeekKey
+    };
+  }
+
+  const heldPresentationTime = presentation.startsAt.getTime()
+    + WEEKLY_SCORE_SETTLEMENT_MS
+    - 1;
+  return {
+    presentationTime: heldPresentationTime,
+    visibleWeekKey: getWeeklyPresentationMeta(heldPresentationTime).weekKey,
+    waitingForArchive: true,
+    requiredArchiveWeekKey: immediatelyPriorWeekKey
+  };
+};
+
 const getWeeklyBoundaryMeta = (now = new Date(), locale) => {
   const instant = toDate(now);
   const current = getCurrentWeekRange(instant);
@@ -166,9 +229,12 @@ const getWeeklyBoundaryMeta = (now = new Date(), locale) => {
 
 return {
   WEEK_BOUNDARY_HOUR,
+  WEEKLY_SCORE_SETTLEMENT_MS,
   WEEK_TIME_ZONE,
   getCurrentWeekRange,
   getPreviousWeekKey,
+  resolveWeeklyDashboardPublication,
+  getWeeklyPresentationMeta,
   getWeeklyBoundaryMeta,
   getWeekRange
 };

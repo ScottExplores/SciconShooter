@@ -22,29 +22,31 @@ const loadSquad = () => {
 
 const squad = loadSquad();
 
-test('Weekly Run reserves exactly two new attempts per competition week', () => {
+test('Weekly Run grants exactly five free attempts per competition week', () => {
   const initial = squad.createWeeklySquadState('pilot:attempt-test', '2026-08-02');
-  assert.equal(squad.getWeeklyRunAttemptsRemaining(initial), 2);
+  assert.equal(squad.getWeeklyRunAttemptsRemaining(initial), 5);
 
-  const first = squad.consumeWeeklyRunAttempt(initial);
-  assert.equal(first.weeklyStats.weeklyRunAttempts, 1);
-  assert.equal(squad.getWeeklyRunAttemptsRemaining(first), 1);
+  let used = initial;
+  for (let attempt = 1; attempt <= 5; attempt += 1) {
+    used = squad.consumeWeeklyRunAttempt(used);
+    assert.equal(used.weeklyStats.weeklyRunAttempts, attempt);
+    assert.equal(squad.getWeeklyRunAttemptsRemaining(used), 5 - attempt);
+  }
 
-  const second = squad.consumeWeeklyRunAttempt(first);
-  assert.equal(second.weeklyStats.weeklyRunAttempts, 2);
-  assert.equal(squad.getWeeklyRunAttemptsRemaining(second), 0);
-
-  const blocked = squad.consumeWeeklyRunAttempt(second);
-  assert.equal(blocked, second, 'a third attempt must not mutate the profile');
+  const blocked = squad.consumeWeeklyRunAttempt(used);
+  assert.equal(blocked, used, 'a sixth free attempt must not mutate the profile');
 });
 
-test('weekly rollover restores the pair of attempts', () => {
+test('weekly rollover restores all five free attempts', () => {
   const initial = squad.createWeeklySquadState('pilot:attempt-reset', '2026-08-02');
-  const used = squad.consumeWeeklyRunAttempt(squad.consumeWeeklyRunAttempt(initial));
+  let used = initial;
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    used = squad.consumeWeeklyRunAttempt(used);
+  }
   const rolled = squad.rollWeeklySquadStateForward(used, '2026-08-09');
 
   assert.equal(rolled.weeklyStats.weeklyRunAttempts, 0);
-  assert.equal(squad.getWeeklyRunAttemptsRemaining(rolled), 2);
+  assert.equal(squad.getWeeklyRunAttemptsRemaining(rolled), 5);
 });
 
 test('verified Weekly Run admission is server-authoritative and database-atomic', () => {

@@ -74,7 +74,7 @@ test('the completed Bastion Present Drop subsystem remains authored and semantic
   ));
   const digest = crypto.createHash('sha256').update(JSON.stringify(branch)).digest('hex');
 
-  assert.equal(digest, 'e9ad243a3d601d1f48faade2d969ed2949d8f144125774ed32aed283bc41c277');
+  assert.equal(digest, '3bc7110b23b7ca1d1c60ca04cff69279926316dacdf4bc0dab806a04d51505ae');
   assert.equal(branch.sourceMissionId, 'stage-bastion-protocol');
   assert.equal(branch.missionDefinitionId, 'present-drop-bastion-supply-01');
   assert.deepEqual(branch.completionReward, {

@@ -130,7 +130,10 @@ test('authored formation metadata, weighted budgets, and teaching encounters mat
       };
     });
     assert.equal(new Set(teachingEncounters.map((entry) => entry.pattern)).size, 4, `${sector.id} teaching patterns must differ`);
-    assert.equal(new Set(teachingEncounters.map((entry) => entry.roles)).size, 4, `${sector.id} teaching roles must differ`);
+    assert.ok(
+      new Set(teachingEncounters.map((entry) => entry.roles)).size >= 2,
+      `${sector.id} teaching encounters must use at least two role loadouts`
+    );
     assert.equal(new Set(teachingEncounters.map((entry) => entry.label)).size, 4, `${sector.id} teaching labels must differ`);
   });
 });

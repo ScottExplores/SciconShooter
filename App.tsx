@@ -4,10 +4,20 @@ import StartScreen from './components/StartScreen';
 import SciconOnboarding, { type OnboardingSurface } from './components/SciconOnboarding';
 import MissionLoadingScreen, { type MissionLoadingPhase } from './components/MissionLoadingScreen';
 import { ArchivedWinner, DonationStatus, FieldUpgradeType, GamePolishSettings, GameState, LeaderboardEntry, MintRecord, PowerupType, Stats, Upgrades, WalletSession } from './types';
-import { audioService } from './services/audioService';
+import { audioService, type MatchMusicTrackId } from './services/audioService';
 import { installUiAudioFeedback } from './services/uiAudioFeedback';
-import { ASSETS, DONATION_CONFIG, FIELD_UPGRADE_CONFIG, GAME_CONFIG, STORAGE_KEYS, getFieldUpgradeFlaskCost, getFieldUpgradeLevel } from './constants';
-import { ALL_TIME_SCORE_LIMIT, WEEKLY_SCORE_LIMIT, getLeaderboardData, saveScore, saveWeeklyLeaderProposal } from './services/leaderboardService';
+import {
+  ASSETS,
+  DONATION_CONFIG,
+  FIELD_UPGRADE_CONFIG,
+  GAME_CONFIG,
+  RSC_PURCHASE_SKUS,
+  STORAGE_KEYS,
+  getFieldUpgradeFlaskCost,
+  getFieldUpgradeLevel,
+  type RscPurchaseSkuId
+} from './constants';
+import { ALL_TIME_SCORE_LIMIT, WEEKLY_SCORE_LIMIT, getLeaderboardData, getLeaderboardWeekScores, saveScore, saveWeeklyLeaderProposal } from './services/leaderboardService';
 import { getArchivedWeeklyWinners } from './services/winnerArchiveService';
 import { getMissionRecordWeeklyFunding } from './services/weeklyFundingFlow';
 import {
@@ -15,9 +25,22 @@ import {
   ResearchHubProposal
 } from './services/researchHubProposals';
 import { getStoryBeatForPhase, StoryBeat } from './services/storyBeats';
-import { hasSeenStoryBeatToday, markStoryBeatSeenToday } from './services/storyTransmissionSchedule';
+import {
+  hasSeenStoryBeatTodayForProfile,
+  markStoryBeatSeenTodayForProfile
+} from './services/storyTransmissionSchedule';
+import { loadOnboardingProgress, type OnboardingStepId } from './services/onboardingProgress';
 import { BASE_FLASK_CHARGE_MAX, getChargeForStoredFlasks, getFlaskProgress, spendStoredFlasks } from './services/flaskProgress';
-import type { WalletRuntimeAction } from './components/WalletRuntime';
+import type {
+  RscBalanceUpdate,
+  WalletPurchaseStatusUpdate,
+  WalletRuntimeAction
+} from './components/WalletRuntime';
+import {
+  loadWeeklyRunAttemptQuota,
+  type WalletPurchaseSettlement,
+  type WeeklyRunAttemptQuota
+} from './services/walletPurchaseService';
 import {
   finishRunSession,
   startRunSession,
@@ -67,6 +90,7 @@ import {
   reconcileWeeklyRunAttempts,
   savePermanentSquadState,
   saveWeeklySquadState,
+  WEEKLY_RUN_ATTEMPT_LIMIT,
   SQUAD_SLOT_UNLOCK_COST,
   unlockSquadSlot,
   upgradeMainShip,
@@ -96,7 +120,11 @@ import {  finalizeWeeklyCampaignDeliberateEnd,
   type WeeklyCampaignStreakState
 } from './services/weeklyCampaignStreak';
 import { buildWeeklyCampaignRuntimeOutcome } from './services/weeklyCampaignRuntimeAdapter';
-import { getWeeklyBoundaryMeta } from './shared/weeklyCompetitionBoundary.browser';
+import {
+  getWeeklyBoundaryMeta,
+  getWeeklyPresentationMeta,
+  resolveWeeklyDashboardPublication
+} from './shared/weeklyCompetitionBoundary.browser';
 import {
   CAMPAIGN_MISSIONS,
   applyCampaignCompletion,
@@ -164,6 +192,7 @@ import {
 import {
   discardWalletProfileDirty,
   markWalletProfileDirty,
+  rebaseWalletProfileDirtyAfterServerPurchase,
   readWalletProfileDirty,
   walletProfileSnapshotsEqual
 } from './services/walletProfileDirtyStore';
@@ -248,10 +277,10 @@ type GameplayPreloadListener = (progress: number, phase: GameplayPreloadPhase) =
 
 const MISSION_LOADING_TIPS = [
   'Break boss cannons first to remove their fire lanes before attacking the hull.',
-  'Coins fund permanent Hangar upgrades. Weekly competition totals still restart each Sunday.',
+  'Tokens fund permanent Hangar upgrades and remain with your profile between weekly competitions.',
   'Companion ships have distinct roles. Match their abilities to the bottleneck ahead.',
   'A warm mission launch reuses decoded systems, so retries can deploy immediately.',
-  'Collect dropped research coins quickly, or bring a magnet companion to pull them in.',
+  'Collect dropped Tokens quickly, or bring a magnet companion to pull them in.',
   'Save bombs for dense swarms or the moment a boss fills the screen with projectiles.'
 ] as const;
 
@@ -314,7 +343,7 @@ const CAMPAIGN_MAP_BRANCHES: CampaignMapBranchDefinition[] = CAMPAIGN_BRANCH_DEF
   routeControlPoints: branch.routeControlPoints,
   icon: branch.icon,
   lockedIcon: branch.lockedIcon,
-  rewardPreview: `${branch.rewardPreview.label} / ${branch.rewardPreview.minimumCoins}-${branch.rewardPreview.maximumCoins} COINS`,
+  rewardPreview: `${branch.rewardPreview.label} / ${branch.rewardPreview.minimumCoins}-${branch.rewardPreview.maximumCoins} TOKENS`,
   oneTimeCompletion: branch.oneTimeCompletion,
   replayPolicy: branch.replayPolicy === 'no-replay-after-claim' ? 'one-time' : 'repeatable',
   missionDefinitionId: branch.missionDefinitionId,
@@ -608,10 +637,13 @@ const App: React.FC = () => {
   const [gameRuntimeReady, setGameRuntimeReady] = useState(false);
   const [missionLoading, setMissionLoading] = useState<MissionLoadingState | null>(null);
   const [onboardingRestartNonce, setOnboardingRestartNonce] = useState(0);
+  const [onboardingInvitationNonce, setOnboardingInvitationNonce] = useState(0);
   const [onboardingGameplayFreeze, setOnboardingGameplayFreeze] = useState(false);
+  const [onboardingStepId, setOnboardingStepId] = useState<OnboardingStepId | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [monthlyLeaderboard, setMonthlyLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [archivedWinners, setArchivedWinners] = useState<ArchivedWinner[]>([]);
+  const [weeklyPresentationTime, setWeeklyPresentationTime] = useState(() => Date.now());
   const [walletRecords, setWalletRecords] = useState<MintRecord[]>([]);
   const [walletRuns, setWalletRuns] = useState<WalletRunRecord[]>([]);
   const [walletRunsLoading, setWalletRunsLoading] = useState(false);
@@ -673,6 +705,13 @@ const App: React.FC = () => {
     Boolean(localStorage.getItem(STORAGE_KEYS.WALLET_ADDRESS))
   ));
   const [walletRuntimeAction, setWalletRuntimeAction] = useState<WalletRuntimeAction | null>(null);
+  const [rscBalanceUpdate, setRscBalanceUpdate] = useState<RscBalanceUpdate>({
+    status: 'idle',
+    balance: null
+  });
+  const [walletPurchaseStatus, setWalletPurchaseStatus] = useState<WalletPurchaseStatusUpdate>({
+    status: 'idle'
+  });
   const [walletSession, setWalletSession] = useState<WalletSession>({
     address: null,
     chainId: null,
@@ -738,6 +777,8 @@ const App: React.FC = () => {
   const [bossArchiveResult, setBossArchiveResult] = useState<BossArchiveResultPresentation | null>(null);
   const [bossArchiveLaunchError, setBossArchiveLaunchError] = useState<string | null>(null);
   const [weeklyRunLaunchError, setWeeklyRunLaunchError] = useState<string | null>(null);
+  const [weeklyRunAttemptQuota, setWeeklyRunAttemptQuota] = useState<WeeklyRunAttemptQuota | null>(null);
+  const [weeklyRunAttemptQuotaOwner, setWeeklyRunAttemptQuotaOwner] = useState<string | null>(null);
   const [bossArchiveDailyLimit, setBossArchiveDailyLimit] = useState(
     DEFAULT_BOSS_ARCHIVE_DAILY_CHARGE_LIMIT
   );
@@ -775,8 +816,14 @@ const App: React.FC = () => {
   const processedBossArchiveResultsRef = useRef(new Set<string>());
   const submittedScoreKeysRef = useRef<Set<string>>(new Set());
   const runSessionPromiseRef = useRef<Promise<RunSession> | null>(null);
+  const onboardingRunSessionPendingRef = useRef<{
+    testRun: boolean;
+    runMode: ActiveRunMode;
+  } | null>(null);
   const runStartedAtRef = useRef<number | null>(null);
   const weeklyRunSessionKeyRef = useRef<string | null>(null);
+  const weeklyRunAttemptQuotaRef = useRef<WeeklyRunAttemptQuota | null>(null);
+  const weeklyRunAttemptQuotaOwnerRef = useRef<string | null>(null);
   const activeRunShipIdRef = useRef<PlayerShipId>('researchhub');
   const runReceiptPromiseRef = useRef<Promise<RunReceipt> | null>(null);
   const finalizedRunGameIdRef = useRef<number | null>(null);
@@ -845,6 +892,20 @@ const App: React.FC = () => {
       weeklyProposalTransitionRef.current = null;
     }
   };
+
+  /** Keeps presentation state and the launch-time authority cache in lockstep.
+   *  The owner binding prevents a late response from one wallet being reused
+   *  after Base Account switches to another wallet. */
+  const applyWeeklyRunAttemptQuota = useCallback((
+    quota: WeeklyRunAttemptQuota | null,
+    ownerAddress: string | null
+  ) => {
+    const normalizedOwner = ownerAddress?.toLowerCase() ?? null;
+    weeklyRunAttemptQuotaRef.current = quota;
+    weeklyRunAttemptQuotaOwnerRef.current = normalizedOwner;
+    setWeeklyRunAttemptQuota(quota);
+    setWeeklyRunAttemptQuotaOwner(normalizedOwner);
+  }, []);
 
   useEffect(() => {
     gameStateRef.current = gameState;
@@ -931,6 +992,7 @@ const App: React.FC = () => {
     missionLaunchNonceRef.current += 1;
     missionLaunchPendingRef.current = false;
     pendingMissionRuntimeRef.current = null;
+    onboardingRunSessionPendingRef.current = null;
     clearIntroStoryTimeout();
     clearWeeklyProposalTransition();
   }, []);
@@ -1042,18 +1104,16 @@ const App: React.FC = () => {
   const isFounderSandboxRun = isOwnerWallet || isOwnerTestRun;
   const isNonCompetitiveRun = isFounderSandboxRun || isBossArchiveRun || isCampaignLabRun || isCampaignBranchRun;
   /**
-   * Whether this run may post to the weekly high-score board.
+   * Whether this run may update Weekly Run stats or post to its leaderboard.
    *
-   * The weekly board is its own competition, fed by the Weekly Run and plain
-   * arcade runs. Campaign Missions are progression: they still award unlocks,
-   * mastery, lifetime stats, and Hangar credits, but they must not post a
-   * weekly score, or replaying an early Mission with a fully upgraded ship
-   * would outscore an honest weekly attempt.
+   * Weekly Run is a separate competition. Campaign Missions still award
+   * unlocks, mastery, lifetime stats, and Hangar credits, but neither Campaign
+   * nor a legacy standard run may populate the Weekly Run best score.
    *
    * Deliberately separate from isNonCompetitiveRun, which also gates run
    * payout and lifetime recording that Campaign still needs.
    */
-  const isWeeklyLeaderboardRun = !isNonCompetitiveRun && !isCompetitiveCampaignRun;
+  const isWeeklyLeaderboardRun = isWeeklyCampaignRun && !isNonCompetitiveRun;
   const activeBossReplay = useMemo(() => (
     activeBossEncounterId ? getBossArchiveEntry(activeBossEncounterId) : null
   ), [activeBossEncounterId]);
@@ -1333,6 +1393,23 @@ const App: React.FC = () => {
       return session;
     });
   }, []);
+  const offerFirstFlightGuideBeforeRun = useCallback((testRun: boolean, runMode: ActiveRunMode) => {
+    onboardingRunSessionPendingRef.current = { testRun, runMode };
+    // Freeze synchronously. SciconOnboarding opens the invitation on its next
+    // render, but no flight frame or mission timer should advance first.
+    setOnboardingGameplayFreeze(true);
+    setOnboardingInvitationNonce((current) => current + 1);
+  }, []);
+  const handleOnboardingGameplayFreezeChange = useCallback((frozen: boolean) => {
+    setOnboardingGameplayFreeze(frozen || Boolean(onboardingRunSessionPendingRef.current));
+  }, []);
+  const handleOnboardingInvitationDecision = useCallback((_accepted: boolean) => {
+    const pendingRun = onboardingRunSessionPendingRef.current;
+    onboardingRunSessionPendingRef.current = null;
+    setOnboardingGameplayFreeze(false);
+    if (!pendingRun || gameStateRef.current !== GameState.PLAYING) return;
+    beginRunSession(pendingRun.testRun, pendingRun.runMode);
+  }, [beginRunSession]);
   const continueRscCost = (continuesUsed + 1) * 5;
   const isContinuePaymentBusy = continuePaymentStatus === 'switching_network'
     || continuePaymentStatus === 'processing'
@@ -1342,57 +1419,69 @@ const App: React.FC = () => {
     let active = true;
     let cancelDeferredFetch: (() => void) | null = null;
     let leaderboardRefreshId: number | null = null;
-    let scoreFetchInFlight = false;
-    let archiveFetchInFlight = false;
+    let weeklyPublishRefreshId: number | null = null;
+    let dashboardFetchInFlight = false;
 
-    const fetchScores = async (background = false) => {
-      if (!active || scoreFetchInFlight) return;
-      scoreFetchInFlight = true;
+    const fetchDashboardData = async (background = false) => {
+      if (!active || dashboardFetchInFlight) return;
+      dashboardFetchInFlight = true;
       const alreadyHasData = leaderboard.length > 0;
       if (!background && !alreadyHasData) {
         setLoadingLeaderboard(true);
       }
 
       try {
-        const data = await getLeaderboardData();
+        const [data, archive] = await Promise.all([
+          getLeaderboardData(),
+          getArchivedWeeklyWinners()
+        ]);
         if (!active) return;
+        // Do not expose half of a rollover. The weekly board and Past Picks
+        // advance in the same React commit only after both sources respond.
+        if (archive === null) return;
+
+        const publication = resolveWeeklyDashboardPublication(archive.completedWeekKeys);
+        const presentedWeeklyScores = await getLeaderboardWeekScores(publication.visibleWeekKey);
+        if (!active || presentedWeeklyScores === null) return;
+
         if (data.scores.length > 0) {
           setLeaderboard(data.scores);
         }
-        setMonthlyLeaderboard(data.monthlyScores);
+        setMonthlyLeaderboard(presentedWeeklyScores);
+        setArchivedWinners(archive.winners);
+        setWeeklyPresentationTime(publication.presentationTime);
       } catch (error) {
-        console.error("Failed to fetch leaderboard", error);
+        console.error("Failed to refresh weekly dashboard", error);
       } finally {
-        scoreFetchInFlight = false;
+        dashboardFetchInFlight = false;
         if (active && !background && !alreadyHasData) {
           setLoadingLeaderboard(false);
         }
       }
     };
 
-    const fetchArchivedWinners = async () => {
-      if (!active || archiveFetchInFlight) return;
-      archiveFetchInFlight = true;
-      const winners = await getArchivedWeeklyWinners();
-      archiveFetchInFlight = false;
-      if (!active || winners === null) return;
-      setArchivedWinners(winners);
-    };
-
-    const fetchDashboardData = () => {
-      void Promise.all([fetchScores(), fetchArchivedWinners()]);
-    };
     const refreshDashboardInBackground = () => {
-      if (!document.hidden) void Promise.all([fetchScores(true), fetchArchivedWinners()]);
+      if (!document.hidden) void fetchDashboardData(true);
+    };
+    const refreshWeeklyPublication = () => {
+      if (!active || document.hidden) return;
+      if (dashboardFetchInFlight) {
+        // The cutoff timer must not be lost behind a slower request that began
+        // just before publication. Retry until the atomic board/archive fetch
+        // can own the slot instead of waiting for the 60-second poll.
+        weeklyPublishRefreshId = window.setTimeout(refreshWeeklyPublication, 500);
+        return;
+      }
+      void fetchDashboardData(true);
     };
     const handleDashboardVisibilityChange = () => {
       if (document.visibilityState === 'visible') refreshDashboardInBackground();
     };
 
     if (gameState === GameState.GAMEOVER) {
-      fetchDashboardData();
+      void fetchDashboardData();
     } else if (gameState === GameState.MENU) {
-      cancelDeferredFetch = runAfterFirstPaint(fetchDashboardData, {
+      cancelDeferredFetch = runAfterFirstPaint(() => { void fetchDashboardData(); }, {
         delayMs: leaderboard.length > 0 ? 900 : 450,
         timeoutMs: 2200
       });
@@ -1402,6 +1491,10 @@ const App: React.FC = () => {
       );
       window.addEventListener('focus', refreshDashboardInBackground);
       document.addEventListener('visibilitychange', handleDashboardVisibilityChange);
+
+      const presentation = getWeeklyPresentationMeta();
+      const publishDelay = Math.max(250, presentation.publishesAt.getTime() - Date.now() + 250);
+      weeklyPublishRefreshId = window.setTimeout(refreshWeeklyPublication, publishDelay);
     }
 
     return () => {
@@ -1409,6 +1502,9 @@ const App: React.FC = () => {
       cancelDeferredFetch?.();
       if (leaderboardRefreshId !== null) {
         window.clearInterval(leaderboardRefreshId);
+      }
+      if (weeklyPublishRefreshId !== null) {
+        window.clearTimeout(weeklyPublishRefreshId);
       }
       window.removeEventListener('focus', refreshDashboardInBackground);
       document.removeEventListener('visibilitychange', handleDashboardVisibilityChange);
@@ -1514,6 +1610,9 @@ const App: React.FC = () => {
   const [stats, setStats] = useState<Stats>(getInitialStats);
   const [pauseMissionPosition, setPauseMissionPosition] = useState<PauseMissionPosition | null>(null);
   const [polishSettings, setPolishSettings] = useState<GamePolishSettings>(getInitialPolishSettings);
+  const [matchMusicTrackId, setMatchMusicTrackId] = useState<MatchMusicTrackId>(() => (
+    audioService.getMatchMusicTrackId()
+  ));
   /**
    * Background music follows what is on screen: the menu bed at rest, combat
    * during waves, and the boss bed the moment a boss is live. The swap itself
@@ -1526,14 +1625,16 @@ const App: React.FC = () => {
     }
 
     const targetMusic = gameState === GameState.PLAYING
-      ? (stats.isBossActive ? 'boss' : 'combat')
-      : 'menu';
+      ? (stats.isBossActive ? 'boss' : matchMusicTrackId)
+      : gameState === GameState.GAMEOVER && !campaignCompletedRun
+        ? 'defeat'
+        : 'menu';
     if (audioService.getCurrentMusic() === targetMusic) {
       audioService.resumeMusic();
       return;
     }
     void audioService.playMusic(targetMusic);
-  }, [gameState, stats.isBossActive]);
+  }, [campaignCompletedRun, gameState, matchMusicTrackId, stats.isBossActive]);
 
   const [audioMuted, setAudioMuted] = useState(() => audioService.isMuted());
   const [sfxVolumeLevel, setSfxVolumeLevel] = useState(() => audioService.getSfxVolumeLevel());
@@ -1837,6 +1938,45 @@ const App: React.FC = () => {
     isOwnerWallet,
     pilotProfile.id,
     walletProfileAuthorizationNonce
+  ]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!activeWalletAddress || walletProfileStatus !== 'ready' || isOwnerWallet) {
+      applyWeeklyRunAttemptQuota(null, null);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const quotaOwner = activeWalletAddress.toLowerCase();
+    if (weeklyRunAttemptQuotaOwnerRef.current !== quotaOwner) {
+      applyWeeklyRunAttemptQuota(null, quotaOwner);
+    }
+
+    void loadWeeklyRunAttemptQuota(activeWalletAddress as Address, { interactive: false })
+      .then((quota) => {
+        if (!cancelled) applyWeeklyRunAttemptQuota(quota, quotaOwner);
+      })
+      .catch((error) => {
+        // A quota read is only a presentation aid. The run-start endpoint
+        // remains authoritative and will still reject an unavailable entry.
+        console.warn('Weekly Run quota could not be refreshed', error);
+        // Preserve a previously verified value for this wallet/week. If there
+        // is none, the Home action remains available and run-start verifies it
+        // atomically instead of mistaking the free-only local counter for the
+        // wallet's complete paid allowance.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    activeWalletAddress,
+    applyWeeklyRunAttemptQuota,
+    isOwnerWallet,
+    walletProfileStatus,
+    weeklySquadState.weekKey
   ]);
 
   useEffect(() => {
@@ -2740,13 +2880,31 @@ const App: React.FC = () => {
         const introBeat = pendingLaunch.runMode === 'weekly-streak'
           ? null
           : getStoryBeatForPhase(pendingLaunch.missionNumber);
-        if (introBeat && !hasSeenStoryBeatToday(introBeat)) {
+        const launchProfileId = pendingLaunch.squadLoadout.profileId;
+        if (introBeat && !hasSeenStoryBeatTodayForProfile(introBeat, launchProfileId)) {
           setActiveStoryBeat(introBeat);
         } else {
-          beginRunSession(
-            pendingLaunch.startInTestMode || isOwnerWallet,
-            pendingLaunch.runMode
-          );
+          const campaignAlreadyCleared = permanentSquadStateRef.current.campaignProgress.completedMissionIds.length > 0
+            || permanentSquadStateRef.current.lifetimeStats.campaignMissionsCleared > 0;
+          if (
+            pendingLaunch.missionNumber === 1
+            && pendingLaunch.runMode !== 'weekly-streak'
+            && !campaignAlreadyCleared
+            && loadOnboardingProgress(launchProfileId).decision === 'unasked'
+          ) {
+            // If the app closed while the first invitation was visible, offer
+            // it again on the next first-Mission launch even though Brian's
+            // briefing is already marked seen for this profile today.
+            offerFirstFlightGuideBeforeRun(
+              pendingLaunch.startInTestMode || isOwnerWallet,
+              pendingLaunch.runMode
+            );
+          } else {
+            beginRunSession(
+              pendingLaunch.startInTestMode || isOwnerWallet,
+              pendingLaunch.runMode
+            );
+          }
         }
       }
     }, 2650);
@@ -2762,6 +2920,8 @@ const App: React.FC = () => {
 
     console.error('Gameplay runtime launch failed.', error);
     pendingMissionRuntimeRef.current = null;
+    onboardingRunSessionPendingRef.current = null;
+    setOnboardingGameplayFreeze(false);
     missionLaunchPendingRef.current = false;
     clearIntroStoryTimeout();
     setGameRuntimeReady(false);
@@ -2781,6 +2941,8 @@ const App: React.FC = () => {
     missionLaunchNonceRef.current += 1;
     missionLaunchPendingRef.current = false;
     pendingMissionRuntimeRef.current = null;
+    onboardingRunSessionPendingRef.current = null;
+    setOnboardingGameplayFreeze(false);
     clearIntroStoryTimeout();
     setGameRuntimeReady(false);
     setMissionLoading(null);
@@ -2869,6 +3031,11 @@ const App: React.FC = () => {
   const setGameMusicVolume = (level: number) => {
     setMusicVolumeLevel(audioService.setMusicVolumeLevel(level));
     setAudioMuted(audioService.isMuted());
+    audioService.playUiSound('click');
+  };
+
+  const setGameMatchMusicTrack = (trackId: MatchMusicTrackId) => {
+    setMatchMusicTrackId(audioService.setMatchMusicTrackId(trackId));
     audioService.playUiSound('click');
   };
 
@@ -2987,6 +3154,11 @@ const App: React.FC = () => {
     setWeeklyRunLaunchError(null);
     const now = new Date();
     const boundary = getWeeklyBoundaryMeta(now);
+    const quotaOwner = activeWalletAddress?.toLowerCase() ?? null;
+    const currentQuota = weeklyRunAttemptQuotaOwnerRef.current === quotaOwner
+      && weeklyRunAttemptQuotaRef.current?.weeklyId === boundary.weekKey
+      ? weeklyRunAttemptQuotaRef.current
+      : null;
     const stateBeforeLaunch = weeklySquadStateRef.current;
     const existingStreak = weeklySquadStateRef.current.weeklyCampaignStreak;
     const resuming = existingStreak?.finalization.status === 'active'
@@ -3008,8 +3180,18 @@ const App: React.FC = () => {
     }
 
     if (!resuming) {
-      if (getWeeklyRunAttemptsRemaining(weeklySquadStateRef.current) <= 0) {
-        setCampaignMapError('Both Weekly Run attempts have been used. A new pair arrives at the weekly reset.');
+      const attemptsRemaining = currentQuota?.attemptsRemaining
+        ?? getWeeklyRunAttemptsRemaining(weeklySquadStateRef.current);
+      const serverCanVerifyUnknownWalletQuota = Boolean(
+        activeWalletAddress
+        && walletProfileStatus === 'ready'
+        && !currentQuota
+      );
+      if (attemptsRemaining <= 0 && !serverCanVerifyUnknownWalletQuota) {
+        setCampaignMapError(
+          `All ${WEEKLY_RUN_ATTEMPT_LIMIT} free Weekly Run attempts have been used. `
+          + 'Connect a Base Account to add one attempt for 3 RSC, or wait for the weekly reset.'
+        );
         setCampaignMapStatus('launch-error');
         return;
       }
@@ -3067,6 +3249,14 @@ const App: React.FC = () => {
         weeklySquadStateRef.current = reconciled;
         saveWeeklySquadState(reconciled);
         setWeeklySquadState(reconciled);
+        applyWeeklyRunAttemptQuota({
+          weeklyId: session.weeklyAttempt.weeklyId,
+          freeAttempts: session.weeklyAttempt.freeAttempts,
+          purchasedAttempts: session.weeklyAttempt.purchasedAttempts,
+          attemptsUsed: session.weeklyAttempt.attemptsUsed,
+          attemptsRemaining: session.weeklyAttempt.attemptsRemaining,
+          resetAt: new Date(session.weeklyAttempt.resetAtMs).toISOString()
+        }, quotaOwner);
       }
       setRunReceiptStatus('idle');
       setWeeklyRunLaunchError(null);
@@ -3077,10 +3267,19 @@ const App: React.FC = () => {
       setRunReceiptStatus('error');
       const details = (error as { details?: string[] })?.details;
       if (!resuming && details?.includes('weekly_run_attempts_exhausted')) {
-        const restored = reconcileWeeklyRunAttempts(stateBeforeLaunch, 2);
+        const restored = reconcileWeeklyRunAttempts(stateBeforeLaunch, WEEKLY_RUN_ATTEMPT_LIMIT);
         weeklySquadStateRef.current = restored;
         saveWeeklySquadState(restored);
         setWeeklySquadState(restored);
+        const purchasedAttempts = currentQuota?.purchasedAttempts ?? 0;
+        applyWeeklyRunAttemptQuota({
+          weeklyId: boundary.weekKey,
+          freeAttempts: WEEKLY_RUN_ATTEMPT_LIMIT,
+          purchasedAttempts,
+          attemptsUsed: WEEKLY_RUN_ATTEMPT_LIMIT + purchasedAttempts,
+          attemptsRemaining: 0,
+          resetAt: boundary.endsAt.toISOString()
+        }, quotaOwner);
       } else if (!resuming) {
         // Keep the same pending streak key so a lost HTTP response can retry
         // the idempotent server reservation, but do not consume the displayed
@@ -3108,7 +3307,16 @@ const App: React.FC = () => {
       waveId: entry.waveId ?? undefined,
       kind: 'weekly-streak'
     });
-  }, [isOwnerWallet, launchGame, persistWeeklyCampaignStreak, usableShipId, weeklyRun]);
+  }, [
+    activeWalletAddress,
+    applyWeeklyRunAttemptQuota,
+    isOwnerWallet,
+    launchGame,
+    persistWeeklyCampaignStreak,
+    usableShipId,
+    walletProfileStatus,
+    weeklyRun
+  ]);
 
   const selectWeeklyCampaignMissionFromMap = useCallback((
     request: CampaignMapLaunchRequest & { nodeId: string }
@@ -3270,7 +3478,7 @@ const App: React.FC = () => {
     );
     const collectedGrant = {
       id: `${previewId}:collected`,
-      label: 'Collected coins',
+      label: 'Collected Tokens',
       amount: 18,
       kind: 'wave' as const,
       oneTime: false
@@ -3417,7 +3625,7 @@ const App: React.FC = () => {
       );
       if (!settlement.accepted) {
         setCampaignMapError(settlement.duplicate
-          ? 'Duplicate protection verified: the reward was rejected and 0 coins were added.'
+          ? 'Duplicate protection verified: the reward was rejected and 0 Tokens were added.'
           : `Founder simulation rejected: ${settlement.reason}.`);
         return;
       }
@@ -3449,8 +3657,8 @@ const App: React.FC = () => {
         setStats((current) => ({ ...current, totalCoins: current.totalCoins + credit.creditedAmount }));
       }
       setCampaignMapError(outcome === 'success'
-        ? `Founder success simulated: ${credit.creditedAmount} coins settled once.`
-        : 'Founder failure simulated: 0 coins settled and retry remains available.');
+        ? `Founder success simulated: ${credit.creditedAmount} Tokens settled once.`
+        : 'Founder failure simulated: 0 Tokens settled and retry remains available.');
     };
     const buildCampaignLabRequest = (
       missionId: string,
@@ -3625,7 +3833,7 @@ const App: React.FC = () => {
         }, CAMPAIGN_BRANCH_DEFINITIONS);
         setCampaignMapError(
           duplicate.duplicate && duplicate.coinsAwarded === 0
-            ? 'Duplicate protection verified: second settlement awarded 0 coins.'
+            ? 'Duplicate protection verified: second settlement awarded 0 Tokens.'
             : 'Duplicate protection check failed.'
         );
       },
@@ -4096,7 +4304,7 @@ const App: React.FC = () => {
         campaignBranchAttemptSettledRef.current = false;
         console.error('Campaign branch server settlement failed', error);
         setCampaignMapError(
-          'The bonus result could not be verified by the wallet profile service. No provisional coins were kept; retry safely.'
+          'The bonus result could not be verified by the wallet profile service. No provisional Tokens were kept; retry safely.'
         );
         const baseline = campaignBranchCoinBaselineRef.current;
         if (baseline !== null) {
@@ -4374,7 +4582,7 @@ const App: React.FC = () => {
     const resultId = `${activeProfileId}:${attemptId}:${summary.levelId}:${summary.waveId}`;
     const collectedGrant = {
       id: `campaign:${resultId}:collected`,
-      label: 'Collected coins',
+      label: 'Collected Tokens',
       amount: collectedCoins,
       kind: 'wave' as const,
       oneTime: false
@@ -4657,10 +4865,16 @@ const App: React.FC = () => {
 
   const completeStoryTransmission = () => {
     const completedPhase = activeStoryBeat?.phase;
+    const shouldOfferFirstFlightGuide = completedPhase === 1
+      && isCompetitiveCampaignRun
+      && activeCampaignLaunch?.missionId === CAMPAIGN_MISSIONS[0]?.id
+      && !hasCampaignClear;
     if (activeStoryBeat) {
-      markStoryBeatSeenToday(activeStoryBeat);
+      markStoryBeatSeenTodayForProfile(activeStoryBeat, activeProfileId);
     }
-    if (completedPhase !== undefined && !isBossArchiveRun) {
+    if (shouldOfferFirstFlightGuide) {
+      offerFirstFlightGuideBeforeRun(isOwnerTestRun || isOwnerWallet, activeRunMode);
+    } else if (completedPhase !== undefined && !isBossArchiveRun) {
       beginRunSession(isOwnerTestRun || isOwnerWallet, activeRunMode);
     }
     setActiveStoryBeat(null);
@@ -4772,6 +4986,154 @@ const App: React.FC = () => {
 
     requestWalletRuntimeAction('connect');
   }, [activeWalletAddress, requestWalletRuntimeAction]);
+
+  const refreshRscBalance = useCallback(() => {
+    if (!activeWalletAddress) {
+      connectWallet();
+      return;
+    }
+    warmWalletRuntime();
+    setWalletRuntimeEnabled(true);
+    walletActionNonceRef.current += 1;
+    setWalletRuntimeAction({
+      type: 'refresh-rsc-balance',
+      nonce: walletActionNonceRef.current
+    });
+  }, [activeWalletAddress, connectWallet]);
+
+  const requestRscPurchase = useCallback(async (skuId: RscPurchaseSkuId) => {
+    if (!RSC_PURCHASE_SKUS[skuId].enabled) {
+      setWalletPurchaseStatus({
+        status: 'error',
+        skuId,
+        error: 'Token packs are coming soon while secure server-owned Token balances are completed.'
+      });
+      return;
+    }
+    if (isOwnerWallet && skuId === 'right-support') {
+      handleUnlockSquadSlot('right');
+      return;
+    }
+
+    setWalletPurchaseStatus({ status: 'connecting', skuId });
+    if (activeWalletAddress && walletProfileStatus === 'ready') {
+      const normalizedAddress = activeWalletAddress.toLowerCase();
+      const flushTask = walletProfileSaveChainRef.current
+        .catch(() => undefined)
+        .then(async () => {
+          const flushedProfile = await flushDirtyWalletProfile(normalizedAddress);
+          if (!flushedProfile || walletProfileAddressRef.current !== normalizedAddress) return;
+          walletProfileRevisionRef.current = flushedProfile.revision;
+          walletProfileSyncedSnapshotRef.current = flushedProfile.snapshot;
+          cacheWalletProfile(flushedProfile);
+        });
+      walletProfileSaveChainRef.current = flushTask.then(
+        () => undefined,
+        () => undefined
+      );
+      try {
+        await flushTask;
+      } catch (error) {
+        setWalletPurchaseStatus({
+          status: 'error',
+          skuId,
+          error: error instanceof Error
+            ? error.message
+            : 'Your wallet profile could not sync before this purchase.'
+        });
+        return;
+      }
+    }
+
+    warmWalletRuntime();
+    setWalletRuntimeEnabled(true);
+    walletActionNonceRef.current += 1;
+    setWalletRuntimeAction({
+      type: 'purchase-rsc',
+      skuId,
+      nonce: walletActionNonceRef.current
+    });
+  }, [activeWalletAddress, handleUnlockSquadSlot, isOwnerWallet, walletProfileStatus]);
+
+  const handleWalletPurchaseSuccess = useCallback((settlement: WalletPurchaseSettlement) => {
+    const normalizedAddress = settlement.profile.walletAddress.toLowerCase();
+    // A first purchase can connect and authenticate the wallet inside the same
+    // trusted tap. In that path the authoritative settlement may arrive one
+    // render before App's wallet-profile effect has copied the new address into
+    // its ref. Accept that first profile, but never hydrate a profile belonging
+    // to a different wallet after an account switch.
+    if (activeWalletAddress && activeWalletAddress.toLowerCase() !== normalizedAddress) return;
+    walletProfileAddressRef.current = normalizedAddress;
+
+    if (settlement.weeklyRunQuota) {
+      applyWeeklyRunAttemptQuota(settlement.weeklyRunQuota, normalizedAddress);
+    }
+
+    if (
+      settlement.grantsRightSupport
+      && !settlement.profile.snapshot.weeklyState.unlockedSlots.right
+    ) {
+      setWalletError('Purchase confirmed, but its support entitlement could not be verified. Your local progress was not changed.');
+      return;
+    }
+
+    let rebasedDirty: ReturnType<typeof rebaseWalletProfileDirtyAfterServerPurchase> = null;
+    try {
+      rebasedDirty = rebaseWalletProfileDirtyAfterServerPurchase({
+        address: normalizedAddress,
+        savedProfile: settlement.profile
+      });
+    } catch (error) {
+      console.error('Wallet purchase profile merge failed:', error);
+      setWalletError('Purchase confirmed, but this device could not safely merge its newest progress. Your local progress was not changed.');
+      return;
+    }
+
+    cacheWalletProfile(settlement.profile);
+    walletProfileRevisionRef.current = settlement.profile.revision;
+    walletProfileSyncedSnapshotRef.current = settlement.profile.snapshot;
+    // If gameplay changed while the transfer was open, render the purchase-
+    // aware rebased snapshot. Hydrating the older server snapshot here would
+    // let the normal autosave effect replace the queued local progress before
+    // it flushes.
+    const hydratedSnapshot = hydrateActiveProfile({
+      profileId: settlement.profile.profileId,
+      snapshot: rebasedDirty?.snapshot ?? settlement.profile.snapshot,
+      founderSandbox: false
+    });
+    walletProfileLocalBaselineRef.current = hydratedSnapshot;
+    weeklySquadStateRef.current = hydratedSnapshot.weeklyState;
+    permanentSquadStateRef.current = hydratedSnapshot.permanentState;
+    setWalletProfileStatus('ready');
+    setWalletError('');
+
+    if (rebasedDirty) {
+      const flushTask = walletProfileSaveChainRef.current
+        .then(async () => {
+          const flushedProfile = await flushDirtyWalletProfile(normalizedAddress);
+          if (!flushedProfile || walletProfileAddressRef.current !== normalizedAddress) return;
+          walletProfileRevisionRef.current = flushedProfile.revision;
+          walletProfileSyncedSnapshotRef.current = flushedProfile.snapshot;
+          cacheWalletProfile(flushedProfile);
+          const flushedSnapshot = hydrateActiveProfile({
+            profileId: flushedProfile.profileId,
+            snapshot: flushedProfile.snapshot,
+            founderSandbox: false
+          });
+          walletProfileLocalBaselineRef.current = flushedSnapshot;
+          weeklySquadStateRef.current = flushedSnapshot.weeklyState;
+          permanentSquadStateRef.current = flushedSnapshot.permanentState;
+          setWalletError('');
+        })
+        .catch(() => {
+          setWalletError('Purchase confirmed. Your newer local progress is preserved and will retry syncing.');
+        });
+      walletProfileSaveChainRef.current = flushTask.then(
+        () => undefined,
+        () => undefined
+      );
+    }
+  }, [activeWalletAddress, applyWeeklyRunAttemptQuota, hydrateActiveProfile]);
 
   const persistRewardClaim = useCallback((
     nextPermanentState: PermanentSquadState,
@@ -5222,10 +5584,10 @@ const App: React.FC = () => {
     const nextBeat = getStoryBeatForPhase(stats.wave);
     lastStoryWaveRef.current = stats.wave;
 
-    if (nextBeat && !hasSeenStoryBeatToday(nextBeat)) {
+    if (nextBeat && !hasSeenStoryBeatTodayForProfile(nextBeat, activeProfileId)) {
       setActiveStoryBeat(nextBeat);
     }
-  }, [activeStoryBeat, gameState, isWeeklyCampaignRun, stats.wave]);
+  }, [activeProfileId, activeStoryBeat, gameState, isWeeklyCampaignRun, stats.wave]);
 
   const finalizeCurrentRun = async (): Promise<RunReceipt | null> => {
     if (isBossArchiveRun) return null;
@@ -5287,12 +5649,12 @@ const App: React.FC = () => {
       const unsettledLifetimeCampaignEnemies = isCampaignRun
         ? Math.max(0, stats.enemiesDefeated - campaignRunCreditedEnemiesRef.current)
         : stats.enemiesDefeated;
-      if (!isNonCompetitiveRun && squadRunAppliedGameIdRef.current !== gameId) {
+      if (isWeeklyLeaderboardRun && squadRunAppliedGameIdRef.current !== gameId) {
         squadRunAppliedGameIdRef.current = gameId;
         updateWeeklySquadState((current) => applySquadRunResult(current, {
           score: stats.score,
           enemiesDefeated: stats.enemiesDefeated,
-          coinsCollected: isCampaignRun ? 0 : stats.coins
+          coinsCollected: stats.coins
         }));
       }
       if (!isNonCompetitiveRun && permanentRunAppliedGameIdRef.current !== gameId) {
@@ -5493,8 +5855,8 @@ const App: React.FC = () => {
     if (status === 'confirmed') {
       trackEvent('weekly_champion_claimed');
       trackEvent('proposal_selected');
-      void getArchivedWeeklyWinners().then((winners) => {
-        if (winners !== null) setArchivedWinners(winners);
+      void getArchivedWeeklyWinners().then((archive) => {
+        if (archive !== null) setArchivedWinners(archive.winners);
       });
     }
   };
@@ -5795,7 +6157,7 @@ const App: React.FC = () => {
       <div className="relative mt-2 grid grid-cols-3 divide-x divide-white/10 border-t border-cyan-100/15 pt-2 text-center">
         <div><span className="block text-[8px] font-black uppercase tracking-wider text-slate-500">Mission</span><strong className="text-sm text-cyan-100">{stats.wave}</strong></div>
         <div><span className="block text-[8px] font-black uppercase tracking-wider text-slate-500">Targets</span><strong className="text-sm text-emerald-100">{stats.enemiesDefeated}</strong></div>
-        <div><span className="block text-[8px] font-black uppercase tracking-wider text-slate-500">Coins</span><strong className="text-sm text-yellow-200">{stats.coins}</strong></div>
+        <div><span className="block text-[8px] font-black uppercase tracking-wider text-slate-500">Tokens</span><strong className="text-sm text-yellow-200">{stats.coins}</strong></div>
       </div>
     </div>
   );
@@ -5838,6 +6200,9 @@ const App: React.FC = () => {
             onContinueSuccess={handleContinueSuccess}
             onWalletChange={handleWalletRuntimeChange}
             onWalletError={setWalletError}
+            onRscBalanceChange={setRscBalanceUpdate}
+            onWalletPurchaseStatus={setWalletPurchaseStatus}
+            onWalletPurchaseSuccess={handleWalletPurchaseSuccess}
             onChampionClaimStatus={handleChampionClaimStatus}
             onMissionMintStatus={handleMissionMintStatus}
           />
@@ -6025,9 +6390,8 @@ const App: React.FC = () => {
             campaignSettlement={isCampaignRun && campaignResultPresentation?.summaryId === waveVictorySummary.id
               ? campaignResultPresentation.settlement
               : null}
-            newlyAffordableUpgrade={isCampaignRun && campaignResultPresentation?.summaryId === waveVictorySummary.id
-              ? campaignResultPresentation.newlyAffordableUpgrade
-              : null}
+            guideRequiresHangar={onboardingStepId === 'mission-hangar'}
+            onOpenHangar={isCompetitiveCampaignRun ? openSquadHangar : undefined}
             onOpenCampaignMap={isCampaignRun
               ? () => openCampaignMap(
                   campaignResultPresentation?.settlement.newlyUnlockedMissionId
@@ -6048,6 +6412,7 @@ const App: React.FC = () => {
           allTimeLeaderboard={leaderboard}
           monthlyLeaderboard={monthlyLeaderboard}
           archivedWinners={archivedWinners}
+          weeklyPresentationTime={weeklyPresentationTime}
           walletRecords={walletRecords}
           walletRuns={walletRuns}
           walletRunsLoading={walletRunsLoading}
@@ -6062,12 +6427,19 @@ const App: React.FC = () => {
           onClaimDailyGift={handleClaimDailyGift}
           onClaimAchievement={handleClaimAchievement}
           onRequestWalletConnect={connectWallet}
+          rscBalance={rscBalanceUpdate.balance}
+          rscBalanceStatus={rscBalanceUpdate.status}
+          walletPurchaseStatus={walletPurchaseStatus}
+          onPurchaseWithRsc={requestRscPurchase}
+          onRefreshRscBalance={refreshRscBalance}
           audioMuted={audioMuted}
           sfxVolumeLevel={sfxVolumeLevel}
           musicVolumeLevel={musicVolumeLevel}
+          matchMusicTrackId={matchMusicTrackId}
           onToggleAudio={toggleGameAudio}
           onSfxVolumeChange={setGameSfxVolume}
           onMusicVolumeChange={setGameMusicVolume}
+          onMatchMusicTrackChange={setGameMatchMusicTrack}
           onBossArchiveViewed={handleBossArchiveViewed}
           onBossArchiveSelection={handleBossArchiveSelection}
           onStartBossFight={startBossArchiveFight}
@@ -6084,7 +6456,7 @@ const App: React.FC = () => {
             newPersonalRecord: bossArchiveResult.newPersonalRecord,
             reward: bossArchiveResult.rewardCoins > 0 ? [{
               id: `${bossArchiveResult.eventId}:challenge-result`,
-              label: 'Research Coins',
+              label: 'Tokens',
               amount: bossArchiveResult.rewardCoins,
               tone: 'coin'
             }] : [],
@@ -6103,7 +6475,18 @@ const App: React.FC = () => {
           weeklyRunBestScore={weeklySquadState.weeklyCampaignStreak?.finalization.status === 'active'
             ? weeklySquadState.weeklyCampaignStreak.score.totalPoints
             : weeklySquadState.weeklyStats.score}
-          weeklyRunAttemptsRemaining={getWeeklyRunAttemptsRemaining(weeklySquadState)}
+          weeklyRunAttemptsRemaining={weeklyRunAttemptQuotaOwner === activeWalletAddress?.toLowerCase()
+            && weeklyRunAttemptQuota?.weeklyId === weeklySquadState.weekKey
+            ? weeklyRunAttemptQuota.attemptsRemaining
+            : getWeeklyRunAttemptsRemaining(weeklySquadState)}
+          weeklyRunAttemptQuotaUnknown={Boolean(
+            activeWalletAddress
+            && walletProfileStatus === 'ready'
+            && (
+              weeklyRunAttemptQuotaOwner !== activeWalletAddress.toLowerCase()
+              || weeklyRunAttemptQuota?.weeklyId !== weeklySquadState.weekKey
+            )
+          )}
           bossArchiveDeveloperControls={bossArchiveDeveloperControls}
           founderSandbox={isOwnerWallet}
           onUnlockSquadSlot={handleUnlockSquadSlot}
@@ -6174,6 +6557,7 @@ const App: React.FC = () => {
             allTimeLeaderboard={leaderboard}
             monthlyLeaderboard={monthlyLeaderboard}
             archivedWinners={archivedWinners}
+            weeklyPresentationTime={weeklyPresentationTime}
             walletRecords={walletRecords}
             walletRuns={walletRuns}
             walletRunsLoading={walletRunsLoading}
@@ -6186,12 +6570,19 @@ const App: React.FC = () => {
             onClaimDailyGift={handleClaimDailyGift}
             onClaimAchievement={handleClaimAchievement}
             onRequestWalletConnect={connectWallet}
+            rscBalance={rscBalanceUpdate.balance}
+            rscBalanceStatus={rscBalanceUpdate.status}
+            walletPurchaseStatus={walletPurchaseStatus}
+            onPurchaseWithRsc={requestRscPurchase}
+            onRefreshRscBalance={refreshRscBalance}
             audioMuted={audioMuted}
             sfxVolumeLevel={sfxVolumeLevel}
             musicVolumeLevel={musicVolumeLevel}
+            matchMusicTrackId={matchMusicTrackId}
             onToggleAudio={toggleGameAudio}
             onSfxVolumeChange={setGameSfxVolume}
             onMusicVolumeChange={setGameMusicVolume}
+            onMatchMusicTrackChange={setGameMatchMusicTrack}
             founderSandbox={isOwnerWallet}
             onUnlockSquadSlot={handleUnlockSquadSlot}
             onPurchaseMiniShip={handlePurchaseMiniShip}
@@ -6229,7 +6620,9 @@ const App: React.FC = () => {
           waveTotal={pauseMissionPosition?.waveTotal ?? 1}
           sfxVolumeLevel={sfxVolumeLevel}
           musicVolumeLevel={musicVolumeLevel}
+          matchMusicTrackId={matchMusicTrackId}
           onMusicVolumeChange={setGameMusicVolume}
+          onMatchMusicTrackChange={setGameMatchMusicTrack}
           polishSettings={polishSettings}
           quitLabel={isWeeklyCampaignRun ? 'Forfeit Run' : 'Exit Run'}
           onResume={beginResumeCountdown}
@@ -6353,7 +6746,7 @@ const App: React.FC = () => {
                   {activeCampaignBranch?.displayName ?? 'Research Supply Drop'}
                 </p>
                 <p className="mt-2 text-[10px] font-bold leading-relaxed text-slate-300">
-                  Provisional coins were discarded. This optional route remains available and your main Mission checkpoint was not changed.
+                  Provisional Tokens were discarded. This optional route remains available and your main Mission checkpoint was not changed.
                 </p>
               </div>
               <div className="grid gap-2">
@@ -6454,10 +6847,10 @@ const App: React.FC = () => {
                         Global score saved
                       </p>
                     ) : null}
-                    <div className="grid gap-2">
-                      <button onClick={retryGame} className="scicon-btn min-h-11 w-full py-2.5 text-xs font-bold">RETRY MISSION</button>
-                      <button onClick={openSquadHangar} className="scicon-btn min-h-11 w-full py-2.5 text-xs font-bold">HANGAR</button>
-                      <button onClick={resetGame} className="scicon-btn scicon-btn-secondary min-h-11 w-full py-2.5 text-xs font-bold text-gray-300">MAIN MENU</button>
+                    <div className="sci-gameover-actions">
+                      <button type="button" onClick={retryGame} className="scicon-btn sci-gameover-action sci-gameover-action--retry">RETRY MISSION</button>
+                      <button type="button" onClick={openSquadHangar} className="scicon-btn sci-gameover-action sci-gameover-action--hangar">HANGAR</button>
+                      <button type="button" onClick={resetGame} className="scicon-btn sci-gameover-action sci-gameover-action--home">MAIN MENU</button>
                     </div>
                   </div>
                 </>
@@ -6588,10 +6981,12 @@ const App: React.FC = () => {
       <SciconOnboarding
         profileId={activeProfileId}
         surface={onboardingSurface}
-        hasCampaignClear={hasCampaignClear}
+        invitationNonce={onboardingInvitationNonce}
         suspended={onboardingSuspended}
         restartNonce={onboardingRestartNonce}
-        onGameplayFreezeChange={setOnboardingGameplayFreeze}
+        onGameplayFreezeChange={handleOnboardingGameplayFreezeChange}
+        onInvitationDecision={handleOnboardingInvitationDecision}
+        onStepChange={setOnboardingStepId}
       />
 
     </div>

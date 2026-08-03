@@ -212,7 +212,7 @@
         "powerupIds": {
           "type": "array",
           "uniqueItems": true,
-          "items": { "enum": ["shield", "double-shot", "triple-shot", "magnet", "research-beam", "extra-life", "max-shot"] }
+          "items": { "enum": ["shield", "projectile-upgrade", "magnet", "research-beam", "extra-life", "max-shot"] }
         }
       },
       "additionalProperties": true
@@ -236,7 +236,7 @@
         "availablePowerupIds": {
           "type": "array",
           "uniqueItems": true,
-          "items": { "enum": ["shield", "double-shot", "triple-shot", "magnet", "research-beam", "extra-life", "max-shot"] }
+          "items": { "enum": ["shield", "projectile-upgrade", "magnet", "research-beam", "extra-life", "max-shot"] }
         },
         "events": {
           "type": "array",
@@ -458,7 +458,7 @@
       "additionalProperties": false,
       "required": ["id", "label", "weight"],
       "properties": {
-        "id": { "enum": ["shield", "double-shot", "triple-shot", "magnet", "research-beam", "extra-life"] },
+        "id": { "enum": ["shield", "projectile-upgrade", "magnet", "research-beam", "extra-life"] },
         "label": { "$ref": "#/definitions/label" },
         "weight": { "type": "number", "minimum": 0, "maximum": 1 }
       }

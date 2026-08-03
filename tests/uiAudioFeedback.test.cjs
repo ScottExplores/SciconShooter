@@ -43,8 +43,8 @@ test('gameplay actions with native effects opt out of delegated menu clicks', ()
   const silentControls = overlaySource.match(/data-audio="none"/g) ?? [];
 
   assert.equal(silentControls.length, 3, 'bomb, ship ability, and field upgrades should use native gameplay audio');
-  assert.match(overlaySource, /data-audio="none"\s*\{\.\.\.bombActionHandlers\}/);
-  assert.match(overlaySource, /data-audio="none"\s*\{\.\.\.shipAbilityActionHandlers\}/);
+  assert.match(overlaySource, /data-audio="none"[\s\S]{0,120}\{\.\.\.bombActionHandlers\}/);
+  assert.match(overlaySource, /data-audio="none"[\s\S]{0,120}\{\.\.\.shipAbilityActionHandlers\}/);
   assert.match(overlaySource, /data-audio="none"[\s\S]{0,300}onUpgrade\(type\)/);
 });
 

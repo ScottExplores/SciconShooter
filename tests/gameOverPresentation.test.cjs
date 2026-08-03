@@ -52,8 +52,15 @@ test('the canonical game-over flow keeps all existing actions inside the new pre
   assert.match(app, /isSubmittingScore \? 'Saving\.\.\.' : 'Submit'/);
   assert.match(app, /sci-gameover-result-content/);
   assert.match(app, /sci-gameover-skip-score/);
+  assert.match(app, /sci-gameover-actions/);
+  assert.match(app, /sci-gameover-action--retry/);
+  assert.match(app, /sci-gameover-action--hangar/);
+  assert.match(app, /sci-gameover-action--home/);
   assert.match(styles, /inset: 11% 14% 10%/);
   assert.match(styles, /\.sci-gameover-result-content input,[\s\S]*max-width: 100%/);
+  assert.match(styles, /\.sci-gameover-action--retry[\s\S]*rgba\(127, 29, 29/);
+  assert.match(styles, /\.sci-gameover-action--hangar[\s\S]*rgba\(7, 49, 76/);
+  assert.match(styles, /\.sci-gameover-action--home[\s\S]*rgba\(15, 23, 42/);
   assert.match(styles, /@media \(max-height: 760px\)/);
   assert.doesNotMatch(app, /Prepare record/);
   assert.doesNotMatch(app, /id="pilot-score-name"[\s\S]{0,500}autoFocus/);

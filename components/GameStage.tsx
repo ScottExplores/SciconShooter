@@ -18,7 +18,7 @@ const GameStage: React.FC<GameStageProps> = ({
   resumeCountdown = null,
   className = ''
 }) => (
-  <div className={`scicon-game-stage ${className}`.trim()} data-onboarding-target="flight-stage">
+  <div className={`scicon-game-stage ${className}`.trim()}>
     <GameCanvas {...canvas} />
     {hud ? <UIOverlay {...hud} stats={canvas.stats} /> : null}
     {resumeCountdown !== null ? (

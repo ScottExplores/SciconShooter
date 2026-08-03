@@ -10,7 +10,7 @@ const { verifyBaseMessage } = require('./_lib/baseSignatures');
 const { readOptionalWalletProfileSession } = require('./_lib/walletProfileAuth');
 const crypto = require('crypto');
 const { checkRateLimit } = require('./_lib/rateLimit');
-const { getCurrentWeekRange } = require('../shared/weeklyCompetitionBoundary.js');
+const { getCurrentWeekRange, getWeekRange } = require('../shared/weeklyCompetitionBoundary.js');
 
 const LEGACY_SUPABASE_SELECT = 'name,score,wave,date,wallet_address,donated';
 const PROPOSAL_SUPABASE_SELECT = `${LEGACY_SUPABASE_SELECT},proposal_id,proposal_title,proposal_url,proposal_author`;
@@ -222,6 +222,34 @@ const readSupabaseScores = async () => {
     ? combinedRows.map(fromSupabaseRow).filter(Boolean)
     : [];
   return dedupeAndSort(scores, SYNC_SCORE_LIMIT);
+};
+
+const readSupabaseWeekScores = async (weekKey) => {
+  const { start, end } = getWeekRange(weekKey);
+  const weeklyQuery = `&date=gte.${encodeURIComponent(start.toISOString())}&date=lt.${encodeURIComponent(end.toISOString())}&limit=${WEEKLY_SCORE_LIMIT}`;
+  let rows;
+
+  try {
+    rows = await requestSupabaseScores(SUPABASE_SELECT, weeklyQuery);
+  } catch (error) {
+    if (!isMissingProposalColumnError(error)) throw error;
+    try {
+      rows = await requestSupabaseScores(VERIFIED_SUPABASE_SELECT, weeklyQuery);
+    } catch (verifiedError) {
+      if (!isMissingProposalColumnError(verifiedError)) throw verifiedError;
+      try {
+        rows = await requestSupabaseScores(PROPOSAL_SUPABASE_SELECT, weeklyQuery);
+      } catch (proposalError) {
+        if (!isMissingProposalColumnError(proposalError)) throw proposalError;
+        rows = await requestSupabaseScores(LEGACY_SUPABASE_SELECT, weeklyQuery);
+      }
+    }
+  }
+
+  return dedupeAndSort(
+    (Array.isArray(rows) ? rows : []).map(fromSupabaseRow).filter(Boolean),
+    WEEKLY_SCORE_LIMIT
+  );
 };
 
 const insertSupabaseRows = async (rows) => {
@@ -661,6 +689,19 @@ module.exports = async (req, res) => {
 
   try {
     if (req.method === 'GET') {
+      const weekKey = sanitizeText(req.query?.weekKey, 20);
+      if (weekKey) {
+        let weekScores;
+        try {
+          weekScores = await readSupabaseWeekScores(weekKey);
+        } catch (error) {
+          if (/weekKey must be a Sunday/i.test(error?.message || '')) {
+            return sendJson(res, 400, { error: error.message });
+          }
+          throw error;
+        }
+        return sendJson(res, 200, { weekKey, weekScores });
+      }
       const scores = await readScores();
       return sendJson(res, 200, toLeaderboardPayload(scores));
     }
@@ -684,6 +725,13 @@ module.exports = async (req, res) => {
 
       if (receipt.testRun) {
         return sendJson(res, 403, { error: 'Pilot Test runs are not eligible for leaderboards.' });
+      }
+
+      if (receipt.runMode !== 'weekly-streak') {
+        return sendJson(res, 403, {
+          error: 'Only a verified Weekly Run can enter the weekly leaderboard.',
+          code: 'WEEKLY_RUN_REQUIRED'
+        });
       }
 
       const proposalSession = isProposalAction

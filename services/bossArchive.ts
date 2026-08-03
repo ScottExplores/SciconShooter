@@ -499,7 +499,7 @@ const buildBossArchiveCatalog = (): readonly BossArchiveEntry[] => {
               reward: Object.freeze({
                 resource: 'coins' as const,
                 amount: challengeRewardCoins,
-                label: `+${challengeRewardCoins.toLocaleString()} research coins`
+                label: `+${challengeRewardCoins.toLocaleString()} Tokens`
               })
             }),
             masteryObjectives: buildMasteryObjectives(

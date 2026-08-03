@@ -18,12 +18,11 @@ test('project wallet enables a sticky test run with real flask charge and no lea
   assert.match(appSource, /completedPhase !== undefined && !isBossArchiveRun/);
   assert.match(appSource, /const isFounderSandboxRun = isOwnerWallet \|\| isOwnerTestRun/);
   assert.match(appSource, /if \(isFounderSandboxRun\) \{[\s\S]*?finalizeCurrentRun\(\)/);
-  // High scores are gated on isWeeklyLeaderboardRun, which is strictly
-  // narrower than !isNonCompetitiveRun: it also excludes Campaign, which
-  // deliberately records no score. The founder sandbox is non-competitive, so
-  // it remains excluded either way.
+  // High scores are owned exclusively by Weekly Run. The founder sandbox is
+  // non-competitive, so it remains excluded even when launched through that
+  // mode.
   assert.match(appSource, /isWeeklyLeaderboardRun && stats\.score > stats\.highScore/);
-  assert.match(appSource, /const isWeeklyLeaderboardRun = !isNonCompetitiveRun &&/);
+  assert.match(appSource, /const isWeeklyLeaderboardRun = isWeeklyCampaignRun && !isNonCompetitiveRun/);
 });
 
 test('founder Hangar sandbox unlocks the fleet, supports reversible upgrades, and never persists test levels', () => {

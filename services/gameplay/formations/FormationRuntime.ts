@@ -67,6 +67,25 @@ export interface ResolvedFormationSeparationPoint extends FormationPoint {
   id: string;
 }
 
+export interface FormationSlotTransitionInput {
+  current: FormationPoint;
+  previousTarget: FormationPoint;
+  resolvedTarget: FormationPoint;
+}
+
+export interface FormationSlotTransitionPlan {
+  changed: boolean;
+  start: FormationPoint;
+  target: FormationPoint;
+  durationFrames: number;
+}
+
+export interface FormationSlotTransitionSampleInput {
+  start: FormationPoint;
+  target: FormationPoint;
+  progress: number;
+}
+
 export interface FormationGeometryEvent {
   id: string;
   patternId?: string;
@@ -369,6 +388,194 @@ export const resolveNonOverlappingFormationPositions = (
   return members.map((member) => ({ id: member.id, x: member.x, y: member.y }));
 };
 
+const dedupeFiniteOffsets = (values: readonly number[]) => [...new Set(
+  values
+    .filter(Number.isFinite)
+    .map((value) => Math.round(value * 1000) / 1000)
+)];
+
+const hasReservedFormationOverlap = (
+  member: FormationSeparationMember,
+  reservations: readonly FormationSeparationMember[],
+  padding: number
+) => reservations.some((reserved) => separationMembersOverlap(
+  member as MutableFormationSeparationMember,
+  reserved as MutableFormationSeparationMember,
+  padding
+));
+
+/**
+ * Locks one complete cohort around immutable targets already reserved by other
+ * concurrently assembling or holding cohorts. Existing cohorts never move.
+ * A whole-cohort translation preserves the authored silhouette whenever it can;
+ * a stable edge-packing fallback handles a tight mobile viewport.
+ */
+export const resolveNonOverlappingFormationCohortPositions = (
+  inputMembers: readonly FormationSeparationMember[],
+  inputReservations: readonly FormationSeparationMember[],
+  bounds: FormationSeparationBounds,
+  padding = 6
+): ResolvedFormationSeparationPoint[] => {
+  const safePadding = Math.max(0, Number.isFinite(padding) ? padding : 0);
+  const separated = resolveNonOverlappingFormationPositions(inputMembers, bounds, safePadding);
+  if (separated.length === 0 || inputReservations.length === 0) return separated;
+
+  const memberById = new Map(inputMembers.map((member) => [member.id, member]));
+  const members: FormationSeparationMember[] = separated.map((point) => {
+    const source = memberById.get(point.id)!;
+    return { ...source, x: point.x, y: point.y };
+  });
+  const reservations: FormationSeparationMember[] = inputReservations
+    .map((member) => ({
+      ...member,
+      x: Number.isFinite(member.x) ? member.x : bounds.minX,
+      y: Number.isFinite(member.y) ? member.y : bounds.minY,
+      width: Math.max(1, Number.isFinite(member.width) ? member.width : 1),
+      height: Math.max(1, Number.isFinite(member.height) ? member.height : 1)
+    }))
+    .sort((left, right) => left.order - right.order || left.id.localeCompare(right.id));
+
+  const minX = Math.min(...members.map((member) => member.x));
+  const maxX = Math.max(...members.map((member) => member.x + member.width));
+  const minY = Math.min(...members.map((member) => member.y));
+  const maxY = Math.max(...members.map((member) => member.y + member.height));
+  const minimumDx = bounds.minX - minX;
+  const maximumDx = bounds.maxX - maxX;
+  const minimumDy = bounds.minY - minY;
+  const maximumDy = bounds.maxY - maxY;
+  const step = Math.max(10, safePadding * 2);
+  const xOffsets = [clamp(0, minimumDx, maximumDx), minimumDx, maximumDx];
+  const yOffsets = [clamp(0, minimumDy, maximumDy), minimumDy, maximumDy];
+  for (let offset = minimumDx; offset <= maximumDx + 0.001; offset += step) xOffsets.push(offset);
+  for (let offset = minimumDy; offset <= maximumDy + 0.001; offset += step) yOffsets.push(offset);
+  members.forEach((member) => reservations.forEach((reserved) => {
+    xOffsets.push(clamp(reserved.x - safePadding - member.width - member.x, minimumDx, maximumDx));
+    xOffsets.push(clamp(reserved.x + reserved.width + safePadding - member.x, minimumDx, maximumDx));
+    yOffsets.push(clamp(reserved.y - safePadding - member.height - member.y, minimumDy, maximumDy));
+    yOffsets.push(clamp(reserved.y + reserved.height + safePadding - member.y, minimumDy, maximumDy));
+  }));
+
+  const shortlistAxisOffsets = (offsets: readonly number[], minimum: number, maximum: number) => {
+    const sorted = dedupeFiniteOffsets(offsets).sort((left, right) => (
+      Math.abs(left) - Math.abs(right) || left - right
+    ));
+    return dedupeFiniteOffsets([...sorted.slice(0, 64), minimum, maximum]);
+  };
+  const shortlistedXOffsets = shortlistAxisOffsets(xOffsets, minimumDx, maximumDx);
+  const shortlistedYOffsets = shortlistAxisOffsets(yOffsets, minimumDy, maximumDy);
+  const translations = shortlistedXOffsets.flatMap((x) => (
+    shortlistedYOffsets.map((y) => ({ x, y }))
+  )).sort((left, right) => (
+    (left.x * left.x + left.y * left.y) - (right.x * right.x + right.y * right.y)
+    || Math.abs(left.y) - Math.abs(right.y)
+    || left.y - right.y
+    || left.x - right.x
+  ));
+  const translation = translations.find((candidate) => members.every((member) => (
+    !hasReservedFormationOverlap(
+      { ...member, x: member.x + candidate.x, y: member.y + candidate.y },
+      reservations,
+      safePadding
+    )
+  )));
+  if (translation) {
+    return members.map((member) => ({
+      id: member.id,
+      x: member.x + translation.x,
+      y: member.y + translation.y
+    }));
+  }
+
+  const placed: FormationSeparationMember[] = [];
+  const result: ResolvedFormationSeparationPoint[] = [];
+  members
+    .sort((left, right) => left.order - right.order || left.id.localeCompare(right.id))
+    .forEach((member) => {
+      const obstacles = [...reservations, ...placed];
+      const candidateXs = [
+        member.x,
+        bounds.minX,
+        bounds.maxX - member.width,
+        ...obstacles.flatMap((obstacle) => [
+          obstacle.x - safePadding - member.width,
+          obstacle.x + obstacle.width + safePadding
+        ])
+      ];
+      const candidateYs = [
+        member.y,
+        bounds.minY,
+        bounds.maxY - member.height,
+        ...obstacles.flatMap((obstacle) => [
+          obstacle.y - safePadding - member.height,
+          obstacle.y + obstacle.height + safePadding
+        ])
+      ];
+      const candidates = dedupeFiniteOffsets(candidateXs).flatMap((x) => (
+        dedupeFiniteOffsets(candidateYs).map((y) => ({
+          x: clamp(x, bounds.minX, Math.max(bounds.minX, bounds.maxX - member.width)),
+          y: clamp(y, bounds.minY, Math.max(bounds.minY, bounds.maxY - member.height))
+        }))
+      )).sort((left, right) => (
+        ((left.x - member.x) ** 2 + (left.y - member.y) ** 2)
+        - ((right.x - member.x) ** 2 + (right.y - member.y) ** 2)
+        || left.y - right.y
+        || left.x - right.x
+      ));
+      const point = candidates.find((candidate) => !hasReservedFormationOverlap(
+        { ...member, ...candidate },
+        obstacles,
+        safePadding
+      )) ?? { x: member.x, y: member.y };
+      const positioned = { ...member, ...point };
+      placed.push(positioned);
+      result.push({ id: member.id, x: point.x, y: point.y });
+    });
+  return result;
+};
+
+/**
+ * Plans the one-time move from an authored slot to its collision-safe slot.
+ * The live position is always the start of the move. Reusing the old target as
+ * the start was the source of the visible one-frame snap when the last member
+ * of a staggered squadron spawned.
+ */
+export const resolveFormationSlotTransition = ({
+  current,
+  previousTarget,
+  resolvedTarget
+}: FormationSlotTransitionInput): FormationSlotTransitionPlan => {
+  const targetShift = Math.hypot(
+    resolvedTarget.x - previousTarget.x,
+    resolvedTarget.y - previousTarget.y
+  );
+  const travelDistance = Math.hypot(
+    resolvedTarget.x - current.x,
+    resolvedTarget.y - current.y
+  );
+  return {
+    changed: targetShift > 0.01,
+    start: { x: current.x, y: current.y },
+    target: { x: resolvedTarget.x, y: resolvedTarget.y },
+    // Roughly 0.3-0.6 seconds at 60 Hz. Longer corrections receive more time,
+    // keeping the maximum per-frame travel bounded on narrow phones.
+    durationFrames: Math.round(clamp(18 + travelDistance * 0.16, 20, 36))
+  };
+};
+
+/** Pure fixed-step sample for a locked-slot settle; endpoints are exact. */
+export const sampleFormationSlotTransition = ({
+  start,
+  target,
+  progress
+}: FormationSlotTransitionSampleInput): FormationPoint => {
+  const normalizedProgress = clamp(Number(progress) || 0, 0, 1);
+  const eased = normalizedProgress * normalizedProgress * (3 - 2 * normalizedProgress);
+  return {
+    x: start.x + (target.x - start.x) * eased,
+    y: start.y + (target.y - start.y) * eased
+  };
+};
+
 const normalizeAnchor = (anchor: FormationPoint | undefined) => {
   const x = Number(anchor?.x);
   const y = Number(anchor?.y);
@@ -407,10 +614,6 @@ const normalizeEntryPath = (value: string | undefined) => {
   const normalized = String(value || '').trim().toLowerCase();
   return normalized || undefined;
 };
-
-const getAuthoredEntrySide = (eventId: string, index: number): -1 | 1 => (
-  (index + getFormationGroupSeed(eventId)) % 2 === 0 ? -1 : 1
-);
 
 export const resolveConfiguredFormationMode = (
   patternId?: string
@@ -824,7 +1027,10 @@ export const resolveConfiguredFormationSpawnPoint = ({
     y = Math.max(18, height * 0.065) + sideDepth * Math.min(28, height * 0.032);
   } else if (entryPathId === 'formation-drop' || entryPathId === 'armored-grid') {
     x = 24 + (index / Math.max(1, count - 1)) * Math.max(1, width - 72);
-    y = -84 - (index % 4) * 26;
+    // Keep top-entry grids readable without leaving a full second of empty
+    // combat on narrow phones. A compact stagger also prevents a fast player
+    // from clearing the lead pair before the next pair reaches the viewport.
+    y = -68 - (index % 4) * 18;
   } else if (entryPathId === 'paired-flank' || entryPathId === 'mirrored-swoop' || entryPathId === 'side-wall-entry') {
     x = side < 0 ? -72 : width + 72;
     y = Math.max(24, height * 0.08) + pair * 22;

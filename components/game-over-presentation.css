@@ -222,6 +222,74 @@
   max-width: 100%;
 }
 
+.sci-gameover-actions {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+}
+
+.sci-gameover-action {
+  position: relative;
+  min-width: 0;
+  min-height: 46px;
+  overflow: hidden;
+  border: 1px solid transparent;
+  padding: 10px 16px;
+  color: #f8fbff;
+  font-size: clamp(10px, 3.2vw, 12px);
+  font-weight: 900;
+  letter-spacing: 0.09em;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  box-shadow: 0 0 0 2px rgba(2, 6, 23, 0.84), 0 8px 18px rgba(0, 0, 0, 0.32);
+}
+
+.sci-gameover-action::before {
+  position: absolute;
+  inset: 6px auto 6px 6px;
+  width: 3px;
+  background: currentColor;
+  box-shadow: 0 0 9px currentColor;
+  content: '';
+  opacity: 0.82;
+}
+
+.sci-gameover-action::after {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 15%, rgba(255, 255, 255, 0.16) 48%, transparent 70%);
+  content: '';
+  pointer-events: none;
+  transform: translateX(-125%);
+  transition: transform 420ms ease;
+}
+
+.sci-gameover-action:hover::after,
+.sci-gameover-action:focus-visible::after {
+  transform: translateX(125%);
+}
+
+.sci-gameover-action--retry {
+  border-color: rgba(248, 113, 113, 0.82);
+  background: linear-gradient(135deg, rgba(127, 29, 29, 0.98), rgba(190, 24, 93, 0.92));
+  color: #fff1f2;
+  box-shadow: 0 0 0 2px rgba(30, 5, 12, 0.86), 0 0 22px rgba(239, 68, 68, 0.22);
+}
+
+.sci-gameover-action--hangar {
+  border-color: rgba(103, 232, 249, 0.76);
+  background: linear-gradient(135deg, rgba(7, 49, 76, 0.98), rgba(8, 112, 138, 0.9));
+  color: #cffafe;
+  box-shadow: 0 0 0 2px rgba(2, 16, 29, 0.86), 0 0 20px rgba(34, 211, 238, 0.16);
+}
+
+.sci-gameover-action--home {
+  border-color: rgba(148, 163, 184, 0.5);
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(51, 65, 85, 0.9));
+  color: #dbeafe;
+}
+
 .sci-gameover-skip-score {
   position: relative;
   z-index: 1;

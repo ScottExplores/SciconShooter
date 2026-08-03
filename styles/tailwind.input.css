@@ -263,9 +263,8 @@
   min-height: 5rem;
 }
 
-/* Progressive flight guide. The spotlight lives at App scope so one lesson can
-   follow the player from Home to Campaign, a real clear, the Hangar, and the
-   Weekly Run without front-loading every rule at startup. */
+/* First-flight guide. It appears only after the player accepts Brian's
+   post-transmission invitation and advances from real control interactions. */
 .sci-onboarding {
   position: absolute;
   z-index: 260;
@@ -274,23 +273,104 @@
   inset: 0;
 }
 
-.sci-onboarding__scrim {
+.sci-onboarding__invite-scrim {
   position: absolute;
-  background: rgb(1 5 18 / 0.78);
+  background: rgb(1 5 18 / 0.34);
   inset: 0;
-  backdrop-filter: blur(2px);
+}
+
+.sci-onboarding__invite {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(22rem, calc(100% - 1.5rem));
+  padding: 1.4rem 1.2rem 1.15rem;
+  border: 1px solid rgb(103 232 249 / 0.58);
+  border-radius: 0.45rem;
+  background:
+    radial-gradient(circle at 50% 0%, rgb(16 185 129 / 0.2), transparent 45%),
+    linear-gradient(145deg, rgb(5 29 51 / 0.985), rgb(2 9 27 / 0.99) 62%, rgb(4 34 39 / 0.98));
+  box-shadow:
+    0 1.2rem 3rem rgb(0 0 0 / 0.62),
+    0 0 2rem rgb(34 211 238 / 0.2),
+    inset 0 0 2rem rgb(34 211 238 / 0.06);
+  pointer-events: auto;
+  transform: translate(-50%, -50%);
+  animation: sci-onboarding-arrive 220ms ease-out both;
+}
+
+.sci-onboarding__invite::before {
+  position: absolute;
+  border: 1.1rem solid transparent;
+  border-image-source: url('/game-art/generated/ui/scicon-ui-system-v2/base/tutorial-story/tutorial-frame.png');
+  border-image-slice: 126 fill;
+  border-image-width: 1;
+  border-image-repeat: stretch;
+  content: '';
+  image-rendering: pixelated;
+  inset: -0.42rem;
+  opacity: 0.92;
+  pointer-events: none;
+}
+
+.sci-onboarding__eyebrow {
+  position: relative;
+  margin: 0;
+  color: rgb(110 231 183);
+  font-family: monospace;
+  font-size: 0.58rem;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.sci-onboarding__invite h2 {
+  position: relative;
+  margin: 0.35rem 0 0;
+  color: rgb(236 254 255);
+  font-size: clamp(1.12rem, 5vw, 1.45rem);
+  font-weight: 950;
+  letter-spacing: 0.035em;
+  line-height: 1.08;
+  text-shadow: 0 0 0.9rem rgb(34 211 238 / 0.45);
+  text-transform: uppercase;
+}
+
+.sci-onboarding__invite > p:not(.sci-onboarding__eyebrow) {
+  position: relative;
+  margin: 0.72rem 0 0;
+  color: rgb(203 213 225);
+  font-size: 0.74rem;
+  font-weight: 650;
+  line-height: 1.5;
+}
+
+.sci-onboarding__invite-actions {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+  margin-top: 1rem;
+}
+
+.sci-onboarding__invite-actions .sci-pixel-action {
+  min-height: 2.8rem;
+  font-size: 0.66rem;
+  font-weight: 950;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
 }
 
 .sci-onboarding__spotlight {
   position: absolute;
-  border: 2px solid rgb(103 232 249 / 0.92);
-  border-radius: 0.65rem;
+  border: 2px solid rgb(110 231 183 / 0.94);
+  border-radius: 0.55rem;
   box-shadow:
-    0 0 0 9999px rgb(1 5 18 / 0.79),
-    0 0 0 4px rgb(16 185 129 / 0.2),
-    0 0 1.4rem rgb(34 211 238 / 0.72),
-    inset 0 0 1rem rgb(34 211 238 / 0.12);
-  animation: sci-onboarding-lock 1.8s ease-in-out infinite;
+    0 0 0 9999px rgb(1 5 18 / 0.18),
+    0 0 0 3px rgb(34 211 238 / 0.18),
+    0 0 1.25rem rgb(52 211 153 / 0.68),
+    inset 0 0 0.8rem rgb(34 211 238 / 0.1);
+  animation: sci-onboarding-lock 1.9s ease-in-out infinite;
 }
 
 .sci-onboarding__spotlight::before,
@@ -319,13 +399,10 @@
 .sci-onboarding__panel {
   position: absolute;
   display: grid;
-  min-height: 13.2rem;
   max-height: calc(100% - 1.5rem);
-  grid-template-columns: 4.9rem minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr) auto;
-  gap: 0.55rem 0.7rem;
+  gap: 0.55rem;
   overflow: visible;
-  padding: 1.1rem 1rem 0.9rem;
+  padding: 0.9rem 0.9rem 0.78rem;
   border: 1px solid rgb(103 232 249 / 0.42);
   border-radius: 0.45rem;
   background:
@@ -368,52 +445,8 @@
 .sci-onboarding__pointer--up { top: -0.55rem; }
 .sci-onboarding__pointer--down { bottom: -0.55rem; }
 
-.sci-onboarding__guide {
-  position: relative;
-  align-self: stretch;
-  min-height: 7.25rem;
-  overflow: hidden;
-  border: 1px solid rgb(103 232 249 / 0.5);
-  border-radius: 0.3rem;
-  background:
-    linear-gradient(180deg, rgb(8 47 73 / 0.75), rgb(2 12 30 / 0.96)),
-    repeating-linear-gradient(0deg, transparent 0 4px, rgb(34 211 238 / 0.06) 4px 5px);
-  box-shadow: inset 0 0 1.2rem rgb(34 211 238 / 0.14), 0 0 1rem rgb(34 211 238 / 0.12);
-}
-
-.sci-onboarding__guide::after {
-  position: absolute;
-  background: linear-gradient(180deg, transparent 8%, rgb(103 232 249 / 0.15) 50%, transparent 92%);
-  content: '';
-  inset: 0;
-  animation: sci-onboarding-scan 3.2s linear infinite;
-  pointer-events: none;
-}
-
-.sci-onboarding__guide-frame {
-  position: absolute;
-  z-index: 2;
-  border: 0.8rem solid transparent;
-  border-image-source: url('/game-art/generated/ui/scicon-ui-system-v2/base/tutorial-story/transmission-portrait-frame.png');
-  border-image-slice: 112;
-  border-image-width: 1;
-  border-image-repeat: stretch;
-  image-rendering: pixelated;
-  inset: -0.12rem;
-  pointer-events: none;
-}
-
-.sci-onboarding__guide img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: 50% 18%;
-  filter: drop-shadow(0 0 0.45rem rgb(34 211 238 / 0.36));
-}
-
 .sci-onboarding__copy {
   min-width: 0;
-  align-self: center;
 }
 
 .sci-onboarding__meta {
@@ -447,20 +480,21 @@
 }
 
 .sci-onboarding__copy p {
-  margin: 0.45rem 0 0;
+  margin: 0.38rem 0 0;
   color: rgb(203 213 225);
-  font-size: 0.67rem;
+  font-size: 0.66rem;
   font-weight: 650;
-  line-height: 1.42;
+  line-height: 1.38;
 }
 
 .sci-onboarding__actions {
-  display: grid;
+  display: flex;
   min-width: 0;
-  grid-column: 1 / -1;
-  grid-template-columns: auto minmax(8.8rem, 1fr);
   align-items: center;
-  gap: 0.65rem;
+  justify-content: space-between;
+  gap: 0.55rem;
+  padding-top: 0.15rem;
+  border-top: 1px solid rgb(103 232 249 / 0.14);
 }
 
 .sci-onboarding__skip {
@@ -479,30 +513,31 @@
 .sci-onboarding__skip:hover,
 .sci-onboarding__skip:focus-visible { color: rgb(224 242 254); }
 
-.sci-onboarding__next {
-  min-height: 2.55rem;
-  padding: 0.55rem 0.9rem;
-  font-size: 0.66rem;
+.sci-onboarding__instruction {
+  min-width: 0;
+  color: rgb(167 243 208);
+  font-family: monospace;
+  font-size: 0.56rem;
   font-weight: 950;
-  letter-spacing: 0.055em;
+  letter-spacing: 0.07em;
+  text-align: right;
+  text-shadow: 0 0 0.65rem rgb(52 211 153 / 0.48);
   text-transform: uppercase;
 }
 
 @keyframes sci-onboarding-lock {
-  0%, 100% { filter: brightness(0.9); }
-  50% { filter: brightness(1.22); }
+  0%, 100% { filter: brightness(0.96); }
+  50% { filter: brightness(1.18); }
 }
 
-@keyframes sci-onboarding-scan {
-  from { transform: translateY(-105%); }
-  to { transform: translateY(105%); }
+@keyframes sci-onboarding-arrive {
+  from { opacity: 0; transform: translate(-50%, calc(-50% + 0.65rem)) scale(0.98); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 }
 
 @media (max-width: 350px) {
   .sci-onboarding__panel {
-    grid-template-columns: 4.1rem minmax(0, 1fr);
-    gap: 0.45rem;
-    padding: 0.9rem 0.75rem 0.75rem;
+    padding: 0.78rem 0.72rem 0.7rem;
   }
 
   .sci-onboarding__copy p { font-size: 0.62rem; }
@@ -510,8 +545,14 @@
 }
 
 .sci-onboarding[data-reduced-motion='true'] .sci-onboarding__spotlight,
-.sci-onboarding[data-reduced-motion='true'] .sci-onboarding__guide::after {
+.sci-onboarding[data-reduced-motion='true'] .sci-onboarding__invite {
   animation: none;
+}
+
+.wave-victory-actions button:disabled {
+  cursor: not-allowed;
+  filter: grayscale(0.8) brightness(0.62);
+  opacity: 0.58;
 }
 
 /* Names the selected hull's projectile identity beside the Hangar tier strip.
@@ -704,7 +745,7 @@
   width: auto;
   align-items: center;
   gap: 0.55rem;
-  grid-template-columns: 2.15rem minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   /* The mobile home shell is a stretch grid; without this the entry inflates
      to fill its track and pushes Start Mission off the bottom of the screen. */
   align-self: start;
@@ -769,24 +810,6 @@
 
 .sci-weekly-run-entry:disabled:hover {
   filter: grayscale(0.62) saturate(0.55) brightness(0.72);
-}
-
-.sci-weekly-run-entry__glyph {
-  display: flex;
-  width: 2.15rem;
-  height: 2.15rem;
-  align-items: center;
-  justify-content: center;
-}
-
-.sci-weekly-run-entry__glyph img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  /* Nearest-neighbour, so the sprite keeps hard pixel edges instead of being
-     smooth-scaled into a soft illustration that fights the chunky chrome. */
-  image-rendering: pixelated;
-  filter: drop-shadow(0 0 0.4rem rgb(34 211 238 / 0.75));
 }
 
 .sci-weekly-run-entry__copy { min-width: 0; }

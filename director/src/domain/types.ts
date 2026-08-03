@@ -109,7 +109,7 @@ export interface WaveSegment {
 }
 
 export interface PowerupWeight {
-  id: 'shield' | 'double-shot' | 'triple-shot' | 'magnet' | 'research-beam' | 'extra-life';
+  id: 'shield' | 'projectile-upgrade' | 'magnet' | 'research-beam' | 'extra-life';
   label: string;
   weight: number;
 }

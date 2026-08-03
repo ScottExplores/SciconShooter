@@ -43,5 +43,7 @@ test('shared card and mint metadata resolve the signed ship with legacy Research
   assert.match(cardApiSource, /BTC_SHIP: '\/game-art\/generated\/scicon-flight-motion-pack-v1\/ships\/btc-token-ship\/frames\/btc-token-ship-03-neutral\.png'/);
   assert.match(cardApiSource, /getPlayerShipId\(req\.query\?\.ship \|\| receipt\.player_ship_id\)/);
   assert.match(metadataApiSource, /buildMissionRecordCardPath\(runId, record\.playerShipId\)/);
+  assert.match(metadataApiSource, /trait_type: 'Tokens Collected'/);
+  assert.doesNotMatch(metadataApiSource, /trait_type: 'Coins Collected'/);
   assert.match(mintAuthorizationSource, /buildMissionRecordMetadataPath\(receipt\.runId, receipt\.metrics\.playerShipId\)/);
 });

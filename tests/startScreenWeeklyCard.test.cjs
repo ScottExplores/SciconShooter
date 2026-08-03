@@ -30,17 +30,42 @@ test('Home offers the Campaign entry point and the Weekly Run as separate contro
   assert.match(source, /onStartWeeklyRun/);
   assert.match(appSource, /startWeeklyRunFromHome/);
   assert.match(source, /weeklyRunAttemptsRemaining/);
-  assert.match(source, /disabled=\{!weeklyRunActive && weeklyRunAttemptsRemaining <= 0\}/);
-  assert.match(source, /WEEKLY_RUN_STARTING_LIVES\} Lives · \$\{weeklyRunAttemptsRemaining\}\/2 Attempts/);
-  assert.match(appSource, /weeklyRunAttemptsRemaining=\{getWeeklyRunAttemptsRemaining\(weeklySquadState\)\}/);
+  assert.match(source, /disabled=\{attemptsExhausted\}/);
+  assert.match(source, /needsServerVerification = !weeklyRunActive[\s\S]*weeklyRunAttemptQuotaUnknown/);
+  assert.match(source, /WEEKLY_RUN_STARTING_LIVES\} Lives · \$\{weeklyRunAttemptsRemaining\} Attempt/);
+  assert.match(source, /WEEKLY_RUN_ATTEMPT_LIMIT\} Free\/Week/);
+  assert.match(appSource, /weeklyRunAttemptsRemaining=\{weeklyRunAttemptQuotaOwner === activeWalletAddress\?\.toLowerCase\(\)[\s\S]*weeklyRunAttemptQuota\.attemptsRemaining[\s\S]*getWeeklyRunAttemptsRemaining\(weeklySquadState\)\}/);
+  assert.match(appSource, /weeklyRunAttemptQuotaUnknown=\{Boolean\([\s\S]*walletProfileStatus === 'ready'/);
   assert.match(source, /onClick=\{onStart\}/);
   assert.match(source, /\{campaignCheckpoint\.waveTotal\} WAVES/);
+});
+
+test('the Weekly Run drawer omits the ship thumbnail and sells one paid attempt after the free five', () => {
+  const entry = source.slice(
+    source.indexOf('const renderWeeklyRunEntry'),
+    source.indexOf('const renderWeeklyFundingCard')
+  );
+  const entryRule = stylesSource.slice(
+    stylesSource.indexOf('.sci-weekly-run-entry {'),
+    stylesSource.indexOf('.sci-weekly-run-entry:hover')
+  );
+
+  assert.doesNotMatch(entry, /sci-weekly-run-entry__glyph|ASSETS\.PLAYER_SHIP/);
+  assert.match(entryRule, /grid-template-columns: minmax\(0, 1fr\) auto/);
+  assert.doesNotMatch(stylesSource, /sci-weekly-run-entry__glyph/);
+  assert.match(entry, /const attemptsExhausted = !weeklyRunActive[\s\S]*const showAttemptPurchase = attemptsExhausted/);
+  assert.match(entry, /weekly-run-attempt/);
+  assert.match(entry, /onPurchaseWithRsc\(weeklyAttemptSkuId\)/);
+  assert.match(entry, /WEEKLY_RUN_ATTEMPT_LIMIT\} Free\/Week/);
+  assert.doesNotMatch(entry, /weeklyRunAttemptsRemaining\}\/\$\{WEEKLY_RUN_ATTEMPT_LIMIT/);
+  assert.match(entry, /\+1 Attempt/);
+  assert.match(entry, /3 RSC/);
 });
 
 test('the Weekly Run drawer is a distinct sibling connected to the funding frame', () => {
   // The controls remain semantic siblings inside one dock, while distinct
   // artwork prevents the lower launcher from reading as a shrunken duplicate.
-  assert.match(source, /const renderWeeklyRunEntry = \(\) => \(/);
+  assert.match(source, /const renderWeeklyRunEntry = \(\) => \{/);
   assert.match(source, /const renderWeeklyCompetitionStack =/);
   const stack = source.slice(
     source.indexOf('const renderWeeklyCompetitionStack'),

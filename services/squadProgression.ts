@@ -332,8 +332,8 @@ export const MINI_SHIP_CATALOG: readonly MiniShipCatalogEntry[] = [
   {
     id: 'quorum-crab',
     name: 'Quorum Crab',
-    role: 'Coin magnet',
-    description: 'Expands its coin field every level and unlocks twin cover fire at level four.',
+    role: 'Token magnet',
+    description: 'Expands its Token field every level and unlocks twin cover fire at level four.',
     ability: 'coin-magnet',
     purchaseCost: 200,
     maxLevel: MINI_SHIP_MAX_LEVEL,
@@ -500,7 +500,12 @@ const createWeeklySquadStats = (): WeeklySquadStats => ({
   coinsEarned: 0
 });
 
-export const WEEKLY_RUN_ATTEMPT_LIMIT = 2;
+/**
+ * Free Weekly Run entries granted at each competition reset. Paid entries are
+ * server-owned wallet credits and deliberately do not expand this local
+ * presentation counter; the run-admission API reports that larger quota.
+ */
+export const WEEKLY_RUN_ATTEMPT_LIMIT = 5;
 
 export const getWeeklyRunAttemptsRemaining = (state: WeeklySquadState): number => (
   Math.max(0, WEEKLY_RUN_ATTEMPT_LIMIT - Math.max(0, Math.floor(state.weeklyStats.weeklyRunAttempts || 0)))
@@ -1278,6 +1283,10 @@ const spendCoins = (state: WeeklySquadState, cost: number) => {
 
 export const unlockSquadSlot = (state: WeeklySquadState, slot: SquadSlotId): WeeklySquadState => {
   if (state.unlockedSlots[slot]) return state;
+  // The right wing is an RSC entitlement. It may only be granted by the
+  // server-verified wallet purchase settlement, never by spending gameplay
+  // Tokens through this off-chain progression helper.
+  if (slot === 'right') return state;
   const cost = SQUAD_SLOT_UNLOCK_COST[slot];
   if (state.coins < cost) return state;
   const next = spendCoins(state, cost);

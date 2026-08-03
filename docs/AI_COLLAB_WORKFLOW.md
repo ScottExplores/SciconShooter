@@ -39,3 +39,11 @@ Do not let Claude work directly on `main` while Codex works on the experimental 
 - Compare behavior only when both browsers point to port `5179` from the experimental worktree.
 - Use `?display=mobile-frame` in desktop-hosted or Codex built-in browsers so the canonical mobile layout is rendered directly.
 - A browser on `5173`, another port, or the Main worktree may show a different commit and is not a valid side-by-side comparison.
+
+## Gameplay authoring scope
+
+- Routine Mission, wave, formation, and regular-enemy work uses `game-config/campaign.json` plus the live runtime under `services/` and `components/`.
+- The Boss Sandbox under `director/src/tools/bosses` remains the supported local tool for assembling and testing bosses.
+- Do not launch, regenerate, or edit the legacy Director screens for ordinary gameplay changes. Touch Director validation files only when a shared campaign schema actually changes.
+- Do not delete the Director tree: the active Boss Sandbox lives inside it. Unused legacy routes can stay dormant and excluded from production until a separate cleanup is explicitly approved.
+- Prefer focused runtime/config tests for the files changed. Run the broader Director suite only when Director code or shared schema contracts changed.

@@ -61,7 +61,12 @@ const normalizeRun = (entry, metadata) => {
     score: boundedInteger(attributes.get('Score') ?? entry.score, 0, 2_147_483_647, 0),
     wave: boundedInteger(attributes.get('Wave') ?? entry.wave, 1, 999, 1),
     targetsDefeated: boundedInteger(attributes.get('Targets Defeated'), 0, 1_000_000, 0),
-    coinsCollected: boundedInteger(attributes.get('Coins Collected'), 0, 1_000_000, 0),
+    coinsCollected: boundedInteger(
+      attributes.get('Tokens Collected') ?? attributes.get('Coins Collected'),
+      0,
+      1_000_000,
+      0
+    ),
     durationLabel: safeText(attributes.get('Flight Time'), 20, '--:--'),
     ...(safeIsoDate(entry.date) ? { finishedAt: safeIsoDate(entry.date) } : {}),
     gameVersion: safeText(attributes.get('Game Version'), 80, 'production'),

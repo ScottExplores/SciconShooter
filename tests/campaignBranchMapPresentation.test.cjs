@@ -48,7 +48,7 @@ test('new and claimed one-time routes have clear, non-replayable states', () => 
   assert.match(mapStyles, /\.campaign-map-branch-node--claimed \.campaign-map-branch-node-frame/);
   assert.match(mapSource, /Recovered cache result/);
   assert.match(mapSource, /selectedBranchProgress\.lastResult\.presentsDestroyed/);
-  assert.match(mapSource, /Total secured \+\{selectedBranchProgress\.lastResult\.totalCoins\} coins/);
+  assert.match(mapSource, /Total secured \+\{formatTokenAmount\(selectedBranchProgress\.lastResult\.totalCoins\)\}/);
 });
 
 test('claimed copy remains valid for every optional branch type', () => {

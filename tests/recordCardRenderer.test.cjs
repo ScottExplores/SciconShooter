@@ -104,7 +104,9 @@ test('record-card content stays on one inset plate inside the pixel border', asy
   assert.match(svg, /<rect x="170" y="338" width="860" height="368"/);
   assert.match(svg, /<rect x="190" y="856" width="190" height="112"/);
   assert.match(svg, /font-size="20" font-weight="700" letter-spacing="3">MISSION/);
+  assert.match(svg, /font-size="20" font-weight="700" letter-spacing="3">TOKENS/);
   assert.doesNotMatch(svg, /letter-spacing="3">WAVE/);
+  assert.doesNotMatch(svg, /letter-spacing="3">COINS/);
   assert.ok(svg.lastIndexOf('href="/frame.png"') > svg.lastIndexOf('SCICON V'));
 });
 
@@ -190,6 +192,17 @@ test('AUTO encounter art resolves from ordered stages while explicit wave refs r
   assert.equal(resolveRecordCardEncounterAssetKey(campaign, 2), 'ENEMY_JOURNAL');
   assert.equal(resolveRecordCardEncounterAssetKey(campaign, 3), 'MINI_BOSS');
   assert.equal(resolveRecordCardEncounterAssetKey(null, campaign.levels[1].waves[0]), 'ENEMY_JOURNAL');
+});
+
+test('record-card renderer normalizes legacy authored coin copy to Tokens', async () => {
+  const { renderRecordCardSvg } = await renderer;
+  const svg = renderRecordCardSvg({
+    record,
+    presentation: { copy: { metricLabels: { coins: 'COINS COLLECTED' } } }
+  });
+
+  assert.match(svg, />TOKENS COLLECTED<\/text>/);
+  assert.doesNotMatch(svg, />COINS COLLECTED<\/text>/);
 });
 
 test('AUTO encounter art resolves canonical sector bosses by bossId instead of scorecard or event position', async () => {

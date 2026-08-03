@@ -8,12 +8,13 @@ import React, {
 } from 'react';
 import PixelActionButton from './PixelActionButton';
 import {
+  acceptOnboarding,
   completeOnboardingStep,
+  declineOnboarding,
   getNextOnboardingStepId,
   loadOnboardingProgress,
-  resetOnboardingProgress,
+  restartOnboarding,
   saveOnboardingProgress,
-  skipOnboarding,
   type OnboardingProgressState,
   type OnboardingStepId
 } from '../services/onboardingProgress';
@@ -24,170 +25,79 @@ type OnboardingStepDefinition = {
   id: OnboardingStepId;
   surface: OnboardingSurface;
   target: string;
-  phase: string;
-  phaseStep: number;
-  phaseTotal: number;
+  fallbackSurface?: OnboardingSurface;
+  fallbackTarget?: string;
   title: string;
   body: string;
-  primaryLabel: string;
-  action?: 'activate';
+  instruction: string;
+  activationEvent: 'click' | 'pointerdown' | 'drag';
 };
 
+/**
+ * First-flight training deliberately stays short. Every lesson advances from
+ * the highlighted game control itself; the guide never activates controls on
+ * the player's behalf.
+ */
 export const SCICON_ONBOARDING_STEPS: readonly OnboardingStepDefinition[] = [
   {
-    id: 'welcome-home',
-    surface: 'menu',
-    target: 'home-flight-deck',
-    phase: 'Flight Deck',
-    phaseStep: 1,
-    phaseTotal: 2,
-    title: 'Welcome aboard',
-    body: 'I’m Nova, your flight guide. Campaign builds permanent squad strength; Weekly Run is the weekly score challenge. We’ll learn one system at a time.',
-    primaryLabel: 'Show me around'
-  },
-  {
-    id: 'campaign-entry',
-    surface: 'menu',
-    target: 'campaign-map',
-    phase: 'Flight Deck',
-    phaseStep: 2,
-    phaseTotal: 2,
-    title: 'Choose a Campaign mission',
-    body: 'Start Mission launches your current checkpoint. Campaign Map lets you inspect every unlocked mission and its waves before deployment.',
-    primaryLabel: 'Open Campaign Map',
-    action: 'activate'
-  },
-  {
-    id: 'campaign-mission',
-    surface: 'campaign-map',
-    target: 'campaign-mission',
-    phase: 'Campaign',
-    phaseStep: 1,
-    phaseTotal: 3,
-    title: 'Missions contain waves',
-    body: 'Each Campaign mission is a route made of combat waves, elite threats, and a final encounter. Select the highlighted mission to inspect its launch plan.',
-    primaryLabel: 'Select Mission',
-    action: 'activate'
-  },
-  {
-    id: 'campaign-launch',
-    surface: 'campaign-map',
-    target: 'campaign-launch',
-    phase: 'Campaign',
-    phaseStep: 2,
-    phaseTotal: 3,
-    title: 'Deploy for permanent progress',
-    body: 'Campaign first-clears bank Research Coins and unlock the next route. Your selected main ship and support wing enter together.',
-    primaryLabel: 'Launch Mission',
-    action: 'activate'
-  },
-  {
-    id: 'flight-controls',
+    id: 'flight-steer',
     surface: 'gameplay',
     target: 'flight-stage',
-    phase: 'Campaign',
-    phaseStep: 3,
-    phaseTotal: 3,
-    title: 'Fly, fire, and react',
-    body: 'Drag anywhere to steer; your main guns fire automatically. Bomb and signature-move buttons work with a second finger. Mission drops boost this flight.',
-    primaryLabel: 'Begin Flight'
+    title: 'Steer the ship',
+    body: 'Drag anywhere in the flight area. Your main weapon fires automatically.',
+    instruction: 'Touch and drag the flight area',
+    activationEvent: 'drag'
   },
   {
-    id: 'campaign-reward',
+    id: 'flight-bomb',
+    surface: 'gameplay',
+    target: 'flight-bomb',
+    title: 'Use a bomb',
+    body: 'Bombs clear danger around you. You can press this with a second finger while steering.',
+    instruction: 'Press the highlighted bomb',
+    activationEvent: 'pointerdown'
+  },
+  {
+    id: 'mission-hangar',
     surface: 'mission-complete',
-    target: 'mission-rewards',
-    phase: 'Rewards',
-    phaseStep: 1,
-    phaseTotal: 2,
-    title: 'Research Coins secured',
-    body: 'Campaign rewards are banked for your permanent Hangar loadout. Stronger ships and support wings make later Campaign missions—and the Weekly Run—more survivable.',
-    primaryLabel: 'Got it'
-  },
-  {
-    id: 'hangar-entry',
-    surface: 'menu',
-    target: 'hangar-nav',
-    phase: 'Rewards',
-    phaseStep: 2,
-    phaseTotal: 2,
-    title: 'Spend coins in the Hangar',
-    body: 'The Hangar is your permanent squad workshop. Let’s inspect the systems your Campaign rewards can improve.',
-    primaryLabel: 'Open Hangar',
-    action: 'activate'
+    target: 'mission-hangar',
+    fallbackSurface: 'menu',
+    fallbackTarget: 'hangar-nav',
+    title: 'Bank the reward',
+    body: 'Mission Tokens are saved for permanent ship and support upgrades. Open the Hangar now.',
+    instruction: 'Press Hangar',
+    activationEvent: 'click'
   },
   {
     id: 'hangar-upgrades',
     surface: 'menu',
     target: 'hangar-upgrades',
-    phase: 'Hangar',
-    phaseStep: 1,
-    phaseTotal: 3,
-    title: 'Upgrade with intent',
-    body: 'Upgrade fire rate, handling, and survivability with Research Coins. Main-ship upgrade levels belong to that hull, so every ship can develop differently.',
-    primaryLabel: 'Next system'
+    title: 'Inspect upgrades',
+    body: 'Each ship keeps its own permanent firepower, handling, and survival upgrades.',
+    instruction: 'Press Upgrade',
+    activationEvent: 'click'
   },
   {
-    id: 'hangar-ships',
+    id: 'hangar-fleet',
     surface: 'menu',
-    target: 'hangar-ships',
-    phase: 'Hangar',
-    phaseStep: 2,
-    phaseTotal: 3,
-    title: 'Build a fleet, not one ship',
-    body: 'Select a hull to inspect it, then equip it when you are ready. Each main ship has its own weapon identity and keeps its own permanent upgrades.',
-    primaryLabel: 'Show support wings'
+    target: 'hangar-fleet',
+    title: 'Choose a ship',
+    body: 'Return to the fleet to compare your ships. Selecting one does not spend Tokens.',
+    instruction: 'Press Fleet',
+    activationEvent: 'click'
   },
   {
     id: 'hangar-wings',
     surface: 'menu',
     target: 'hangar-wings',
-    phase: 'Hangar',
-    phaseStep: 3,
-    phaseTotal: 3,
-    title: 'Add left and right support',
-    body: 'Support slots unlock separately. Mini ships bring distinct roles—coin magnetism, piercing fire, missiles, angled volleys, and more—and improve as you upgrade them.',
-    primaryLabel: 'Return to Flight Deck'
-  },
-  {
-    id: 'return-home',
-    surface: 'menu',
-    target: 'home-nav',
-    phase: 'Weekly Run',
-    phaseStep: 1,
-    phaseTotal: 3,
-    title: 'Your squad is ready',
-    body: 'Campaign remains available for coins and progression. Now return Home to see where that stronger loadout competes each week.',
-    primaryLabel: 'Return Home',
-    action: 'activate'
-  },
-  {
-    id: 'weekly-run',
-    surface: 'menu',
-    target: 'weekly-run',
-    phase: 'Weekly Run',
-    phaseStep: 2,
-    phaseTotal: 3,
-    title: 'One endless weekly gauntlet',
-    body: 'Weekly Run starts with 10 lives and two attempts. Waves keep escalating, bosses arrive every few waves, and the enemy order reshuffles each week. Leaving forfeits that run’s score.',
-    primaryLabel: 'See weekly funding'
-  },
-  {
-    id: 'weekly-funding',
-    surface: 'menu',
-    target: 'weekly-funding',
-    phase: 'Weekly Run',
-    phaseStep: 3,
-    phaseTotal: 3,
-    title: 'Fly for research funding',
-    body: 'The verified No. 1 Weekly Run pilot selects an eligible ResearchHub proposal. This board tracks the leader, chosen research, and live funding progress.',
-    primaryLabel: 'Complete Training'
+    title: 'Add support',
+    body: 'Support ships fill the left and right wing slots and bring their own combat roles.',
+    instruction: 'Touch a support slot',
+    activationEvent: 'click'
   }
 ] as const;
 
 const STEP_BY_ID = new Map(SCICON_ONBOARDING_STEPS.map((step) => [step.id, step]));
-const GUIDE_ASSET = '/game-art/generated/ui/scicon-onboarding-guide-v1/scicon-guide.png';
-const HANGAR_STEPS = new Set<OnboardingStepId>(['hangar-upgrades', 'hangar-ships', 'hangar-wings']);
-const HOME_STEPS = new Set<OnboardingStepId>(['welcome-home', 'campaign-entry', 'weekly-run', 'weekly-funding']);
 
 type RectLike = {
   left: number;
@@ -212,11 +122,11 @@ const clamp = (value: number, min: number, max: number) => Math.min(Math.max(val
 export const computeOnboardingPlacement = (
   root: Pick<RectLike, 'width' | 'height'>,
   target: RectLike | null,
-  panelHeight = 232
+  panelHeight = 142
 ): OnboardingPlacement => {
-  const gutter = 12;
-  const gap = 18;
-  const width = Math.max(0, Math.min(350, root.width - gutter * 2));
+  const gutter = 10;
+  const gap = 12;
+  const width = Math.max(0, Math.min(328, root.width - gutter * 2));
 
   if (!target) {
     return {
@@ -242,18 +152,28 @@ export const computeOnboardingPlacement = (
     left,
     top,
     width,
-    pointerLeft: clamp(targetCenter - left, 24, Math.max(24, width - 24)),
+    pointerLeft: clamp(targetCenter - left, 22, Math.max(22, width - 22)),
     pointerDirection: placeAbove ? 'down' : 'up'
   };
 };
 
-interface SciconOnboardingProps {
+export interface SciconOnboardingProps {
   profileId: string;
   surface: OnboardingSurface;
-  hasCampaignClear: boolean;
+  /**
+   * Increment after Brian's first-Mission transmission completes. The guide
+   * remains completely dormant until this signal arrives.
+   */
+  invitationNonce?: number;
+  /** Retained while App migrates from the previous guide contract. */
+  hasCampaignClear?: boolean;
   suspended?: boolean;
+  /** More -> Flight Guide increments this to restart without another invite. */
   restartNonce?: number;
   onGameplayFreezeChange?: (frozen: boolean) => void;
+  onInvitationDecision?: (accepted: boolean) => void;
+  onStepChange?: (stepId: OnboardingStepId | null) => void;
+  onComplete?: () => void;
 }
 
 const getVisibleTarget = (targetName: string): HTMLElement | null => {
@@ -275,69 +195,89 @@ const getVisibleTarget = (targetName: string): HTMLElement | null => {
 const SciconOnboarding: React.FC<SciconOnboardingProps> = ({
   profileId,
   surface,
-  hasCampaignClear,
+  invitationNonce = 0,
   suspended = false,
   restartNonce = 0,
-  onGameplayFreezeChange
+  onGameplayFreezeChange,
+  onInvitationDecision,
+  onStepChange,
+  onComplete
 }) => {
   const [progress, setProgress] = useState<OnboardingProgressState>(() => (
     loadOnboardingProgress(profileId)
   ));
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [targetElement, setTargetElement] = useState<HTMLElement | null>(null);
-  const [targetName, setTargetName] = useState<string | null>(null);
   const [rootRect, setRootRect] = useState<RectLike | null>(null);
   const [targetRect, setTargetRect] = useState<RectLike | null>(null);
-  const [panelHeight, setPanelHeight] = useState(232);
+  const [panelHeight, setPanelHeight] = useState(142);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(
     () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
   );
   const rootRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLElement>(null);
-  const primaryRef = useRef<HTMLButtonElement>(null);
+  const invitationNonceRef = useRef(0);
+  const latestInvitationNonceRef = useRef(invitationNonce);
   const restartNonceRef = useRef(restartNonce);
   const scrollStepRef = useRef<string | null>(null);
+  const handledActionRef = useRef<string | null>(null);
+
+  latestInvitationNonceRef.current = invitationNonce;
 
   useEffect(() => {
+    setInviteOpen(false);
     setProgress(loadOnboardingProgress(profileId));
+    // A signal raised for the previous profile must never invite the next
+    // profile after a wallet/account switch.
+    invitationNonceRef.current = latestInvitationNonceRef.current;
   }, [profileId]);
+
+  useEffect(() => {
+    if (invitationNonce <= 0 || invitationNonceRef.current === invitationNonce) return;
+    invitationNonceRef.current = invitationNonce;
+    setInviteOpen(progress.decision === 'unasked');
+  }, [invitationNonce, progress.decision]);
 
   useEffect(() => {
     if (restartNonceRef.current === restartNonce) return;
     restartNonceRef.current = restartNonce;
-    const reset = resetOnboardingProgress(profileId);
-    setProgress(reset);
+    setInviteOpen(false);
+    setProgress(restartOnboarding(profileId));
   }, [profileId, restartNonce]);
+
+  const persist = useCallback((next: OnboardingProgressState) => {
+    saveOnboardingProgress(next);
+    setProgress(next);
+  }, []);
 
   const currentStepId = getNextOnboardingStepId(progress);
   const currentStep = currentStepId ? STEP_BY_ID.get(currentStepId) ?? null : null;
-  const campaignRewardBlocked = currentStep?.id === 'campaign-reward' && !hasCampaignClear;
+  const currentTarget = currentStep?.surface === surface
+    ? currentStep.target
+    : currentStep?.fallbackSurface === surface
+      ? currentStep.fallbackTarget ?? null
+      : null;
   const shouldShow = Boolean(
     currentStep
-    && currentStep.surface === surface
-    && !campaignRewardBlocked
+    && currentTarget
     && !suspended
+    && !inviteOpen
   );
+
+  useEffect(() => {
+    onStepChange?.(currentStepId);
+    return () => onStepChange?.(null);
+  }, [currentStepId, onStepChange]);
 
   const locateTarget = useCallback(() => {
     if (!currentStep || !shouldShow) {
       setTargetElement(null);
-      setTargetName(null);
       return;
     }
 
-    let resolvedName = currentStep.target;
-    let resolved = getVisibleTarget(resolvedName);
-    if (!resolved && HANGAR_STEPS.has(currentStep.id)) {
-      resolvedName = 'hangar-nav';
-      resolved = getVisibleTarget(resolvedName);
-    } else if (!resolved && HOME_STEPS.has(currentStep.id)) {
-      resolvedName = 'home-nav';
-      resolved = getVisibleTarget(resolvedName);
-    }
-
+    const resolved = currentTarget ? getVisibleTarget(currentTarget) : null;
     setTargetElement((previous) => previous === resolved ? previous : resolved);
-    setTargetName(resolved ? resolvedName : null);
-  }, [currentStep, shouldShow]);
+  }, [currentStep, currentTarget, shouldShow]);
 
   useEffect(() => {
     locateTarget();
@@ -353,9 +293,55 @@ const SciconOnboarding: React.FC<SciconOnboardingProps> = ({
     return () => observer.disconnect();
   }, [locateTarget, shouldShow]);
 
+  useEffect(() => {
+    if (!currentStep || !shouldShow || !targetElement) return undefined;
+    const actionKey = `${currentStep.id}:${currentStep.activationEvent}`;
+    handledActionRef.current = null;
+    const handleTargetAction = () => {
+      if (handledActionRef.current === actionKey) return;
+      handledActionRef.current = actionKey;
+      const next = completeOnboardingStep(progress, currentStep.id);
+      persist(next);
+      if (next.decision === 'complete') onComplete?.();
+    };
+
+    if (currentStep.activationEvent === 'drag') {
+      let activePointerId: number | null = null;
+      let startX = 0;
+      let startY = 0;
+      const handlePointerDown = (event: PointerEvent) => {
+        activePointerId = event.pointerId;
+        startX = event.clientX;
+        startY = event.clientY;
+      };
+      const handlePointerMove = (event: PointerEvent) => {
+        if (activePointerId !== event.pointerId) return;
+        if (Math.hypot(event.clientX - startX, event.clientY - startY) < 12) return;
+        activePointerId = null;
+        handleTargetAction();
+      };
+      const handlePointerEnd = (event: PointerEvent) => {
+        if (activePointerId === event.pointerId) activePointerId = null;
+      };
+      targetElement.addEventListener('pointerdown', handlePointerDown, true);
+      window.addEventListener('pointermove', handlePointerMove, true);
+      window.addEventListener('pointerup', handlePointerEnd, true);
+      window.addEventListener('pointercancel', handlePointerEnd, true);
+      return () => {
+        targetElement.removeEventListener('pointerdown', handlePointerDown, true);
+        window.removeEventListener('pointermove', handlePointerMove, true);
+        window.removeEventListener('pointerup', handlePointerEnd, true);
+        window.removeEventListener('pointercancel', handlePointerEnd, true);
+      };
+    }
+
+    targetElement.addEventListener(currentStep.activationEvent, handleTargetAction, true);
+    return () => targetElement.removeEventListener(currentStep.activationEvent, handleTargetAction, true);
+  }, [currentStep, onComplete, persist, progress, shouldShow, targetElement]);
+
   const measure = useCallback(() => {
     const root = rootRef.current;
-    if (!root || !shouldShow) {
+    if (!root || (!shouldShow && !inviteOpen)) {
       setRootRect(null);
       setTargetRect(null);
       return;
@@ -372,7 +358,7 @@ const SciconOnboarding: React.FC<SciconOnboardingProps> = ({
     };
     setRootRect(nextRoot);
 
-    if (!targetElement) {
+    if (!targetElement || inviteOpen) {
       setTargetRect(null);
       return;
     }
@@ -386,11 +372,11 @@ const SciconOnboarding: React.FC<SciconOnboardingProps> = ({
       right: measuredTarget.right - measuredRoot.left,
       bottom: measuredTarget.bottom - measuredRoot.top
     });
-  }, [shouldShow, targetElement]);
+  }, [inviteOpen, shouldShow, targetElement]);
 
   useLayoutEffect(() => {
     measure();
-    if (!shouldShow) return undefined;
+    if (!shouldShow && !inviteOpen) return undefined;
 
     let frame = 0;
     const scheduleMeasure = () => {
@@ -409,18 +395,18 @@ const SciconOnboarding: React.FC<SciconOnboardingProps> = ({
       window.visualViewport?.removeEventListener('resize', scheduleMeasure);
       window.visualViewport?.removeEventListener('scroll', scheduleMeasure);
     };
-  }, [measure, shouldShow]);
+  }, [inviteOpen, measure, shouldShow]);
 
   useLayoutEffect(() => {
-    if (!panelRef.current || !shouldShow) return;
+    if (!panelRef.current || (!shouldShow && !inviteOpen)) return;
     const nextHeight = panelRef.current.getBoundingClientRect().height;
     if (nextHeight > 0 && Math.abs(nextHeight - panelHeight) > 1) setPanelHeight(nextHeight);
-  }, [currentStepId, panelHeight, shouldShow, targetElement]);
+  }, [currentStepId, inviteOpen, panelHeight, shouldShow, targetElement]);
 
   useEffect(() => {
     if (!shouldShow || !targetElement || !rootRect || !targetRect || !currentStep) return;
-    if (scrollStepRef.current === `${currentStep.id}:${targetName}`) return;
-    scrollStepRef.current = `${currentStep.id}:${targetName}`;
+    if (scrollStepRef.current === currentStep.id) return;
+    scrollStepRef.current = currentStep.id;
     const targetOutsideView = targetRect.top < 8 || targetRect.bottom > rootRect.height - 8;
     if (targetOutsideView) {
       targetElement.scrollIntoView({
@@ -429,7 +415,7 @@ const SciconOnboarding: React.FC<SciconOnboardingProps> = ({
         inline: 'nearest'
       });
     }
-  }, [currentStep, prefersReducedMotion, rootRect, shouldShow, targetElement, targetName, targetRect]);
+  }, [currentStep, prefersReducedMotion, rootRect, shouldShow, targetElement, targetRect]);
 
   useEffect(() => {
     const query = window.matchMedia?.('(prefers-reduced-motion: reduce)');
@@ -439,51 +425,67 @@ const SciconOnboarding: React.FC<SciconOnboardingProps> = ({
     return () => query.removeEventListener?.('change', update);
   }, []);
 
-  const gameplayFrozen = shouldShow && currentStep?.id === 'flight-controls';
   useEffect(() => {
-    onGameplayFreezeChange?.(gameplayFrozen);
+    onGameplayFreezeChange?.(inviteOpen);
     return () => onGameplayFreezeChange?.(false);
-  }, [gameplayFrozen, onGameplayFreezeChange]);
+  }, [inviteOpen, onGameplayFreezeChange]);
 
-  const persist = useCallback((next: OnboardingProgressState) => {
-    saveOnboardingProgress(next);
-    setProgress(next);
-  }, []);
-
-  const handlePrimary = useCallback(() => {
-    if (!currentStep) return;
-
-    const usingFallbackNavigation = targetName !== null && targetName !== currentStep.target;
-    if (usingFallbackNavigation) {
-      targetElement?.click();
-      return;
-    }
-
-    const next = completeOnboardingStep(progress, currentStep.id);
+  const handleInvitation = useCallback((accepted: boolean) => {
+    const next = accepted ? acceptOnboarding(progress) : declineOnboarding(progress);
     persist(next);
-    if (currentStep.action === 'activate') {
-      window.requestAnimationFrame(() => targetElement?.click());
-    }
-  }, [currentStep, persist, progress, targetElement, targetName]);
+    setInviteOpen(false);
+    onInvitationDecision?.(accepted);
+  }, [onInvitationDecision, persist, progress]);
 
   const handleSkip = useCallback(() => {
-    persist(skipOnboarding(progress));
-  }, [persist, progress]);
+    persist(declineOnboarding(progress));
+    onInvitationDecision?.(false);
+  }, [onInvitationDecision, persist, progress]);
 
   const placement = useMemo(() => (
-    computeOnboardingPlacement(rootRect ?? { width: window.innerWidth, height: window.innerHeight }, targetRect, panelHeight)
+    computeOnboardingPlacement(
+      rootRect ?? { width: window.innerWidth, height: window.innerHeight },
+      targetRect,
+      panelHeight
+    )
   ), [panelHeight, rootRect, targetRect]);
 
-  if (!currentStep || !shouldShow) return null;
+  if (inviteOpen) {
+    return (
+      <div ref={rootRef} className="sci-onboarding sci-onboarding--invitation">
+        <div className="sci-onboarding__invite-scrim" aria-hidden="true" />
+        <section
+          ref={panelRef}
+          className="sci-onboarding__invite"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="sci-onboarding-invite-title"
+          aria-describedby="sci-onboarding-invite-body"
+        >
+          <p className="sci-onboarding__eyebrow">Flight Assist</p>
+          <h2 id="sci-onboarding-invite-title">Want quick guidance?</h2>
+          <p id="sci-onboarding-invite-body">
+            A short, hands-on guide can point out steering, bombs, rewards, and the Hangar.
+          </p>
+          <div className="sci-onboarding__invite-actions">
+            <PixelActionButton tone="neutral" onClick={() => handleInvitation(false)}>
+              No thanks
+            </PixelActionButton>
+            <PixelActionButton tone="green" ready shine onClick={() => handleInvitation(true)}>
+              Guide me
+            </PixelActionButton>
+          </div>
+        </section>
+      </div>
+    );
+  }
 
-  const usingFallbackNavigation = targetName !== null && targetName !== currentStep.target;
-  const fallbackLabel = targetName === 'hangar-nav' ? 'Open Hangar' : 'Return Home';
-  const missingTarget = !targetElement;
+  if (!currentStep || !shouldShow) return null;
 
   return (
     <div
       ref={rootRef}
-      className="sci-onboarding"
+      className="sci-onboarding sci-onboarding--lesson"
       data-onboarding-step={currentStep.id}
       data-onboarding-surface={surface}
       data-reduced-motion={prefersReducedMotion ? 'true' : 'false'}
@@ -492,24 +494,20 @@ const SciconOnboarding: React.FC<SciconOnboardingProps> = ({
         <div
           className="sci-onboarding__spotlight"
           style={{
-            left: targetRect.left - 7,
-            top: targetRect.top - 7,
-            width: targetRect.width + 14,
-            height: targetRect.height + 14
+            left: targetRect.left - 6,
+            top: targetRect.top - 6,
+            width: targetRect.width + 12,
+            height: targetRect.height + 12
           }}
           aria-hidden="true"
         />
-      ) : (
-        <div className="sci-onboarding__scrim" aria-hidden="true" />
-      )}
+      ) : null}
 
       <section
         ref={panelRef}
         className="sci-onboarding__panel"
-        role="dialog"
-        aria-modal="false"
-        aria-labelledby="sci-onboarding-title"
-        aria-describedby="sci-onboarding-body"
+        role="status"
+        aria-live="polite"
         style={{
           left: placement.left,
           top: placement.top,
@@ -525,39 +523,22 @@ const SciconOnboarding: React.FC<SciconOnboardingProps> = ({
         ) : null}
 
         <div className="sci-onboarding__chrome" aria-hidden="true" />
-        <div className="sci-onboarding__guide" aria-hidden="true">
-          <span className="sci-onboarding__guide-frame" />
-          <img src={GUIDE_ASSET} alt="" draggable={false} />
-        </div>
-
         <div className="sci-onboarding__copy">
           <div className="sci-onboarding__meta">
-            <span>Nova // Flight Ops</span>
-            <b>{currentStep.phase} {currentStep.phaseStep}/{currentStep.phaseTotal}</b>
+            <span>Flight Assist</span>
+            <b>{SCICON_ONBOARDING_STEPS.findIndex((step) => step.id === currentStep.id) + 1}/{SCICON_ONBOARDING_STEPS.length}</b>
           </div>
-          <h2 id="sci-onboarding-title">{currentStep.title}</h2>
-          <p id="sci-onboarding-body">
-            {missingTarget
-              ? 'Hold position—this lesson will lock onto the next control as soon as the screen is ready.'
-              : currentStep.body}
-          </p>
+          <h2>{currentStep.title}</h2>
+          <p>{targetElement ? currentStep.body : 'Preparing the next control…'}</p>
         </div>
 
         <div className="sci-onboarding__actions">
           <button type="button" className="sci-onboarding__skip" onClick={handleSkip}>
-            Skip guidance
+            End guide
           </button>
-          <PixelActionButton
-            ref={primaryRef}
-            tone="green"
-            ready={!missingTarget}
-            shine={!missingTarget}
-            className="sci-onboarding__next"
-            onClick={handlePrimary}
-            disabled={missingTarget}
-          >
-            {missingTarget ? 'Locating…' : usingFallbackNavigation ? fallbackLabel : currentStep.primaryLabel}
-          </PixelActionButton>
+          <strong className="sci-onboarding__instruction">
+            {targetElement ? currentStep.instruction : 'Locating…'}
+          </strong>
         </div>
       </section>
     </div>

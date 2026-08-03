@@ -155,12 +155,15 @@ test('server campaign validation rejects mismatched, unsafe, duplicate, and ungr
   });
 });
 
-test('campaign validation permits a custom fifth wave on an alternate route', async () => {
+test('campaign validation permits an additional custom wave on an alternate route', async () => {
   const campaign = await loadCampaign();
   const mainMissionIds = new Set(campaign.sectors.flatMap((sector) => sector.missionIds));
   const level = campaign.levels.find((candidate) => (
     !mainMissionIds.has(candidate.id)
-    && candidate.waves.length === 4
+    && candidate.waves.some((wave) => (
+      wave.formationPackIds.length === 1
+      && wave.events.some((event) => event.kind === 'spawn' && !event.patternId.includes('single'))
+    ))
   ));
   assert.ok(level, 'tracked campaign should provide an alternate route for authoring');
   const sourceWave = level.waves.find((wave) => (
@@ -169,7 +172,8 @@ test('campaign validation permits a custom fifth wave on an alternate route', as
   ));
   const sourceSpawn = sourceWave?.events.find((event) => event.kind === 'spawn');
   assert.ok(sourceWave && sourceSpawn, 'route fixture should provide an explicitly bound grouped spawn');
-  const nextOrder = level.waves.length + 1;
+  const originalWaveCount = level.waves.length;
+  const nextOrder = originalWaveCount + 1;
 
   level.waves.push({
     id: `authoring-proof-wave-${nextOrder}`,
@@ -189,7 +193,7 @@ test('campaign validation permits a custom fifth wave on an alternate route', as
     formationPackIds: structuredClone(sourceWave.formationPackIds),
     events: [{
       id: `authoring-proof-formation-${nextOrder}`,
-      label: 'Custom formation beyond the starter campaign',
+      label: 'Custom formation beyond the authored route',
       kind: 'spawn',
       startSeconds: 0,
       durationSeconds: 12,
@@ -209,6 +213,6 @@ test('campaign validation permits a custom fifth wave on an alternate route', as
   assert.ok(graphNode, 'tracked campaign graph should reference the authored Mission');
   graphNode.routeSummary.estimatedWaveCount = level.waves.length;
 
-  assert.equal(nextOrder, 5, 'the custom route wave extends the compact four-wave starter cadence');
+  assert.equal(nextOrder, originalWaveCount + 1, 'the custom route wave extends its current authored cadence');
   assert.deepEqual(validateGameCampaign(campaign), { valid: true, errors: [] });
 });

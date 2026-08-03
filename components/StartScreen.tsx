@@ -7,7 +7,9 @@ import {
   getProposalFundingMetrics,
   sortProposalsByFunding
 } from '../services/proposalFunding';
-import { ASSETS, DONATION_CONFIG } from '../constants';
+import { ASSETS, DONATION_CONFIG, type RscPurchaseSkuId } from '../constants';
+import type { RscBalanceSnapshot } from '../services/baseAccountWallet';
+import type { WalletPurchaseStatusUpdate } from './WalletRuntime';
 import type { WalletRunRecord } from '../services/playerRunService';
 import type { WeeklyProposalRecovery } from '../services/weeklyProposalRecovery';
 import {
@@ -18,7 +20,9 @@ import {
 import { ALL_TIME_SCORE_LIMIT, WEEKLY_SCORE_LIMIT } from '../services/leaderboardService';
 import { resolveProposalSelection } from '../services/weeklyProposalDisplay';
 import { isProposalExplicitlyCompleted } from '../services/weeklyProposalLifecycle';
-import { getWeeklyBoundaryMeta } from '../shared/weeklyCompetitionBoundary.browser';
+import {
+  getWeeklyPresentationMeta
+} from '../shared/weeklyCompetitionBoundary.browser';
 import { buildMissionRecordCardPath } from '../shared/record-card/renderRecordCardSvg.mjs';
 import {
   BTC_SHIP_SCORE_THRESHOLD,
@@ -32,6 +36,7 @@ import {
 import SquadHangar from './SquadHangar';
 import PixelActionButton from './PixelActionButton';
 import AudioSettingsControls from './AudioSettingsControls';
+import type { MatchMusicTrackId } from '../services/audioService';
 import { WEEKLY_RUN_STARTING_LIVES } from '../services/weeklyRunGenerator';
 import ShipCarousel from './ShipCarousel';
 import BossArchive, {
@@ -61,6 +66,7 @@ import type {
   SquadSlotId,
   WeeklySquadState
 } from '../services/squadProgression';
+import { WEEKLY_RUN_ATTEMPT_LIMIT } from '../services/squadProgression';
 
 type ProposalFeedStatus = 'loading' | 'ready' | 'empty' | 'error';
 
@@ -78,6 +84,7 @@ interface StartScreenProps {
   allTimeLeaderboard: LeaderboardEntry[];
   monthlyLeaderboard: LeaderboardEntry[];
   archivedWinners: ArchivedWinner[];
+  weeklyPresentationTime?: number;
   walletRecords: MintRecord[];
   walletRuns: WalletRunRecord[];
   walletRunsLoading: boolean;
@@ -111,12 +118,19 @@ interface StartScreenProps {
   onClaimDailyGift: () => DailyGiftReward | null;
   onClaimAchievement: (id: AchievementId) => number | null;
   onRequestWalletConnect: () => void;
+  rscBalance: RscBalanceSnapshot | null;
+  rscBalanceStatus: 'idle' | 'loading' | 'ready' | 'error';
+  walletPurchaseStatus: WalletPurchaseStatusUpdate;
+  onPurchaseWithRsc: (skuId: RscPurchaseSkuId) => void;
+  onRefreshRscBalance: () => void;
   audioMuted: boolean;
   sfxVolumeLevel: number;
   musicVolumeLevel: number;
+  matchMusicTrackId: MatchMusicTrackId;
   onToggleAudio: () => void;
   onSfxVolumeChange: (level: number) => void;
   onMusicVolumeChange: (level: number) => void;
+  onMatchMusicTrackChange: (trackId: MatchMusicTrackId) => void;
   onBossArchiveViewed?: (eventId: string) => void;
   onBossArchiveSelection?: (eventId: string) => void;
   onStartBossFight?: (entry: BossArchiveEntry, request: BossArchiveFightRequest) => void;
@@ -125,7 +139,7 @@ interface StartScreenProps {
   onDismissBossArchiveResult?: () => void;
   bossArchiveLaunchError?: string | null;
   onDismissBossArchiveLaunchError?: () => void;
-  /** Opens the standalone ten-life, two-attempt Weekly Run gauntlet. */
+  /** Opens the standalone limited-attempt Weekly Run gauntlet. */
   onStartWeeklyRun?: () => void;
   /** Restarts the progressive flight guide from More without resetting game progress. */
   onRestartOnboarding?: () => void;
@@ -134,6 +148,7 @@ interface StartScreenProps {
   weeklyRunActive?: boolean;
   weeklyRunBestScore?: number | null;
   weeklyRunAttemptsRemaining?: number;
+  weeklyRunAttemptQuotaUnknown?: boolean;
   bossArchiveDeveloperControls?: BossArchiveDeveloperControls | null;
   founderSandbox?: boolean;
   onUnlockSquadSlot: (slot: SquadSlotId) => void;
@@ -354,7 +369,7 @@ const FirstPlaceLivingRow = ({
 };
 
 const getWeeklyAllocationMeta = (now = new Date()) => ({
-  ...getWeeklyBoundaryMeta(now),
+  ...getWeeklyPresentationMeta(now),
   allocationRsc: 100
 });
 
@@ -650,6 +665,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
   allTimeLeaderboard,
   monthlyLeaderboard,
   archivedWinners,
+  weeklyPresentationTime,
   walletRecords,
   walletRuns,
   walletRunsLoading,
@@ -683,12 +699,19 @@ const StartScreen: React.FC<StartScreenProps> = ({
   onClaimDailyGift,
   onClaimAchievement,
   onRequestWalletConnect,
+  rscBalance,
+  rscBalanceStatus,
+  walletPurchaseStatus,
+  onPurchaseWithRsc,
+  onRefreshRscBalance,
   audioMuted,
   sfxVolumeLevel,
   musicVolumeLevel,
+  matchMusicTrackId,
   onToggleAudio,
   onSfxVolumeChange,
   onMusicVolumeChange,
+  onMatchMusicTrackChange,
   onBossArchiveViewed,
   onBossArchiveSelection,
   onStartBossFight,
@@ -703,7 +726,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
   onDismissWeeklyRunLaunchError,
   weeklyRunActive = false,
   weeklyRunBestScore = null,
-  weeklyRunAttemptsRemaining = 2,
+  weeklyRunAttemptsRemaining = WEEKLY_RUN_ATTEMPT_LIMIT,
+  weeklyRunAttemptQuotaUnknown = false,
   bossArchiveDeveloperControls = null,
   founderSandbox = false,
   onUnlockSquadSlot,
@@ -787,6 +811,10 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const canOpenBossArchive = Boolean(onStartBossFight) && (
     availableBossArchiveEntries.length > 0 || bossArchiveDevelopmentAccess
   );
+
+  useEffect(() => {
+    if (dashboardTab === 'hangar' && walletAddress) onRefreshRscBalance();
+  }, [dashboardTab, onRefreshRscBalance, walletAddress]);
 
   const openBossArchive = () => {
     if (!canOpenBossArchive) return;
@@ -1013,8 +1041,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
   };
 
   const weeklyAllocation = useMemo(
-    () => getWeeklyAllocationMeta(new Date(weeklyClock)),
-    [weeklyClock]
+    () => getWeeklyAllocationMeta(new Date(weeklyPresentationTime ?? weeklyClock)),
+    [weeklyClock, weeklyPresentationTime]
   );
   const sortedProposals = useMemo(() => sortProposalsByFunding(proposals), [proposals]);
 
@@ -1345,11 +1373,6 @@ const StartScreen: React.FC<StartScreenProps> = ({
                     className="sci-home-command-icon__art sci-home-command-icon__art--map"
                     aria-hidden="true"
                   />
-                  {campaignNotificationCount > 0 ? (
-                    <span aria-hidden="true" className="sci-home-command-icon__badge">
-                      {campaignNotificationCount > 9 ? '9+' : campaignNotificationCount}
-                    </span>
-                  ) : null}
                 </button>
               ) : <span className="col-start-3" aria-hidden="true" />}
             </div>
@@ -1390,8 +1413,21 @@ const StartScreen: React.FC<StartScreenProps> = ({
   /** Standalone Weekly Run entry. Deliberately a sibling of the funding
    *  panel, not a child, so the competition and the way to enter it are two
    *  separate boxes instead of one crowded card. */
-  const renderWeeklyRunEntry = () => (
-    onStartWeeklyRun ? (
+  const renderWeeklyRunEntry = () => {
+    const weeklyAttemptSkuId: RscPurchaseSkuId = 'weekly-run-attempt';
+    const purchaseIsForWeeklyAttempt = String(walletPurchaseStatus.skuId ?? '') === weeklyAttemptSkuId;
+    const purchaseBusy = walletPurchaseStatus.status !== 'idle'
+      && walletPurchaseStatus.status !== 'confirmed'
+      && walletPurchaseStatus.status !== 'error';
+    const needsServerVerification = !weeklyRunActive
+      && weeklyRunAttemptQuotaUnknown
+      && weeklyRunAttemptsRemaining <= 0;
+    const attemptsExhausted = !weeklyRunActive
+      && weeklyRunAttemptsRemaining <= 0
+      && !needsServerVerification;
+    const showAttemptPurchase = attemptsExhausted;
+
+    return onStartWeeklyRun ? (
       <>
         <button
           type="button"
@@ -1400,30 +1436,33 @@ const StartScreen: React.FC<StartScreenProps> = ({
           data-active={weeklyRunActive ? 'true' : 'false'}
           data-attempts-remaining={weeklyRunAttemptsRemaining}
           onClick={onStartWeeklyRun}
-          disabled={!weeklyRunActive && weeklyRunAttemptsRemaining <= 0}
+          disabled={attemptsExhausted}
           aria-label={weeklyRunActive
             ? `Resume Weekly Run. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`
             : weeklyRunAttemptsRemaining > 0
-              ? `Start Weekly Run. ${WEEKLY_RUN_STARTING_LIVES} lives, ${weeklyRunAttemptsRemaining} of 2 attempts remain, endless escalating waves and bosses, scored on the weekly board. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`
-              : `Weekly Run attempts used. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`}
+              ? `Start Weekly Run. ${WEEKLY_RUN_STARTING_LIVES} lives, ${weeklyRunAttemptsRemaining} attempt${weeklyRunAttemptsRemaining === 1 ? '' : 's'} remain, ${WEEKLY_RUN_ATTEMPT_LIMIT} free attempts each week, endless escalating waves and bosses, scored on the weekly board. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`
+              : needsServerVerification
+                ? `Verify any purchased Weekly Run attempts with the server. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`
+                : `Weekly Run attempts used. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`}
         >
-          <span className="sci-weekly-run-entry__glyph" aria-hidden="true">
-            <img src={ASSETS.PLAYER_SHIP} alt="" draggable={false} />
-          </span>
           <span className="sci-weekly-run-entry__copy">
             <span className="sci-weekly-run-entry__title">
               {weeklyRunActive
                 ? 'Resume Run'
                 : weeklyRunAttemptsRemaining > 0
                   ? 'Weekly Run'
-                  : 'Attempts Used'}
+                  : needsServerVerification
+                    ? 'Verify Entry'
+                    : 'Attempts Used'}
             </span>
             <span className="sci-weekly-run-entry__sub">
               {weeklyRunActive
                 ? 'In Progress · Endless'
                 : weeklyRunAttemptsRemaining > 0
-                  ? `${WEEKLY_RUN_STARTING_LIVES} Lives · ${weeklyRunAttemptsRemaining}/2 Attempts`
-                  : 'Resets Next Week'}
+                  ? `${WEEKLY_RUN_STARTING_LIVES} Lives · ${weeklyRunAttemptsRemaining} Attempt${weeklyRunAttemptsRemaining === 1 ? '' : 's'} Left · ${WEEKLY_RUN_ATTEMPT_LIMIT} Free/Week`
+                  : needsServerVerification
+                    ? 'Checking Wallet Attempts'
+                    : 'Extra Attempts Available'}
             </span>
           </span>
           <span className="sci-weekly-run-entry__best" aria-hidden="true">
@@ -1431,6 +1470,46 @@ const StartScreen: React.FC<StartScreenProps> = ({
             <small>{weeklyRunActive ? 'Score' : 'Best'}</small>
           </span>
         </button>
+        {showAttemptPurchase ? (
+          <div className="mx-3 mt-1 grid gap-1">
+            <PixelActionButton
+              type="button"
+              tone="gold"
+              ready
+              disabled={purchaseBusy}
+              onClick={() => onPurchaseWithRsc(weeklyAttemptSkuId)}
+              aria-label="Purchase one additional Weekly Run attempt for 3 Research Coin"
+              className="min-h-11 px-3 py-1.5 text-[0.68rem] font-black uppercase tracking-[0.08em]"
+            >
+              <span className="flex items-center justify-center gap-1.5">
+                <span>+1 Attempt</span>
+                <span aria-hidden="true">·</span>
+                <span className="flex items-center gap-1 text-yellow-100">
+                  <img src={ASSETS.REAL_RSC_ICON} alt="" className="h-4 w-4 object-contain" aria-hidden="true" />
+                  3 RSC
+                </span>
+              </span>
+            </PixelActionButton>
+            {purchaseIsForWeeklyAttempt && walletPurchaseStatus.status !== 'idle' ? (
+              <p
+                className={`text-center text-[0.55rem] font-bold uppercase tracking-[0.06em] ${walletPurchaseStatus.status === 'error' ? 'text-red-200' : walletPurchaseStatus.status === 'confirmed' ? 'text-emerald-200' : 'text-cyan-100'}`}
+                role="status"
+              >
+                {walletPurchaseStatus.status === 'error'
+                  ? walletPurchaseStatus.error
+                  : walletPurchaseStatus.status === 'confirmed'
+                    ? 'Extra attempt added'
+                    : walletPurchaseStatus.status === 'connecting'
+                      ? 'Connecting wallet...'
+                      : walletPurchaseStatus.status === 'authorizing'
+                        ? 'Preparing secure quote...'
+                        : walletPurchaseStatus.status === 'confirming'
+                          ? 'Confirm the 3 RSC transfer...'
+                          : 'Adding attempt...'}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
         {weeklyRunLaunchError ? (
           <div
             className="mt-1 flex items-center justify-between gap-2 border border-red-300/35 bg-red-950/75 px-3 py-2 text-left text-[0.68rem] font-bold text-red-100"
@@ -1449,8 +1528,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
           </div>
         ) : null}
       </>
-      ) : null
-  );
+    ) : null;
+  };
 
   const renderWeeklyFundingCard = ({ compact = false }: { compact?: boolean } = {}) => (
     <HudPanel className="sci-weekly-funding-shell" data-onboarding-target="weekly-funding">
@@ -1459,7 +1538,9 @@ const StartScreen: React.FC<StartScreenProps> = ({
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-lg font-black text-emerald-200">Weekly Funding</h2>
-              <StatusPill tone="green">Live</StatusPill>
+              <StatusPill tone={weeklyAllocation.isFinalizing ? 'gold' : 'green'}>
+                {weeklyAllocation.isFinalizing ? 'Finalizing' : 'Live'}
+              </StatusPill>
             </div>
             <p className="text-xs text-slate-300">Season 7 - Week {weeklyAllocation.endLabel}</p>
           </div>
@@ -1469,7 +1550,9 @@ const StartScreen: React.FC<StartScreenProps> = ({
               {weeklyAllocation.allocationRsc.toLocaleString()} <span className="text-sm">RSC</span>
             </p>
             <p className="mt-1 text-[0.68rem] font-semibold text-slate-300">
-              Ends {weeklyAllocation.daysLeft === 0 ? 'today' : `in ${weeklyAllocation.daysLeft} day${weeklyAllocation.daysLeft === 1 ? '' : 's'}`}
+              {weeklyAllocation.isFinalizing
+                ? 'Publishing the new week and Past Pick together'
+                : `Ends ${weeklyAllocation.daysLeft === 0 ? 'today' : `in ${weeklyAllocation.daysLeft} day${weeklyAllocation.daysLeft === 1 ? '' : 's'}`}`}
             </p>
           </div>
         </div>
@@ -2063,11 +2146,6 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
         <section className="sci-pause-settings sci-more-audio-settings" aria-label="Audio settings">
           <div className="sci-pause-settings__title">
-            <img
-              src="/game-art/generated/ui/scicon-interface-pack-v1/icons/system/settings.png"
-              alt=""
-              aria-hidden="true"
-            />
             <span>Audio Settings</span>
           </div>
           <AudioSettingsControls
@@ -2075,9 +2153,11 @@ const StartScreen: React.FC<StartScreenProps> = ({
             audioMuted={audioMuted}
             sfxVolumeLevel={sfxVolumeLevel}
             musicVolumeLevel={musicVolumeLevel}
+            matchMusicTrackId={matchMusicTrackId}
             onToggleAudio={onToggleAudio}
             onSfxVolumeChange={onSfxVolumeChange}
             onMusicVolumeChange={onMusicVolumeChange}
+            onMatchMusicTrackChange={onMatchMusicTrackChange}
           />
         </section>
 
@@ -2158,12 +2238,18 @@ const StartScreen: React.FC<StartScreenProps> = ({
           mainShipName={focusedShip.name}
           shipUnlocks={shipUnlocks}
           walletConnected={Boolean(walletAddress)}
+          rscBalance={rscBalance}
+          rscBalanceStatus={rscBalanceStatus}
+          walletPurchaseStatus={walletPurchaseStatus}
           founderSandbox={founderSandbox}
           onSelectMainShip={(shipId) => {
             setShipFocusId(shipId);
             onSelectShip(shipId);
           }}
           onUnlockSlot={onUnlockSquadSlot}
+          onPurchaseWithRsc={onPurchaseWithRsc}
+          onRequestWalletConnect={onRequestWalletConnect}
+          onRefreshRscBalance={onRefreshRscBalance}
           onPurchaseMini={onPurchaseMiniShip}
           onUpgradeMini={onUpgradeMiniShip}
           onDowngradeMini={onDowngradeMiniShip}
@@ -2194,12 +2280,18 @@ const StartScreen: React.FC<StartScreenProps> = ({
           mainShipName={focusedShip.name}
           shipUnlocks={shipUnlocks}
           walletConnected={Boolean(walletAddress)}
+          rscBalance={rscBalance}
+          rscBalanceStatus={rscBalanceStatus}
+          walletPurchaseStatus={walletPurchaseStatus}
           founderSandbox={founderSandbox}
           onSelectMainShip={(shipId) => {
             setShipFocusId(shipId);
             onSelectShip(shipId);
           }}
           onUnlockSlot={onUnlockSquadSlot}
+          onPurchaseWithRsc={onPurchaseWithRsc}
+          onRequestWalletConnect={onRequestWalletConnect}
+          onRefreshRscBalance={onRefreshRscBalance}
           onPurchaseMini={onPurchaseMiniShip}
           onUpgradeMini={onUpgradeMiniShip}
           onDowngradeMini={onDowngradeMiniShip}

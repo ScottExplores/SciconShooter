@@ -93,6 +93,6 @@ test('the engine honours the characteristic rather than storing it unused', () =
   assert.match(engine, /if \(characteristic\.leadsFormation\) this\.pullFormationNeighboursIntoDive/);
   // Strafe must be an offset from the slot. Adding it to enemy.x each frame
   // integrated into a drift that carried holders off the field.
-  assert.match(engine, /enemy\.x = targetX \+ groupSway \+ strafeOffset/);
+  assert.match(engine, /enemy\.x = lerp\([\s\S]{0,120}targetX \+ groupSway \+ strafeOffset/);
   assert.doesNotMatch(engine, /enemy\.x \+= Math\.sin[\s\S]{0,80}holdStrafePixels/);
 });

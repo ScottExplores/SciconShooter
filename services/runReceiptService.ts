@@ -45,7 +45,10 @@ export interface RunSession {
   identity?: RunIdentityBinding;
   weeklyCampaignBinding?: WeeklyRunStartBinding;
   weeklyAttempt?: {
+    weeklyId: string;
     attemptNumber: number;
+    freeAttempts: number;
+    purchasedAttempts: number;
     attemptsUsed: number;
     attemptsRemaining: number;
     resetAtMs: number;
@@ -57,6 +60,7 @@ export interface RunSession {
 export interface RunReceipt {
   runId: string;
   gameVersion: string;
+  runMode: RunReceiptMode;
   startedAt: string;
   finishedAt: string;
   expiresAt: string;
@@ -184,6 +188,7 @@ export const finishRunSession = async (
   return {
     runId: session.runId,
     gameVersion: GAME_VERSION,
+    runMode: session.runMode,
     startedAt: session.issuedAt,
     finishedAt: new Date().toISOString(),
     expiresAt: session.expiresAt,

@@ -35,7 +35,9 @@ const loadAudioService = (options = {}) => {
       this.targetValues = [];
       this.setValues = [];
       this.rampValues = [];
+      this.cancelTimes = [];
     }
+    cancelScheduledValues(time) { this.cancelTimes.push(time); }
     setTargetAtTime(value) { this.targetValues.push(value); }
     setValueAtTime(value) { this.setValues.push(value); }
     linearRampToValueAtTime(value) { this.rampValues.push(value); }
@@ -71,6 +73,7 @@ const loadAudioService = (options = {}) => {
       this.buffer = null;
       this.playbackRate = new FakeAudioParam();
       this.onended = null;
+      this.loop = false;
       this.startCalls = 0;
       this.stopCalls = 0;
       bufferSources.push(this);
@@ -244,6 +247,46 @@ test('sound-effects volume and global mute control the SFX bus', () => {
   assert.equal(harness.audioService.toggleMute(), false);
   assert.equal(harness.masterGainParam.targetValues.at(-1), 1);
   assert.ok(Math.abs(harness.sfxGainParam.targetValues.at(-1) - 0.18) < 0.00001);
+});
+
+test('persisted match-track selection restores valid ids and rejects invalid ids', () => {
+  const storageKey = 'scicon-shooter:match-music:v1';
+  const restored = loadAudioService({
+    storedValues: { [storageKey]: 'ion-veil-pursuit' }
+  });
+  const invalid = loadAudioService({
+    storedValues: { [storageKey]: 'not-a-match-track' }
+  });
+
+  assert.equal(restored.audioService.getMatchMusicTrackId(), 'ion-veil-pursuit');
+  assert.equal(invalid.audioService.getMatchMusicTrackId(), 'combat');
+});
+
+test('setting the match track updates the active selection and persisted value', () => {
+  const storageKey = 'scicon-shooter:match-music:v1';
+  const harness = loadAudioService();
+
+  assert.equal(harness.audioService.setMatchMusicTrackId('event-horizon-run'), 'event-horizon-run');
+  assert.equal(harness.audioService.getMatchMusicTrackId(), 'event-horizon-run');
+  assert.equal(harness.storedValues.get(storageKey), 'event-horizon-run');
+});
+
+test('match music loops while the defeat stinger remains one-shot', async () => {
+  const harness = loadAudioService({
+    fetch: async () => ({
+      ok: true,
+      arrayBuffer: async () => new ArrayBuffer(16)
+    })
+  });
+
+  await harness.audioService.playMusic('open-orbit-relay', { fadeSeconds: 0 });
+  assert.equal(harness.bufferSources.length, 1);
+  assert.equal(harness.bufferSources[0].loop, true);
+
+  await harness.audioService.playMusic('defeat', { fadeSeconds: 0 });
+  assert.equal(harness.bufferSources.length, 2);
+  assert.equal(harness.bufferSources[0].stopCalls, 1);
+  assert.equal(harness.bufferSources[1].loop, false);
 });
 
 test('page lifecycle suspends and resumes the SFX context without media elements', async () => {
