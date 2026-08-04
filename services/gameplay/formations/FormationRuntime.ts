@@ -598,7 +598,12 @@ export const sampleFormationSlotTransition = ({
   progress
 }: FormationSlotTransitionSampleInput): FormationPoint => {
   const normalizedProgress = clamp(Number(progress) || 0, 0, 1);
-  const eased = normalizedProgress * normalizedProgress * (3 - 2 * normalizedProgress);
+  const eased = start.y < 0
+    // The last member may lock its collision-safe slot while it is still above
+    // the viewport. Reveal that correction promptly, then settle gently; an
+    // on-screen member keeps the symmetric no-snap transition below.
+    ? 1 - Math.pow(1 - normalizedProgress, 2.4)
+    : normalizedProgress * normalizedProgress * (3 - 2 * normalizedProgress);
   return {
     x: start.x + (target.x - start.x) * eased,
     y: start.y + (target.y - start.y) * eased
@@ -1334,8 +1339,15 @@ const sampleFormationCohortRoutePoint = (
     : clamp(input.start.y + viewportHeight * 0.08, 24, viewportHeight * 0.2);
   const controlBX = anchorX + sideControl * (behavior === 'flank' ? 1.35 : behavior === 'lane' ? 0.45 : 0.85);
   const controlBY = anchorY - viewportHeight * (behavior === 'dive' ? 0.12 : 0.075);
-  let x = cubicBezier(input.start.x, controlAX, controlBX, anchorX, progress);
-  let y = cubicBezier(input.start.y, controlAY, controlBY, anchorY, progress);
+  // Pull the shared route onto the screen quickly, then spend the remainder
+  // of the deliberately long entry on visible spirals, braids, and assembly.
+  // A linear base curve left a late cohort completely offscreen after the
+  // previous group was cleared, creating dead air even though its simulation
+  // was active. The maneuver envelope below remains on linear fixed-step time,
+  // so this changes visibility rather than shortening the authored arrival.
+  const approachProgress = 1 - Math.pow(1 - progress, 2.15);
+  let x = cubicBezier(input.start.x, controlAX, controlBX, anchorX, approachProgress);
+  let y = cubicBezier(input.start.y, controlAY, controlBY, anchorY, approachProgress);
 
   const envelope = Math.pow(Math.sin(progress * Math.PI), 0.82);
   const turnPhase = progress * Math.PI * 2 * profile.turns + (input.groupSeed % 17) * 0.035;

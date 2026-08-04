@@ -207,6 +207,16 @@ test('runtime keeps the compact cadence active without deleting player fire', ()
     engine,
     /clearThreatsForMainBoss\(\)[\s\S]*?entity\.isPlayerShot[\s\S]*?EntityType\.PROJECTILE[\s\S]*?EntityType\.MISSILE/
   );
+  assert.match(engine, /CLEAR_FIELD_CURRENT_SQUADRON_BEAT_CEILING = 6/);
+  assert.match(
+    engine,
+    /canAdvanceCurrentBeat[\s\S]*?getVisibleActiveThreatCount\(\) === 0[\s\S]*?getActiveCampaignPerformanceCost\(\)[\s\S]*?getCurrentMobilePerformanceBudget\(\) \* 0\.6/
+  );
+  assert.match(
+    engine,
+    /nextEncounterStart <= earliestSquadronStart/,
+    'a later checkpoint cannot suppress an earlier pending squadron release'
+  );
 });
 
 test('no disposable filler hostile is ever spawned to cover the authored Wave clock', () => {

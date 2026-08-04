@@ -1928,6 +1928,13 @@ export const WAVE_CONTINUITY_ENTRY_GRACE_FRAMES = 12;
  * next authored squadron forward onto an empty-looking playfield.
  */
 export const CLEAR_FIELD_EARLY_RELEASE_THREAT_CEILING = 2;
+/**
+ * A partially emitted formation may advance its next two-ship beat while the
+ * existing inbound tail is still offscreen. This is intentionally higher than
+ * the future-event release ceiling: it completes one already-budgeted cohort
+ * instead of overlapping a separate authored encounter.
+ */
+export const CLEAR_FIELD_CURRENT_SQUADRON_BEAT_CEILING = 6;
 export const STAGE_BOUNDARY_CLEAR_ENTITY_TYPES = Object.freeze([
   'ENEMY_DRONE',
   'ENEMY_JOURNAL',
@@ -9049,9 +9056,10 @@ export class GameEngine {
     enemy.formationEntryDirection = plan.entryDirection;
     enemy.formationEntryPath = choreography.entryPathId || plan.entryPath;
     enemy.formationEntryBehavior = plan.entryBehavior;
-    enemy.formationCohortEntry = count > 1
-      && !patternId.includes('single')
-      && !patternId.includes('random');
+    // "Single/random" describes the loose slot layout, not unrelated travel.
+    // Multi-ship loose traffic still enters as one small flight so the player
+    // sees an intentional squadron rather than isolated objects popping in.
+    enemy.formationCohortEntry = count > 1;
     enemy.formationChoreography = choreography;
     enemy.formationSlotLocked = false;
     enemy.formationSlotTransitionActive = false;
@@ -9598,6 +9606,19 @@ export class GameEngine {
     const activeThreatCount = this.getActiveThreatCount();
     const elapsedSeconds = this.getWaveElapsedSeconds();
 
+    let earliestSquadron: RuntimeSpawnEvent | null = null;
+    let earliestSquadronStart = Number.POSITIVE_INFINITY;
+    for (const event of events) {
+      if (this.earlyReleasedSpawnEventIds.has(event.id)) continue;
+      const startSeconds = Math.max(0, Number(event.startSeconds) || 0);
+      if (startSeconds <= elapsedSeconds) continue;
+      if ((this.configuredSpawnCounts.get(event.id) || 0) >= this.getConfiguredSpawnTargetCount(event)) continue;
+      if (startSeconds < earliestSquadronStart) {
+        earliestSquadronStart = startSeconds;
+        earliestSquadron = event;
+      }
+    }
+
     let nextEncounterStart = Number.POSITIVE_INFINITY;
     for (const encounter of this.getConfiguredEncounterEvents()) {
       if (this.configuredEncounterIds.has(encounter.id)) continue;
@@ -9605,7 +9626,11 @@ export class GameEngine {
       if (startSeconds > elapsedSeconds) nextEncounterStart = Math.min(nextEncounterStart, startSeconds);
     }
 
-    if (Number.isFinite(nextEncounterStart)) {
+    // An encounter owns the transition only when it is actually the next
+    // authored beat. A much later checkpoint used to block an earlier pending
+    // squadron from covering a cleared field, leaving several seconds of empty
+    // space even though regular enemies were next in the timeline.
+    if (Number.isFinite(nextEncounterStart) && nextEncounterStart <= earliestSquadronStart) {
       // Every authored squadron has already been spent and nothing is left
       // alive, so the only thing the player is waiting on is the encounter.
       // Bring it forward -- its warning telegraph covers the transition, and
@@ -9628,20 +9653,7 @@ export class GameEngine {
     // groups forward without a ceiling is what pushed peak entity load past
     // the mobile performance budget.
     if (activeThreatCount >= CLEAR_FIELD_EARLY_RELEASE_THREAT_CEILING) return;
-
-    let earliest: RuntimeSpawnEvent | null = null;
-    let earliestStart = Number.POSITIVE_INFINITY;
-    for (const event of events) {
-      if (this.earlyReleasedSpawnEventIds.has(event.id)) continue;
-      const startSeconds = Math.max(0, Number(event.startSeconds) || 0);
-      if (startSeconds <= elapsedSeconds) continue;
-      if ((this.configuredSpawnCounts.get(event.id) || 0) >= this.getConfiguredSpawnTargetCount(event)) continue;
-      if (startSeconds < earliestStart) {
-        earliestStart = startSeconds;
-        earliest = event;
-      }
-    }
-    if (earliest) this.earlyReleasedSpawnEventIds.add(earliest.id);
+    if (earliestSquadron) this.earlyReleasedSpawnEventIds.add(earliestSquadron.id);
   }
 
   spawnConfiguredEnemies() {
@@ -9677,8 +9689,19 @@ export class GameEngine {
       const previousFrame = this.configuredSpawnFrames.get(event.id);
       // Preserve authored cadence between arrival beats. Grouped events add a
       // second member on the same beat below, which creates a visible wing or
-      // strand without collapsing the whole event into a threat spike.
-      if (previousFrame !== undefined && this.waveProgressFrames - previousFrame < intervalFrames) continue;
+      // strand without collapsing the whole event into a threat spike. When a
+      // skilled clear leaves only a few members of this same squadron inbound,
+      // advance its next beat instead of presenting an empty field while the
+      // player waits for the interval. Performance headroom keeps that overlap
+      // inside the mobile budget.
+      const currentBeatWaiting = previousFrame !== undefined
+        && this.waveProgressFrames - previousFrame < intervalFrames;
+      const canAdvanceCurrentBeat = currentBeatWaiting
+        && spawned > 0
+        && this.getVisibleActiveThreatCount() === 0
+        && this.getActiveThreatCount() <= CLEAR_FIELD_CURRENT_SQUADRON_BEAT_CEILING
+        && this.getActiveCampaignPerformanceCost() <= this.getCurrentMobilePerformanceBudget() * 0.6;
+      if (currentBeatWaiting && !canAdvanceCurrentBeat) continue;
 
       const cycle = this.getCampaignCycle();
       const formationEvent = !String(event.patternId || '').toLowerCase().includes('single')

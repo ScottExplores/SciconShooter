@@ -142,6 +142,9 @@ test('shared cohort entries preserve exact endpoints while flying as a compact p
   const leftMid = runtime.resolveFormationCohortEntryPose({
     ...common, index: 0, progress: 0.38, target: leftTarget
   });
+  const leftReveal = runtime.resolveFormationCohortEntryPose({
+    ...common, index: 0, progress: 0.12, target: leftTarget
+  });
   const rightMid = runtime.resolveFormationCohortEntryPose({
     ...common, index: 1, progress: 0.38, target: rightTarget
   });
@@ -152,11 +155,28 @@ test('shared cohort entries preserve exact endpoints while flying as a compact p
   assert.deepEqual({ x: leftStart.x, y: leftStart.y }, common.start);
   assert.deepEqual({ x: leftEnd.x, y: leftEnd.y }, leftTarget);
   assert.equal(leftEnd.angle, 0);
+  assert.ok(leftReveal.y > -40, 'the slow arrival becomes visible before it begins its long maneuver');
+  assert.equal(leftReveal.phase, 'procession');
   assert.ok(
     Math.abs(leftMid.x - rightMid.x) < Math.abs(leftTarget.x - rightTarget.x) * 0.8,
     'members remain in one inbound ribbon before their authored slots bloom'
   );
   assert.equal(leftMid.phase, 'maneuver');
+});
+
+test('offscreen slot corrections reveal promptly while visible corrections remain smooth', () => {
+  const offscreen = runtime.sampleFormationSlotTransition({
+    start: { x: 180, y: -84 },
+    target: { x: 140, y: 126 },
+    progress: 0.2
+  });
+  const visible = runtime.sampleFormationSlotTransition({
+    start: { x: 180, y: 84 },
+    target: { x: 140, y: 126 },
+    progress: 0.2
+  });
+  assert.ok(offscreen.y > -10, 'an inbound slot correction reaches the viewport early');
+  assert.ok(visible.y < 92, 'an already visible member keeps the gentle no-snap settle');
 });
 
 test('spiral entry completes visible turns and double helix keeps opposite strands', () => {

@@ -33,6 +33,7 @@ test('configured squads enter, hold formation, dive, and return', () => {
   assert.match(runtimeSource, /enemy\.formationState = 'dive'/);
   assert.match(runtimeSource, /enemy\.formationState = 'return'/);
   assert.match(runtimeSource, /enemy\.formationDiveFrame/);
+  assert.match(runtimeSource, /enemy\.formationCohortEntry = count > 1/);
 });
 
 test('configured squads replace the generic aimed loop with bounded formation-specific maneuvers', () => {

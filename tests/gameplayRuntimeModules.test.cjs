@@ -82,9 +82,9 @@ test('formation geometry is deterministic across custom, built-in, and entry pla
   });
   assert.deepEqual(firstEntry, repeatedEntry);
   assert.ok(
-    Math.abs(firstEntry.x - 151.43511717524902) < 1e-9
-      && firstEntry.y === -114,
-    'events without authored entry metadata preserve their legacy spiral origin'
+    Math.abs(firstEntry.x - 93.6) < 1e-9
+      && firstEntry.y === -101,
+    'events without authored entry metadata use the shared compact spiral gate'
   );
 
   const legacyMotion = formations.resolveFormationEntryMotion({
@@ -111,8 +111,8 @@ test('formation geometry is deterministic across custom, built-in, and entry pla
     target: firstTarget
   });
   assert.equal(plan.mode, 'spiral');
-  assert.equal(plan.entryFrames, 74);
-  assert.equal(plan.diveFrame, 266);
+  assert.equal(plan.entryFrames, 138);
+  assert.equal(plan.diveFrame, 330);
   assert.equal(plan.seed, 88);
   assert.equal(plan.baseSpeed, 2.2);
   assert.deepEqual(plan.target, firstTarget);
@@ -132,7 +132,7 @@ test('formation geometry is deterministic across custom, built-in, and entry pla
     framesPerSecond: 60,
     target: firstTarget
   });
-  assert.equal(sentryPlan.diveFrame, 918, 'wall sentries retain the twelve-second hold');
+  assert.equal(sentryPlan.diveFrame, 982, 'wall sentries retain the twelve-second hold after the slower entry');
 });
 
 test('authored pack directions and role behaviors deterministically vary formation entries', () => {

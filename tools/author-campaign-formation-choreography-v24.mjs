@@ -7,7 +7,7 @@ const CAMPAIGN_UPDATED_AT = '2026-08-02T12:00:00.000Z';
 
 const PACK_CHOREOGRAPHY = Object.freeze({
   'pack-orbit-v': {
-    movementBehavior: 'gentle-drift', attackBehavior: 'paired-dive', firingBehavior: 'none', returnBehavior: 'reform',
+    movementBehavior: 'gentle-drift', attackBehavior: 'paired-dive', firingBehavior: 'post-formation', returnBehavior: 'reform',
     holdSeconds: 1.8, telegraphSeconds: 0.7, attackDurationSeconds: 1.3, attackRecoverySeconds: 1.15, attackGroupSize: 2, attackCycles: 3
   },
   'pack-orbit-grid': {
@@ -82,7 +82,7 @@ const EVENT_CHOREOGRAPHY = Object.freeze({
   },
   'stage-open-galaxy-wave-2-primary': {
     levelId: 'stage-open-galaxy', waveId: 'stage-open-galaxy-wave-2', patternId: 'diamond', count: 8,
-    roleIds: ['role-jet-interceptor', 'role-journal-priority'],
+    roleIds: ['role-jet-interceptor'],
     formationBehavior: {
       entryPathId: 'diamond-lock', movementId: 'expand-collapse', attackId: 'leader-escorts', firingBehavior: 'priority',
       returnId: 'reform', holdSeconds: 1.7, telegraphSeconds: 0.9, attackDurationSeconds: 1.4,
