@@ -34,19 +34,20 @@ test('Kamikaze Spinner ships six transparent fixed-canvas runtime frames and a r
   assert.ok(fs.existsSync(sheet));
 });
 
-test('legacy Spinner art stays archived while active gameplay uses the Scicon Squadron', () => {
+// Scott restored the legacy roster on 2026-08-03: the Spinner is an active
+// orbit-scout again, so its facing-aware frame runtime is back in both the
+// engine and the renderer, and its art is eagerly preloaded.
+test('Spinner art is active again with its facing runtime in engine and renderer', () => {
   const activeSpawnKeys = campaign.levels
     .flatMap((level) => level.waves)
     .flatMap((wave) => wave.events)
     .flatMap((event) => event.enemies || [])
     .map((enemy) => enemy.spriteKey);
 
-  assert.doesNotMatch(engineSource, /KamikazeSpinnerRuntime|resolveKamikazeSpinnerFrameIndex/);
-  assert.doesNotMatch(rendererSource, /KamikazeSpinnerRuntime|resolveKamikazeSpinnerFrameIndex|isKamikazeSpinner/);
-  assert.doesNotMatch(engineSource, /\.\.\.ASSETS\.LEGACY_ENEMY_DRONE_FRAMES/);
-  assert.doesNotMatch(rendererSource, /\.\.\.ASSETS\.LEGACY_ENEMY_DRONE_FRAMES/);
-  assert.match(engineSource, /\.\.\.ASSETS\.SCICON_ENEMY_ORBIT_SCOUT_FRAMES/);
-  assert.match(rendererSource, /\.\.\.ASSETS\.SCICON_ENEMY_ORBIT_SCOUT_FRAMES/);
-  assert.ok(activeSpawnKeys.includes('SCICON_ENEMY_ORBIT_SCOUT_FRAMES'));
-  assert.ok(!activeSpawnKeys.includes('LEGACY_ENEMY_DRONE_FRAMES'));
+  assert.match(engineSource, /resolveKamikazeSpinnerFrameIndex/);
+  assert.match(rendererSource, /resolveKamikazeSpinnerFrameIndex/);
+  assert.match(engineSource, /\.\.\.ASSETS\.LEGACY_ENEMY_DRONE_FRAMES/);
+  assert.match(rendererSource, /\.\.\.ASSETS\.LEGACY_ENEMY_DRONE_FRAMES/);
+  assert.ok(activeSpawnKeys.includes('LEGACY_ENEMY_DRONE_FRAMES'));
+  assert.ok(!activeSpawnKeys.includes('SCICON_ENEMY_ORBIT_SCOUT_FRAMES'));
 });

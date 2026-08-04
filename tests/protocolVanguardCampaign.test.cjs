@@ -10,7 +10,9 @@ const typesSource = fs.readFileSync(path.join(root, 'game-config', 'types.ts'), 
 const catalogSource = fs.readFileSync(path.join(root, 'game-config', 'catalog.ts'), 'utf8');
 
 const vanguardKey = 'CAMPAIGN_ENEMY_PROTOCOL_VANGUARD_FRAMES';
-const activeVanguardKey = 'SCICON_ENEMY_PEER_BULWARK_FRAMES';
+// The legacy roster restore (2026-08-03) put the Vanguard back in its own
+// four-state specialist art instead of borrowing the Peer Bulwark family.
+const activeVanguardKey = vanguardKey;
 const vanguardRoot = path.join(
   root,
   'public',

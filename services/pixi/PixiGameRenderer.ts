@@ -46,6 +46,7 @@ import {
 } from './PixiEnvironment';
 import { PixiTextureBank } from './PixiTextureBank';
 import { sampleFormationEnemyPresentation } from './FormationEnemyPresentation';
+import { resolveKamikazeSpinnerFrameIndex } from '../gameplay/enemies/KamikazeSpinnerRuntime';
 import {
   createSoftRadialLight,
   hideSoftRadialLight,
@@ -951,13 +952,14 @@ export const PIXI_GAMEPLAY_STARTUP_TEXTURE_URLS = Object.freeze([
   ASSETS.PIXI_BOSS_ALERT_RING,
   ASSETS.PIXI_BOSS_ALERT_SCAN,
   ASSETS.PIXI_BOSS_ALERT_CRYSTAL,
-  ...ASSETS.SCICON_ENEMY_ORBIT_SCOUT_FRAMES,
-  ...ASSETS.SCICON_ENEMY_CITATION_DART_FRAMES,
-  ...ASSETS.SCICON_ENEMY_RESEARCH_SENTRY_FRAMES,
-  ...ASSETS.SCICON_ENEMY_PEER_BULWARK_FRAMES,
-  ...ASSETS.SCICON_ENEMY_JOURNAL_RAIDER_FRAMES,
-  ...ASSETS.SCICON_ENEMY_HELIX_CONDUCTOR_FRAMES,
-  ...ASSETS.SCICON_ENEMY_PRISM_ARTILLERY_FRAMES,
+  ...ASSETS.ENEMY_DRONE_FRAMES,
+  ...ASSETS.LEGACY_ENEMY_DRONE_FRAMES,
+  ...ASSETS.ENEMY_SWARM_FRAMES,
+  ...ASSETS.ENEMY_BRICK_FRAMES,
+  ...ASSETS.ENEMY_JOURNAL_FRAMES,
+  ...ASSETS.PIXI_JET_SCOUT_FRAMES,
+  ...ASSETS.PIXI_JET_INTERCEPTOR_FRAMES,
+  ...ASSETS.PIXI_JET_HEAVY_FRAMES,
   ...ASSETS.ASTEROID_BELT_FRAMES,
   ASSETS.SUPPLY_DROP_STANDARD,
   ASSETS.SUPPLY_DROP_ARMORED,
@@ -1146,9 +1148,27 @@ const getDefaultEntityTexture = (engine: GameEngine, entity: Entity) => {
     if (entity.type === EntityType.BOSS) {
       return entity.spriteFrames[clamp(entity.bossDecayStage, 0, entity.spriteFrames.length - 1)];
     }
+    // Protocol Vanguard art encodes simulation states rather than a looping
+    // idle animation: neutral, charge, fire, damage. Never cycle the damage
+    // frame while the unit is simply holding formation.
+    if (entity.campaignRoleId === 'role-protocol-vanguard' && entity.spriteFrames.length >= 4) {
+      if (entity.flashFrames > 0) return entity.spriteFrames[3];
+      if (engine.frameCount - entity.campaignLastFireFrame <= 8) return entity.spriteFrames[2];
+      if (entity.formationAttackSelected || entity.formationAttackActive) return entity.spriteFrames[1];
+      return entity.spriteFrames[0];
+    }
     if (entity.type === EntityType.ENEMY_INVADER && entity.spriteFrames.length >= 5) {
       return entity.spriteFrames[getPaywallBastionFrameIndex(engine, entity)];
     }
+    const spinnerFrameIndex = resolveKamikazeSpinnerFrameIndex({
+      frames: entity.spriteFrames,
+      campaignRoleId: entity.campaignRoleId,
+      formationState: entity.formationState,
+      frameCount: engine.frameCount,
+      variant: entity.variant,
+      formationIndex: entity.formationIndex
+    });
+    if (spinnerFrameIndex !== null) return entity.spriteFrames[spinnerFrameIndex];
     if (isFormationMotionEnemy(entity) && entity.spriteFrames.length === 3) {
       return entity.spriteFrames[getFormationMotionFrameIndex(engine, entity)];
     }
@@ -1183,16 +1203,16 @@ const getDefaultEntityTexture = (engine: GameEngine, entity: Entity) => {
     case EntityType.PLAYER:
       return engine.playerShipUrl;
     case EntityType.ENEMY_DRONE:
-      return ASSETS.SCICON_ENEMY_ORBIT_SCOUT_FRAMES[getFormationMotionFrameIndex(engine, entity)];
+      return ASSETS.ENEMY_DRONE_FRAMES[getFormationMotionFrameIndex(engine, entity)];
     case EntityType.ENEMY_SWARM:
-      return ASSETS.SCICON_ENEMY_CITATION_DART_FRAMES[getFormationMotionFrameIndex(engine, entity)];
+      return ASSETS.ENEMY_SWARM_FRAMES[getFormationMotionFrameIndex(engine, entity)];
     case EntityType.ENEMY_BRICK: {
-      return ASSETS.SCICON_ENEMY_PEER_BULWARK_FRAMES[getFormationMotionFrameIndex(engine, entity)];
+      return ASSETS.ENEMY_BRICK_FRAMES[getFormationMotionFrameIndex(engine, entity)];
     }
     case EntityType.SUPPLY_DROP:
       return ASSETS.SUPPLY_DROP_STANDARD;
     case EntityType.ENEMY_JOURNAL:
-      return ASSETS.SCICON_ENEMY_JOURNAL_RAIDER_FRAMES[getFormationMotionFrameIndex(engine, entity)];
+      return ASSETS.ENEMY_JOURNAL_FRAMES[getFormationMotionFrameIndex(engine, entity)];
     case EntityType.ENEMY_INVADER:
       return ASSETS.PAYWALL_BASTION_FRAMES[getPaywallBastionFrameIndex(engine, entity)];
     case EntityType.MINI_BOSS:

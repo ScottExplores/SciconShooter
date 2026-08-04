@@ -68,17 +68,19 @@ test('paywall formations share one integrity bar and later waves use terrain-pac
     .map((enemy) => enemy.spriteKey);
 
   for (const family of [
-    'SCICON_ENEMY_ORBIT_SCOUT_FRAMES',
-    'SCICON_ENEMY_CITATION_DART_FRAMES',
-    'SCICON_ENEMY_RESEARCH_SENTRY_FRAMES',
-    'SCICON_ENEMY_PEER_BULWARK_FRAMES',
-    'SCICON_ENEMY_JOURNAL_RAIDER_FRAMES',
-    'SCICON_ENEMY_HELIX_CONDUCTOR_FRAMES',
-    'SCICON_ENEMY_PRISM_ARTILLERY_FRAMES'
+    'ENEMY_DRONE_FRAMES',
+    'LEGACY_ENEMY_DRONE_FRAMES',
+    'ENEMY_SWARM_FRAMES',
+    'ENEMY_JOURNAL_FRAMES',
+    'PIXI_JET_SCOUT_FRAMES',
+    'PIXI_JET_INTERCEPTOR_FRAMES',
+    'PIXI_JET_HEAVY_FRAMES',
+    'CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL',
+    'CAMPAIGN_ENEMY_DNA_CONDUCTOR'
   ]) {
     assert.ok(laterAssetKeys.includes(family), `${family} appears in the later campaign`);
   }
-  assert.ok(!laterAssetKeys.some((key) => /^PIXI_JET_(?:SCOUT|INTERCEPTOR|HEAVY)_FRAMES$/.test(key)));
+  assert.ok(!laterAssetKeys.some((key) => key.startsWith('SCICON_ENEMY_')));
 });
 
 test('Paywall Bastions use attack and real health decay frames across authored checkpoints', () => {

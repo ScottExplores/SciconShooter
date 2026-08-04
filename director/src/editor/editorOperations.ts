@@ -151,7 +151,7 @@ export const createSpawnEvent = (wave: WaveDefinition): SpawnEvent => {
     spawnIntervalSeconds: 0.8,
     enemies: [{
       enemyId: 'drone',
-      spriteKey: 'SCICON_ENEMY_ORBIT_SCOUT_FRAMES',
+      spriteKey: 'ENEMY_DRONE_FRAMES',
       weight: 1,
       health: 2,
       speed: 2.5,

@@ -101,12 +101,12 @@ test('custom science-themed enemy motion packs stay compact, square, and RGBA', 
 });
 
 test('ordinary formations and asteroid belts use separate sprite catalogs', () => {
-  assert.match(constantsSource, /SCICON_ENEMY_PEER_BULWARK_FRAMES:\s*\[/);
+  assert.match(constantsSource, /ENEMY_BRICK_FRAMES:\s*\[/);
   assert.match(constantsSource, /ASTEROID_BELT_FRAMES:\s*\[\s*"\/game-art\/enemies\/asteroid-1\.png"/);
   assert.match(validatorSource, /ASTEROID_SPRITE_KEYS, \['ASTEROID_BELT_FRAMES'/);
   assert.match(
     runtimeSource,
-    /e\.variant >= 900[\s\S]*?ASSETS\.ASTEROID_BELT_FRAMES[\s\S]*?ASSETS\.SCICON_ENEMY_PEER_BULWARK_FRAMES/
+    /e\.variant >= 900[\s\S]*?ASSETS\.ASTEROID_BELT_FRAMES[\s\S]*?ASSETS\.ENEMY_BRICK_FRAMES/
   );
 });
 

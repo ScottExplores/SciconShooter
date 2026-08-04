@@ -16,41 +16,41 @@ const directorValidatorSource = fs.readFileSync(path.join(root, 'director', 'ser
 const recordCardApiSource = fs.readFileSync(path.join(root, 'api', 'record-card.js'), 'utf8');
 const authoringSource = fs.readFileSync(path.join(root, 'tools', 'author-campaign-overhaul-v22.mjs'), 'utf8');
 
+// Scott restored the legacy animated roster on 2026-08-03: every role wears
+// its original art again (flight-motion pack, jets, stage-20 specialists).
+// The consolidated Squadron keys are the retired direction; the pack's art
+// files stay in the repo and their integrity tests below still run.
 const EXPECTED_FAMILY_BY_ROLE = new Map([
-  ['role-orbit-scout', 'SCICON_ENEMY_ORBIT_SCOUT_FRAMES'],
-  ['role-jet-scout', 'SCICON_ENEMY_ORBIT_SCOUT_FRAMES'],
-  ['role-orbit-disc', 'SCICON_ENEMY_ORBIT_SCOUT_FRAMES'],
-  ['role-citation-swarm', 'SCICON_ENEMY_CITATION_DART_FRAMES'],
-  ['role-jet-interceptor', 'SCICON_ENEMY_CITATION_DART_FRAMES'],
-  ['role-research-drone', 'SCICON_ENEMY_RESEARCH_SENTRY_FRAMES'],
-  ['role-jet-heavy', 'SCICON_ENEMY_PEER_BULWARK_FRAMES'],
-  ['role-dark-sentinel', 'SCICON_ENEMY_PEER_BULWARK_FRAMES'],
-  ['role-shield-rammer', 'SCICON_ENEMY_PEER_BULWARK_FRAMES'],
-  ['role-protocol-vanguard', 'SCICON_ENEMY_PEER_BULWARK_FRAMES'],
-  ['role-journal-priority', 'SCICON_ENEMY_JOURNAL_RAIDER_FRAMES'],
-  ['role-crescent-minelayer', 'SCICON_ENEMY_JOURNAL_RAIDER_FRAMES'],
-  ['role-laser-hunter', 'SCICON_ENEMY_JOURNAL_RAIDER_FRAMES'],
-  ['role-dna-conductor', 'SCICON_ENEMY_HELIX_CONDUCTOR_FRAMES'],
-  ['role-ring-sentinel', 'SCICON_ENEMY_HELIX_CONDUCTOR_FRAMES'],
-  ['role-laser-stalker', 'SCICON_ENEMY_PRISM_ARTILLERY_FRAMES'],
-  ['role-wall-sniper-left', 'SCICON_ENEMY_PRISM_ARTILLERY_FRAMES'],
-  ['role-wall-sniper-right', 'SCICON_ENEMY_PRISM_ARTILLERY_FRAMES'],
-  ['role-prism-artillery', 'SCICON_ENEMY_PRISM_ARTILLERY_FRAMES'],
-  ['role-ring-emitter', 'SCICON_ENEMY_PRISM_ARTILLERY_FRAMES']
+  ['role-orbit-scout', 'LEGACY_ENEMY_DRONE_FRAMES'],
+  ['role-research-drone', 'ENEMY_DRONE_FRAMES'],
+  ['role-citation-swarm', 'ENEMY_SWARM_FRAMES'],
+  ['role-jet-scout', 'PIXI_JET_SCOUT_FRAMES'],
+  ['role-jet-interceptor', 'PIXI_JET_INTERCEPTOR_FRAMES'],
+  ['role-jet-heavy', 'PIXI_JET_HEAVY_FRAMES'],
+  ['role-journal-priority', 'ENEMY_JOURNAL_FRAMES'],
+  ['role-dna-conductor', 'CAMPAIGN_ENEMY_DNA_CONDUCTOR'],
+  ['role-laser-stalker', 'CAMPAIGN_ENEMY_LASER_STALKER'],
+  ['role-orbit-disc', 'CAMPAIGN_ENEMY_ORBIT_DISC'],
+  ['role-protocol-vanguard', 'CAMPAIGN_ENEMY_PROTOCOL_VANGUARD_FRAMES'],
+  ['role-wall-sniper-left', 'CAMPAIGN_ENEMY_WALL_SNIPER_LEFT'],
+  ['role-wall-sniper-right', 'CAMPAIGN_ENEMY_WALL_SNIPER_RIGHT'],
+  ['role-laser-hunter', 'CAMPAIGN_ENEMY_LASER_HUNTER'],
+  ['role-dark-sentinel', 'CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL'],
+  ['role-crescent-minelayer', 'CAMPAIGN_ENEMY_CRESCENT_MINELAYER'],
+  ['role-shield-rammer', 'CAMPAIGN_ENEMY_SHIELD_RAMMER'],
+  ['role-prism-artillery', 'CAMPAIGN_ENEMY_PRISM_ARTILLERY'],
+  ['role-ring-sentinel', 'CAMPAIGN_ENEMY_RING_SENTINEL'],
+  ['role-ring-emitter', 'CAMPAIGN_ENEMY_BULLET_RING_EMITTER']
 ]);
 const ACTIVE_KEYS = new Set(EXPECTED_FAMILY_BY_ROLE.values());
 const RETIRED_REGULAR_KEYS = new Set([
-  'LEGACY_ENEMY_DRONE_FRAMES', 'ENEMY_DRONE_FRAMES',
-  'LEGACY_ENEMY_SWARM_FRAMES', 'ENEMY_SWARM_FRAMES', 'ENEMY_BRICK_FRAMES',
-  'ENEMY_JOURNAL', 'ENEMY_JOURNAL_FRAMES',
-  'PIXI_JET_SCOUT_FRAMES', 'PIXI_JET_INTERCEPTOR_FRAMES', 'PIXI_JET_HEAVY_FRAMES',
-  'CAMPAIGN_ENEMY_BULLET_RING_EMITTER', 'CAMPAIGN_ENEMY_CRESCENT_MINELAYER',
-  'CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL', 'CAMPAIGN_ENEMY_DNA_CONDUCTOR',
-  'CAMPAIGN_ENEMY_LASER_HUNTER', 'CAMPAIGN_ENEMY_LASER_STALKER',
-  'CAMPAIGN_ENEMY_ORBIT_DISC', 'CAMPAIGN_ENEMY_PROTOCOL_VANGUARD_FRAMES',
-  'CAMPAIGN_ENEMY_PRISM_ARTILLERY', 'CAMPAIGN_ENEMY_RING_SENTINEL',
-  'CAMPAIGN_ENEMY_SHIELD_RAMMER', 'CAMPAIGN_ENEMY_WALL_SNIPER_LEFT',
-  'CAMPAIGN_ENEMY_WALL_SNIPER_RIGHT'
+  'SCICON_ENEMY_ORBIT_SCOUT_FRAMES',
+  'SCICON_ENEMY_CITATION_DART_FRAMES',
+  'SCICON_ENEMY_RESEARCH_SENTRY_FRAMES',
+  'SCICON_ENEMY_PEER_BULWARK_FRAMES',
+  'SCICON_ENEMY_JOURNAL_RAIDER_FRAMES',
+  'SCICON_ENEMY_HELIX_CONDUCTOR_FRAMES',
+  'SCICON_ENEMY_PRISM_ARTILLERY_FRAMES'
 ]);
 
 const levelSpawnEnemies = campaign.levels.flatMap((level) => level.waves.flatMap(
@@ -113,7 +113,7 @@ const decodeRgbaPng = (png) => {
 test('Squadron v1 registers exactly seven family keys across runtime, Director, and record cards', () => {
   assert.equal(manifest.id, 'scicon-enemy-squadron-v1');
   assert.equal(manifest.families.length, 7);
-  assert.deepEqual(new Set(manifest.families.map((family) => family.assetKey)), ACTIVE_KEYS);
+  assert.deepEqual(new Set(manifest.families.map((family) => family.assetKey)), RETIRED_REGULAR_KEYS);
   for (const family of manifest.families) {
     assert.match(constantsSource, new RegExp(`${family.assetKey}:\\s*\\[`));
     assert.match(typesSource, new RegExp(`'${family.assetKey}'`));
@@ -123,7 +123,7 @@ test('Squadron v1 registers exactly seven family keys across runtime, Director, 
   }
 });
 
-test('all twenty active roles and every authored spawn use their assigned Squadron family', () => {
+test('all twenty active roles and every authored spawn use their assigned legacy family', () => {
   assert.equal(campaign.enemyRoles.length, 20);
   assert.deepEqual(new Set(campaign.enemyRoles.map((role) => role.id)), new Set(EXPECTED_FAMILY_BY_ROLE.keys()));
   for (const role of campaign.enemyRoles) {
@@ -142,7 +142,7 @@ test('all twenty active roles and every authored spawn use their assigned Squadr
   }
 });
 
-test('family debuts are staged one per Wave and Journal Raider waits for Mission 5', () => {
+test('family debuts stay readable (thematic pairs at most) and Journal Raider waits for Mission 5', () => {
   const seen = new Set();
   const debuts = [];
   for (const level of [...campaign.levels].sort((left, right) => left.order - right.order)) {
@@ -151,22 +151,25 @@ test('family debuts are staged one per Wave and Journal Raider waits for Mission
         .filter((event) => event.kind === 'spawn')
         .flatMap((event) => (event.enemies ?? []).map((enemy) => enemy.spriteKey)));
       const unseen = [...families].filter((key) => !seen.has(key));
-      assert.ok(unseen.length <= 1, `${level.id}/Wave ${waveIndex + 1} introduces ${unseen.join(', ')}`);
+      // The legacy roster debuts thematic pairs together (the two jets,
+      // sentinel + minelayer). Three or more new silhouettes in one wave is
+      // still unreadable art soup.
+      assert.ok(unseen.length <= 2, `${level.id}/Wave ${waveIndex + 1} introduces ${unseen.join(', ')}`);
       unseen.forEach((key) => {
         seen.add(key);
         debuts.push({ key, levelId: level.id, wave: waveIndex + 1 });
       });
     }
   }
-  assert.equal(seen.size, 7);
+  assert.equal(seen.size, 20);
   assert.deepEqual(
-    debuts.find((debut) => debut.key === 'SCICON_ENEMY_JOURNAL_RAIDER_FRAMES'),
-    { key: 'SCICON_ENEMY_JOURNAL_RAIDER_FRAMES', levelId: 'stage-bastion-protocol', wave: 1 }
+    debuts.find((debut) => debut.key === 'ENEMY_JOURNAL_FRAMES'),
+    { key: 'ENEMY_JOURNAL_FRAMES', levelId: 'stage-bastion-protocol', wave: 1 }
   );
   assert.equal(
     campaign.levels.find((level) => level.id === 'stage-open-galaxy').waves
       .some((wave) => wave.events.some((event) => (
-        event.kind === 'spawn' && event.enemies?.some((enemy) => enemy.spriteKey === 'SCICON_ENEMY_JOURNAL_RAIDER_FRAMES')
+        event.kind === 'spawn' && event.enemies?.some((enemy) => enemy.spriteKey === 'ENEMY_JOURNAL_FRAMES')
       ))),
     false
   );
@@ -228,10 +231,18 @@ test('every production frame is hashed, 128px RGBA, transparent, and safely boun
   }
 });
 
-test('the legacy v22 author seeds Squadron keys and uses role-aware source inference', () => {
+test('the legacy v22 author seeds legacy keys and uses role-aware source inference', () => {
   const roleSeed = authoringSource.match(/const roleSeed = \[([\s\S]*?)\n\];/)?.[1] ?? '';
   assert.ok(roleSeed.length > 0);
-  for (const key of ACTIVE_KEYS) assert.match(roleSeed, new RegExp(key));
+  // The Protocol Vanguard is seeded by its own sprite-inference row rather
+  // than the roleSeed table, so it is asserted against the whole source.
+  for (const key of ACTIVE_KEYS) {
+    if (key === 'CAMPAIGN_ENEMY_PROTOCOL_VANGUARD_FRAMES') {
+      assert.match(authoringSource, new RegExp(key));
+      continue;
+    }
+    assert.match(roleSeed, new RegExp(key));
+  }
   for (const key of RETIRED_REGULAR_KEYS) assert.doesNotMatch(roleSeed, new RegExp(`'${key}'`));
   assert.match(authoringSource, /enemyRoleById\.has\(enemy\.roleId\)/);
   assert.match(authoringSource, /sourceRoleBySprite\.get\(enemy\.spriteKey\)/);

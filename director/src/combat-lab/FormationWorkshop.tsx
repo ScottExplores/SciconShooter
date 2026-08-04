@@ -109,9 +109,9 @@ export function FormationDesignBoard({
   const slots = event.formationSlots ?? starterSlotsFor(event, template);
   const visibleSlots = dragSlots ?? slots;
   const editable = Boolean(event.formationSlots);
-  const enemyKey = event.enemies[0]?.spriteKey ?? 'SCICON_ENEMY_ORBIT_SCOUT_FRAMES';
+  const enemyKey = event.enemies[0]?.spriteKey ?? 'ENEMY_DRONE_FRAMES';
   const enemyImage = ASSET_CATALOG[enemyKey]?.paths[0]
-    ?? ASSET_CATALOG.SCICON_ENEMY_ORBIT_SCOUT_FRAMES.paths[0];
+    ?? ASSET_CATALOG.ENEMY_DRONE_FRAMES.paths[0];
   const playerImage = ASSET_CATALOG.PLAYER_SHIP.paths[0];
   const backgroundImage = ASSET_CATALOG.GAME_BG_BACK.paths[0];
 

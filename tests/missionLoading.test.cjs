@@ -264,17 +264,18 @@ test('mission startup waits only for first-frame Pixi art and bounds every optio
   assert.match(textureBank, /runGameplayAssetPreloadQueue\([\s\S]*\(url\) => this\.load\(url\)/);
   assert.match(textureBank, /waitForGameplayAssetPreload\(warmup\)/);
   [
-    'ORBIT_SCOUT',
-    'CITATION_DART',
-    'RESEARCH_SENTRY',
-    'PEER_BULWARK',
-    'JOURNAL_RAIDER',
-    'HELIX_CONDUCTOR',
-    'PRISM_ARTILLERY'
+    'ENEMY_DRONE_FRAMES',
+    'LEGACY_ENEMY_DRONE_FRAMES',
+    'ENEMY_SWARM_FRAMES',
+    'ENEMY_BRICK_FRAMES',
+    'ENEMY_JOURNAL_FRAMES',
+    'PIXI_JET_SCOUT_FRAMES',
+    'PIXI_JET_INTERCEPTOR_FRAMES',
+    'PIXI_JET_HEAVY_FRAMES'
   ].forEach((family) => {
-    assert.match(startupCatalog, new RegExp(`\\.\\.\\.ASSETS\\.SCICON_ENEMY_${family}_FRAMES`));
+    assert.match(startupCatalog, new RegExp(`\\.\\.\\.ASSETS\\.${family}`));
   });
-  assert.doesNotMatch(startupCatalog, /LEGACY_ENEMY|PIXI_JET_(?:SCOUT|INTERCEPTOR|HEAVY)_FRAMES/);
+  assert.doesNotMatch(startupCatalog, /SCICON_ENEMY_/);
   assert.doesNotMatch(startupCatalog, /PLAYER_SHIP_STEERING_FRAME_URLS/);
   assert.doesNotMatch(startupCatalog, /PIXI_ENVIRONMENT_TEXTURE_URLS/);
   assert.doesNotMatch(startupCatalog, /PIXI_BOSS_(?:OPEN_ORBIT|CITATION|PAYWALL|OPEN_GALAXY|CROWNCLAW)_FRAMES/);

@@ -67,7 +67,7 @@ test('record card embeds encounter art and meaningful run values', async () => {
     assert.match(res.body, /preserveAspectRatio="none" style="image-rendering:pixelated"/);
     assert.doesNotMatch(res.body, /SERVER VERIFIED/);
     assert.ok(fetchedUrls.some((url) => url.includes('/game-art/branding/bio-ship.png')));
-    assert.ok(fetchedUrls.some((url) => url.includes('/game-art/generated/scicon-enemy-squadron-v1/frames/research-sentry-02.png')));
+    assert.ok(fetchedUrls.some((url) => url.includes('/game-art/enemies/paywall-interceptor.png')));
     assert.equal(fetchedUrls.some((url) => url.includes('/game-art/generated/boss-weapons/citation-storm-plasma-claw-left.png')), false);
     assert.equal(fetchedUrls.some((url) => url.includes('/game-art/generated/boss-weapons/citation-storm-plasma-claw-right.png')), false);
     assert.equal(fetchedUrls.some((url) => url.includes('/game-art/bosses/final-boss-sentinel.png')), false);
@@ -83,8 +83,8 @@ test('record card embeds encounter art and meaningful run values', async () => {
 test('revision-24 record cards embed their resolved mission encounter art without the legacy boss fallback', async () => {
   const runId = '66666666-7777-4888-8999-000000000000';
   const expectedStages = new Map([
-    [7, '/game-art/generated/scicon-enemy-squadron-v1/frames/peer-bulwark-02.png'],
-    [8, '/game-art/generated/scicon-enemy-squadron-v1/frames/journal-raider-02.png'],
+    [7, '/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/dark-asteroid-sentinel.png'],
+    [8, '/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/crescent-minelayer.png'],
     [9, '/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/ring-sentinel.png'],
     [20, '/game-art/generated/bosses/campaign-packages/frontier-crownclaw/assembled.png'],
     [25, '/game-art/generated/bosses/campaign-packages/helios-clawcarrier/assembled.png']

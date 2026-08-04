@@ -122,7 +122,9 @@ test('every revision-24 sector ends in one authored major-boss Mission', () => {
   }
 });
 
-test('Stage 20 enemy art stays registered for boss and sandbox compatibility but is retired from regular spawns', () => {
+// Scott restored the legacy roster on 2026-08-03: the Stage 20 specialists
+// are active regular enemies again, each bound to its own role.
+test('Stage 20 enemy art is active again with every specialist bound to a role', () => {
   const activeRoleSprites = new Set(campaign.enemyRoles.map((role) => role.spriteKey));
   const activeSpawnSprites = new Set(campaign.levels
     .flatMap((level) => level.waves)
@@ -132,8 +134,8 @@ test('Stage 20 enemy art stays registered for boss and sandbox compatibility but
     .map((enemy) => enemy.spriteKey));
 
   for (const key of Object.keys(enemyAssets)) {
-    assert.equal(activeRoleSprites.has(key), false, `${key} is not an active role sprite`);
-    assert.equal(activeSpawnSprites.has(key), false, `${key} is not an active spawn sprite`);
+    assert.equal(activeRoleSprites.has(key), true, `${key} is an active role sprite`);
+    assert.equal(activeSpawnSprites.has(key), true, `${key} is an active spawn sprite`);
     assert.match(catalogSource, new RegExp(`${key}: asset\\('${key}'`), `${key} remains registered`);
   }
 });

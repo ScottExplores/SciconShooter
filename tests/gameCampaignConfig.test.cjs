@@ -526,14 +526,17 @@ test('journal-class spawns use their role-bound Squadron families', () => {
 
   assert.ok(journalSettings.length > 0);
   const allowedJournalSprites = new Set([
-    'SCICON_ENEMY_JOURNAL_RAIDER_FRAMES',
-    'SCICON_ENEMY_HELIX_CONDUCTOR_FRAMES',
-    'SCICON_ENEMY_PRISM_ARTILLERY_FRAMES'
+    'ENEMY_JOURNAL_FRAMES',
+    'CAMPAIGN_ENEMY_DNA_CONDUCTOR',
+    'CAMPAIGN_ENEMY_LASER_HUNTER',
+    'CAMPAIGN_ENEMY_CRESCENT_MINELAYER',
+    'CAMPAIGN_ENEMY_PRISM_ARTILLERY',
+    'CAMPAIGN_ENEMY_BULLET_RING_EMITTER'
   ]);
   journalSettings.forEach((enemy) => assert.equal(allowedJournalSprites.has(enemy.spriteKey), true));
 });
 
-test('dark asteroid sentinels use Peer Bulwark art while belt frames stay out of formations', () => {
+test('dark asteroid sentinels use their sentinel art while belt frames stay out of formations', () => {
   const events = campaign.levels.flatMap((level) => level.waves.flatMap((wave) => wave.events));
   const formationEnemies = events
     .filter((event) => event.kind === 'spawn')
@@ -542,7 +545,7 @@ test('dark asteroid sentinels use Peer Bulwark art while belt frames stay out of
   const sentinels = formationEnemies.filter((enemy) => enemy.roleId === 'role-dark-sentinel');
   assert.ok(sentinels.length > 0);
   assert.ok(sentinels.every((enemy) => enemy.enemyId === 'brick'));
-  assert.ok(sentinels.every((enemy) => enemy.spriteKey === 'SCICON_ENEMY_PEER_BULWARK_FRAMES'));
+  assert.ok(sentinels.every((enemy) => enemy.spriteKey === 'CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL'));
   formationEnemies.forEach((enemy) => assert.notEqual(enemy.spriteKey, 'ASTEROID_BELT_FRAMES'));
 });
 

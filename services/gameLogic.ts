@@ -226,6 +226,7 @@ import {
   resolveFormationDiveMotion,
   shouldEndFormationDivePass
 } from './gameplay/formations/FormationRuntime';
+import { resolveKamikazeSpinnerFrameIndex } from './gameplay/enemies/KamikazeSpinnerRuntime';
 import {
   MAX_GENERATED_BOSS_PROJECTILES_PER_CUE,
   getGeneratedBossTechniqueCue,
@@ -1127,13 +1128,11 @@ const GAMEPLAY_ASSET_URLS = [
   ...ASSETS.PAYWALL_BASTION_FRAMES,
   ASSETS.FINAL_BOSS,
   DEFAULT_BOMB_SPRITE_URL,
-  ...ASSETS.SCICON_ENEMY_ORBIT_SCOUT_FRAMES,
-  ...ASSETS.SCICON_ENEMY_CITATION_DART_FRAMES,
-  ...ASSETS.SCICON_ENEMY_RESEARCH_SENTRY_FRAMES,
-  ...ASSETS.SCICON_ENEMY_PEER_BULWARK_FRAMES,
-  ...ASSETS.SCICON_ENEMY_JOURNAL_RAIDER_FRAMES,
-  ...ASSETS.SCICON_ENEMY_HELIX_CONDUCTOR_FRAMES,
-  ...ASSETS.SCICON_ENEMY_PRISM_ARTILLERY_FRAMES,
+  ...ASSETS.ENEMY_DRONE_FRAMES,
+  ...ASSETS.LEGACY_ENEMY_DRONE_FRAMES,
+  ...ASSETS.ENEMY_SWARM_FRAMES,
+  ...ASSETS.ENEMY_BRICK_FRAMES,
+  ...ASSETS.ENEMY_JOURNAL_FRAMES,
   ...ASSETS.ASTEROID_BELT_FRAMES
 ];
 
@@ -4324,6 +4323,15 @@ export class GameEngine {
   }
 
   getEnemyAnimatedFrame(frames: string[], entity: Entity, speed: number) {
+    const spinnerFrameIndex = resolveKamikazeSpinnerFrameIndex({
+      frames,
+      campaignRoleId: entity.campaignRoleId,
+      formationState: entity.formationState,
+      frameCount: this.frameCount,
+      variant: entity.variant,
+      formationIndex: entity.formationIndex
+    });
+    if (spinnerFrameIndex !== null) return frames[spinnerFrameIndex];
     if (frames.length === 3 && entity.formationState) {
       const stateAge = Math.max(0, this.frameCount - entity.formationStateFrame);
       const pingPong = [0, 1, 2, 1] as const;
@@ -8502,39 +8510,30 @@ export class GameEngine {
       }
     }
     const normalized = String(spriteKey || '').toLowerCase();
-    if (normalized.includes('journal')) return ASSETS.SCICON_ENEMY_JOURNAL_RAIDER_FRAMES[0];
+    if (normalized.includes('journal')) return ASSETS.ENEMY_JOURNAL_FRAMES[0];
     if (normalized.includes('swarm') || normalized.includes('citation')) {
-      return ASSETS.SCICON_ENEMY_CITATION_DART_FRAMES[0];
+      return ASSETS.ENEMY_SWARM_FRAMES[0];
     }
     if (normalized.includes('asteroid')) return ASSETS.ASTEROID_BELT_FRAMES[0];
     if (normalized.includes('supply')) return ASSETS.SUPPLY_DROP_STANDARD;
     if (normalized.includes('brick') || normalized.includes('bulwark')) {
-      return ASSETS.SCICON_ENEMY_PEER_BULWARK_FRAMES[0];
-    }
-    if (normalized.includes('research') || normalized.includes('sentry')) {
-      return ASSETS.SCICON_ENEMY_RESEARCH_SENTRY_FRAMES[0];
-    }
-    if (normalized.includes('helix') || normalized.includes('dna') || normalized.includes('ring')) {
-      return ASSETS.SCICON_ENEMY_HELIX_CONDUCTOR_FRAMES[0];
+      return ASSETS.ENEMY_BRICK_FRAMES[0];
     }
     if (normalized.includes('paywall')) return ASSETS.PAYWALL_BASTION_FRAMES[1];
-    if (normalized.includes('prism') || normalized.includes('laser') || normalized.includes('wall')) {
-      return ASSETS.SCICON_ENEMY_PRISM_ARTILLERY_FRAMES[0];
-    }
     if (normalized.includes('mini') || normalized.includes('bottleneck')) return ASSETS.MINI_BOSS;
     if (normalized.includes('gate') || normalized.includes('sentinel') || normalized.includes('final')) return ASSETS.FINAL_BOSS;
     if (normalized.includes('drone') || normalized.includes('scout')) {
-      return ASSETS.SCICON_ENEMY_ORBIT_SCOUT_FRAMES[0];
+      return ASSETS.ENEMY_DRONE_FRAMES[0];
     }
 
-    if (entityType === EntityType.ENEMY_JOURNAL) return ASSETS.SCICON_ENEMY_JOURNAL_RAIDER_FRAMES[0];
-    if (entityType === EntityType.ENEMY_SWARM) return ASSETS.SCICON_ENEMY_CITATION_DART_FRAMES[0];
-    if (entityType === EntityType.ENEMY_BRICK) return ASSETS.SCICON_ENEMY_PEER_BULWARK_FRAMES[0];
+    if (entityType === EntityType.ENEMY_JOURNAL) return ASSETS.ENEMY_JOURNAL_FRAMES[0];
+    if (entityType === EntityType.ENEMY_SWARM) return ASSETS.ENEMY_SWARM_FRAMES[0];
+    if (entityType === EntityType.ENEMY_BRICK) return ASSETS.ENEMY_BRICK_FRAMES[0];
     if (entityType === EntityType.SUPPLY_DROP) return ASSETS.SUPPLY_DROP_STANDARD;
     if (entityType === EntityType.MINI_BOSS) return ASSETS.MINI_BOSS;
     if (entityType === EntityType.ENEMY_INVADER) return ASSETS.PAYWALL_BASTION_FRAMES[1];
     if (entityType === EntityType.BOSS) return ASSETS.FINAL_BOSS;
-    return ASSETS.SCICON_ENEMY_ORBIT_SCOUT_FRAMES[0];
+    return ASSETS.ENEMY_DRONE_FRAMES[0];
   }
 
   resolveSpriteFrames(spriteKey: AssetKey | string | undefined) {
@@ -9932,7 +9931,7 @@ export class GameEngine {
       e.width = Math.round(44 * PAYWALL_INTERCEPTOR_SCALE);
       e.height = Math.round(44 * PAYWALL_INTERCEPTOR_SCALE);
       e.color = '#7dd3fc';
-      e.spriteFrames = [...ASSETS.SCICON_ENEMY_ORBIT_SCOUT_FRAMES];
+      e.spriteFrames = [...ASSETS.ENEMY_DRONE_FRAMES];
       e.text = "🔒";
     } else if (type === EntityType.ENEMY_JOURNAL) {
       e.vy = 4.4 * speedBoost;
@@ -9942,14 +9941,14 @@ export class GameEngine {
       e.text = "📕";
       e.width = 56;
       e.height = 66;
-      e.spriteFrames = [...ASSETS.SCICON_ENEMY_JOURNAL_RAIDER_FRAMES];
+      e.spriteFrames = [...ASSETS.ENEMY_JOURNAL_FRAMES];
     } else if (type === EntityType.ENEMY_BRICK) {
       e.vy = 1.5 * speedBoost;
       e.hp = 8 * hpMult;
       e.width = 54;
       e.height = 54;
       e.color = '#f59e0b';
-      e.spriteFrames = [...ASSETS.SCICON_ENEMY_PEER_BULWARK_FRAMES];
+      e.spriteFrames = [...ASSETS.ENEMY_BRICK_FRAMES];
       e.text = "📰";
     } else if (type === EntityType.ENEMY_SWARM) {
       e.vy = 3.5 * speedBoost;
@@ -9957,7 +9956,7 @@ export class GameEngine {
       e.width = Math.round(34 * CITATION_WRAITH_SCALE);
       e.height = Math.round(28 * CITATION_WRAITH_SCALE);
       e.color = '#34d399';
-      e.spriteFrames = [...ASSETS.SCICON_ENEMY_CITATION_DART_FRAMES];
+      e.spriteFrames = [...ASSETS.ENEMY_SWARM_FRAMES];
       e.text = "🪰";
     }
 
@@ -19901,20 +19900,20 @@ export class GameEngine {
     if (e.spriteFrames?.length) return this.getEnemyAnimatedFrame(e.spriteFrames, e, 6);
     if (e.spriteUrl) return e.spriteUrl;
     if (e.type === EntityType.ENEMY_DRONE) {
-      return this.getAnimatedFrame(ASSETS.SCICON_ENEMY_ORBIT_SCOUT_FRAMES, e, 6);
+      return this.getAnimatedFrame(ASSETS.ENEMY_DRONE_FRAMES, e, 6);
     }
     if (e.type === EntityType.ENEMY_SWARM) {
-      return this.getAnimatedFrame(ASSETS.SCICON_ENEMY_CITATION_DART_FRAMES, e, 5);
+      return this.getAnimatedFrame(ASSETS.ENEMY_SWARM_FRAMES, e, 5);
     }
     if (e.type === EntityType.ENEMY_BRICK) {
       const frames = e.variant >= 900
         ? ASSETS.ASTEROID_BELT_FRAMES
-        : ASSETS.SCICON_ENEMY_PEER_BULWARK_FRAMES;
+        : ASSETS.ENEMY_BRICK_FRAMES;
       return frames[e.variant % frames.length];
     }
     if (e.type === EntityType.SUPPLY_DROP) return ASSETS.SUPPLY_DROP_STANDARD;
     if (e.type === EntityType.ENEMY_JOURNAL) {
-      return this.getAnimatedFrame(ASSETS.SCICON_ENEMY_JOURNAL_RAIDER_FRAMES, e, 6);
+      return this.getAnimatedFrame(ASSETS.ENEMY_JOURNAL_FRAMES, e, 6);
     }
     if (e.type === EntityType.MINI_BOSS) {
       return ASSETS.MINI_BOSS;
@@ -20400,7 +20399,7 @@ export class GameEngine {
     } else if (e.type === EntityType.ENEMY_DRONE) {
         const frame = e.spriteFrames?.length
           ? this.getEnemyAnimatedFrame(e.spriteFrames, e, 6)
-          : e.spriteUrl || this.getAnimatedFrame(ASSETS.SCICON_ENEMY_ORBIT_SCOUT_FRAMES, e, 6);
+          : e.spriteUrl || this.getAnimatedFrame(ASSETS.ENEMY_DRONE_FRAMES, e, 6);
         const rotation = e.formation === 'spiral' ? Math.PI / 2 + e.angle : 0;
         const drewSprite = this.drawSprite(ctx, frame, e.width, e.height, {
             rotation,
@@ -20416,7 +20415,7 @@ export class GameEngine {
     } else if (e.type === EntityType.ENEMY_SWARM) {
         const frame = e.spriteFrames?.length
           ? this.getAnimatedFrame(e.spriteFrames, e, 5)
-          : e.spriteUrl || this.getAnimatedFrame(ASSETS.SCICON_ENEMY_CITATION_DART_FRAMES, e, 5);
+          : e.spriteUrl || this.getAnimatedFrame(ASSETS.ENEMY_SWARM_FRAMES, e, 5);
         const rotation = Math.sin((this.frameCount + e.variant) * 0.08) * 0.12;
         const drewSprite = this.drawSprite(ctx, frame, e.width, e.height, {
             rotation,
@@ -20448,7 +20447,7 @@ export class GameEngine {
         const isAsteroid = e.variant >= 900;
         const fallbackFrames = isAsteroid
           ? ASSETS.ASTEROID_BELT_FRAMES
-          : ASSETS.SCICON_ENEMY_PEER_BULWARK_FRAMES;
+          : ASSETS.ENEMY_BRICK_FRAMES;
         const frame = e.spriteFrames?.length
           ? e.spriteFrames[e.variant % e.spriteFrames.length]
           : e.spriteUrl || fallbackFrames[e.variant % fallbackFrames.length];
@@ -20468,7 +20467,7 @@ export class GameEngine {
         const sway = Math.sin((this.frameCount + e.variant) * 0.04) * 0.12;
         const journalSprite = e.spriteFrames?.length
           ? this.getAnimatedFrame(e.spriteFrames, e, 6)
-          : e.spriteUrl || this.getAnimatedFrame(ASSETS.SCICON_ENEMY_JOURNAL_RAIDER_FRAMES, e, 6);
+          : e.spriteUrl || this.getAnimatedFrame(ASSETS.ENEMY_JOURNAL_FRAMES, e, 6);
         const drewSprite = this.drawSprite(ctx, journalSprite, e.width, e.height, {
             rotation: sway,
             shadowColor: '#fb7185',

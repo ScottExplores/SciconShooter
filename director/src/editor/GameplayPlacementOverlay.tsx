@@ -34,7 +34,7 @@ const defaultAnchor = (event: WaveEvent): NormalizedPoint => {
 };
 
 const eventAssetKey = (event: WaveEvent): AssetKey => {
-  if (event.kind === 'spawn') return event.enemies[0]?.spriteKey ?? 'SCICON_ENEMY_ORBIT_SCOUT_FRAMES';
+  if (event.kind === 'spawn') return event.enemies[0]?.spriteKey ?? 'ENEMY_DRONE_FRAMES';
   if (event.kind === 'boss' || event.kind === 'asteroid-belt' || event.kind === 'supply-drop') return event.spriteKey;
   return event.kind === 'powerup' ? 'REAL_RSC_ICON' : 'RSC_TOKEN';
 };

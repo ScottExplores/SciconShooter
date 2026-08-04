@@ -40,7 +40,35 @@ const INTRODUCTION_SCHEDULE = Object.freeze({
   'role-ring-emitter': [10, 2]
 });
 
-const SCICON_FAMILY_KEYS = new Set([
+// Scott restored the legacy enemy roster on 2026-08-03: every role keeps its
+// original animated art (flight-motion pack, jets, stage-20 specialists). The
+// consolidated seven-key Squadron pass is the retired direction now.
+const ROLE_SPRITE_KEYS = Object.freeze({
+  'role-orbit-scout': 'LEGACY_ENEMY_DRONE_FRAMES',
+  'role-research-drone': 'ENEMY_DRONE_FRAMES',
+  'role-citation-swarm': 'ENEMY_SWARM_FRAMES',
+  'role-jet-scout': 'PIXI_JET_SCOUT_FRAMES',
+  'role-jet-interceptor': 'PIXI_JET_INTERCEPTOR_FRAMES',
+  'role-jet-heavy': 'PIXI_JET_HEAVY_FRAMES',
+  'role-journal-priority': 'ENEMY_JOURNAL_FRAMES',
+  'role-dna-conductor': 'CAMPAIGN_ENEMY_DNA_CONDUCTOR',
+  'role-laser-stalker': 'CAMPAIGN_ENEMY_LASER_STALKER',
+  'role-orbit-disc': 'CAMPAIGN_ENEMY_ORBIT_DISC',
+  'role-protocol-vanguard': 'CAMPAIGN_ENEMY_PROTOCOL_VANGUARD_FRAMES',
+  'role-wall-sniper-left': 'CAMPAIGN_ENEMY_WALL_SNIPER_LEFT',
+  'role-wall-sniper-right': 'CAMPAIGN_ENEMY_WALL_SNIPER_RIGHT',
+  'role-laser-hunter': 'CAMPAIGN_ENEMY_LASER_HUNTER',
+  'role-dark-sentinel': 'CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL',
+  'role-crescent-minelayer': 'CAMPAIGN_ENEMY_CRESCENT_MINELAYER',
+  'role-shield-rammer': 'CAMPAIGN_ENEMY_SHIELD_RAMMER',
+  'role-prism-artillery': 'CAMPAIGN_ENEMY_PRISM_ARTILLERY',
+  'role-ring-sentinel': 'CAMPAIGN_ENEMY_RING_SENTINEL',
+  'role-ring-emitter': 'CAMPAIGN_ENEMY_BULLET_RING_EMITTER'
+});
+
+const SCICON_FAMILY_KEYS = new Set(Object.values(ROLE_SPRITE_KEYS));
+
+const RETIRED_REGULAR_KEYS = new Set([
   'SCICON_ENEMY_ORBIT_SCOUT_FRAMES',
   'SCICON_ENEMY_CITATION_DART_FRAMES',
   'SCICON_ENEMY_RESEARCH_SENTRY_FRAMES',
@@ -48,19 +76,6 @@ const SCICON_FAMILY_KEYS = new Set([
   'SCICON_ENEMY_JOURNAL_RAIDER_FRAMES',
   'SCICON_ENEMY_HELIX_CONDUCTOR_FRAMES',
   'SCICON_ENEMY_PRISM_ARTILLERY_FRAMES'
-]);
-
-const RETIRED_REGULAR_KEYS = new Set([
-  'LEGACY_ENEMY_DRONE_FRAMES',
-  'ENEMY_DRONE_FRAMES',
-  'LEGACY_ENEMY_SWARM_FRAMES',
-  'ENEMY_SWARM_FRAMES',
-  'ENEMY_BRICK_FRAMES',
-  'ENEMY_JOURNAL',
-  'ENEMY_JOURNAL_FRAMES',
-  'PIXI_JET_SCOUT_FRAMES',
-  'PIXI_JET_INTERCEPTOR_FRAMES',
-  'PIXI_JET_HEAVY_FRAMES'
 ]);
 
 const campaignSlotByMissionId = (campaign) => {
@@ -112,8 +127,11 @@ export const auditEnemyIntroductionSchedule = (campaign) => {
   }
   for (const role of campaign.enemyRoles) {
     if (!scheduledIds.has(role.id)) issues.push(`Role ${role.id} is missing from the introduction schedule.`);
-    if (!SCICON_FAMILY_KEYS.has(role.spriteKey)) {
-      issues.push(`Role ${role.id} uses non-Squadron sprite key ${role.spriteKey}.`);
+    const expectedKey = ROLE_SPRITE_KEYS[role.id];
+    if (expectedKey && role.spriteKey !== expectedKey) {
+      issues.push(`Role ${role.id} uses sprite key ${role.spriteKey}; the restored legacy roster expects ${expectedKey}.`);
+    } else if (!expectedKey && !SCICON_FAMILY_KEYS.has(role.spriteKey)) {
+      issues.push(`Role ${role.id} uses unknown sprite key ${role.spriteKey}.`);
     }
   }
 
@@ -158,8 +176,11 @@ export const auditEnemyIntroductionSchedule = (campaign) => {
         }
       }
       const newFamilies = [...waveFamilies].filter((family) => !seenFamilies.has(family));
-      if (newFamilies.length > 1) {
-        issues.push(`${level.id}/${wave.id} debuts ${newFamilies.length} Squadron families at once: ${newFamilies.join(', ')}.`);
+      // The legacy roster deliberately debuts thematic pairs together (the two
+      // jets, journal + vanguard, sentinel + minelayer). Three or more new
+      // silhouettes in one wave is still unreadable art soup.
+      if (newFamilies.length > 2) {
+        issues.push(`${level.id}/${wave.id} debuts ${newFamilies.length} enemy families at once: ${newFamilies.join(', ')}.`);
       }
       newFamilies.forEach((family) => seenFamilies.add(family));
     }
