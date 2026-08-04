@@ -109,7 +109,7 @@ test('collision-safe slot reassignment eases from the live position without a sn
   assert.equal(plan.changed, true);
   assert.deepEqual(plan.start, input.current, 'the rendered position, never the old slot, owns frame zero');
   assert.deepEqual(plan.target, input.resolvedTarget);
-  assert.ok(plan.durationFrames >= 20 && plan.durationFrames <= 36);
+  assert.ok(plan.durationFrames >= 28 && plan.durationFrames <= 56);
 
   const samples = Array.from({ length: plan.durationFrames + 1 }, (_, frame) => (
     runtime.sampleFormationSlotTransition({

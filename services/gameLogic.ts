@@ -221,7 +221,11 @@ import {
   type ConfiguredFormationMode,
   type ResolvedFormationChoreography
 } from './gameplay/formations';
-import { ESCORT_POD_SIZE, resolveFormationDiveMotion } from './gameplay/formations/FormationRuntime';
+import {
+  ESCORT_POD_SIZE,
+  resolveFormationDiveMotion,
+  shouldEndFormationDivePass
+} from './gameplay/formations/FormationRuntime';
 import {
   MAX_GENERATED_BOSS_PROJECTILES_PER_CUE,
   getGeneratedBossTechniqueCue,
@@ -9363,7 +9367,13 @@ export class GameEngine {
     enemy.vy = lerp(enemy.vy, diveMotion.velocityY, diveMotion.steering);
     enemy.angle = diveMotion.angle;
 
-    if (enemy.y > this.height + 72 || enemy.x < -140 || enemy.x > this.width + 140) {
+    if (shouldEndFormationDivePass({
+      current: { x: enemy.x, y: enemy.y },
+      entityWidth: enemy.width,
+      entityHeight: enemy.height,
+      viewport: { width: this.width, height: this.height },
+      ageFrames: diveAge
+    })) {
       // A kamikaze commits: it does not loop back into the block. Letting it
       // re-enter turned a one-way threat into just another diver.
       if (choreography?.returnId === 'exit'

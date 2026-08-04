@@ -179,6 +179,51 @@ test('offscreen slot corrections reveal promptly while visible corrections remai
   assert.ok(visible.y < 92, 'an already visible member keeps the gentle no-snap settle');
 });
 
+test('completed dive passes cannot leave a live survivor hidden beside the viewport', () => {
+  const common = {
+    entityWidth: 40,
+    entityHeight: 44,
+    viewport,
+    current: { x: -52, y: 180 }
+  };
+  assert.equal(
+    runtime.shouldEndFormationDivePass({ ...common, ageFrames: 23 }),
+    false,
+    'a fresh flank still gets enough time to read as an intentional maneuver'
+  );
+  assert.equal(
+    runtime.shouldEndFormationDivePass({ ...common, ageFrames: 24 }),
+    true,
+    'a committed diver reforms as soon as its full hull clears the edge'
+  );
+  assert.equal(runtime.shouldEndFormationDivePass({
+    ...common,
+    current: { x: 80, y: 180 },
+    ageFrames: 180
+  }), false, 'an on-screen dive is never recalled just because it is old');
+  assert.equal(runtime.shouldEndFormationDivePass({
+    ...common,
+    current: { x: -141, y: 180 },
+    ageFrames: 0
+  }), true, 'the existing hard safety bound remains immediate');
+  const m17bRightEdge = {
+    current: { x: 399, y: 534.494 },
+    entityWidth: 50,
+    entityHeight: 41,
+    viewport: { width: 390, height: 844 }
+  };
+  assert.equal(
+    runtime.shouldEndFormationDivePass({ ...m17bRightEdge, ageFrames: 76 }),
+    true,
+    'the exact M17B Orbit Disc survivor cannot linger beyond the phone edge'
+  );
+  assert.equal(
+    runtime.shouldEndFormationDivePass({ ...m17bRightEdge, ageFrames: 23 }),
+    false,
+    'the same right-wing break keeps its readable commitment grace'
+  );
+});
+
 test('spiral entry completes visible turns and double helix keeps opposite strands', () => {
   const common = {
     count: 8,

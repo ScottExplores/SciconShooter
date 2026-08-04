@@ -247,6 +247,14 @@ export interface FormationDiveMotion {
   steering: number;
 }
 
+export interface FormationDiveExitInput {
+  current: FormationPoint;
+  entityWidth: number;
+  entityHeight: number;
+  viewport: FormationViewport;
+  ageFrames: number;
+}
+
 export interface FormationMovementPointInput {
   movementId: FormationMovementId;
   base: FormationPoint;
@@ -581,13 +589,17 @@ export const resolveFormationSlotTransition = ({
     resolvedTarget.x - current.x,
     resolvedTarget.y - current.y
   );
+  const offscreen = current.y < 0;
   return {
     changed: targetShift > 0.01,
     start: { x: current.x, y: current.y },
     target: { x: resolvedTarget.x, y: resolvedTarget.y },
-    // Roughly 0.3-0.6 seconds at 60 Hz. Longer corrections receive more time,
-    // keeping the maximum per-frame travel bounded on narrow phones.
-    durationFrames: Math.round(clamp(18 + travelDistance * 0.16, 20, 36))
+    // Visible corrections remain roughly 0.3-0.6 seconds. An offscreen member
+    // gets up to 0.93 seconds: its ease-out reaches the viewport early, while
+    // the longer tail keeps every fixed-step move below the mobile snap limit.
+    durationFrames: Math.round(offscreen
+      ? clamp(24 + travelDistance * 0.22, 28, 56)
+      : clamp(18 + travelDistance * 0.16, 20, 36))
   };
 };
 
@@ -1611,6 +1623,36 @@ export const resolveFormationDiveMotion = ({
     angle,
     steering
   };
+};
+
+/**
+ * Ends a dive once the ship has completed a readable on-screen commitment and
+ * fully crossed an edge. The wider hard bounds remain an immediate safety net,
+ * while the tight bounds prevent an active survivor from spending a second or
+ * more invisible beside the playfield before its return pass begins.
+ */
+export const shouldEndFormationDivePass = ({
+  current,
+  entityWidth,
+  entityHeight,
+  viewport,
+  ageFrames
+}: FormationDiveExitInput): boolean => {
+  const x = Number(current.x) || 0;
+  const y = Number(current.y) || 0;
+  const width = Math.max(0, Number(entityWidth) || 0);
+  const height = Math.max(0, Number(entityHeight) || 0);
+  const viewportWidth = Math.max(1, Number(viewport.width) || 0);
+  const viewportHeight = Math.max(1, Number(viewport.height) || 0);
+
+  if (y > viewportHeight + 72 || x < -140 || x > viewportWidth + 140) return true;
+  if (Math.max(0, Math.floor(Number(ageFrames) || 0)) < 24) return false;
+
+  const edgeMargin = 8;
+  return y + height < -edgeMargin
+    || x + width < -edgeMargin
+    || x > viewportWidth + edgeMargin
+    || y > viewportHeight + edgeMargin;
 };
 
 const FORMATION_HOLD_FRAMES: Readonly<Record<ConfiguredFormationMode, number>> = Object.freeze({
