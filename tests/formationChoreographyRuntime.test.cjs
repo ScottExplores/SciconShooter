@@ -314,7 +314,24 @@ test('authored attack verbs select distinct dive maneuvers', () => {
 });
 
 // The two arcade train routes added for the Galaxiga-style swarm pass.
+// Train members board through the REAL corner gate the spawn resolver
+// assigns, so these routes are sampled exactly as the engine flies them.
+const trainGate = (entryPathId, entryDirection) => runtime.resolveConfiguredFormationSpawnPoint({
+  event: {
+    id: 'train-proof-event',
+    patternId: 'v',
+    positionId: 'formation-top',
+    entryPathId,
+    entryDirection
+  },
+  index: 0,
+  count: 8,
+  viewport,
+  randomSample: 0.5
+});
+
 const sampleTrainRoute = (entryPath, entryDirection) => {
+  const start = trainGate(entryPath, entryDirection);
   const points = [];
   for (let step = 0; step <= 240; step++) {
     points.push(runtime.resolveFormationCohortEntryPose({
@@ -326,14 +343,14 @@ const sampleTrainRoute = (entryPath, entryDirection) => {
       viewport,
       entityWidth: 34,
       entityHeight: 30,
-      start: { x: 40, y: -60 },
+      start,
       target: { x: 210, y: 150 },
       entryPath,
       entryDirection,
       entryBehavior: 'formation'
     }));
   }
-  return points;
+  return { start, points };
 };
 
 const countDirectionChanges = (points, axis) => {
@@ -348,28 +365,55 @@ const countDirectionChanges = (points, axis) => {
   return changes;
 };
 
-test('loop-the-loop performs a full visible loop and still lands on its slot', () => {
-  const points = sampleTrainRoute('loop-the-loop', 'left');
-  const first = points[0];
+// Equal progress must cover equal distance: the play-report complaint was
+// entries bursting on screen because easing front-loaded the travel. Chord
+// speed legitimately compresses through a turnaround (constant arc speed, but
+// consecutive positions sit close together), so the spread allowance is per
+// route: tight for the loop's open circle, looser for the snake's banked
+// turns.
+const assertConstantCruise = (points, label, maximumSpread) => {
+  const speeds = [];
+  for (let index = 1; index < points.length; index++) {
+    speeds.push(Math.hypot(
+      points[index].x - points[index - 1].x,
+      points[index].y - points[index - 1].y
+    ));
+  }
+  const middle = speeds.slice(Math.floor(speeds.length * 0.05), Math.ceil(speeds.length * 0.95));
+  const fastest = Math.max(...middle);
+  const slowest = Math.min(...middle);
+  assert.ok(
+    fastest / Math.max(0.001, slowest) <= maximumSpread,
+    `${label} cruises at a near-constant speed (${(fastest / slowest).toFixed(2)}x spread)`
+  );
+};
+
+test('loop-the-loop boards low on the flank, runs one full loop, and lands on its slot', () => {
+  const { start, points } = sampleTrainRoute('loop-the-loop', 'left');
+  // The gate is a fixed low-side corner, shared by the whole train.
+  assert.ok(start.x < 0, 'boards from off the left edge');
+  assert.ok(start.y > viewport.height * 0.5, 'boards low on the flank');
   const last = points[points.length - 1];
-  assert.equal(Math.round(first.x), 40);
-  assert.equal(Math.round(first.y), -60);
   assert.equal(Math.round(last.x), 210);
   assert.equal(Math.round(last.y), 150);
   assert.equal(last.phase, 'settle');
   // A real loop climbs back up at least once mid-route.
   assert.ok(countDirectionChanges(points, 'y') >= 2, 'route reverses vertically through the loop');
-  // The loop stays inside the visible field on a phone viewport.
-  assert.ok(points.every((point) => point.x > -40 && point.x < viewport.width + 40));
-  assert.ok(points.every((point) => point.y < viewport.height * 0.5));
+  assert.ok(points.every((point) => point.x > -84 && point.x < viewport.width + 84));
+  // Once past the climb, the loop and glide live in the upper half.
+  assert.ok(points.slice(100).every((point) => point.y < viewport.height * 0.5));
+  assertConstantCruise(points, 'loop-the-loop', 1.5);
 });
 
-test('serpentine-weave sweeps wide S-curves before assembling', () => {
-  const points = sampleTrainRoute('serpentine-weave', 'top');
+test('serpentine-weave boards at a top corner and sweeps wide S-curves into rank', () => {
+  const { start, points } = sampleTrainRoute('serpentine-weave', 'right');
+  assert.ok(start.x > viewport.width, 'boards from off the right edge');
+  assert.ok(start.y < viewport.height * 0.12, 'boards at the top corner');
   const last = points[points.length - 1];
   assert.equal(Math.round(last.x), 210);
   assert.equal(Math.round(last.y), 150);
   assert.ok(countDirectionChanges(points, 'x') >= 4, 'route weaves across the field');
   const xs = points.map((point) => point.x);
   assert.ok(Math.max(...xs) - Math.min(...xs) > viewport.width * 0.45, 'sweep is wide enough to read');
+  assertConstantCruise(points, 'serpentine-weave', 2.2);
 });

@@ -808,6 +808,14 @@ export class Entity {
   formationSlotTransitionActive: boolean = false;
   /** Frame when assembled formation motion began, used for a no-snap blend-in. */
   formationMotionStartFrame: number = -1;
+  /** Transform-cycle morphs crossfade between shapes instead of snapping. */
+  formationMotionCycleSeen: number = -1;
+  formationMotionPreviousCycle: number = -1;
+  formationMotionCycleChangedFrame: number = -1;
+  /** Smoothed group center: deaths shift the live average stepwise, and
+   * mirrored/rotated movements amplify that step into a same-frame teleport. */
+  formationCenterSmoothX: number = Number.NaN;
+  formationCenterSmoothY: number = Number.NaN;
   formationGroupReady: boolean = false;
   formationAttackSelected: boolean = false;
   formationAttackActive: boolean = false;
@@ -8764,6 +8772,19 @@ export class GameEngine {
           member.formationTargetY = transition.target.y;
           member.formationSlotLocked = true;
           if (!transition.changed) return;
+          // A member still flying toward its slot keeps flying: the cohort
+          // route's tail and the return lerp both read formationTarget fresh
+          // every frame, so moving the aim point bends the remaining flight
+          // smoothly. Restarting either as a straight-line transition visibly
+          // yanked ships off their path ("they glitch back into place" --
+          // Scott's play report).
+          if (
+            ((member.formationState === 'entry' && member.formationCohortEntry)
+              || member.formationState === 'return')
+            && !member.formationSlotTransitionActive
+          ) {
+            return;
+          }
           member.formationStartX = transition.start.x;
           member.formationStartY = transition.start.y;
           member.formationState = 'entry';
@@ -9024,6 +9045,12 @@ export class GameEngine {
       enemy.height = Math.round(44 * SPIRAL_PAYWALL_INTERCEPTOR_SCALE * REGULAR_ENEMY_SIZE_SCALE);
     }
     const target = this.getConfiguredFormationTarget(event, index, count, enemy.width, enemy.height);
+    // Blocks that join a wave already in progress park one band lower, so a
+    // second squadron never competes for the first squadron's airspace and the
+    // collision resolver has no reason to shuffle settled ships.
+    if ((Number(event.startSeconds) || 0) >= 0.6) {
+      target.y = Math.min(this.height * 0.52, target.y + Math.min(64, this.height * 0.085));
+    }
     const sideSentry = Boolean(enemy.spriteUrl?.includes('/wall-sniper-'));
     const plan = resolveFormationEntryPlan({
       eventId: event.id,
@@ -9257,6 +9284,12 @@ export class GameEngine {
         enemy.formationState = 'hold';
         enemy.formationStateFrame = this.frameCount;
         if (state === 'return') enemy.formationAttackActive = false;
+        // Re-arming the transform crossfade here is essential: a diver's cycle
+        // advanced while it was away, and blending "from" the old cycle would
+        // sample the mirrored pre-dive geometry and yank the ship across the
+        // field on its first held frame.
+        enemy.formationMotionCycleSeen = -1;
+        enemy.formationMotionPreviousCycle = -1;
       }
       return true;
     }
@@ -9296,17 +9329,52 @@ export class GameEngine {
         : 0;
       if (choreography) {
         const members = instanceId ? this.getCampaignFormationPackInstanceMembers(instanceId) : [enemy];
-        const point = resolveFormationMovementPoint({
+        const liveCenter = this.getCampaignFormationPackInstanceCenter(members);
+        // Deaths move the live average in one step, and the mirrored/rotated
+        // movement math doubles that step into a visible teleport. Every
+        // member eases its working center toward the live one instead.
+        if (Number.isNaN(enemy.formationCenterSmoothX)) {
+          enemy.formationCenterSmoothX = liveCenter.x;
+          enemy.formationCenterSmoothY = liveCenter.y;
+        } else {
+          enemy.formationCenterSmoothX = lerp(enemy.formationCenterSmoothX, liveCenter.x, 0.05);
+          enemy.formationCenterSmoothY = lerp(enemy.formationCenterSmoothY, liveCenter.y, 0.05);
+        }
+        const groupCenter = { x: enemy.formationCenterSmoothX, y: enemy.formationCenterSmoothY };
+        const sampleMovementPoint = (transformCycle: number) => resolveFormationMovementPoint({
           movementId: choreography.movementId,
           base: { x: targetX, y: targetY },
-          groupCenter: this.getCampaignFormationPackInstanceCenter(members),
+          groupCenter,
           frame: this.frameCount,
           groupSeed: enemy.formationGroupSeed,
           index: enemy.formationIndex,
           count: enemy.encounterGroupSize,
           viewport: { width: this.width, height: this.height },
-          transformCycle: enemy.formationCycle
+          transformCycle
         });
+        // Transform-cycle shape changes crossfade over ~0.8s. Sampling only
+        // the new cycle teleported ships a full lane in one frame, which read
+        // as formations swapping members ("groups mixing up" in play).
+        if (enemy.formationMotionCycleSeen < 0) enemy.formationMotionCycleSeen = enemy.formationCycle;
+        if (enemy.formationMotionCycleSeen !== enemy.formationCycle) {
+          enemy.formationMotionPreviousCycle = enemy.formationMotionCycleSeen;
+          enemy.formationMotionCycleSeen = enemy.formationCycle;
+          enemy.formationMotionCycleChangedFrame = this.frameCount;
+        }
+        let point = sampleMovementPoint(enemy.formationCycle);
+        if (enemy.formationMotionPreviousCycle >= 0) {
+          const morph = clamp((this.frameCount - enemy.formationMotionCycleChangedFrame) / 48, 0, 1);
+          if (morph >= 1) {
+            enemy.formationMotionPreviousCycle = -1;
+          } else {
+            const previousPoint = sampleMovementPoint(enemy.formationMotionPreviousCycle);
+            const ease = morph * morph * (3 - 2 * morph);
+            point = {
+              x: lerp(previousPoint.x, point.x, ease),
+              y: lerp(previousPoint.y, point.y, ease)
+            };
+          }
+        }
         enemy.x = lerp(targetX, point.x + strafeOffset + (escortSpin?.x ?? 0), motionBlend);
         enemy.y = lerp(targetY, point.y + (escortSpin?.y ?? 0), motionBlend);
       } else {

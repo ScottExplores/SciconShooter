@@ -692,11 +692,11 @@ const FORMATION_ENTRY_PATH_PROFILES: Readonly<Record<FormationEntryPathId, Forma
   'mirrored-swoop': { entryFrames: 112, lateralScale: 0.2, turns: 0.75, bloomStart: 0.5 },
   'pod-converge': { entryFrames: 118, lateralScale: 0.2, turns: 0.8, bloomStart: 0.55 },
   'convoy-column': { entryFrames: 124, lateralScale: 0.12, turns: 0.6, bloomStart: 0.62 },
-  // The two arcade train routes. Long entries with late blooms so a staggered
-  // single-file cohort reads as one procession following the leader, exactly
-  // like the classic Galaxian-family intros.
-  'loop-the-loop': { entryFrames: 172, lateralScale: 0.26, turns: 1, bloomStart: 0.68 },
-  'serpentine-weave': { entryFrames: 156, lateralScale: 0.32, turns: 2.6, bloomStart: 0.62 }
+  // The two arcade train routes: constant-cruise corner entries whose route
+  // ends exactly on each member's slot (no bloom correction). Long timings so
+  // a staggered single-file cohort reads as one calm procession.
+  'loop-the-loop': { entryFrames: 204, lateralScale: 0.26, turns: 1, bloomStart: 0.86 },
+  'serpentine-weave': { entryFrames: 184, lateralScale: 0.32, turns: 2.6, bloomStart: 0.86 }
 });
 
 const getFormationEntryPathProfile = (
@@ -1107,6 +1107,26 @@ export const resolveConfiguredFormationSpawnPoint = ({
   if (entryBehavior === 'lane') direction = 'top';
   if (entryBehavior === 'flank' && direction === 'top') direction = 'split';
 
+  // Train routes use one fixed corner gate per stream: every member spawns at
+  // the same point and the spawn stagger alone strings them into a single
+  // file behind the leader. Loops board low on the flank; serpentines board
+  // at a top corner. Checked before the generic side-lane branch so the
+  // train gate wins over the authored left/right lanes.
+  if (entryPathId === 'loop-the-loop' || entryPathId === 'serpentine-weave') {
+    const gateSide = direction === 'left'
+      ? -1
+      : direction === 'right'
+        ? 1
+        : direction === 'split'
+          ? side
+          : (getFormationGroupSeed(event.id) % 2 === 0 ? -1 : 1);
+    const gateX = gateSide < 0 ? -70 : width + 70;
+    const gateY = entryPathId === 'loop-the-loop'
+      ? height * 0.62
+      : Math.max(20, height * 0.07);
+    return { x: gateX, y: gateY };
+  }
+
   // Direction is an independent authored dimension. Side and split entries
   // retain main's off-screen lanes; top entries are then shaped by the resolved
   // choreography path (pack default or per-Wave override).
@@ -1331,6 +1351,179 @@ const cubicBezier = (
     + progress * progress * progress * end;
 };
 
+/** The two arcade train routes ride bespoke constant-speed geometry. */
+export const isTrainEntryPath = (path: string | undefined) => {
+  const normalized = normalizeEntryPath(path);
+  return normalized === 'loop-the-loop' || normalized === 'serpentine-weave';
+};
+
+const trainRouteSide = (
+  direction: FormationEntryDirection | undefined,
+  groupSeed: number,
+  index: number
+) => {
+  if (direction === 'left') return -1;
+  if (direction === 'right') return 1;
+  if (direction === 'split') return (index + groupSeed) % 2 === 0 ? -1 : 1;
+  return groupSeed % 2 === 0 ? -1 : 1;
+};
+
+interface TrainRouteSegment {
+  length: number;
+  point: (u: number) => FormationPoint;
+}
+
+const polylineSegment = (point: (u: number) => FormationPoint, steps: number): TrainRouteSegment => {
+  let length = 0;
+  let previous = point(0);
+  const cumulative = [0];
+  for (let step = 1; step <= steps; step++) {
+    const next = point(step / steps);
+    length += Math.hypot(next.x - previous.x, next.y - previous.y);
+    cumulative.push(length);
+    previous = next;
+  }
+  return {
+    length,
+    point: (u: number) => {
+      // Invert the mini arc-length table so travel along this segment is
+      // uniform in distance, not in raw parameter.
+      const target = clamp(u, 0, 1) * length;
+      let index = 1;
+      while (index < cumulative.length - 1 && cumulative[index] < target) index++;
+      const spanStart = cumulative[index - 1];
+      const span = Math.max(0.0001, cumulative[index] - spanStart);
+      const localT = (index - 1 + (target - spanStart) / span) / steps;
+      return point(localT);
+    }
+  };
+};
+
+const bezierSegment = (
+  p0: FormationPoint,
+  c1: FormationPoint,
+  c2: FormationPoint,
+  p1: FormationPoint
+): TrainRouteSegment => polylineSegment((t) => ({
+  x: cubicBezier(p0.x, c1.x, c2.x, p1.x, t),
+  y: cubicBezier(p0.y, c1.y, c2.y, p1.y, t)
+}), 40);
+
+/**
+ * Builds the whole-route segment list for one train member. Every member of a
+ * cohort shares the same gate and body; only the final glide differs, ending
+ * exactly on the member's own slot so no bloom correction is ever needed.
+ */
+const buildTrainRouteSegments = (
+  path: FormationEntryPathId,
+  input: FormationCohortEntryPoseInput,
+  routeSide: number
+): TrainRouteSegment[] => {
+  const width = Math.max(1, input.viewport.width);
+  const height = Math.max(1, input.viewport.height);
+  const start = input.start;
+  const target = input.target;
+
+  if (path === 'loop-the-loop') {
+    // Enter low from a side gate, climb the flank, run one full circle high
+    // over midfield, then glide down the far tangent into rank. The angular
+    // direction keeps the climb, the loop, and the exit tangent-continuous.
+    const spin = routeSide < 0 ? 1 : -1;
+    const center = {
+      x: width * 0.5,
+      y: clamp(height * 0.24, 96, height * 0.3)
+    };
+    const radius = Math.min(width * 0.21, 92);
+    const loopBottom = { x: center.x, y: center.y + radius };
+    const climb = bezierSegment(
+      start,
+      { x: mix(start.x, loopBottom.x, 0.16), y: start.y - height * 0.17 },
+      { x: loopBottom.x - spin * width * 0.26, y: loopBottom.y + height * 0.015 },
+      loopBottom
+    );
+    const loop: TrainRouteSegment = {
+      length: Math.PI * 2 * radius,
+      point: (u: number) => {
+        const angle = spin * Math.PI * 2 * clamp(u, 0, 1);
+        return {
+          x: center.x + radius * Math.sin(angle),
+          y: center.y + radius * Math.cos(angle)
+        };
+      }
+    };
+    const glide = bezierSegment(
+      loopBottom,
+      { x: loopBottom.x + spin * width * 0.2, y: loopBottom.y + height * 0.01 },
+      { x: target.x, y: target.y + height * 0.09 },
+      target
+    );
+    return [climb, loop, glide];
+  }
+
+  // serpentine-weave: in from a top corner, sweep flat S-curves across the
+  // field while descending, then a short glide into rank.
+  const margin = width * 0.1;
+  const amplitude = width * 0.5 - margin;
+  const crossings = 4.5;
+  const sweepTop = Math.max(24, height * 0.075);
+  const sweepFloor = Math.max(sweepTop + height * 0.12, target.y - height * 0.04);
+  // The quarter-phase vertical component rounds each turnaround into an arc
+  // instead of a hairpin, the way the classic snake banks through its turns.
+  const rounding = Math.min(30, height * 0.034);
+  const sweepPoint = (u: number) => ({
+    x: width * 0.5 + routeSide * amplitude * Math.cos(Math.PI * crossings * u),
+    y: sweepTop
+      + (sweepFloor - sweepTop) * u
+      + rounding * Math.sin(Math.PI * crossings * u) * routeSide
+  });
+  const approach = bezierSegment(
+    start,
+    { x: mix(start.x, sweepPoint(0).x, 0.5), y: mix(start.y, sweepTop, 0.4) },
+    { x: mix(start.x, sweepPoint(0).x, 0.85), y: sweepTop },
+    sweepPoint(0)
+  );
+  // Dense sampling: the turnarounds compress chord lengths, and a coarse
+  // table put visible speed ripples exactly at the S-curve extremes.
+  const sweep = polylineSegment(sweepPoint, 120);
+  const sweepEnd = sweepPoint(1);
+  const glide = bezierSegment(
+    sweepEnd,
+    { x: mix(sweepEnd.x, target.x, 0.35), y: mix(sweepEnd.y, target.y, 0.3) },
+    { x: mix(sweepEnd.x, target.x, 0.7), y: mix(sweepEnd.y, target.y, 0.75) },
+    target
+  );
+  return [approach, sweep, glide];
+};
+
+const sampleTrainRoutePoint = (
+  path: FormationEntryPathId,
+  input: FormationCohortEntryPoseInput,
+  progress: number
+): FormationPoint & { assemblyProgress: number } => {
+  const routeSide = trainRouteSide(
+    normalizeEntryDirection(input.entryDirection),
+    input.groupSeed,
+    input.index
+  );
+  const segments = buildTrainRouteSegments(path, input, routeSide);
+  const totalLength = segments.reduce((sum, segment) => sum + segment.length, 0);
+  // Constant cruise: equal progress covers equal distance across the whole
+  // route, so the entry reads calm instead of bursting through its easing.
+  let remaining = clamp(progress, 0, 1) * totalLength;
+  let point = segments[segments.length - 1].point(1);
+  for (const segment of segments) {
+    if (remaining <= segment.length) {
+      point = segment.point(segment.length <= 0 ? 1 : remaining / segment.length);
+      break;
+    }
+    remaining -= segment.length;
+  }
+  return {
+    ...point,
+    assemblyProgress: smoothUnit((progress - 0.86) / 0.14)
+  };
+};
+
 const sampleFormationCohortRoutePoint = (
   input: FormationCohortEntryPoseInput,
   sampleProgress: number
@@ -1338,6 +1531,7 @@ const sampleFormationCohortRoutePoint = (
   const progress = clamp(sampleProgress, 0, 1);
   const path = (normalizeEntryPath(input.entryPath)
     ?? defaultEntryPathForMode(input.mode)) as FormationEntryPathId;
+  if (isTrainEntryPath(path)) return sampleTrainRoutePoint(path, input, progress);
   const profile = getFormationEntryPathProfile(path, input.mode);
   const direction = normalizeEntryDirection(input.entryDirection);
   const behavior = normalizeEntryBehavior(input.entryBehavior);
@@ -1367,43 +1561,22 @@ const sampleFormationCohortRoutePoint = (
     : clamp(input.start.y + viewportHeight * 0.08, 24, viewportHeight * 0.2);
   const controlBX = anchorX + sideControl * (behavior === 'flank' ? 1.35 : behavior === 'lane' ? 0.45 : 0.85);
   const controlBY = anchorY - viewportHeight * (behavior === 'dive' ? 0.12 : 0.075);
-  // Pull the shared route onto the screen quickly, then spend the remainder
+  // Pull the shared route onto the screen promptly, then spend the remainder
   // of the deliberately long entry on visible spirals, braids, and assembly.
   // A linear base curve left a late cohort completely offscreen after the
   // previous group was cleared, creating dead air even though its simulation
-  // was active. The maneuver envelope below remains on linear fixed-step time,
-  // so this changes visibility rather than shortening the authored arrival.
-  const approachProgress = 1 - Math.pow(1 - progress, 2.15);
+  // was active. The exponent is a compromise: 2.15 got on screen fast but
+  // burst across the field (play report: "enemies come in too fast"); 1.45
+  // still front-loads visibility without the whip-crack opening.
+  const approachProgress = 1 - Math.pow(1 - progress, 1.45);
   let x = cubicBezier(input.start.x, controlAX, controlBX, anchorX, approachProgress);
   let y = cubicBezier(input.start.y, controlAY, controlBY, anchorY, approachProgress);
 
   const envelope = Math.pow(Math.sin(progress * Math.PI), 0.82);
   const turnPhase = progress * Math.PI * 2 * profile.turns + (input.groupSeed % 17) * 0.035;
-  const lateral = Math.min(
-    viewportWidth * profile.lateralScale,
-    path === 'serpentine-weave' ? 156 : 122
-  );
+  const lateral = Math.min(viewportWidth * profile.lateralScale, 122);
 
-  if (path === 'loop-the-loop') {
-    // One full vertical circle mid-route: the circular displacement sweeps a
-    // complete revolution while the base approach keeps advancing, so the
-    // combined path draws the classic arcade loop, then hands the tail of the
-    // flight to the slot bloom. Radius eases in and out so the loop joins the
-    // approach smoothly, and split trains loop with opposite chirality.
-    const loopPhase = clamp((progress - 0.24) / 0.38, 0, 1);
-    const loopEase = smoothUnit(loopPhase);
-    const fade = Math.sin(loopPhase * Math.PI);
-    const radius = Math.min(viewportWidth * 0.24, 118);
-    const spin = loopEase * Math.PI * 2;
-    const chirality = routeSide || 1;
-    x += Math.sin(spin) * radius * fade * chirality;
-    y += (1 - Math.cos(spin)) * radius * 0.52 * fade;
-  } else if (path === 'serpentine-weave') {
-    // Wide flat S-curves across the field with a gentle vertical wobble; the
-    // amplitude decays through the envelope as the train nears its slots.
-    x += Math.sin(turnPhase) * lateral * envelope * (routeSide || 1);
-    y += Math.cos(turnPhase * 0.5) * Math.min(26, lateral * 0.18) * envelope;
-  } else if (path === 'spiral-entry' || path === 'ring-assemble') {
+  if (path === 'spiral-entry' || path === 'ring-assemble') {
     // One shrinking orbital ribbon. Members share its center/tangent and only
     // take on their final slot during the late bloom.
     x += Math.cos(turnPhase) * lateral * envelope;
@@ -1821,7 +1994,12 @@ export const resolveFormationMovementPoint = ({
     groupX = Math.sin(phase) * Math.min(viewport.width * 0.045, 20);
   }
 
-  if (transformCycle % 2 === 1) relativeX *= -1;
+  // The odd-cycle horizontal mirror is gone: member cycles advance while
+  // ships are parked (pack attack cycles, dive returns), and every path to an
+  // odd cycle instant-flipped settled ships across the field -- the exact
+  // "glitch back into place / formations mixing" from Scott's play report.
+  // Shape variety between cycles now comes from the wheel's stepped rotation,
+  // which the engine crossfades.
   return {
     x: groupCenter.x + relativeX + groupX,
     y: groupCenter.y + relativeY + groupY
