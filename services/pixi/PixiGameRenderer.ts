@@ -972,12 +972,13 @@ export const PIXI_GAMEPLAY_STARTUP_TEXTURE_URLS = Object.freeze([
   ...SHIP_ABILITY_FRAME_URLS,
   ASSETS.POWERUP_MAX_SHOT_AURA,
   ...ASSETS.POWERUP_MAX_SHOT_AURA_FRAMES,
-  ASSETS.RSC_TOKEN
+  ASSETS.RSC_TOKEN,
+  ...ASSETS.RSC_TOKEN_FLIP_FRAMES
 ]);
 
 /**
- * Complete runtime catalog. Environment, companion, and boss art remains
- * available to the shared texture bank, but does not block mission launch.
+ * Complete runtime catalog. The existing bounded Mission loader warms this
+ * list; renderer initialization still blocks only on first-frame startup art.
  */
 export const PIXI_GAMEPLAY_TEXTURE_URLS = Object.freeze([
   ...PIXI_GAMEPLAY_STARTUP_TEXTURE_URLS,
@@ -1022,10 +1023,10 @@ export const PIXI_GAMEPLAY_TEXTURE_URLS = Object.freeze([
 
 let pixiGameplayTexturePreload: Promise<void> | null = null;
 
-/** Warms only first-frame art; later authored art is loaded by entity demand. */
+/** Warms the complete deterministic runtime catalog behind the Mission loader. */
 export const preloadPixiGameplayTextures = () => {
   if (!pixiGameplayTexturePreload) {
-    const urls = [...new Set(PIXI_GAMEPLAY_STARTUP_TEXTURE_URLS.filter(Boolean))];
+    const urls = [...new Set(PIXI_GAMEPLAY_TEXTURE_URLS.filter(Boolean))];
     const warmup = runGameplayAssetPreloadQueue(urls, async (url) => {
         const texture = await Assets.load<Texture>(url);
         texture.source.scaleMode = 'nearest';
@@ -2304,12 +2305,16 @@ export class PixiGameRenderer {
     this.internalWavePresentation = state.wavePresentationKind === 'internal-wave';
     this.lastWavePresentationRevision = state.wavePresentationRevision;
     this.wavePresentationElapsedMs = 0;
-    this.waveLevelText.text = `MISSION ${String(state.levelNumber).padStart(2, '0')} · ${state.levelName.toUpperCase()}`;
-    this.waveNameText.text = state.waveName.toUpperCase();
+    this.waveLevelText.text = state.continuousRun
+      ? 'WEEKLY RUN'
+      : `MISSION ${String(state.levelNumber).padStart(2, '0')} · ${state.levelName.toUpperCase()}`;
+    this.waveNameText.text = state.continuousRun ? '' : state.waveName.toUpperCase();
     this.waveNameText.style.fill = state.waveAccent;
-    this.waveLevelText.visible = !this.internalWavePresentation;
-    this.waveNameText.visible = !this.internalWavePresentation;
-    this.setWaveCounterGlyphs(`${state.waveNumber}/${state.waveTotal}`);
+    this.waveLevelText.visible = state.continuousRun || !this.internalWavePresentation;
+    this.waveNameText.visible = !state.continuousRun && !this.internalWavePresentation;
+    this.setWaveCounterGlyphs(state.continuousRun
+      ? `${state.absoluteWaveNumber}`
+      : `${state.waveNumber}/${state.waveTotal}`);
     this.waveIntroRoot.visible = true;
   }
 
@@ -2800,6 +2805,10 @@ export class PixiGameRenderer {
       if (cached) {
         view.sprite.texture = cached;
         view.sprite.visible = true;
+      } else {
+        // updateEntityView resets visibility before selecting art. Keep an
+        // unresolved same-key request hidden instead of flashing Texture.WHITE.
+        view.sprite.visible = false;
       }
       return;
     }
@@ -2908,6 +2917,13 @@ export class PixiGameRenderer {
         view.body.clear();
         view.hasFallbackBody = false;
       }
+      return;
+    }
+    if (entity.type === EntityType.COIN) {
+      // A missing animated Token frame is preferable to a one-frame generic
+      // diamond, which looks like the pickup is changing shape as it loads.
+      view.body.clear();
+      view.hasFallbackBody = false;
       return;
     }
     if (view.hasFallbackBody) return;
@@ -6036,7 +6052,6 @@ export class PixiGameRenderer {
         const age = Math.max(0, effect.maxLife - effect.life);
         const frameIndex = Math.min(effect.spriteFrames.length - 1, Math.floor(age / 6));
         this.setTexture(view, effect.spriteFrames[frameIndex]);
-        view.sprite.visible = true;
         view.sprite.width = effect.width;
         view.sprite.height = effect.height;
         view.sprite.alpha = clamp(effect.life / Math.min(12, Math.max(1, effect.maxLife)), 0, 1);

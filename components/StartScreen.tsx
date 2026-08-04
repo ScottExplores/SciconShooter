@@ -152,7 +152,6 @@ interface StartScreenProps {
   onRestartOnboarding?: () => void;
   weeklyRunLaunchError?: string | null;
   onDismissWeeklyRunLaunchError?: () => void;
-  weeklyRunActive?: boolean;
   weeklyRunBestScore?: number | null;
   weeklyRunAttemptsRemaining?: number;
   weeklyRunAttemptQuotaUnknown?: boolean;
@@ -793,7 +792,6 @@ const StartScreen: React.FC<StartScreenProps> = ({
   onRestartOnboarding,
   weeklyRunLaunchError = null,
   onDismissWeeklyRunLaunchError,
-  weeklyRunActive = false,
   weeklyRunBestScore = null,
   weeklyRunAttemptsRemaining = WEEKLY_RUN_ATTEMPT_LIMIT,
   weeklyRunAttemptQuotaUnknown = false,
@@ -1498,11 +1496,9 @@ const StartScreen: React.FC<StartScreenProps> = ({
     const purchaseBusy = walletPurchaseStatus.status !== 'idle'
       && walletPurchaseStatus.status !== 'confirmed'
       && walletPurchaseStatus.status !== 'error';
-    const needsServerVerification = !weeklyRunActive
-      && weeklyRunAttemptQuotaUnknown
+    const needsServerVerification = weeklyRunAttemptQuotaUnknown
       && weeklyRunAttemptsRemaining <= 0;
-    const attemptsExhausted = !weeklyRunActive
-      && weeklyRunAttemptsRemaining <= 0
+    const attemptsExhausted = weeklyRunAttemptsRemaining <= 0
       && !needsServerVerification;
     const showAttemptPurchase = attemptsExhausted;
 
@@ -1512,41 +1508,34 @@ const StartScreen: React.FC<StartScreenProps> = ({
           type="button"
           className="sci-weekly-run-entry"
           data-onboarding-target="weekly-run"
-          data-active={weeklyRunActive ? 'true' : 'false'}
           data-attempts-remaining={weeklyRunAttemptsRemaining}
           onClick={onStartWeeklyRun}
           disabled={attemptsExhausted}
-          aria-label={weeklyRunActive
-            ? `Resume Weekly Run. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`
-            : weeklyRunAttemptsRemaining > 0
-              ? `Start Weekly Run. ${WEEKLY_RUN_STARTING_LIVES} lives, ${weeklyRunAttemptsRemaining} attempt${weeklyRunAttemptsRemaining === 1 ? '' : 's'} remain, endless escalating waves and bosses, scored on the weekly board. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`
-              : needsServerVerification
-                ? `Verify any purchased Weekly Run attempts with the server. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`
-                : `Weekly Run attempts used. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`}
+          aria-label={weeklyRunAttemptsRemaining > 0
+            ? `Start Weekly Run. ${WEEKLY_RUN_STARTING_LIVES} lives, ${weeklyRunAttemptsRemaining} attempt${weeklyRunAttemptsRemaining === 1 ? '' : 's'} remain, endless escalating waves and bosses, scored on the weekly board. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`
+            : needsServerVerification
+              ? `Verify any purchased Weekly Run attempts with the server. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`
+              : `Weekly Run attempts used. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`}
         >
           <span className="sci-weekly-run-entry__copy">
             <span className="sci-weekly-run-entry__title">
-              {weeklyRunActive
-                ? 'Resume Run'
-                : weeklyRunAttemptsRemaining > 0
-                  ? 'Weekly Run'
-                  : needsServerVerification
-                    ? 'Verify Entry'
-                    : 'Attempts Used'}
+              {weeklyRunAttemptsRemaining > 0
+                ? 'Weekly Run'
+                : needsServerVerification
+                  ? 'Verify Entry'
+                  : 'Attempts Used'}
             </span>
             <span className="sci-weekly-run-entry__sub">
-              {weeklyRunActive
-                ? 'In Progress · Endless'
-                : weeklyRunAttemptsRemaining > 0
-                  ? `${WEEKLY_RUN_STARTING_LIVES} Lives · ${weeklyRunAttemptsRemaining} Attempt${weeklyRunAttemptsRemaining === 1 ? '' : 's'} Left`
-                  : needsServerVerification
-                    ? 'Checking Wallet Attempts'
-                    : 'Extra Attempts Available'}
+              {weeklyRunAttemptsRemaining > 0
+                ? `${WEEKLY_RUN_STARTING_LIVES} Lives · ${weeklyRunAttemptsRemaining} Attempt${weeklyRunAttemptsRemaining === 1 ? '' : 's'} Left`
+                : needsServerVerification
+                  ? 'Checking Wallet Attempts'
+                  : 'Extra Attempts Available'}
             </span>
           </span>
           <span className="sci-weekly-run-entry__best" aria-hidden="true">
             <b>{formatNumber(weeklyRunBestScore ?? 0)}</b>
-            <small>{weeklyRunActive ? 'Score' : 'Best'}</small>
+            <small>Best</small>
           </span>
         </button>
         {showAttemptPurchase ? (

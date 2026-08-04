@@ -1,12 +1,16 @@
 import type {
   BossEvent,
+  EnemyRoleDefinition,
+  FormationPackDefinition,
   GameCampaignConfig,
   LevelDefinition,
+  SpawnEvent,
   WaveDefinition
 } from '../game-config/types';
 import {
   WEEKLY_RUN_INITIAL_STAGE_COUNT as SHARED_WEEKLY_RUN_INITIAL_STAGE_COUNT,
   WEEKLY_RUN_MAJOR_BOSS_INTERVAL as SHARED_WEEKLY_RUN_MAJOR_BOSS_INTERVAL,
+  WEEKLY_RUN_MAX_PROOF_STAGE_COUNT as SHARED_WEEKLY_RUN_MAX_PROOF_STAGE_COUNT,
   WEEKLY_RUN_MAX_WAVES_PER_STAGE as SHARED_WEEKLY_RUN_MAX_WAVES_PER_STAGE,
   WEEKLY_RUN_MIN_WAVES_PER_STAGE as SHARED_WEEKLY_RUN_MIN_WAVES_PER_STAGE,
   WEEKLY_RUN_STAGE_CHUNK as SHARED_WEEKLY_RUN_STAGE_CHUNK,
@@ -48,6 +52,28 @@ export const WEEKLY_RUN_MAJOR_BOSS_INTERVAL = SHARED_WEEKLY_RUN_MAJOR_BOSS_INTER
 export const WEEKLY_RUN_INITIAL_STAGE_COUNT = SHARED_WEEKLY_RUN_INITIAL_STAGE_COUNT;
 export const WEEKLY_RUN_STAGE_CHUNK = SHARED_WEEKLY_RUN_STAGE_CHUNK;
 
+/**
+ * Materialize true chunks instead of rebuilding the whole runway for every
+ * cleared depth. The opening runway is 24 stages; extensions become 40, 56,
+ * 72, and so on, capped by the shared receipt-proof limit.
+ */
+export const getWeeklyRunMaterializedStageCount = (requiredStageCount: number) => {
+  const required = Math.max(
+    WEEKLY_RUN_INITIAL_STAGE_COUNT,
+    Math.min(
+      SHARED_WEEKLY_RUN_MAX_PROOF_STAGE_COUNT,
+      Math.floor(Number(requiredStageCount) || WEEKLY_RUN_INITIAL_STAGE_COUNT)
+    )
+  );
+  const extensionCount = Math.ceil(
+    (required - WEEKLY_RUN_INITIAL_STAGE_COUNT) / WEEKLY_RUN_STAGE_CHUNK
+  );
+  return Math.min(
+    SHARED_WEEKLY_RUN_MAX_PROOF_STAGE_COUNT,
+    WEEKLY_RUN_INITIAL_STAGE_COUNT + extensionCount * WEEKLY_RUN_STAGE_CHUNK
+  );
+};
+
 /** @deprecated Kept for older tooling; it is the initial materialized runway. */
 export const WEEKLY_RUN_STAGE_COUNT = WEEKLY_RUN_INITIAL_STAGE_COUNT;
 
@@ -73,10 +99,6 @@ const createRandom = (seed: number) => {
   };
 };
 
-const pick = <T>(random: () => number, items: readonly T[]): T => (
-  items[Math.floor(random() * items.length) % items.length]
-);
-
 const shuffle = <T>(random: () => number, items: readonly T[]): T[] => {
   const out = [...items];
   for (let index = out.length - 1; index > 0; index -= 1) {
@@ -85,6 +107,23 @@ const shuffle = <T>(random: () => number, items: readonly T[]): T[] => {
   }
   return out;
 };
+
+const orderedEliteBossIds = (campaign: GameCampaignConfig) => [...campaign.miniBosses]
+  .map((entry, authoredIndex) => ({ entry, authoredIndex }))
+  .sort((left, right) => (
+    left.entry.recommendedPower - right.entry.recommendedPower
+    || left.entry.threatCost - right.entry.threatCost
+    || left.authoredIndex - right.authoredIndex
+  ))
+  .map(({ entry }) => entry.bossId);
+
+const orderedMajorBossIds = (campaign: GameCampaignConfig) => [...campaign.sectors]
+  .map((sector, authoredIndex) => ({ sector, authoredIndex }))
+  .sort((left, right) => (
+    left.sector.order - right.sector.order
+    || left.authoredIndex - right.authoredIndex
+  ))
+  .map(({ sector }) => sector.majorBossId);
 
 /**
  * A linear graph over the generated stages.
@@ -99,8 +138,8 @@ export const buildWeeklyRunGraph = (
   campaign: GameCampaignConfig = DEFAULT_GAME_CAMPAIGN,
   stageCount = WEEKLY_RUN_INITIAL_STAGE_COUNT
 ) => buildWeeklyRunGraphDefinition(weekKey, {
-  eliteBossIds: campaign.miniBosses.map((entry) => entry.bossId),
-  majorBossIds: campaign.sectors.map((sector) => sector.majorBossId),
+  eliteBossIds: orderedEliteBossIds(campaign),
+  majorBossIds: orderedMajorBossIds(campaign),
   stageCount
 }) as GameCampaignConfig['campaignGraph'];
 
@@ -130,8 +169,8 @@ export const planWeeklyRunStages = (
   campaign: GameCampaignConfig = DEFAULT_GAME_CAMPAIGN,
   stageCount = WEEKLY_RUN_INITIAL_STAGE_COUNT
 ): WeeklyRunStagePlan[] => buildWeeklyRunStagePlans(weekKey, {
-  eliteBossIds: campaign.miniBosses.map((entry) => entry.bossId),
-  majorBossIds: campaign.sectors.map((sector) => sector.majorBossId),
+  eliteBossIds: orderedEliteBossIds(campaign),
+  majorBossIds: orderedMajorBossIds(campaign),
   stageCount
 }) as WeeklyRunStagePlan[];
 
@@ -142,19 +181,114 @@ export const planWeeklyRunStages = (
  * a curriculum -- but it still opens with the lighter hulls and folds the
  * heavier ones in as the run climbs, so early waves stay readable.
  */
+export const getWeeklyRunRoleThreatCeiling = (stageIndex: number) => (
+  2 + Math.floor(Math.max(0, stageIndex) / 2)
+);
+
+export const getWeeklyRunFormationSector = (stageIndex: number) => (
+  1 + Math.floor(Math.max(0, stageIndex) / WEEKLY_RUN_MAJOR_BOSS_INTERVAL)
+);
+
+const getWeeklyRunFormationPerformanceCeiling = (stageIndex: number) => (
+  14 + Math.floor(Math.max(0, stageIndex) / WEEKLY_RUN_MAJOR_BOSS_INTERVAL) * 2
+);
+
 const rolesForDepth = (campaign: GameCampaignConfig, stageIndex: number) => {
-  const ceiling = 1 + Math.floor(stageIndex / 2);
-  const pool = campaign.enemyRoles.filter((role) => role.threatCost <= Math.max(2, ceiling + 1));
+  const threatCeiling = getWeeklyRunRoleThreatCeiling(stageIndex);
+  const sector = getWeeklyRunFormationSector(stageIndex);
+  const pool = campaign.enemyRoles.filter((role) => (
+    role.threatCost <= threatCeiling
+    && role.introductionSector <= sector
+  ));
   return pool.length > 0 ? pool : campaign.enemyRoles;
 };
 
-const FORMATION_PATTERNS = ['grid', 'v', 'diamond', 'row', 'sine', 'spiral', 'pincer'] as const;
-const SPAWN_POSITIONS = ['formation-top', 'formation-left', 'formation-right'] as const;
+const formationPacksForDepth = (
+  campaign: GameCampaignConfig,
+  stageIndex: number
+): FormationPackDefinition[] => {
+  const allowedRoleIds = new Set(rolesForDepth(campaign, stageIndex).map((role) => role.id));
+  const sector = getWeeklyRunFormationSector(stageIndex);
+  const performanceCeiling = getWeeklyRunFormationPerformanceCeiling(stageIndex);
+  return campaign.formationPacks.filter((pack) => (
+    pack.minimumSector <= sector
+    && pack.mobilePerformanceCost <= performanceCeiling
+    && pack.enemyRoleIds.length > 0
+    && pack.enemyRoleIds.every((roleId) => allowedRoleIds.has(roleId))
+  ));
+};
 
-const formationPatternsForDepth = (stageIndex: number) => {
-  if (stageIndex < 3) return FORMATION_PATTERNS.slice(0, 3);
-  if (stageIndex < 8) return FORMATION_PATTERNS.slice(0, 5);
-  return FORMATION_PATTERNS;
+const resolvesUniquelyToPack = (
+  target: FormationPackDefinition,
+  declared: readonly FormationPackDefinition[]
+) => {
+  const roleCompatible = declared.filter((candidate) => (
+    target.enemyRoleIds.every((roleId) => candidate.enemyRoleIds.includes(roleId))
+  ));
+  if (roleCompatible.length === 1) return roleCompatible[0].id === target.id;
+  const shapeMatches = roleCompatible.filter((candidate) => (
+    candidate.formationShape === target.formationShape
+  ));
+  return shapeMatches.length === 1 && shapeMatches[0].id === target.id;
+};
+
+/**
+ * A Wave declares every pack it uses, while each Spawn still has to resolve to
+ * exactly one of those declarations. Avoiding subset/shape ambiguity here
+ * keeps authored entry directions and pack admission limits active at runtime.
+ */
+const selectFormationPackTrain = (
+  random: () => number,
+  eligible: readonly FormationPackDefinition[],
+  eventCount: number
+) => {
+  const declared: FormationPackDefinition[] = [];
+  for (const candidate of shuffle(random, eligible)) {
+    const next = [...declared, candidate];
+    if (!next.every((pack) => resolvesUniquelyToPack(pack, next))) continue;
+    declared.push(candidate);
+    if (declared.length >= eventCount) break;
+  }
+  if (declared.length === 0) return { declared, train: [] as FormationPackDefinition[] };
+  return {
+    declared,
+    train: Array.from({ length: eventCount }, (_, index) => declared[index % declared.length])
+  };
+};
+
+const BASE_ENEMY_HEALTH_BY_DURABILITY: Record<EnemyRoleDefinition['durabilityClass'], number> = {
+  light: 2.4,
+  standard: 3.4,
+  armored: 4.8,
+  elite: 6.2
+};
+
+const buildSpawnEnemySettings = (
+  roles: readonly EnemyRoleDefinition[],
+  stage: WeeklyRunStagePlan,
+  eventIndex: number,
+  waveIndex: number
+) => {
+  const seen = new Set<string>();
+  const distinctRoles = roles.filter((role) => (
+    seen.has(role.enemyId) ? false : (seen.add(role.enemyId), true)
+  ));
+  return distinctRoles.map((role, roleIndex, list) => ({
+    enemyId: role.enemyId,
+    spriteKey: role.spriteKey,
+    weight: roleIndex === list.length - 1
+      ? Number((1 - (list.length - 1) * Math.floor(100 / list.length) / 100).toFixed(4))
+      : Math.floor(100 / list.length) / 100,
+    // Endless intensity is applied by the Level exactly once. Base hull stats
+    // describe role durability instead of multiplying the same curve again.
+    health: Number((BASE_ENEMY_HEALTH_BY_DURABILITY[role.durabilityClass]
+      + role.threatCost * 0.18).toFixed(2)),
+    speed: Number((2.12 + Math.min(0.68, role.threatCost * 0.085)).toFixed(2)),
+    damage: 1,
+    scoreValue: Math.round(10 + stage.index * 4),
+    powerupDropChance: eventIndex === 0 && waveIndex === 0 ? 0.12 : 0,
+    roleId: role.id
+  }));
 };
 
 /**
@@ -182,16 +316,24 @@ const resolveAuthoredBossEvent = (
 
 const roundBossTuning = (value: number) => Number(value.toFixed(3));
 
+const WEEKLY_RUN_ELITE_BASE_HEALTH = 120;
+const WEEKLY_RUN_MAJOR_BASE_HEALTH = 500;
+
 /**
- * The wave difficulty multiplier remains the primary endless-run curve. This
- * small authored-health ramp gives the opening elites a fair runway without
- * inventing runtime-only fields that the campaign schema cannot validate.
+ * Authored bosses keep their visuals, components, weapons, phases, and motion,
+ * but their body starts from one Weekly baseline per encounter class. The
+ * Level's single intensity multiplier then provides the endless HP curve. This
+ * prevents a later Campaign boss from inheriting thousands of base HP when it
+ * happens to appear near the start of a Weekly route.
  */
 const tuneAuthoredBossEvent = (
   authored: BossEvent,
   stage: WeeklyRunStagePlan
 ): BossEvent => {
-  const authoredHealthScale = Math.min(1, 0.82 + stage.index * 0.06);
+  const normalizedHealth = stage.kind === 'major'
+    ? WEEKLY_RUN_MAJOR_BASE_HEALTH
+    : WEEKLY_RUN_ELITE_BASE_HEALTH;
+  const authoredHealthScale = normalizedHealth / Math.max(1, Number(authored.health) || 1);
   const warningTarget = Math.max(
     1.1,
     (stage.kind === 'major' ? 2.6 : 2.1) - stage.index * 0.025
@@ -204,7 +346,7 @@ const tuneAuthoredBossEvent = (
     delayAfterSeconds: 0,
     blocksWaveClock: true,
     warningSeconds: roundBossTuning(Math.min(authored.durationSeconds, warningTarget)),
-    health: roundBossTuning(authored.health * authoredHealthScale),
+    health: normalizedHealth,
     ...(authored.componentHealth ? {
       componentHealth: Object.fromEntries(
         Object.entries(authored.componentHealth).map(([componentId, health]) => [
@@ -224,50 +366,73 @@ const buildCombatWave = (
   absoluteWaveNumber: number,
   template: WaveDefinition
 ): WaveDefinition => {
-  const roles = rolesForDepth(campaign, stage.index);
-  const packs = campaign.formationPacks;
-  const patterns = formationPatternsForDepth(stage.index);
+  const eligiblePacks = formationPacksForDepth(campaign, stage.index);
   const eventCount = getWeeklyRunFormationEventCount(stage.index);
-  const events = [];
+  const { declared, train } = selectFormationPackTrain(random, eligiblePacks, eventCount);
+  if (train.length === 0) {
+    throw new Error(`Weekly Run depth ${stage.index + 1} has no eligible authored formation pack.`);
+  }
+  const events: SpawnEvent[] = [];
+  let nextEventStartSeconds = 0;
 
   for (let index = 0; index < eventCount; index += 1) {
-    const pack = pick(random, packs);
+    const pack = train[index];
     const packRoles = pack.enemyRoleIds
       .map((roleId) => campaign.enemyRoles.find((role) => role.id === roleId))
       .filter((role): role is NonNullable<typeof role> => Boolean(role));
-    const chosen = packRoles.length > 0 ? packRoles : [pick(random, roles)];
-    const seen = new Set<string>();
-    const enemies = chosen
-      .filter((role) => (seen.has(role.enemyId) ? false : (seen.add(role.enemyId), true)))
-      .map((role, roleIndex, list) => ({
-        enemyId: role.enemyId,
-        spriteKey: role.spriteKey,
-        weight: roleIndex === list.length - 1
-          ? Number((1 - (list.length - 1) * Math.floor(100 / list.length) / 100).toFixed(4))
-          : Math.floor(100 / list.length) / 100,
-        health: Number((2 + stage.intensity * 2.1).toFixed(2)),
-        speed: Number((2.1 + stage.intensity * 0.28).toFixed(2)),
-        damage: 1,
-        scoreValue: Math.round(10 + stage.index * 4),
-        powerupDropChance: index === 0 && waveIndex === 0 ? 0.12 : 0,
-        roleId: role.id
-      }));
+    if (packRoles.length === 0) {
+      throw new Error(`Weekly Run formation pack ${pack.id} has no resolvable enemy roles.`);
+    }
+    const enemies = buildSpawnEnemySettings(packRoles, stage, index, waveIndex);
+    const count = Math.max(1, Math.min(pack.enemyCount, getWeeklyRunSpawnCount(stage)));
+    const spawnIntervalSeconds = Number(Math.max(0.16, 0.46 - stage.index * 0.006).toFixed(3));
+    const entrySeconds = count * spawnIntervalSeconds;
+    const startSeconds = Number(nextEventStartSeconds.toFixed(2));
+    nextEventStartSeconds += Math.max(2.4, Math.min(4.1, entrySeconds * 0.72 + 1.1));
 
     events.push({
       id: `weekly-run-s${stage.index}-w${waveIndex}-e${index}`,
       kind: 'spawn' as const,
       label: `Squadron ${index + 1}`,
-      startSeconds: Number((index * (2.6 - Math.min(1.2, stage.index * 0.03))).toFixed(2)),
-      durationSeconds: 8,
+      startSeconds,
+      durationSeconds: Number(Math.max(
+        8,
+        entrySeconds
+          + pack.holdSeconds
+          + pack.telegraphSeconds
+          + pack.attackDurationSeconds
+          + pack.attackRecoverySeconds
+      ).toFixed(2)),
       delayAfterSeconds: 0,
       blocksWaveClock: false,
-      count: getWeeklyRunSpawnCount(stage),
-      patternId: pick(random, patterns),
-      positionId: index === 0 ? 'formation-top' : pick(random, SPAWN_POSITIONS),
-      spawnIntervalSeconds: Number(Math.max(0.12, 0.5 - stage.index * 0.008).toFixed(3)),
+      count,
+      patternId: pack.formationShape,
+      positionId: 'formation-top',
+      spawnIntervalSeconds,
+      formationBehavior: {
+        entryPathId: pack.entryPath,
+        movementId: pack.movementBehavior,
+        attackId: pack.attackBehavior,
+        firingBehavior: pack.firingBehavior,
+        returnId: pack.returnBehavior,
+        holdSeconds: pack.holdSeconds,
+        telegraphSeconds: pack.telegraphSeconds,
+        attackDurationSeconds: pack.attackDurationSeconds,
+        recoverySeconds: pack.attackRecoverySeconds,
+        attackGroupSize: Math.min(count, pack.attackGroupSize),
+        attackCycles: pack.attackCycles
+      },
       enemies
     });
   }
+
+  const lastEvent = events[events.length - 1];
+  const waveDurationSeconds = Math.max(
+    16,
+    lastEvent.startSeconds
+      + lastEvent.count * lastEvent.spawnIntervalSeconds
+      + 5
+  );
 
   return {
     ...template,
@@ -275,13 +440,15 @@ const buildCombatWave = (
     name: `Wave ${absoluteWaveNumber}`,
     order: waveIndex + 1,
     completionRule: 'clear-after-duration',
-    difficultyMultiplier: Number(stage.intensity.toFixed(3)),
-    durationSeconds: 16,
+    // Endless intensity lives on Level.startingDifficulty only. Keeping this at
+    // one prevents the resolver from squaring the curve.
+    difficultyMultiplier: 1,
+    durationSeconds: Number(waveDurationSeconds.toFixed(2)),
     introSeconds: 0,
     delayAfterSeconds: 0,
     threatCap: Math.min(46, 16 + Math.round(stage.intensity * 5)),
     combatBudget: 100000,
-    formationPackIds: [],
+    formationPackIds: declared.map((pack) => pack.id),
     events
   } as WaveDefinition;
 };
@@ -309,7 +476,7 @@ const buildBossWave = (
     order: waveIndex + 1,
     // The validator distinguishes canonical major bosses from minibosses.
     completionRule: stage.kind === 'major' ? 'boss-defeat' : 'clear-after-duration',
-    difficultyMultiplier: Number(stage.intensity.toFixed(3)),
+    difficultyMultiplier: 1,
     durationSeconds: Math.max(30, bossEvent.durationSeconds),
     introSeconds: stage.kind === 'major' ? 2 : 1,
     delayAfterSeconds: 2,

@@ -235,7 +235,7 @@ test('gameplay art queue limits concurrent decoders and settles individual failu
   assert.deepEqual(loaded.slice().sort((left, right) => left - right), [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
 });
 
-test('mission startup waits only for first-frame Pixi art and bounds every optional warmup', () => {
+test('mission loading warms the full Pixi catalog while renderer startup remains first-frame bounded', () => {
   const canvas = fs.readFileSync(path.join(root, 'components', 'GameCanvas.tsx'), 'utf8');
   const renderer = fs.readFileSync(
     path.join(root, 'services', 'pixi', 'PixiGameRenderer.ts'),
@@ -254,13 +254,16 @@ test('mission startup waits only for first-frame Pixi art and bounds every optio
   assert.match(canvas, /startupTextureUrls: \[[\s\S]*squadLoadout\?\.companions[\s\S]*companion\.frames/);
   assert.match(renderer, /export const PIXI_GAMEPLAY_STARTUP_TEXTURE_URLS = Object\.freeze\(\[/);
   assert.match(renderer, /export const PIXI_GAMEPLAY_TEXTURE_URLS = Object\.freeze\(\[[\s\S]*\.\.\.PIXI_GAMEPLAY_STARTUP_TEXTURE_URLS/);
-  assert.match(renderer, /new Set\(PIXI_GAMEPLAY_STARTUP_TEXTURE_URLS\.filter\(Boolean\)\)/);
+  assert.match(renderer, /new Set\(PIXI_GAMEPLAY_TEXTURE_URLS\.filter\(Boolean\)\)/);
+  assert.match(startupCatalog, /\.\.\.ASSETS\.RSC_TOKEN_FLIP_FRAMES/);
   assert.match(renderer, /selectedRuntimeTextureUrls = this\.startupTextureUrls\.flatMap/);
   assert.match(renderer, /Object\.values\(motion\.steeringFrames\)/);
   assert.match(renderer, /\.\.\.PIXI_GAMEPLAY_STARTUP_TEXTURE_URLS,[\s\S]*\.\.\.selectedRuntimeTextureUrls/);
   assert.doesNotMatch(renderer, /this\.textureBank\.preload\(\[\.\.\.PIXI_GAMEPLAY_TEXTURE_URLS\]\)/);
   assert.match(renderer, /if \(startupStatus === 'timed-out'\)[\s\S]*this\.bindStartupTextures\(\)/);
   assert.match(renderer, /runGameplayAssetPreloadQueue\(urls, async \(url\)/);
+  assert.match(renderer, /view\.textureKey === key[\s\S]*?else \{[\s\S]*?view\.sprite\.visible = false/);
+  assert.match(renderer, /entity\.type === EntityType\.COIN[\s\S]*?view\.body\.clear\(\)[\s\S]*?return/);
   assert.match(textureBank, /runGameplayAssetPreloadQueue\([\s\S]*\(url\) => this\.load\(url\)/);
   assert.match(textureBank, /waitForGameplayAssetPreload\(warmup\)/);
   [

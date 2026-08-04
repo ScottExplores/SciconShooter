@@ -153,6 +153,8 @@ export interface GameCanvasProps {
   refillLivesAtMissionBoundary?: boolean;
   /** Generated endless depths stay inside one live engine and one continuous fight. */
   continuousStageBoundaries?: boolean;
+  /** Optional per-collision life-loss ceiling, used by single-hit endurance modes. */
+  maxPlayerDamagePerHit?: number;
   previewMode?: boolean;
   audioEnabled?: boolean;
   autoFire?: boolean;
@@ -219,6 +221,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   waveId,
   refillLivesAtMissionBoundary = true,
   continuousStageBoundaries = false,
+  maxPlayerDamagePerHit,
   previewMode = false,
   audioEnabled = !previewMode,
   autoFire = false,
@@ -671,13 +674,24 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
   useEffect(() => {
     const engine = engineRef.current;
+    if (!continuousStageBoundaries || !campaign || !engine) return;
+    engine.replaceCampaignRunway(campaign);
+  }, [campaign, continuousStageBoundaries]);
+
+  useEffect(() => {
+    const engine = engineRef.current;
     if (!waveContinueCommand || !engine) return;
     if (handledWaveContinueNonceRef.current === waveContinueCommand.nonce) return;
+    const runtime = engine.getRuntimeState();
     if (
       continuousStageBoundaries
-      && campaign
-      && !engine.replaceCampaignRunway(campaign)
-    ) return;
+      && waveContinueCommand.targetLevelId
+      && runtime.levelId === waveContinueCommand.targetLevelId
+      && (!waveContinueCommand.targetWaveId || runtime.waveId === waveContinueCommand.targetWaveId)
+    ) {
+      handledWaveContinueNonceRef.current = waveContinueCommand.nonce;
+      return;
+    }
     const continued = waveContinueCommand.targetLevelId
       ? engine.continueToCampaignMission(
           waveContinueCommand.targetLevelId,
@@ -751,7 +765,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     }
 
     // Sync lives only when the UI intentionally raises them, such as a Repair upgrade.
-    if (stats.lives > engine.lives) {
+    if (uiUsedRepair && stats.lives > engine.lives) {
       engine.lives = stats.lives;
       engineStats.lives = stats.lives;
     }
@@ -876,6 +890,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         initialWaveId: waveId,
         refillLivesAtMissionBoundary,
         continuousStageBoundaries,
+        maxPlayerDamagePerHit,
         testMode: testModeRef.current,
         randomSeed: previewMode ? previewSeed : randomSeed,
         previewBossCollisionEventId: setupBossArtwork?.eventId,
@@ -1238,7 +1253,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         dispatchGameOver(timestamp);
       }
 
-      const campaignCompletion = previewMode ? null : engine.getCampaignCompletionSummary();
+      const campaignCompletion = previewMode ? null : engine.takeCampaignCompletionSummary();
       if (campaignCompletion && lastCampaignCompletionIdRef.current !== campaignCompletion.id) {
         lastCampaignCompletionIdRef.current = campaignCompletion.id;
         onCampaignProgressRef.current?.(campaignCompletion);
@@ -1340,7 +1355,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       pendingRenderer?.destroy();
       pendingRenderer = null;
     };
-  }, [audioEnabled, continuousStageBoundaries, previewMode, previewSeed, previewShipAbilityNoCooldown, previewStartingLives, previewUnlimitedBombs, previewViewportHeight, previewViewportWidth, randomSeed, refillLivesAtMissionBoundary, setupBossArtworkDependency, setupCampaignDependency, setupPlayerShipIdDependency, setupPlayerShipUrlDependency, setupSquadLoadoutDependency]);
+  }, [audioEnabled, continuousStageBoundaries, maxPlayerDamagePerHit, previewMode, previewSeed, previewShipAbilityNoCooldown, previewStartingLives, previewUnlimitedBombs, previewViewportHeight, previewViewportWidth, randomSeed, refillLivesAtMissionBoundary, setupBossArtworkDependency, setupCampaignDependency, setupPlayerShipIdDependency, setupPlayerShipUrlDependency, setupSquadLoadoutDependency]);
 
   return (
     <div

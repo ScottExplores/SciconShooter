@@ -11,6 +11,8 @@ interface PauseMenuProps {
   missionName: string;
   waveNumber: number;
   waveTotal: number;
+  absoluteWaveNumber?: number;
+  continuousRun?: boolean;
   sfxVolumeLevel: number;
   musicVolumeLevel: number;
   matchMusicTrackId: MatchMusicTrackId;
@@ -60,6 +62,8 @@ const PauseMenu: React.FC<PauseMenuProps> = ({
   missionName,
   waveNumber,
   waveTotal,
+  absoluteWaveNumber = waveNumber,
+  continuousRun = false,
   sfxVolumeLevel,
   musicVolumeLevel,
   matchMusicTrackId,
@@ -90,15 +94,19 @@ const PauseMenu: React.FC<PauseMenuProps> = ({
 
           <div
             className="sci-pause-mission-position"
-            aria-label={`Mission ${missionNumber}, ${missionName}, wave ${waveNumber} of ${waveTotal}`}
+            aria-label={continuousRun
+              ? `Weekly Run, wave ${absoluteWaveNumber}`
+              : `Mission ${missionNumber}, ${missionName}, wave ${waveNumber} of ${waveTotal}`}
           >
             <span className="sci-pause-mission-position__mission">
-              Mission {String(missionNumber).padStart(2, '0')}
+              {continuousRun ? 'Weekly Run' : `Mission ${String(missionNumber).padStart(2, '0')}`}
             </span>
-            <strong>{missionName}</strong>
-            <span className="sci-pause-mission-position__wave">
-              Wave {waveNumber}/{waveTotal}
-            </span>
+            <strong>{continuousRun ? `Wave ${absoluteWaveNumber}` : missionName}</strong>
+            {!continuousRun ? (
+              <span className="sci-pause-mission-position__wave">
+                Wave {waveNumber}/{waveTotal}
+              </span>
+            ) : null}
           </div>
 
           <div className="sci-pause-actions">

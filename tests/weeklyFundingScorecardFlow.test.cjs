@@ -18,7 +18,7 @@ test('a new weekly leader enters a dedicated proposal step before returning to r
   assert.match(appSource, /weeklyProposalReturnRef\.current = 'results'/);
   assert.match(appSource, /setShowMissionRecordPreview\(weeklyProposalReturnRef\.current === 'record'\)/);
   assert.match(appSource, /View \/ mint/);
-  assert.match(appSource, />RETRY MISSION</);
+  assert.match(appSource, /isWeeklyCampaignRun \? 'NEW WEEKLY RUN' : 'RETRY MISSION'/);
   assert.match(appSource, /onHangar=\{openSquadHangar\}/);
   assert.match(pickerSource, /New weekly high score/);
   assert.match(pickerSource, /You&apos;re #1/);

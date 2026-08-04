@@ -31,7 +31,7 @@ test('Home offers the Campaign entry point and the Weekly Run as separate contro
   assert.match(appSource, /startWeeklyRunFromHome/);
   assert.match(source, /weeklyRunAttemptsRemaining/);
   assert.match(source, /disabled=\{attemptsExhausted\}/);
-  assert.match(source, /needsServerVerification = !weeklyRunActive[\s\S]*weeklyRunAttemptQuotaUnknown/);
+  assert.match(source, /needsServerVerification = weeklyRunAttemptQuotaUnknown[\s\S]*weeklyRunAttemptsRemaining <= 0/);
   assert.match(source, /WEEKLY_RUN_STARTING_LIVES\} Lives · \$\{weeklyRunAttemptsRemaining\} Attempt/);
   assert.match(appSource, /weeklyRunAttemptsRemaining=\{weeklyRunAttemptQuotaOwner === activeWalletAddress\?\.toLowerCase\(\)[\s\S]*weeklyRunAttemptQuota\.attemptsRemaining[\s\S]*getWeeklyRunAttemptsRemaining\(weeklySquadState\)\}/);
   assert.match(appSource, /weeklyRunAttemptQuotaUnknown=\{Boolean\([\s\S]*walletProfileStatus === 'ready'/);
@@ -52,7 +52,7 @@ test('the Weekly Run drawer omits the ship thumbnail and keeps its quota copy co
   assert.doesNotMatch(entry, /sci-weekly-run-entry__glyph|ASSETS\.PLAYER_SHIP/);
   assert.match(entryRule, /grid-template-columns: minmax\(0, 1fr\) auto/);
   assert.doesNotMatch(stylesSource, /sci-weekly-run-entry__glyph/);
-  assert.match(entry, /const attemptsExhausted = !weeklyRunActive[\s\S]*const showAttemptPurchase = attemptsExhausted/);
+  assert.match(entry, /const attemptsExhausted = weeklyRunAttemptsRemaining <= 0[\s\S]*const showAttemptPurchase = attemptsExhausted/);
   assert.match(entry, /weekly-run-attempt/);
   assert.match(entry, /onPurchaseWithRsc\(weeklyAttemptSkuId\)/);
   assert.doesNotMatch(entry, /Free\/Week/);
@@ -60,6 +60,27 @@ test('the Weekly Run drawer omits the ship thumbnail and keeps its quota copy co
   assert.doesNotMatch(entry, /weeklyRunAttemptsRemaining\}\/\$\{WEEKLY_RUN_ATTEMPT_LIMIT/);
   assert.match(entry, /\+1 Attempt/);
   assert.match(entry, /3 RSC/);
+});
+
+test('Weekly Run home entry always starts a fresh flight and presents only the saved best score', () => {
+  const entry = source.slice(
+    source.indexOf('const renderWeeklyRunEntry'),
+    source.indexOf('const renderWeeklyFundingCard')
+  );
+  const launchStart = appSource.indexOf('const startWeeklyRunFromHome');
+  const launch = appSource.slice(
+    launchStart,
+    appSource.indexOf('const selectWeeklyCampaignMissionFromMap', launchStart)
+  );
+
+  assert.doesNotMatch(entry, /weeklyRunActive|Resume Run|Resume Weekly Run|In Progress/);
+  assert.match(entry, /<small>Best<\/small>/);
+  assert.match(appSource, /weeklyRunBestScore=\{weeklySquadState\.weeklyStats\.score\}/);
+  assert.doesNotMatch(appSource, /weeklyRunActive=/);
+  assert.match(launch, /const staleStreak = weeklySquadStateRef\.current\.weeklyCampaignStreak/);
+  assert.match(launch, /finalizeWeeklyCampaignDeliberateEnd\(staleStreak, now\.getTime\(\)\)/);
+  assert.match(launch, /const entry = weeklyRun\.entry/);
+  assert.doesNotMatch(launch, /resuming|resumeNode|resumeMission/);
 });
 
 test('the Weekly Run drawer is a distinct sibling connected to the funding frame', () => {

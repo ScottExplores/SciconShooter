@@ -135,6 +135,9 @@ test('the engine applies separation only to assembled holders before collision w
   assert.match(engineSource, /cohortSpawned && members\.some\(\(member\) => !member\.formationSlotLocked\)/);
   assert.match(engineSource, /resolveNonOverlappingFormationCohortPositions\([\s\S]*?reservedTargets/);
   assert.match(engineSource, /assembledHolders\.push\(\.\.\.members\)[\s\S]*?globallySeparated = resolveNonOverlappingFormationPositions/);
+  assert.match(engineSource, /maxCorrectionPerFrame = this\.mobileProfile \? 4 : 6/);
+  assert.match(engineSource, /member\.x = moveToward\(member\.x, point\.x, maxCorrectionPerFrame\)/);
+  assert.match(engineSource, /member\.y = moveToward\(member\.y, point\.y, maxCorrectionPerFrame\)/);
   assert.doesNotMatch(engineSource, /member\.x = transition\.target\.x/);
   assert.match(engineSource, /resolveFormationSlotTransition\([\s\S]*?formationStartX = transition\.start\.x/);
   assert.match(engineSource, /sampleFormationSlotTransition\([\s\S]*?formationSlotTransitionActive = false/);

@@ -7,9 +7,9 @@ const esbuild = require('esbuild');
 const root = path.resolve(__dirname, '..');
 const campaign = JSON.parse(fs.readFileSync(path.join(root, 'game-config', 'campaign.json'), 'utf8'));
 
-const loadGenerator = () => {
+const loadBundledModule = (entryPoint) => {
   const result = esbuild.buildSync({
-    entryPoints: [path.join(root, 'services', 'weeklyRunGenerator.ts')],
+    entryPoints: [path.join(root, entryPoint)],
     bundle: true,
     platform: 'node',
     format: 'cjs',
@@ -21,22 +21,21 @@ const loadGenerator = () => {
   return module.exports;
 };
 
-const loadValidator = () => {
-  const result = esbuild.buildSync({
-    entryPoints: [path.join(root, 'game-config', 'validate.ts')],
-    bundle: true,
-    platform: 'node',
-    format: 'cjs',
-    write: false,
-    logLevel: 'silent'
-  });
-  const module = { exports: {} };
-  Function('require', 'module', 'exports', result.outputFiles[0].text)(require, module, module.exports);
-  return module.exports;
-};
+const generator = loadBundledModule(path.join('services', 'weeklyRunGenerator.ts'));
+const browserPlan = loadBundledModule(path.join('shared', 'weeklyRunPlan.browser.ts'));
+const serverPlan = require(path.join(root, 'shared', 'weeklyRunPlan.js'));
+const validator = loadBundledModule(path.join('game-config', 'validate.ts'));
 
-const generator = loadGenerator();
-const validator = loadValidator();
+test('Weekly runway grows only in full generation chunks', () => {
+  const materialize = generator.getWeeklyRunMaterializedStageCount;
+  assert.equal(materialize(0), 24);
+  assert.equal(materialize(24), 24);
+  assert.equal(materialize(25), 40);
+  assert.equal(materialize(39), 40);
+  assert.equal(materialize(40), 40);
+  assert.equal(materialize(41), 56);
+  assert.equal(materialize(999999), 2048);
+});
 
 const findAuthoredBossEvent = (bossId) => {
   for (const level of [...campaign.levels].sort((left, right) => left.order - right.order)) {
@@ -76,6 +75,71 @@ const assertSpawnSafeBossSchema = (event, label) => {
   assert.equal(Object.hasOwn(event, 'attackTempoMultiplier'), false, `${label} has no runtime-only tempo field`);
 };
 
+const orderedEliteBossIds = [...campaign.miniBosses]
+  .map((entry, authoredIndex) => ({ entry, authoredIndex }))
+  .sort((left, right) => (
+    left.entry.recommendedPower - right.entry.recommendedPower
+    || left.entry.threatCost - right.entry.threatCost
+    || left.authoredIndex - right.authoredIndex
+  ))
+  .map(({ entry }) => entry.bossId);
+
+const orderedMajorBossIds = [...campaign.sectors]
+  .sort((left, right) => left.order - right.order)
+  .map((sector) => sector.majorBossId)
+  .filter((bossId, index, list) => list.indexOf(bossId) === index);
+
+const resolveDeclaredFormationPack = (event, declaredPacks) => {
+  const roleIds = [...new Set(event.enemies.map((enemy) => enemy.roleId).filter(Boolean))];
+  const roleCompatible = declaredPacks.filter((pack) => (
+    roleIds.every((roleId) => pack.enemyRoleIds.includes(roleId))
+  ));
+  if (roleCompatible.length === 1) return roleCompatible[0];
+  const shapeMatches = roleCompatible.filter((pack) => pack.formationShape === event.patternId);
+  return shapeMatches.length === 1 ? shapeMatches[0] : null;
+};
+
+const assertBossSequenceStaysInStrengthBands = (actualIds, authoredIds, label) => {
+  const bandSize = serverPlan.WEEKLY_RUN_BOSS_STRENGTH_BAND_SIZE;
+  const firstCycle = actualIds.slice(0, authoredIds.length);
+  assert.equal(firstCycle.length, authoredIds.length, `${label} covers one complete boss cycle`);
+  assert.equal(new Set(firstCycle).size, authoredIds.length, `${label} does not repeat within a cycle`);
+  const strengthBands = firstCycle.map((bossId) => (
+    Math.floor(authoredIds.indexOf(bossId) / bandSize)
+  ));
+  for (let index = 1; index < strengthBands.length; index += 1) {
+    assert.ok(
+      strengthBands[index] >= strengthBands[index - 1],
+      `${label} boss ${firstCycle[index]} cannot jump ahead of its strength band`
+    );
+  }
+};
+
+test('browser and server Weekly formulas stay identical and clamp proof runway length', () => {
+  const options = {
+    eliteBossIds: orderedEliteBossIds,
+    majorBossIds: orderedMajorBossIds,
+    stageCount: serverPlan.WEEKLY_RUN_MAX_PROOF_STAGE_COUNT + 73
+  };
+  const browserStages = browserPlan.buildWeeklyRunStagePlans('2026-W31', options);
+  const serverStages = serverPlan.buildWeeklyRunStagePlans('2026-W31', options);
+
+  assert.equal(browserStages.length, serverPlan.WEEKLY_RUN_MAX_PROOF_STAGE_COUNT);
+  assert.equal(serverStages.length, serverPlan.WEEKLY_RUN_MAX_PROOF_STAGE_COUNT);
+  assert.deepEqual(serverStages, browserStages);
+  assert.deepEqual(
+    serverPlan.buildWeeklyRunStagePlans('2026-W31', { ...options, stageCount: -4 }),
+    browserPlan.buildWeeklyRunStagePlans('2026-W31', { ...options, stageCount: -4 })
+  );
+  for (const stageIndex of [0, 1, 12, 100, 2047]) {
+    assert.equal(serverPlan.getWeeklyRunIntensity(stageIndex), browserPlan.getWeeklyRunIntensity(stageIndex));
+    assert.equal(
+      serverPlan.getWeeklyRunFormationEventCount(stageIndex),
+      browserPlan.getWeeklyRunFormationEventCount(stageIndex)
+    );
+  }
+});
+
 test('the Weekly Run materializes stable runway and never stops escalating', () => {
   const run = generator.buildWeeklyRunCampaign('2026-W31', campaign);
   const extended = generator.buildWeeklyRunCampaign(
@@ -105,6 +169,11 @@ test('the Weekly Run materializes stable runway and never stops escalating', () 
     );
   }
   assert.ok(difficulties.at(-1) > difficulties[0] * 3, 'the deep end must be dramatically harder');
+  for (const level of run.levels) {
+    for (const wave of level.waves) {
+      assert.equal(wave.difficultyMultiplier, 1, `${wave.id} must not apply intensity a second time`);
+    }
+  }
 });
 
 test('nothing in the generated run references Campaign missions or progress', () => {
@@ -167,6 +236,37 @@ test('each week draws a different boss order, and every player gets the same one
   assert.ok(orders.size >= 3, 'boss order must vary week to week');
 });
 
+test('weekly boss randomization stays inside Campaign strength bands', () => {
+  const stages = generator.planWeeklyRunStages('2026-W31', campaign, 48);
+  const eliteOrder = stages
+    .filter((stage) => stage.kind === 'elite')
+    .map((stage) => stage.bossId);
+  const majorOrder = stages
+    .filter((stage) => stage.kind === 'major')
+    .map((stage) => stage.bossId);
+
+  assertBossSequenceStaysInStrengthBands(eliteOrder, orderedEliteBossIds, 'elite');
+  assertBossSequenceStaysInStrengthBands(majorOrder, orderedMajorBossIds, 'major');
+
+  const weeks = Array.from({ length: 16 }, (_, index) => `2026-W${String(index + 20).padStart(2, '0')}`);
+  const firstEliteBands = new Set(weeks.map((weekKey) => (
+    generator.planWeeklyRunStages(weekKey, campaign, 8)
+      .filter((stage) => stage.kind === 'elite')
+      .slice(0, 2)
+      .map((stage) => stage.bossId)
+      .join(',')
+  )));
+  const firstMajorBands = new Set(weeks.map((weekKey) => (
+    generator.planWeeklyRunStages(weekKey, campaign, 8)
+      .filter((stage) => stage.kind === 'major')
+      .slice(0, 2)
+      .map((stage) => stage.bossId)
+      .join(',')
+  )));
+  assert.ok(firstEliteBands.size > 1, 'weeks remix bosses inside the opening elite band');
+  assert.ok(firstMajorBands.size > 1, 'weeks remix bosses inside the opening major band');
+});
+
 test('generated waves are fully formed and reference real enemy roles', () => {
   const run = generator.buildWeeklyRunCampaign('2026-W31', campaign);
   const roleIds = new Set(campaign.enemyRoles.map((role) => role.id));
@@ -206,6 +306,77 @@ test('generated waves are fully formed and reference real enemy roles', () => {
   assert.equal(bossEvents, run.levels.length, 'every generated segment ends with a boss');
 });
 
+test('regular waves use eligible authored packs as readable formation trains', () => {
+  const run = generator.buildWeeklyRunCampaign('2026-W31', campaign, 40);
+  const packById = new Map(campaign.formationPacks.map((pack) => [pack.id, pack]));
+  const roleById = new Map(campaign.enemyRoles.map((role) => [role.id, role]));
+  const usedPackIds = new Set();
+
+  run.levels.forEach((level, stageIndex) => {
+    const formationSector = generator.getWeeklyRunFormationSector(stageIndex);
+    const threatCeiling = generator.getWeeklyRunRoleThreatCeiling(stageIndex);
+    level.waves.filter((wave) => wave.events[0]?.kind === 'spawn').forEach((wave) => {
+      assert.ok(wave.formationPackIds.length > 0, `${wave.id} declares its authored packs`);
+      assert.equal(
+        new Set(wave.formationPackIds).size,
+        wave.formationPackIds.length,
+        `${wave.id} declares each pack once`
+      );
+      const declaredPacks = wave.formationPackIds.map((packId) => {
+        const pack = packById.get(packId);
+        assert.ok(pack, `${wave.id} references real pack ${packId}`);
+        usedPackIds.add(packId);
+        assert.ok(pack.minimumSector <= formationSector, `${packId} is unlocked for depth ${stageIndex + 1}`);
+        return pack;
+      });
+
+      let previousStart = -1;
+      const resolvedIds = new Set();
+      for (const event of wave.events) {
+        const pack = resolveDeclaredFormationPack(event, declaredPacks);
+        assert.ok(pack, `${event.id} resolves to exactly one declared formation pack`);
+        resolvedIds.add(pack.id);
+        assert.equal(event.patternId, pack.formationShape, `${event.id} keeps its authored shape`);
+        assert.equal(event.positionId, 'formation-top', `${event.id} uses a stable formation outlet`);
+        assert.ok(event.startSeconds > previousStart, `${event.id} enters after the previous group`);
+        previousStart = event.startSeconds;
+        assert.ok(event.count <= pack.enemyCount, `${event.id} stays within the authored pack size`);
+        assert.ok(
+          event.startSeconds + event.count * event.spawnIntervalSeconds + 5 <= wave.durationSeconds + 0.01,
+          `${event.id} finishes entering before ${wave.id} can close`
+        );
+        assert.deepEqual(event.formationBehavior, {
+          entryPathId: pack.entryPath,
+          movementId: pack.movementBehavior,
+          attackId: pack.attackBehavior,
+          firingBehavior: pack.firingBehavior,
+          returnId: pack.returnBehavior,
+          holdSeconds: pack.holdSeconds,
+          telegraphSeconds: pack.telegraphSeconds,
+          attackDurationSeconds: pack.attackDurationSeconds,
+          recoverySeconds: pack.attackRecoverySeconds,
+          attackGroupSize: Math.min(event.count, pack.attackGroupSize),
+          attackCycles: pack.attackCycles
+        }, `${event.id} carries its authored entry and behavior`);
+        for (const enemy of event.enemies) {
+          const role = roleById.get(enemy.roleId);
+          assert.ok(role, `${event.id} uses real role ${enemy.roleId}`);
+          assert.ok(pack.enemyRoleIds.includes(role.id), `${role.id} belongs to ${pack.id}`);
+          assert.ok(role.threatCost <= threatCeiling, `${role.id} respects the depth threat ceiling`);
+          assert.ok(role.introductionSector <= formationSector, `${role.id} respects Campaign introduction order`);
+        }
+      }
+      assert.deepEqual(
+        [...resolvedIds].sort(),
+        [...wave.formationPackIds].sort(),
+        `${wave.id} uses every pack it declares`
+      );
+    });
+  });
+
+  assert.equal(usedPackIds.size, campaign.formationPacks.length, 'the deep runway unlocks the full formation catalog');
+});
+
 test('the first elite and major use complete authored spawn-safe boss schemas', () => {
   const run = generator.buildWeeklyRunCampaign('2026-W31', campaign);
   const firstEliteLevel = run.levels.find((level) => level.description.includes('elite'));
@@ -219,6 +390,8 @@ test('the first elite and major use complete authored spawn-safe boss schemas', 
   const major = majorWave.events[0];
   assertSpawnSafeBossSchema(elite, 'first elite');
   assertSpawnSafeBossSchema(major, 'first major');
+  assert.equal(elite.health, 120, 'every elite starts from the Weekly elite baseline');
+  assert.equal(major.health, 500, 'every major starts from the Weekly major baseline');
   assert.equal(eliteWave.completionRule, 'clear-after-duration');
   assert.equal(majorWave.completionRule, 'boss-defeat');
 
@@ -246,6 +419,49 @@ test('the first elite and major use complete authored spawn-safe boss schemas', 
     [...bossEventPaths].some((eventPath) => issue.path.startsWith(eventPath))
   ));
   assert.deepEqual(relevantIssues, [], 'first elite and major pass the campaign boss-event validator');
+});
+
+test('boss health follows Weekly depth while modular component ratios stay authored', () => {
+  const run = generator.buildWeeklyRunCampaign('2026-W31', campaign, 40);
+  const effectiveByKind = { elite: [], major: [] };
+  let componentBossCount = 0;
+
+  for (const level of run.levels) {
+    const wave = level.waves.at(-1);
+    const generated = wave.events[0];
+    const kind = wave.completionRule === 'boss-defeat' ? 'major' : 'elite';
+    const expectedBaseHealth = kind === 'major' ? 500 : 120;
+    assert.equal(generated.health, expectedBaseHealth, `${generated.bossId} uses normalized ${kind} health`);
+    effectiveByKind[kind].push(
+      generated.health * level.startingDifficulty * wave.difficultyMultiplier
+    );
+
+    const authored = findAuthoredBossEvent(generated.bossId);
+    assert.ok(authored, `authored ${generated.bossId} exists`);
+    if (!authored.componentHealth) continue;
+    componentBossCount += 1;
+    assert.ok(generated.componentHealth, `${generated.bossId} keeps its modular components`);
+    for (const [componentId, authoredHealth] of Object.entries(authored.componentHealth)) {
+      const authoredRatio = authoredHealth / authored.health;
+      const generatedRatio = generated.componentHealth[componentId] / generated.health;
+      assert.ok(
+        Math.abs(authoredRatio - generatedRatio) < 0.00001,
+        `${generated.bossId}/${componentId} preserves its body-health ratio`
+      );
+    }
+  }
+
+  for (const [kind, healthValues] of Object.entries(effectiveByKind)) {
+    for (let index = 1; index < healthValues.length; index += 1) {
+      assert.ok(
+        healthValues[index] > healthValues[index - 1],
+        `${kind} effective health must rise with Weekly depth`
+      );
+    }
+  }
+  assert.ok(componentBossCount > 0, 'the runway exercises modular boss health scaling');
+  assert.ok(effectiveByKind.elite[0] < 200, 'the opening elite cannot inherit late-Campaign HP');
+  assert.ok(effectiveByKind.major[0] < 1_000, 'the opening major cannot inherit late-Campaign HP');
 });
 
 test('the run graph is a linear ladder where depth pays more', () => {
@@ -276,7 +492,7 @@ test('Weekly Run starting lives are fixed and independent of Hangar upgrades', (
   assert.match(startingLivesBlock, /resolveRunStartingLives\(\{/);
   assert.match(startingLivesBlock, /weeklyRun: runMode === 'weekly-streak'/);
   assert.match(startingLivesBlock, /startingHeartLevel: squadLoadout\.upgrades\.startingHearts/);
-  assert.match(startingLivesBlock, /carriedWeeklyLives/);
+  assert.doesNotMatch(startingLivesBlock, /carriedWeeklyLives/);
   // Starting Hearts is a Campaign-only track; it must not reach the Weekly Run.
   assert.match(squad, /CAMPAIGN_MAX_STARTING_LIVES = 10/);
 });

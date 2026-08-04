@@ -11,24 +11,18 @@ const integer = (value: unknown, fallback = 0) => {
 
 /**
  * Campaign Missions refill the permanent Starting Hearts capacity at each
- * Mission boundary. Weekly Run has its own fixed competitive capacity and may
- * resume only the lives carried from its last secured checkpoint.
+ * Mission boundary. Every Weekly Run launch is a new attempt with the same
+ * fixed competitive capacity; live damage carries only inside its mounted
+ * engine and is never reconstructed from a saved depth.
  */
 export const resolveRunStartingLives = ({
   weeklyRun,
-  startingHeartLevel,
-  carriedWeeklyLives = null
+  startingHeartLevel
 }: {
   weeklyRun: boolean;
   startingHeartLevel: number;
-  carriedWeeklyLives?: number | null;
 }) => {
-  if (weeklyRun) {
-    const carried = carriedWeeklyLives === null
-      ? WEEKLY_RUN_STARTING_LIVES
-      : integer(carriedWeeklyLives, WEEKLY_RUN_STARTING_LIVES);
-    return Math.max(1, Math.min(WEEKLY_RUN_STARTING_LIVES, carried));
-  }
+  if (weeklyRun) return WEEKLY_RUN_STARTING_LIVES;
   return Math.min(
     CAMPAIGN_MAX_STARTING_LIVES,
     CAMPAIGN_BASE_STARTING_LIVES + Math.max(0, integer(startingHeartLevel))

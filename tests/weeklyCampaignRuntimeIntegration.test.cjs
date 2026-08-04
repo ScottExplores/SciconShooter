@@ -75,8 +75,14 @@ test('App runs weekly streaks through direct graph routing and the existing lead
   assert.match(appSource, /finalizeWeeklyCampaignLoss/);
   assert.match(appSource, /finalizeWeeklyCampaignDeliberateEnd/);
   assert.doesNotMatch(appSource, /finalizeCompletedWeeklyCampaignStreak/);
-  assert.match(appSource, /nextStageCount\s*=\s*runForAdvance\.campaign\.levels\.length\s*\+\s*WEEKLY_RUN_STAGE_CHUNK/);
-  assert.match(appSource, /runForAdvance\s*=\s*getWeeklyRun\(weeklySquadStateRef\.current\.weekKey,\s*nextStageCount\)/);
+  assert.match(appSource, /extendedStageCount\s*=\s*runForAdvance\.campaign\.levels\.length\s*\+\s*WEEKLY_RUN_STAGE_CHUNK/);
+  assert.match(appSource, /runForAdvance\s*=\s*getWeeklyRun\(weeklySquadStateRef\.current\.weekKey,\s*extendedStageCount\)/);
+  assert.match(appSource, /runwayTarget\s*=\s*getWeeklyRunMaterializedStageCount\([\s\S]{0,100}result\.state\.score\.completedNodeCount\s*\+\s*WEEKLY_RUN_STAGE_CHUNK/);
+  assert.match(appSource, /setWeeklyRunStageCount\(\(current\)\s*=>\s*Math\.max\(current,\s*runwayTarget\)\)/);
+  assert.match(appSource, /weeklyRunAdmissionPendingRef\.current \|\| missionLaunchPendingRef\.current/);
+  assert.match(appSource, /weeklyRunAdmissionPendingRef\.current = true/);
+  assert.match(appSource, /finally\s*\{\s*weeklyRunAdmissionPendingRef\.current = false/);
+  assert.match(appSource, /randomSeed:\s*isWeeklyCampaignRun[\s\S]{0,100}weeklySquadState\.weekKey/);
   assert.match(appSource, /markWeeklyCampaignStreakSubmission/);
   assert.match(appSource, /weeklyRunSessionKeyRef/);
   assert.match(appSource, /preserveConnectedWeeklySession/);
@@ -98,6 +104,23 @@ test('App runs weekly streaks through direct graph routing and the existing lead
   const weeklyLaunchEnd = appSource.indexOf('const selectWeeklyCampaignMissionFromMap', weeklyLaunchStart);
   const weeklyLaunchBody = appSource.slice(weeklyLaunchStart, weeklyLaunchEnd);
   assert.doesNotMatch(weeklyLaunchBody, /connectWallet|requestWalletRuntimeAction/);
+  const retryStart = appSource.indexOf('const retryGame');
+  const retryEnd = appSource.indexOf('const startBossArchiveFight', retryStart);
+  const retryBody = appSource.slice(retryStart, retryEnd);
+  assert.match(retryBody, /if \(isWeeklyCampaignRun\)[\s\S]*startWeeklyRunFromHome\(\)/);
+  assert.doesNotMatch(
+    retryBody,
+    /kind:\s*activeCampaignLaunch\.kind === 'weekly-streak'/,
+    'a Weekly retry must never relaunch the saved depth directly'
+  );
+  const weeklyAdvanceStart = appSource.indexOf('const advanceWeeklyRunAfterDepth');
+  const weeklyAdvanceEnd = appSource.indexOf('const handleCampaignProgress', weeklyAdvanceStart);
+  const weeklyAdvanceBody = appSource.slice(weeklyAdvanceStart, weeklyAdvanceEnd);
+  assert.doesNotMatch(
+    weeklyAdvanceBody,
+    /setWaveContinueCommand|setGameState\(GameState\.PLAYING\)/,
+    'React must not pause or restart the mounted engine between Weekly depths'
+  );
 });
 
 test('weekly streak proof and the server-issued run token are bound to Weekly mode', () => {

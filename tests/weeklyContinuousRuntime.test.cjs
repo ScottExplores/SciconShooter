@@ -103,8 +103,12 @@ test('Weekly Run extends its runway in place and crosses a depth without resetti
 
   engine.beginStageCompletion('MISSION COMPLETE!', '#67e8f9');
 
-  assert.equal(engine.waveVictoryReady, true, 'the boundary publishes once for persistence');
-  assert.equal(engine.gameActive, false, 'the command handshake owns only this short boundary');
+  assert.equal(engine.waveVictoryReady, false, 'an endless depth never enters a victory state');
+  assert.equal(engine.gameActive, true, 'the live simulation remains active at the runway edge');
+  const completion = engine.takeCampaignCompletionSummary();
+  assert.equal(completion.stageComplete, true, 'the boundary still publishes for persistence');
+  assert.equal(completion.campaignComplete, false, 'a materialized runway edge is not an ending');
+  assert.equal(engine.takeCampaignCompletionSummary(), null, 'the persistence result is one-shot');
   assert.equal(engine.stageRewardCollectionFrames, 0, 'no reward collection pause');
   assert.equal(engine.waveDepartureFrames, 0, 'no takeoff cinematic');
   assert.equal(playerShot.markedForDeletion, false, 'shots stay live');
@@ -112,7 +116,9 @@ test('Weekly Run extends its runway in place and crosses a depth without resetti
   assert.equal(engine.pendingPlayerShots.length, 1, 'queued shots stay live');
 
   assert.equal(engine.replaceCampaignRunway(extended), true, 'the deterministic suffix is accepted');
-  assert.equal(engine.continueToCampaignMission(nextLevel.id, nextWave.id), true);
+  assert.equal(engine.getRuntimeState().levelId, nextLevel.id, 'the appended runway advances automatically');
+  assert.equal(engine.getRuntimeState().waveId, nextWave.id);
+  assert.equal(engine.continueToCampaignMission(nextLevel.id, nextWave.id), false, 'no React continue handshake is required');
 
   assert.equal(engine.gameActive, true);
   assert.equal(engine.introFlightFrames, 0, 'the next depth starts without an entry pause');
@@ -129,6 +135,170 @@ test('Weekly Run extends its runway in place and crosses a depth without resetti
   assert.equal(engine.entities.includes(playerShot), true);
   assert.equal(engine.entities.includes(powerup), true);
   assert.equal(engine.pendingPlayerShots.length, 1);
+  assert.equal(engine.getRuntimeState().absoluteWaveNumber, initial.levels.flatMap((level) => level.waves).length + 1);
+  assert.equal(engine.getRuntimeState().continuousRun, true);
+});
+
+test('Weekly Run caps every collision to one heart and records only damage actually applied', () => {
+  const initial = weeklyGenerator.buildWeeklyRunCampaign('2026-W31', authoredCampaign);
+  const stats = createStats();
+  stats.lives = 2;
+  const engine = new GameEngine(stats, {
+    campaign: initial,
+    continuousStageBoundaries: true,
+    maxPlayerDamagePerHit: 1,
+    audioEnabled: false
+  });
+  engine.init(390, 700);
+
+  const first = engine.applyPlayerLifeDamage(9);
+  assert.equal(first.damageApplied, 1);
+  assert.equal(engine.lives, 1);
+  assert.equal(engine.waveDamageTaken, 1);
+
+  const lethal = engine.applyPlayerLifeDamage(9);
+  assert.equal(lethal.damageApplied, 1);
+  assert.equal(engine.lives, 0);
+  assert.equal(engine.waveDamageTaken, 2);
+
+  const overkill = engine.applyPlayerLifeDamage(9);
+  assert.equal(overkill.damageApplied, 0);
+  assert.equal(engine.waveDamageTaken, 2, 'overkill is not reported as extra damage');
+});
+
+test('Weekly enemy trains are fixed by week, event, and spawn slot', () => {
+  const campaign = weeklyGenerator.buildWeeklyRunCampaign('2026-W31', authoredCampaign, 12);
+  let selected = null;
+  for (const level of campaign.levels) {
+    for (const wave of level.waves) {
+      const event = wave.events.find((candidate) => (
+        candidate.kind === 'spawn' && candidate.enemies.length > 1
+      ));
+      if (event) {
+        selected = { level, wave, event };
+        break;
+      }
+    }
+    if (selected) break;
+  }
+  assert.ok(selected, 'the authored formation catalog must expose a mixed-role train');
+
+  const createEngine = (randomSeed) => new GameEngine(createStats(), {
+    campaign,
+    initialLevelId: selected.level.id,
+    initialWaveId: selected.wave.id,
+    continuousStageBoundaries: true,
+    randomSeed,
+    audioEnabled: false
+  });
+  const first = createEngine('unrelated-seed-a');
+  const second = createEngine('unrelated-seed-b');
+
+  // Perturb the general gameplay stream differently. Weekly composition must
+  // still resolve from its own event/slot key rather than call order.
+  for (let index = 0; index < 37; index++) first.createEntity('PARTICLE', index, index);
+  for (let index = 0; index < 5; index++) second.createEntity('PARTICLE', index, index);
+  const targetCount = Math.max(8, selected.event.count);
+  const firstTrain = Array.from({ length: targetCount }, (_, index) => (
+    first.pickConfiguredEnemy(selected.event, index)?.enemyId
+  ));
+  const secondTrain = Array.from({ length: targetCount }, (_, index) => (
+    second.pickConfiguredEnemy(selected.event, index)?.enemyId
+  ));
+  assert.deepEqual(firstTrain, secondTrain);
+});
+
+test('a materialized Weekly depth advances in the same engine tick without a victory pause', () => {
+  const initial = weeklyGenerator.buildWeeklyRunCampaign('2026-W31', authoredCampaign);
+  const clearedLevel = initial.levels[0];
+  const clearedWave = clearedLevel.waves.at(-1);
+  const nextLevel = initial.levels[1];
+  const engine = new GameEngine(createStats(), {
+    campaign: initial,
+    initialLevelId: clearedLevel.id,
+    initialWaveId: clearedWave.id,
+    continuousStageBoundaries: true,
+    audioEnabled: false
+  });
+  engine.init(390, 700);
+
+  engine.beginStageCompletion('MISSION COMPLETE!', '#67e8f9');
+
+  assert.equal(engine.gameActive, true);
+  assert.equal(engine.waveVictoryReady, false);
+  assert.equal(engine.waveTransitionPending, false);
+  assert.equal(engine.getRuntimeState().levelId, nextLevel.id);
+  assert.equal(engine.getRuntimeState().waveId, nextLevel.waves[0].id);
+  assert.equal(engine.getRuntimeState().wavePresentationKind, 'internal-wave');
+  assert.equal(engine.takeCampaignCompletionSummary().stageComplete, true);
+});
+
+test('sixty consecutive Weekly waves keep one global count and never refill the player', () => {
+  const campaign = weeklyGenerator.buildWeeklyRunCampaign('2026-W31', authoredCampaign, 40);
+  const materializedWaveCount = campaign.levels.reduce((total, level) => total + level.waves.length, 0);
+  assert.ok(materializedWaveCount > 60, 'the stress runway must extend beyond the exercised waves');
+
+  const stats = createStats();
+  const engine = new GameEngine(stats, {
+    campaign,
+    initialLevelId: campaign.levels[0].id,
+    initialWaveId: campaign.levels[0].waves[0].id,
+    refillLivesAtMissionBoundary: false,
+    continuousStageBoundaries: true,
+    maxPlayerDamagePerHit: 1,
+    audioEnabled: false,
+    randomSeed: 'weekly-sixty-wave-continuity'
+  });
+  engine.init(390, 700);
+
+  engine.stats.score = 7890;
+  engine.stats.coins = 11;
+  engine.stats.shipAbilityCooldown = 144;
+  engine.stats.lives = 7;
+  engine.lives = 7;
+  engine.player.x = 137;
+  engine.player.y = 431;
+  const carriedShot = engine.createEntity('PROJECTILE', 48, 250);
+  carriedShot.isPlayerShot = true;
+  engine.entities.push(carriedShot);
+
+  let completedDepths = 0;
+  for (let transition = 0; transition < 60; transition++) {
+    const before = engine.getRuntimeState();
+    assert.equal(before.absoluteWaveNumber, transition + 1);
+
+    if (before.waveNumber === before.waveTotal) {
+      engine.beginStageCompletion('MISSION COMPLETE!', '#67e8f9');
+      const completion = engine.takeCampaignCompletionSummary();
+      assert.equal(completion?.stageComplete, true);
+      assert.equal(completion?.campaignComplete, false);
+      assert.equal(engine.takeCampaignCompletionSummary(), null, 'depth proof is emitted exactly once');
+      completedDepths++;
+    } else {
+      engine.beginTacticalWaveCompletion();
+      assert.equal(engine.takeCampaignCompletionSummary(), null, 'an internal wave emits no mission result');
+    }
+
+    const after = engine.getRuntimeState();
+    assert.equal(after.absoluteWaveNumber, transition + 2, 'the endless counter never resets locally');
+    assert.equal(after.continuousRun, true);
+    assert.equal(after.wavePresentationKind, 'internal-wave');
+    assert.equal(engine.gameActive, true);
+    assert.equal(engine.waveVictoryReady, false);
+    assert.equal(engine.introFlightFrames, 0);
+    assert.equal(engine.stats.lives, 7, 'a depth boundary never refills or changes hearts');
+    assert.equal(engine.lives, 7);
+    assert.equal(engine.stats.score, 7890);
+    assert.equal(engine.stats.coins, 11);
+    assert.equal(engine.stats.shipAbilityCooldown, 144);
+    assert.equal(engine.player.x, 137);
+    assert.equal(engine.player.y, 431);
+    assert.equal(carriedShot.markedForDeletion, false);
+    assert.equal(engine.entities.includes(carriedShot), true, 'live player shots survive every transition');
+  }
+
+  assert.ok(completedDepths >= 20, 'the stress run crosses many depth boundaries');
+  assert.equal(engine.getRuntimeState().absoluteWaveNumber, 61);
 });
 
 test('Weekly Run rejects a runway that rewrites an already materialized depth', () => {
@@ -148,9 +318,18 @@ test('Weekly Run rejects a runway that rewrites an already materialized depth', 
 
 test('the Canvas keeps a continuous Weekly engine mounted while generated runway grows', () => {
   const canvasSource = fs.readFileSync(path.join(root, 'components', 'GameCanvas.tsx'), 'utf8');
+  const rendererSource = fs.readFileSync(
+    path.join(root, 'services', 'pixi', 'PixiGameRenderer.ts'),
+    'utf8'
+  );
 
   assert.match(canvasSource, /continuousStageBoundaries\?: boolean/);
+  assert.match(canvasSource, /maxPlayerDamagePerHit\?: number/);
   assert.match(canvasSource, /engine\.replaceCampaignRunway\(campaign\)/);
+  assert.match(canvasSource, /engine\.takeCampaignCompletionSummary\(\)/);
+  assert.match(canvasSource, /maxPlayerDamagePerHit,/);
+  assert.match(rendererSource, /state\.continuousRun[\s\S]{0,80}'WEEKLY RUN'/);
+  assert.match(rendererSource, /state\.continuousRun[\s\S]{0,100}state\.absoluteWaveNumber/);
   assert.match(canvasSource, /setupCampaignDependency = continuousStageBoundaries[\s\S]{0,100}campaign\?\.id/);
   assert.match(canvasSource, /new GameEngine\(initialStats, \{[\s\S]{0,500}continuousStageBoundaries/);
   assert.doesNotMatch(

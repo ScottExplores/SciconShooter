@@ -50,7 +50,6 @@ test('Campaign heart upgrades reach ten while Weekly Run keeps its independent c
   }), 10);
   assert.equal(resolveRunStartingLives({
     weeklyRun: true,
-    startingHeartLevel: 7,
-    carriedWeeklyLives: 4
-  }), 4);
+    startingHeartLevel: 7
+  }), 10);
 });

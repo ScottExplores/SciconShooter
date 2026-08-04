@@ -14,6 +14,8 @@ test('runtime exposes ordered level and within-level wave position from campaign
     'levelTotal: number',
     'waveNumber: number',
     'waveTotal: number',
+    'absoluteWaveNumber: number',
+    'continuousRun: boolean',
     'wavePresentationRevision: number',
     "wavePresentationKind: 'mission' | 'internal-wave'"
   ]) {
@@ -24,6 +26,7 @@ test('runtime exposes ordered level and within-level wave position from campaign
   assert.match(engine, /waves\.forEach\(\(\{ wave \}, waveIndex\) =>/);
   assert.match(engine, /waveNumber: Math\.max\(1, \(entry\?\.waveIndex \?\? 0\) \+ 1\)/);
   assert.match(engine, /waveTotal = Math\.max\(1, entry\?\.level\.waves\.length \?\? 1\)/);
+  assert.match(engine, /absoluteWaveNumber: Math\.max\(1, Math\.floor\(this\.currentCampaignIndex\) \+ 1\)/);
   assert.match(engine, /beginWavePresentation\(kind: GameRuntimeState\['wavePresentationKind'\] = 'mission'\) \{\s*this\.wavePresentationKind = kind;\s*this\.wavePresentationRevision\+\+;/);
   assert.match(engine, /this\.beginWavePresentation\('internal-wave'\)/);
   assert.match(engine, /this\.cinematicPaused = cinematicPause;/);
@@ -39,14 +42,15 @@ test('canonical Pixi scene presents full Mission starts and compact dissolving i
   assert.match(renderer, /private readonly waveCounterGlyphs = Array\.from\(\{ length: 8 \}/);
   assert.doesNotMatch(renderer, /waveBadge|positionWaveBadge/);
   assert.match(renderer, /MISSION \$\{String\(state\.levelNumber\)\.padStart\(2, '0'\)\} · \$\{state\.levelName\.toUpperCase\(\)\}/);
-  assert.match(renderer, /this\.setWaveCounterGlyphs\(`\$\{state\.waveNumber\}\/\$\{state\.waveTotal\}`\)/);
-  assert.match(renderer, /this\.waveNameText\.text = state\.waveName\.toUpperCase\(\)/);
+  assert.match(renderer, /state\.continuousRun[\s\S]{0,80}'WEEKLY RUN'/);
+  assert.match(renderer, /this\.setWaveCounterGlyphs\(state\.continuousRun[\s\S]{0,100}state\.absoluteWaveNumber[\s\S]{0,100}state\.waveNumber/);
+  assert.match(renderer, /this\.waveNameText\.text = state\.continuousRun \? '' : state\.waveName\.toUpperCase\(\)/);
   assert.match(renderer, /prefers-reduced-motion: reduce/);
   assert.match(renderer, /if \(!engine\.cinematicPaused\) \{\s*this\.wavePresentationElapsedMs =/);
   assert.match(renderer, /if \(state\.wavePresentationRevision !== this\.lastWavePresentationRevision\)/);
   assert.match(renderer, /state\.wavePresentationKind === 'internal-wave'/);
-  assert.match(renderer, /this\.waveLevelText\.visible = !this\.internalWavePresentation/);
-  assert.match(renderer, /this\.waveNameText\.visible = !this\.internalWavePresentation/);
+  assert.match(renderer, /this\.waveLevelText\.visible = state\.continuousRun \|\| !this\.internalWavePresentation/);
+  assert.match(renderer, /this\.waveNameText\.visible = !state\.continuousRun && !this\.internalWavePresentation/);
   assert.match(renderer, /INTERNAL_WAVE_INTRO_DURATION_MS = INTERNAL_WAVE_INTRO_HOLD_UNTIL_MS \+ INTERNAL_WAVE_INTRO_EXIT_MS/);
   assert.match(renderer, /this\.internalWavePresentation[\s\S]*?INTERNAL_WAVE_INTRO_DURATION_MS/);
   assert.doesNotMatch(renderer, /presentationKey !== this\.lastWavePresentationKey/);

@@ -1567,6 +1567,8 @@ export interface GameEngineOptions {
    * difficulty runway. Keep those boundaries inside one uninterrupted run.
    */
   continuousStageBoundaries?: boolean;
+  /** Optional per-collision life-loss ceiling for endurance modes. */
+  maxPlayerDamagePerHit?: number;
   testMode?: boolean;
   squadLoadout?: RuntimeSquadLoadout;
   /** Fixed seed used by preview and deterministic tests. Production omits this. */
@@ -1665,6 +1667,10 @@ export interface GameRuntimeState {
   waveAccent: string;
   waveNumber: number;
   waveTotal: number;
+  /** Flat, one-based Wave ordinal across the complete active campaign runway. */
+  absoluteWaveNumber: number;
+  /** Endless modes present every authored stage as one uninterrupted run. */
+  continuousRun: boolean;
   wavePresentationRevision: number;
   wavePresentationKind: 'mission' | 'internal-wave';
   elapsedSeconds: number;
@@ -2313,6 +2319,8 @@ export class GameEngine {
   wavePresentationKind: GameRuntimeState['wavePresentationKind'] = 'mission';
   waveVictoryReady: boolean = false;
   waveVictorySummary: WaveVictorySummary | null = null;
+  private campaignCompletionSummaryPending: WaveVictorySummary | null = null;
+  private continuousRunwayAdvancePending: boolean = false;
   waveStartScore: number = 0;
   waveStartEnemiesDefeated: number = 0;
   waveVictoryKillCounts: WaveVictoryKillCounts = createWaveVictoryKillCounts();
@@ -2407,6 +2415,7 @@ export class GameEngine {
   private readonly startingLives: number;
   private readonly refillLivesAtMissionBoundary: boolean;
   private readonly continuousStageBoundaries: boolean;
+  private readonly maxPlayerDamagePerHit: number | null;
   private readonly previewBossCollisionMask?: BossCollisionMask;
   private readonly previewBossCollisionEventId?: string;
   private readonly previewBossArtworkDesignSize?: BossPreviewArtworkDesignSize;
@@ -2465,6 +2474,11 @@ export class GameEngine {
     this.initialWaveId = options.initialWaveId;
     this.refillLivesAtMissionBoundary = options.refillLivesAtMissionBoundary ?? true;
     this.continuousStageBoundaries = options.continuousStageBoundaries ?? false;
+    const configuredDamageCeiling = Math.floor(Number(options.maxPlayerDamagePerHit));
+    this.maxPlayerDamagePerHit = Number.isFinite(configuredDamageCeiling)
+      && configuredDamageCeiling > 0
+        ? configuredDamageCeiling
+        : null;
     this.testMode = Boolean(options.testMode);
     this.squadLoadout = options.squadLoadout ?? null;
     this.squadCompanions = (options.squadLoadout?.companions ?? []).map((companion, index) => ({
@@ -2679,6 +2693,7 @@ export class GameEngine {
       this.bombSpriteUrl = nextBombSpriteUrl;
       loadImage(this.bombSpriteUrl);
     }
+    this.advanceContinuousRunwayIfReady();
     return true;
   }
 
@@ -2834,6 +2849,8 @@ export class GameEngine {
       waveAccent: entry?.wave.accent ?? this.getWaveSector().accent,
       waveNumber: Math.max(1, (entry?.waveIndex ?? 0) + 1),
       waveTotal,
+      absoluteWaveNumber: Math.max(1, Math.floor(this.currentCampaignIndex) + 1),
+      continuousRun: this.continuousStageBoundaries,
       wavePresentationRevision: this.wavePresentationRevision,
       wavePresentationKind: this.wavePresentationKind,
       elapsedSeconds: Math.min(durationSeconds, this.getWaveElapsedSeconds()),
@@ -4166,7 +4183,19 @@ export class GameEngine {
 
   /** Available at the logical clear boundary, before the Mission takeoff cinematic finishes. */
   getCampaignCompletionSummary() {
-    return this.waveVictorySummary ? { ...this.waveVictorySummary } : null;
+    return this.campaignCompletionSummaryPending
+      ? { ...this.campaignCompletionSummaryPending }
+      : null;
+  }
+
+  /**
+   * Delivers a clear boundary exactly once. Continuous runs can immediately
+   * reset their live Wave state while React still receives the immutable result.
+   */
+  takeCampaignCompletionSummary() {
+    const summary = this.getCampaignCompletionSummary();
+    this.campaignCompletionSummaryPending = null;
+    return summary;
   }
 
   buildWaveVictorySummary(): WaveVictorySummary {
@@ -4851,12 +4880,17 @@ export class GameEngine {
   }
 
   private applyPlayerLifeDamage(incomingDamage: number) {
+    const requestedDamage = Math.max(1, Math.round(Number(incomingDamage) || 1));
+    const boundedDamage = this.maxPlayerDamagePerHit === null
+      ? requestedDamage
+      : Math.min(requestedDamage, this.maxPlayerDamagePerHit);
     const transition = resolvePlayerLifeDamage(
       this.lives,
-      incomingDamage,
+      boundedDamage,
       GAME_CONFIG.MAX_LIVES
     );
     this.syncPlayerLives(transition.lives);
+    this.recordPlayerDamage(transition.damageApplied);
     return transition;
   }
 
@@ -5278,6 +5312,7 @@ export class GameEngine {
     }
     this.pendingEnemyLasers = [];
     this.waveVictorySummary = this.buildWaveVictorySummary();
+    this.campaignCompletionSummaryPending = { ...this.waveVictorySummary };
     this.recordWaveCompletion();
     this.recordCompletion('mission');
     if (this.waveVictorySummary.campaignComplete) this.recordCompletion('campaign');
@@ -5312,14 +5347,50 @@ export class GameEngine {
       if (telegraph) telegraph.markedForDeletion = true;
     }
     this.pendingEnemyLasers = [];
-    this.waveVictorySummary = this.buildWaveVictorySummary();
+    const completion = this.buildWaveVictorySummary();
+    // A materialized runway edge is not an ending. App receives the boundary
+    // and may append the next deterministic chunk, but the engine never enters
+    // a victory state while that extension arrives.
+    this.waveVictorySummary = {
+      ...completion,
+      campaignComplete: false
+    };
+    this.campaignCompletionSummaryPending = { ...this.waveVictorySummary };
     this.recordWaveCompletion();
     this.stageRewardCollectionDuration = 0;
     this.stageRewardCollectionFrames = 0;
     this.waveDepartureDuration = 0;
     this.waveDepartureFrames = 0;
-    this.waveVictoryReady = true;
-    this.gameActive = false;
+    this.waveVictoryReady = false;
+    this.continuousRunwayAdvancePending = true;
+    this.advanceContinuousRunwayIfReady();
+  }
+
+  private advanceContinuousRunwayIfReady() {
+    if (!this.continuousStageBoundaries || !this.continuousRunwayAdvancePending) return false;
+    const currentEntry = this.getCurrentCampaignEntry();
+    const currentNode = this.getCampaignGraphNodeForLevelId(currentEntry?.level.id);
+    const nextNodeId = currentNode?.outgoingEdges.length === 1
+      ? currentNode.outgoingEdges[0].toNodeId
+      : null;
+    const nextNode = nextNodeId
+      ? this.campaign.campaignGraph?.nodes.find((node) => node.nodeId === nextNodeId) ?? null
+      : null;
+    const graphIndex = nextNode
+      ? this.findCampaignWaveIndex(nextNode.missionDefinitionId)
+      : -1;
+    const authoredIndex = getNextAuthoredCampaignIndex(
+      this.currentCampaignIndex,
+      this.campaignWaves.length
+    );
+    const nextCampaignIndex = currentNode
+      ? graphIndex >= 0 ? graphIndex : null
+      : authoredIndex;
+    if (nextCampaignIndex === null) return false;
+
+    this.continuousRunwayAdvancePending = false;
+    this.startNextWave(nextCampaignIndex);
+    return true;
   }
 
   beginStageTakeoff() {
@@ -8646,12 +8717,20 @@ export class GameEngine {
     return EntityType.ENEMY_DRONE;
   }
 
-  pickConfiguredEnemy(event: RuntimeSpawnEvent) {
+  pickConfiguredEnemy(event: RuntimeSpawnEvent, spawnIndex = 0) {
     const enemies = Array.isArray(event.enemies) ? event.enemies : [];
     if (enemies.length === 0) return null;
     const totalWeight = enemies.reduce((sum, enemy) => sum + Math.max(0, Number(enemy.weight) || 0), 0);
     if (totalWeight <= 0) return enemies[0];
-    let roll = this.nextGameplayRandom() * totalWeight;
+    // Weekly encounter composition is authored once for the whole week. Keying
+    // each choice to its exact event/spawn slot keeps player actions, drops, or
+    // projectile RNG from perturbing the enemy train later in the run.
+    const rollUnit = this.continuousStageBoundaries
+      ? createGameplayRandom(
+          `${this.campaign.id}:${this.getCurrentWaveDefinition()?.id ?? 'wave'}:${event.id}:${Math.max(0, Math.floor(spawnIndex))}`
+        ).next()
+      : this.nextGameplayRandom();
+    let roll = rollUnit * totalWeight;
     for (const enemy of enemies) {
       roll -= Math.max(0, Number(enemy.weight) || 0);
       if (roll <= 0) return enemy;
@@ -8930,8 +9009,9 @@ export class GameEngine {
       orderedHolders.forEach((member) => {
         const point = globalPointById.get(member.id);
         if (!point) return;
-        member.x = point.x;
-        member.y = point.y;
+        const maxCorrectionPerFrame = this.mobileProfile ? 4 : 6;
+        member.x = moveToward(member.x, point.x, maxCorrectionPerFrame);
+        member.y = moveToward(member.y, point.y, maxCorrectionPerFrame);
       });
     }
   }
@@ -9607,7 +9687,7 @@ export class GameEngine {
       })) return false;
     }
 
-    const enemySetting = this.pickConfiguredEnemy(event);
+    const enemySetting = this.pickConfiguredEnemy(event, spawnIndex);
     if (!enemySetting) return false;
     const role = this.getCampaignEnemyRole(enemySetting.roleId);
     const threatCost = Math.max(0.25, Number(role?.threatCost) || 1);
@@ -19180,12 +19260,10 @@ export class GameEngine {
       enemy.vy -= normalY * 1.2;
     }
 
-    let appliedDamage = 0;
     if (!protectedFromDamage) {
       const incomingDamage = Math.max(1, Math.round(Number(enemy.contactDamage) || 1));
       if (!this.testMode) {
         this.applyPlayerLifeDamage(incomingDamage);
-        appliedDamage = incomingDamage;
       }
       this.invincibleTimer = 60;
     } else if (this.activePowerups.has(PowerupType.SHIELD)) {
@@ -19195,7 +19273,6 @@ export class GameEngine {
     }
 
     this.stats.lives = this.lives;
-    this.recordPlayerDamage(appliedDamage);
     const contactX = (playerCenterX + enemyCenterX) / 2;
     const contactY = (playerCenterY + enemyCenterY) / 2;
     const contactColor = protectedFromDamage ? '#67e8f9' : '#fb7185';
@@ -19430,7 +19507,6 @@ export class GameEngine {
             : Math.max(1, Math.round(Number(e.contactDamage) || 1));
           if (!this.testMode) {
             this.applyPlayerLifeDamage(incomingDamage);
-            this.recordPlayerDamage(incomingDamage);
            }
            this.stats.lives = this.lives;
            this.invincibleTimer = 60;

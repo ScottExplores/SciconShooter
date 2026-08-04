@@ -12,6 +12,12 @@ export const WEEKLY_RUN_MAJOR_BOSS_INTERVAL = 4;
 export const WEEKLY_RUN_INITIAL_STAGE_COUNT = 24;
 export const WEEKLY_RUN_STAGE_CHUNK = 16;
 export const WEEKLY_RUN_MAX_PROOF_STAGE_COUNT = 2048;
+/**
+ * Boss ids arrive in Campaign progression order. Shuffling only within these
+ * small bands gives each week a different route without allowing a late-game
+ * boss to jump ahead of the opening roster.
+ */
+export const WEEKLY_RUN_BOSS_STRENGTH_BAND_SIZE = 2;
 
 export interface WeeklyRunPlanOptions {
   eliteBossIds?: string[];
@@ -52,6 +58,17 @@ const shuffle = <T>(random: () => number, values: readonly T[]): T[] => {
   for (let index = output.length - 1; index > 0; index -= 1) {
     const swapIndex = Math.floor(random() * (index + 1));
     [output[index], output[swapIndex]] = [output[swapIndex], output[index]];
+  }
+  return output;
+};
+
+const shuffleInStrengthBands = <T>(random: () => number, values: readonly T[]): T[] => {
+  const output: T[] = [];
+  for (let index = 0; index < values.length; index += WEEKLY_RUN_BOSS_STRENGTH_BAND_SIZE) {
+    output.push(...shuffle(
+      random,
+      values.slice(index, index + WEEKLY_RUN_BOSS_STRENGTH_BAND_SIZE)
+    ));
   }
   return output;
 };
@@ -98,9 +115,16 @@ export const buildWeeklyRunStagePlans = (
   }: WeeklyRunPlanOptions = {}
 ): SharedWeeklyRunStagePlan[] => {
   const count = normalizeStageCount(stageCount);
-  const random = createRandom(hashSeed(`${String(weekKey)}:stages`));
-  const eliteOrder = shuffle(random, normalizeIds(eliteBossIds));
-  const majorOrder = shuffle(random, normalizeIds(majorBossIds));
+  const normalizedWeekKey = String(weekKey);
+  const stageRandom = createRandom(hashSeed(`${normalizedWeekKey}:stage-rhythm`));
+  const eliteOrder = shuffleInStrengthBands(
+    createRandom(hashSeed(`${normalizedWeekKey}:elite-bosses`)),
+    normalizeIds(eliteBossIds)
+  );
+  const majorOrder = shuffleInStrengthBands(
+    createRandom(hashSeed(`${normalizedWeekKey}:major-bosses`)),
+    normalizeIds(majorBossIds)
+  );
   const stages: SharedWeeklyRunStagePlan[] = [];
   let eliteCursor = 0;
   let majorCursor = 0;
@@ -109,7 +133,7 @@ export const buildWeeklyRunStagePlans = (
     const isMajor = (index + 1) % WEEKLY_RUN_MAJOR_BOSS_INTERVAL === 0;
     const waveCount = WEEKLY_RUN_MIN_WAVES_PER_STAGE
       + Math.floor(
-        random()
+        stageRandom()
         * (WEEKLY_RUN_MAX_WAVES_PER_STAGE - WEEKLY_RUN_MIN_WAVES_PER_STAGE + 1)
       );
     let kind: SharedWeeklyRunStagePlan['kind'] = isMajor ? 'major' : 'elite';

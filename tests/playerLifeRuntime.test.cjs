@@ -56,6 +56,9 @@ test('GameEngine routes ram and projectile damage through the clamped transition
   const damageCalls = engine.match(/this\.applyPlayerLifeDamage\(incomingDamage\)/g) || [];
 
   assert.equal(damageCalls.length, 2);
+  assert.match(engine, /const boundedDamage = this\.maxPlayerDamagePerHit === null[\s\S]*?Math\.min\(requestedDamage, this\.maxPlayerDamagePerHit\)/);
+  assert.match(engine, /this\.recordPlayerDamage\(transition\.damageApplied\)/);
+  assert.doesNotMatch(engine, /this\.recordPlayerDamage\(incomingDamage\)/);
   assert.match(engine, /startDeathSequence\(\) \{\s*this\.syncPlayerLives\(\)/);
   assert.match(engine, /finishDeathSequence\(\) \{\s*this\.syncPlayerLives\(\)/);
   assert.match(engine, /this\.syncPlayerLives\(resolvePlayerRevivalLives\(lives, GAME_CONFIG\.MAX_LIVES\)\)/);
@@ -74,6 +77,7 @@ test('Campaign Mission boundaries refill permanent hearts while internal and Wee
   assert.match(boundaryBlock, /if \(stageBoundary && !seamlessStageBoundary\)/);
   assert.match(boundaryBlock, /if \(this\.refillLivesAtMissionBoundary\)[\s\S]*?this\.syncPlayerLives\(this\.startingLives\)/);
   assert.match(canvas, /refillLivesAtMissionBoundary\?: boolean/);
+  assert.match(canvas, /if \(uiUsedRepair && stats\.lives > engine\.lives\)/);
   assert.match(app, /refillLivesAtMissionBoundary: !isWeeklyCampaignRun/);
   assert.match(hud, /lifeCapacityMissionRef\.current !== stats\.wave[\s\S]*?lifeCapacityRef\.current = Math\.max\(1, lifeCapacity \?\? stats\.lives\)/);
   assert.match(app, /lifeCapacity: activeRunLifeCapacity/);

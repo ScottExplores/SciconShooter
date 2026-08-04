@@ -81,7 +81,8 @@ test('pause menu uses the generated game interface while preserving real setting
   assert.match(pause, /idPrefix="sci-pause"/);
   assert.match(app, /musicVolumeLevel=\{musicVolumeLevel\}/);
   assert.match(app, /onMusicVolumeChange=\{setGameMusicVolume\}/);
-  assert.match(pause, /Mission \{String\(missionNumber\)\.padStart\(2, '0'\)\}/);
+  assert.match(pause, /continuousRun \? 'Weekly Run' : `Mission \$\{String\(missionNumber\)\.padStart\(2, '0'\)\}`/);
+  assert.match(pause, /continuousRun \? `Wave \$\{absoluteWaveNumber\}` : missionName/);
   assert.match(pause, /Wave \{waveNumber\}\/\{waveTotal\}/);
   assert.match(pause, /sci-pause-mission-position/);
   assert.match(pause, /onTogglePolishSetting\('screenShake'\)/);

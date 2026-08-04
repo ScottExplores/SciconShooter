@@ -12,6 +12,7 @@ const WEEKLY_RUN_MAJOR_BOSS_INTERVAL = 4;
 const WEEKLY_RUN_INITIAL_STAGE_COUNT = 24;
 const WEEKLY_RUN_STAGE_CHUNK = 16;
 const WEEKLY_RUN_MAX_PROOF_STAGE_COUNT = 2048;
+const WEEKLY_RUN_BOSS_STRENGTH_BAND_SIZE = 2;
 
 const hashSeed = (value) => {
   let hash = 0x811c9dc5;
@@ -42,6 +43,17 @@ const shuffle = (random, values) => {
   return output;
 };
 
+const shuffleInStrengthBands = (random, values) => {
+  const output = [];
+  for (let index = 0; index < values.length; index += WEEKLY_RUN_BOSS_STRENGTH_BAND_SIZE) {
+    output.push(...shuffle(
+      random,
+      values.slice(index, index + WEEKLY_RUN_BOSS_STRENGTH_BAND_SIZE)
+    ));
+  }
+  return output;
+};
+
 const normalizeIds = (values) => Array.from(new Set(
   (Array.isArray(values) ? values : [])
     .filter((value) => typeof value === 'string' && value.length > 0)
@@ -49,7 +61,7 @@ const normalizeIds = (values) => Array.from(new Set(
 
 const normalizeStageCount = (value) => Math.max(
   1,
-  Math.floor(Number(value) || 0)
+  Math.min(WEEKLY_RUN_MAX_PROOF_STAGE_COUNT, Math.floor(Number(value) || 0))
 );
 
 const getWeeklyRunIntensity = (stageIndex) => (
@@ -81,9 +93,16 @@ const buildWeeklyRunStagePlans = (weekKey, {
   stageCount = WEEKLY_RUN_INITIAL_STAGE_COUNT
 } = {}) => {
   const count = normalizeStageCount(stageCount);
-  const random = createRandom(hashSeed(`${String(weekKey)}:stages`));
-  const eliteOrder = shuffle(random, normalizeIds(eliteBossIds));
-  const majorOrder = shuffle(random, normalizeIds(majorBossIds));
+  const normalizedWeekKey = String(weekKey);
+  const stageRandom = createRandom(hashSeed(`${normalizedWeekKey}:stage-rhythm`));
+  const eliteOrder = shuffleInStrengthBands(
+    createRandom(hashSeed(`${normalizedWeekKey}:elite-bosses`)),
+    normalizeIds(eliteBossIds)
+  );
+  const majorOrder = shuffleInStrengthBands(
+    createRandom(hashSeed(`${normalizedWeekKey}:major-bosses`)),
+    normalizeIds(majorBossIds)
+  );
   const stages = [];
   let eliteCursor = 0;
   let majorCursor = 0;
@@ -92,7 +111,7 @@ const buildWeeklyRunStagePlans = (weekKey, {
     const isMajor = (index + 1) % WEEKLY_RUN_MAJOR_BOSS_INTERVAL === 0;
     const waveCount = WEEKLY_RUN_MIN_WAVES_PER_STAGE
       + Math.floor(
-        random()
+        stageRandom()
         * (WEEKLY_RUN_MAX_WAVES_PER_STAGE - WEEKLY_RUN_MIN_WAVES_PER_STAGE + 1)
       );
     let kind = isMajor ? 'major' : 'elite';
@@ -212,6 +231,7 @@ const getWeeklyRunOutcomeLimits = (stage) => {
 };
 
 module.exports = {
+  WEEKLY_RUN_BOSS_STRENGTH_BAND_SIZE,
   WEEKLY_RUN_INITIAL_STAGE_COUNT,
   WEEKLY_RUN_MAJOR_BOSS_INTERVAL,
   WEEKLY_RUN_MAX_PROOF_STAGE_COUNT,

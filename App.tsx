@@ -220,7 +220,8 @@ import {
   WEEKLY_RUN_STAGE_CHUNK,
   getWeeklyRunDepth,
   buildWeeklyRunCampaign,
-  getWeeklyRunEntryPoint
+  getWeeklyRunEntryPoint,
+  getWeeklyRunMaterializedStageCount
 } from './services/weeklyRunGenerator';
 import { resolveRunStartingLives } from './services/runStartingLives';
 import {
@@ -324,10 +325,7 @@ const getWeeklyRun = (
   weekKey: string,
   stageCount = WEEKLY_RUN_INITIAL_STAGE_COUNT
 ) => {
-  const materializedStageCount = Math.max(
-    WEEKLY_RUN_INITIAL_STAGE_COUNT,
-    Math.floor(stageCount)
-  );
+  const materializedStageCount = getWeeklyRunMaterializedStageCount(stageCount);
   const cacheKey = `${weekKey}:${materializedStageCount}`;
   const cached = weeklyRunCache.get(cacheKey);
   if (cached) return cached;
@@ -542,7 +540,7 @@ type MissionLoadingState = {
 };
 type PauseMissionPosition = Pick<
   GameRuntimeState,
-  'levelNumber' | 'levelName' | 'waveNumber' | 'waveTotal'
+  'levelNumber' | 'levelName' | 'waveNumber' | 'waveTotal' | 'absoluteWaveNumber' | 'continuousRun'
 >;
 type PendingMissionRuntimeLaunch = {
   launchNonce: number;
@@ -689,11 +687,10 @@ const App: React.FC = () => {
   const weeklyRunRequiredStageCount = weeklySquadState.weeklyCampaignStreak?.finalization.status === 'active'
     ? weeklySquadState.weeklyCampaignStreak.score.completedNodeCount + WEEKLY_RUN_STAGE_CHUNK
     : WEEKLY_RUN_INITIAL_STAGE_COUNT;
-  const weeklyRunMaterializedStageCount = Math.max(
-    WEEKLY_RUN_INITIAL_STAGE_COUNT,
+  const weeklyRunMaterializedStageCount = getWeeklyRunMaterializedStageCount(Math.max(
     weeklyRunStageCount,
     weeklyRunRequiredStageCount
-  );
+  ));
   const weeklyRun = useMemo(() => getWeeklyRun(
     weeklySquadState.weekKey,
     weeklyRunMaterializedStageCount
@@ -818,14 +815,15 @@ const App: React.FC = () => {
   const lastStoryWaveRef = useRef(0);
   const missionLaunchNonceRef = useRef(0);
   const missionLaunchPendingRef = useRef(false);
+  const weeklyRunAdmissionPendingRef = useRef(false);
   const pendingMissionRuntimeRef = useRef<PendingMissionRuntimeLaunch | null>(null);
   const introStoryTimeoutRef = useRef<number | null>(null);
   const weeklyProposalTransitionRef = useRef<number | null>(null);
   const weeklyProposalReturnRef = useRef<'results' | 'record'>('results');
   const gameStateRef = useRef<GameState>(GameState.MENU);
   const openCampaignMapRef = useRef<(focusMissionId?: string | null) => void>(() => undefined);
-  // The Weekly Run home entry resumes through the same routing callback that
-  // is declared later in this component, so it reaches it through a ref.
+  // Legacy Campaign Map tooling reaches its later-declared Weekly route
+  // callback through a ref. Player-facing Weekly Run starts only from Home.
   const selectWeeklyCampaignMissionFromMapRef = useRef<
     (request: CampaignMapLaunchRequest & { nodeId: string }) => void
   >(() => undefined);
@@ -1631,7 +1629,9 @@ const App: React.FC = () => {
       levelNumber: runtime.levelNumber,
       levelName: runtime.levelName,
       waveNumber: runtime.waveNumber,
-      waveTotal: runtime.waveTotal
+      waveTotal: runtime.waveTotal,
+      absoluteWaveNumber: runtime.absoluteWaveNumber,
+      continuousRun: runtime.continuousRun
     };
     setPauseMissionPosition((current) => (
       current
@@ -1639,6 +1639,8 @@ const App: React.FC = () => {
       && current.levelName === nextPosition.levelName
       && current.waveNumber === nextPosition.waveNumber
       && current.waveTotal === nextPosition.waveTotal
+      && current.absoluteWaveNumber === nextPosition.absoluteWaveNumber
+      && current.continuousRun === nextPosition.continuousRun
         ? current
         : nextPosition
     ));
@@ -2938,15 +2940,13 @@ const App: React.FC = () => {
     const weeklyStreakForLaunch = runMode === 'weekly-streak'
       ? weeklySquadStateRef.current.weeklyCampaignStreak
       : null;
-    const carriedWeeklyLives = weeklyStreakForLaunch?.scoreEvents.at(-1)?.outcome.livesRemaining;
     // Weekly Run is the competitive endurance mode and always starts on the
     // same footing: exactly ten lives, regardless of Campaign Starting Hearts.
-    // A recovered active attempt resumes its last secured checkpoint life count
-    // instead of silently refilling to ten after a reload.
+    // Lives persist only inside the mounted engine; a later launch is always a
+    // new attempt and never restores a saved checkpoint.
     const startingLives = resolveRunStartingLives({
       weeklyRun: runMode === 'weekly-streak',
-      startingHeartLevel: squadLoadout.upgrades.startingHearts,
-      carriedWeeklyLives
+      startingHeartLevel: squadLoadout.upgrades.startingHearts
     });
     setActiveRunLifeCapacity(startingLives);
     const weeklyRunKeyForLaunch = weeklyStreakForLaunch
@@ -3088,6 +3088,12 @@ const App: React.FC = () => {
   };
 
   const retryGame = () => {
+    if (isWeeklyCampaignRun) {
+      // A Weekly loss ends that flight. Retry must pass through the same fresh
+      // admission path as Home so it spends a new attempt and starts at Wave 1.
+      void startWeeklyRunFromHome();
+      return;
+    }
     if (isCampaignBranchRun && activeCampaignBranch) {
       void launchGame(null, 'challenge', 'standard', null, {
         branchId: activeCampaignBranch.branchId,
@@ -3102,9 +3108,7 @@ const App: React.FC = () => {
       const retryRequest = {
         missionId: activeCampaignLaunch.missionId,
         waveId: mission?.waveIds[0] ?? activeCampaignLaunch.waveId,
-        kind: activeCampaignLaunch.kind === 'weekly-streak'
-          ? 'weekly-streak' as const
-          : activeCampaignLaunch.kind === 'replay' ? 'replay' as const : 'mission' as const
+        kind: activeCampaignLaunch.kind === 'replay' ? 'replay' as const : 'mission' as const
       };
       void launchGame(null, 'challenge', 'standard', retryRequest);
       return;
@@ -3432,12 +3436,6 @@ const App: React.FC = () => {
   }, [persistWeeklyCampaignStreak]);
 
   /**
-   * Home-screen entry for the standalone Weekly Run. The Weekly board is its
-   * own competition now, so it no longer piggybacks on Campaign Map route
-   * selection: the run resumes at its live node, or opens at the furthest
-   * eligible start the player has unlocked.
-   */
-  /**
    * Launches the Weekly Run: one continuous gauntlet through every
    * production-ready boss, starting on exactly ten lives.
    *
@@ -3446,7 +3444,10 @@ const App: React.FC = () => {
    * next sector rather than bouncing the player back to the home screen.
    */
   const startWeeklyRunFromHome = useCallback(async () => {
-    setWeeklyRunLaunchError(null);
+    if (weeklyRunAdmissionPendingRef.current || missionLaunchPendingRef.current) return;
+    weeklyRunAdmissionPendingRef.current = true;
+    try {
+      setWeeklyRunLaunchError(null);
     const now = new Date();
     const boundary = getWeeklyBoundaryMeta(now);
     const quotaOwner = activeWalletAddress?.toLowerCase() ?? null;
@@ -3454,19 +3455,15 @@ const App: React.FC = () => {
       && weeklyRunAttemptQuotaRef.current?.weeklyId === boundary.weekKey
       ? weeklyRunAttemptQuotaRef.current
       : null;
+    const staleStreak = weeklySquadStateRef.current.weeklyCampaignStreak;
+    if (staleStreak?.finalization.status === 'active') {
+      // Weekly Run is a single-flight attempt. Returning to Home, reloading the
+      // webview, or reopening the app forfeits that flight; it must never
+      // rebuild the engine at a saved Depth with restored checkpoint hearts.
+      persistWeeklyCampaignStreak(finalizeWeeklyCampaignDeliberateEnd(staleStreak, now.getTime()));
+    }
     const stateBeforeLaunch = weeklySquadStateRef.current;
-    const existingStreak = weeklySquadStateRef.current.weeklyCampaignStreak;
-    const resuming = existingStreak?.finalization.status === 'active'
-      && existingStreak.weeklyId === boundary.weekKey;
-    const resumeNode = resuming
-      ? weeklyRun.graph.nodeById.get(existingStreak.currentNodeId)
-      : null;
-    const resumeMission = resumeNode
-      ? weeklyRun.campaign.levels.find((level) => level.id === resumeNode.missionDefinitionId) ?? null
-      : null;
-    const entry = resumeMission
-      ? { levelId: resumeMission.id, waveId: resumeMission.waves[0]?.id ?? null }
-      : weeklyRun.entry;
+    const entry = weeklyRun.entry;
     if (!entry?.waveId) {
       setCampaignMapError('The Weekly Run route is unavailable. Please reload and try again.');
       setCampaignMapStatus('launch-error');
@@ -3474,46 +3471,42 @@ const App: React.FC = () => {
       return;
     }
 
-    if (!resuming) {
-      const attemptsRemaining = currentQuota?.attemptsRemaining
-        ?? getWeeklyRunAttemptsRemaining(weeklySquadStateRef.current);
-      const serverCanVerifyUnknownWalletQuota = Boolean(
-        activeWalletAddress
-        && walletProfileStatus === 'ready'
-        && !currentQuota
+    const attemptsRemaining = currentQuota?.attemptsRemaining
+      ?? getWeeklyRunAttemptsRemaining(weeklySquadStateRef.current);
+    const serverCanVerifyUnknownWalletQuota = Boolean(
+      activeWalletAddress
+      && walletProfileStatus === 'ready'
+      && !currentQuota
+    );
+    if (attemptsRemaining <= 0 && !serverCanVerifyUnknownWalletQuota) {
+      setCampaignMapError(
+        `All ${WEEKLY_RUN_ATTEMPT_LIMIT} free Weekly Run attempts have been used. `
+        + 'Connect a Base Account to add one attempt for 3 RSC, or wait for the weekly reset.'
       );
-      if (attemptsRemaining <= 0 && !serverCanVerifyUnknownWalletQuota) {
-        setCampaignMapError(
-          `All ${WEEKLY_RUN_ATTEMPT_LIMIT} free Weekly Run attempts have been used. `
-          + 'Connect a Base Account to add one attempt for 3 RSC, or wait for the weekly reset.'
-        );
-        setCampaignMapStatus('launch-error');
-        return;
-      }
-      try {
-        const startedStreak = startWeeklyCampaignStreak(weeklyRun.graph, {
-          weeklyId: boundary.weekKey,
-          resetAtMs: boundary.endsAt.getTime(),
-          startNodeId: weeklyRun.graph.definition.nodes[0]?.nodeId ?? '',
-          // The Weekly Run is not gated on Campaign progress -- it is a
-          // separate mode with its own ladder, and every player starts it at
-          // depth 1. Passing Campaign unlocks here meant the run refused to
-          // start, because Campaign node ids are never weekly-run node ids.
-          // Depth is still earned: the streak only advances one node at a time.
-          unlockedNodeIds: weeklyRun.graph.definition.nodes.map((node) => node.nodeId),
-          nowMs: now.getTime()
-        });
-        const withReservedAttempt = consumeWeeklyRunAttempt(weeklySquadStateRef.current);
-        weeklySquadStateRef.current = withReservedAttempt;
-        saveWeeklySquadState(withReservedAttempt);
-        setWeeklySquadState(withReservedAttempt);
-        persistWeeklyCampaignStreak(startedStreak);
-      } catch (error) {
-        setCampaignMapError(error instanceof Error ? error.message : 'The Weekly Run could not start.');
-        setCampaignMapStatus('launch-error');
-        openCampaignMapRef.current();
-        return;
-      }
+      setCampaignMapStatus('launch-error');
+      return;
+    }
+    try {
+      const startedStreak = startWeeklyCampaignStreak(weeklyRun.graph, {
+        weeklyId: boundary.weekKey,
+        resetAtMs: boundary.endsAt.getTime(),
+        startNodeId: weeklyRun.graph.definition.nodes[0]?.nodeId ?? '',
+        // Every click starts a new flight at Depth 1. Weekly Run is not gated
+        // on Campaign progress, but its deterministic graph still proves each
+        // later Depth was earned in sequence during this one flight.
+        unlockedNodeIds: weeklyRun.graph.definition.nodes.map((node) => node.nodeId),
+        nowMs: now.getTime()
+      });
+      const withReservedAttempt = consumeWeeklyRunAttempt(weeklySquadStateRef.current);
+      weeklySquadStateRef.current = withReservedAttempt;
+      saveWeeklySquadState(withReservedAttempt);
+      setWeeklySquadState(withReservedAttempt);
+      persistWeeklyCampaignStreak(startedStreak);
+    } catch (error) {
+      setCampaignMapError(error instanceof Error ? error.message : 'The Weekly Run could not start.');
+      setCampaignMapStatus('launch-error');
+      openCampaignMapRef.current();
+      return;
     }
 
     const weeklyStreakForReservation = weeklySquadStateRef.current.weeklyCampaignStreak;
@@ -3561,7 +3554,7 @@ const App: React.FC = () => {
       runStartedAtRef.current = null;
       setRunReceiptStatus('error');
       const details = (error as { details?: string[] })?.details;
-      if (!resuming && details?.includes('weekly_run_attempts_exhausted')) {
+      if (details?.includes('weekly_run_attempts_exhausted')) {
         const restored = reconcileWeeklyRunAttempts(stateBeforeLaunch, WEEKLY_RUN_ATTEMPT_LIMIT);
         weeklySquadStateRef.current = restored;
         saveWeeklySquadState(restored);
@@ -3575,7 +3568,7 @@ const App: React.FC = () => {
           attemptsRemaining: 0,
           resetAt: boundary.endsAt.toISOString()
         }, quotaOwner);
-      } else if (!resuming) {
+      } else {
         // Keep the same pending streak key so a lost HTTP response can retry
         // the idempotent server reservation, but do not consume the displayed
         // local attempt until the reservation is actually acknowledged.
@@ -3597,11 +3590,14 @@ const App: React.FC = () => {
     setActiveRunMode('weekly-streak');
     setActiveCampaignLaunch({ missionId: entry.levelId, waveId: entry.waveId ?? undefined, kind: 'weekly-streak' });
     setActiveBossEncounterId(null);
-    void launchGame(null, 'challenge', 'standard', {
-      missionId: entry.levelId,
-      waveId: entry.waveId ?? undefined,
-      kind: 'weekly-streak'
-    });
+      await launchGame(null, 'challenge', 'standard', {
+        missionId: entry.levelId,
+        waveId: entry.waveId ?? undefined,
+        kind: 'weekly-streak'
+      });
+    } finally {
+      weeklyRunAdmissionPendingRef.current = false;
+    }
   }, [
     activeWalletAddress,
     applyWeeklyRunAttemptQuota,
@@ -4723,6 +4719,80 @@ const App: React.FC = () => {
     setCampaignMapError('');
   };
 
+  /**
+   * Advances only the persisted Weekly proof. The live GameEngine owns the
+   * immediate Wave transition, so React must never pause it or command it to
+   * replay the next Depth. A deterministic suffix is kept comfortably ahead
+   * of the player and GameCanvas hot-swaps that suffix into the mounted engine.
+   */
+  const advanceWeeklyRunAfterDepth = useCallback((
+    summary: WaveVictorySummary,
+    scoredStreak: WeeklyCampaignStreakState
+  ) => {
+    if (!summary.stageComplete || scoredStreak.finalization.status !== 'active') return false;
+
+    let runForAdvance = weeklyRun;
+    const scoredNode = runForAdvance.graph.nodeById.get(scoredStreak.currentNodeId);
+    if (!scoredNode || scoredNode.missionDefinitionId !== summary.levelId) return false;
+
+    let outgoing = runForAdvance.graph.edgesBySourceNodeId.get(scoredStreak.currentNodeId) ?? [];
+    if (outgoing.length === 0) {
+      // This is a defensive edge extension. Normal play expands much earlier,
+      // but reconstructing the graph here keeps persisted proof deterministic
+      // if a very old tab reaches the end of its materialized runway.
+      const extendedStageCount = runForAdvance.campaign.levels.length + WEEKLY_RUN_STAGE_CHUNK;
+      runForAdvance = getWeeklyRun(weeklySquadStateRef.current.weekKey, extendedStageCount);
+      setWeeklyRunStageCount((current) => Math.max(current, extendedStageCount));
+      outgoing = runForAdvance.graph.edgesBySourceNodeId.get(scoredStreak.currentNodeId) ?? [];
+    }
+    if (outgoing.length !== 1) {
+      setCampaignMapError('Weekly Run runway could not extend. This attempt has ended safely.');
+      return false;
+    }
+
+    const result = requestWeeklyCampaignAdvance(
+      scoredStreak,
+      runForAdvance.graph,
+      outgoing[0].toNodeId,
+      Date.now()
+    );
+    if (result.kind !== 'advanced') {
+      setCampaignMapError(result.kind === 'blocked'
+        ? `Weekly route blocked: ${result.reason.replace(/-/g, ' ')}.`
+        : result.confirmation.message);
+      return false;
+    }
+
+    const nextNode = runForAdvance.graph.nodeById.get(result.state.currentNodeId);
+    const nextMission = nextNode
+      ? runForAdvance.campaign.levels.find((level) => level.id === nextNode.missionDefinitionId) ?? null
+      : null;
+    const nextWaveId = nextMission?.waves[0]?.id;
+    if (!nextMission || !nextWaveId) return false;
+
+    // Keep at least one full generation chunk beyond the cleared Depth. This
+    // updates only the campaign prop; the mounted GameStage key remains stable.
+    const runwayTarget = getWeeklyRunMaterializedStageCount(
+      result.state.score.completedNodeCount + WEEKLY_RUN_STAGE_CHUNK
+    );
+    setWeeklyRunStageCount((current) => Math.max(current, runwayTarget));
+    persistWeeklyCampaignStreak(result.state);
+    setActiveCampaignLaunch({
+      missionId: nextMission.id,
+      waveId: nextWaveId,
+      kind: 'weekly-streak'
+    });
+    weeklyRunSectorReachedRef.current = Math.max(
+      weeklyRunSectorReachedRef.current,
+      result.state.score.completedNodeCount + 1
+    );
+    weeklyRunSectorsClearedRef.current = Math.max(
+      weeklyRunSectorsClearedRef.current,
+      result.state.score.completedNodeCount
+    );
+    return true;
+  }, [persistWeeklyCampaignStreak, weeklyRun]);
+
   const handleCampaignProgress = useCallback((summary: WaveVictorySummary) => {
     if (activeRunMode === 'weekly-streak') {
       if (!summary.stageComplete) return;
@@ -4767,6 +4837,7 @@ const App: React.FC = () => {
         });
         processedCampaignSummaryKeysRef.current.add(resultId);
         persistWeeklyCampaignStreak(nextStreak);
+        advanceWeeklyRunAfterDepth(summary, nextStreak);
       } catch (error) {
         console.error('Weekly Campaign score settlement failed', error);
         setCampaignMapError('Weekly Streak score could not be secured. Retry this Mission.');
@@ -4868,7 +4939,7 @@ const App: React.FC = () => {
       collectedCoins: 0,
       newlyAffordableUpgrade
     });
-  }, [activeProfileId, activeRunMode, gameId, markCampaignSettlementWalletDirty, persistWeeklyCampaignStreak, usableShipId]);
+  }, [activeProfileId, activeRunMode, advanceWeeklyRunAfterDepth, gameId, markCampaignSettlementWalletDirty, persistWeeklyCampaignStreak, usableShipId, weeklyRun]);
 
   const finalizeCampaignCollectedCoins = useCallback((summary: WaveVictorySummary) => {
     if (activeRunMode !== 'campaign' && activeRunMode !== 'campaign-replay') return;
@@ -4968,70 +5039,16 @@ const App: React.FC = () => {
     });
   }, [activeProfileId, activeRunMode, gameId, markCampaignSettlementWalletDirty, usableShipId]);
 
-  const advanceWeeklyRunAfterDepth = (summary: WaveVictorySummary) => {
-    if (!summary.stageComplete) return false;
-    const streak = weeklySquadStateRef.current.weeklyCampaignStreak;
-    if (!streak || streak.finalization.status !== 'active') return false;
-    let runForAdvance = weeklyRun;
-    let outgoing = runForAdvance.graph.edgesBySourceNodeId.get(streak.currentNodeId) ?? [];
-    if (outgoing.length === 0) {
-      // The last materialized node is a runway edge, not an ending. Generate
-      // the next deterministic chunk and advance on the expanded graph. The
-      // same week/absolute indices reproduce the exact prefix on every device.
-      const nextStageCount = runForAdvance.campaign.levels.length + WEEKLY_RUN_STAGE_CHUNK;
-      runForAdvance = getWeeklyRun(weeklySquadStateRef.current.weekKey, nextStageCount);
-      setWeeklyRunStageCount(nextStageCount);
-      outgoing = runForAdvance.graph.edgesBySourceNodeId.get(streak.currentNodeId) ?? [];
-    }
-    if (outgoing.length === 1) {
-      const result = requestWeeklyCampaignAdvance(
-        streak,
-        runForAdvance.graph,
-        outgoing[0].toNodeId,
-        Date.now()
-      );
-      if (result.kind !== 'advanced') {
-        setCampaignMapError(result.kind === 'blocked'
-          ? `Weekly route blocked: ${result.reason.replace(/-/g, ' ')}.`
-          : result.confirmation.message);
-        return false;
-      }
-      const nextNode = runForAdvance.graph.nodeById.get(result.state.currentNodeId);
-      const nextMission = nextNode
-        ? runForAdvance.campaign.levels.find((level) => level.id === nextNode.missionDefinitionId) ?? null
-        : null;
-      const nextWaveId = nextMission?.waves[0]?.id;
-      if (!nextMission || !nextWaveId) return false;
-      persistWeeklyCampaignStreak(result.state);
-      setActiveCampaignLaunch({
-        missionId: nextMission.id,
-        waveId: nextWaveId,
-        kind: 'weekly-streak'
-      });
-      setWaveContinueCommand((current) => ({
-        nonce: (current?.nonce ?? 0) + 1,
-        targetLevelId: nextMission.id,
-        targetWaveId: nextWaveId
-      }));
-      setWaveVictorySummary(null);
-      setGameState(GameState.PLAYING);
-      return true;
-    }
-    setCampaignMapError('Weekly Run runway could not extend. Reload to safely resume this attempt.');
-    return false;
-  };
-
   const showWaveVictory = async (summary: WaveVictorySummary) => {
     if (!summary.stageComplete) {
       setWaveContinueCommand(current => ({ nonce: (current?.nonce ?? 0) + 1 }));
       setGameState(GameState.PLAYING);
       return;
     }
-    // Weekly Run depths are technical content boundaries inside one endless
-    // flight. Secure the score, extend the deterministic runway, and continue
-    // immediately without a Mission/Victory screen or victory fanfare.
+    // Weekly boundaries are published through onCampaignProgress while the
+    // engine keeps flying. Ignore any legacy victory notification so React can
+    // never advance the same retained summary twice.
     if (isWeeklyCampaignRun) {
-      advanceWeeklyRunAfterDepth(summary);
       return;
     }
     audioService.playSound('mission_victory', 1, { pitchJitter: 0 });
@@ -5081,7 +5098,7 @@ const App: React.FC = () => {
   const continueAfterWaveVictory = () => {
     if (!waveVictorySummary) return;
     if (isWeeklyCampaignRun) {
-      advanceWeeklyRunAfterDepth(waveVictorySummary);
+      setWaveVictorySummary(null);
       return;
     }
     if (isCampaignBranchRun && activeCampaignBranch) {
@@ -6673,7 +6690,10 @@ const App: React.FC = () => {
                 ?? (isCampaignRun ? activeCampaignLaunch?.waveId : undefined),
               refillLivesAtMissionBoundary: !isWeeklyCampaignRun,
               continuousStageBoundaries: isWeeklyCampaignRun,
-              randomSeed: activeBossArchiveRun?.seed,
+              maxPlayerDamagePerHit: isWeeklyCampaignRun ? 1 : undefined,
+              randomSeed: isWeeklyCampaignRun
+                ? `weekly-run:${weeklySquadState.weekKey}`
+                : activeBossArchiveRun?.seed,
               testMode: isOwnerTestRun,
               testWaveCommand,
               testBossCommand,
@@ -6831,10 +6851,7 @@ const App: React.FC = () => {
           onRestartOnboarding={() => setOnboardingRestartNonce((nonce) => nonce + 1)}
           weeklyRunLaunchError={weeklyRunLaunchError}
           onDismissWeeklyRunLaunchError={() => setWeeklyRunLaunchError(null)}
-          weeklyRunActive={weeklySquadState.weeklyCampaignStreak?.finalization.status === 'active'}
-          weeklyRunBestScore={weeklySquadState.weeklyCampaignStreak?.finalization.status === 'active'
-            ? weeklySquadState.weeklyCampaignStreak.score.totalPoints
-            : weeklySquadState.weeklyStats.score}
+          weeklyRunBestScore={weeklySquadState.weeklyStats.score}
           weeklyRunAttemptsRemaining={weeklyRunAttemptQuotaOwner === activeWalletAddress?.toLowerCase()
             && weeklyRunAttemptQuota?.weeklyId === weeklySquadState.weekKey
             ? weeklyRunAttemptQuota.attemptsRemaining
@@ -6982,6 +6999,8 @@ const App: React.FC = () => {
           missionName={pauseMissionPosition?.levelName ?? getStageName(Math.max(1, Math.floor(stats.wave)))}
           waveNumber={pauseMissionPosition?.waveNumber ?? 1}
           waveTotal={pauseMissionPosition?.waveTotal ?? 1}
+          absoluteWaveNumber={pauseMissionPosition?.absoluteWaveNumber ?? 1}
+          continuousRun={pauseMissionPosition?.continuousRun ?? isWeeklyCampaignRun}
           sfxVolumeLevel={sfxVolumeLevel}
           musicVolumeLevel={musicVolumeLevel}
           matchMusicTrackId={activeMatchMusicTrackId}
@@ -7212,7 +7231,9 @@ const App: React.FC = () => {
                       </p>
                     ) : null}
                     <div className="sci-gameover-actions">
-                      <button type="button" onClick={retryGame} className="scicon-btn sci-gameover-action sci-gameover-action--retry">RETRY MISSION</button>
+                      <button type="button" onClick={retryGame} className="scicon-btn sci-gameover-action sci-gameover-action--retry">
+                        {isWeeklyCampaignRun ? 'NEW WEEKLY RUN' : 'RETRY MISSION'}
+                      </button>
                       <button type="button" onClick={openSquadHangar} className="scicon-btn sci-gameover-action sci-gameover-action--hangar">HANGAR</button>
                       <button type="button" onClick={resetGame} className="scicon-btn sci-gameover-action sci-gameover-action--home">MAIN MENU</button>
                     </div>
