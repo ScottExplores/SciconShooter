@@ -691,7 +691,12 @@ const FORMATION_ENTRY_PATH_PROFILES: Readonly<Record<FormationEntryPathId, Forma
   'armored-grid': { entryFrames: 94, lateralScale: 0.06, turns: 0, bloomStart: 0.5 },
   'mirrored-swoop': { entryFrames: 112, lateralScale: 0.2, turns: 0.75, bloomStart: 0.5 },
   'pod-converge': { entryFrames: 118, lateralScale: 0.2, turns: 0.8, bloomStart: 0.55 },
-  'convoy-column': { entryFrames: 124, lateralScale: 0.12, turns: 0.6, bloomStart: 0.62 }
+  'convoy-column': { entryFrames: 124, lateralScale: 0.12, turns: 0.6, bloomStart: 0.62 },
+  // The two arcade train routes. Long entries with late blooms so a staggered
+  // single-file cohort reads as one procession following the leader, exactly
+  // like the classic Galaxian-family intros.
+  'loop-the-loop': { entryFrames: 172, lateralScale: 0.26, turns: 1, bloomStart: 0.68 },
+  'serpentine-weave': { entryFrames: 156, lateralScale: 0.32, turns: 2.6, bloomStart: 0.62 }
 });
 
 const getFormationEntryPathProfile = (
@@ -1258,6 +1263,17 @@ export const resolveFormationEntryMotion = ({
     arcScale = 0.3;
     liftScale = 0.55;
     bankScale = 0.7;
+  } else if (normalizedPath?.includes('loop-the-loop')) {
+    arcScale = 1.5;
+    liftScale = 1.35;
+    bankScale = 1.3;
+    waveAmplitude = 26;
+  } else if (normalizedPath?.includes('serpentine')) {
+    arcScale = 1.25;
+    liftScale = 0.85;
+    bankScale = 1.15;
+    waveAmplitude = 42;
+    waveCycles = 5;
   }
 
   if (normalizedBehavior === 'dive') {
@@ -1363,9 +1379,31 @@ const sampleFormationCohortRoutePoint = (
 
   const envelope = Math.pow(Math.sin(progress * Math.PI), 0.82);
   const turnPhase = progress * Math.PI * 2 * profile.turns + (input.groupSeed % 17) * 0.035;
-  const lateral = Math.min(viewportWidth * profile.lateralScale, 122);
+  const lateral = Math.min(
+    viewportWidth * profile.lateralScale,
+    path === 'serpentine-weave' ? 156 : 122
+  );
 
-  if (path === 'spiral-entry' || path === 'ring-assemble') {
+  if (path === 'loop-the-loop') {
+    // One full vertical circle mid-route: the circular displacement sweeps a
+    // complete revolution while the base approach keeps advancing, so the
+    // combined path draws the classic arcade loop, then hands the tail of the
+    // flight to the slot bloom. Radius eases in and out so the loop joins the
+    // approach smoothly, and split trains loop with opposite chirality.
+    const loopPhase = clamp((progress - 0.24) / 0.38, 0, 1);
+    const loopEase = smoothUnit(loopPhase);
+    const fade = Math.sin(loopPhase * Math.PI);
+    const radius = Math.min(viewportWidth * 0.24, 118);
+    const spin = loopEase * Math.PI * 2;
+    const chirality = routeSide || 1;
+    x += Math.sin(spin) * radius * fade * chirality;
+    y += (1 - Math.cos(spin)) * radius * 0.52 * fade;
+  } else if (path === 'serpentine-weave') {
+    // Wide flat S-curves across the field with a gentle vertical wobble; the
+    // amplitude decays through the envelope as the train nears its slots.
+    x += Math.sin(turnPhase) * lateral * envelope * (routeSide || 1);
+    y += Math.cos(turnPhase * 0.5) * Math.min(26, lateral * 0.18) * envelope;
+  } else if (path === 'spiral-entry' || path === 'ring-assemble') {
     // One shrinking orbital ribbon. Members share its center/tangent and only
     // take on their final slot during the late bloom.
     x += Math.cos(turnPhase) * lateral * envelope;

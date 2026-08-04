@@ -198,6 +198,8 @@ export type FormationEntryPathId =
   | 'armored-grid'
   | 'mirrored-swoop'
   | 'pod-converge'
+  | 'loop-the-loop'
+  | 'serpentine-weave'
   | 'convoy-column';
 
 export type FormationMovementId =

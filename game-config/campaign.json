@@ -2475,7 +2475,7 @@
               "count": 6,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.54,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -2540,7 +2540,7 @@
               "count": 8,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.40800000000000003,
+              "spawnIntervalSeconds": 0.28,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -2664,7 +2664,7 @@
               "count": 6,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -2711,7 +2711,7 @@
               "count": 7,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -2786,7 +2786,7 @@
               "count": 4,
               "patternId": "grid",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48960000000000004,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -4439,7 +4439,7 @@
               "count": 8,
               "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.40800000000000003,
+              "spawnIntervalSeconds": 0.28,
               "formationBehavior": {
                 "entryPathId": "diamond-lock",
                 "movementId": "expand-collapse",
@@ -4538,7 +4538,7 @@
               "count": 4,
               "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.54,
+              "spawnIntervalSeconds": 0.28,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -4590,7 +4590,7 @@
               "count": 4,
               "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.54,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -5259,7 +5259,7 @@
               "count": 4,
               "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.54,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -5987,7 +5987,7 @@
               "count": 4,
               "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.54,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -6036,7 +6036,7 @@
               "count": 4,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48960000000000004,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -6364,7 +6364,7 @@
               "count": 5,
               "patternId": "row",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48960000000000004,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "brick",
@@ -6411,7 +6411,7 @@
               "count": 5,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48960000000000004,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -6458,7 +6458,7 @@
               "count": 4,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48960000000000004,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -6596,7 +6596,7 @@
               "count": 6,
               "patternId": "row",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "brick",
@@ -6655,7 +6655,7 @@
               "count": 7,
               "patternId": "row",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "brick",
@@ -6855,7 +6855,7 @@
               "count": 5,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48960000000000004,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -6902,7 +6902,7 @@
               "count": 5,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48960000000000004,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "brick",
@@ -7158,7 +7158,7 @@
               "count": 8,
               "patternId": "row",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.40800000000000003,
+              "spawnIntervalSeconds": 0.28,
               "enemies": [
                 {
                   "enemyId": "brick",
@@ -7290,7 +7290,7 @@
               "count": 5,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48960000000000004,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -7386,7 +7386,7 @@
               "count": 4,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.54,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -7435,7 +7435,7 @@
               "count": 4,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48960000000000004,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -7651,7 +7651,7 @@
               "count": 7,
               "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48960000000000004,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -7783,7 +7783,7 @@
               "count": 5,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48960000000000004,
+              "spawnIntervalSeconds": 0.28,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -7811,7 +7811,7 @@
               "count": 5,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48960000000000004,
+              "spawnIntervalSeconds": 0.28,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -7880,7 +7880,7 @@
               "count": 4,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48960000000000004,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -8037,7 +8037,7 @@
               "count": 5,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48960000000000004,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -8084,7 +8084,7 @@
               "count": 5,
               "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48960000000000004,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -8131,7 +8131,7 @@
               "count": 5,
               "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48960000000000004,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -8398,7 +8398,7 @@
               "count": 7,
               "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48960000000000004,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -8463,7 +8463,7 @@
               "count": 5,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48960000000000004,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -8491,7 +8491,7 @@
               "count": 5,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48960000000000004,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -8774,7 +8774,7 @@
               "count": 7,
               "patternId": "row",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "brick",
@@ -8861,7 +8861,7 @@
               "count": 8,
               "patternId": "row",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.40800000000000003,
+              "spawnIntervalSeconds": 0.28,
               "enemies": [
                 {
                   "enemyId": "brick",
@@ -8930,7 +8930,7 @@
               "count": 5,
               "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -8977,7 +8977,7 @@
               "count": 5,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -9045,7 +9045,7 @@
               "count": 6,
               "patternId": "row",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "brick",
@@ -9103,7 +9103,7 @@
               "count": 7,
               "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -9190,7 +9190,7 @@
               "count": 4,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -9218,7 +9218,7 @@
               "count": 4,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -9477,7 +9477,7 @@
               "count": 8,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.40800000000000003,
+              "spawnIntervalSeconds": 0.28,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -9610,7 +9610,7 @@
               "count": 5,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -9657,7 +9657,7 @@
               "count": 4,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -9704,7 +9704,7 @@
               "count": 4,
               "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -9812,7 +9812,7 @@
               "count": 6,
               "patternId": "row",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "brick",
@@ -9871,7 +9871,7 @@
               "count": 7,
               "patternId": "row",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "brick",
@@ -10026,7 +10026,7 @@
               "count": 8,
               "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -10116,7 +10116,7 @@
               "count": 5,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -10336,7 +10336,7 @@
               "count": 7,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "brick",
@@ -10490,7 +10490,7 @@
               "count": 4,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -10539,7 +10539,7 @@
               "count": 4,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -10707,7 +10707,7 @@
               "count": 4,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -10923,7 +10923,7 @@
               "count": 7,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -10991,7 +10991,7 @@
               "count": 8,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.40800000000000003,
+              "spawnIntervalSeconds": 0.28,
               "enemies": [
                 {
                   "enemyId": "brick",
@@ -11083,7 +11083,7 @@
               "count": 4,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.28,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -11154,7 +11154,7 @@
               "count": 4,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -11300,7 +11300,7 @@
               "count": 5,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -11411,7 +11411,7 @@
               "count": 5,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -11596,7 +11596,7 @@
               "count": 7,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -11687,7 +11687,7 @@
               "count": 4,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -12810,7 +12810,7 @@
               "count": 7,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -12896,7 +12896,7 @@
               "count": 8,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.40800000000000003,
+              "spawnIntervalSeconds": 0.28,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -13031,7 +13031,7 @@
               "count": 5,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -13101,7 +13101,7 @@
               "count": 6,
               "patternId": "row",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "brick",
@@ -13159,7 +13159,7 @@
               "count": 7,
               "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -13249,7 +13249,7 @@
               "count": 5,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -13298,7 +13298,7 @@
               "count": 5,
               "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -13471,7 +13471,7 @@
               "count": 7,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -13652,7 +13652,7 @@
               "count": 5,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -13718,7 +13718,7 @@
               "count": 5,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -13784,7 +13784,7 @@
               "count": 5,
               "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -13872,7 +13872,7 @@
               "count": 6,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -14090,7 +14090,7 @@
               "count": 8,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -14187,7 +14187,7 @@
               "count": 5,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -14251,7 +14251,7 @@
               "count": 5,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -14443,7 +14443,7 @@
               "count": 7,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -14529,7 +14529,7 @@
               "count": 8,
               "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.40800000000000003,
+              "spawnIntervalSeconds": 0.28,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -14647,7 +14647,7 @@
               "count": 5,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -14832,7 +14832,7 @@
               "count": 5,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -15065,7 +15065,7 @@
               "count": 7,
               "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "brick",
@@ -15154,7 +15154,7 @@
               "count": 8,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.40800000000000003,
+              "spawnIntervalSeconds": 0.28,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -15267,7 +15267,7 @@
               "count": 5,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.28,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -15355,7 +15355,7 @@
               "count": 5,
               "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -15521,7 +15521,7 @@
               "count": 5,
               "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -15585,7 +15585,7 @@
               "count": 5,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "brick",
@@ -15633,7 +15633,7 @@
               "count": 5,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "brick",
@@ -15902,7 +15902,7 @@
               "count": 7,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "brick",
@@ -16034,7 +16034,7 @@
               "count": 5,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -17269,7 +17269,7 @@
               "count": 7,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -17371,7 +17371,7 @@
               "count": 8,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.40800000000000003,
+              "spawnIntervalSeconds": 0.28,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -17506,7 +17506,7 @@
               "count": 5,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -17593,7 +17593,7 @@
               "count": 6,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -17763,7 +17763,7 @@
               "count": 5,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -17812,7 +17812,7 @@
               "count": 5,
               "patternId": "grid",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -18002,7 +18002,7 @@
               "count": 7,
               "patternId": "grid",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -18183,7 +18183,7 @@
               "count": 5,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -18249,7 +18249,7 @@
               "count": 5,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -18315,7 +18315,7 @@
               "count": 5,
               "patternId": "grid",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -18403,7 +18403,7 @@
               "count": 6,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -18621,7 +18621,7 @@
               "count": 8,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -18718,7 +18718,7 @@
               "count": 5,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -18782,7 +18782,7 @@
               "count": 5,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -18974,7 +18974,7 @@
               "count": 7,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -19060,7 +19060,7 @@
               "count": 8,
               "patternId": "grid",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.40800000000000003,
+              "spawnIntervalSeconds": 0.28,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -19178,7 +19178,7 @@
               "count": 5,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -19363,7 +19363,7 @@
               "count": 5,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -19596,7 +19596,7 @@
               "count": 7,
               "patternId": "grid",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "brick",
@@ -19685,7 +19685,7 @@
               "count": 8,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.40800000000000003,
+              "spawnIntervalSeconds": 0.28,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -19798,7 +19798,7 @@
               "count": 5,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.28,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -19886,7 +19886,7 @@
               "count": 5,
               "patternId": "grid",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -20052,7 +20052,7 @@
               "count": 5,
               "patternId": "grid",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -20116,7 +20116,7 @@
               "count": 5,
               "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "brick",
@@ -20164,7 +20164,7 @@
               "count": 5,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "brick",
@@ -20433,7 +20433,7 @@
               "count": 7,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "brick",
@@ -20565,7 +20565,7 @@
               "count": 5,
               "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -22309,7 +22309,7 @@
               "count": 7,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -22411,7 +22411,7 @@
               "count": 8,
               "patternId": "row",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.40800000000000003,
+              "spawnIntervalSeconds": 0.28,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -22546,7 +22546,7 @@
               "count": 5,
               "patternId": "row",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -22633,7 +22633,7 @@
               "count": 6,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -22803,7 +22803,7 @@
               "count": 5,
               "patternId": "row",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -22852,7 +22852,7 @@
               "count": 5,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -23223,7 +23223,7 @@
               "count": 5,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -23289,7 +23289,7 @@
               "count": 5,
               "patternId": "row",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -23355,7 +23355,7 @@
               "count": 5,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -23672,7 +23672,7 @@
               "count": 8,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -23769,7 +23769,7 @@
               "count": 5,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -23833,7 +23833,7 @@
               "count": 5,
               "patternId": "row",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -24025,7 +24025,7 @@
               "count": 7,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -24111,7 +24111,7 @@
               "count": 8,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.40800000000000003,
+              "spawnIntervalSeconds": 0.28,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -24229,7 +24229,7 @@
               "count": 5,
               "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -24414,7 +24414,7 @@
               "count": 5,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -24647,7 +24647,7 @@
               "count": 7,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "brick",
@@ -24736,7 +24736,7 @@
               "count": 8,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.40800000000000003,
+              "spawnIntervalSeconds": 0.28,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -24849,7 +24849,7 @@
               "count": 5,
               "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.28,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -24937,7 +24937,7 @@
               "count": 5,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -25103,7 +25103,7 @@
               "count": 5,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -25167,7 +25167,7 @@
               "count": 5,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "brick",
@@ -25215,7 +25215,7 @@
               "count": 5,
               "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "brick",
@@ -25484,7 +25484,7 @@
               "count": 7,
               "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "brick",
@@ -25616,7 +25616,7 @@
               "count": 5,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -27697,7 +27697,7 @@
               "count": 7,
               "patternId": "grid",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -27934,7 +27934,7 @@
               "count": 6,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -28021,7 +28021,7 @@
               "count": 6,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -28180,7 +28180,7 @@
               "count": 6,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -28229,7 +28229,7 @@
               "count": 6,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -28419,7 +28419,7 @@
               "count": 7,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -28600,7 +28600,7 @@
               "count": 6,
               "patternId": "grid",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -28666,7 +28666,7 @@
               "count": 6,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -28732,7 +28732,7 @@
               "count": 6,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -28820,7 +28820,7 @@
               "count": 6,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -29038,7 +29038,7 @@
               "count": 8,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -29135,7 +29135,7 @@
               "count": 6,
               "patternId": "grid",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -29199,7 +29199,7 @@
               "count": 6,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -29391,7 +29391,7 @@
               "count": 7,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -29477,7 +29477,7 @@
               "count": 8,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.40800000000000003,
+              "spawnIntervalSeconds": 0.28,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -29595,7 +29595,7 @@
               "count": 6,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -29780,7 +29780,7 @@
               "count": 6,
               "patternId": "grid",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -30013,7 +30013,7 @@
               "count": 7,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "brick",
@@ -30102,7 +30102,7 @@
               "count": 8,
               "patternId": "grid",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.40800000000000003,
+              "spawnIntervalSeconds": 0.28,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -30215,7 +30215,7 @@
               "count": 6,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.28,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -30303,7 +30303,7 @@
               "count": 6,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -30469,7 +30469,7 @@
               "count": 6,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.38,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -30533,7 +30533,7 @@
               "count": 6,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "brick",
@@ -30581,7 +30581,7 @@
               "count": 6,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "brick",
@@ -30850,7 +30850,7 @@
               "count": 7,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "brick",
@@ -30982,7 +30982,7 @@
               "count": 6,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -31305,7 +31305,7 @@
               "count": 7,
               "patternId": "row",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -31542,7 +31542,7 @@
               "count": 6,
               "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -31629,7 +31629,7 @@
               "count": 6,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -31788,7 +31788,7 @@
               "count": 6,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -31837,7 +31837,7 @@
               "count": 6,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -32027,7 +32027,7 @@
               "count": 7,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -32208,7 +32208,7 @@
               "count": 6,
               "patternId": "row",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -32274,7 +32274,7 @@
               "count": 6,
               "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -32340,7 +32340,7 @@
               "count": 6,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -32428,7 +32428,7 @@
               "count": 6,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -32646,7 +32646,7 @@
               "count": 8,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -32743,7 +32743,7 @@
               "count": 6,
               "patternId": "row",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -32807,7 +32807,7 @@
               "count": 6,
               "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -32999,7 +32999,7 @@
               "count": 7,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -33085,7 +33085,7 @@
               "count": 8,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.40800000000000003,
+              "spawnIntervalSeconds": 0.28,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -33203,7 +33203,7 @@
               "count": 6,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -33388,7 +33388,7 @@
               "count": 6,
               "patternId": "row",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -33621,7 +33621,7 @@
               "count": 7,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "brick",
@@ -33710,7 +33710,7 @@
               "count": 8,
               "patternId": "row",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.40800000000000003,
+              "spawnIntervalSeconds": 0.28,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -33823,7 +33823,7 @@
               "count": 6,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.28,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -33911,7 +33911,7 @@
               "count": 6,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -34077,7 +34077,7 @@
               "count": 6,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.38,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -34141,7 +34141,7 @@
               "count": 6,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "brick",
@@ -34189,7 +34189,7 @@
               "count": 6,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "brick",
@@ -34458,7 +34458,7 @@
               "count": 7,
               "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "brick",
@@ -34590,7 +34590,7 @@
               "count": 6,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -34913,7 +34913,7 @@
               "count": 7,
               "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -35150,7 +35150,7 @@
               "count": 6,
               "patternId": "grid",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -35237,7 +35237,7 @@
               "count": 6,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -35396,7 +35396,7 @@
               "count": 6,
               "patternId": "grid",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -35445,7 +35445,7 @@
               "count": 6,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -35635,7 +35635,7 @@
               "count": 7,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -35816,7 +35816,7 @@
               "count": 6,
               "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -35882,7 +35882,7 @@
               "count": 6,
               "patternId": "grid",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -35948,7 +35948,7 @@
               "count": 6,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -36036,7 +36036,7 @@
               "count": 6,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -36254,7 +36254,7 @@
               "count": 8,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -36351,7 +36351,7 @@
               "count": 6,
               "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -36415,7 +36415,7 @@
               "count": 6,
               "patternId": "grid",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -36607,7 +36607,7 @@
               "count": 7,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -36811,7 +36811,7 @@
               "count": 6,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -36996,7 +36996,7 @@
               "count": 6,
               "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -37229,7 +37229,7 @@
               "count": 7,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "brick",
@@ -37318,7 +37318,7 @@
               "count": 8,
               "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.40800000000000003,
+              "spawnIntervalSeconds": 0.28,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -37431,7 +37431,7 @@
               "count": 6,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.28,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -37519,7 +37519,7 @@
               "count": 6,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -37685,7 +37685,7 @@
               "count": 6,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.38,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -37749,7 +37749,7 @@
               "count": 6,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "brick",
@@ -37797,7 +37797,7 @@
               "count": 6,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "brick",
@@ -38066,7 +38066,7 @@
               "count": 7,
               "patternId": "grid",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "brick",
@@ -38198,7 +38198,7 @@
               "count": 6,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -38521,7 +38521,7 @@
               "count": 7,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -38758,7 +38758,7 @@
               "count": 6,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -38845,7 +38845,7 @@
               "count": 6,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -39004,7 +39004,7 @@
               "count": 6,
               "patternId": "grid",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -39053,7 +39053,7 @@
               "count": 6,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -39243,7 +39243,7 @@
               "count": 7,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -39424,7 +39424,7 @@
               "count": 6,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -39490,7 +39490,7 @@
               "count": 6,
               "patternId": "grid",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -39556,7 +39556,7 @@
               "count": 6,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -39644,7 +39644,7 @@
               "count": 6,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -39862,7 +39862,7 @@
               "count": 8,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -39959,7 +39959,7 @@
               "count": 6,
               "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -40023,7 +40023,7 @@
               "count": 6,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -40215,7 +40215,7 @@
               "count": 7,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -40419,7 +40419,7 @@
               "count": 6,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -40604,7 +40604,7 @@
               "count": 6,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -40837,7 +40837,7 @@
               "count": 7,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "brick",
@@ -40926,7 +40926,7 @@
               "count": 8,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.40800000000000003,
+              "spawnIntervalSeconds": 0.28,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -41039,7 +41039,7 @@
               "count": 6,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.28,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -41127,7 +41127,7 @@
               "count": 6,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -41293,7 +41293,7 @@
               "count": 6,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.38,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -41357,7 +41357,7 @@
               "count": 6,
               "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "brick",
@@ -41405,7 +41405,7 @@
               "count": 6,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "brick",
@@ -41674,7 +41674,7 @@
               "count": 7,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "brick",
@@ -41806,7 +41806,7 @@
               "count": 6,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -43106,7 +43106,7 @@
               "count": 5,
               "patternId": "row",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48960000000000004,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "brick",
@@ -43153,7 +43153,7 @@
               "count": 5,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48960000000000004,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -43200,7 +43200,7 @@
               "count": 4,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48960000000000004,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -43338,7 +43338,7 @@
               "count": 6,
               "patternId": "row",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "brick",
@@ -43397,7 +43397,7 @@
               "count": 7,
               "patternId": "row",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "brick",
@@ -43597,7 +43597,7 @@
               "count": 5,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48960000000000004,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -43644,7 +43644,7 @@
               "count": 5,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48960000000000004,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "brick",
@@ -43903,7 +43903,7 @@
               "count": 8,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.40800000000000003,
+              "spawnIntervalSeconds": 0.28,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -44036,7 +44036,7 @@
               "count": 5,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -44083,7 +44083,7 @@
               "count": 4,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -44130,7 +44130,7 @@
               "count": 4,
               "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -44238,7 +44238,7 @@
               "count": 6,
               "patternId": "row",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "brick",
@@ -44297,7 +44297,7 @@
               "count": 7,
               "patternId": "row",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "brick",
@@ -44452,7 +44452,7 @@
               "count": 8,
               "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -44542,7 +44542,7 @@
               "count": 5,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -44762,7 +44762,7 @@
               "count": 7,
               "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -44943,7 +44943,7 @@
               "count": 5,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -45009,7 +45009,7 @@
               "count": 5,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -45075,7 +45075,7 @@
               "count": 5,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -45163,7 +45163,7 @@
               "count": 6,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -45381,7 +45381,7 @@
               "count": 8,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -45478,7 +45478,7 @@
               "count": 5,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -45542,7 +45542,7 @@
               "count": 5,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -45734,7 +45734,7 @@
               "count": 7,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -45915,7 +45915,7 @@
               "count": 5,
               "patternId": "grid",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -45981,7 +45981,7 @@
               "count": 5,
               "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -46047,7 +46047,7 @@
               "count": 5,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -46135,7 +46135,7 @@
               "count": 6,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -46353,7 +46353,7 @@
               "count": 8,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -46450,7 +46450,7 @@
               "count": 5,
               "patternId": "grid",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -46514,7 +46514,7 @@
               "count": 5,
               "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -46706,7 +46706,7 @@
               "count": 7,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -46887,7 +46887,7 @@
               "count": 5,
               "patternId": "row",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -46953,7 +46953,7 @@
               "count": 5,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -47019,7 +47019,7 @@
               "count": 5,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -47107,7 +47107,7 @@
               "count": 6,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -47325,7 +47325,7 @@
               "count": 8,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -47422,7 +47422,7 @@
               "count": 5,
               "patternId": "row",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -47486,7 +47486,7 @@
               "count": 5,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -47678,7 +47678,7 @@
               "count": 8,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -47859,7 +47859,7 @@
               "count": 6,
               "patternId": "grid",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -47925,7 +47925,7 @@
               "count": 6,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -47991,7 +47991,7 @@
               "count": 6,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -48079,7 +48079,7 @@
               "count": 6,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -48297,7 +48297,7 @@
               "count": 8,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -48394,7 +48394,7 @@
               "count": 6,
               "patternId": "grid",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -48458,7 +48458,7 @@
               "count": 6,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -48650,7 +48650,7 @@
               "count": 7,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -48831,7 +48831,7 @@
               "count": 6,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -48897,7 +48897,7 @@
               "count": 6,
               "patternId": "row",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -48963,7 +48963,7 @@
               "count": 6,
               "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -49051,7 +49051,7 @@
               "count": 6,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -49269,7 +49269,7 @@
               "count": 8,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -49366,7 +49366,7 @@
               "count": 6,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -49430,7 +49430,7 @@
               "count": 6,
               "patternId": "row",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -49622,7 +49622,7 @@
               "count": 7,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -49803,7 +49803,7 @@
               "count": 6,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -49869,7 +49869,7 @@
               "count": 6,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -49935,7 +49935,7 @@
               "count": 6,
               "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -50023,7 +50023,7 @@
               "count": 6,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -50241,7 +50241,7 @@
               "count": 8,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -50338,7 +50338,7 @@
               "count": 6,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -50402,7 +50402,7 @@
               "count": 6,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -50594,7 +50594,7 @@
               "count": 7,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -50775,7 +50775,7 @@
               "count": 6,
               "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -50841,7 +50841,7 @@
               "count": 6,
               "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -50907,7 +50907,7 @@
               "count": 6,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -50995,7 +50995,7 @@
               "count": 6,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -51213,7 +51213,7 @@
               "count": 8,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -51310,7 +51310,7 @@
               "count": 6,
               "patternId": "grid",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -51374,7 +51374,7 @@
               "count": 6,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.44,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "journal",
@@ -52291,8 +52291,8 @@
       ],
       "enemyCount": 24,
       "totalThreatCost": 24,
-      "entryDirection": "top",
-      "entryPath": "sweep-bank-reentry",
+      "entryDirection": "left",
+      "entryPath": "loop-the-loop",
       "formationShape": "v",
       "firingBehavior": "post-formation",
       "synergyAdjustment": 0,
@@ -52520,8 +52520,8 @@
       ],
       "enemyCount": 24,
       "totalThreatCost": 85.92,
-      "entryDirection": "top",
-      "entryPath": "diamond-lock",
+      "entryDirection": "right",
+      "entryPath": "loop-the-loop",
       "formationShape": "diamond",
       "firingBehavior": "priority",
       "synergyAdjustment": 2,
@@ -52568,7 +52568,7 @@
       "enemyCount": 24,
       "totalThreatCost": 99.36,
       "entryDirection": "split",
-      "entryPath": "double-helix",
+      "entryPath": "serpentine-weave",
       "formationShape": "sine",
       "firingBehavior": "priority",
       "synergyAdjustment": 3,
@@ -52659,7 +52659,7 @@
       "enemyCount": 24,
       "totalThreatCost": 133.92,
       "entryDirection": "top",
-      "entryPath": "lane-stagger",
+      "entryPath": "serpentine-weave",
       "formationShape": "row",
       "firingBehavior": "priority",
       "synergyAdjustment": 4,

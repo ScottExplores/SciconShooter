@@ -28,7 +28,9 @@ export const FORMATION_ENTRY_OPTIONS: readonly FormationBehaviorOption<Formation
   { id: 'armored-grid', label: 'Armored grid' },
   { id: 'mirrored-swoop', label: 'Mirrored swoop' },
   { id: 'pod-converge', label: 'Pod convergence' },
-  { id: 'convoy-column', label: 'Convoy column' }
+  { id: 'convoy-column', label: 'Convoy column' },
+  { id: 'loop-the-loop', label: 'Loop the loop' },
+  { id: 'serpentine-weave', label: 'Serpentine weave' }
 ];
 
 export const FORMATION_MOVEMENT_OPTIONS: readonly FormationBehaviorOption<FormationMovementId>[] = [

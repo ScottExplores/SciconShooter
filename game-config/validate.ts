@@ -257,7 +257,7 @@ const FORMATION_FIRING_BEHAVIORS = new Set(['none', 'post-formation', 'staggered
 const FORMATION_ENTRY_PATHS = new Set([
   'sweep-bank-reentry', 'formation-drop', 'spiral-entry', 'paired-flank', 'diamond-lock',
   'double-helix', 'side-wall-entry', 'lane-stagger', 'ring-assemble', 'armored-grid',
-  'mirrored-swoop', 'pod-converge', 'convoy-column'
+  'mirrored-swoop', 'pod-converge', 'convoy-column', 'loop-the-loop', 'serpentine-weave'
 ]);
 const FORMATION_MOVEMENTS = new Set([
   'gentle-drift', 'lateral-sweep', 'expand-collapse', 'rotating-wheel', 'snake-weave',

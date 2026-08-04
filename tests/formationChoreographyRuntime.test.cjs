@@ -312,3 +312,64 @@ test('authored attack verbs select distinct dive maneuvers', () => {
   assert.equal(runtime.resolveFormationDiveMotion({ ...common, attackId: 'alternating-wings' }).maneuver, 'synchronized-break');
   assert.equal(runtime.resolveFormationDiveMotion({ ...common, attackId: 'leader-escorts' }).maneuver, 'feint-dive');
 });
+
+// The two arcade train routes added for the Galaxiga-style swarm pass.
+const sampleTrainRoute = (entryPath, entryDirection) => {
+  const points = [];
+  for (let step = 0; step <= 240; step++) {
+    points.push(runtime.resolveFormationCohortEntryPose({
+      mode: 'grid',
+      index: 0,
+      count: 8,
+      groupSeed: 4321,
+      progress: step / 240,
+      viewport,
+      entityWidth: 34,
+      entityHeight: 30,
+      start: { x: 40, y: -60 },
+      target: { x: 210, y: 150 },
+      entryPath,
+      entryDirection,
+      entryBehavior: 'formation'
+    }));
+  }
+  return points;
+};
+
+const countDirectionChanges = (points, axis) => {
+  let changes = 0;
+  let previousSign = 0;
+  for (let index = 1; index < points.length; index++) {
+    const delta = points[index][axis] - points[index - 1][axis];
+    const sign = delta > 0.01 ? 1 : delta < -0.01 ? -1 : 0;
+    if (sign !== 0 && previousSign !== 0 && sign !== previousSign) changes++;
+    if (sign !== 0) previousSign = sign;
+  }
+  return changes;
+};
+
+test('loop-the-loop performs a full visible loop and still lands on its slot', () => {
+  const points = sampleTrainRoute('loop-the-loop', 'left');
+  const first = points[0];
+  const last = points[points.length - 1];
+  assert.equal(Math.round(first.x), 40);
+  assert.equal(Math.round(first.y), -60);
+  assert.equal(Math.round(last.x), 210);
+  assert.equal(Math.round(last.y), 150);
+  assert.equal(last.phase, 'settle');
+  // A real loop climbs back up at least once mid-route.
+  assert.ok(countDirectionChanges(points, 'y') >= 2, 'route reverses vertically through the loop');
+  // The loop stays inside the visible field on a phone viewport.
+  assert.ok(points.every((point) => point.x > -40 && point.x < viewport.width + 40));
+  assert.ok(points.every((point) => point.y < viewport.height * 0.5));
+});
+
+test('serpentine-weave sweeps wide S-curves before assembling', () => {
+  const points = sampleTrainRoute('serpentine-weave', 'top');
+  const last = points[points.length - 1];
+  assert.equal(Math.round(last.x), 210);
+  assert.equal(Math.round(last.y), 150);
+  assert.ok(countDirectionChanges(points, 'x') >= 4, 'route weaves across the field');
+  const xs = points.map((point) => point.x);
+  assert.ok(Math.max(...xs) - Math.min(...xs) > viewport.width * 0.45, 'sweep is wide enough to read');
+});
