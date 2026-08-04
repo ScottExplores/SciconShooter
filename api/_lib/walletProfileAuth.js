@@ -153,13 +153,22 @@ const normalizeRequestOrigin = (req) => {
     ? requestHost.toLowerCase()
     : 'www.sciconshooter.xyz';
   const forwardedProto = String(req?.headers?.['x-forwarded-proto'] || '').split(',')[0].trim();
-  const protocol = forwardedProto === 'http' ? 'http' : 'https';
+  const protocol = forwardedProto === 'http' || forwardedProto === 'https'
+    ? forwardedProto
+    : req?.socket && !req.socket.encrypted
+      ? 'http'
+      : 'https';
   return { host, origin: `${protocol}://${host}` };
 };
 
-const assertSameOrigin = (req) => {
+const assertSameOrigin = (req, { required = false, matchProtocol = false } = {}) => {
   const rawOrigin = String(req?.headers?.origin || '').trim();
-  if (!rawOrigin) return;
+  if (!rawOrigin) {
+    if (required) {
+      throw Object.assign(new Error('A same-origin request origin is required.'), { statusCode: 403 });
+    }
+    return;
+  }
   let origin;
   try {
     origin = new URL(rawOrigin);
@@ -167,7 +176,10 @@ const assertSameOrigin = (req) => {
     throw Object.assign(new Error('The request origin is invalid.'), { statusCode: 403 });
   }
   const expected = normalizeRequestOrigin(req);
-  if (origin.host.toLowerCase() !== expected.host) {
+  if (
+    origin.host.toLowerCase() !== expected.host
+    || (matchProtocol && origin.origin.toLowerCase() !== expected.origin)
+  ) {
     throw Object.assign(new Error('The request origin is not allowed.'), { statusCode: 403 });
   }
 };

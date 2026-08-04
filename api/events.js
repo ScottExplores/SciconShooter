@@ -1,4 +1,5 @@
 const { fetchSupabaseJson, hasSupabaseConfig, supabaseHeaders } = require('./_lib/supabase');
+const playerReportsHandler = require('./_lib/playerReportsRoute');
 
 const EVENTS_TABLE = process.env.SUPABASE_PRODUCT_EVENTS_TABLE || 'scicon_product_events';
 const ALLOWED_EVENTS = new Set([
@@ -36,6 +37,7 @@ const safeProperties = (value) => {
 };
 
 module.exports = async (req, res) => {
+  if (req.query?.route === 'player-reports') return playerReportsHandler(req, res);
   if (req.method !== 'POST') return sendJson(res, 405, { error: 'Method not allowed' });
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});

@@ -37,6 +37,7 @@ import {
   collectCampaignTextureWindow,
   collectRuntimeTextureUrls
 } from '../services/gameplayAssetManifest';
+import { recordPlayerReportBreadcrumb } from '../services/playerReportService';
 
 export const preloadGameplayAssets = async () => {
   await preloadPixiGameplayTextures();
@@ -879,6 +880,13 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       const setup = runtimeSetupRef.current;
       const setupCampaign = setup.campaign;
       const setupBossArtwork = setup.bossArtwork;
+      if (!previewMode) {
+        recordPlayerReportBreadcrumb('runtime_mounted', {
+          level_id: setup.levelId ?? '',
+          wave_id: setup.waveId ?? '',
+          continuous_run: Boolean(setup.continuousStageBoundaries)
+        });
+      }
       const initialRect = host.getBoundingClientRect();
       const initialWidth = setup.previewViewportWidth ?? Math.max(1, Math.round(initialRect.width || 720));
       const initialHeight = setup.previewViewportHeight ?? Math.max(1, Math.round(initialRect.height || 720));
@@ -1349,6 +1357,14 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         renderer.sync(engine, timestamp);
         if (!readinessReported) {
           readinessReported = true;
+          if (!previewMode) {
+            const runtimeState = engine.getRuntimeState();
+            recordPlayerReportBreadcrumb('runtime_first_frame', {
+              level_id: runtimeState.levelId,
+              wave_id: runtimeState.waveId,
+              wave_number: runtimeState.absoluteWaveNumber
+            });
+          }
           onReadyRef.current?.();
         }
       }
@@ -1382,6 +1398,16 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
     disposeRuntime = () => {
       // Cleanup: Stop loop and remove listeners
+      if (!previewMode) {
+        const runtimeState = engine.getRuntimeState();
+        recordPlayerReportBreadcrumb('runtime_disposed', {
+          level_id: runtimeState.levelId,
+          wave_id: runtimeState.waveId,
+          wave_number: runtimeState.absoluteWaveNumber,
+          complete: runtimeState.complete,
+          running: runningRef.current
+        });
+      }
       engine.stopTelemetrySession('disposed');
       if (previewMode && telemetrySink) {
         onTelemetrySnapshotRef.current?.(telemetrySink.getSnapshot());
