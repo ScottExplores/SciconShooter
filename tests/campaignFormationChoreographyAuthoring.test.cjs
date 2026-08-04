@@ -24,8 +24,10 @@ test('current Campaign retains its newer topology and complete pack choreography
   const campaign = readCampaign();
   assert.equal(campaign.revision, 24);
   assert.equal(campaign.levels.length, 60);
-  assert.equal(campaign.levels.reduce((sum, level) => sum + level.waves.length, 0), 300);
-  assert.equal(spawnEvents(campaign).length, 610);
+  // 311 waves / 628 spawn events after the sector-aware surge pass
+  // (introductions grow to 7 from sector 7, first remixes to 8 from sector 4).
+  assert.equal(campaign.levels.reduce((sum, level) => sum + level.waves.length, 0), 311);
+  assert.equal(spawnEvents(campaign).length, 628);
   assert.equal(campaign.formationPacks.length, 11);
   campaign.formationPacks.forEach((pack) => {
     requiredPackKeys.forEach((key) => assert.notEqual(pack[key], undefined, `${pack.id}/${key}`));

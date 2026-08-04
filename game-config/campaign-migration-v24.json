@@ -210,7 +210,8 @@
       "stage-eclipse-swarm-wave-6": "stage-eclipse-swarm-wave-6",
       "stage-eclipse-swarm-wave-extra-1": "stage-eclipse-swarm-wave-extra-1",
       "stage-eclipse-swarm-wave-extra-2": "stage-eclipse-swarm-wave-extra-2",
-      "stage-eclipse-swarm-wave-extra-3": "stage-eclipse-swarm-wave-extra-3"
+      "stage-eclipse-swarm-wave-extra-3": "stage-eclipse-swarm-wave-extra-3",
+      "stage-eclipse-swarm-wave-extra-4": "stage-eclipse-swarm-wave-extra-4"
     },
     "stage-fracture-engine": {
       "stage-fracture-engine-wave-1": "stage-fracture-engine-wave-1",
@@ -252,7 +253,8 @@
       "stage-prism-expanse-crossing-wave-6": "stage-prism-expanse-crossing-wave-6",
       "stage-prism-expanse-crossing-wave-extra-1": "stage-prism-expanse-crossing-wave-extra-1",
       "stage-prism-expanse-crossing-wave-extra-2": "stage-prism-expanse-crossing-wave-extra-2",
-      "stage-prism-expanse-crossing-wave-extra-3": "stage-prism-expanse-crossing-wave-extra-3"
+      "stage-prism-expanse-crossing-wave-extra-3": "stage-prism-expanse-crossing-wave-extra-3",
+      "stage-prism-expanse-crossing-wave-extra-4": "stage-prism-expanse-crossing-wave-extra-4"
     },
     "stage-prism-expanse-checkpoint": {
       "stage-prism-expanse-checkpoint-wave-1": "stage-prism-expanse-checkpoint-wave-1",
@@ -294,7 +296,8 @@
       "stage-rail-meridian-crossing-wave-6": "stage-rail-meridian-crossing-wave-6",
       "stage-rail-meridian-crossing-wave-extra-1": "stage-rail-meridian-crossing-wave-extra-1",
       "stage-rail-meridian-crossing-wave-extra-2": "stage-rail-meridian-crossing-wave-extra-2",
-      "stage-rail-meridian-crossing-wave-extra-3": "stage-rail-meridian-crossing-wave-extra-3"
+      "stage-rail-meridian-crossing-wave-extra-3": "stage-rail-meridian-crossing-wave-extra-3",
+      "stage-rail-meridian-crossing-wave-extra-4": "stage-rail-meridian-crossing-wave-extra-4"
     },
     "stage-rail-meridian-checkpoint": {
       "stage-rail-meridian-checkpoint-wave-1": "stage-rail-meridian-checkpoint-wave-1",
@@ -325,7 +328,8 @@
       "stage-singularity-reach-signal-wave-4": "stage-singularity-reach-signal-wave-5",
       "stage-singularity-reach-signal-wave-5": "stage-singularity-reach-signal-wave-5",
       "stage-singularity-reach-signal-wave-extra-1": "stage-singularity-reach-signal-wave-extra-1",
-      "stage-singularity-reach-signal-wave-extra-2": "stage-singularity-reach-signal-wave-extra-2"
+      "stage-singularity-reach-signal-wave-extra-2": "stage-singularity-reach-signal-wave-extra-2",
+      "stage-singularity-reach-signal-wave-extra-3": "stage-singularity-reach-signal-wave-extra-3"
     },
     "stage-singularity-reach-crossing": {
       "stage-singularity-reach-crossing-wave-1": "stage-singularity-reach-crossing-wave-1",
@@ -336,7 +340,8 @@
       "stage-singularity-reach-crossing-wave-6": "stage-singularity-reach-crossing-wave-6",
       "stage-singularity-reach-crossing-wave-extra-1": "stage-singularity-reach-crossing-wave-extra-1",
       "stage-singularity-reach-crossing-wave-extra-2": "stage-singularity-reach-crossing-wave-extra-2",
-      "stage-singularity-reach-crossing-wave-extra-3": "stage-singularity-reach-crossing-wave-extra-3"
+      "stage-singularity-reach-crossing-wave-extra-3": "stage-singularity-reach-crossing-wave-extra-3",
+      "stage-singularity-reach-crossing-wave-extra-4": "stage-singularity-reach-crossing-wave-extra-4"
     },
     "stage-singularity-reach-checkpoint": {
       "stage-singularity-reach-checkpoint-wave-1": "stage-singularity-reach-checkpoint-wave-1",
@@ -367,7 +372,8 @@
       "stage-gyroscope-array-signal-wave-4": "stage-gyroscope-array-signal-wave-5",
       "stage-gyroscope-array-signal-wave-5": "stage-gyroscope-array-signal-wave-5",
       "stage-gyroscope-array-signal-wave-extra-1": "stage-gyroscope-array-signal-wave-extra-1",
-      "stage-gyroscope-array-signal-wave-extra-2": "stage-gyroscope-array-signal-wave-extra-2"
+      "stage-gyroscope-array-signal-wave-extra-2": "stage-gyroscope-array-signal-wave-extra-2",
+      "stage-gyroscope-array-signal-wave-extra-3": "stage-gyroscope-array-signal-wave-extra-3"
     },
     "stage-gyroscope-array-crossing": {
       "stage-gyroscope-array-crossing-wave-1": "stage-gyroscope-array-crossing-wave-1",
@@ -378,7 +384,8 @@
       "stage-gyroscope-array-crossing-wave-6": "stage-gyroscope-array-crossing-wave-6",
       "stage-gyroscope-array-crossing-wave-extra-1": "stage-gyroscope-array-crossing-wave-extra-1",
       "stage-gyroscope-array-crossing-wave-extra-2": "stage-gyroscope-array-crossing-wave-extra-2",
-      "stage-gyroscope-array-crossing-wave-extra-3": "stage-gyroscope-array-crossing-wave-extra-3"
+      "stage-gyroscope-array-crossing-wave-extra-3": "stage-gyroscope-array-crossing-wave-extra-3",
+      "stage-gyroscope-array-crossing-wave-extra-4": "stage-gyroscope-array-crossing-wave-extra-4"
     },
     "stage-gyroscope-array-checkpoint": {
       "stage-gyroscope-array-checkpoint-wave-1": "stage-gyroscope-array-checkpoint-wave-1",
@@ -409,7 +416,8 @@
       "stage-hammerhead-line-signal-wave-4": "stage-hammerhead-line-signal-wave-5",
       "stage-hammerhead-line-signal-wave-5": "stage-hammerhead-line-signal-wave-5",
       "stage-hammerhead-line-signal-wave-extra-1": "stage-hammerhead-line-signal-wave-extra-1",
-      "stage-hammerhead-line-signal-wave-extra-2": "stage-hammerhead-line-signal-wave-extra-2"
+      "stage-hammerhead-line-signal-wave-extra-2": "stage-hammerhead-line-signal-wave-extra-2",
+      "stage-hammerhead-line-signal-wave-extra-3": "stage-hammerhead-line-signal-wave-extra-3"
     },
     "stage-hammerhead-line-crossing": {
       "stage-hammerhead-line-crossing-wave-1": "stage-hammerhead-line-crossing-wave-1",
@@ -420,7 +428,8 @@
       "stage-hammerhead-line-crossing-wave-6": "stage-hammerhead-line-crossing-wave-6",
       "stage-hammerhead-line-crossing-wave-extra-1": "stage-hammerhead-line-crossing-wave-extra-1",
       "stage-hammerhead-line-crossing-wave-extra-2": "stage-hammerhead-line-crossing-wave-extra-2",
-      "stage-hammerhead-line-crossing-wave-extra-3": "stage-hammerhead-line-crossing-wave-extra-3"
+      "stage-hammerhead-line-crossing-wave-extra-3": "stage-hammerhead-line-crossing-wave-extra-3",
+      "stage-hammerhead-line-crossing-wave-extra-4": "stage-hammerhead-line-crossing-wave-extra-4"
     },
     "stage-hammerhead-line-checkpoint": {
       "stage-hammerhead-line-checkpoint-wave-1": "stage-hammerhead-line-checkpoint-wave-1",
@@ -451,7 +460,8 @@
       "stage-crownclaw-frontier-signal-wave-4": "stage-crownclaw-frontier-signal-wave-5",
       "stage-crownclaw-frontier-signal-wave-5": "stage-crownclaw-frontier-signal-wave-5",
       "stage-crownclaw-frontier-signal-wave-extra-1": "stage-crownclaw-frontier-signal-wave-extra-1",
-      "stage-crownclaw-frontier-signal-wave-extra-2": "stage-crownclaw-frontier-signal-wave-extra-2"
+      "stage-crownclaw-frontier-signal-wave-extra-2": "stage-crownclaw-frontier-signal-wave-extra-2",
+      "stage-crownclaw-frontier-signal-wave-extra-3": "stage-crownclaw-frontier-signal-wave-extra-3"
     },
     "stage-crownclaw-frontier-crossing": {
       "stage-crownclaw-frontier-crossing-wave-1": "stage-crownclaw-frontier-crossing-wave-1",
@@ -462,7 +472,8 @@
       "stage-crownclaw-frontier-crossing-wave-6": "stage-crownclaw-frontier-crossing-wave-6",
       "stage-crownclaw-frontier-crossing-wave-extra-1": "stage-crownclaw-frontier-crossing-wave-extra-1",
       "stage-crownclaw-frontier-crossing-wave-extra-2": "stage-crownclaw-frontier-crossing-wave-extra-2",
-      "stage-crownclaw-frontier-crossing-wave-extra-3": "stage-crownclaw-frontier-crossing-wave-extra-3"
+      "stage-crownclaw-frontier-crossing-wave-extra-3": "stage-crownclaw-frontier-crossing-wave-extra-3",
+      "stage-crownclaw-frontier-crossing-wave-extra-4": "stage-crownclaw-frontier-crossing-wave-extra-4"
     },
     "stage-crownclaw-frontier-checkpoint": {
       "stage-crownclaw-frontier-checkpoint-wave-1": "stage-crownclaw-frontier-checkpoint-wave-1",

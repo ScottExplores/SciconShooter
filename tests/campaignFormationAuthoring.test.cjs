@@ -37,7 +37,9 @@ test('formation normalization is idempotent and never changes Campaign route top
   const first = normalizeCampaignFormationAuthoring(campaign);
   const second = normalizeCampaignFormationAuthoring(campaign);
 
-  assert.equal(first.groupedSpawnCount, 528);
+  // 528 at the flat six/seven-wave pass; +18 grouped spawns from the eleven
+  // sector-aware surge waves (4 introduction blocks, 7 remix double-blocks).
+  assert.equal(first.groupedSpawnCount, 546);
   assert.deepEqual(first.declarationChanges, []);
   assert.deepEqual(first.cooldownChanges, []);
   assert.deepEqual(second.declarationChanges, []);

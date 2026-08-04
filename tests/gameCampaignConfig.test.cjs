@@ -49,10 +49,11 @@ test('revision 24 contains ten five-depth sectors, explicit routes, and a compac
     ['ORBIT ENTRY', 'CITATION CROSSING', 'PAYWALL CHECKPOINT', 'BASTION APPROACH', 'BASTION PROTOCOL']
   );
   assert.deepEqual(campaign.levels.map((level) => level.order), Array.from({ length: 60 }, (_, index) => index + 1));
-  // Surge waves: introduction runs six, formation-remix seven; the boss-ended
+  // Surge waves: sector 1 runs six/seven; late sectors deepen (introductions
+  // to 7 from sector 7, first remixes to 8 from sector 4) while boss-ended
   // Missions stay compact so their climax remains the final beat.
   assert.deepEqual(firstFive.map((level) => level.waves.length), [6, 7, 4, 4, 2]);
-  assert.equal(campaign.levels.reduce((total, level) => total + level.waves.length, 0), 300);
+  assert.equal(campaign.levels.reduce((total, level) => total + level.waves.length, 0), 311);
   assert.deepEqual(firstFive.map((level) => level.waves[0].scoreMultiplier), [1, 2, 3, 4, 5]);
   campaign.levels.forEach((level) => {
     assert.equal(level.loopWaves, false);
@@ -67,7 +68,11 @@ test('revision 24 contains ten five-depth sectors, explicit routes, and a compac
     assert.ok(levels.every(Boolean));
     assert.equal(sector.mainNodeIds.length, 5);
     assert.equal(sector.routeNodeIds.length, 1);
-    assert.deepEqual(levels.map((level) => level.waves.length), [6, 7, 4, 4, 2]);
+    assert.deepEqual(
+      levels.map((level) => level.waves.length),
+      [sector.order >= 7 ? 7 : 6, sector.order >= 4 ? 8 : 7, 4, 4, 2],
+      `${sector.id} follows the sector-aware surge cadence`
+    );
     assert.deepEqual(levels.map((level) => level.campaignProgression.missionRole), [
       'introduction', 'formation-remix', 'elite-checkpoint', 'boss-preparation', 'major-boss'
     ]);
@@ -292,18 +297,27 @@ test('ten sector bosses follow a readable durability, bounded score, and project
 });
 
 test('sector Missions expose ordered role-specific Waves with short major-boss lead-ins', () => {
-  const expectedCounts = new Map([
-    // Surge cadence: pure-combat Missions grew; boss-ended Missions stay
-    // compact so the climax remains the final beat.
-    ['introduction', 6],
-    ['formation-remix', 7],
-    ['elite-checkpoint', 4],
-    ['boss-preparation', 4],
-    ['major-boss', 2]
-  ]);
+  // Surge cadence is sector-aware: pure-combat Missions deepen through the
+  // campaign while boss-ended Missions stay compact for the final beat.
+  const sectorOrderById = new Map(campaign.sectors.map((sector) => [sector.id, sector.order]));
+  const firstRemixIds = new Set(campaign.sectors.map((sector) => (
+    sector.missionIds.find((missionId) => (
+      campaign.levels.find((level) => level.id === missionId)
+        ?.campaignProgression.missionRole === 'formation-remix'
+    ))
+  )).filter(Boolean));
+  const expectedWaveCount = (level) => {
+    const role = level.campaignProgression.missionRole;
+    const sectorOrder = sectorOrderById.get(level.campaignProgression.sectorId);
+    if (role === 'introduction') return sectorOrder >= 7 ? 7 : 6;
+    if (role === 'formation-remix') {
+      return firstRemixIds.has(level.id) && sectorOrder >= 4 ? 8 : 7;
+    }
+    return role === 'major-boss' ? 2 : 4;
+  };
   campaign.levels.forEach((level) => {
     const role = level.campaignProgression.missionRole;
-    assert.equal(level.waves.length, expectedCounts.get(role));
+    assert.equal(level.waves.length, expectedWaveCount(level));
     if (role !== 'major-boss') assert.ok(level.waves[0].events.some((event) => event.kind === 'powerup'));
     level.waves.forEach((wave) => {
       const starts = wave.events.map((event) => event.startSeconds);

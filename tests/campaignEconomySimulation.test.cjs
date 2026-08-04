@@ -23,7 +23,12 @@ test('revision-24 economy reports main, alternate-route, and mastery envelopes f
   assert.equal(simulation.sectorRows.length, 10);
   assert.equal(simulation.missionRows.length, 50);
   assert.equal(simulation.sectorRows.every((sector) => sector.missionCount === 5), true);
-  assert.equal(simulation.sectorRows.every((sector) => sector.waveCount === 23), true);
+  // Sector-aware surge waves: introductions grow to 7 waves from sector 7 and
+  // each sector's first remix to 8 from sector 4, so sector totals ramp.
+  assert.deepEqual(
+    simulation.sectorRows.map((sector) => sector.waveCount),
+    [23, 23, 23, 24, 24, 24, 25, 25, 25, 25]
+  );
   assert.equal(simulation.sectorRows.every((sector) => sector.alternateRouteCount === 1), true);
   assert.deepEqual(
     simulation.sectorRows.map((sector) => ({
@@ -36,17 +41,17 @@ test('revision-24 economy reports main, alternate-route, and mastery envelopes f
       { clearOnly: 982, expected: 1117, fullMinimum: 2108, fullMaximum: 2365 },
       { clearOnly: 1166, expected: 1326, fullMinimum: 2574, fullMaximum: 2574 },
       { clearOnly: 1364, expected: 1549, fullMinimum: 3021, fullMaximum: 3021 },
-      { clearOnly: 1548, expected: 1758, fullMinimum: 3467, fullMaximum: 3467 },
-      { clearOnly: 1746, expected: 1981, fullMinimum: 3852, fullMaximum: 3852 },
-      { clearOnly: 1930, expected: 2190, fullMinimum: 4262, fullMaximum: 4262 },
-      { clearOnly: 2128, expected: 2413, fullMinimum: 4702, fullMaximum: 4702 },
-      { clearOnly: 2312, expected: 2622, fullMinimum: 5113, fullMaximum: 5113 },
-      { clearOnly: 2510, expected: 2845, fullMinimum: 5537, fullMaximum: 5537 },
-      { clearOnly: 2694, expected: 3054, fullMinimum: 5949, fullMaximum: 5949 }
+      { clearOnly: 1572, expected: 1782, fullMinimum: 3491, fullMaximum: 3491 },
+      { clearOnly: 1773, expected: 2008, fullMinimum: 3879, fullMaximum: 3879 },
+      { clearOnly: 1960, expected: 2220, fullMinimum: 4292, fullMaximum: 4292 },
+      { clearOnly: 2189, expected: 2474, fullMinimum: 4763, fullMaximum: 4763 },
+      { clearOnly: 2378, expected: 2688, fullMinimum: 5179, fullMaximum: 5179 },
+      { clearOnly: 2582, expected: 2917, fullMinimum: 5609, fullMaximum: 5609 },
+      { clearOnly: 2771, expected: 3131, fullMinimum: 6026, fullMaximum: 6026 }
     ]
   );
   assert.deepEqual(simulation.totals, {
-    clearCoins: 9070,
+    clearCoins: 9427,
     firstClearCoins: 7785,
     star1Coins: 1525,
     star2Coins: 2475,
@@ -57,10 +62,10 @@ test('revision-24 economy reports main, alternate-route, and mastery envelopes f
     alternateFullMasteryCoins: 6735,
     branchMinimumCoins: 3395,
     branchMaximumCoins: 3652,
-    clearOnlyCoins: 18380,
-    expectedCoins: 20855,
-    fullMasteryMinimumCoins: 40585,
-    fullMasteryMaximumCoins: 40842,
+    clearOnlyCoins: 18737,
+    expectedCoins: 21212,
+    fullMasteryMinimumCoins: 40942,
+    fullMasteryMaximumCoins: 41199,
     dailyReplayCoins: 825
   });
 });

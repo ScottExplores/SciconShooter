@@ -27,14 +27,33 @@ import { normalizeCampaignFormationAuthoring } from './campaign-formation-author
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const campaignPath = path.join(root, 'game-config', 'campaign.json');
 
-const TARGET_WAVES = {
-  introduction: 6,
-  'formation-remix': 7
-};
-
 const campaign = JSON.parse(fs.readFileSync(campaignPath, 'utf8'));
 const rolesById = new Map(campaign.enemyRoles.map((role) => [role.id, role]));
 const packsById = new Map(campaign.formationPacks.map((pack) => [pack.id, pack]));
+const sectorsById = new Map(campaign.sectors.map((sector) => [sector.id, sector]));
+
+/**
+ * Scott's follow-up ask: vary the counts instead of one flat number per role,
+ * and keep the pre-boss taper (elite-checkpoint, boss-preparation, and
+ * major-boss Missions stay short and are never extended here).
+ *
+ *   introduction     6, growing to 7 from sector 7 on
+ *   formation-remix  7; each sector's FIRST remix grows to 8 from sector 4 on
+ */
+const targetWavesFor = (level) => {
+  const role = level.campaignProgression?.missionRole;
+  const sector = sectorsById.get(level.campaignProgression?.sectorId);
+  const sectorOrder = sector?.order ?? 1;
+  if (role === 'introduction') return sectorOrder >= 7 ? 7 : 6;
+  if (role === 'formation-remix') {
+    const remixIds = (sector?.missionIds ?? []).filter((missionId) => (
+      campaign.levels.find((candidate) => candidate.id === missionId)
+        ?.campaignProgression?.missionRole === 'formation-remix'
+    ));
+    return remixIds[0] === level.id && sectorOrder >= 4 ? 8 : 7;
+  }
+  return 0;
+};
 
 /** The stats this Mission already authored for a role, so tuning carries over. */
 const findAuthoredEnemyStats = (level, roleId) => {
@@ -106,7 +125,7 @@ let missionsTouched = 0;
 
 for (const level of campaign.levels) {
   const role = level.campaignProgression?.missionRole;
-  const target = TARGET_WAVES[role];
+  const target = targetWavesFor(level);
   if (!target || level.waves.length >= target) continue;
 
   // The packs this Mission already declares are legal at its graph slot by
@@ -120,9 +139,13 @@ for (const level of campaign.levels) {
   // mid-Mission pacing rather than finale pacing.
   const template = level.waves[level.waves.length - 2] ?? level.waves[level.waves.length - 1];
   const needed = target - level.waves.length;
+  // Earlier passes already authored `-wave-extra-N` waves; keep numbering
+  // (and the surge difficulty step) continuous instead of colliding with them.
+  const existingExtras = level.waves.filter((wave) => wave.id.includes('-wave-extra-')).length;
   missionsTouched += 1;
 
-  for (let step = 1; step <= needed; step += 1) {
+  for (let offset = 1; offset <= needed; offset += 1) {
+    const step = existingExtras + offset;
     const waveId = `${level.id}-wave-extra-${step}`;
     // Alternate which packs lead so consecutive waves show different blocks,
     // which also keeps role reuse from stacking the same roster back to back.

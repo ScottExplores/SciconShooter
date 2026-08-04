@@ -14,25 +14,36 @@ const migration = JSON.parse(
 
 test('revision 24 uses compact continuous Missions with authored pressure through every climax', () => {
   assert.equal(campaign.revision, 24);
-  // 220 authored at revision 24, plus 80 surge waves: introduction Missions run
-  // six waves and formation-remix runs seven, per the player's request for more
-  // waves outside the boss and elite Missions.
-  assert.equal(campaign.levels.reduce((total, level) => total + level.waves.length, 0), 300);
+  // 220 authored at revision 24, plus 91 surge waves. Counts vary by sector so
+  // the campaign grows richer as it goes: introductions run six waves (seven
+  // from sector 7), each sector's first formation-remix runs eight from sector
+  // 4, and boss-ended Missions stay compact per the pre-boss taper.
+  assert.equal(campaign.levels.reduce((total, level) => total + level.waves.length, 0), 311);
 
   const regularMissions = campaign.levels.filter(
     (level) => level.campaignProgression.missionRole !== 'major-boss'
   );
   assert.equal(regularMissions.length, 50);
 
+  const sectorOrderById = new Map(campaign.sectors.map((sector) => [sector.id, sector.order]));
+  const firstRemixIds = new Set(campaign.sectors.map((sector) => (
+    sector.missionIds.find((missionId) => (
+      campaign.levels.find((level) => level.id === missionId)
+        ?.campaignProgression.missionRole === 'formation-remix'
+    ))
+  )).filter(Boolean));
+
   for (const mission of regularMissions) {
-    // Cadence is role-aware now: pure-combat Missions carry surge waves, and
-    // boss-ended Missions stay compact so the climax remains the fourth beat.
-    const expectedWaves = {
-      introduction: 6,
-      'formation-remix': 7,
-      'elite-checkpoint': 4,
-      'boss-preparation': 4
-    }[mission.campaignProgression.missionRole];
+    // Cadence is role- and sector-aware: pure-combat Missions carry surge
+    // waves that deepen through the campaign, and boss-ended Missions stay
+    // compact so the climax remains the fourth beat.
+    const sectorOrder = sectorOrderById.get(mission.campaignProgression.sectorId);
+    const role = mission.campaignProgression.missionRole;
+    const expectedWaves = role === 'introduction'
+      ? (sectorOrder >= 7 ? 7 : 6)
+      : role === 'formation-remix'
+        ? (firstRemixIds.has(mission.id) && sectorOrder >= 4 ? 8 : 7)
+        : 4;
     assert.equal(mission.waves.length, expectedWaves, `${mission.id} keeps its role cadence`);
     assert.ok(mission.durationSeconds <= 43.1);
     assert.equal(mission.waves.some((wave) => wave.rhythm === 'recovery'), false);

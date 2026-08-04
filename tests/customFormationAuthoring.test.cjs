@@ -123,9 +123,9 @@ test('clean wave authoring creates one valid opening formation after the compact
   const nextOrder = Math.max(...sourceMission.waves.map((wave) => wave.order)) + 1;
   const starter = operations.createStarterWave(sourceWave, nextOrder);
 
-  // Combat Missions run up to seven waves now (formation-remix is the deepest);
-  // the picked source is by construction the longest Mission.
-  assert.equal(sourceMission.waves.length, 7, 'formation-remix Missions run the seven-wave showcase');
+  // Combat Missions run up to eight waves now (late-sector first remixes are
+  // the deepest); the picked source is by construction the longest Mission.
+  assert.equal(sourceMission.waves.length, 8, 'late-sector first remixes run the eight-wave showcase');
   assert.ok(nextOrder > 4);
   assert.equal(starter.name, `New Wave ${nextOrder}`);
   assert.equal(starter.order, nextOrder);

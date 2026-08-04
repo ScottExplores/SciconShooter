@@ -14130,9 +14130,105 @@
           ]
         },
         {
+          "id": "stage-eclipse-swarm-wave-extra-4",
+          "name": "ECLIPSE CROSSING Surge 4",
+          "order": 7,
+          "accent": "#c084fc",
+          "backgroundId": "ion-eclipse",
+          "completionRule": "clear-after-duration",
+          "difficultyMultiplier": 1.129,
+          "durationSeconds": 9,
+          "introSeconds": 0,
+          "delayAfterSeconds": 0,
+          "scoreMultiplier": 17,
+          "threatCap": 37,
+          "combatBudget": 474.08,
+          "rhythm": "variation",
+          "formationPackIds": [
+            "pack-dna-helix",
+            "pack-orbit-v"
+          ],
+          "events": [
+            {
+              "id": "stage-eclipse-swarm-wave-extra-4-e0",
+              "kind": "spawn",
+              "label": "DNA Helix block",
+              "startSeconds": 0,
+              "durationSeconds": 6.5,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 9,
+              "patternId": "sine",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.24,
+              "enemies": [
+                {
+                  "enemyId": "journal",
+                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
+                  "weight": 0.33,
+                  "health": 7,
+                  "speed": 2.14,
+                  "damage": 1,
+                  "scoreValue": 140,
+                  "powerupDropChance": 0,
+                  "roleId": "role-dna-conductor"
+                },
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
+                  "weight": 0.33,
+                  "health": 7,
+                  "speed": 2.14,
+                  "damage": 1,
+                  "scoreValue": 140,
+                  "powerupDropChance": 0,
+                  "roleId": "role-laser-stalker"
+                },
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "CAMPAIGN_ENEMY_ORBIT_DISC",
+                  "weight": 0.34,
+                  "health": 7,
+                  "speed": 2.14,
+                  "damage": 1,
+                  "scoreValue": 140,
+                  "powerupDropChance": 0,
+                  "roleId": "role-orbit-disc"
+                }
+              ]
+            },
+            {
+              "id": "stage-eclipse-swarm-wave-extra-4-e1",
+              "kind": "spawn",
+              "label": "Orbit V block",
+              "startSeconds": 2.2,
+              "durationSeconds": 6.6,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 9,
+              "patternId": "v",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.24,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "LEGACY_ENEMY_DRONE_FRAMES",
+                  "weight": 1,
+                  "health": 5,
+                  "speed": 3.45,
+                  "damage": 1,
+                  "scoreValue": 73,
+                  "powerupDropChance": 0,
+                  "roleId": "role-orbit-scout"
+                }
+              ]
+            }
+          ]
+        },
+        {
           "id": "stage-eclipse-swarm-wave-6",
           "name": "CLIMAX",
-          "order": 7,
+          "order": 8,
           "accent": "#c084fc",
           "backgroundId": "ion-eclipse",
           "completionRule": "clear-after-duration",
@@ -18661,9 +18757,105 @@
           ]
         },
         {
+          "id": "stage-prism-expanse-crossing-wave-extra-4",
+          "name": "SPECTRUM CROSSING Surge 4",
+          "order": 7,
+          "accent": "#c084fc",
+          "backgroundId": "ion-eclipse",
+          "completionRule": "clear-after-duration",
+          "difficultyMultiplier": 1.177,
+          "durationSeconds": 9,
+          "introSeconds": 0,
+          "delayAfterSeconds": 0,
+          "scoreMultiplier": 22,
+          "threatCap": 37,
+          "combatBudget": 474.08,
+          "rhythm": "variation",
+          "formationPackIds": [
+            "pack-dna-helix",
+            "pack-orbit-v"
+          ],
+          "events": [
+            {
+              "id": "stage-prism-expanse-crossing-wave-extra-4-e0",
+              "kind": "spawn",
+              "label": "DNA Helix block",
+              "startSeconds": 0,
+              "durationSeconds": 6.5,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 9,
+              "patternId": "sine",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.24,
+              "enemies": [
+                {
+                  "enemyId": "journal",
+                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
+                  "weight": 0.33,
+                  "health": 8,
+                  "speed": 2.1721,
+                  "damage": 1,
+                  "scoreValue": 140,
+                  "powerupDropChance": 0,
+                  "roleId": "role-dna-conductor"
+                },
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
+                  "weight": 0.33,
+                  "health": 8,
+                  "speed": 2.1721,
+                  "damage": 1,
+                  "scoreValue": 140,
+                  "powerupDropChance": 0,
+                  "roleId": "role-laser-stalker"
+                },
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "CAMPAIGN_ENEMY_ORBIT_DISC",
+                  "weight": 0.34,
+                  "health": 8,
+                  "speed": 2.1721,
+                  "damage": 1,
+                  "scoreValue": 140,
+                  "powerupDropChance": 0,
+                  "roleId": "role-orbit-disc"
+                }
+              ]
+            },
+            {
+              "id": "stage-prism-expanse-crossing-wave-extra-4-e1",
+              "kind": "spawn",
+              "label": "Orbit V block",
+              "startSeconds": 2.2,
+              "durationSeconds": 6.6,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 9,
+              "patternId": "v",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.24,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "LEGACY_ENEMY_DRONE_FRAMES",
+                  "weight": 1,
+                  "health": 5,
+                  "speed": 3.45,
+                  "damage": 1,
+                  "scoreValue": 73,
+                  "powerupDropChance": 0,
+                  "roleId": "role-orbit-scout"
+                }
+              ]
+            }
+          ]
+        },
+        {
           "id": "stage-prism-expanse-crossing-wave-6",
           "name": "CLIMAX",
-          "order": 7,
+          "order": 8,
           "accent": "#c084fc",
           "backgroundId": "ion-eclipse",
           "completionRule": "clear-after-duration",
@@ -23712,9 +23904,116 @@
           ]
         },
         {
+          "id": "stage-rail-meridian-crossing-wave-extra-4",
+          "name": "MERIDIAN CROSSING Surge 4",
+          "order": 7,
+          "accent": "#c084fc",
+          "backgroundId": "helix-redline",
+          "completionRule": "clear-after-duration",
+          "difficultyMultiplier": 1.177,
+          "durationSeconds": 9,
+          "introSeconds": 0,
+          "delayAfterSeconds": 0,
+          "scoreMultiplier": 27,
+          "threatCap": 37,
+          "combatBudget": 474.08,
+          "rhythm": "variation",
+          "formationPackIds": [
+            "pack-dna-helix",
+            "pack-wall-crossfire"
+          ],
+          "events": [
+            {
+              "id": "stage-rail-meridian-crossing-wave-extra-4-e0",
+              "kind": "spawn",
+              "label": "DNA Helix block",
+              "startSeconds": 0,
+              "durationSeconds": 6.5,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 9,
+              "patternId": "sine",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.24,
+              "enemies": [
+                {
+                  "enemyId": "journal",
+                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
+                  "weight": 0.33,
+                  "health": 8,
+                  "speed": 2.2042,
+                  "damage": 1,
+                  "scoreValue": 140,
+                  "powerupDropChance": 0,
+                  "roleId": "role-dna-conductor"
+                },
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
+                  "weight": 0.33,
+                  "health": 8,
+                  "speed": 2.2042,
+                  "damage": 1,
+                  "scoreValue": 140,
+                  "powerupDropChance": 0,
+                  "roleId": "role-laser-stalker"
+                },
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "CAMPAIGN_ENEMY_ORBIT_DISC",
+                  "weight": 0.34,
+                  "health": 8,
+                  "speed": 2.2042,
+                  "damage": 1,
+                  "scoreValue": 140,
+                  "powerupDropChance": 0,
+                  "roleId": "role-orbit-disc"
+                }
+              ]
+            },
+            {
+              "id": "stage-rail-meridian-crossing-wave-extra-4-e1",
+              "kind": "spawn",
+              "label": "Redline Crossfire block",
+              "startSeconds": 2.2,
+              "durationSeconds": 6.6,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 9,
+              "patternId": "pincer",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.24,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "CAMPAIGN_ENEMY_WALL_SNIPER_LEFT",
+                  "weight": 0.5,
+                  "health": 3,
+                  "speed": 2.4,
+                  "damage": 1,
+                  "scoreValue": 12,
+                  "powerupDropChance": 0,
+                  "roleId": "role-wall-sniper-left"
+                },
+                {
+                  "enemyId": "journal",
+                  "spriteKey": "CAMPAIGN_ENEMY_LASER_HUNTER",
+                  "weight": 0.5,
+                  "health": 5,
+                  "speed": 3.45,
+                  "damage": 1,
+                  "scoreValue": 73,
+                  "powerupDropChance": 0,
+                  "roleId": "role-laser-hunter"
+                }
+              ]
+            }
+          ]
+        },
+        {
           "id": "stage-rail-meridian-crossing-wave-6",
           "name": "CLIMAX",
-          "order": 7,
+          "order": 8,
           "accent": "#c084fc",
           "backgroundId": "helix-redline",
           "completionRule": "clear-after-duration",
@@ -28119,9 +28418,78 @@
           ]
         },
         {
+          "id": "stage-singularity-reach-signal-wave-extra-3",
+          "name": "GRAVITY SIGNAL Surge 3",
+          "order": 6,
+          "accent": "#f43f5e",
+          "backgroundId": "gravity-rift",
+          "completionRule": "clear-after-duration",
+          "difficultyMultiplier": 1.165,
+          "durationSeconds": 9,
+          "introSeconds": 0,
+          "delayAfterSeconds": 0,
+          "scoreMultiplier": 31,
+          "threatCap": 36,
+          "combatBudget": 258.08,
+          "rhythm": "variation",
+          "formationPackIds": [
+            "pack-jet-pincer"
+          ],
+          "events": [
+            {
+              "id": "stage-singularity-reach-signal-wave-extra-3-e0",
+              "kind": "spawn",
+              "label": "Jet Pincer block",
+              "startSeconds": 0,
+              "durationSeconds": 6.5,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 8,
+              "patternId": "pincer",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.24,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "PIXI_JET_SCOUT_FRAMES",
+                  "weight": 0.33,
+                  "health": 9,
+                  "speed": 2.1945,
+                  "damage": 1,
+                  "scoreValue": 135,
+                  "powerupDropChance": 0,
+                  "roleId": "role-jet-scout"
+                },
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "PIXI_JET_INTERCEPTOR_FRAMES",
+                  "weight": 0.33,
+                  "health": 9,
+                  "speed": 2.1945,
+                  "damage": 1,
+                  "scoreValue": 135,
+                  "powerupDropChance": 0,
+                  "roleId": "role-jet-interceptor"
+                },
+                {
+                  "enemyId": "brick",
+                  "spriteKey": "PIXI_JET_HEAVY_FRAMES",
+                  "weight": 0.34,
+                  "health": 9,
+                  "speed": 2.1945,
+                  "damage": 1,
+                  "scoreValue": 135,
+                  "powerupDropChance": 0,
+                  "roleId": "role-jet-heavy"
+                }
+              ]
+            }
+          ]
+        },
+        {
           "id": "stage-singularity-reach-signal-wave-5",
           "name": "CLIMAX",
-          "order": 6,
+          "order": 7,
           "accent": "#f43f5e",
           "backgroundId": "gravity-rift",
           "completionRule": "clear-after-duration",
@@ -29078,9 +29446,105 @@
           ]
         },
         {
+          "id": "stage-singularity-reach-crossing-wave-extra-4",
+          "name": "EVENTIDE CROSSING Surge 4",
+          "order": 7,
+          "accent": "#c084fc",
+          "backgroundId": "gravity-rift",
+          "completionRule": "clear-after-duration",
+          "difficultyMultiplier": 1.177,
+          "durationSeconds": 9,
+          "introSeconds": 0,
+          "delayAfterSeconds": 0,
+          "scoreMultiplier": 32,
+          "threatCap": 37,
+          "combatBudget": 474.08,
+          "rhythm": "variation",
+          "formationPackIds": [
+            "pack-dna-helix",
+            "pack-orbit-v"
+          ],
+          "events": [
+            {
+              "id": "stage-singularity-reach-crossing-wave-extra-4-e0",
+              "kind": "spawn",
+              "label": "DNA Helix block",
+              "startSeconds": 0,
+              "durationSeconds": 6.5,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 9,
+              "patternId": "sine",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.24,
+              "enemies": [
+                {
+                  "enemyId": "journal",
+                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
+                  "weight": 0.33,
+                  "health": 9,
+                  "speed": 2.2363,
+                  "damage": 1,
+                  "scoreValue": 140,
+                  "powerupDropChance": 0,
+                  "roleId": "role-dna-conductor"
+                },
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
+                  "weight": 0.33,
+                  "health": 9,
+                  "speed": 2.2363,
+                  "damage": 1,
+                  "scoreValue": 140,
+                  "powerupDropChance": 0,
+                  "roleId": "role-laser-stalker"
+                },
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "CAMPAIGN_ENEMY_ORBIT_DISC",
+                  "weight": 0.34,
+                  "health": 9,
+                  "speed": 2.2363,
+                  "damage": 1,
+                  "scoreValue": 140,
+                  "powerupDropChance": 0,
+                  "roleId": "role-orbit-disc"
+                }
+              ]
+            },
+            {
+              "id": "stage-singularity-reach-crossing-wave-extra-4-e1",
+              "kind": "spawn",
+              "label": "Orbit V block",
+              "startSeconds": 2.2,
+              "durationSeconds": 6.6,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 9,
+              "patternId": "v",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.24,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "LEGACY_ENEMY_DRONE_FRAMES",
+                  "weight": 1,
+                  "health": 6,
+                  "speed": 3.45,
+                  "damage": 1,
+                  "scoreValue": 73,
+                  "powerupDropChance": 0,
+                  "roleId": "role-orbit-scout"
+                }
+              ]
+            }
+          ]
+        },
+        {
           "id": "stage-singularity-reach-crossing-wave-6",
           "name": "CLIMAX",
-          "order": 7,
+          "order": 8,
           "accent": "#c084fc",
           "backgroundId": "gravity-rift",
           "completionRule": "clear-after-duration",
@@ -31727,9 +32191,78 @@
           ]
         },
         {
+          "id": "stage-gyroscope-array-signal-wave-extra-3",
+          "name": "ORBIT SIGNAL Surge 3",
+          "order": 6,
+          "accent": "#f43f5e",
+          "backgroundId": "open-galaxy",
+          "completionRule": "clear-after-duration",
+          "difficultyMultiplier": 1.165,
+          "durationSeconds": 9,
+          "introSeconds": 0,
+          "delayAfterSeconds": 0,
+          "scoreMultiplier": 36,
+          "threatCap": 36,
+          "combatBudget": 258.08,
+          "rhythm": "variation",
+          "formationPackIds": [
+            "pack-jet-pincer"
+          ],
+          "events": [
+            {
+              "id": "stage-gyroscope-array-signal-wave-extra-3-e0",
+              "kind": "spawn",
+              "label": "Jet Pincer block",
+              "startSeconds": 0,
+              "durationSeconds": 6.5,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 8,
+              "patternId": "pincer",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.24,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "PIXI_JET_SCOUT_FRAMES",
+                  "weight": 0.33,
+                  "health": 9,
+                  "speed": 2.2260000000000004,
+                  "damage": 1,
+                  "scoreValue": 135,
+                  "powerupDropChance": 0,
+                  "roleId": "role-jet-scout"
+                },
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "PIXI_JET_INTERCEPTOR_FRAMES",
+                  "weight": 0.33,
+                  "health": 9,
+                  "speed": 2.2260000000000004,
+                  "damage": 1,
+                  "scoreValue": 135,
+                  "powerupDropChance": 0,
+                  "roleId": "role-jet-interceptor"
+                },
+                {
+                  "enemyId": "brick",
+                  "spriteKey": "PIXI_JET_HEAVY_FRAMES",
+                  "weight": 0.34,
+                  "health": 9,
+                  "speed": 2.2260000000000004,
+                  "damage": 1,
+                  "scoreValue": 135,
+                  "powerupDropChance": 0,
+                  "roleId": "role-jet-heavy"
+                }
+              ]
+            }
+          ]
+        },
+        {
           "id": "stage-gyroscope-array-signal-wave-5",
           "name": "CLIMAX",
-          "order": 6,
+          "order": 7,
           "accent": "#f43f5e",
           "backgroundId": "open-galaxy",
           "completionRule": "clear-after-duration",
@@ -32686,9 +33219,105 @@
           ]
         },
         {
+          "id": "stage-gyroscope-array-crossing-wave-extra-4",
+          "name": "AXIS CROSSING Surge 4",
+          "order": 7,
+          "accent": "#c084fc",
+          "backgroundId": "open-galaxy",
+          "completionRule": "clear-after-duration",
+          "difficultyMultiplier": 1.177,
+          "durationSeconds": 9,
+          "introSeconds": 0,
+          "delayAfterSeconds": 0,
+          "scoreMultiplier": 37,
+          "threatCap": 37,
+          "combatBudget": 474.08,
+          "rhythm": "variation",
+          "formationPackIds": [
+            "pack-dna-helix",
+            "pack-orbit-v"
+          ],
+          "events": [
+            {
+              "id": "stage-gyroscope-array-crossing-wave-extra-4-e0",
+              "kind": "spawn",
+              "label": "DNA Helix block",
+              "startSeconds": 0,
+              "durationSeconds": 6.5,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 9,
+              "patternId": "sine",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.24,
+              "enemies": [
+                {
+                  "enemyId": "journal",
+                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
+                  "weight": 0.33,
+                  "health": 9,
+                  "speed": 2.2684,
+                  "damage": 1,
+                  "scoreValue": 140,
+                  "powerupDropChance": 0,
+                  "roleId": "role-dna-conductor"
+                },
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
+                  "weight": 0.33,
+                  "health": 9,
+                  "speed": 2.2684,
+                  "damage": 1,
+                  "scoreValue": 140,
+                  "powerupDropChance": 0,
+                  "roleId": "role-laser-stalker"
+                },
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "CAMPAIGN_ENEMY_ORBIT_DISC",
+                  "weight": 0.34,
+                  "health": 9,
+                  "speed": 2.2684,
+                  "damage": 1,
+                  "scoreValue": 140,
+                  "powerupDropChance": 0,
+                  "roleId": "role-orbit-disc"
+                }
+              ]
+            },
+            {
+              "id": "stage-gyroscope-array-crossing-wave-extra-4-e1",
+              "kind": "spawn",
+              "label": "Orbit V block",
+              "startSeconds": 2.2,
+              "durationSeconds": 6.6,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 9,
+              "patternId": "v",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.24,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "LEGACY_ENEMY_DRONE_FRAMES",
+                  "weight": 1,
+                  "health": 6,
+                  "speed": 3.25,
+                  "damage": 1,
+                  "scoreValue": 73,
+                  "powerupDropChance": 0,
+                  "roleId": "role-orbit-scout"
+                }
+              ]
+            }
+          ]
+        },
+        {
           "id": "stage-gyroscope-array-crossing-wave-6",
           "name": "CLIMAX",
-          "order": 7,
+          "order": 8,
           "accent": "#c084fc",
           "backgroundId": "open-galaxy",
           "completionRule": "clear-after-duration",
@@ -35335,9 +35964,78 @@
           ]
         },
         {
+          "id": "stage-hammerhead-line-signal-wave-extra-3",
+          "name": "SIEGE SIGNAL Surge 3",
+          "order": 6,
+          "accent": "#f43f5e",
+          "backgroundId": "shattered-void",
+          "completionRule": "clear-after-duration",
+          "difficultyMultiplier": 1.165,
+          "durationSeconds": 9,
+          "introSeconds": 0,
+          "delayAfterSeconds": 0,
+          "scoreMultiplier": 41,
+          "threatCap": 36,
+          "combatBudget": 258.08,
+          "rhythm": "variation",
+          "formationPackIds": [
+            "pack-jet-pincer"
+          ],
+          "events": [
+            {
+              "id": "stage-hammerhead-line-signal-wave-extra-3-e0",
+              "kind": "spawn",
+              "label": "Jet Pincer block",
+              "startSeconds": 0,
+              "durationSeconds": 6.5,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 8,
+              "patternId": "pincer",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.24,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "PIXI_JET_SCOUT_FRAMES",
+                  "weight": 0.33,
+                  "health": 10,
+                  "speed": 2.2575,
+                  "damage": 1,
+                  "scoreValue": 135,
+                  "powerupDropChance": 0,
+                  "roleId": "role-jet-scout"
+                },
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "PIXI_JET_INTERCEPTOR_FRAMES",
+                  "weight": 0.33,
+                  "health": 10,
+                  "speed": 2.2575,
+                  "damage": 1,
+                  "scoreValue": 135,
+                  "powerupDropChance": 0,
+                  "roleId": "role-jet-interceptor"
+                },
+                {
+                  "enemyId": "brick",
+                  "spriteKey": "PIXI_JET_HEAVY_FRAMES",
+                  "weight": 0.34,
+                  "health": 10,
+                  "speed": 2.2575,
+                  "damage": 1,
+                  "scoreValue": 135,
+                  "powerupDropChance": 0,
+                  "roleId": "role-jet-heavy"
+                }
+              ]
+            }
+          ]
+        },
+        {
           "id": "stage-hammerhead-line-signal-wave-5",
           "name": "CLIMAX",
-          "order": 6,
+          "order": 7,
           "accent": "#f43f5e",
           "backgroundId": "shattered-void",
           "completionRule": "clear-after-duration",
@@ -36294,9 +36992,105 @@
           ]
         },
         {
+          "id": "stage-hammerhead-line-crossing-wave-extra-4",
+          "name": "BREACH CROSSING Surge 4",
+          "order": 7,
+          "accent": "#c084fc",
+          "backgroundId": "shattered-void",
+          "completionRule": "clear-after-duration",
+          "difficultyMultiplier": 1.177,
+          "durationSeconds": 9,
+          "introSeconds": 0,
+          "delayAfterSeconds": 0,
+          "scoreMultiplier": 42,
+          "threatCap": 37,
+          "combatBudget": 474.08,
+          "rhythm": "variation",
+          "formationPackIds": [
+            "pack-dna-helix",
+            "pack-orbit-v"
+          ],
+          "events": [
+            {
+              "id": "stage-hammerhead-line-crossing-wave-extra-4-e0",
+              "kind": "spawn",
+              "label": "DNA Helix block",
+              "startSeconds": 0,
+              "durationSeconds": 6.5,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 9,
+              "patternId": "sine",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.24,
+              "enemies": [
+                {
+                  "enemyId": "journal",
+                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
+                  "weight": 0.33,
+                  "health": 10,
+                  "speed": 2.3005,
+                  "damage": 1,
+                  "scoreValue": 140,
+                  "powerupDropChance": 0,
+                  "roleId": "role-dna-conductor"
+                },
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
+                  "weight": 0.33,
+                  "health": 10,
+                  "speed": 2.3005,
+                  "damage": 1,
+                  "scoreValue": 140,
+                  "powerupDropChance": 0,
+                  "roleId": "role-laser-stalker"
+                },
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "CAMPAIGN_ENEMY_ORBIT_DISC",
+                  "weight": 0.34,
+                  "health": 10,
+                  "speed": 2.3005,
+                  "damage": 1,
+                  "scoreValue": 140,
+                  "powerupDropChance": 0,
+                  "roleId": "role-orbit-disc"
+                }
+              ]
+            },
+            {
+              "id": "stage-hammerhead-line-crossing-wave-extra-4-e1",
+              "kind": "spawn",
+              "label": "Orbit V block",
+              "startSeconds": 2.2,
+              "durationSeconds": 6.6,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 9,
+              "patternId": "v",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.24,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "LEGACY_ENEMY_DRONE_FRAMES",
+                  "weight": 1,
+                  "health": 6,
+                  "speed": 3.25,
+                  "damage": 1,
+                  "scoreValue": 73,
+                  "powerupDropChance": 0,
+                  "roleId": "role-orbit-scout"
+                }
+              ]
+            }
+          ]
+        },
+        {
           "id": "stage-hammerhead-line-crossing-wave-6",
           "name": "CLIMAX",
-          "order": 7,
+          "order": 8,
           "accent": "#c084fc",
           "backgroundId": "shattered-void",
           "completionRule": "clear-after-duration",
@@ -38943,9 +39737,78 @@
           ]
         },
         {
+          "id": "stage-crownclaw-frontier-signal-wave-extra-3",
+          "name": "FRONTIER SIGNAL Surge 3",
+          "order": 6,
+          "accent": "#f43f5e",
+          "backgroundId": "terminus-frontier",
+          "completionRule": "clear-after-duration",
+          "difficultyMultiplier": 1.165,
+          "durationSeconds": 9,
+          "introSeconds": 0,
+          "delayAfterSeconds": 0,
+          "scoreMultiplier": 46,
+          "threatCap": 36,
+          "combatBudget": 258.08,
+          "rhythm": "variation",
+          "formationPackIds": [
+            "pack-jet-pincer"
+          ],
+          "events": [
+            {
+              "id": "stage-crownclaw-frontier-signal-wave-extra-3-e0",
+              "kind": "spawn",
+              "label": "Jet Pincer block",
+              "startSeconds": 0,
+              "durationSeconds": 6.5,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 8,
+              "patternId": "pincer",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.24,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "PIXI_JET_SCOUT_FRAMES",
+                  "weight": 0.33,
+                  "health": 10,
+                  "speed": 2.289,
+                  "damage": 1,
+                  "scoreValue": 135,
+                  "powerupDropChance": 0,
+                  "roleId": "role-jet-scout"
+                },
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "PIXI_JET_INTERCEPTOR_FRAMES",
+                  "weight": 0.33,
+                  "health": 10,
+                  "speed": 2.289,
+                  "damage": 1,
+                  "scoreValue": 135,
+                  "powerupDropChance": 0,
+                  "roleId": "role-jet-interceptor"
+                },
+                {
+                  "enemyId": "brick",
+                  "spriteKey": "PIXI_JET_HEAVY_FRAMES",
+                  "weight": 0.34,
+                  "health": 10,
+                  "speed": 2.289,
+                  "damage": 1,
+                  "scoreValue": 135,
+                  "powerupDropChance": 0,
+                  "roleId": "role-jet-heavy"
+                }
+              ]
+            }
+          ]
+        },
+        {
           "id": "stage-crownclaw-frontier-signal-wave-5",
           "name": "CLIMAX",
-          "order": 6,
+          "order": 7,
           "accent": "#f43f5e",
           "backgroundId": "terminus-frontier",
           "completionRule": "clear-after-duration",
@@ -39902,9 +40765,105 @@
           ]
         },
         {
+          "id": "stage-crownclaw-frontier-crossing-wave-extra-4",
+          "name": "CLAW CROSSING Surge 4",
+          "order": 7,
+          "accent": "#c084fc",
+          "backgroundId": "terminus-frontier",
+          "completionRule": "clear-after-duration",
+          "difficultyMultiplier": 1.177,
+          "durationSeconds": 9,
+          "introSeconds": 0,
+          "delayAfterSeconds": 0,
+          "scoreMultiplier": 47,
+          "threatCap": 37,
+          "combatBudget": 474.08,
+          "rhythm": "variation",
+          "formationPackIds": [
+            "pack-dna-helix",
+            "pack-orbit-v"
+          ],
+          "events": [
+            {
+              "id": "stage-crownclaw-frontier-crossing-wave-extra-4-e0",
+              "kind": "spawn",
+              "label": "DNA Helix block",
+              "startSeconds": 0,
+              "durationSeconds": 6.5,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 9,
+              "patternId": "sine",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.24,
+              "enemies": [
+                {
+                  "enemyId": "journal",
+                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
+                  "weight": 0.33,
+                  "health": 10,
+                  "speed": 2.3326000000000002,
+                  "damage": 1,
+                  "scoreValue": 140,
+                  "powerupDropChance": 0,
+                  "roleId": "role-dna-conductor"
+                },
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
+                  "weight": 0.33,
+                  "health": 10,
+                  "speed": 2.3326000000000002,
+                  "damage": 1,
+                  "scoreValue": 140,
+                  "powerupDropChance": 0,
+                  "roleId": "role-laser-stalker"
+                },
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "CAMPAIGN_ENEMY_ORBIT_DISC",
+                  "weight": 0.34,
+                  "health": 10,
+                  "speed": 2.3326000000000002,
+                  "damage": 1,
+                  "scoreValue": 140,
+                  "powerupDropChance": 0,
+                  "roleId": "role-orbit-disc"
+                }
+              ]
+            },
+            {
+              "id": "stage-crownclaw-frontier-crossing-wave-extra-4-e1",
+              "kind": "spawn",
+              "label": "Orbit V block",
+              "startSeconds": 2.2,
+              "durationSeconds": 6.6,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 9,
+              "patternId": "v",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.24,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "LEGACY_ENEMY_DRONE_FRAMES",
+                  "weight": 1,
+                  "health": 7,
+                  "speed": 3.25,
+                  "damage": 1,
+                  "scoreValue": 73,
+                  "powerupDropChance": 0,
+                  "roleId": "role-orbit-scout"
+                }
+              ]
+            }
+          ]
+        },
+        {
           "id": "stage-crownclaw-frontier-crossing-wave-6",
           "name": "CLIMAX",
-          "order": 7,
+          "order": 8,
           "accent": "#c084fc",
           "backgroundId": "terminus-frontier",
           "completionRule": "clear-after-duration",
@@ -54211,7 +55170,7 @@
             "anti-swarm",
             "lane-control"
           ],
-          "estimatedWaveCount": 7
+          "estimatedWaveCount": 8
         }
       },
       {
@@ -54577,7 +55536,7 @@
             "anti-swarm",
             "lane-control"
           ],
-          "estimatedWaveCount": 7
+          "estimatedWaveCount": 8
         }
       },
       {
@@ -54943,7 +55902,7 @@
             "anti-swarm",
             "lane-control"
           ],
-          "estimatedWaveCount": 7
+          "estimatedWaveCount": 8
         }
       },
       {
@@ -55251,7 +56210,7 @@
             "anti-swarm",
             "lane-control"
           ],
-          "estimatedWaveCount": 6
+          "estimatedWaveCount": 7
         }
       },
       {
@@ -55309,7 +56268,7 @@
             "anti-swarm",
             "lane-control"
           ],
-          "estimatedWaveCount": 7
+          "estimatedWaveCount": 8
         }
       },
       {
@@ -55617,7 +56576,7 @@
             "anti-swarm",
             "lane-control"
           ],
-          "estimatedWaveCount": 6
+          "estimatedWaveCount": 7
         }
       },
       {
@@ -55675,7 +56634,7 @@
             "anti-swarm",
             "lane-control"
           ],
-          "estimatedWaveCount": 7
+          "estimatedWaveCount": 8
         }
       },
       {
@@ -55983,7 +56942,7 @@
             "anti-swarm",
             "lane-control"
           ],
-          "estimatedWaveCount": 6
+          "estimatedWaveCount": 7
         }
       },
       {
@@ -56041,7 +57000,7 @@
             "anti-swarm",
             "lane-control"
           ],
-          "estimatedWaveCount": 7
+          "estimatedWaveCount": 8
         }
       },
       {
@@ -56349,7 +57308,7 @@
             "anti-swarm",
             "lane-control"
           ],
-          "estimatedWaveCount": 6
+          "estimatedWaveCount": 7
         }
       },
       {
@@ -56407,7 +57366,7 @@
             "anti-swarm",
             "lane-control"
           ],
-          "estimatedWaveCount": 7
+          "estimatedWaveCount": 8
         }
       },
       {

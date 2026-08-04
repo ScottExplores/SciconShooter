@@ -16,7 +16,7 @@ Weekly leaderboard points and proposal funding are never converted into Campaign
 
 | Source | Exact value or curve | Persistence and repeat rule |
 |---|---|---|
-| Main-path authored grants | Clear-only 18,380; expected 20,855; full mastery with alternates/branches 40,585-40,842 | First-clear, boss, star, mastery, alternate, and branch receipt IDs are one-time and durable. Wave/Mission clear grants are repeatable and seasonal. |
+| Main-path authored grants | Clear-only 18,737; expected 21,212; full mastery with alternates/branches 40,942-41,199 | First-clear, boss, star, mastery, alternate, and branch receipt IDs are one-time and durable. Wave/Mission clear grants are repeatable and seasonal. |
 | Route-alternative authored grants | Clear-only 4,320; expected 4,815; full mastery 6,735 | One separate reward ledger per alternate Mission; included only in the full-mastery scenario. |
 | Authored daily replay | 825 maximum across all completed main Missions per UTC day | One reduced grant per Mission per UTC date; no same-day repeat grant. Seasonal balance. |
 | Daily Gift calendar | 9,450 over 30 consecutive days | Each day is claimable once; missing a day resets the calendar. Coins enter the seasonal balance. |
@@ -24,7 +24,7 @@ Weekly leaderboard points and proposal funding are never converted into Campaign
 | Boss Archive challenge | 3 paid clears/day; 100-280 per clear; maximum 840/day after final unlock | Daily charge limit is global. Practice pays zero. Seasonal balance. |
 | Boss Archive mastery | 5,700 across all authored bosses | Three one-time mastery receipts per boss; seasonal balance after claim. |
 | Ordinary combat coin | 1 coin per credited coin entity | Repeatable. Enemy kills, recovery drops, bonus targets, and boss bursts settle through the run boundary. |
-| Main-route configured pickup ceiling | 5,147 (2,592 configured kills + 200 recovery + 0 mini-boss + 2,355 major-boss) | Ceiling, not forecast: formation-generated enemies, missed kills/pickups, bonus targets, and the 128-coin active cap can change realized income. |
+| Main-route configured pickup ceiling | 5,305 (2,750 configured kills + 200 recovery + 0 mini-boss + 2,355 major-boss) | Ceiling, not forecast: formation-generated enemies, missed kills/pickups, bonus targets, and the 128-coin active cap can change realized income. |
 | Alternate-route configured pickup ceiling | 951 | Same variable combat conditions as the main route. |
 
 ### Reward Center totals
@@ -68,16 +68,16 @@ Weekly leaderboard points and proposal funding are never converted into Campaign
 | 1 - OPEN ORBIT | 23 | 982 | 1,117 | 361 | 120-377 | 2,108-2,365 |
 | 2 - REDLINE FRONTIER | 23 | 1,166 | 1,326 | 428 | 210-210 | 2,574-2,574 |
 | 3 - GRAVITY RIFT | 23 | 1,364 | 1,549 | 502 | 260-260 | 3,021-3,021 |
-| 4 - TERMINUS FRONTIER | 23 | 1,548 | 1,758 | 569 | 330-330 | 3,467-3,467 |
-| 5 - PRISM EXPANSE | 23 | 1,746 | 1,981 | 636 | 325-325 | 3,852-3,852 |
-| 6 - RAIL MERIDIAN | 23 | 1,930 | 2,190 | 702 | 360-360 | 4,262-4,262 |
-| 7 - SINGULARITY REACH | 23 | 2,128 | 2,413 | 784 | 395-395 | 4,702-4,702 |
-| 8 - GYROSCOPE ARRAY | 23 | 2,312 | 2,622 | 851 | 430-430 | 5,113-5,113 |
-| 9 - HAMMERHEAD LINE | 23 | 2,510 | 2,845 | 917 | 465-465 | 5,537-5,537 |
-| 10 - CROWNCLAW FRONTIER | 23 | 2,694 | 3,054 | 985 | 500-500 | 5,949-5,949 |
-| **Campaign** | **230** | **18,380** | **20,855** | **6,735** | **3,395-3,652** | **40,585-40,842** |
+| 4 - TERMINUS FRONTIER | 24 | 1,572 | 1,782 | 569 | 330-330 | 3,491-3,491 |
+| 5 - PRISM EXPANSE | 24 | 1,773 | 2,008 | 636 | 325-325 | 3,879-3,879 |
+| 6 - RAIL MERIDIAN | 24 | 1,960 | 2,220 | 702 | 360-360 | 4,292-4,292 |
+| 7 - SINGULARITY REACH | 25 | 2,189 | 2,474 | 784 | 395-395 | 4,763-4,763 |
+| 8 - GYROSCOPE ARRAY | 25 | 2,378 | 2,688 | 851 | 430-430 | 5,179-5,179 |
+| 9 - HAMMERHEAD LINE | 25 | 2,582 | 2,917 | 917 | 465-465 | 5,609-5,609 |
+| 10 - CROWNCLAW FRONTIER | 25 | 2,771 | 3,131 | 985 | 500-500 | 6,026-6,026 |
+| **Campaign** | **241** | **18,737** | **21,212** | **6,735** | **3,395-3,652** | **40,942-41,199** |
 
-Detailed main-path authored grants: Wave + Mission clear 9,070, first-clear + boss/checkpoint 7,785, Star 1 1,525, Star 2 2,475, Star 3 3,900, main mastery sets 5,700, and branches 3,395-3,652.
+Detailed main-path authored grants: Wave + Mission clear 9,427, first-clear + boss/checkpoint 7,785, Star 1 1,525, Star 2 2,475, Star 3 3,900, main mastery sets 5,700, and branches 3,395-3,652.
 
 ## Exact persistent sink inventory
 
@@ -108,12 +108,12 @@ For comparison, the simulator spends on one deterministic basket: Movement Speed
 
 | Scenario | Authored coins | Basket upgrades funded | Average Missions per funded upgrade | Longest no-purchase stretch | Bank | Next basket purchase |
 |---|---:|---:|---:|---:|---:|---|
-| Clear-only | 18,380 | 27/68 | 1.85 | 6 | 75 | fireRate 9 (810) |
-| Expected (Stars 1 + 2) | 20,855 | 29/68 | 1.72 | 5 | 720 | fireRate 11 (1,260) |
-| Full mastery (branch floor) | 40,585 | 37/68 | 1.35 | 4 | 340 | fireRate 19 (4,700) |
-| Full mastery (branch ceiling) | 40,842 | 37/68 | 1.35 | 3 | 597 | fireRate 19 (4,700) |
+| Clear-only | 18,737 | 27/68 | 1.85 | 6 | 432 | fireRate 9 (810) |
+| Expected (Stars 1 + 2) | 21,212 | 29/68 | 1.72 | 5 | 1,077 | fireRate 11 (1,260) |
+| Full mastery (branch floor) | 40,942 | 37/68 | 1.35 | 4 | 697 | fireRate 19 (4,700) |
+| Full mastery (branch ceiling) | 41,199 | 37/68 | 1.35 | 3 | 954 | fireRate 19 (4,700) |
 
-The expected path supplies **3.68%** of one fully maxed main ship if the player saves every authored coin. Full mastery supplies **7.15%-7.20%**. Because support purchases compete for the same balance, actual main-ship completion will be slower; this is an intentional long-tail constraint that still needs player telemetry.
+The expected path supplies **3.74%** of one fully maxed main ship if the player saves every authored coin. Full mastery supplies **7.22%-7.26%**. Because support purchases compete for the same balance, actual main-ship completion will be slower; this is an intentional long-tail constraint that still needs player telemetry.
 
 ### Sector-by-sector affordability
 
@@ -122,13 +122,13 @@ The expected path supplies **3.68%** of one fully maxed main ship if the player 
 | 1 - OPEN ORBIT | 1,117 | 2,108-2,365 | 6 / 10 |
 | 2 - REDLINE FRONTIER | 1,326 | 2,574-2,574 | 10 / 14 |
 | 3 - GRAVITY RIFT | 1,549 | 3,021-3,021 | 14 / 18 |
-| 4 - TERMINUS FRONTIER | 1,758 | 3,467-3,467 | 15 / 21 |
-| 5 - PRISM EXPANSE | 1,981 | 3,852-3,852 | 18 / 25 |
-| 6 - RAIL MERIDIAN | 2,190 | 4,262-4,262 | 19 / 28 |
-| 7 - SINGULARITY REACH | 2,413 | 4,702-4,702 | 22 / 31 |
-| 8 - GYROSCOPE ARRAY | 2,622 | 5,113-5,113 | 25 / 33 |
-| 9 - HAMMERHEAD LINE | 2,845 | 5,537-5,537 | 26 / 35 |
-| 10 - CROWNCLAW FRONTIER | 3,054 | 5,949-5,949 | 29 / 37 |
+| 4 - TERMINUS FRONTIER | 1,782 | 3,491-3,491 | 15 / 21 |
+| 5 - PRISM EXPANSE | 2,008 | 3,879-3,879 | 18 / 25 |
+| 6 - RAIL MERIDIAN | 2,220 | 4,292-4,292 | 19 / 28 |
+| 7 - SINGULARITY REACH | 2,474 | 4,763-4,763 | 22 / 31 |
+| 8 - GYROSCOPE ARRAY | 2,688 | 5,179-5,179 | 25 / 33 |
+| 9 - HAMMERHEAD LINE | 2,917 | 5,609-5,609 | 26 / 35 |
+| 10 - CROWNCLAW FRONTIER | 3,131 | 6,026-6,026 | 29 / 37 |
 
 - Sector 1 covers multiple low-cost Speed/Fire upgrades without replay, while the first heart is deliberately no longer the cheapest purchase.
 - The restored seven-step health curve costs 8,460. Expected authored Campaign income can max health only by deferring offense and support purchases.
@@ -169,14 +169,14 @@ Completed Missions can pay one reduced authored replay grant per Mission per UTC
 | 10 - CROWNCLAW FRONTIER | 118 |
 | **All 50 main-path Missions** | **825** |
 
-The authored daily replay ceiling is **2.03%** of the one-time full-mastery floor. It prevents result-ID or same-day easy-Mission spam from dominating immediately. It is not a lifetime cap: over many days replay income and unmodeled dropped coins can still become substantial, so retention telemetry is required before calling the long-term economy final.
+The authored daily replay ceiling is **2.02%** of the one-time full-mastery floor. It prevents result-ID or same-day easy-Mission spam from dominating immediately. It is not a lifetime cap: over many days replay income and unmodeled dropped coins can still become substantial, so retention telemetry is required before calling the long-term economy final.
 
 ## Inflation and farming review
 
-- **Bounded Campaign replay:** 825/day is 2.03% of the one-time full-mastery floor. Same-Mission repeats in one UTC day pay no additional authored replay grant.
+- **Bounded Campaign replay:** 825/day is 2.02% of the one-time full-mastery floor. Same-Mission repeats in one UTC day pay no additional authored replay grant.
 - **Unbounded combat pickup risk:** ordinary kill/drop coins remain replayable and are skill/loadout dependent. A per-run or diminishing-return policy is still absent.
-- **Boss Archive challenge income is sector-tiered and bounded:** 3 clears of the highest unlocked boss can pay 840/day, or 5,880/week. That is 28.19% of the expected ten-sector authored path, so Archive play remains useful without replacing Campaign progression.
-- **Reward Center gross is long-horizon income:** one 30-day calendar plus every lifetime achievement tier is 20,350, 97.58% of expected authored Campaign income. Only the 9,450 calendar repeats; the 10,900 achievement inventory is one-time per Pilot.
+- **Boss Archive challenge income is sector-tiered and bounded:** 3 clears of the highest unlocked boss can pay 840/day, or 5,880/week. That is 27.72% of the expected ten-sector authored path, so Archive play remains useful without replacing Campaign progression.
+- **Reward Center gross is long-horizon income:** one 30-day calendar plus every lifetime achievement tier is 20,350, 95.94% of expected authored Campaign income. Only the 9,450 calendar repeats; the 10,900 achievement inventory is one-time per Pilot.
 - **Weekly isolation remains correct:** Campaign reward credit does not increment weekly score statistics. One-time Campaign grants are durable; repeatable grants, Daily Gifts, achievements, Boss Archive payments, and ordinary run coins enter the seasonal balance. Upgrades survive the reset.
 
 ## Seven-projectile-tier validation
@@ -191,7 +191,7 @@ Seven-round volleys are simulated as one collision bundle per center or Triple S
 - **Pass:** total lives are capped at ten and the seven-heart Hangar track is 8,460 coins while early Speed/Fire prices remain unchanged.
 - **Pass:** the 49-level, seven-tier Fire Rate sink is included in every affordability percentage and deterministic purchase cadence above.
 - **Pass:** the report is generated from runtime source files and has a deterministic stale-file check.
-- **Affordability:** expected authored income supplies 3.68% of one maxed main ship; full mastery supplies 7.15%-7.20% before support spending.
+- **Affordability:** expected authored income supplies 3.74% of one maxed main ship; full mastery supplies 7.22%-7.26% before support spending.
 - **Pass with telemetry:** a full week of maximum Boss Archive charges remains below one third of expected authored Campaign income, while one 30-day gift cycle plus all lifetime achievement tiers stays near one expected Campaign. Combat pickups still require live retention telemetry.
 - **Not modeled as guaranteed income:** dropped coins, magnet collection, player deaths, clear rate, play time, and performance-dependent Present Drop results.
 - **Security limitation:** browser Campaign combat remains server-verifiable, not fully server-authoritative. Valuable rewards require the existing receipt/integrity controls.

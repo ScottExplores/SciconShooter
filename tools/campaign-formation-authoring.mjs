@@ -81,11 +81,29 @@ export const normalizeCampaignFormationAuthoring = (campaign) => {
     recoveryRequiredSeconds: 0.4,
     compatibleMissionRoles: ['elite-checkpoint', 'boss-preparation', 'formation-remix', 'introduction'],
     compatibleSectorIds: sectorIds,
-    mobilePerformanceCost: 14
+    mobilePerformanceCost: 14,
+    // The pack schema grew required choreography fields after this template
+    // was written; wholesale replacement silently deleted them from the
+    // authored data on every --write run (caught 2026-08-03 when the wave
+    // author left the campaign invalid). They are part of the template now.
+    movementBehavior: 'lateral-sweep',
+    attackBehavior: 'pincer-pass',
+    returnBehavior: 'reform',
+    holdSeconds: 1.35,
+    telegraphSeconds: 0.75,
+    attackDurationSeconds: 1.45,
+    attackRecoverySeconds: 1.25,
+    attackGroupSize: 2,
+    attackCycles: 3
   };
   const existingLightJetIndex = campaign.formationPacks.findIndex((pack) => pack?.id === lightJetPack.id);
   if (existingLightJetIndex >= 0) {
-    campaign.formationPacks[existingLightJetIndex] = lightJetPack;
+    // Preserve any authored field the template does not pin (future schema
+    // growth) while the template still wins on the fields it owns.
+    campaign.formationPacks[existingLightJetIndex] = {
+      ...campaign.formationPacks[existingLightJetIndex],
+      ...lightJetPack
+    };
   } else {
     const heavyJetIndex = campaign.formationPacks.findIndex((pack) => pack?.id === 'pack-jet-pincer');
     campaign.formationPacks.splice(heavyJetIndex >= 0 ? heavyJetIndex : campaign.formationPacks.length, 0, lightJetPack);
