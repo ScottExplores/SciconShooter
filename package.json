@@ -14,6 +14,7 @@
     "compile:campaign-boss-artwork": "node tools/compile-campaign-boss-artwork.mjs",
     "promote:campaign-bosses": "node tools/promote-test-bosses-to-campaign.mjs",
     "check:campaign-bosses": "node tools/promote-test-bosses-to-campaign.mjs --check",
+    "reports:list": "node --use-system-ca --env-file-if-exists=.env.local tools/list-player-reports.mjs",
     "contract:compile": "node tools/compile-contract.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",

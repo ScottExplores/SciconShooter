@@ -59,6 +59,11 @@ import {
   type RunSession
 } from './services/runReceiptService';
 import { trackEvent, trackInitialVisit } from './services/analyticsService';
+import {
+  capturePlayerRuntimeError,
+  recordPlayerReportBreadcrumb,
+  updatePlayerReportContext
+} from './services/playerReportService';
 import { getWalletRecords } from './services/recordService';
 import { getWalletRuns, type WalletRunRecord } from './services/playerRunService';
 import { getWeeklyProposalRecovery } from './services/weeklyProposalRecovery';
@@ -552,7 +557,14 @@ type MissionLoadingState = {
 };
 type PauseMissionPosition = Pick<
   GameRuntimeState,
-  'levelNumber' | 'levelName' | 'waveNumber' | 'waveTotal' | 'absoluteWaveNumber' | 'continuousRun'
+  | 'levelId'
+  | 'levelNumber'
+  | 'levelName'
+  | 'waveId'
+  | 'waveNumber'
+  | 'waveTotal'
+  | 'absoluteWaveNumber'
+  | 'continuousRun'
 >;
 type PendingMissionRuntimeLaunch = {
   launchNonce: number;
@@ -825,6 +837,7 @@ const App: React.FC = () => {
     }
   });
   const lastStoryWaveRef = useRef(0);
+  const diagnosticWaveRef = useRef('');
   const missionLaunchNonceRef = useRef(0);
   const missionLaunchPendingRef = useRef(false);
   const weeklyRunAdmissionPendingRef = useRef(false);
@@ -1637,9 +1650,28 @@ const App: React.FC = () => {
 
   const handleRuntimeState = useCallback((runtime: GameRuntimeState) => {
     bossArchiveDamageTakenRef.current = runtime.damageTaken;
+    updatePlayerReportContext({
+      missionId: runtime.levelId,
+      waveId: runtime.waveId,
+      waveNumber: runtime.absoluteWaveNumber,
+      waveTotal: runtime.waveTotal,
+      bossActive: runtime.bossActive
+    });
+    const diagnosticWaveKey = `${runtime.levelId}:${runtime.waveId}:${runtime.absoluteWaveNumber}`;
+    if (diagnosticWaveRef.current !== diagnosticWaveKey) {
+      diagnosticWaveRef.current = diagnosticWaveKey;
+      recordPlayerReportBreadcrumb('wave_started', {
+        level_id: runtime.levelId,
+        wave_id: runtime.waveId,
+        wave_number: runtime.absoluteWaveNumber,
+        continuous_run: runtime.continuousRun
+      });
+    }
     const nextPosition: PauseMissionPosition = {
+      levelId: runtime.levelId,
       levelNumber: runtime.levelNumber,
       levelName: runtime.levelName,
+      waveId: runtime.waveId,
       waveNumber: runtime.waveNumber,
       waveTotal: runtime.waveTotal,
       absoluteWaveNumber: runtime.absoluteWaveNumber,
@@ -1647,8 +1679,10 @@ const App: React.FC = () => {
     };
     setPauseMissionPosition((current) => (
       current
+      && current.levelId === nextPosition.levelId
       && current.levelNumber === nextPosition.levelNumber
       && current.levelName === nextPosition.levelName
+      && current.waveId === nextPosition.waveId
       && current.waveNumber === nextPosition.waveNumber
       && current.waveTotal === nextPosition.waveTotal
       && current.absoluteWaveNumber === nextPosition.absoluteWaveNumber
@@ -1746,6 +1780,49 @@ const App: React.FC = () => {
       selectedShipId: nextShip
     } satisfies WalletProfileSnapshot;
   }, []);
+
+  useEffect(() => {
+    updatePlayerReportContext({
+      gameState,
+      gameId,
+      runMode: activeRunMode,
+      missionId: pauseMissionPosition?.levelId ?? activeCampaignLaunch?.missionId ?? 'menu',
+      waveId: pauseMissionPosition?.waveId ?? activeCampaignLaunch?.waveId ?? '',
+      waveNumber: pauseMissionPosition?.absoluteWaveNumber ?? stats.wave,
+      waveTotal: pauseMissionPosition?.waveTotal ?? 0,
+      score: stats.score,
+      lives: stats.lives,
+      selectedShipId: activeMissionShipId,
+      loadingPhase: missionLoading?.phase ?? 'none',
+      bossActive: stats.isBossActive
+    });
+  }, [
+    activeCampaignLaunch?.missionId,
+    activeCampaignLaunch?.waveId,
+    activeMissionShipId,
+    activeRunMode,
+    gameId,
+    gameState,
+    missionLoading?.phase,
+    pauseMissionPosition?.absoluteWaveNumber,
+    pauseMissionPosition?.levelId,
+    pauseMissionPosition?.levelName,
+    pauseMissionPosition?.waveId,
+    pauseMissionPosition?.waveTotal,
+    stats.isBossActive,
+    stats.lives,
+    stats.score,
+    stats.wave
+  ]);
+
+  useEffect(() => {
+    recordPlayerReportBreadcrumb('app_state_changed', {
+      game_state: gameState,
+      game_id: gameId,
+      run_mode: activeRunMode,
+      loading_phase: missionLoading?.phase ?? 'none'
+    });
+  }, [activeRunMode, gameId, gameState, missionLoading?.phase]);
 
   const applyAuthoritativeHangarSpend = useCallback(async (
     action: WalletTokenSpendAction
@@ -2780,9 +2857,21 @@ const App: React.FC = () => {
         ? 'campaign-replay'
         : normalizedCampaignRequest
           ? 'campaign'
-          : isOwnerWallet
+        : isOwnerWallet
         ? 'owner-test'
         : 'standard';
+    recordPlayerReportBreadcrumb('launch_requested', {
+      run_mode: runMode,
+      mission_id: normalizedCampaignRequest?.missionId ?? requestedCampaignBranch?.missionDefinitionId ?? '',
+      wave_id: normalizedCampaignRequest?.waveId ?? '',
+      boss_event_id: requestedBossReplay?.eventId ?? ''
+    });
+    updatePlayerReportContext({
+      runMode,
+      missionId: normalizedCampaignRequest?.missionId ?? requestedCampaignBranch?.missionDefinitionId ?? '',
+      waveId: normalizedCampaignRequest?.waveId ?? '',
+      loadingPhase: 'module-load'
+    });
     setActiveRunMode(runMode);
     setActiveBossEncounterId(requestedBossReplay?.eventId ?? null);
     setActiveCampaignLaunch(normalizedCampaignRequest);
@@ -2836,6 +2925,7 @@ const App: React.FC = () => {
       : getRandomMissionLoadingTip();
     audioService.init();
     if (shouldShowMissionLoading) {
+      recordPlayerReportBreadcrumb('preload_started', { run_mode: runMode });
       setMissionLoading({
         progress: gameplayPreloadProgress,
         phase: gameplayPreloadPhase,
@@ -2856,10 +2946,19 @@ const App: React.FC = () => {
             });
           }
         : undefined);
+      recordPlayerReportBreadcrumb('preload_ready', {
+        run_mode: runMode,
+        loading_screen_shown: shouldShowMissionLoading
+      });
     } catch (error) {
       console.error('Gameplay preload failed.', error);
       if (recoverFromModulePreloadFailure(error)) return;
       audioService.playUiSound('error');
+      recordPlayerReportBreadcrumb('preload_failed', { run_mode: runMode });
+      capturePlayerRuntimeError(error, {
+        source: 'gameplay_preload',
+        run_mode: runMode
+      });
       if (missionLaunchNonceRef.current === launchNonce) {
         missionLaunchPendingRef.current = false;
         setMissionLoading((current) => ({
@@ -3158,6 +3257,10 @@ const App: React.FC = () => {
     missionLaunchPendingRef.current = false;
     setGameRuntimeReady(true);
     setMissionLoading(null);
+    recordPlayerReportBreadcrumb('runtime_ready', {
+      game_id: runtimeGameId,
+      run_mode: pendingLaunch.runMode
+    });
     if (pendingLaunch.runMode === 'boss-archive' || pendingLaunch.runMode === 'campaign-branch') {
       setIntroMissionLocked(false);
       return;
@@ -3218,6 +3321,15 @@ const App: React.FC = () => {
     ) return;
 
     console.error('Gameplay runtime launch failed.', error);
+    recordPlayerReportBreadcrumb('runtime_failed', {
+      game_id: runtimeGameId,
+      run_mode: pendingLaunch.runMode
+    });
+    capturePlayerRuntimeError(error, {
+      source: 'gameplay_runtime_initialization',
+      game_id: runtimeGameId,
+      run_mode: pendingLaunch.runMode
+    });
     pendingMissionRuntimeRef.current = null;
     onboardingRunSessionPendingRef.current = null;
     setOnboardingGameplayFreeze(false);
@@ -3233,6 +3345,11 @@ const App: React.FC = () => {
   };
 
   const resetGame = () => {
+    recordPlayerReportBreadcrumb('runtime_reset_requested', {
+      game_id: gameId,
+      game_state: gameState,
+      run_mode: activeRunMode
+    });
     if (isCampaignBranchRun && campaignBranchCoinBaselineRef.current !== null) {
       const baseline = campaignBranchCoinBaselineRef.current;
       setStats((current) => ({ ...current, coins: 0, totalCoins: baseline }));

@@ -36,7 +36,9 @@ import {
 import SquadHangar from './SquadHangar';
 import PixelActionButton from './PixelActionButton';
 import AudioSettingsControls from './AudioSettingsControls';
+import PlayerReportDialog from './PlayerReportDialog';
 import type { MatchMusicTrackId } from '../services/audioService';
+import type { PlayerReportKind } from '../services/playerReportService';
 import { WEEKLY_RUN_STARTING_LIVES } from '../services/weeklyRunGenerator';
 import ShipCarousel from './ShipCarousel';
 import BossArchive, {
@@ -818,7 +820,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
       : 'home';
   });
   const [proposalSearch, setProposalSearch] = useState('');
-  const [showFeedback, setShowFeedback] = useState(false);
+  const [playerReportKind, setPlayerReportKind] = useState<PlayerReportKind | null>(null);
   const [showTreasury, setShowTreasury] = useState(false);
   const [showRscAcquire, setShowRscAcquire] = useState(false);
   const [showReferral, setShowReferral] = useState(false);
@@ -836,9 +838,6 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const [bossArchiveDevShowLocked, setBossArchiveDevShowLocked] = useState(true);
   const [showWeeklyProposalReminder, setShowWeeklyProposalReminder] = useState(false);
   const [rewardCenterInitialTab, setRewardCenterInitialTab] = useState<RewardTab>('daily');
-  const [feedback, setFeedback] = useState('');
-  const [sendStatus, setSendStatus] = useState<'idle' | 'success' | 'error'>('idle');
-  const [isSending, setIsSending] = useState(false);
   const [treasuryCopyStatus, setTreasuryCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
   const [championClaimWinner, setChampionClaimWinner] = useState<ArchivedWinner | null>(null);
   const [testSelectedProposal, setTestSelectedProposal] = useState<ResearchHubProposal | null>(null);
@@ -1214,29 +1213,6 @@ const StartScreen: React.FC<StartScreenProps> = ({
       window.setTimeout(() => setTreasuryCopyStatus('idle'), 1800);
     } catch {
       setTreasuryCopyStatus('error');
-    }
-  };
-
-  const handleSendFeedback = async () => {
-    const trimmedFeedback = feedback.trim();
-    if (!trimmedFeedback || isSending) return;
-
-    setIsSending(true);
-    setSendStatus('idle');
-
-    const subject = encodeURIComponent('Scicon Shooter feedback');
-    const body = encodeURIComponent(trimmedFeedback);
-    const mailtoUrl = `mailto:scottexplores29@gmail.com?subject=${subject}&body=${body}`;
-
-    try {
-      window.location.href = mailtoUrl;
-      await new Promise((resolve) => window.setTimeout(resolve, 250));
-      setFeedback('');
-      setSendStatus('success');
-    } catch {
-      setSendStatus('error');
-    } finally {
-      setIsSending(false);
     }
   };
 
@@ -2269,7 +2245,12 @@ const StartScreen: React.FC<StartScreenProps> = ({
           <MoreMenuTile
             label="Feedback"
             icon={`${COMMUNICATION_ICON_ROOT}/feedback.png`}
-            onClick={() => setShowFeedback(true)}
+            onClick={() => setPlayerReportKind('feedback')}
+          />
+          <MoreMenuTile
+            label="Report a Bug"
+            icon={`${COMMUNICATION_ICON_ROOT}/support.png`}
+            onClick={() => setPlayerReportKind('bug')}
           />
           <MoreMenuTile
             label="Updates"
@@ -2605,41 +2586,10 @@ const StartScreen: React.FC<StartScreenProps> = ({
         </div>
       ) : null}
 
-      {showFeedback && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-[8px] border border-cyan-300/25 bg-slate-950 p-5 shadow-[0_0_40px_rgba(34,211,238,0.22)]">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-black text-white">Send Feedback</h2>
-                <p className="text-sm text-slate-300">Help tune the mission deck.</p>
-              </div>
-              <button type="button" onClick={() => setShowFeedback(false)} className="sci-icon-button" aria-label="Close feedback">
-                <Icon name="x" />
-              </button>
-            </div>
-            <textarea
-              value={feedback}
-              onChange={(event) => setFeedback(event.target.value)}
-              placeholder="What should Scicon Shooter improve next?"
-              className="min-h-[9rem] w-full resize-none rounded-[6px] border border-cyan-300/20 bg-slate-900 p-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300/60"
-            />
-            <div className="mt-4 flex items-center justify-between gap-3">
-              <p className="text-xs text-slate-400">
-                {sendStatus === 'success' && 'Your mail app should be ready with the message.'}
-                {sendStatus === 'error' && 'Could not open mail automatically. Try again in a moment.'}
-              </p>
-              <button
-                type="button"
-                onClick={handleSendFeedback}
-                disabled={!feedback.trim() || isSending}
-                className="rounded-[6px] border border-emerald-300/35 bg-emerald-400/14 px-4 py-2 text-sm font-bold text-emerald-100 transition hover:bg-emerald-400/24 disabled:cursor-not-allowed disabled:opacity-45"
-              >
-                {isSending ? 'Opening...' : 'Send'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <PlayerReportDialog
+        kind={playerReportKind}
+        onClose={() => setPlayerReportKind(null)}
+      />
 
       {showTreasury && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
@@ -2843,6 +2793,9 @@ const StartScreen: React.FC<StartScreenProps> = ({
                 <h3 className="font-black uppercase text-cyan-100">Privacy &amp; disclosure</h3>
                 <p className="mt-2">
                   Guest play does not require a wallet. Submitted pilot names and scores may appear publicly. Connected-wallet actions and minted records are public onchain. Scicon Shooter is community-built and open source; it is not represented as an official ResearchHub product.
+                </p>
+                <p className="mt-2">
+                  The game records anonymous usage events and bounded crash diagnostics so reliability problems can be found. Player reports may include game version, Mission and Wave, screen size, connection state, and recent technical events when diagnostics are enabled. Reports never intentionally include wallet addresses, recovery phrases, private keys, authorization data, or browser storage.
                 </p>
               </section>
             </div>

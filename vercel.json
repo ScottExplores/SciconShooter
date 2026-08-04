@@ -93,6 +93,10 @@
       "destination": "/api/mint-records?route=wallet-token-spends"
     },
     {
+      "source": "/api/player-reports",
+      "destination": "/api/events?route=player-reports"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

@@ -1,10 +1,21 @@
 const crypto = require('crypto');
+const net = require('net');
 
 const buckets = globalThis.__sciconRateLimitBuckets || new Map();
 globalThis.__sciconRateLimitBuckets = buckets;
 
+const getClientAddress = (req) => {
+  const candidate = String(
+    req.headers['x-vercel-forwarded-for']
+      || req.headers['x-forwarded-for']
+      || req.socket?.remoteAddress
+      || ''
+  ).split(',')[0].trim();
+  return net.isIP(candidate) ? candidate : 'unknown';
+};
+
 const clientKey = (req, scope) => {
-  const ip = String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown').split(',')[0].trim();
+  const ip = getClientAddress(req);
   return crypto.createHash('sha256').update(`${scope}:${ip}`).digest('hex').slice(0, 32);
 };
 
@@ -25,4 +36,4 @@ const checkRateLimit = (req, { scope, limit, windowMs }) => {
   return { allowed: current.count <= limit, remaining: Math.max(0, limit - current.count), resetAt: current.resetAt };
 };
 
-module.exports = { checkRateLimit };
+module.exports = { checkRateLimit, getClientAddress };

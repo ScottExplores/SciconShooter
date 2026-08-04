@@ -285,7 +285,7 @@ test('leaderboard names open the canonical Mission Record in a read-only viewer'
   assert.match(source, /View \$\{entry\.name\}'s Mission Record/);
 
   const viewerStart = source.indexOf('selectedLeaderboardRecord?.runId');
-  const viewerEnd = source.indexOf('{showFeedback &&', viewerStart);
+  const viewerEnd = source.indexOf('<PlayerReportDialog', viewerStart);
   assert.ok(viewerStart >= 0 && viewerEnd > viewerStart);
   const viewerSource = source.slice(viewerStart, viewerEnd);
 
