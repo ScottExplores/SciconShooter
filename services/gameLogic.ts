@@ -207,6 +207,7 @@ import {
   resolveLooseFormationMode,
   resolveConfiguredFormationSpawnPoint,
   resolveConfiguredFormationTarget,
+  resolveFormationCohortEntryPose,
   resolveFormationEntryMotion,
   resolveFormationAttackIndices,
   resolveFormationChoreography,
@@ -790,6 +791,8 @@ export class Entity {
   formationEntryDirection?: FormationPackDefinition['entryDirection'];
   formationEntryPath?: string;
   formationEntryBehavior?: EnemyRoleDefinition['entryBehavior'];
+  /** Grouped events use one shared inbound ribbon before their slots bloom. */
+  formationCohortEntry: boolean = false;
   /** What this hull does once it holds a slot. See services/enemyCharacteristics. */
   campaignCharacteristic?: EnemyCharacteristic;
   formationChoreography?: ResolvedFormationChoreography;
@@ -9029,6 +9032,9 @@ export class GameEngine {
     enemy.formationEntryDirection = plan.entryDirection;
     enemy.formationEntryPath = choreography.entryPathId || plan.entryPath;
     enemy.formationEntryBehavior = plan.entryBehavior;
+    enemy.formationCohortEntry = count > 1
+      && !patternId.includes('single')
+      && !patternId.includes('random');
     enemy.formationChoreography = choreography;
     enemy.formationSlotLocked = false;
     enemy.formationSlotTransitionActive = false;
@@ -9069,7 +9075,8 @@ export class GameEngine {
       playerVelocityX: this.playerVel.x,
       viewportWidth: this.width,
       mobile: this.mobileProfile,
-      entryBehavior: enemy.formationEntryBehavior
+      entryBehavior: enemy.formationEntryBehavior,
+      attackId: enemy.formationChoreography?.attackId
     });
   }
 
@@ -9173,7 +9180,26 @@ export class GameEngine {
             progress
           })
         : null;
-      const entryMotion = slotTransitionPoint
+      const cohortEntryPose = !slotTransitionPoint
+        && state === 'entry'
+        && enemy.formationCohortEntry
+        ? resolveFormationCohortEntryPose({
+            mode: formation,
+            index: enemy.formationIndex,
+            count: enemy.encounterGroupSize,
+            groupSeed: enemy.formationGroupSeed,
+            progress,
+            viewport: { width: this.width, height: this.height },
+            entityWidth: enemy.width,
+            entityHeight: enemy.height,
+            start: { x: startX, y: startY },
+            target: { x: targetX, y: targetY },
+            entryDirection: enemy.formationEntryDirection,
+            entryPath: enemy.formationEntryPath,
+            entryBehavior: enemy.formationEntryBehavior
+          })
+        : null;
+      const entryMotion = slotTransitionPoint || cohortEntryPose
         ? null
         : resolveFormationEntryMotion({
             mode: formation,
@@ -9185,11 +9211,15 @@ export class GameEngine {
             entryPath: enemy.formationEntryPath,
             entryBehavior: enemy.formationEntryBehavior
           });
-      enemy.x = slotTransitionPoint?.x ?? (lerp(startX, targetX, eased) + (entryMotion?.xOffset ?? 0));
-      enemy.y = slotTransitionPoint?.y ?? (lerp(startY, targetY, eased) + (entryMotion?.yOffset ?? 0));
+      enemy.x = slotTransitionPoint?.x
+        ?? cohortEntryPose?.x
+        ?? (lerp(startX, targetX, eased) + (entryMotion?.xOffset ?? 0));
+      enemy.y = slotTransitionPoint?.y
+        ?? cohortEntryPose?.y
+        ?? (lerp(startY, targetY, eased) + (entryMotion?.yOffset ?? 0));
       enemy.vx = 0;
       enemy.vy = 0;
-      enemy.angle = entryMotion?.angle ?? 0;
+      enemy.angle = cohortEntryPose?.angle ?? entryMotion?.angle ?? 0;
 
       if (progress >= 1) {
         enemy.x = targetX;
@@ -9628,11 +9658,9 @@ export class GameEngine {
         ((Number(event.spawnIntervalSeconds) || 0.8) * GAME_CONFIG.FPS) / difficultyMultiplier
       ));
       const previousFrame = this.configuredSpawnFrames.get(event.id);
-      // Do not collapse this interval to chase the last dead-air cells. Two
-      // variants were measured and both regressed: relaxing it whenever
-      // nothing was visible (dead air 3 -> 18, peak load 1.000 -> 1.080) and
-      // relaxing it only on a fully empty field (dead air 2 -> 4, clears
-      // 518 -> 513, and a timeout appeared). The authored trickle stays.
+      // Preserve authored cadence between arrival beats. Grouped events add a
+      // second member on the same beat below, which creates a visible wing or
+      // strand without collapsing the whole event into a threat spike.
       if (previousFrame !== undefined && this.waveProgressFrames - previousFrame < intervalFrames) continue;
 
       const cycle = this.getCampaignCycle();
@@ -9652,7 +9680,17 @@ export class GameEngine {
         );
         this.spawnRingEffect(warningX, this.height * 0.22, warningColor);
       }
-      this.spawnConfiguredEnemyFromEvent(event, spawned, count, difficultyMultiplier);
+      const arrivalBatchSize = formationEvent ? Math.min(2, count - spawned) : 1;
+      for (let batchIndex = 0; batchIndex < arrivalBatchSize; batchIndex++) {
+        if (this.getActiveThreatCount() >= threatCap) break;
+        const didSpawn = this.spawnConfiguredEnemyFromEvent(
+          event,
+          spawned + batchIndex,
+          count,
+          difficultyMultiplier
+        );
+        if (!didSpawn) break;
+      }
     }
 
     return true;

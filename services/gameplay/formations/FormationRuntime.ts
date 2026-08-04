@@ -193,6 +193,34 @@ export interface FormationEntryMotion {
   angle: number;
 }
 
+/**
+ * A complete member pose on the shared inbound ribbon used by authored
+ * squadrons. Unlike `FormationEntryMotion`, this is an absolute simulation
+ * position: the whole cohort follows one readable route before its local slot
+ * blooms out of the procession.
+ */
+export interface FormationCohortEntryPoseInput {
+  mode: ConfiguredFormationMode;
+  index: number;
+  count: number;
+  groupSeed: number;
+  progress: number;
+  viewport: FormationViewport;
+  entityWidth: number;
+  entityHeight: number;
+  start: FormationPoint;
+  target: FormationPoint;
+  entryDirection?: FormationEntryDirection;
+  entryPath?: string;
+  entryBehavior?: FormationEntryBehavior;
+}
+
+export interface FormationCohortEntryPose extends FormationPoint {
+  angle: number;
+  assemblyProgress: number;
+  phase: 'procession' | 'maneuver' | 'assembly' | 'settle';
+}
+
 export interface FormationDiveMotionInput {
   mode: ConfiguredFormationMode;
   index: number;
@@ -208,6 +236,7 @@ export interface FormationDiveMotionInput {
   viewportWidth: number;
   mobile: boolean;
   entryBehavior?: FormationEntryBehavior;
+  attackId?: FormationAttackBehaviorId;
 }
 
 export interface FormationDiveMotion {
@@ -613,6 +642,47 @@ const normalizeEntryBehavior = (
 const normalizeEntryPath = (value: string | undefined) => {
   const normalized = String(value || '').trim().toLowerCase();
   return normalized || undefined;
+};
+
+interface FormationEntryPathProfile {
+  /** Fixed-step travel time before per-member cadence variation. */
+  entryFrames: number;
+  /** Width of the shared maneuver, expressed as a viewport-width ratio. */
+  lateralScale: number;
+  /** Number of visual turns/braids sampled during the maneuver phase. */
+  turns: number;
+  /** When the compact procession begins blooming into authored slots. */
+  bloomStart: number;
+}
+
+/**
+ * Every authored path has a complete motion profile. Keeping this exhaustive
+ * prevents newly authored IDs from silently degrading into the same diagonal
+ * lerp. Values target a 60 Hz fixed step and intentionally give the spiral,
+ * helix, pod, and convoy routes enough time to read on a phone.
+ */
+const FORMATION_ENTRY_PATH_PROFILES: Readonly<Record<FormationEntryPathId, FormationEntryPathProfile>> = Object.freeze({
+  'sweep-bank-reentry': { entryFrames: 102, lateralScale: 0.22, turns: 0.65, bloomStart: 0.48 },
+  'formation-drop': { entryFrames: 84, lateralScale: 0.07, turns: 0, bloomStart: 0.52 },
+  'spiral-entry': { entryFrames: 132, lateralScale: 0.28, turns: 2.05, bloomStart: 0.58 },
+  'paired-flank': { entryFrames: 104, lateralScale: 0.2, turns: 0.5, bloomStart: 0.5 },
+  'diamond-lock': { entryFrames: 108, lateralScale: 0.14, turns: 0.5, bloomStart: 0.46 },
+  'double-helix': { entryFrames: 126, lateralScale: 0.18, turns: 1.5, bloomStart: 0.56 },
+  'side-wall-entry': { entryFrames: 96, lateralScale: 0.16, turns: 0.35, bloomStart: 0.48 },
+  'lane-stagger': { entryFrames: 90, lateralScale: 0.08, turns: 0, bloomStart: 0.5 },
+  'ring-assemble': { entryFrames: 138, lateralScale: 0.3, turns: 2.2, bloomStart: 0.6 },
+  'armored-grid': { entryFrames: 94, lateralScale: 0.06, turns: 0, bloomStart: 0.5 },
+  'mirrored-swoop': { entryFrames: 112, lateralScale: 0.2, turns: 0.75, bloomStart: 0.5 },
+  'pod-converge': { entryFrames: 118, lateralScale: 0.2, turns: 0.8, bloomStart: 0.55 },
+  'convoy-column': { entryFrames: 124, lateralScale: 0.12, turns: 0.6, bloomStart: 0.62 }
+});
+
+const getFormationEntryPathProfile = (
+  path: string | undefined,
+  mode: ConfiguredFormationMode
+) => {
+  const normalized = normalizeEntryPath(path) as FormationEntryPathId | undefined;
+  return FORMATION_ENTRY_PATH_PROFILES[normalized ?? defaultEntryPathForMode(mode)];
 };
 
 export const resolveConfiguredFormationMode = (
@@ -1026,21 +1096,22 @@ export const resolveConfiguredFormationSpawnPoint = ({
       : width + 76 + sideDepth * 16;
     y = Math.max(18, height * 0.065) + sideDepth * Math.min(28, height * 0.032);
   } else if (entryPathId === 'formation-drop' || entryPathId === 'armored-grid') {
-    x = 24 + (index / Math.max(1, count - 1)) * Math.max(1, width - 72);
-    // Keep top-entry grids readable without leaving a full second of empty
-    // combat on narrow phones. A compact stagger also prevents a fast player
-    // from clearing the lead pair before the next pair reaches the viewport.
-    y = -68 - (index % 4) * 18;
+    // Grid members enter as a compact three-lane procession and bloom outward
+    // near the hold area. Spawning every column over its final slot was the
+    // visual equivalent of dropping unrelated enemies from the ceiling.
+    x = width / 2 + ((index % 3) - 1) * Math.min(22, width * 0.055);
+    y = -74 - Math.floor(index / 3) * 16;
   } else if (entryPathId === 'paired-flank' || entryPathId === 'mirrored-swoop' || entryPathId === 'side-wall-entry') {
     x = side < 0 ? -72 : width + 72;
     y = Math.max(24, height * 0.08) + pair * 22;
   } else if (entryPathId === 'spiral-entry' || entryPathId === 'ring-assemble') {
-    const angle = index * 0.92;
-    x = width / 2 + Math.cos(angle) * Math.min(width * 0.42, 190);
-    y = -96 - pair * 18;
+    // Two close gates feed the same orbital ribbon. The spiral is created by
+    // the shared fixed-step sampler, not by scattering starting positions.
+    x = width / 2 + side * Math.min(width * 0.26, 102);
+    y = -88 - pair * 13;
   } else if (entryPathId === 'double-helix') {
-    x = 24 + (index / Math.max(1, count - 1)) * Math.max(1, width - 72);
-    y = -80 - (Math.sin(index * 1.35) + 1) * 30;
+    x = width / 2 + side * Math.min(24, width * 0.06);
+    y = -82 - pair * 15;
   } else if (entryPathId === 'lane-stagger') {
     const lanes = Math.min(5, Math.max(2, count));
     x = ((index % lanes) + 0.5) * (width / lanes);
@@ -1204,6 +1275,152 @@ export const resolveFormationEntryMotion = ({
   };
 };
 
+const smoothUnit = (value: number) => {
+  const normalized = clamp(value, 0, 1);
+  return normalized * normalized * (3 - 2 * normalized);
+};
+
+const mix = (start: number, end: number, progress: number) => (
+  start + (end - start) * progress
+);
+
+const cubicBezier = (
+  start: number,
+  controlA: number,
+  controlB: number,
+  end: number,
+  progress: number
+) => {
+  const inverse = 1 - progress;
+  return inverse * inverse * inverse * start
+    + 3 * inverse * inverse * progress * controlA
+    + 3 * inverse * progress * progress * controlB
+    + progress * progress * progress * end;
+};
+
+const sampleFormationCohortRoutePoint = (
+  input: FormationCohortEntryPoseInput,
+  sampleProgress: number
+): FormationPoint & { assemblyProgress: number } => {
+  const progress = clamp(sampleProgress, 0, 1);
+  const path = (normalizeEntryPath(input.entryPath)
+    ?? defaultEntryPathForMode(input.mode)) as FormationEntryPathId;
+  const profile = getFormationEntryPathProfile(path, input.mode);
+  const direction = normalizeEntryDirection(input.entryDirection);
+  const behavior = normalizeEntryBehavior(input.entryBehavior);
+  const viewportWidth = Math.max(1, input.viewport.width);
+  const viewportHeight = Math.max(1, input.viewport.height);
+  const memberSide = (input.index + input.groupSeed) % 2 === 0 ? -1 : 1;
+  const originSide = direction === 'left'
+    ? -1
+    : direction === 'right'
+      ? 1
+      : direction === 'split'
+        ? memberSide
+        : 0;
+  const routeSide = originSide || memberSide;
+  const anchorX = viewportWidth / 2 - input.entityWidth / 2;
+  const anchorY = clamp(
+    viewportHeight * 0.185 - input.entityHeight / 2,
+    54,
+    viewportHeight * 0.32
+  );
+  const sideControl = originSide === 0 ? memberSide * viewportWidth * 0.1 : originSide * viewportWidth * 0.2;
+  const controlAX = originSide === 0
+    ? mix(input.start.x, anchorX + sideControl, 0.34)
+    : input.start.x - originSide * viewportWidth * 0.22;
+  const controlAY = originSide === 0
+    ? Math.max(-24, viewportHeight * 0.035)
+    : clamp(input.start.y + viewportHeight * 0.08, 24, viewportHeight * 0.2);
+  const controlBX = anchorX + sideControl * (behavior === 'flank' ? 1.35 : behavior === 'lane' ? 0.45 : 0.85);
+  const controlBY = anchorY - viewportHeight * (behavior === 'dive' ? 0.12 : 0.075);
+  let x = cubicBezier(input.start.x, controlAX, controlBX, anchorX, progress);
+  let y = cubicBezier(input.start.y, controlAY, controlBY, anchorY, progress);
+
+  const envelope = Math.pow(Math.sin(progress * Math.PI), 0.82);
+  const turnPhase = progress * Math.PI * 2 * profile.turns + (input.groupSeed % 17) * 0.035;
+  const lateral = Math.min(viewportWidth * profile.lateralScale, 122);
+
+  if (path === 'spiral-entry' || path === 'ring-assemble') {
+    // One shrinking orbital ribbon. Members share its center/tangent and only
+    // take on their final slot during the late bloom.
+    x += Math.cos(turnPhase) * lateral * envelope;
+    y += Math.sin(turnPhase) * lateral * 0.38 * envelope;
+  } else if (path === 'double-helix') {
+    // Even and odd members occupy opposite sides of the same moving
+    // centerline, producing a legible braid instead of unrelated sine lerps.
+    const strand = input.index % 2 === 0 ? -1 : 1;
+    x += Math.sin(turnPhase) * lateral * strand * envelope;
+    y += Math.cos(turnPhase) * Math.min(20, lateral * 0.22) * strand * envelope;
+  } else if (path === 'paired-flank' || path === 'mirrored-swoop' || path === 'side-wall-entry') {
+    x += routeSide * Math.sin(progress * Math.PI * Math.max(0.5, profile.turns)) * lateral * envelope;
+    y -= Math.sin(progress * Math.PI) * Math.min(34, lateral * 0.3);
+  } else if (path === 'sweep-bank-reentry') {
+    x += routeSide * Math.sin(turnPhase) * lateral * envelope;
+    y -= Math.sin(progress * Math.PI) * Math.min(46, lateral * 0.38);
+  } else if (path === 'diamond-lock') {
+    x += memberSide * Math.sin(progress * Math.PI * 2) * lateral * 0.58 * envelope;
+    y -= Math.abs(Math.sin(progress * Math.PI * 2)) * Math.min(28, lateral * 0.3) * envelope;
+  } else if (path === 'pod-converge') {
+    const podCount = Math.min(4, Math.max(2, Math.ceil(input.count / 3)));
+    const pod = input.index % podCount;
+    const podOffset = pod - (podCount - 1) / 2;
+    x += podOffset * Math.min(24, lateral * 0.28) * envelope;
+    y += Math.sin(turnPhase + pod) * 8 * envelope;
+  } else if (path === 'convoy-column') {
+    x += Math.sin(turnPhase) * lateral * 0.42 * envelope;
+    y -= Math.floor(input.index / 2) * 3.5 * envelope;
+  } else if (path === 'lane-stagger') {
+    const lane = input.index % Math.min(5, Math.max(2, input.count));
+    x += (lane - (Math.min(5, Math.max(2, input.count)) - 1) / 2) * 5 * envelope;
+  } else if (path === 'formation-drop' || path === 'armored-grid') {
+    x += memberSide * Math.sin(progress * Math.PI) * lateral * 0.32;
+    y -= Math.floor(input.index / 3) * 2.5 * envelope;
+  }
+
+  // A tiny local procession offset keeps multiple same-frame arrivals
+  // readable without turning the route into a scattered cloud.
+  const processionEnvelope = Math.sin(progress * Math.PI) * (1 - smoothUnit((progress - 0.45) / 0.4));
+  x += ((input.index % 3) - 1) * 5 * processionEnvelope;
+  y -= Math.floor(input.index / 3) * 3 * processionEnvelope;
+
+  const assemblyProgress = smoothUnit(
+    (progress - profile.bloomStart) / Math.max(0.001, 1 - profile.bloomStart)
+  );
+  return {
+    x: mix(x, input.target.x, assemblyProgress),
+    y: mix(y, input.target.y, assemblyProgress),
+    assemblyProgress
+  };
+};
+
+/**
+ * Samples an absolute, fixed-step pose for one member of a shared inbound
+ * squadron. The first and final samples are exact, and every intermediate
+ * member uses the same deterministic center route. Rendering remains a pure
+ * consumer of these simulation-owned positions.
+ */
+export const resolveFormationCohortEntryPose = (
+  input: FormationCohortEntryPoseInput
+): FormationCohortEntryPose => {
+  const progress = clamp(Number(input.progress) || 0, 0, 1);
+  const point = sampleFormationCohortRoutePoint(input, progress);
+  const nextPoint = sampleFormationCohortRoutePoint(input, Math.min(1, progress + 0.006));
+  const dx = nextPoint.x - point.x;
+  const dy = nextPoint.y - point.y;
+  const angle = progress >= 0.995
+    ? 0
+    : clamp(Math.atan2(dx, Math.max(0.001, dy)), -0.82, 0.82);
+  const phase = progress < 0.25
+    ? 'procession'
+    : point.assemblyProgress <= 0.01
+      ? 'maneuver'
+      : point.assemblyProgress < 0.82
+        ? 'assembly'
+        : 'settle';
+  return { ...point, angle, phase };
+};
+
 /**
  * Selects a compact combat verb from existing formation and role metadata.
  * This intentionally adds no authored schema or random state: a formation
@@ -1222,6 +1439,22 @@ export const resolveFormationManeuverKind = (
   if (mode === 'sine') return 'feint-dive';
   if (mode === 'v' || mode === 'diamond') return 'synchronized-break';
   return 'sequential-peel';
+};
+
+const resolveFormationAttackManeuverKind = (
+  attackId: FormationAttackBehaviorId | undefined,
+  fallback: FormationManeuverKind
+): FormationManeuverKind => {
+  if (attackId === 'ring-collapse') return 'corkscrew';
+  if (attackId === 'pincer-pass' || attackId === 'sweep-strafe' || attackId === 'split-hunt') {
+    return 'crossing-flanks';
+  }
+  if (attackId === 'alternating-wings' || attackId === 'diagonal-groups' || attackId === 'paired-dive') {
+    return 'synchronized-break';
+  }
+  if (attackId === 'leader-escorts') return 'feint-dive';
+  if (attackId === 'row-sequence' || attackId === 'lane-pass') return 'sequential-peel';
+  return fallback;
 };
 
 /**
@@ -1244,9 +1477,13 @@ export const resolveFormationDiveMotion = ({
   playerVelocityX,
   viewportWidth,
   mobile,
-  entryBehavior
+  entryBehavior,
+  attackId
 }: FormationDiveMotionInput): FormationDiveMotion => {
-  const maneuver = resolveFormationManeuverKind(mode, entryBehavior);
+  const maneuver = resolveFormationAttackManeuverKind(
+    attackId,
+    resolveFormationManeuverKind(mode, entryBehavior)
+  );
   const age = Math.max(0, Math.floor(Number(ageFrames) || 0));
   const speed = Math.max(2.2, Math.abs(Number(baseSpeed) || 0));
   const width = Math.max(240, Number(viewportWidth) || 0);
@@ -1407,12 +1644,12 @@ export const resolveFormationEntryPlan = ({
   const legacyEntryPath = normalizeEntryPath(entryPath) as FormationEntryPathId | undefined;
   const resolvedEntryPath = entryPathId ?? legacyEntryPath ?? defaultEntryPathForMode(mode);
   const looseFormation = isLooseFormationPattern(patternId);
+  const entryProfile = getFormationEntryPathProfile(resolvedEntryPath, mode);
   const entryFrames = looseFormation
     ? 44 + (index % 4) * 4 + (mode === 'spiral' ? 12 : 0)
-    : 48
-      + (index % 4) * 5
-      + (resolvedEntryPath === 'spiral-entry' || resolvedEntryPath === 'ring-assemble' ? 16 : 0)
-      + (resolvedEntryPath === 'convoy-column' ? index * 2 : 0);
+    : entryProfile.entryFrames
+      + (index % 3) * 3
+      + (resolvedEntryPath === 'convoy-column' ? Math.floor(index / 2) * 2 : 0);
   const diveCadence = looseFormation
     ? mode === 'grid' || mode === 'row'
       ? 14

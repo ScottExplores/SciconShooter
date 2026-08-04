@@ -120,3 +120,130 @@ test('assembled movement is a stable sample around immutable slot geometry', () 
   assert.notDeepEqual(first, later, 'the formation still has readable assembled motion');
   assert.ok(Math.hypot(first.x - input.groupCenter.x, first.y - input.groupCenter.y) < 140);
 });
+
+test('shared cohort entries preserve exact endpoints while flying as a compact procession', () => {
+  const common = {
+    mode: 'v',
+    count: 6,
+    groupSeed: 41,
+    viewport,
+    entityWidth: 40,
+    entityHeight: 40,
+    start: { x: 58, y: -74 },
+    entryDirection: 'top',
+    entryPath: 'sweep-bank-reentry',
+    entryBehavior: 'formation'
+  };
+  const leftTarget = { x: 52, y: 128 };
+  const rightTarget = { x: 316, y: 128 };
+  const leftStart = runtime.resolveFormationCohortEntryPose({
+    ...common, index: 0, progress: 0, target: leftTarget
+  });
+  const leftMid = runtime.resolveFormationCohortEntryPose({
+    ...common, index: 0, progress: 0.38, target: leftTarget
+  });
+  const rightMid = runtime.resolveFormationCohortEntryPose({
+    ...common, index: 1, progress: 0.38, target: rightTarget
+  });
+  const leftEnd = runtime.resolveFormationCohortEntryPose({
+    ...common, index: 0, progress: 1, target: leftTarget
+  });
+
+  assert.deepEqual({ x: leftStart.x, y: leftStart.y }, common.start);
+  assert.deepEqual({ x: leftEnd.x, y: leftEnd.y }, leftTarget);
+  assert.equal(leftEnd.angle, 0);
+  assert.ok(
+    Math.abs(leftMid.x - rightMid.x) < Math.abs(leftTarget.x - rightTarget.x) * 0.8,
+    'members remain in one inbound ribbon before their authored slots bloom'
+  );
+  assert.equal(leftMid.phase, 'maneuver');
+});
+
+test('spiral entry completes visible turns and double helix keeps opposite strands', () => {
+  const common = {
+    count: 8,
+    groupSeed: 13,
+    viewport,
+    entityWidth: 38,
+    entityHeight: 38,
+    start: { x: 206, y: -82 },
+    target: { x: 187, y: 150 },
+    entryDirection: 'top',
+    entryBehavior: 'formation'
+  };
+  const spiralXs = [0.1, 0.18, 0.26, 0.34, 0.42, 0.5, 0.58].map((progress) => (
+    runtime.resolveFormationCohortEntryPose({
+      ...common,
+      mode: 'spiral',
+      index: 0,
+      progress,
+      entryPath: 'spiral-entry'
+    }).x
+  ));
+  const directions = spiralXs.slice(1).map((value, index) => Math.sign(value - spiralXs[index]));
+  const reversals = directions.slice(1).filter((value, index) => value !== directions[index]).length;
+  assert.ok(reversals >= 2, `spiral ribbon should visibly turn, got ${spiralXs.join(', ')}`);
+
+  const strandA = runtime.resolveFormationCohortEntryPose({
+    ...common,
+    mode: 'sine',
+    index: 0,
+    progress: 0.4,
+    entryPath: 'double-helix'
+  });
+  const strandB = runtime.resolveFormationCohortEntryPose({
+    ...common,
+    mode: 'sine',
+    index: 1,
+    progress: 0.4,
+    entryPath: 'double-helix'
+  });
+  assert.ok(Math.abs(strandA.x - strandB.x) >= 28, 'paired helix strands stay visually opposed');
+  assert.ok(Math.abs(strandA.y - strandB.y) <= 42, 'both strands share the same moving centerline');
+});
+
+test('authored path timing gives spiral and braid arrivals room to read', () => {
+  const makePlan = (entryPathId) => runtime.resolveFormationEntryPlan({
+    eventId: `timing-${entryPathId}`,
+    patternId: entryPathId === 'spiral-entry' ? 'spiral' : 'grid',
+    entryDirection: 'top',
+    entryPathId,
+    entryBehavior: 'formation',
+    index: 0,
+    count: 8,
+    currentFrame: 0,
+    waveProgressFrames: 0,
+    baseVerticalSpeed: 2.5,
+    sideSentry: false,
+    framesPerSecond: 60,
+    target: { x: 180, y: 140 }
+  });
+  const drop = makePlan('formation-drop');
+  const spiral = makePlan('spiral-entry');
+  assert.ok(drop.entryFrames >= 80);
+  assert.ok(spiral.entryFrames >= 120);
+  assert.ok(spiral.entryFrames > drop.entryFrames);
+});
+
+test('authored attack verbs select distinct dive maneuvers', () => {
+  const common = {
+    mode: 'row',
+    index: 1,
+    groupSize: 8,
+    groupSeed: 17,
+    cycle: 0,
+    ageFrames: 8,
+    baseSpeed: 3,
+    current: { x: 130, y: 160 },
+    anchorX: 130,
+    player: { x: 206, y: 780 },
+    playerVelocityX: 0,
+    viewportWidth: viewport.width,
+    mobile: true,
+    entryBehavior: 'formation'
+  };
+  assert.equal(runtime.resolveFormationDiveMotion({ ...common, attackId: 'ring-collapse' }).maneuver, 'corkscrew');
+  assert.equal(runtime.resolveFormationDiveMotion({ ...common, attackId: 'pincer-pass' }).maneuver, 'crossing-flanks');
+  assert.equal(runtime.resolveFormationDiveMotion({ ...common, attackId: 'alternating-wings' }).maneuver, 'synchronized-break');
+  assert.equal(runtime.resolveFormationDiveMotion({ ...common, attackId: 'leader-escorts' }).maneuver, 'feint-dive');
+});
