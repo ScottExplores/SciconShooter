@@ -231,7 +231,9 @@ const settlementFromLedgerRow = (row, chargesRemaining, difficultyId) => normali
   noHit: row.no_hit,
   newBestClearTime: row.new_best_clear_time,
   newBestChallengeTime: row.new_best_challenge_time,
-  newlyCompletedObjectiveIds: row.newly_completed_objective_ids,
+  // The ledger retains what was new when the result first settled for audit,
+  // but a retry is delivery of an old result, not another mastery completion.
+  newlyCompletedObjectiveIds: [],
   utcDateKey: row.utc_date
 });
 
@@ -250,9 +252,10 @@ const normalizeSettlementPayload = (value) => {
   const result = value && typeof value === 'object' && !Array.isArray(value)
     ? value
     : {};
+  const duplicate = result.duplicate === true;
   return {
     accepted: result.accepted === true,
-    duplicate: result.duplicate === true,
+    duplicate,
     resultId: String(result.resultId || ''),
     eventId: String(result.eventId || ''),
     variantId: normalizeVariantId(result.variantId) || 'standard',
@@ -264,7 +267,7 @@ const normalizeSettlementPayload = (value) => {
     noHit: result.noHit === true,
     newBestClearTime: result.newBestClearTime === true,
     newBestChallengeTime: result.newBestChallengeTime === true,
-    newlyCompletedObjectiveIds: Array.isArray(result.newlyCompletedObjectiveIds)
+    newlyCompletedObjectiveIds: !duplicate && Array.isArray(result.newlyCompletedObjectiveIds)
       ? result.newlyCompletedObjectiveIds.filter((id) => [
           'challenge-clear',
           'no-hit-clear',

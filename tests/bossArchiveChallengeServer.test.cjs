@@ -161,6 +161,11 @@ test('a signed Boss Archive run settles once and an expired retry restores the l
   assert.equal(first.settlement.chargesRemaining, 2);
   assert.equal(first.profile.revision, 2);
   assert.equal(first.profile.snapshot.weeklyState.coins, 125);
+  assert.deepEqual(first.settlement.newlyCompletedObjectiveIds, [
+    'challenge-clear',
+    'no-hit-clear',
+    'timed-clear'
+  ]);
   assert.equal(rpcCalls.length, 1);
   assert.deepEqual(Object.keys(rpcCalls[0]).sort(), [
     'p_clear_time_ms',
@@ -187,6 +192,11 @@ test('a signed Boss Archive run settles once and an expired retry restores the l
   assert.equal(replay.settlement.rewardCoins, 100);
   assert.equal(replay.profile.revision, 2);
   assert.equal(replay.profile.snapshot.weeklyState.coins, 125);
+  assert.deepEqual(
+    replay.settlement.newlyCompletedObjectiveIds,
+    [],
+    'replaying a settled result must not announce old mastery completions again'
+  );
   assert.equal(rpcCalls.length, 1);
 });
 

@@ -8,6 +8,7 @@ process.env.NODE_ENV = 'test';
 const {
   createWeeklyState,
   mergeCampaignGraphProgress,
+  preserveAchievementServerState,
   preserveCampaignBranchServerState,
   sanitizeCampaignBranchProgress,
   sanitizeWalletSnapshot
@@ -85,7 +86,12 @@ test('wallet snapshots whitelist fields, normalize profile IDs, and strip minted
         coinsCollected: 9,
         bestScore: 10
       },
-      achievementTiers: { 'boss-breaker': 99, injected: 99 },
+      achievementTiers: {
+        'boss-breaker': 99,
+        'elite-hunter': 3,
+        'hangar-engineer': 2,
+        injected: 99
+      },
       unlockedPlayerShips: ['eth', 'admin'],
       bossArchive: {
         unlockedEventIds: [
@@ -121,7 +127,11 @@ test('wallet snapshots whitelist fields, normalize profile IDs, and strip minted
   assert.equal(sanitized.weeklyState.equipped.right, null);
   assert.equal('mintedMiniShips' in sanitized.permanentState, false);
   assert.deepEqual(sanitized.permanentState.unlockedPlayerShips, ['eth']);
-  assert.deepEqual(sanitized.permanentState.achievementTiers, { 'boss-breaker': 5 });
+  assert.deepEqual(sanitized.permanentState.achievementTiers, {
+    'boss-breaker': 5,
+    'elite-hunter': 3,
+    'hangar-engineer': 2
+  });
   assert.deepEqual(sanitized.permanentState.bossArchive, {
     version: 2,
     unlockedEventIds: [FIRST_BOSS_EVENT_ID],
@@ -147,6 +157,82 @@ test('wallet snapshots whitelist fields, normalize profile IDs, and strip minted
   }, WALLET, now);
   assert.equal(negativeDurableBalance.weeklyState.coins, 100);
   assert.equal(negativeDurableBalance.weeklyState.durableCampaignCoins, 0);
+});
+
+test('the cloud achievement whitelist stays in parity with every Reward Center track', () => {
+  const now = Date.UTC(2026, 6, 23, 19);
+  const rewardSource = fs.readFileSync(
+    path.join(root, 'services', 'rewardProgression.ts'),
+    'utf8'
+  );
+  const definitions = rewardSource.match(
+    /export const ACHIEVEMENT_DEFINITIONS:[\s\S]*?= \[([\s\S]*?)\n\];/
+  );
+  assert.ok(definitions, 'achievement definitions must remain discoverable');
+  const achievementIds = [...definitions[1].matchAll(/\bid: '([^']+)'/g)]
+    .map((match) => match[1]);
+  assert.ok(achievementIds.length > 0);
+
+  const sanitized = sanitizeWalletSnapshot({
+    permanentState: {
+      achievementTiers: Object.fromEntries(achievementIds.map((id) => [id, 1]))
+    }
+  }, WALLET, now);
+
+  assert.deepEqual(
+    Object.keys(sanitized.permanentState.achievementTiers),
+    achievementIds,
+    'a cloud save must not strip a client-authored achievement track'
+  );
+});
+
+test('cloud reconciliation never rolls achievement claims or lifetime counters backward', () => {
+  const now = Date.UTC(2026, 6, 23, 19);
+  const current = sanitizeWalletSnapshot({
+    permanentState: {
+      lifetimeStats: {
+        runs: 8,
+        highestWave: 12,
+        enemiesDefeated: 900,
+        bossesDefeated: 6,
+        coinsCollected: 1200,
+        bestScore: 5000,
+        campaignMissionsCleared: 11,
+        campaignMissionsMastered: 4,
+        eliteBossesDefeated: 7,
+        weeklyRunsCompleted: 2,
+        weeklyBestSector: 4,
+        hangarUpgradesPurchased: 9
+      },
+      achievementTiers: {
+        'boss-breaker': 2,
+        'elite-hunter': 3,
+        'campaign-cartographer': 1
+      }
+    }
+  }, WALLET, now);
+  const incoming = structuredClone(current);
+  incoming.permanentState.lifetimeStats.bossesDefeated = 1;
+  incoming.permanentState.lifetimeStats.eliteBossesDefeated = 2;
+  incoming.permanentState.lifetimeStats.weeklyBestSector = 6;
+  incoming.permanentState.achievementTiers['boss-breaker'] = 0;
+  incoming.permanentState.achievementTiers['elite-hunter'] = 1;
+  incoming.permanentState.achievementTiers['deep-sector'] = 2;
+
+  const protectedSnapshot = preserveAchievementServerState({
+    currentSnapshot: current,
+    incomingSnapshot: incoming
+  });
+
+  assert.equal(protectedSnapshot.permanentState.lifetimeStats.bossesDefeated, 6);
+  assert.equal(protectedSnapshot.permanentState.lifetimeStats.eliteBossesDefeated, 7);
+  assert.equal(protectedSnapshot.permanentState.lifetimeStats.weeklyBestSector, 6);
+  assert.deepEqual(protectedSnapshot.permanentState.achievementTiers, {
+    'boss-breaker': 2,
+    'campaign-cartographer': 1,
+    'elite-hunter': 3,
+    'deep-sector': 2
+  });
 });
 
 test('a stale weekly snapshot resets competition totals while preserving Hangar and Boss Archive progress', () => {

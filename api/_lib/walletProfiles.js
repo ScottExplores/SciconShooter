@@ -53,7 +53,27 @@ const ACHIEVEMENT_IDS = new Set([
   'research-hunter',
   'coin-collector',
   'mission-veteran',
-  'ace-score'
+  'ace-score',
+  'campaign-cartographer',
+  'mission-perfectionist',
+  'elite-hunter',
+  'gauntlet-runner',
+  'deep-sector',
+  'hangar-engineer'
+]);
+const ACHIEVEMENT_LIFETIME_STAT_KEYS = Object.freeze([
+  'runs',
+  'highestWave',
+  'enemiesDefeated',
+  'bossesDefeated',
+  'coinsCollected',
+  'bestScore',
+  'campaignMissionsCleared',
+  'campaignMissionsMastered',
+  'eliteBossesDefeated',
+  'weeklyRunsCompleted',
+  'weeklyBestSector',
+  'hangarUpgradesPurchased'
 ]);
 const CAMPAIGN_MAJOR_BOSS_IDS = new Set([
   'gatekeeper',
@@ -1501,6 +1521,49 @@ const preserveBossArchiveServerState = ({
         dailyChallenge,
         dailyAttempts
       }
+    }
+  };
+};
+
+/**
+ * Achievement claims and their lifetime counters are monotonic progression.
+ * A normal profile save may advance them, but an older tab/device must never
+ * roll them backward and make an already-collected tier claimable again.
+ */
+const preserveAchievementServerState = ({
+  currentSnapshot,
+  incomingSnapshot
+}) => {
+  if (!currentSnapshot) return incomingSnapshot;
+  const currentPermanent = currentSnapshot.permanentState;
+  const incomingPermanent = incomingSnapshot.permanentState;
+  const currentTiers = asObject(currentPermanent.achievementTiers);
+  const incomingTiers = asObject(incomingPermanent.achievementTiers);
+  const achievementTiers = {};
+  ACHIEVEMENT_IDS.forEach((id) => {
+    const claimedTiers = Math.max(
+      integer(currentTiers[id], 0, 5),
+      integer(incomingTiers[id], 0, 5)
+    );
+    if (claimedTiers > 0) achievementTiers[id] = claimedTiers;
+  });
+
+  const currentStats = asObject(currentPermanent.lifetimeStats);
+  const incomingStats = asObject(incomingPermanent.lifetimeStats);
+  const lifetimeStats = { ...incomingStats };
+  ACHIEVEMENT_LIFETIME_STAT_KEYS.forEach((key) => {
+    lifetimeStats[key] = Math.max(
+      integer(currentStats[key], 0, 1_000_000_000),
+      integer(incomingStats[key], 0, 1_000_000_000)
+    );
+  });
+
+  return {
+    ...incomingSnapshot,
+    permanentState: {
+      ...incomingPermanent,
+      lifetimeStats,
+      achievementTiers
     }
   };
 };
@@ -3070,6 +3133,10 @@ const saveWalletProfile = async ({
       dailyLedger,
       now
     });
+    sanitizedSnapshot = preserveAchievementServerState({
+      currentSnapshot: current.snapshot,
+      incomingSnapshot: sanitizedSnapshot
+    });
   }
   const purchasedTokensAvailable = current
     ? await fetchPurchasedTokensAvailable(walletAddress)
@@ -3152,6 +3219,7 @@ module.exports = {
   sanitizeWeeklyState,
   validateFinalizedWeeklyCampaignStreakProof,
   preserveBossArchiveServerState,
+  preserveAchievementServerState,
   preserveCampaignBranchServerState,
   preserveWalletPurchaseServerState,
   recordBossArchiveDifficultyResult,

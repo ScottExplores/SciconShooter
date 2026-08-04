@@ -85,6 +85,30 @@ const valuesEqual = (left: unknown, right: unknown) => (
   JSON.stringify(left) === JSON.stringify(right)
 );
 
+const splitPermanentAchievementProgress = (
+  state: WalletProfileSnapshot['permanentState']
+) => {
+  const { achievementTiers, lifetimeStats, ...core } = state;
+  return { achievementTiers, lifetimeStats, core };
+};
+
+/**
+ * Lifetime achievement counters and collected tier counts only move forward.
+ * Max-merging is deliberately conservative: it preserves proof already seen
+ * on either device without double-counting the same run during a conflict.
+ */
+const mergeMonotonicNumberRecords = <T extends object>(left: T, right: T): T => {
+  const leftRecord = left as Record<string, unknown>;
+  const rightRecord = right as Record<string, unknown>;
+  return Object.fromEntries(Array.from(new Set([
+    ...Object.keys(leftRecord),
+    ...Object.keys(rightRecord)
+  ])).map((key) => [
+    key,
+    Math.max(integer(leftRecord[key]), integer(rightRecord[key]))
+  ])) as T;
+};
+
 export class WalletProfileMergeConflictError extends Error {
   sections: string[];
 
@@ -297,6 +321,9 @@ export const mergeWalletProfileSnapshots = ({
   const base = comparableSnapshot(baseSnapshot);
   const local = comparableSnapshot(localSnapshot);
   const remote = comparableSnapshot(remoteSnapshot);
+  const basePermanent = splitPermanentAchievementProgress(base.permanentState);
+  const localPermanent = splitPermanentAchievementProgress(local.permanentState);
+  const remotePermanent = splitPermanentAchievementProgress(remote.permanentState);
   const conflicts: string[] = [];
   const chooseSection = <T>(
     name: string,
@@ -320,12 +347,22 @@ export const mergeWalletProfileSnapshots = ({
       local.weeklyState,
       remote.weeklyState
     ),
-    permanentState: chooseSection(
-      'permanent progression',
-      base.permanentState,
-      local.permanentState,
-      remote.permanentState
-    ),
+    permanentState: {
+      ...chooseSection(
+        'permanent progression',
+        basePermanent.core,
+        localPermanent.core,
+        remotePermanent.core
+      ),
+      lifetimeStats: mergeMonotonicNumberRecords(
+        localPermanent.lifetimeStats,
+        remotePermanent.lifetimeStats
+      ),
+      achievementTiers: mergeMonotonicNumberRecords(
+        localPermanent.achievementTiers,
+        remotePermanent.achievementTiers
+      )
+    } as WalletProfileSnapshot['permanentState'],
     stats: chooseSection('pilot stats', base.stats, local.stats, remote.stats),
     selectedShipId: chooseSection(
       'selected ship',

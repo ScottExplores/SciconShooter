@@ -261,6 +261,43 @@ test('same-wallet conflicts only merge non-overlapping sections', async () => {
   assert.equal(merged.weeklyState.profileId, `wallet:${WALLET_A}`);
 });
 
+test('same-wallet reconciliation max-merges achievement progress without replaying claimed tiers', async () => {
+  global.window = { localStorage: createStorage() };
+  const dirtyStore = await import('../services/walletProfileDirtyStore.ts');
+  const base = snapshot(WALLET_A);
+  base.permanentState.achievementTiers = {
+    'boss-breaker': 2,
+    'elite-hunter': 1
+  };
+  const local = structuredClone(base);
+  local.permanentState.achievementTiers['boss-breaker'] = 0;
+  local.permanentState.achievementTiers['elite-hunter'] = 2;
+  local.permanentState.lifetimeStats.bossesDefeated = 3;
+  const remote = structuredClone(base);
+  remote.permanentState.bossArchive = {
+    unlockedEventIds: ['open-orbit-gatekeeper'],
+    seenEventIds: [],
+    records: { 'open-orbit-gatekeeper': { challengeClears: 1 } }
+  };
+
+  const merged = dirtyStore.mergeWalletProfileSnapshots({
+    address: WALLET_A,
+    baseSnapshot: base,
+    localSnapshot: local,
+    remoteSnapshot: remote
+  });
+
+  assert.deepEqual(merged.permanentState.achievementTiers, {
+    'boss-breaker': 2,
+    'elite-hunter': 2
+  });
+  assert.equal(merged.permanentState.lifetimeStats.bossesDefeated, 3);
+  assert.equal(
+    merged.permanentState.bossArchive.records['open-orbit-gatekeeper'].challengeClears,
+    1
+  );
+});
+
 test('simultaneous weekly economy changes and null-base races remain conflicts', async () => {
   global.window = { localStorage: createStorage() };
   const dirtyStore = await import('../services/walletProfileDirtyStore.ts');
