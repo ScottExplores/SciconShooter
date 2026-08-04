@@ -26,6 +26,7 @@ test('Developer Hub exposes every stable canonical route in registry order', () 
     [...registry.CANONICAL_HUB_PATHS],
     [
       '/',
+      '/project',
       '/missions',
       '/waves',
       '/bosses',
@@ -34,6 +35,7 @@ test('Developer Hub exposes every stable canonical route in registry order', () 
       '/loadouts',
       '/assets',
       '/analytics',
+      '/reports',
       '/reviews'
     ]
   );
@@ -42,6 +44,8 @@ test('Developer Hub exposes every stable canonical route in registry order', () 
 test('compatibility and legacy paths resolve without creating competing tools', () => {
   const levelEditor = registry.resolveHubRoute('/level-editor/');
   const combatLab = registry.resolveHubRoute('/combat-lab');
+  const projectStatus = registry.resolveHubRoute('/status');
+  const bugReports = registry.resolveHubRoute('/bugs');
   const studio = registry.resolveHubRoute('/studio');
 
   assert.equal(levelEditor.descriptor.id, 'missions');
@@ -50,6 +54,10 @@ test('compatibility and legacy paths resolve without creating competing tools', 
   assert.equal(combatLab.descriptor.id, 'sandbox');
   assert.equal(combatLab.descriptor.host, 'combat-lab');
   assert.equal(combatLab.isAlias, true);
+  assert.equal(projectStatus.descriptor.id, 'project');
+  assert.equal(projectStatus.isAlias, true);
+  assert.equal(bugReports.descriptor.id, 'reports');
+  assert.equal(bugReports.isAlias, true);
   assert.equal(studio.descriptor.host, 'legacy');
   assert.equal(studio.descriptor.status, 'legacy');
 });
@@ -66,6 +74,10 @@ test('tool routes declare their current canonical host and authoring resources',
   assert.equal(byId.reviews.requiredQuerySurface, 'review');
   assert.equal(byId.analytics.host, 'analytics-foundation');
   assert.equal(byId.analytics.status, 'live');
+  assert.equal(byId.reports.host, 'report-inbox');
+  assert.deepEqual([...byId.reports.resourceKinds], ['player-report']);
+  assert.equal(byId.project.host, 'project-guide');
+  assert.deepEqual([...byId.project.resourceKinds], ['project-status']);
 });
 
 test('unknown and normalized paths have deterministic route behavior', () => {
@@ -89,5 +101,7 @@ test('the Director entrypoint mounts existing tools inside the shared Hub shell'
   assert.match(main, /\.\/App/);
   assert.match(shell, /Local only/);
   assert.match(shell, /No production writes/);
-  assert.match(shell, /Legacy · read-only/);
+  assert.match(shell, /Legacy \/ read-only/);
+  assert.match(shell, /case 'report-inbox'/);
+  assert.match(shell, /case 'project-guide'/);
 });

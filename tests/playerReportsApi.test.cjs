@@ -535,11 +535,11 @@ test('unsupported methods cannot read the owner-only report log', async () => {
 });
 
 test('owner report review filters report events and removes the internal limiter key', () => {
-  const cli = fs.readFileSync(
-    path.join(__dirname, '..', 'tools', 'list-player-reports.mjs'),
+  const reader = fs.readFileSync(
+    path.join(__dirname, '..', 'tools', 'player-report-reader.mjs'),
     'utf8'
   );
-  assert.match(cli, /event_name: 'in\.\(player_bug_report,player_feedback\)'/);
-  assert.match(cli, /delete properties\.limiter_key/);
-  assert.doesNotMatch(cli, /player_report_rate_limit/);
+  assert.match(reader, /event_name: 'in\.\(player_bug_report,player_feedback\)'/);
+  assert.match(reader, /delete properties\.limiter_key/);
+  assert.doesNotMatch(reader, /player_report_rate_limit/);
 });

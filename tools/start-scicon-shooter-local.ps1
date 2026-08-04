@@ -6,7 +6,8 @@ param(
 $ErrorActionPreference = 'Stop'
 
 $repositoryRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
-$gameUrl = 'http://127.0.0.1:5176/'
+$serverUrl = 'http://127.0.0.1:5179/'
+$gameUrl = 'http://127.0.0.1:5179/?display=mobile-frame'
 $stateRoot = Join-Path $env:LOCALAPPDATA 'Scicon Shooter Local'
 $standardLog = Join-Path $stateRoot 'server.log'
 $errorLog = Join-Path $stateRoot 'server-error.log'
@@ -20,7 +21,7 @@ function Write-LauncherLog {
 
 function Test-GameReady {
   try {
-    $response = Invoke-WebRequest -Uri $gameUrl -UseBasicParsing -TimeoutSec 2
+    $response = Invoke-WebRequest -Uri $serverUrl -UseBasicParsing -TimeoutSec 2
     return $response.StatusCode -eq 200 -and
       $response.Content -match '<title>Scicon Shooter</title>'
   } catch {
@@ -48,7 +49,7 @@ try {
       throw "Style generation failed with exit code $LASTEXITCODE."
     }
 
-    Write-LauncherLog 'Starting Scicon Shooter on http://127.0.0.1:5176/.'
+    Write-LauncherLog 'Starting Scicon Shooter on http://127.0.0.1:5179/.'
     Start-Process `
       -FilePath $nodeCommand.Source `
       -ArgumentList @(
@@ -58,7 +59,7 @@ try {
         '--host',
         '127.0.0.1',
         '--port',
-        '5176',
+        '5179',
         '--strictPort'
       ) `
       -WorkingDirectory $repositoryRoot `
@@ -76,7 +77,7 @@ try {
     }
 
     if (-not $ready) {
-      throw 'Scicon Shooter did not become ready on 127.0.0.1:5176.'
+      throw 'Scicon Shooter did not become ready on 127.0.0.1:5179.'
     }
   }
 

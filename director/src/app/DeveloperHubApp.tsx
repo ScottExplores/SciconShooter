@@ -7,6 +7,8 @@ import {
 } from 'react';
 import { AnalyticsFoundation } from '../tools/AnalyticsFoundation';
 import { HubOverview } from '../tools/HubOverview';
+import { PlayerReportInbox } from '../tools/PlayerReportInbox';
+import { ProjectGuide } from '../tools/ProjectGuide';
 import {
   AUTHORING_DESCRIPTORS,
   resolveHubRoute,
@@ -61,7 +63,7 @@ function HubMark() {
 
 function HubNavigation({ active }: { active: AuthoringDescriptor['id'] }) {
   return (
-    <nav className="hub-nav" aria-label="Developer Hub tools">
+    <nav className="hub-nav" aria-label="Scicon Shooter Control Center tools">
       {navigationGroups.map(({ group, descriptors }) => (
         <div className="hub-nav__group" key={group}>
           <p>{groupLabels[group]}</p>
@@ -108,7 +110,7 @@ function MissionBuilderHost({
   }, [ready, requiredSurface]);
 
   if (!ready) {
-    return <div className="hub-tool-loading" role="status">Opening the review surface…</div>;
+    return <div className="hub-tool-loading" role="status">Opening the review surface...</div>;
   }
   return <Component />;
 }
@@ -128,7 +130,7 @@ function LegacyReadOnlyHost({ Component }: { Component: ComponentType }) {
   return (
     <div className="hub-tool-stack">
       <aside className="hub-legacy-notice" id="hub-legacy-notice">
-        <strong>Legacy · read-only</strong>
+        <strong>Legacy / read-only</strong>
         <span>
           This superseded Studio remains visible as a migration reference. Use Missions,
           Waves, Reviews, and the Sandbox for active work.
@@ -149,13 +151,13 @@ function LegacyReadOnlyHost({ Component }: { Component: ComponentType }) {
 function MissingRoute({ requestedPath }: { requestedPath: string }) {
   return (
     <section className="hub-missing-route" aria-labelledby="hub-missing-title">
-      <span>404 · Local route</span>
-      <h1 id="hub-missing-title">That Developer Hub tool is not registered.</h1>
+      <span>404 / Local route</span>
+      <h1 id="hub-missing-title">That Control Center tool is not registered.</h1>
       <p>
         <code>{requestedPath}</code> is not in the local authoring registry.
         Choose a stable tool route from the navigation.
       </p>
-      <a href="/">Return to Developer Hub</a>
+      <a href="/">Return to Control Center</a>
     </section>
   );
 }
@@ -194,6 +196,12 @@ export function DeveloperHubApp({
       case 'analytics-foundation':
         content = <AnalyticsFoundation />;
         break;
+      case 'report-inbox':
+        content = <PlayerReportInbox />;
+        break;
+      case 'project-guide':
+        content = <ProjectGuide />;
+        break;
       case 'legacy':
         content = <LegacyReadOnlyHost Component={tools.LegacyStudio} />;
         break;
@@ -204,14 +212,16 @@ export function DeveloperHubApp({
 
   const scrollable = route.notFound
     || descriptor.host === 'overview'
-    || descriptor.host === 'analytics-foundation';
+    || descriptor.host === 'analytics-foundation'
+    || descriptor.host === 'report-inbox'
+    || descriptor.host === 'project-guide';
 
   return (
     <div className="hub-shell" data-hub-route={descriptor.id}>
       <header className="hub-header">
-        <a className="hub-brand" href="/" aria-label="SciCon Developer Hub overview">
+        <a className="hub-brand" href="/" aria-label="Scicon Shooter Control Center home">
           <span><HubMark /></span>
-          <strong>SciCon Developer Hub</strong>
+          <strong>Scicon Control Center</strong>
         </a>
         <div className="hub-route-context">
           <small>{descriptor.eyebrow}</small>

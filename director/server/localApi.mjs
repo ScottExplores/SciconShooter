@@ -17,6 +17,8 @@ import {
   createLocalPrototypeAssetCatalog,
   PROTOTYPE_ASSET_DEFINITIONS
 } from './prototypeAssetCatalog.mjs';
+import { PlayerReportCacheRepository } from './playerReportCacheRepository.mjs';
+import { ProjectStatusRepository } from './projectStatusRepository.mjs';
 import { RealRunReader } from './realRunReader.mjs';
 import {
   assertLoopbackRequest,
@@ -83,6 +85,8 @@ export const createDirectorRequestHandler = ({
   gameplayTelemetryRepository = null,
   generatedAssetRepository = null,
   imageGenerationClient = null,
+  playerReportCacheRepository = null,
+  projectStatusRepository = null,
   prototypeAssets = [],
   meridianHarrowerArtworkPath = null,
   meridianHarrowerSheetPath = null
@@ -137,6 +141,43 @@ export const createDirectorRequestHandler = ({
           localOnly: true,
           productionWrites: false,
           mainnetTransactions: false
+        });
+      }
+
+      if (pathname === '/api/v1/player-reports') {
+        if (method !== 'GET') {
+          return sendJson(
+            response,
+            405,
+            { ok: false, error: 'Player reports are available through a read-only local endpoint' },
+            { Allow: 'GET' }
+          );
+        }
+        if (!playerReportCacheRepository) {
+          throw new HttpError(503, 'The local player-report cache is unavailable');
+        }
+        return sendJson(response, 200, {
+          ok: true,
+          source: 'trusted-local-cache',
+          ...(await playerReportCacheRepository.readSnapshot())
+        });
+      }
+
+      if (pathname === '/api/v1/project-status') {
+        if (method !== 'GET') {
+          return sendJson(
+            response,
+            405,
+            { ok: false, error: 'Project status is available through a read-only local endpoint' },
+            { Allow: 'GET' }
+          );
+        }
+        if (!projectStatusRepository) {
+          throw new HttpError(503, 'Local project status is unavailable');
+        }
+        return sendJson(response, 200, {
+          ok: true,
+          ...(await projectStatusRepository.readStatus())
         });
       }
 
@@ -590,6 +631,10 @@ export const createDirectorApiPlugin = ({
     repositoryRoot: resolvedRepositoryRoot,
     dataRoot
   });
+  const playerReportCacheRepository = new PlayerReportCacheRepository();
+  const projectStatusRepository = new ProjectStatusRepository({
+    repositoryRoot: resolvedRepositoryRoot
+  });
   const repository = new ConfigRepository({
     repositoryRoot: resolvedRepositoryRoot,
     dataRoot,
@@ -606,6 +651,8 @@ export const createDirectorApiPlugin = ({
     gameplayTelemetryRepository,
     generatedAssetRepository,
     imageGenerationClient,
+    playerReportCacheRepository,
+    projectStatusRepository,
     prototypeAssets: createLocalPrototypeAssetCatalog(dataRoot)
   });
 

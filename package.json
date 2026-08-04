@@ -15,6 +15,7 @@
     "promote:campaign-bosses": "node tools/promote-test-bosses-to-campaign.mjs",
     "check:campaign-bosses": "node tools/promote-test-bosses-to-campaign.mjs --check",
     "reports:list": "node --use-system-ca --env-file-if-exists=.env.local tools/list-player-reports.mjs",
+    "reports:cache": "node --use-system-ca --env-file-if-exists=.env.local tools/cache-player-reports.mjs",
     "contract:compile": "node tools/compile-contract.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",

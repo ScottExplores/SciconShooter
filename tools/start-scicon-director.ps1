@@ -1,8 +1,24 @@
 [CmdletBinding()]
 param(
   [switch]$OpenBrowser,
-  [ValidateSet('level-editor', 'combat-lab')]
-  [string]$Page = 'level-editor'
+  [ValidateSet(
+    'hub',
+    'reports',
+    'project',
+    'missions',
+    'waves',
+    'bosses',
+    'formations',
+    'sandbox',
+    'loadouts',
+    'assets',
+    'analytics',
+    'reviews',
+    'studio',
+    'level-editor',
+    'combat-lab'
+  )]
+  [string]$Page = 'hub'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -10,10 +26,22 @@ $ErrorActionPreference = 'Stop'
 $repositoryRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $directorRoot = Join-Path $repositoryRoot 'director'
 $healthUrl = 'http://127.0.0.1:5174/__director/health'
-$directorUrl = "http://127.0.0.1:5174/$Page"
+$canonicalPage = switch ($Page) {
+  'level-editor' { 'missions' }
+  'combat-lab' { 'sandbox' }
+  'hub' { '' }
+  default { $Page }
+}
+$directorUrl = if ($canonicalPage) {
+  "http://127.0.0.1:5174/$canonicalPage"
+} else {
+  'http://127.0.0.1:5174/'
+}
 $stateRoot = Join-Path $env:LOCALAPPDATA 'Scicon Director'
 $standardLog = Join-Path $stateRoot 'director.log'
 $errorLog = Join-Path $stateRoot 'director-error.log'
+$reportCacheScript = Join-Path $repositoryRoot 'tools\cache-player-reports.mjs'
+$reportCachePath = Join-Path $stateRoot 'player-reports.json'
 
 New-Item -ItemType Directory -Path $stateRoot -Force | Out-Null
 
@@ -34,7 +62,29 @@ function Test-DirectorReady {
   }
 }
 
+function Update-PlayerReportCache {
+  if (-not (Test-Path -LiteralPath $reportCacheScript)) {
+    return
+  }
+
+  try {
+    $nodeCommand = Get-Command node.exe -ErrorAction Stop
+    & $nodeCommand.Source `
+      '--use-system-ca' `
+      '--env-file-if-exists=.env.local' `
+      $reportCacheScript `
+      "--output=$reportCachePath" 1>> $standardLog 2>> $errorLog
+    if ($LASTEXITCODE -ne 0) {
+      Write-DirectorLauncherLog "Player report cache refresh exited with code $LASTEXITCODE; the last safe cache remains available."
+    }
+  } catch {
+    Write-DirectorLauncherLog "Player report cache refresh was skipped: $($_.Exception.Message)"
+  }
+}
+
 try {
+  Update-PlayerReportCache
+
   if (-not (Test-DirectorReady)) {
     $nodeCommand = Get-Command node.exe -ErrorAction Stop
     $viteEntry = Join-Path $directorRoot 'node_modules\vite\bin\vite.js'
