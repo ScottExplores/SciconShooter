@@ -98,7 +98,7 @@ test('long round masters do not hard-wrap and props stay inside their terrain fa
   assert.match(environment, /TERRAIN_PROP_ATLASES/);
 });
 
-test('ground sectors use terrain aircraft and never turn the river route into an asteroid belt', () => {
+test('ground sectors keep the cohesive Squadron roster and never turn the river route into an asteroid belt', () => {
   const campaign = JSON.parse(read('game-config/campaign.json'));
   const desertStage = findCampaignLevel(campaign, 'stage-paywall-siege');
   const riverStage = findCampaignLevel(campaign, 'stage-open-galaxy');
@@ -109,9 +109,7 @@ test('ground sectors use terrain aircraft and never turn the river route into an
       .filter((event) => event.kind === 'spawn' && Array.isArray(event.enemies));
     assert.ok(combatSpawns.length > 0, `${stage.id} retains authored combat spawns`);
     assert.ok(combatSpawns.every((event) => event.enemies.every((enemy) => (
-      enemy.spriteKey.startsWith('PIXI_JET_')
-      || enemy.spriteKey === 'ENEMY_JOURNAL_FRAMES'
-      || enemy.spriteKey === 'CAMPAIGN_ENEMY_PROTOCOL_VANGUARD_FRAMES'
+      enemy.spriteKey.startsWith('SCICON_ENEMY_')
     ))));
   }
 
@@ -119,8 +117,12 @@ test('ground sectors use terrain aircraft and never turn the river route into an
   assert.equal(riverEvents.some((event) => event.kind === 'asteroid-belt'), false);
   assert.ok(riverEvents.some((event) => (
     event.kind === 'spawn'
-    && event.enemies?.some((enemy) => enemy.spriteKey === 'ENEMY_JOURNAL_FRAMES')
+    && event.enemies?.some((enemy) => enemy.spriteKey === 'SCICON_ENEMY_PEER_BULWARK_FRAMES')
   )));
+  assert.equal(riverEvents.some((event) => (
+    event.kind === 'spawn'
+    && event.enemies?.some((enemy) => enemy.spriteKey === 'SCICON_ENEMY_JOURNAL_RAIDER_FRAMES')
+  )), false, 'Journal Raider waits for the following Mission');
 });
 
 test('ground props remain registered to terrain while space landmarks use slow depth motion', () => {

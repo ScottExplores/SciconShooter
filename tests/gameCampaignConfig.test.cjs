@@ -480,10 +480,10 @@ test('recovery pickups and light drifters arrive during active pressure instead 
   });
 });
 
-test('each sector teaches all four enemy families through role-bound spawn definitions', () => {
+test('each sector teaches all four tactical enemy classes through role-bound spawn definitions', () => {
   const roles = new Map(campaign.enemyRoles.map((role) => [role.id, role]));
   campaign.sectors.forEach((sector) => {
-    const enemies = sector.missionIds.slice(0, 4)
+    const enemies = sector.missionIds
       .map((missionId) => campaign.levels.find((level) => level.id === missionId))
       .flatMap((level) => level.waves)
       .flatMap((wave) => wave.events)
@@ -515,7 +515,7 @@ test('enemy roles author readable spawn delays and explicit specialist firing st
   });
 });
 
-test('predatory journal spawns use the original animation or registered campaign variants', () => {
+test('journal-class spawns use their role-bound Squadron families', () => {
   const journalSettings = campaign.levels.flatMap((level) => (
     level.waves.flatMap((wave) => (
       wave.events
@@ -526,27 +526,23 @@ test('predatory journal spawns use the original animation or registered campaign
 
   assert.ok(journalSettings.length > 0);
   const allowedJournalSprites = new Set([
-    'ENEMY_JOURNAL_FRAMES',
-    'CAMPAIGN_ENEMY_DNA_CONDUCTOR',
-    'CAMPAIGN_ENEMY_LASER_HUNTER',
-    'CAMPAIGN_ENEMY_CRESCENT_MINELAYER',
-    'CAMPAIGN_ENEMY_PRISM_ARTILLERY',
-    // Sector 10's debut. The role existed in the catalog from revision 24 but
-    // was never authored into a Wave until enemy introductions were restaged.
-    'CAMPAIGN_ENEMY_BULLET_RING_EMITTER'
+    'SCICON_ENEMY_JOURNAL_RAIDER_FRAMES',
+    'SCICON_ENEMY_HELIX_CONDUCTOR_FRAMES',
+    'SCICON_ENEMY_PRISM_ARTILLERY_FRAMES'
   ]);
   journalSettings.forEach((enemy) => assert.equal(allowedJournalSprites.has(enemy.spriteKey), true));
 });
 
-test('dark asteroid sentinels use their role-bound art while legacy belt frames stay out of formations', () => {
+test('dark asteroid sentinels use Peer Bulwark art while belt frames stay out of formations', () => {
   const events = campaign.levels.flatMap((level) => level.waves.flatMap((wave) => wave.events));
   const formationEnemies = events
     .filter((event) => event.kind === 'spawn')
     .flatMap((event) => event.enemies);
 
-  const sentinels = formationEnemies.filter((enemy) => enemy.spriteKey === 'CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL');
+  const sentinels = formationEnemies.filter((enemy) => enemy.roleId === 'role-dark-sentinel');
   assert.ok(sentinels.length > 0);
   assert.ok(sentinels.every((enemy) => enemy.enemyId === 'brick'));
+  assert.ok(sentinels.every((enemy) => enemy.spriteKey === 'SCICON_ENEMY_PEER_BULWARK_FRAMES'));
   formationEnemies.forEach((enemy) => assert.notEqual(enemy.spriteKey, 'ASTEROID_BELT_FRAMES'));
 });
 

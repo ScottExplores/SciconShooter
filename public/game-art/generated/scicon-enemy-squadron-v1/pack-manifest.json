@@ -1,0 +1,125 @@
+{
+  "id": "scicon-enemy-squadron-v1",
+  "version": 1,
+  "created": "2026-08-03",
+  "style": "cohesive mobile-readable Scicon pixel arcade",
+  "frameContract": {
+    "width": 128,
+    "height": 128,
+    "colorType": "rgba",
+    "frameCount": 3,
+    "fps": 8,
+    "loop": "ping-pong",
+    "sequence": [0, 1, 2, 1],
+    "fixedRegistration": true,
+    "hitboxInvariant": "Sprite family and animation frame never change simulation collision geometry."
+  },
+  "sheet": "/game-art/generated/scicon-enemy-squadron-v1/scicon-enemy-squadron-sheet.png",
+  "families": [
+    {
+      "id": "orbit-scout",
+      "assetKey": "SCICON_ENEMY_ORBIT_SCOUT_FRAMES",
+      "roleIds": ["role-orbit-scout", "role-jet-scout", "role-orbit-disc"],
+      "frames": [
+        "/game-art/generated/scicon-enemy-squadron-v1/frames/orbit-scout-01.png",
+        "/game-art/generated/scicon-enemy-squadron-v1/frames/orbit-scout-02.png",
+        "/game-art/generated/scicon-enemy-squadron-v1/frames/orbit-scout-03.png"
+      ],
+      "sha256": [
+        "554b97b7d32c3b07c35b9dedd523f4a7610921f47b1aae5c53a74b7d3074367c",
+        "692dc6278649055ef3998712f3bd2ccaf4b263b5ccb2e5166ff34b476925da24",
+        "7c0fadd42f9bde016d8b890cf1c81dd911b819bdddd87e8ffe4a5a76fe84b3bc"
+      ]
+    },
+    {
+      "id": "citation-dart",
+      "assetKey": "SCICON_ENEMY_CITATION_DART_FRAMES",
+      "roleIds": ["role-citation-swarm", "role-jet-interceptor"],
+      "frames": [
+        "/game-art/generated/scicon-enemy-squadron-v1/frames/citation-dart-01.png",
+        "/game-art/generated/scicon-enemy-squadron-v1/frames/citation-dart-02.png",
+        "/game-art/generated/scicon-enemy-squadron-v1/frames/citation-dart-03.png"
+      ],
+      "sha256": [
+        "4d4148b1c147d0bec6d75464bb74510eb9225e367463bfba86b43b585ffd559c",
+        "8c68a192865a50de2a3be19cd0f4f19c6a4904cfc50f182cff9967226b2b4315",
+        "c8050152d03a75e7ad6cb6b1dfc3d18b1622974aa82896275db084683dd37b0f"
+      ]
+    },
+    {
+      "id": "research-sentry",
+      "assetKey": "SCICON_ENEMY_RESEARCH_SENTRY_FRAMES",
+      "roleIds": ["role-research-drone"],
+      "frames": [
+        "/game-art/generated/scicon-enemy-squadron-v1/frames/research-sentry-01.png",
+        "/game-art/generated/scicon-enemy-squadron-v1/frames/research-sentry-02.png",
+        "/game-art/generated/scicon-enemy-squadron-v1/frames/research-sentry-03.png"
+      ],
+      "sha256": [
+        "f417c2ccdf22cac4cb2ddd7254a6b258aa7ab82e44c6f2b5f14a7814a8a1796d",
+        "e05fd989e1ab586abf61f30f8102a11bd3acd060ffd3944f8b9d5b6fe9f8e39c",
+        "63cfddd5ca05382c8a95f308416e80e25eaec1ec31e4899b2cb3946ce8759044"
+      ]
+    },
+    {
+      "id": "peer-bulwark",
+      "assetKey": "SCICON_ENEMY_PEER_BULWARK_FRAMES",
+      "roleIds": ["role-jet-heavy", "role-dark-sentinel", "role-shield-rammer", "role-protocol-vanguard"],
+      "frames": [
+        "/game-art/generated/scicon-enemy-squadron-v1/frames/peer-bulwark-01.png",
+        "/game-art/generated/scicon-enemy-squadron-v1/frames/peer-bulwark-02.png",
+        "/game-art/generated/scicon-enemy-squadron-v1/frames/peer-bulwark-03.png"
+      ],
+      "sha256": [
+        "fe0961c69e9d7989b30a6325eae8d31ec6632125ac9eedd29a592f4bcb91c33d",
+        "8a29f678e1bd537a0715d627a9c1c0c156944404a03ad8ba028deeb5ac0ae602",
+        "a69e71d4ae1b1d0501ac127395fda290d91e38f61c80f29d57a0ac9ef2d47133"
+      ]
+    },
+    {
+      "id": "journal-raider",
+      "assetKey": "SCICON_ENEMY_JOURNAL_RAIDER_FRAMES",
+      "roleIds": ["role-journal-priority", "role-crescent-minelayer", "role-laser-hunter"],
+      "frames": [
+        "/game-art/generated/scicon-enemy-squadron-v1/frames/journal-raider-01.png",
+        "/game-art/generated/scicon-enemy-squadron-v1/frames/journal-raider-02.png",
+        "/game-art/generated/scicon-enemy-squadron-v1/frames/journal-raider-03.png"
+      ],
+      "sha256": [
+        "65615999a9a63cd7b808a6857ae49485d9b5dadfc95f68636fb6627eee1835f1",
+        "d85797010ba3fc091af4b190cfcfc365f52030e373dff86afc62d3a1b0bc4589",
+        "0d60a4256b91bc44a9684108da7a79c2045fe5c5ce06b21faa0485f52ceffc87"
+      ]
+    },
+    {
+      "id": "helix-conductor",
+      "assetKey": "SCICON_ENEMY_HELIX_CONDUCTOR_FRAMES",
+      "roleIds": ["role-dna-conductor", "role-ring-sentinel"],
+      "frames": [
+        "/game-art/generated/scicon-enemy-squadron-v1/frames/rift-skimmer-01.png",
+        "/game-art/generated/scicon-enemy-squadron-v1/frames/rift-skimmer-02.png",
+        "/game-art/generated/scicon-enemy-squadron-v1/frames/rift-skimmer-03.png"
+      ],
+      "sha256": [
+        "86ef401fc600d0d8603ca747a9fefc63a9e9dc687998a1f985b75b23d608730f",
+        "959acdfc62d2e2ed4f1cc231ac7b76ef0d32124cfaa1ad1b3c36534e6ea33f1b",
+        "57f235b696972daf2d230d1d3952a3024b9064dd4e2a5893703711a5824ab5e0"
+      ]
+    },
+    {
+      "id": "prism-artillery",
+      "assetKey": "SCICON_ENEMY_PRISM_ARTILLERY_FRAMES",
+      "roleIds": ["role-laser-stalker", "role-wall-sniper-left", "role-wall-sniper-right", "role-prism-artillery", "role-ring-emitter"],
+      "frames": [
+        "/game-art/generated/scicon-enemy-squadron-v1/frames/pulse-interceptor-01.png",
+        "/game-art/generated/scicon-enemy-squadron-v1/frames/pulse-interceptor-02.png",
+        "/game-art/generated/scicon-enemy-squadron-v1/frames/pulse-interceptor-03.png"
+      ],
+      "sha256": [
+        "4b19e69ae8026648cdec46ab62c1987591fde1fa7e5e3977ae4752f05e8955a7",
+        "9a1537ec6011fec788708d7808a364f515ed47f0ac734596eff0aeeeb67052ff",
+        "b3e9924a61bd5a21cdd81978522172cab74e437bf379f952bd7ce3ed98bc5509"
+      ]
+    }
+  ]
+}

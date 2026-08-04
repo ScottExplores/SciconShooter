@@ -74,6 +74,9 @@ const makeCompactCampaign = () => {
   const formationPackIds = new Set(campaign.levels.flatMap((level) => level.waves.flatMap(
     (wave) => wave.formationPackIds ?? []
   )));
+  campaign.formationPacks
+    .filter((pack) => formationPackIds.has(pack.id))
+    .forEach((pack) => pack.enemyRoleIds.forEach((roleId) => roleIds.add(roleId)));
   const bossIds = new Set(campaign.levels.flatMap((level) => level.waves.flatMap(
     (wave) => wave.events.filter((event) => event.kind === 'boss').map((event) => event.bossId)
   )));

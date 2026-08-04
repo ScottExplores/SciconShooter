@@ -8,10 +8,9 @@ const campaign = JSON.parse(fs.readFileSync(path.join(root, 'game-config', 'camp
 const constantsSource = fs.readFileSync(path.join(root, 'constants.ts'), 'utf8');
 const typesSource = fs.readFileSync(path.join(root, 'game-config', 'types.ts'), 'utf8');
 const catalogSource = fs.readFileSync(path.join(root, 'game-config', 'catalog.ts'), 'utf8');
-const gameLogicSource = fs.readFileSync(path.join(root, 'services', 'gameLogic.ts'), 'utf8');
-const pixiRendererSource = fs.readFileSync(path.join(root, 'services', 'pixi', 'PixiGameRenderer.ts'), 'utf8');
 
 const vanguardKey = 'CAMPAIGN_ENEMY_PROTOCOL_VANGUARD_FRAMES';
+const activeVanguardKey = 'SCICON_ENEMY_PEER_BULWARK_FRAMES';
 const vanguardRoot = path.join(
   root,
   'public',
@@ -26,7 +25,7 @@ const spawnEnemies = (level) => level.waves
   .flatMap((wave) => wave.events)
   .flatMap((event) => event.enemies ?? []);
 
-test('Protocol Vanguard uses a complete four-frame authored enemy animation', () => {
+test('the retired Protocol Vanguard specialist art remains registered for compatibility', () => {
   assert.match(constantsSource, new RegExp(`${vanguardKey}:\\s*\\[`));
   assert.match(typesSource, new RegExp(`'${vanguardKey}'`));
   assert.match(catalogSource, new RegExp(`${vanguardKey}: asset\\('${vanguardKey}'`));
@@ -39,10 +38,6 @@ test('Protocol Vanguard uses a complete four-frame authored enemy animation', ()
     );
   }
   assert.equal(fs.existsSync(path.join(vanguardRoot, 'sprite-sheet.png')), true);
-  assert.match(gameLogicSource, /source\.campaignLastFireFrame = this\.frameCount/);
-  assert.match(pixiRendererSource, /entity\.campaignRoleId === 'role-protocol-vanguard'/);
-  assert.match(pixiRendererSource, /entity\.flashFrames > 0[\s\S]*?entity\.spriteFrames\[3\]/);
-  assert.match(pixiRendererSource, /engine\.frameCount - entity\.campaignLastFireFrame <= 8[\s\S]*?entity\.spriteFrames\[2\]/);
 });
 
 test('Mission 2 keeps early formations standard-size and reserves the Vanguard for Mission 4', () => {
@@ -57,7 +52,7 @@ test('Mission 2 keeps early formations standard-size and reserves the Vanguard f
 
   const vanguards = spawnEnemies(firstVanguardMission).filter((enemy) => enemy.roleId === 'role-protocol-vanguard');
   assert.ok(vanguards.length > 0);
-  assert.ok(vanguards.every((enemy) => enemy.spriteKey === vanguardKey));
+  assert.ok(vanguards.every((enemy) => enemy.spriteKey === activeVanguardKey));
   assert.ok(vanguards.every((enemy) => enemy.enemyId === 'drone'));
   assert.ok(vanguards.every((enemy) => enemy.rank !== 'elite'));
 });

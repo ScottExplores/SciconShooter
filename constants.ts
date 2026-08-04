@@ -264,6 +264,41 @@ export const ASSETS = {
   CAMPAIGN_ENEMY_SHIELD_RAMMER: "/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/shield-rammer.png",
   CAMPAIGN_ENEMY_WALL_SNIPER_LEFT: "/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/wall-sniper-left.png",
   CAMPAIGN_ENEMY_WALL_SNIPER_RIGHT: "/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/wall-sniper-right.png",
+  SCICON_ENEMY_ORBIT_SCOUT_FRAMES: [
+    "/game-art/generated/scicon-enemy-squadron-v1/frames/orbit-scout-01.png",
+    "/game-art/generated/scicon-enemy-squadron-v1/frames/orbit-scout-02.png",
+    "/game-art/generated/scicon-enemy-squadron-v1/frames/orbit-scout-03.png"
+  ],
+  SCICON_ENEMY_CITATION_DART_FRAMES: [
+    "/game-art/generated/scicon-enemy-squadron-v1/frames/citation-dart-01.png",
+    "/game-art/generated/scicon-enemy-squadron-v1/frames/citation-dart-02.png",
+    "/game-art/generated/scicon-enemy-squadron-v1/frames/citation-dart-03.png"
+  ],
+  SCICON_ENEMY_RESEARCH_SENTRY_FRAMES: [
+    "/game-art/generated/scicon-enemy-squadron-v1/frames/research-sentry-01.png",
+    "/game-art/generated/scicon-enemy-squadron-v1/frames/research-sentry-02.png",
+    "/game-art/generated/scicon-enemy-squadron-v1/frames/research-sentry-03.png"
+  ],
+  SCICON_ENEMY_PEER_BULWARK_FRAMES: [
+    "/game-art/generated/scicon-enemy-squadron-v1/frames/peer-bulwark-01.png",
+    "/game-art/generated/scicon-enemy-squadron-v1/frames/peer-bulwark-02.png",
+    "/game-art/generated/scicon-enemy-squadron-v1/frames/peer-bulwark-03.png"
+  ],
+  SCICON_ENEMY_JOURNAL_RAIDER_FRAMES: [
+    "/game-art/generated/scicon-enemy-squadron-v1/frames/journal-raider-01.png",
+    "/game-art/generated/scicon-enemy-squadron-v1/frames/journal-raider-02.png",
+    "/game-art/generated/scicon-enemy-squadron-v1/frames/journal-raider-03.png"
+  ],
+  SCICON_ENEMY_HELIX_CONDUCTOR_FRAMES: [
+    "/game-art/generated/scicon-enemy-squadron-v1/frames/rift-skimmer-01.png",
+    "/game-art/generated/scicon-enemy-squadron-v1/frames/rift-skimmer-02.png",
+    "/game-art/generated/scicon-enemy-squadron-v1/frames/rift-skimmer-03.png"
+  ],
+  SCICON_ENEMY_PRISM_ARTILLERY_FRAMES: [
+    "/game-art/generated/scicon-enemy-squadron-v1/frames/pulse-interceptor-01.png",
+    "/game-art/generated/scicon-enemy-squadron-v1/frames/pulse-interceptor-02.png",
+    "/game-art/generated/scicon-enemy-squadron-v1/frames/pulse-interceptor-03.png"
+  ],
   PIXI_BOSS_CROWNCLAW_CORE: "/game-art/generated/bosses/astral-crownclaw/rig/astral-crownclaw-core-chassis.png",
   PIXI_BOSS_CROWNCLAW_LEGS: {
     frontLeft: "/game-art/generated/bosses/astral-crownclaw/rig/legs/astral-crownclaw-leg-front-left.png",

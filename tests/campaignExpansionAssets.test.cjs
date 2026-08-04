@@ -122,37 +122,19 @@ test('every revision-24 sector ends in one authored major-boss Mission', () => {
   }
 });
 
-test('all twelve generated enemy silhouettes remain authored enemy roles in revision 24', () => {
-  const formationPackIds = new Set(campaign.formationPacks.map((pack) => pack.id));
-  const generatedRoles = campaign.enemyRoles.filter((role) => role.spriteKey in enemyAssets);
+test('Stage 20 enemy art stays registered for boss and sandbox compatibility but is retired from regular spawns', () => {
+  const activeRoleSprites = new Set(campaign.enemyRoles.map((role) => role.spriteKey));
+  const activeSpawnSprites = new Set(campaign.levels
+    .flatMap((level) => level.waves)
+    .flatMap((wave) => wave.events)
+    .filter((event) => event.kind === 'spawn')
+    .flatMap((event) => event.enemies ?? [])
+    .map((enemy) => enemy.spriteKey));
 
-  assert.equal(generatedRoles.length, Object.keys(enemyAssets).length);
-  assert.deepEqual(
-    new Set(generatedRoles.map((role) => role.spriteKey)),
-    new Set(Object.keys(enemyAssets))
-  );
-  generatedRoles.forEach((role) => {
-    assert.ok(role.threatCost > 0, `${role.id} has a threat cost`);
-    assert.ok(role.introductionSector >= 2 && role.introductionSector <= campaign.sectors.length);
-    assert.ok(role.introductionMission >= 1 && role.introductionMission <= 4);
-    assert.ok(['standard', 'armored', 'elite'].includes(role.durabilityClass), role.id);
-    assert.ok(role.maximumSimultaneousCount > 0 && role.maximumSimultaneousCount <= 8, role.id);
-    assert.ok(role.performanceCost > 0 && role.performanceCost <= 4, role.id);
-    assert.ok(role.synergyTags.length > 0, `${role.id} has authored synergy`);
-    role.compatibleFormationPackIds.forEach((packId) => {
-      assert.equal(formationPackIds.has(packId), true, `${role.id} references ${packId}`);
-    });
-  });
-
-  for (const sector of campaign.sectors.slice(1)) {
-    const combatMissionIds = sector.missionIds.slice(0, 4);
-    const usedGeneratedSprites = new Set(campaign.levels
-      .filter((level) => combatMissionIds.includes(level.id))
-      .flatMap((level) => level.waves)
-      .flatMap((wave) => wave.events)
-      .flatMap((event) => [event.spriteKey, ...(event.enemies ?? []).map((enemy) => enemy.spriteKey)])
-      .filter((spriteKey) => spriteKey in enemyAssets));
-    assert.ok(usedGeneratedSprites.size >= 2, `${sector.name} uses multiple generated roles`);
+  for (const key of Object.keys(enemyAssets)) {
+    assert.equal(activeRoleSprites.has(key), false, `${key} is not an active role sprite`);
+    assert.equal(activeSpawnSprites.has(key), false, `${key} is not an active spawn sprite`);
+    assert.match(catalogSource, new RegExp(`${key}: asset\\('${key}'`), `${key} remains registered`);
   }
 });
 

@@ -23,25 +23,25 @@ const allMiniBosses = allEvents.filter((event) => (
 ));
 
 const roleSeed = [
-  ['role-orbit-scout', 'Orbit Scout', 'drone', 'LEGACY_ENEMY_DRONE_FRAMES', 'formation-unit', 1, 1, 1, 'light', 'none', 0, 'formation', 0, 14, 1],
-  ['role-research-drone', 'Research Drone', 'drone', 'ENEMY_DRONE_FRAMES', 'shooter', 2, 1, 1, 'standard', 'post-formation', 2.4, 'formation', 1, 10, 1],
-  ['role-citation-swarm', 'Citation Swarm', 'swarm', 'ENEMY_SWARM_FRAMES', 'diver', 1, 1, 2, 'light', 'none', 0, 'dive', 0, 14, 1],
-  ['role-jet-scout', 'Jet Scout', 'drone', 'PIXI_JET_SCOUT_FRAMES', 'flanker', 2, 1, 3, 'standard', 'post-formation', 2.2, 'flank', 1, 10, 1],
-  ['role-jet-interceptor', 'Jet Interceptor', 'swarm', 'PIXI_JET_INTERCEPTOR_FRAMES', 'burst-shooter', 3, 1, 3, 'standard', 'aimed-burst', 2.6, 'flank', 1, 8, 2],
-  ['role-jet-heavy', 'Jet Heavy', 'brick', 'PIXI_JET_HEAVY_FRAMES', 'armored-unit', 5, 1, 4, 'armored', 'post-formation', 2.4, 'lane', 2, 5, 3],
-  ['role-journal-priority', 'Journal Priority', 'journal', 'ENEMY_JOURNAL_FRAMES', 'priority-target', 4, 1, 4, 'standard', 'aimed-burst', 2.8, 'formation', 2, 6, 2],
-  ['role-dna-conductor', 'DNA Conductor', 'journal', 'CAMPAIGN_ENEMY_DNA_CONDUCTOR', 'support-unit', 5, 2, 1, 'elite', 'post-formation', 2, 'formation', 2, 4, 3],
-  ['role-laser-stalker', 'Laser Stalker', 'drone', 'CAMPAIGN_ENEMY_LASER_STALKER', 'suppressor', 4, 2, 1, 'standard', 'aimed-burst', 2.4, 'lane', 2, 5, 3],
-  ['role-orbit-disc', 'Orbit Disc', 'swarm', 'CAMPAIGN_ENEMY_ORBIT_DISC', 'flanker', 3, 2, 1, 'standard', 'post-formation', 2, 'flank', 1, 8, 2],
-  ['role-wall-sniper-left', 'Port Wall Sniper', 'drone', 'CAMPAIGN_ENEMY_WALL_SNIPER_LEFT', 'shooter', 4, 2, 2, 'standard', 'aimed-burst', 2.6, 'lane', 2, 4, 2],
-  ['role-wall-sniper-right', 'Starboard Wall Sniper', 'drone', 'CAMPAIGN_ENEMY_WALL_SNIPER_RIGHT', 'shooter', 4, 2, 2, 'standard', 'aimed-burst', 2.6, 'lane', 2, 4, 2],
-  ['role-laser-hunter', 'Laser Hunter', 'journal', 'CAMPAIGN_ENEMY_LASER_HUNTER', 'priority-target', 5, 2, 2, 'elite', 'aimed-burst', 2.4, 'formation', 2, 3, 3],
-  ['role-dark-sentinel', 'Dark Asteroid Sentinel', 'brick', 'CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL', 'armored-unit', 6, 2, 3, 'armored', 'post-formation', 2.2, 'lane', 2, 4, 3],
-  ['role-crescent-minelayer', 'Crescent Minelayer', 'journal', 'CAMPAIGN_ENEMY_CRESCENT_MINELAYER', 'support-unit', 5, 2, 3, 'standard', 'post-formation', 2.2, 'flank', 2, 4, 3],
-  ['role-shield-rammer', 'Shield Rammer', 'brick', 'CAMPAIGN_ENEMY_SHIELD_RAMMER', 'armored-unit', 6, 2, 3, 'armored', 'none', 0, 'dive', 2, 4, 3],
-  ['role-prism-artillery', 'Prism Artillery', 'journal', 'CAMPAIGN_ENEMY_PRISM_ARTILLERY', 'suppressor', 6, 2, 4, 'elite', 'aimed-burst', 2.6, 'formation', 2, 3, 4],
-  ['role-ring-sentinel', 'Ring Sentinel', 'brick', 'CAMPAIGN_ENEMY_RING_SENTINEL', 'formation-leader', 6, 2, 4, 'elite', 'formation-command', 1.8, 'formation', 2, 3, 4],
-  ['role-ring-emitter', 'Bullet Ring Emitter', 'journal', 'CAMPAIGN_ENEMY_BULLET_RING_EMITTER', 'suppressor', 7, 2, 4, 'elite', 'elite-only', 2.4, 'formation', 3, 3, 4]
+  ['role-orbit-scout', 'Orbit Scout', 'drone', 'SCICON_ENEMY_ORBIT_SCOUT_FRAMES', 'formation-unit', 1, 1, 1, 'light', 'none', 0, 'formation', 0, 14, 1],
+  ['role-research-drone', 'Research Drone', 'drone', 'SCICON_ENEMY_RESEARCH_SENTRY_FRAMES', 'shooter', 2, 1, 1, 'standard', 'post-formation', 2.4, 'formation', 1, 10, 1],
+  ['role-citation-swarm', 'Citation Swarm', 'swarm', 'SCICON_ENEMY_CITATION_DART_FRAMES', 'diver', 1, 1, 2, 'light', 'none', 0, 'dive', 0, 14, 1],
+  ['role-jet-scout', 'Jet Scout', 'drone', 'SCICON_ENEMY_ORBIT_SCOUT_FRAMES', 'flanker', 2, 1, 3, 'standard', 'post-formation', 2.2, 'flank', 1, 10, 1],
+  ['role-jet-interceptor', 'Jet Interceptor', 'swarm', 'SCICON_ENEMY_CITATION_DART_FRAMES', 'burst-shooter', 3, 1, 3, 'standard', 'aimed-burst', 2.6, 'flank', 1, 8, 2],
+  ['role-jet-heavy', 'Jet Heavy', 'brick', 'SCICON_ENEMY_PEER_BULWARK_FRAMES', 'armored-unit', 5, 1, 4, 'armored', 'post-formation', 2.4, 'lane', 2, 5, 3],
+  ['role-journal-priority', 'Journal Priority', 'journal', 'SCICON_ENEMY_JOURNAL_RAIDER_FRAMES', 'priority-target', 4, 1, 4, 'standard', 'aimed-burst', 2.8, 'formation', 2, 6, 2],
+  ['role-dna-conductor', 'DNA Conductor', 'journal', 'SCICON_ENEMY_HELIX_CONDUCTOR_FRAMES', 'support-unit', 5, 2, 1, 'elite', 'post-formation', 2, 'formation', 2, 4, 3],
+  ['role-laser-stalker', 'Laser Stalker', 'drone', 'SCICON_ENEMY_PRISM_ARTILLERY_FRAMES', 'suppressor', 4, 2, 1, 'standard', 'aimed-burst', 2.4, 'lane', 2, 5, 3],
+  ['role-orbit-disc', 'Orbit Disc', 'swarm', 'SCICON_ENEMY_ORBIT_SCOUT_FRAMES', 'flanker', 3, 2, 1, 'standard', 'post-formation', 2, 'flank', 1, 8, 2],
+  ['role-wall-sniper-left', 'Port Wall Sniper', 'drone', 'SCICON_ENEMY_PRISM_ARTILLERY_FRAMES', 'shooter', 4, 2, 2, 'standard', 'aimed-burst', 2.6, 'lane', 2, 4, 2],
+  ['role-wall-sniper-right', 'Starboard Wall Sniper', 'drone', 'SCICON_ENEMY_PRISM_ARTILLERY_FRAMES', 'shooter', 4, 2, 2, 'standard', 'aimed-burst', 2.6, 'lane', 2, 4, 2],
+  ['role-laser-hunter', 'Laser Hunter', 'journal', 'SCICON_ENEMY_JOURNAL_RAIDER_FRAMES', 'priority-target', 5, 2, 2, 'elite', 'aimed-burst', 2.4, 'formation', 2, 3, 3],
+  ['role-dark-sentinel', 'Dark Asteroid Sentinel', 'brick', 'SCICON_ENEMY_PEER_BULWARK_FRAMES', 'armored-unit', 6, 2, 3, 'armored', 'post-formation', 2.2, 'lane', 2, 4, 3],
+  ['role-crescent-minelayer', 'Crescent Minelayer', 'journal', 'SCICON_ENEMY_JOURNAL_RAIDER_FRAMES', 'support-unit', 5, 2, 3, 'standard', 'post-formation', 2.2, 'flank', 2, 4, 3],
+  ['role-shield-rammer', 'Shield Rammer', 'brick', 'SCICON_ENEMY_PEER_BULWARK_FRAMES', 'armored-unit', 6, 2, 3, 'armored', 'none', 0, 'dive', 2, 4, 3],
+  ['role-prism-artillery', 'Prism Artillery', 'journal', 'SCICON_ENEMY_PRISM_ARTILLERY_FRAMES', 'suppressor', 6, 2, 4, 'elite', 'aimed-burst', 2.6, 'formation', 2, 3, 4],
+  ['role-ring-sentinel', 'Ring Sentinel', 'brick', 'SCICON_ENEMY_HELIX_CONDUCTOR_FRAMES', 'formation-leader', 6, 2, 4, 'elite', 'formation-command', 1.8, 'formation', 2, 3, 4],
+  ['role-ring-emitter', 'Bullet Ring Emitter', 'journal', 'SCICON_ENEMY_PRISM_ARTILLERY_FRAMES', 'suppressor', 7, 2, 4, 'elite', 'elite-only', 2.4, 'formation', 3, 3, 4]
 ];
 
 const packs = [
@@ -101,8 +101,38 @@ const enemyRoles = roleSeed.map(([
   performanceCost
 }));
 
-const roleBySprite = new Map(enemyRoles.map((entry) => [entry.spriteKey, entry.id]));
+// Revision 21 source events still carry the retired sprite IDs. Keep source
+// inference explicit because Squadron v1 intentionally lets several tactical
+// roles share one visual family, making a reverse map from new sprite to role
+// ambiguous.
+const sourceRoleBySprite = new Map([
+  ['LEGACY_ENEMY_DRONE_FRAMES', 'role-orbit-scout'],
+  ['ENEMY_DRONE_FRAMES', 'role-research-drone'],
+  ['ENEMY_SWARM_FRAMES', 'role-citation-swarm'],
+  ['LEGACY_ENEMY_SWARM_FRAMES', 'role-citation-swarm'],
+  ['ENEMY_BRICK_FRAMES', 'role-jet-heavy'],
+  ['ENEMY_JOURNAL', 'role-journal-priority'],
+  ['ENEMY_JOURNAL_FRAMES', 'role-journal-priority'],
+  ['PIXI_JET_SCOUT_FRAMES', 'role-jet-scout'],
+  ['PIXI_JET_INTERCEPTOR_FRAMES', 'role-jet-interceptor'],
+  ['PIXI_JET_HEAVY_FRAMES', 'role-jet-heavy'],
+  ['CAMPAIGN_ENEMY_DNA_CONDUCTOR', 'role-dna-conductor'],
+  ['CAMPAIGN_ENEMY_LASER_STALKER', 'role-laser-stalker'],
+  ['CAMPAIGN_ENEMY_ORBIT_DISC', 'role-orbit-disc'],
+  ['CAMPAIGN_ENEMY_PROTOCOL_VANGUARD_FRAMES', 'role-protocol-vanguard'],
+  ['CAMPAIGN_ENEMY_WALL_SNIPER_LEFT', 'role-wall-sniper-left'],
+  ['CAMPAIGN_ENEMY_WALL_SNIPER_RIGHT', 'role-wall-sniper-right'],
+  ['CAMPAIGN_ENEMY_LASER_HUNTER', 'role-laser-hunter'],
+  ['CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL', 'role-dark-sentinel'],
+  ['CAMPAIGN_ENEMY_CRESCENT_MINELAYER', 'role-crescent-minelayer'],
+  ['CAMPAIGN_ENEMY_SHIELD_RAMMER', 'role-shield-rammer'],
+  ['CAMPAIGN_ENEMY_PRISM_ARTILLERY', 'role-prism-artillery'],
+  ['CAMPAIGN_ENEMY_RING_SENTINEL', 'role-ring-sentinel'],
+  ['CAMPAIGN_ENEMY_BULLET_RING_EMITTER', 'role-ring-emitter']
+]);
+const enemyRoleById = new Map(enemyRoles.map((entry) => [entry.id, entry]));
 const roleCost = new Map(enemyRoles.map((entry) => [entry.id, entry.threatCost]));
+const retiredRegularEnemyAssetKeys = new Set(sourceRoleBySprite.keys());
 
 const visualThemes = [
   { id: 'theme-open-orbit', label: 'Open Orbit', backgroundId: 'open-orbit', accent: '#35f2d0', description: 'Clean orbital lanes and research traffic.' },
@@ -200,9 +230,10 @@ const normalizeSpawn = (source, id, startSeconds, sectorNumber) => {
   event.count = Math.min(event.count, 12 + sectorNumber * 3);
   event.spawnIntervalSeconds = Math.max(0.28, event.spawnIntervalSeconds);
   event.enemies = event.enemies.map((enemy) => {
-    const roleId = roleBySprite.get(enemy.spriteKey)
+    const roleId = (enemyRoleById.has(enemy.roleId) ? enemy.roleId : undefined)
+      ?? sourceRoleBySprite.get(enemy.spriteKey)
       ?? (enemy.enemyId === 'brick' ? 'role-jet-heavy' : enemy.enemyId === 'journal' ? 'role-journal-priority' : enemy.enemyId === 'swarm' ? 'role-citation-swarm' : 'role-research-drone');
-    const role = enemyRoles.find((entry) => entry.id === roleId);
+    const role = enemyRoleById.get(roleId);
     const durability = role?.durabilityClass ?? 'standard';
     const maxHealth = durability === 'light' ? 2 : durability === 'standard' ? 4 + sectorNumber : durability === 'armored' ? 8 + sectorNumber * 2 : 12 + sectorNumber * 3;
     return {
@@ -452,6 +483,13 @@ for (const level of campaign.levels) {
   }
 
   level.waves = authoredWaves;
+  if (retiredRegularEnemyAssetKeys.has(level.scorecard?.encounterAssetKey)) {
+    const headlineEnemy = authoredWaves
+      .flatMap((wave) => wave.events)
+      .find((event) => event.kind === 'spawn' && event.enemies?.[0])
+      ?.enemies[0];
+    if (headlineEnemy) level.scorecard.encounterAssetKey = headlineEnemy.spriteKey;
+  }
   level.startingDifficulty = 1 + (missionNumber - 1) * 0.015;
   level.durationSeconds = authoredWaves.reduce((sum, wave) => sum + wave.durationSeconds + wave.introSeconds + wave.delayAfterSeconds, 0);
   level.description = [
@@ -538,6 +576,29 @@ for (const level of campaign.levels) {
   };
 }
 
+// Mission 4 already introduces the Peer Bulwark silhouette. Keep the Journal
+// Raider out of that Mission so Mission 5 can debut it by itself instead of
+// asking one Wave to teach two unseen visual families.
+const journalDebutStagingMission = campaign.levels.find((level) => level.id === 'stage-open-galaxy');
+if (!journalDebutStagingMission) throw new Error('Missing Mission 4 Journal-debut staging target.');
+for (const wave of journalDebutStagingMission.waves) {
+  for (const event of wave.events) {
+    if (event.kind !== 'spawn' || !Array.isArray(event.enemies)) continue;
+    const staged = event.enemies.filter((enemy) => enemy.roleId !== 'role-journal-priority');
+    if (staged.length === event.enemies.length) continue;
+    if (staged.length === 0) throw new Error(`${event.id} cannot lose every enemy while staging the Journal debut.`);
+    const total = staged.reduce((sum, enemy) => sum + (Number(enemy.weight) || 0), 0);
+    let assigned = 0;
+    staged.forEach((enemy, index) => {
+      enemy.weight = index === staged.length - 1
+        ? Number((1 - assigned).toFixed(6))
+        : Number((((Number(enemy.weight) || 0) / total)).toFixed(6));
+      assigned += index === staged.length - 1 ? 0 : enemy.weight;
+    });
+    event.enemies = staged;
+  }
+}
+
 const sectors = sectorSeeds.map(([id, name, themeId, majorBossId], index) => ({
   id,
   order: index + 1,
@@ -584,6 +645,21 @@ campaign.miniBosses = [
     validationStatus: 'validated'
   }
 ];
+
+for (const branch of campaign.campaignBranches ?? []) {
+  for (const event of branch.missionDefinition?.events ?? []) {
+    if (event.kind !== 'spawn' || !Array.isArray(event.enemies)) continue;
+    for (const enemy of event.enemies) {
+      const roleId = (enemyRoleById.has(enemy.roleId) ? enemy.roleId : undefined)
+        ?? sourceRoleBySprite.get(enemy.spriteKey);
+      const role = enemyRoleById.get(roleId);
+      if (!role) continue;
+      enemy.roleId = role.id;
+      enemy.enemyId = role.enemyId;
+      enemy.spriteKey = role.spriteKey;
+    }
+  }
+}
 
 repairCampaignOverhaulV22(campaign);
 
