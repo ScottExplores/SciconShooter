@@ -93,7 +93,7 @@ test('ship selection loops preloaded PNG frames at 5 FPS and cleans up its timer
   assert.doesNotMatch(selector, /previewGif|\.gif/);
   assert.match(motion, /PLAYER_SHIP_SELECTION_FPS = 5/);
   assert.match(motion, /PLAYER_SHIP_CAROUSEL_FRAME_URLS = \[[\s\S]*PLAYER_SHIP_STEERING_FRAME_URLS[\s\S]*PLAYER_SHIP_SELECTION_FRAME_URLS/);
-  assert.match(motion, /PLAYER_SHIP_CAROUSEL_FRAME_URLS\.map/);
+  assert.match(motion, /preloadDecodedImageUrls\(\s*PLAYER_SHIP_CAROUSEL_FRAME_URLS/);
   assert.match(motion, /btc-token-ship\/frames\/btc-token-ship-03-neutral\.png/);
   assert.match(motion, /btc-token-ship-selection-idle\/frames/);
   assert.doesNotMatch(generator, /booster_lock_y|resting_lower/);

@@ -44,6 +44,7 @@ import {
   sanitizeWeeklyCampaignStreak,
   type WeeklyCampaignStreakState
 } from './weeklyCampaignStreak';
+import { preloadDecodedImageUrls } from './browserImagePreload';
 
 const SQUAD_CAMPAIGN_GRAPH = createCampaignGraphIndex(DEFAULT_GAME_CAMPAIGN);
 const WEEKLY_RUN_ELITE_BOSS_IDS = DEFAULT_GAME_CAMPAIGN.miniBosses
@@ -1504,11 +1505,15 @@ export const buildRuntimeSquadLoadout = (
   })
 });
 
+let miniShipTexturePreload: Promise<void> | null = null;
+
 export const preloadMiniShipTextures = () => {
-  if (typeof Image === 'undefined') return;
-  MINI_SHIP_CATALOG.flatMap((entry) => entry.frames).forEach((source) => {
-    const image = new Image();
-    image.decoding = 'async';
-    image.src = source;
-  });
+  if (!miniShipTexturePreload) {
+    miniShipTexturePreload = preloadDecodedImageUrls(
+      MINI_SHIP_CATALOG.flatMap((entry) => entry.frames)
+    ).then(() => undefined).catch(() => {
+      miniShipTexturePreload = null;
+    });
+  }
+  return miniShipTexturePreload;
 };

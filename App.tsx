@@ -71,6 +71,7 @@ import {
   type PlayerShipId
 } from './services/playerShipService';
 import type { GameEngineDebugSnapshot, GameRuntimeState, WaveVictorySummary } from './services/gameLogic';
+import { waitForRequiredGameplayAssetPreload } from './services/gameplayAssetPreloadBudget';
 import PauseMenu from './components/PauseMenu';
 import GameOverPresentation from './components/GameOverPresentation';
 import PixelActionButton from './components/PixelActionButton';
@@ -413,6 +414,7 @@ let gameplayPreloadPromise: Promise<void> | null = null;
 let gameplayPreloadReady = false;
 let gameplayPreloadProgress = 0;
 let gameplayPreloadPhase: GameplayPreloadPhase = 'flight-systems';
+let gameplayPreloadAttempt = 0;
 const gameplayPreloadListeners = new Set<GameplayPreloadListener>();
 
 const broadcastGameplayPreload = () => {
@@ -434,13 +436,21 @@ const ensureGameplayPreload = () => {
   gameplayPreloadProgress = 0;
   gameplayPreloadPhase = 'flight-systems';
   broadcastGameplayPreload();
+  const preloadAttempt = ++gameplayPreloadAttempt;
+  const updateCurrentGameplayPreload = (
+    progress: number,
+    phase: GameplayPreloadPhase
+  ) => {
+    if (preloadAttempt !== gameplayPreloadAttempt) return;
+    updateGameplayPreload(progress, phase);
+  };
 
   const gameStageModule = loadGameStage().then((gameplay) => {
-    updateGameplayPreload(gameplayPreloadProgress + 34, 'mission-interface');
+    updateCurrentGameplayPreload(gameplayPreloadProgress + 34, 'mission-interface');
     return gameplay;
   });
   const storyTransmissionModule = loadStoryTransmission().then((storyTransmission) => {
-    updateGameplayPreload(
+    updateCurrentGameplayPreload(
       gameplayPreloadProgress + 12,
       gameplayPreloadPhase === 'mission-art' || gameplayPreloadPhase === 'ready'
         ? gameplayPreloadPhase
@@ -449,24 +459,26 @@ const ensureGameplayPreload = () => {
     return storyTransmission;
   });
   const productionAssets = gameStageModule.then(async (gameplay) => {
-    updateGameplayPreload(gameplayPreloadProgress, 'mission-art');
+    updateCurrentGameplayPreload(gameplayPreloadProgress, 'mission-art');
     await gameplay.preloadGameplayAssets();
-    updateGameplayPreload(gameplayPreloadProgress + 46, 'mission-art');
+    updateCurrentGameplayPreload(gameplayPreloadProgress + 46, 'mission-art');
   });
 
-  gameplayPreloadPromise = Promise.all([
+  gameplayPreloadPromise = waitForRequiredGameplayAssetPreload(Promise.all([
     gameStageModule,
     storyTransmissionModule,
     productionAssets
-  ]).then(() => {
-    gameplayPreloadReady = true;
-    updateGameplayPreload(100, 'ready');
-  }).catch((error: unknown) => {
-    gameplayPreloadPromise = null;
-    gameplayPreloadProgress = 0;
-    gameplayPreloadPhase = 'flight-systems';
-    throw error;
-  });
+  ]))
+    .then(() => {
+      gameplayPreloadReady = true;
+      updateCurrentGameplayPreload(100, 'ready');
+    }).catch((error: unknown) => {
+      if (preloadAttempt === gameplayPreloadAttempt) gameplayPreloadAttempt++;
+      gameplayPreloadPromise = null;
+      gameplayPreloadProgress = 0;
+      gameplayPreloadPhase = 'flight-systems';
+      throw error;
+    });
 
   return gameplayPreloadPromise;
 };
@@ -1721,10 +1733,6 @@ const App: React.FC = () => {
       highScore: nextStats.highScore,
       totalCoins: nextStats.totalCoins
     }));
-    activeRunSquadLoadoutRef.current = buildRuntimeSquadLoadout(
-      nextWeekly,
-      nextShip
-    );
     window.queueMicrotask(() => {
       walletProfileHydratingRef.current = false;
     });
@@ -2827,12 +2835,6 @@ const App: React.FC = () => {
       ? missionLoading.tip
       : getRandomMissionLoadingTip();
     audioService.init();
-    // Audio is an enhancement, never a launch dependency. Slow media fetches
-    // and decoders must not strand a reserved Boss Archive charge or leave the
-    // Start Mission button looking unresponsive.
-    void audioService.prepare().catch((error) => {
-      console.warn('Gameplay audio warmup remains pending.', error);
-    });
     if (shouldShowMissionLoading) {
       setMissionLoading({
         progress: gameplayPreloadProgress,
@@ -3069,6 +3071,11 @@ const App: React.FC = () => {
         ?? 1
     };
     setGameRuntimeReady(false);
+    setMissionLoading({
+      progress: 96,
+      phase: 'runtime-sync',
+      tip: loadingTip
+    });
     setGameId(nextGameId);
     lastStoryWaveRef.current = requestedBossReplay?.missionNumber
       ?? (requestedWeeklyRunLevel ? getWeeklyRunDepth(requestedWeeklyRunLevel.id) : undefined)

@@ -151,6 +151,9 @@ const bossArchiveProgressionStub = {
 };
 
 const squad = compileService('squadProgression.ts', {
+  './browserImagePreload': {
+    preloadDecodedImageUrls: async () => undefined
+  },
   '../shared/weeklyRunPlan.browser': require('../shared/weeklyRunPlan.js'),
   '../shared/weeklyCompetitionBoundary.browser': {
     getWeeklyBoundaryMeta: () => ({ weekKey: '2026-07-26' })

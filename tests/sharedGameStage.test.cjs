@@ -29,7 +29,7 @@ test('the shared canvas accepts draft campaign data without changing production 
   assert.match(canvas, /previewMode\?: boolean/);
   assert.match(canvas, /audioEnabled = !previewMode/);
   assert.doesNotMatch(canvas, /musicEnabled/);
-  assert.match(canvas, /const initialStats = cloneStatsForReact\(stats\)/);
+  assert.match(canvas, /const initialStats = cloneStatsForReact\(setup\.stats\)/);
   assert.match(canvas, /new GameEngine\(initialStats,/);
   assert.match(gameLogic, /const isInvincible = \(this\.previewMode && this\.previewInvincible\)/);
   assert.match(directorEntry, /\.\.\/\.\.\/styles\/tailwind\.generated\.css/);
@@ -67,8 +67,8 @@ test('preview reconstruction keeps configured starting lives instead of damaged 
 
   assert.match(editorCanvas, /previewStartingLives: previewSettings\.startingLives \?\? GAME_CONFIG\.PLAYER_LIVES/);
   assert.match(canvas, /previewStartingLives\?: number/);
-  assert.match(canvas, /if \(previewMode && previewStartingLives !== undefined\)/);
-  assert.match(canvas, /initialStats\.lives = previewStartingLives/);
+  assert.match(canvas, /if \(previewMode && setup\.previewStartingLives !== undefined\)/);
+  assert.match(canvas, /initialStats\.lives = setup\.previewStartingLives/);
   assert.match(canvas, /new GameEngine\(initialStats,/);
   assert.match(canvas, /previewStartingLives,/);
 });

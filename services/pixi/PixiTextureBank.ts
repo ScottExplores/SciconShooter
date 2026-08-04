@@ -1,5 +1,6 @@
 import { Assets, Texture } from 'pixi.js';
 import {
+  runRequiredGameplayAssetPreloadQueue,
   runGameplayAssetPreloadQueue,
   waitForGameplayAssetPreload
 } from '../gameplayAssetPreloadBudget';
@@ -31,12 +32,20 @@ export class PixiTextureBank {
     return request;
   }
 
-  preload(urls: string[]) {
+  preload(urls: readonly string[], concurrency?: number) {
     const warmup = runGameplayAssetPreloadQueue(
+      [...new Set(urls.filter(Boolean))],
+      (url) => this.load(url),
+      concurrency
+    );
+    return waitForGameplayAssetPreload(warmup);
+  }
+
+  preloadRequired(urls: readonly string[]) {
+    return runRequiredGameplayAssetPreloadQueue(
       [...new Set(urls.filter(Boolean))],
       (url) => this.load(url)
     );
-    return waitForGameplayAssetPreload(warmup);
   }
 
   get(url: string) {

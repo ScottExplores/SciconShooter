@@ -47,6 +47,7 @@ import { PLAYER_SHIP_WEAPON_SPECS } from '../services/weaponOverdrive';
 import { calculateSquadPowerRating } from '../services/squadPowerRating';
 import { FIRE_RATE_TIER_COUNT } from '../services/weaponTierProgression';
 import PixelActionButton from './PixelActionButton';
+import { preloadDecodedImageUrls } from '../services/browserImagePreload';
 
 type HangarPosition = 'main' | SquadSlotId;
 type HangarMode = 'catalog' | 'upgrades';
@@ -304,10 +305,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
         (_, level) => getShipAbilityUpgradeProfile(level).projectileIconUrl
       )
     ];
-    assets.forEach((src) => {
-      const image = new Image();
-      image.src = src;
-    });
+    void preloadDecodedImageUrls(assets).catch(() => undefined);
   }, []);
 
   useEffect(() => {

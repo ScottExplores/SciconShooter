@@ -20,7 +20,7 @@ const loadTypeScriptModule = (...segments) => {
   const module = { exports: {} };
   vm.runInNewContext(
     `(function(exports, require, module) { ${compiled} })(module.exports, require, module);`,
-    { module, require }
+    { module, require, setTimeout, clearTimeout }
   );
   return module.exports;
 };
@@ -58,7 +58,7 @@ test('mission launch joins a pending preload with progress, then locks simulatio
   assert.match(startFlow, /if \(shouldShowMissionLoading\) \{[\s\S]*setMissionLoading\(\{/);
   assert.match(startFlow, /await preloadGameplayComponents\(shouldShowMissionLoading[\s\S]*\(progress, phase\) =>/);
   assert.match(startFlow, /Gameplay preload failed\.[\s\S]*recoverFromModulePreloadFailure\(error\)/);
-  assert.match(startFlow, /void audioService\.prepare\(\)\.catch/);
+  assert.doesNotMatch(startFlow, /audioService\.prepare\(\)/);
   assert.doesNotMatch(startFlow, /prepareMusicScene|setMusicScene|launchMusicScene/);
   assert.doesNotMatch(
     startFlow,
@@ -69,7 +69,7 @@ test('mission launch joins a pending preload with progress, then locks simulatio
   assert.match(startFlow, /pendingMissionRuntimeRef\.current = \{/);
   assert.match(startFlow, /setGameRuntimeReady\(false\)/);
   assert.match(startFlow, /setGameId\(nextGameId\)/);
-  assert.doesNotMatch(startFlow, /phase: 'runtime-sync'/);
+  assert.match(startFlow, /phase: 'runtime-sync'/);
   assert.doesNotMatch(startFlow, /window\.setTimeout/);
   assert.match(readyFlow, /setGameRuntimeReady\(true\)/);
   assert.match(readyFlow, /window\.setTimeout/);
@@ -208,6 +208,32 @@ test('gameplay art budget clears its timer and preserves success or early failur
   assert.deepEqual(rejectedCancelled, [12]);
 });
 
+test('required gameplay art rejects a stalled request instead of falsely reporting ready', async () => {
+  const {
+    REQUIRED_GAMEPLAY_ASSET_PRELOAD_DEADLINE_MS,
+    waitForRequiredGameplayAssetPreload
+  } = loadTypeScriptModule('services', 'gameplayAssetPreloadBudget.ts');
+  assert.equal(REQUIRED_GAMEPLAY_ASSET_PRELOAD_DEADLINE_MS, 45_000);
+
+  const scheduled = [];
+  const stalled = new Promise(() => undefined);
+  const required = waitForRequiredGameplayAssetPreload(stalled, {
+    timeoutMs: 654,
+    schedule: (callback, delayMs) => {
+      scheduled.push({ callback, delayMs });
+      return 91;
+    }
+  });
+
+  assert.equal(scheduled.length, 1);
+  assert.equal(scheduled[0].delayMs, 654);
+  scheduled[0].callback();
+  await assert.rejects(required, {
+    name: 'GameplayAssetPreloadTimeoutError',
+    message: /654ms/
+  });
+});
+
 test('gameplay art queue limits concurrent decoders and settles individual failures', async () => {
   const {
     GAMEPLAY_ASSET_PRELOAD_CONCURRENCY,
@@ -235,7 +261,31 @@ test('gameplay art queue limits concurrent decoders and settles individual failu
   assert.deepEqual(loaded.slice().sort((left, right) => left - right), [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
 });
 
-test('mission loading warms the full Pixi catalog while renderer startup remains first-frame bounded', () => {
+test('required gameplay art stays bounded but propagates a missing launch texture', async () => {
+  const {
+    runRequiredGameplayAssetPreloadQueue
+  } = loadTypeScriptModule('services', 'gameplayAssetPreloadBudget.ts');
+  let active = 0;
+  let maximumActive = 0;
+
+  await assert.rejects(
+    runRequiredGameplayAssetPreloadQueue(
+      [0, 1, 2, 3, 4],
+      async (item) => {
+        active++;
+        maximumActive = Math.max(maximumActive, active);
+        await new Promise((resolve) => setImmediate(resolve));
+        active--;
+        if (item === 3) throw new Error('critical texture missing');
+      },
+      2
+    ),
+    /critical texture missing/
+  );
+  assert.equal(maximumActive, 2);
+});
+
+test('mission loading strictly warms critical and selected-mission art without flooding the full catalog', () => {
   const canvas = fs.readFileSync(path.join(root, 'components', 'GameCanvas.tsx'), 'utf8');
   const renderer = fs.readFileSync(
     path.join(root, 'services', 'pixi', 'PixiGameRenderer.ts'),
@@ -250,22 +300,26 @@ test('mission loading warms the full Pixi catalog while renderer startup remains
     renderer.indexOf('export const PIXI_GAMEPLAY_TEXTURE_URLS')
   );
 
-  assert.match(canvas, /waitForGameplayAssetPreload\(productionAssetWarmup\)/);
+  assert.match(canvas, /await preloadPixiGameplayTextures\(\)/);
+  assert.doesNotMatch(canvas, /waitForGameplayAssetPreload\(productionAssetWarmup\)/);
   assert.match(canvas, /startupTextureUrls: \[[\s\S]*squadLoadout\?\.companions[\s\S]*companion\.frames/);
+  assert.match(canvas, /collectCampaignTextureWindow\(/);
   assert.match(renderer, /export const PIXI_GAMEPLAY_STARTUP_TEXTURE_URLS = Object\.freeze\(\[/);
   assert.match(renderer, /export const PIXI_GAMEPLAY_TEXTURE_URLS = Object\.freeze\(\[[\s\S]*\.\.\.PIXI_GAMEPLAY_STARTUP_TEXTURE_URLS/);
-  assert.match(renderer, /new Set\(PIXI_GAMEPLAY_TEXTURE_URLS\.filter\(Boolean\)\)/);
+  assert.match(renderer, /new Set\(PIXI_GAMEPLAY_STARTUP_TEXTURE_URLS\.filter\(Boolean\)\)/);
   assert.match(startupCatalog, /\.\.\.ASSETS\.RSC_TOKEN_FLIP_FRAMES/);
   assert.match(renderer, /selectedRuntimeTextureUrls = this\.startupTextureUrls\.flatMap/);
   assert.match(renderer, /Object\.values\(motion\.steeringFrames\)/);
   assert.match(renderer, /\.\.\.PIXI_GAMEPLAY_STARTUP_TEXTURE_URLS,[\s\S]*\.\.\.selectedRuntimeTextureUrls/);
   assert.doesNotMatch(renderer, /this\.textureBank\.preload\(\[\.\.\.PIXI_GAMEPLAY_TEXTURE_URLS\]\)/);
-  assert.match(renderer, /if \(startupStatus === 'timed-out'\)[\s\S]*this\.bindStartupTextures\(\)/);
-  assert.match(renderer, /runGameplayAssetPreloadQueue\(urls, async \(url\)/);
+  assert.match(renderer, /await this\.textureBank\.preloadRequired\(startupTextureUrls\)/);
+  assert.doesNotMatch(renderer, /startupStatus === 'timed-out'/);
+  assert.match(renderer, /runRequiredGameplayAssetPreloadQueue\(urls, async \(url\)/);
   assert.match(renderer, /view\.textureKey === key[\s\S]*?else \{[\s\S]*?view\.sprite\.visible = false/);
   assert.match(renderer, /entity\.type === EntityType\.COIN[\s\S]*?view\.body\.clear\(\)[\s\S]*?return/);
   assert.match(textureBank, /runGameplayAssetPreloadQueue\([\s\S]*\(url\) => this\.load\(url\)/);
   assert.match(textureBank, /waitForGameplayAssetPreload\(warmup\)/);
+  assert.match(textureBank, /runRequiredGameplayAssetPreloadQueue/);
   [
     'ENEMY_DRONE_FRAMES',
     'LEGACY_ENEMY_DRONE_FRAMES',
