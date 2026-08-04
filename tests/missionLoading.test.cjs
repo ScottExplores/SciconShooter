@@ -263,7 +263,18 @@ test('mission startup waits only for first-frame Pixi art and bounds every optio
   assert.match(renderer, /runGameplayAssetPreloadQueue\(urls, async \(url\)/);
   assert.match(textureBank, /runGameplayAssetPreloadQueue\([\s\S]*\(url\) => this\.load\(url\)/);
   assert.match(textureBank, /waitForGameplayAssetPreload\(warmup\)/);
-  assert.match(startupCatalog, /\.\.\.ASSETS\.ENEMY_SWARM_FRAMES/);
+  [
+    'ORBIT_SCOUT',
+    'CITATION_DART',
+    'RESEARCH_SENTRY',
+    'PEER_BULWARK',
+    'JOURNAL_RAIDER',
+    'HELIX_CONDUCTOR',
+    'PRISM_ARTILLERY'
+  ].forEach((family) => {
+    assert.match(startupCatalog, new RegExp(`\\.\\.\\.ASSETS\\.SCICON_ENEMY_${family}_FRAMES`));
+  });
+  assert.doesNotMatch(startupCatalog, /LEGACY_ENEMY|PIXI_JET_(?:SCOUT|INTERCEPTOR|HEAVY)_FRAMES/);
   assert.doesNotMatch(startupCatalog, /PLAYER_SHIP_STEERING_FRAME_URLS/);
   assert.doesNotMatch(startupCatalog, /PIXI_ENVIRONMENT_TEXTURE_URLS/);
   assert.doesNotMatch(startupCatalog, /PIXI_BOSS_(?:OPEN_ORBIT|CITATION|PAYWALL|OPEN_GALAXY|CROWNCLAW)_FRAMES/);

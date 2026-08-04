@@ -100,10 +100,13 @@ test('custom science-themed enemy motion packs stay compact, square, and RGBA', 
 });
 
 test('ordinary formations and asteroid belts use separate sprite catalogs', () => {
-  assert.match(constantsSource, /ENEMY_BRICK_FRAMES:\s*\[\s*"\/game-art\/generated\/scicon-flight-motion-pack-v1\/enemies\/peer-review-bulwark\/frames\/peer-review-bulwark-01-guard-low\.png"/);
+  assert.match(constantsSource, /SCICON_ENEMY_PEER_BULWARK_FRAMES:\s*\[/);
   assert.match(constantsSource, /ASTEROID_BELT_FRAMES:\s*\[\s*"\/game-art\/enemies\/asteroid-1\.png"/);
   assert.match(validatorSource, /ASTEROID_SPRITE_KEYS, \['ASTEROID_BELT_FRAMES'/);
-  assert.match(runtimeSource, /e\.variant >= 900 \? ASSETS\.ASTEROID_BELT_FRAMES : ASSETS\.ENEMY_BRICK_FRAMES/);
+  assert.match(
+    runtimeSource,
+    /e\.variant >= 900[\s\S]*?ASSETS\.ASTEROID_BELT_FRAMES[\s\S]*?ASSETS\.SCICON_ENEMY_PEER_BULWARK_FRAMES/
+  );
 });
 
 test('Pixi presents formation assembly pulses and a charged pre-dive frame without changing simulation states', () => {
