@@ -178,9 +178,10 @@ test('internal waves advance seamlessly and only Mission boundaries create resul
   assert.doesNotMatch(tacticalSource, /buildWaveVictorySummary|spawnFloatingText|playSound|waveVictoryReady|gameActive = false/);
   assert.match(engine, /continueToNextWave\(\)[\s\S]*?this\.startNextWave\(\);/);
   assert.match(engine, /const stageBoundary = [\s\S]*?previousEntry\.level\.id !== nextEntry\.level\.id/);
+  assert.match(engine, /const seamlessStageBoundary = stageBoundary && this\.continuousStageBoundaries/);
   assert.match(engine, /this\.resetWaveProgress\(stageBoundary\)/);
-  assert.match(engine, /if \(stageBoundary\) \{[\s\S]*?this\.beginWavePresentation\('mission'\);[\s\S]*?this\.playSound\('wave'\);[\s\S]*?\} else \{[\s\S]*?this\.beginWavePresentation\('internal-wave'\);[\s\S]*?\}/);
-  assert.match(engine, /this\.introFlightDuration = stageBoundary/);
+  assert.match(engine, /if \(stageBoundary && !seamlessStageBoundary\) \{[\s\S]*?this\.beginWavePresentation\('mission'\);[\s\S]*?this\.playSound\('wave'\);[\s\S]*?\} else \{[\s\S]*?this\.beginWavePresentation\('internal-wave'\);[\s\S]*?\}/);
+  assert.match(engine, /this\.introFlightDuration = stageBoundary && !seamlessStageBoundary/);
   assert.match(engine, /this\.wave = this\.getStageNumberForCampaignIndex\(\)/);
   assert.match(tacticalSource, /this\.clearStageBoundaryDebris\(false, true, false, true\)/);
   assert.match(

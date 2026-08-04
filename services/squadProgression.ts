@@ -97,9 +97,9 @@ const RETIRED_WEEKLY_SQUAD_PROFILE_VERSIONS = [1, 2, 3] as const;
 const PERMANENT_SQUAD_PROFILE_VERSION = 1;
 export const MAIN_SHIP_UPGRADE_MAX_LEVEL = FIRE_RATE_LEVELS_PER_TIER;
 export const MAIN_SHIP_FIRE_RATE_MAX_LEVEL = FIRE_RATE_MAX_LEVEL;
-// The hull's signature move. Each level makes it hit harder and reach wider,
-// so the ship a player chose for its move keeps improving at that move.
-export const MAIN_SHIP_ABILITY_MAX_LEVEL = 5;
+// Six upgrades carry the signature from Spark through Bolt and Charged while
+// reducing its cooldown and growing the impact from Hit I through Hit IV.
+export const MAIN_SHIP_ABILITY_MAX_LEVEL = 6;
 // Campaign runs start at 3 hearts and can be permanently reinforced to the
 // runtime's ten-heart ceiling. Weekly Run ignores this track and remains fixed
 // at ten lives so the competitive rules stay identical for every pilot.
@@ -455,10 +455,10 @@ export const MAIN_SHIP_UPGRADES: ReadonlyArray<{
   {
     id: 'ability',
     name: 'Signature Move',
-    description: "Strengthens this hull's signature move. Each level adds damage and widens its reach.",
+    description: 'Evolves Spark into Bolt and Charged, shortens recharge time, and scales impact up to Hit IV.',
     // The most expensive non-Fire-Rate track. It is the reason to commit to one
     // hull rather than spreading coins across every ship.
-    costs: [220, 480, 900, 1600, 2600]
+    costs: [220, 480, 900, 1600, 2600, 4000]
   },
   {
     id: 'startingHearts',
@@ -829,7 +829,8 @@ export const createFounderSquadSandboxState = (state: WeeklySquadState): WeeklyS
     PLAYABLE_PLAYER_SHIP_IDS.map((shipId) => [shipId, {
       fireRate: MAIN_SHIP_FIRE_RATE_MAX_LEVEL,
       speed: MAIN_SHIP_UPGRADE_MAX_LEVEL,
-      startingHearts: MAIN_SHIP_UPGRADE_MAX_LEVEL
+      ability: MAIN_SHIP_ABILITY_MAX_LEVEL,
+      startingHearts: MAIN_SHIP_STARTING_HEARTS_MAX_LEVEL
     }])
   ) as MainShipUpgradesByShip,
   updatedAt: nowIso()
@@ -1033,6 +1034,7 @@ const mergeWeeklySquadProfiles = (
       return [shipId, {
         fireRate: Math.max(targetUpgrades.fireRate, sourceUpgrades.fireRate),
         speed: Math.max(targetUpgrades.speed, sourceUpgrades.speed),
+        ability: Math.max(targetUpgrades.ability, sourceUpgrades.ability),
         startingHearts: Math.max(targetUpgrades.startingHearts, sourceUpgrades.startingHearts)
       }];
     })

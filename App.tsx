@@ -4,7 +4,12 @@ import StartScreen from './components/StartScreen';
 import SciconOnboarding, { type OnboardingSurface } from './components/SciconOnboarding';
 import MissionLoadingScreen, { type MissionLoadingPhase } from './components/MissionLoadingScreen';
 import { ArchivedWinner, DonationStatus, FieldUpgradeType, GamePolishSettings, GameState, LeaderboardEntry, MintRecord, PowerupType, Stats, Upgrades, WalletSession } from './types';
-import { audioService, type MatchMusicTrackId } from './services/audioService';
+import {
+  audioService,
+  cycleMatchMusicTrackId,
+  getSectorMatchMusicTrackId,
+  type MatchMusicTrackId
+} from './services/audioService';
 import { installUiAudioFeedback } from './services/uiAudioFeedback';
 import {
   ASSETS,
@@ -87,6 +92,7 @@ import {
   getWeeklyRunAttemptsRemaining,
   loadPermanentSquadState,
   loadWeeklySquadState,
+  MAIN_SHIP_ABILITY_MAX_LEVEL,
   MAIN_SHIP_FIRE_RATE_MAX_LEVEL,
   MAIN_SHIP_UPGRADES,  migrateLegacySquadProfile,
   MINI_SHIP_CATALOG,
@@ -1577,6 +1583,19 @@ const App: React.FC = () => {
   const [matchMusicTrackId, setMatchMusicTrackId] = useState<MatchMusicTrackId>(() => (
     audioService.getMatchMusicTrackId()
   ));
+  const campaignMusicMissionId = isCampaignBranchRun
+    ? activeCampaignBranch?.missionDefinition.id ?? null
+    : isCompetitiveCampaignRun
+      ? activeCampaignLaunch?.missionId ?? null
+      : null;
+  const campaignMusicSectorOrder = campaignMusicMissionId
+    ? DEFAULT_GAME_CAMPAIGN.sectors.find((sector) => (
+        sector.id === getCampaignMissionById(campaignMusicMissionId)?.sectorId
+      ))?.order ?? 1
+    : null;
+  const activeMatchMusicTrackId = campaignMusicSectorOrder === null
+    ? matchMusicTrackId
+    : getSectorMatchMusicTrackId(campaignMusicSectorOrder, matchMusicTrackId);
   /**
    * Background music follows what is on screen: the menu bed at rest, combat
    * during waves, and the boss bed the moment a boss is live. The swap itself
@@ -1589,7 +1608,7 @@ const App: React.FC = () => {
     }
 
     const targetMusic = gameState === GameState.PLAYING
-      ? (stats.isBossActive ? 'boss' : matchMusicTrackId)
+      ? (stats.isBossActive ? 'boss' : activeMatchMusicTrackId)
       : gameState === GameState.GAMEOVER && !campaignCompletedRun
         ? 'defeat'
         : 'menu';
@@ -1598,7 +1617,7 @@ const App: React.FC = () => {
       return;
     }
     void audioService.playMusic(targetMusic);
-  }, [campaignCompletedRun, gameState, matchMusicTrackId, stats.isBossActive]);
+  }, [activeMatchMusicTrackId, campaignCompletedRun, gameState, stats.isBossActive]);
 
   const [audioMuted, setAudioMuted] = useState(() => audioService.isMuted());
   const [sfxVolumeLevel, setSfxVolumeLevel] = useState(() => audioService.getSfxVolumeLevel());
@@ -3308,6 +3327,13 @@ const App: React.FC = () => {
     audioService.playUiSound('click');
   };
 
+  const setActiveGameMatchMusicTrack = (trackId: MatchMusicTrackId) => {
+    const startingTrackId = campaignMusicSectorOrder === null
+      ? trackId
+      : cycleMatchMusicTrackId(trackId, -(campaignMusicSectorOrder - 1));
+    setGameMatchMusicTrack(startingTrackId);
+  };
+
   const clearCampaignMapRoute = () => {
     const url = new URL(window.location.href);
     if (url.searchParams.get('view') !== 'campaign-map') return;
@@ -3980,7 +4006,7 @@ const App: React.FC = () => {
           Math.floor(campaignLabUpgradeLevels.fireRate ?? 0)
         )),
         speed: Math.max(0, Math.min(7, Math.floor(campaignLabUpgradeLevels.speed ?? 0))),
-        ability: Math.max(0, Math.min(5, Math.floor(campaignLabUpgradeLevels.ability ?? 0))),
+        ability: Math.max(0, Math.min(MAIN_SHIP_ABILITY_MAX_LEVEL, Math.floor(campaignLabUpgradeLevels.ability ?? 0))),
         startingHearts: Math.max(0, Math.min(7, Math.floor(campaignLabUpgradeLevels.startingHearts ?? 0)))
       },
       campaignLabPowerSupportIds.map((id) => ({ id, level: campaignLabSupportLevel }))
@@ -4942,10 +4968,70 @@ const App: React.FC = () => {
     });
   }, [activeProfileId, activeRunMode, gameId, markCampaignSettlementWalletDirty, usableShipId]);
 
+  const advanceWeeklyRunAfterDepth = (summary: WaveVictorySummary) => {
+    if (!summary.stageComplete) return false;
+    const streak = weeklySquadStateRef.current.weeklyCampaignStreak;
+    if (!streak || streak.finalization.status !== 'active') return false;
+    let runForAdvance = weeklyRun;
+    let outgoing = runForAdvance.graph.edgesBySourceNodeId.get(streak.currentNodeId) ?? [];
+    if (outgoing.length === 0) {
+      // The last materialized node is a runway edge, not an ending. Generate
+      // the next deterministic chunk and advance on the expanded graph. The
+      // same week/absolute indices reproduce the exact prefix on every device.
+      const nextStageCount = runForAdvance.campaign.levels.length + WEEKLY_RUN_STAGE_CHUNK;
+      runForAdvance = getWeeklyRun(weeklySquadStateRef.current.weekKey, nextStageCount);
+      setWeeklyRunStageCount(nextStageCount);
+      outgoing = runForAdvance.graph.edgesBySourceNodeId.get(streak.currentNodeId) ?? [];
+    }
+    if (outgoing.length === 1) {
+      const result = requestWeeklyCampaignAdvance(
+        streak,
+        runForAdvance.graph,
+        outgoing[0].toNodeId,
+        Date.now()
+      );
+      if (result.kind !== 'advanced') {
+        setCampaignMapError(result.kind === 'blocked'
+          ? `Weekly route blocked: ${result.reason.replace(/-/g, ' ')}.`
+          : result.confirmation.message);
+        return false;
+      }
+      const nextNode = runForAdvance.graph.nodeById.get(result.state.currentNodeId);
+      const nextMission = nextNode
+        ? runForAdvance.campaign.levels.find((level) => level.id === nextNode.missionDefinitionId) ?? null
+        : null;
+      const nextWaveId = nextMission?.waves[0]?.id;
+      if (!nextMission || !nextWaveId) return false;
+      persistWeeklyCampaignStreak(result.state);
+      setActiveCampaignLaunch({
+        missionId: nextMission.id,
+        waveId: nextWaveId,
+        kind: 'weekly-streak'
+      });
+      setWaveContinueCommand((current) => ({
+        nonce: (current?.nonce ?? 0) + 1,
+        targetLevelId: nextMission.id,
+        targetWaveId: nextWaveId
+      }));
+      setWaveVictorySummary(null);
+      setGameState(GameState.PLAYING);
+      return true;
+    }
+    setCampaignMapError('Weekly Run runway could not extend. Reload to safely resume this attempt.');
+    return false;
+  };
+
   const showWaveVictory = async (summary: WaveVictorySummary) => {
     if (!summary.stageComplete) {
       setWaveContinueCommand(current => ({ nonce: (current?.nonce ?? 0) + 1 }));
       setGameState(GameState.PLAYING);
+      return;
+    }
+    // Weekly Run depths are technical content boundaries inside one endless
+    // flight. Secure the score, extend the deterministic runway, and continue
+    // immediately without a Mission/Victory screen or victory fanfare.
+    if (isWeeklyCampaignRun) {
+      advanceWeeklyRunAfterDepth(summary);
       return;
     }
     audioService.playSound('mission_victory', 1, { pitchJitter: 0 });
@@ -4995,54 +5081,7 @@ const App: React.FC = () => {
   const continueAfterWaveVictory = () => {
     if (!waveVictorySummary) return;
     if (isWeeklyCampaignRun) {
-      const streak = weeklySquadStateRef.current.weeklyCampaignStreak;
-      if (!streak || streak.finalization.status !== 'active') return;
-      let runForAdvance = weeklyRun;
-      let outgoing = runForAdvance.graph.edgesBySourceNodeId.get(streak.currentNodeId) ?? [];
-      if (outgoing.length === 0) {
-        // The last materialized node is a runway edge, not an ending. Generate
-        // the next deterministic chunk and advance on the expanded graph. The
-        // same week/absolute indices reproduce the exact prefix on every device.
-        const nextStageCount = runForAdvance.campaign.levels.length + WEEKLY_RUN_STAGE_CHUNK;
-        runForAdvance = getWeeklyRun(weeklySquadStateRef.current.weekKey, nextStageCount);
-        setWeeklyRunStageCount(nextStageCount);
-        outgoing = runForAdvance.graph.edgesBySourceNodeId.get(streak.currentNodeId) ?? [];
-      }
-      if (outgoing.length === 1) {
-        const result = requestWeeklyCampaignAdvance(
-          streak,
-          runForAdvance.graph,
-          outgoing[0].toNodeId,
-          Date.now()
-        );
-        if (result.kind !== 'advanced') {
-          setCampaignMapError(result.kind === 'blocked'
-            ? `Weekly route blocked: ${result.reason.replace(/-/g, ' ')}.`
-            : result.confirmation.message);
-          return;
-        }
-        const nextNode = runForAdvance.graph.nodeById.get(result.state.currentNodeId);
-        const nextMission = nextNode
-          ? runForAdvance.campaign.levels.find((level) => level.id === nextNode.missionDefinitionId) ?? null
-          : null;
-        const nextWaveId = nextMission?.waves[0]?.id;
-        if (!nextMission || !nextWaveId) return;
-        persistWeeklyCampaignStreak(result.state);
-        setActiveCampaignLaunch({
-          missionId: nextMission.id,
-          waveId: nextWaveId,
-          kind: 'weekly-streak'
-        });
-        setWaveContinueCommand((current) => ({
-          nonce: (current?.nonce ?? 0) + 1,
-          targetLevelId: nextMission.id,
-          targetWaveId: nextWaveId
-        }));
-        setWaveVictorySummary(null);
-        setGameState(GameState.PLAYING);
-        return;
-      }
-      setCampaignMapError('Weekly Run runway could not extend. Reload to safely resume this attempt.');
+      advanceWeeklyRunAfterDepth(waveVictorySummary);
       return;
     }
     if (isCampaignBranchRun && activeCampaignBranch) {
@@ -6335,11 +6374,11 @@ const App: React.FC = () => {
   };
 
   const openReferral = async () => {
-    await openExternalUrl(ASSETS.REFERRAL_LINK);
+    window.location.assign(ASSETS.REFERRAL_LINK);
   };
 
   const openBaseAppInvite = async () => {
-    await openExternalUrl(DONATION_CONFIG.BASE_APP_INVITE_URL);
+    window.location.assign(DONATION_CONFIG.BASE_APP_INVITE_URL);
   };
 
   const openResearchHubFund = async () => {
@@ -6355,11 +6394,11 @@ const App: React.FC = () => {
   };
 
   const openRscSwap = async () => {
-    const accepted = window.confirm(
-      'You are leaving Scicon Shooter to open the Aerodrome RSC swap on Base. Continue?'
-    );
-    if (!accepted) return;
-    await openExternalUrl(DONATION_CONFIG.RSC_SWAP_URL);
+    window.location.assign(DONATION_CONFIG.RSC_SWAP_URL);
+  };
+
+  const openRscInBase = async () => {
+    window.location.assign(DONATION_CONFIG.RSC_BASE_APP_URL);
   };
 
   const nextContinueRscCost = continueRscCost + 5;
@@ -6633,6 +6672,7 @@ const App: React.FC = () => {
                 ?? (activeCampaignBranch ? getCampaignBranchRuntimeWaveId(activeCampaignBranch) : undefined)
                 ?? (isCampaignRun ? activeCampaignLaunch?.waveId : undefined),
               refillLivesAtMissionBoundary: !isWeeklyCampaignRun,
+              continuousStageBoundaries: isWeeklyCampaignRun,
               randomSeed: activeBossArchiveRun?.seed,
               testMode: isOwnerTestRun,
               testWaveCommand,
@@ -6701,7 +6741,7 @@ const App: React.FC = () => {
         </React.Suspense>
       ) : null}
 
-      {!campaignMapOpen && gameState === GameState.WAVE_COMPLETE && waveVictorySummary?.stageComplete && !isCampaignBranchRun ? (
+      {!campaignMapOpen && gameState === GameState.WAVE_COMPLETE && waveVictorySummary?.stageComplete && !isCampaignBranchRun && !isWeeklyCampaignRun ? (
         <React.Suspense fallback={null}>
           <WaveVictoryOverlay
             summary={waveVictorySummary}
@@ -6821,11 +6861,13 @@ const App: React.FC = () => {
           proposalReferences={proposalReferences}
           proposalStatus={proposalStatus}
           onOpenReferral={openReferral}
+          onOpenBaseAppReferral={openBaseAppInvite}
           onOpenFund={openResearchHubFund}
           onOpenProposal={openResearchHubProposal}
           onOpenXProfile={() => openExternalUrl(DONATION_CONFIG.X_PROFILE_URL)}
           onOpenTreasurySend={openTreasurySend}
           onOpenSwap={openRscSwap}
+          onOpenRscInBase={openRscInBase}
           onOpenWalletRun={openWalletRunRecord}
           championClaimStatus={championClaimStatus}
           championClaimMessage={championClaimMessage}
@@ -6916,11 +6958,13 @@ const App: React.FC = () => {
             proposalReferences={proposalReferences}
             proposalStatus={proposalStatus}
             onOpenReferral={openReferral}
+            onOpenBaseAppReferral={openBaseAppInvite}
             onOpenFund={openResearchHubFund}
             onOpenProposal={openResearchHubProposal}
             onOpenXProfile={() => openExternalUrl(DONATION_CONFIG.X_PROFILE_URL)}
             onOpenTreasurySend={openTreasurySend}
             onOpenSwap={openRscSwap}
+            onOpenRscInBase={openRscInBase}
             onOpenWalletRun={openWalletRunRecord}
             championClaimStatus="idle"
             championClaimMessage=""
@@ -6940,9 +6984,9 @@ const App: React.FC = () => {
           waveTotal={pauseMissionPosition?.waveTotal ?? 1}
           sfxVolumeLevel={sfxVolumeLevel}
           musicVolumeLevel={musicVolumeLevel}
-          matchMusicTrackId={matchMusicTrackId}
+          matchMusicTrackId={activeMatchMusicTrackId}
           onMusicVolumeChange={setGameMusicVolume}
-          onMatchMusicTrackChange={setGameMatchMusicTrack}
+          onMatchMusicTrackChange={setActiveGameMatchMusicTrack}
           polishSettings={polishSettings}
           quitLabel={isWeeklyCampaignRun ? 'Forfeit Run' : 'Exit Run'}
           onResume={beginResumeCountdown}

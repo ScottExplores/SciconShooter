@@ -25,7 +25,7 @@ test('preview overrides and promoted campaign boss artwork share the canonical c
   assert.match(editorSource, /onInitializationError/);
   assert.match(canvasSource, /resolveCampaignBossArtwork/);
   assert.match(canvasSource, /previewBossArtwork \?\? resolveCampaignBossArtwork/);
-  assert.match(canvasSource, /previewBossArtwork: activeBossArtwork/);
+  assert.match(canvasSource, /previewBossArtwork: setupBossArtwork/);
   assert.match(rendererSource, /entity\.sourceEventId !== this\.previewBossArtwork\?\.eventId/);
   assert.match(rendererSource, /usesStandaloneBossArt/);
   assert.doesNotMatch(rendererSource, /meridian-harrower|director-data|__director/);

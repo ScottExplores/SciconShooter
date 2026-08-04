@@ -25,6 +25,7 @@ import {
   getMainShipUpgradeCost,
   getMainShipUpgradeMaxLevel,
   getMiniShipUpgradeCost,
+  MAIN_SHIP_ABILITY_MAX_LEVEL,
   MAIN_SHIP_UPGRADE_MAX_LEVEL,
   MAIN_SHIP_UPGRADES,
   MINI_SHIP_BY_ID,
@@ -38,7 +39,10 @@ import {
   type SquadSlotId,
   type WeeklySquadState
 } from '../services/squadProgression';
-import { getShipAbilityDefinition } from '../services/shipAbilityService';
+import {
+  getShipAbilityDefinition,
+  getShipAbilityUpgradeProfile
+} from '../services/shipAbilityService';
 import { PLAYER_SHIP_WEAPON_SPECS } from '../services/weaponOverdrive';
 import { calculateSquadPowerRating } from '../services/squadPowerRating';
 import { FIRE_RATE_TIER_COUNT } from '../services/weaponTierProgression';
@@ -90,9 +94,15 @@ const MAIN_UPGRADE_SPRITE: Readonly<Record<MainShipUpgradeId, string>> = Object.
  * so it shows that hull's actual move rather than a shared placeholder. Every
  * other track means the same thing on every ship.
  */
-const getMainUpgradeSprite = (upgradeId: MainShipUpgradeId, shipId: PlayerShipId) => (
+const getMainUpgradeSprite = (
+  upgradeId: MainShipUpgradeId,
+  shipId: PlayerShipId,
+  abilityLevel: number
+) => (
   upgradeId === 'ability'
-    ? getShipAbilityDefinition(shipId).iconUrl
+    ? shipId === 'researchhub'
+      ? getShipAbilityUpgradeProfile(abilityLevel).projectileIconUrl
+      : getShipAbilityDefinition(shipId).iconUrl
     : MAIN_UPGRADE_SPRITE[upgradeId]
 );
 const PLAYER_SHIP_ORDER: PlayerShipId[] = [...PLAYABLE_PLAYER_SHIP_IDS];
@@ -288,7 +298,11 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
       ...traceFrames,
       ...Object.values(MAIN_UPGRADE_SPRITE),
       // Preload every hull's signature-move icon, not just the fallback.
-      ...PLAYER_SHIP_ORDER.map((id) => getShipAbilityDefinition(id).iconUrl)
+      ...PLAYER_SHIP_ORDER.map((id) => getShipAbilityDefinition(id).iconUrl),
+      ...Array.from(
+        { length: MAIN_SHIP_ABILITY_MAX_LEVEL + 1 },
+        (_, level) => getShipAbilityUpgradeProfile(level).projectileIconUrl
+      )
     ];
     assets.forEach((src) => {
       const image = new Image();
@@ -298,8 +312,11 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
 
   useEffect(() => {
     setMode('catalog');
+  }, [activePosition]);
+
+  useEffect(() => {
     setSelectedMiniId(activePosition === 'main' ? null : state.equipped[activePosition]);
-  }, [activePosition, state.equipped]);
+  }, [activePosition, state.equipped.left, state.equipped.right]);
 
   const activeMiniId = activePosition === 'main' ? null : (selectedMiniId || state.equipped[activePosition]);
   const activeMini = activeMiniId ? MINI_SHIP_BY_ID[activeMiniId] : null;
@@ -792,7 +809,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
                     ) : null}
                     <div className="flex items-center gap-2.5">
                       <img
-                        src={getMainUpgradeSprite(upgrade.id, mainShipId)}
+                        src={getMainUpgradeSprite(upgrade.id, mainShipId, level)}
                         alt=""
                         className="h-12 w-12 shrink-0 object-contain drop-shadow-[0_0_8px_rgba(34,211,238,0.42)] [image-rendering:pixelated]"
                       />
@@ -803,7 +820,12 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
                         <p className="mt-1 min-h-10 text-[0.62rem] leading-relaxed text-slate-400">{upgrade.description}</p>
                       </div>
                     </div>
-                    <div className="mt-2"><LevelPips level={displayedProgress} max={MAIN_SHIP_UPGRADE_MAX_LEVEL} /></div>
+                    <div className="mt-2">
+                      <LevelPips
+                        level={displayedProgress}
+                        max={upgrade.id === 'fireRate' ? MAIN_SHIP_UPGRADE_MAX_LEVEL : maxLevel}
+                      />
+                    </div>
                     {founderSandbox ? (
                       <div className="mt-3 grid grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] gap-1.5">
                         <button

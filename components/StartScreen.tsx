@@ -59,6 +59,7 @@ import {
   type AchievementId,
   type DailyGiftReward
 } from '../services/rewardProgression';
+import { CAMPAIGN_MISSIONS } from '../services/campaignProgression';
 import type {
   MainShipUpgradeId,
   MiniShipId,
@@ -66,7 +67,11 @@ import type {
   SquadSlotId,
   WeeklySquadState
 } from '../services/squadProgression';
-import { WEEKLY_RUN_ATTEMPT_LIMIT } from '../services/squadProgression';
+import {
+  CAMPAIGN_MISSION_MASTERY_STARS,
+  MAIN_SHIP_UPGRADES,
+  WEEKLY_RUN_ATTEMPT_LIMIT
+} from '../services/squadProgression';
 
 type ProposalFeedStatus = 'loading' | 'ready' | 'empty' | 'error';
 
@@ -99,11 +104,13 @@ interface StartScreenProps {
   proposalReferences?: ResearchHubProposal[];
   proposalStatus: ProposalFeedStatus;
   onOpenReferral: () => void;
+  onOpenBaseAppReferral: () => void;
   onOpenFund: () => void;
   onOpenProposal: (url: string) => void;
   onOpenXProfile: () => void;
   onOpenTreasurySend: () => void;
   onOpenSwap: () => void;
+  onOpenRscInBase: () => void;
   onOpenWalletRun: (record: WalletRunRecord) => void;
   walletControl?: React.ReactNode;
   championClaimStatus: 'idle' | 'connecting' | 'signing' | 'confirmed' | 'error';
@@ -178,18 +185,29 @@ type TrophyCategory = 'weeklyFunding' | 'campaign';
 const CampaignTrophyPanel = ({ state }: { state: PermanentSquadState }) => {
   const stats = state.lifetimeStats;
   const progress = state.campaignProgress;
-  const missionRecords = Object.values(progress?.missionRecords ?? {});
+  const missionRecordEntries = Object.entries(progress?.missionRecords ?? {});
+  const missionRecords = missionRecordEntries.map(([, record]) => record);
   const completed = missionRecords.filter((record) => record.completed).length;
   const totalStars = missionRecords.reduce((sum, record) => sum + (record.stars ?? 0), 0);
   const bossArchiveUnlocked = state.bossArchive?.unlockedEventIds?.length ?? 0;
+  const authoredMissionTotal = CAMPAIGN_MISSIONS.length;
+  const authoredStarTotal = authoredMissionTotal * CAMPAIGN_MISSION_MASTERY_STARS;
+  const eliteCheckpointMissionIds = CAMPAIGN_MISSIONS
+    .filter((mission) => mission.missionRole === 'elite-checkpoint')
+    .map((mission) => mission.id);
+  const eliteCheckpointsCompleted = missionRecordEntries.filter(([missionId, record]) => (
+    record.completed && eliteCheckpointMissionIds.includes(missionId)
+  )).length;
+  const authoredHangarUpgradeTotal = PLAYABLE_PLAYER_SHIP_IDS.length
+    * MAIN_SHIP_UPGRADES.reduce((sum, upgrade) => sum + upgrade.costs.length, 0);
 
-  const rows: Array<{ label: string; value: number; hint: string }> = [
-    { label: 'Missions cleared', value: completed, hint: 'First clears across the Campaign graph' },
-    { label: 'Missions mastered', value: stats.campaignMissionsMastered, hint: 'Every objective met' },
-    { label: 'Stars earned', value: totalStars, hint: 'Three per Mission at full mastery' },
-    { label: 'Elite Bosses beaten', value: stats.eliteBossesDefeated, hint: 'Checkpoint encounters' },
-    { label: 'Bosses archived', value: bossArchiveUnlocked, hint: 'Unlocked for replay' },
-    { label: 'Hangar upgrades', value: stats.hangarUpgradesPurchased, hint: 'Purchased across all hulls' }
+  const rows: Array<{ label: string; value: number; total: number; hint: string }> = [
+    { label: 'Missions cleared', value: Math.min(completed, authoredMissionTotal), total: authoredMissionTotal, hint: 'First clears across the Campaign graph' },
+    { label: 'Missions mastered', value: Math.min(stats.campaignMissionsMastered, authoredMissionTotal), total: authoredMissionTotal, hint: 'Every objective met' },
+    { label: 'Stars earned', value: Math.min(totalStars, authoredStarTotal), total: authoredStarTotal, hint: 'Three per Mission at full mastery' },
+    { label: 'Elite Bosses beaten', value: eliteCheckpointsCompleted, total: eliteCheckpointMissionIds.length, hint: 'Unique elite-checkpoint Missions cleared' },
+    { label: 'Bosses archived', value: Math.min(bossArchiveUnlocked, BOSS_ARCHIVE_CATALOG.length), total: BOSS_ARCHIVE_CATALOG.length, hint: 'Unlocked for replay' },
+    { label: 'Hangar upgrades', value: Math.min(stats.hangarUpgradesPurchased, authoredHangarUpgradeTotal), total: authoredHangarUpgradeTotal, hint: 'Permanent main-hull upgrades purchased' }
   ];
 
   return (
@@ -200,7 +218,9 @@ const CampaignTrophyPanel = ({ state }: { state: PermanentSquadState }) => {
             <p className="sci-campaign-trophies__label">{row.label}</p>
             <p className="sci-campaign-trophies__hint">{row.hint}</p>
           </div>
-          <strong className="sci-campaign-trophies__value">{formatNumber(row.value)}</strong>
+          <strong className="sci-campaign-trophies__value">
+            {formatNumber(row.value)} / {formatNumber(row.total)}
+          </strong>
         </div>
       ))}
       <p className="sci-campaign-trophies__note">
@@ -241,6 +261,53 @@ const DASHBOARD_NAV_ICON_SPRITESHEET = `${SCICON_NEON_DASHBOARD_ICON_ROOT}/dashb
 const COMMUNICATION_ICON_ROOT = '/game-art/generated/ui/scicon-interface-pack-v1/icons/communication';
 // Regenerate with tools/generate-referral-qr.mjs whenever REFERRAL_LINK changes.
 const RESEARCHHUB_REFERRAL_QR = '/game-art/generated/ui/scicon-desktop-mobile-launch-v1/researchhub-referral-qr.png';
+const BASE_APP_REFERRAL_QR = '/game-art/generated/ui/scicon-desktop-mobile-launch-v1/base-app-invite-qr.png';
+
+const useDialogFocusRestoration = (
+  open: boolean,
+  dialogRef: { readonly current: HTMLElement | null },
+  initialFocusRef: { readonly current: HTMLElement | null }
+) => {
+  useEffect(() => {
+    if (!open) return undefined;
+    const previousFocus = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    const focusFrame = window.requestAnimationFrame(() => {
+      initialFocusRef.current?.focus();
+    });
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+      if (previousFocus && document.body.contains(previousFocus)) previousFocus.focus();
+    };
+  }, [dialogRef, initialFocusRef, open]);
+};
+
+const trapDialogFocus = (
+  event: React.KeyboardEvent<HTMLElement>,
+  dialog: HTMLElement | null,
+  close: () => void
+) => {
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    close();
+    return;
+  }
+  if (event.key !== 'Tab') return;
+  const focusable = Array.from(dialog?.querySelectorAll<HTMLElement>(
+    'button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
+  ) ?? []);
+  if (focusable.length === 0) return;
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+};
 // Weekly Run headline facts, sourced from the gauntlet route so the card can
 // never drift from what the mode actually does.
 
@@ -680,11 +747,13 @@ const StartScreen: React.FC<StartScreenProps> = ({
   proposalReferences = [],
   proposalStatus,
   onOpenReferral,
+  onOpenBaseAppReferral,
   onOpenFund,
   onOpenProposal,
   onOpenXProfile,
   onOpenTreasurySend,
   onOpenSwap,
+  onOpenRscInBase,
   onOpenWalletRun,
   walletControl,
   championClaimStatus,
@@ -753,8 +822,12 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const [proposalSearch, setProposalSearch] = useState('');
   const [showFeedback, setShowFeedback] = useState(false);
   const [showTreasury, setShowTreasury] = useState(false);
+  const [showRscAcquire, setShowRscAcquire] = useState(false);
   const [showReferral, setShowReferral] = useState(false);
-  const [referralCopyStatus, setReferralCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
+  const [referralCopyStatus, setReferralCopyStatus] = useState<Record<'researchhub' | 'base', 'idle' | 'copied' | 'error'>>({
+    researchhub: 'idle',
+    base: 'idle'
+  });
   const [showLegal, setShowLegal] = useState(false);
   const [showRewardCenter, setShowRewardCenter] = useState(false);
   const [showBossArchive, setShowBossArchive] = useState(() => (
@@ -781,6 +854,12 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const proposalReminderShownRef = useRef(new Map<string, number>());
   const weeklyProposalReminderRef = useRef<HTMLElement>(null);
   const weeklyProposalReminderPrimaryRef = useRef<HTMLButtonElement>(null);
+  const rscAcquireDialogRef = useRef<HTMLElement>(null);
+  const rscAcquirePrimaryRef = useRef<HTMLButtonElement>(null);
+  const referralDialogRef = useRef<HTMLElement>(null);
+  const referralCloseRef = useRef<HTMLButtonElement>(null);
+  useDialogFocusRestoration(showRscAcquire, rscAcquireDialogRef, rscAcquirePrimaryRef);
+  useDialogFocusRestoration(showReferral, referralDialogRef, referralCloseRef);
   const treasuryAddress = DONATION_CONFIG.RECIPIENT_ADDRESS;
   const weeklyProposalRunId = weeklyProposalRecovery?.record.receipt.runId ?? null;
   const weeklyProposalNeedsAttention = Boolean(weeklyProposalRecovery?.needsProposal);
@@ -1531,6 +1610,18 @@ const StartScreen: React.FC<StartScreenProps> = ({
     ) : null;
   };
 
+  const handleCopyReferral = async (destination: 'researchhub' | 'base', url: string) => {
+    try {
+      await copyTextWithFallback(url);
+      setReferralCopyStatus((current) => ({ ...current, [destination]: 'copied' }));
+      window.setTimeout(() => {
+        setReferralCopyStatus((current) => ({ ...current, [destination]: 'idle' }));
+      }, 1800);
+    } catch {
+      setReferralCopyStatus((current) => ({ ...current, [destination]: 'error' }));
+    }
+  };
+
   const renderWeeklyFundingCard = ({ compact = false }: { compact?: boolean } = {}) => (
     <HudPanel className="sci-weekly-funding-shell" data-onboarding-target="weekly-funding">
       <div className={`sci-weekly-funding-content ${compact ? 'sci-weekly-funding-content--compact' : ''}`}>
@@ -2179,7 +2270,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
           <MoreMenuTile
             label="RSC on Base"
             icon={`${MORE_MENU_ICON_ROOT}/market-store.png`}
-            onClick={onOpenSwap}
+            onClick={() => setShowRscAcquire(true)}
           />
           <MoreMenuTile
             label="Referral"
@@ -2239,7 +2330,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
           }}
           onUnlockSlot={onUnlockSquadSlot}
           onPurchaseWithRsc={onPurchaseWithRsc}
-          onOpenRscSwap={onOpenSwap}
+          onOpenRscSwap={() => setShowRscAcquire(true)}
           onPurchaseMini={onPurchaseMiniShip}
           onUpgradeMini={onUpgradeMiniShip}
           onDowngradeMini={onDowngradeMiniShip}
@@ -2280,7 +2371,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
           }}
           onUnlockSlot={onUnlockSquadSlot}
           onPurchaseWithRsc={onPurchaseWithRsc}
-          onOpenRscSwap={onOpenSwap}
+          onOpenRscSwap={() => setShowRscAcquire(true)}
           onPurchaseMini={onPurchaseMiniShip}
           onUpgradeMini={onUpgradeMiniShip}
           onDowngradeMini={onDowngradeMiniShip}
@@ -2590,48 +2681,135 @@ const StartScreen: React.FC<StartScreenProps> = ({
         </div>
       )}
 
-      {showReferral && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-[8px] border border-cyan-300/25 bg-slate-950 p-5 shadow-[0_0_40px_rgba(34,211,238,0.22)]">
-            <div className="mb-4 flex items-start justify-between gap-3">
+      {showRscAcquire && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <section
+            ref={rscAcquireDialogRef}
+            className="max-h-[calc(100svh-2rem)] w-full max-w-md overflow-y-auto rounded-[8px] border border-cyan-300/35 bg-slate-950 p-5 shadow-[0_0_42px_rgba(34,211,238,0.25)]"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="sci-rsc-acquire-title"
+            aria-describedby="sci-rsc-acquire-description"
+            onKeyDown={(event) => trapDialogFocus(event, rscAcquireDialogRef.current, () => setShowRscAcquire(false))}
+          >
+            <div className="flex items-start justify-between gap-3">
               <div>
-                <h2 className="text-lg font-black text-white">Invite to ResearchHub</h2>
-                <p className="text-xs text-slate-300">Scan on a phone, or share the link.</p>
+                <p className="text-[0.6rem] font-black uppercase tracking-[0.14em] text-emerald-200">Base network</p>
+                <h2 id="sci-rsc-acquire-title" className="mt-1 text-lg font-black text-white">Get Research Coin</h2>
+                <p id="sci-rsc-acquire-description" className="mt-1 text-xs leading-relaxed text-slate-300">
+                  Choose where to continue. You are leaving Scicon Shooter, and your wallet will show the final route and confirmation.
+                </p>
               </div>
-              <button type="button" onClick={() => setShowReferral(false)} className="sci-icon-button" aria-label="Close referral">
+              <button type="button" onClick={() => setShowRscAcquire(false)} className="sci-icon-button" aria-label="Close Research Coin options">
                 <Icon name="x" />
               </button>
             </div>
-            <div className="flex justify-center rounded-[6px] border border-cyan-300/18 bg-[#020817] p-3">
-              <img
-                src={RESEARCHHUB_REFERRAL_QR}
-                alt="QR code linking to the ResearchHub referral invite"
-                className="h-44 w-44"
-                style={{ imageRendering: 'pixelated' }}
-              />
-            </div>
-            <div className="mt-4 flex flex-wrap gap-3">
+
+            <div className="mt-4 grid gap-2">
               <button
+                ref={rscAcquirePrimaryRef}
                 type="button"
-                className="sci-mini-cta"
-                onClick={async () => {
-                  try {
-                    await navigator.clipboard.writeText(ASSETS.REFERRAL_LINK);
-                    setReferralCopyStatus('copied');
-                  } catch {
-                    setReferralCopyStatus('error');
-                  }
+                className="rounded-[6px] border border-blue-300/40 bg-blue-400/10 p-3 text-left transition hover:border-blue-100/80 hover:bg-blue-400/20"
+                onClick={() => {
+                  setShowRscAcquire(false);
+                  onOpenRscInBase();
                 }}
               >
-                <Icon name="copy" className="h-4 w-4" />
-                {referralCopyStatus === 'copied' ? 'Copied' : referralCopyStatus === 'error' ? 'Copy failed' : 'Copy link'}
+                <strong className="block text-sm text-blue-100">View RSC in Base</strong>
+                <span className="mt-1 block text-[0.68rem] leading-relaxed text-slate-300">Open the verified RSC token page in Base, where supported wallet actions are available.</span>
               </button>
-              <button type="button" onClick={onOpenReferral} className="sci-mini-cta">
-                <Icon name="external" className="h-4 w-4" />
-                Open link
+              <button
+                type="button"
+                className="rounded-[6px] border border-emerald-300/40 bg-emerald-400/10 p-3 text-left transition hover:border-emerald-100/80 hover:bg-emerald-400/20"
+                onClick={() => {
+                  setShowRscAcquire(false);
+                  onOpenSwap();
+                }}
+              >
+                <strong className="block text-sm text-emerald-100">Swap USDC for RSC</strong>
+                <span className="mt-1 block text-[0.68rem] leading-relaxed text-slate-300">Open the prefilled Aerodrome route. You can change the input token there before confirming.</span>
               </button>
             </div>
-          </div>
+
+            <p className="mt-3 border-t border-white/10 pt-3 text-[0.62rem] leading-relaxed text-slate-400">
+              Scicon never asks for a recovery phrase. No swap happens until you approve it in your wallet.
+            </p>
+          </section>
+        </div>
+      )}
+
+      {showReferral && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
+          <section
+            ref={referralDialogRef}
+            className="max-h-[calc(100svh-2rem)] w-full max-w-lg overflow-y-auto rounded-[8px] border border-cyan-300/25 bg-slate-950 p-5 shadow-[0_0_40px_rgba(34,211,238,0.22)]"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="sci-referrals-title"
+            onKeyDown={(event) => trapDialogFocus(event, referralDialogRef.current, () => setShowReferral(false))}
+          >
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <h2 id="sci-referrals-title" className="text-lg font-black text-white">Referral Links</h2>
+                <p className="text-xs text-slate-300">Invite researchers and Base pilots with the matching link.</p>
+              </div>
+              <button ref={referralCloseRef} type="button" onClick={() => setShowReferral(false)} className="sci-icon-button" aria-label="Close referral">
+                <Icon name="x" />
+              </button>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {([
+                {
+                  id: 'researchhub' as const,
+                  label: 'ResearchHub referral',
+                  url: ASSETS.REFERRAL_LINK,
+                  qr: RESEARCHHUB_REFERRAL_QR,
+                  onOpen: onOpenReferral
+                },
+                {
+                  id: 'base' as const,
+                  label: 'Base App referral',
+                  url: DONATION_CONFIG.BASE_APP_INVITE_URL,
+                  qr: BASE_APP_REFERRAL_QR,
+                  onOpen: onOpenBaseAppReferral
+                }
+              ]).map((referral) => (
+                <article key={referral.id} className="rounded-[6px] border border-cyan-300/18 bg-[#020817] p-3">
+                  <h3 className="text-center text-xs font-black uppercase tracking-[0.08em] text-cyan-100">{referral.label}</h3>
+                  <img
+                    src={referral.qr}
+                    alt={`QR code for the ${referral.label}`}
+                    className="mx-auto mt-3 h-32 w-32 border-[6px] border-white bg-white"
+                    style={{ imageRendering: 'pixelated' }}
+                  />
+                  <a
+                    href={referral.url}
+                    className="mt-3 block break-all text-[0.58rem] leading-relaxed text-cyan-200 underline decoration-cyan-300/60 underline-offset-2"
+                  >
+                    {referral.url}
+                  </a>
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      className="sci-mini-cta justify-center px-2"
+                      onClick={() => void handleCopyReferral(referral.id, referral.url)}
+                    >
+                      <Icon name="copy" className="h-4 w-4" />
+                      {referralCopyStatus[referral.id] === 'copied'
+                        ? 'Copied'
+                        : referralCopyStatus[referral.id] === 'error'
+                          ? 'Failed'
+                          : 'Copy'}
+                    </button>
+                    <button type="button" onClick={referral.onOpen} className="sci-mini-cta justify-center px-2">
+                      <Icon name="external" className="h-4 w-4" />
+                      Open
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
         </div>
       )}
 

@@ -379,7 +379,7 @@ test('companion formation resets deterministically and reforms with the next-sta
     engine.indexOf('startNextWave()'),
     engine.indexOf('resize(width: number, height: number)')
   );
-  assert.match(nextStageStart, /if \(stageBoundary\)[\s\S]*?this\.resetSquadCompanionPositions\(\)/);
+  assert.match(nextStageStart, /if \(stageBoundary && !seamlessStageBoundary\)[\s\S]*?this\.resetSquadCompanionPositions\(\)/);
   assert.match(engine, /updateIntroFlight\(\)[\s\S]*?this\.updateIntroSquadCompanions\(\)/);
 });
 

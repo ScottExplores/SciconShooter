@@ -66,7 +66,7 @@ test('wallet snapshots whitelist fields, normalize profile IDs, and strip minted
       },
       equipped: { left: 'citation-dart', right: 'not-a-real-ship' },
       shipUpgrades: {
-        researchhub: { fireRate: 999, speed: 999, startingHearts: -5 },
+        researchhub: { fireRate: 999, speed: 999, ability: 999, startingHearts: -5 },
         bio: { fireRate: 3, speed: 2, startingHearts: 1 }
       },
       weeklyStats: { runs: 2, score: 3, enemiesDefeated: 4, coinsEarned: 5 },
@@ -124,6 +124,7 @@ test('wallet snapshots whitelist fields, normalize profile IDs, and strip minted
   assert.equal(sanitized.weeklyState.ownedMiniShips['not-a-real-ship'], undefined);
   assert.equal(sanitized.weeklyState.shipUpgrades.researchhub.fireRate, 49);
   assert.equal(sanitized.weeklyState.shipUpgrades.researchhub.speed, 7);
+  assert.equal(sanitized.weeklyState.shipUpgrades.researchhub.ability, 6);
   assert.equal(sanitized.weeklyState.equipped.right, null);
   assert.equal('mintedMiniShips' in sanitized.permanentState, false);
   assert.deepEqual(sanitized.permanentState.unlockedPlayerShips, ['eth']);

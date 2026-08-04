@@ -46,42 +46,65 @@ test('rarer hulls recharge their signature faster, so the Hangar chase is progre
   assert.equal(ids.size, 4);
 });
 
-test('the Fire Rate track also tightens the signature cooldown', () => {
+test('the Signature Move track owns its four cooldown reductions', () => {
   const {
     getShipAbilityCooldownFrames,
-    SHIP_ABILITY_COOLDOWN_MIN_MULTIPLIER: floor
+    SHIP_ABILITY_COOLDOWN_MIN_MULTIPLIER: floor,
+    SHIP_ABILITY_COOLDOWN_STEP_BY_LEVEL: cooldownSteps,
+    SHIP_ABILITY_MAX_LEVEL: maxLevel
   } = loadShipAbilities();
   const base = 960;
-  const maxLevel = 49;
 
-  assert.equal(getShipAbilityCooldownFrames(base, 0, maxLevel), base, 'level 0 is the base cooldown');
-
-  const mid = getShipAbilityCooldownFrames(base, 25, maxLevel);
-  assert.ok(mid < base, 'mid track is faster than base');
-  assert.ok(mid > base * floor, 'mid track has not reached the floor');
+  assert.equal(maxLevel, 6);
+  assert.deepEqual(Array.from(cooldownSteps), [0, 1, 1, 2, 2, 3, 4]);
+  assert.equal(getShipAbilityCooldownFrames(base, 0), base, 'level 0 is the base cooldown');
 
   assert.equal(
-    getShipAbilityCooldownFrames(base, maxLevel, maxLevel),
+    getShipAbilityCooldownFrames(base, maxLevel),
     Math.round(base * floor),
     'the maxed track lands exactly on the floor'
   );
 
-  // Monotonic, and never below the floor no matter what is passed in.
-  let previous = Number.POSITIVE_INFINITY;
-  for (let level = 0; level <= maxLevel; level += 1) {
-    const frames = getShipAbilityCooldownFrames(base, level, maxLevel);
-    assert.ok(frames <= previous, `cooldown never increases with level (level ${level})`);
-    assert.ok(frames >= Math.round(base * floor), `cooldown never dips under the floor (level ${level})`);
-    previous = frames;
-  }
-  assert.equal(getShipAbilityCooldownFrames(base, 999, maxLevel), Math.round(base * floor));
-  assert.equal(getShipAbilityCooldownFrames(base, -5, maxLevel), base);
+  const ladder = Array.from(
+    { length: maxLevel + 1 },
+    (_, level) => getShipAbilityCooldownFrames(base, level)
+  );
+  assert.deepEqual(ladder, [960, 876, 876, 792, 792, 708, 624]);
+  assert.equal(getShipAbilityCooldownFrames(base, 999), Math.round(base * floor));
+  assert.equal(getShipAbilityCooldownFrames(base, -5), base);
+});
+
+test('the pure upgrade profile drives Spark, Bolt, Charged, and Hit I-IV previews', () => {
+  const {
+    getShipAbilityUpgradeProfile,
+    getShipAbilityDamageMultiplier,
+    getShipAbilityRadiusMultiplier
+  } = loadShipAbilities();
+  const profiles = Array.from({ length: 7 }, (_, level) => getShipAbilityUpgradeProfile(level));
+
+  assert.deepEqual(
+    profiles.map((profile) => profile.projectileTier),
+    ['spark', 'spark', 'bolt', 'bolt', 'charged', 'charged', 'charged']
+  );
+  assert.deepEqual(
+    profiles.map((profile) => profile.impactTier),
+    [1, 1, 2, 2, 3, 3, 4]
+  );
+  assert.deepEqual(
+    profiles.map((profile) => profile.cooldownStep),
+    [0, 1, 1, 2, 2, 3, 4]
+  );
+  assert.equal(getShipAbilityDamageMultiplier(6), 2.4);
+  assert.equal(getShipAbilityRadiusMultiplier(6), 1.55);
+  assert.equal(getShipAbilityUpgradeProfile(-50).level, 0);
+  assert.equal(getShipAbilityUpgradeProfile(999).level, 6);
 });
 
 test('the engine routes both cooldown writes through the upgrade-aware helper', () => {
   const engine = read('services/gameLogic.ts');
   assert.match(engine, /getShipAbilityCooldownFrames\(baseCooldownFrames: number\)/);
-  assert.match(engine, /this\.stats\.upgrades\?\.fireRate \|\| 0,\s*\n\s*FIRE_RATE_MAX_LEVEL/);
+  assert.match(engine, /getShipAbilityCooldownFrames\([\s\S]*?this\.stats\.upgrades\?\.ability \|\| 0/);
+  assert.doesNotMatch(engine, /getShipAbilityCooldownFrames\([\s\S]{0,160}FIRE_RATE_MAX_LEVEL/);
   // Loadout swap and ability launch must both use it, or the HUD ring and the
   // real cooldown disagree.
   assert.match(engine, /shipAbilityCooldownMax = this\.getShipAbilityCooldownFrames\(/);

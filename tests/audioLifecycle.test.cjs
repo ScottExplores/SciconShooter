@@ -163,6 +163,8 @@ const loadAudioService = (options = {}) => {
 
   return {
     audioService: context.module.exports.audioService,
+    cycleMatchMusicTrackId: context.module.exports.cycleMatchMusicTrackId,
+    getSectorMatchMusicTrackId: context.module.exports.getSectorMatchMusicTrackId,
     audioContexts,
     mediaElements,
     fetchCalls,
@@ -183,6 +185,17 @@ const loadAudioService = (options = {}) => {
     }
   };
 };
+
+test('match music arrows wrap and Campaign sectors advance from the selected track', () => {
+  const harness = loadAudioService();
+  const { cycleMatchMusicTrackId, getSectorMatchMusicTrackId } = harness;
+
+  assert.equal(cycleMatchMusicTrackId('combat', -1), 'event-horizon-run');
+  assert.equal(cycleMatchMusicTrackId('event-horizon-run', 1), 'combat');
+  assert.equal(getSectorMatchMusicTrackId(1, 'open-orbit-relay'), 'open-orbit-relay');
+  assert.equal(getSectorMatchMusicTrackId(2, 'open-orbit-relay'), 'ion-veil-pursuit');
+  assert.equal(getSectorMatchMusicTrackId(5, 'open-orbit-relay'), 'open-orbit-relay');
+});
 
 test('UI interaction initializes only WebAudio and never creates or plays background media', async () => {
   const harness = loadAudioService();

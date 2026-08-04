@@ -74,13 +74,13 @@ test('economy simulation consumes premium-adjusted support and main-ship costs f
   const { simulation } = await loadSimulation();
   const reference = simulation.upgradeReference;
 
-  assert.equal(reference.fullMainShipCoins, 567445);
-  assert.equal(reference.allFourMainShipsCoins, 2269780);
+  assert.equal(reference.fullMainShipCoins, 571445);
+  assert.equal(reference.allFourMainShipsCoins, 2285780);
   assert.equal(reference.allSupportsAndSlotsCoins, 38310);
   assert.equal(reference.mainUpgradeCosts.fireRate.length, 49);
   assert.equal(reference.mainUpgradeCosts.fireRate.slice(0, 21).reduce((sum, cost) => sum + cost, 0), 40250);
   assert.equal(reference.mainUpgradeCosts.fireRate.reduce((sum, cost) => sum + cost, 0), 551350);
-  assert.equal(reference.mainUpgradeQueue.length, 68);
+  assert.equal(reference.mainUpgradeQueue.length, 69);
   // Every purchasable track appears in the purchase model, so the cost to max a
   // hull stays truthful as tracks come and go.
   assert.deepEqual(Object.keys(reference.mainUpgradeCosts), ['fireRate', 'speed', 'ability', 'startingHearts']);
@@ -106,8 +106,8 @@ test('economy simulation consumes premium-adjusted support and main-ship costs f
   });
   // Homing Missiles was retired from the Hangar (homing is the wing's job),
   // so a hull is cheaper to max and the Campaign funds fewer, costlier tiers.
-  assert.equal(simulation.cadences.clearOnly.purchasesFunded, 27);
-  assert.equal(simulation.cadences.expected.purchasesFunded, 29);
+  assert.equal(simulation.cadences.clearOnly.purchasesFunded, 26);
+  assert.equal(simulation.cadences.expected.purchasesFunded, 26);
   assert.equal(simulation.cadences.fullMasteryMinimum.purchasesFunded, 37);
   // Clearing Missions must always fund fewer upgrades than mastering them,
   // or mastery objectives stop being worth playing for.

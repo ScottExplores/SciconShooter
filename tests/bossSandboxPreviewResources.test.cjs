@@ -172,10 +172,10 @@ test('boss anatomy sockets travel from shared Test and Campaign artwork into sim
 
   assert.match(model, /weaponSockets: Object\.freeze\(\{/);
   assert.match(model, /id: 'revenant-core', role: 'core'/);
-  assert.match(canvas, /previewBossWeaponSockets: activeBossArtwork\?\.weaponSockets/);
+  assert.match(canvas, /previewBossWeaponSockets: setupBossArtwork\?\.weaponSockets/);
   assert.match(canvas, /createModularBossWeaponSocketPoseSampler/);
   assert.match(canvas, /previewBossWeaponSocketPoseSampler,/);
-  assert.match(canvas, /previewBossWeaponSocketEventId: activeBossArtwork\?\.eventId/);
+  assert.match(canvas, /previewBossWeaponSocketEventId: setupBossArtwork\?\.eventId/);
   assert.match(engine, /previewBossWeaponSockets\?: BossWeaponSocketProfile/);
   assert.match(engine, /previewBossWeaponSocketPoseSampler\?: BossWeaponSocketPoseSampler/);
   assert.match(engine, /previewBossWeaponSocketEventId\?: string/);

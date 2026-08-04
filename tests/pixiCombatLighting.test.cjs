@@ -88,7 +88,7 @@ test('coins and Research Charge own restrained persistent lights without per-fra
   const researchIndex = lighting.indexOf("entity.projectileVisualKind === 'research-charge'");
   const bossIndex = lighting.indexOf('entity.type === EntityType.BOSS && entity.isCharging');
   assert.ok(researchIndex >= 0 && researchIndex < bossIndex, 'Research Charge is admitted before capped boss accents');
-  assert.match(lighting, /entity\.type === EntityType\.EFFECT[\s\S]*?RESEARCH_IMPACT_FRAME_URLS\[0\]/);
+  assert.match(lighting, /entity\.type === EntityType\.EFFECT[\s\S]*?RESEARCH_IMPACT_ALL_FRAME_URLS\.includes/);
   assert.match(lighting, /const slowPulse = 0\.94 \+ Math\.sin/);
   assert.match(lighting, /COMBAT_LIGHT_SPECIAL_COLOR/);
   assert.match(lighting, /entity\.type !== EntityType\.COIN/);
@@ -123,8 +123,9 @@ test('Research Charge and coin art have no hard vector aura and the charge reuse
   assert.doesNotMatch(playerRig, /magnetized|#facc15/);
   assert.match(trigger, /if \(ability\.id !== 'research-charge'\)/);
   assert.doesNotMatch(detonate, /spawnRingEffect/);
-  assert.match(detonate, /RESEARCH_IMPACT_FRAME_URLS\[0\][\s\S]*RESEARCH_IMPACT_FRAME_URLS\[1\]/);
-  assert.doesNotMatch(detonate, /RESEARCH_IMPACT_FRAME_URLS\[[2-6]\]/);
+  assert.match(detonate, /getShipAbilityUpgradeProfile/);
+  assert.match(detonate, /impact\.spriteFrames = \[\.\.\.abilityUpgradeProfile\.impactFrames\]/);
+  assert.match(detonate, /impactSize = 148 \+ \(abilityUpgradeProfile\.impactTier - 1\) \* 18/);
   assert.match(research, /RESEARCH_CHARGE_TRAIL_SEGMENTS_REDUCED/);
   assert.match(research, /RESEARCH_CHARGE_TRAIL_SEGMENTS_MOBILE/);
   assert.match(research, /RESEARCH_CHARGE_TRAIL_SEGMENTS_DESKTOP/);

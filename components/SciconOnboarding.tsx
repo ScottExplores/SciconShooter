@@ -75,7 +75,7 @@ export const SCICON_ONBOARDING_STEPS: readonly OnboardingStepDefinition[] = [
     target: 'mission-home',
     title: 'Return to command',
     body: 'Your Mission reward is secured. Return Home to collect your first daily gift and prepare a support ship.',
-    instruction: 'Press Return Home',
+    instruction: 'Press the bright Return Home button below',
     activationEvent: 'click'
   },
   {
@@ -230,7 +230,7 @@ export interface SciconOnboardingProps {
   skipRewardEconomy?: boolean;
 }
 
-const getVisibleTarget = (targetName: string): HTMLElement | null => {
+export const getVisibleTarget = (targetName: string): HTMLElement | null => {
   const candidates = Array.from(document.querySelectorAll<HTMLElement>(
     `[data-onboarding-target="${targetName}"]`
   ));
@@ -241,8 +241,7 @@ const getVisibleTarget = (targetName: string): HTMLElement | null => {
     return rect.width > 1
       && rect.height > 1
       && style.display !== 'none'
-      && style.visibility !== 'hidden'
-      && Number(style.opacity || 1) > 0;
+      && style.visibility !== 'hidden';
   }) ?? null;
 };
 
@@ -355,6 +354,12 @@ const SciconOnboarding: React.FC<SciconOnboardingProps> = ({
     });
     return () => observer.disconnect();
   }, [locateTarget, shouldShow]);
+
+  useEffect(() => {
+    if (!targetElement) return undefined;
+    targetElement.setAttribute('data-onboarding-active-target', 'true');
+    return () => targetElement.removeAttribute('data-onboarding-active-target');
+  }, [targetElement]);
 
   useEffect(() => {
     if (
@@ -630,7 +635,7 @@ const SciconOnboarding: React.FC<SciconOnboardingProps> = ({
             <b>{SCICON_ONBOARDING_STEPS.findIndex((step) => step.id === currentStep.id) + 1}/{SCICON_ONBOARDING_STEPS.length}</b>
           </div>
           <h2>{currentStep.title}</h2>
-          <p>{targetElement ? currentStep.body : 'Preparing the next control…'}</p>
+          <p>{currentStep.body}</p>
         </div>
 
         <div className="sci-onboarding__actions">
@@ -643,7 +648,7 @@ const SciconOnboarding: React.FC<SciconOnboardingProps> = ({
             </button>
           </div>
           <strong className="sci-onboarding__instruction">
-            {targetElement ? currentStep.instruction : 'Locating…'}
+            {currentStep.instruction}
           </strong>
         </div>
       </section>

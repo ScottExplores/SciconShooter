@@ -41,7 +41,10 @@ test('pause and More reuse persisted sound controls and the same match-music pic
   assert.match(audioSettingsSource, /label="Music"/);
   assert.match(audioSettingsSource, /onMusicVolumeChange/);
   assert.match(audioSettingsSource, /Match music/);
-  assert.match(audioSettingsSource, /MATCH_MUSIC_TRACKS\.map/);
+  assert.match(audioSettingsSource, /Previous match music track/);
+  assert.match(audioSettingsSource, /Next match music track/);
+  assert.match(audioSettingsSource, /cycleMatchMusicTrackId/);
+  assert.doesNotMatch(audioSettingsSource, /<select/);
   assert.match(pauseSource, /<AudioSettingsControls/);
   assert.match(pauseSource, /idPrefix="sci-pause"/);
   assert.match(pauseSource, /matchMusicTrackId/);
@@ -51,6 +54,7 @@ test('pause and More reuse persisted sound controls and the same match-music pic
   assert.match(startSource, /matchMusicTrackId/);
   assert.match(appSource, /audioService\.getMatchMusicTrackId\(\)/);
   assert.match(appSource, /audioService\.setMatchMusicTrackId\(trackId\)/);
+  assert.match(audioSource, /getSectorMatchMusicTrackId/);
 });
 
 test('legacy externally sourced music and product-facing credits remain removed', () => {
@@ -91,7 +95,11 @@ test('match tracks use the procedural WebAudio bus and defeat gets its authored 
   );
   assert.match(
     appSource,
-    /gameState === GameState\.PLAYING[\s\S]{0,80}stats\.isBossActive \? 'boss' : matchMusicTrackId/
+    /gameState === GameState\.PLAYING[\s\S]{0,80}stats\.isBossActive \? 'boss' : activeMatchMusicTrackId/
   );
+  assert.match(appSource, /getSectorMatchMusicTrackId\(campaignMusicSectorOrder, matchMusicTrackId\)/);
+  assert.match(appSource, /matchMusicTrackId=\{activeMatchMusicTrackId\}/);
+  assert.match(appSource, /onMatchMusicTrackChange=\{setActiveGameMatchMusicTrack\}/);
+  assert.match(appSource, /cycleMatchMusicTrackId\(trackId, -\(campaignMusicSectorOrder - 1\)\)/);
   assert.match(gameLogicSource, /this\.playSound\('gameover'\)/);
 });

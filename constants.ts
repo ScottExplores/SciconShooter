@@ -396,6 +396,7 @@ export const DONATION_CONFIG = {
   BASE_RPC_URL: "https://mainnet.base.org",
   EXPLORER_BASE_URL: "https://basescan.org",
   RSC_SWAP_URL: "https://aerodrome.finance/swap?from=0x833589fcd6edb6e08f4c7c32d4f71b54bda02913&to=0xfbb75a59193a3525a8825bebe7d4b56899e2f7e1&chain0=8453&chain1=8453",
+  RSC_BASE_APP_URL: "https://base.app/coin/base-mainnet/0xfbb75a59193a3525a8825bebe7d4b56899e2f7e1",
   BASE_APP_INVITE_URL: "https://base.app/invite/scottexplores/6SR3DKQB",
   X_PROFILE_URL: "https://x.com/ScottExplores29",
   GAME_URL: "https://sciconshooter.xyz"

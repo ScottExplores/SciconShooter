@@ -17,6 +17,27 @@ const getMatchMusicTrack = (id: MatchMusicTrackId) => (
   MATCH_MUSIC_TRACKS.find((track) => track.id === id) ?? MATCH_MUSIC_TRACKS[0]
 );
 
+export const cycleMatchMusicTrackId = (
+  trackId: MatchMusicTrackId,
+  delta: number
+): MatchMusicTrackId => {
+  const currentIndex = Math.max(0, MATCH_MUSIC_TRACKS.findIndex((track) => track.id === trackId));
+  const offset = Math.trunc(Number(delta) || 0);
+  const nextIndex = (currentIndex + offset % MATCH_MUSIC_TRACKS.length + MATCH_MUSIC_TRACKS.length)
+    % MATCH_MUSIC_TRACKS.length;
+  return MATCH_MUSIC_TRACKS[nextIndex].id;
+};
+
+/**
+ * Campaign sectors rotate the owned match soundtrack without discarding the
+ * pilot's selected starting track. Sector one uses the selected track, then
+ * every new sector advances once and wraps around the four-track catalog.
+ */
+export const getSectorMatchMusicTrackId = (
+  sectorOrder: number,
+  startingTrackId: MatchMusicTrackId = DEFAULT_MATCH_MUSIC_TRACK_ID
+) => cycleMatchMusicTrackId(startingTrackId, Math.max(0, Math.floor(Number(sectorOrder) || 1) - 1));
+
 type GameSoundType = 'shoot' | 'boss_shoot' | 'boss_cannon' | 'boss_machinegun' | 'boss_alert' | 'impact' | 'explode' | 'coin' | 'powerup' | 'hit' | 'boss_roar' | 'electricity' | 'siren' | 'launch' | 'wave' | 'mission_victory' | 'gameover' | 'missile' | 'bomb';
 type SampleKey =
   | 'player-shot'

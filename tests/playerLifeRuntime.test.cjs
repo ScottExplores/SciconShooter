@@ -69,8 +69,9 @@ test('Campaign Mission boundaries refill permanent hearts while internal and Wee
   const hud = fs.readFileSync(path.join(root, 'components', 'UIOverlay.tsx'), 'utf8');
 
   const boundaryStart = engine.indexOf('const stageBoundary =');
-  const internalWaveStart = engine.indexOf('} else {', engine.indexOf('if (stageBoundary)', boundaryStart));
-  const boundaryBlock = engine.slice(boundaryStart, internalWaveStart);
+  const boundaryEnd = engine.indexOf('this.sectorTint =', boundaryStart);
+  const boundaryBlock = engine.slice(boundaryStart, boundaryEnd);
+  assert.match(boundaryBlock, /if \(stageBoundary && !seamlessStageBoundary\)/);
   assert.match(boundaryBlock, /if \(this\.refillLivesAtMissionBoundary\)[\s\S]*?this\.syncPlayerLives\(this\.startingLives\)/);
   assert.match(canvas, /refillLivesAtMissionBoundary\?: boolean/);
   assert.match(app, /refillLivesAtMissionBoundary: !isWeeklyCampaignRun/);

@@ -373,6 +373,14 @@
   animation: sci-onboarding-lock 1.9s ease-in-out infinite;
 }
 
+[data-onboarding-active-target='true'] {
+  position: relative;
+  z-index: 2;
+  outline: 2px solid rgb(254 249 195 / 0.96);
+  outline-offset: 3px;
+  filter: brightness(1.14) drop-shadow(0 0 0.65rem rgb(250 204 21 / 0.78));
+}
+
 .sci-onboarding__spotlight::before,
 .sci-onboarding__spotlight::after {
   position: absolute;

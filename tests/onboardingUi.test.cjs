@@ -12,6 +12,7 @@ const onboardingSource = readSource('components', 'SciconOnboarding.tsx');
 const startScreenSource = readSource('components', 'StartScreen.tsx');
 const canvasSource = readSource('components', 'GameCanvas.tsx');
 const hudSource = readSource('components', 'UIOverlay.tsx');
+const victorySource = readSource('components', 'WaveVictoryOverlay.tsx');
 
 const EXPECTED_MILESTONES = [
   'flight-steer',
@@ -160,6 +161,10 @@ test('flight controls remain ordered and Mission completion routes the guide Hom
   assert.match(appSource, /bombLocked: onboardingGameplayFreeze[\s\S]*?onboardingBombLocked[\s\S]*?introMissionLocked/);
   assert.match(canvasSource, /!bombLockedRef\.current[\s\S]*?engine\.triggerBomb\(\)/);
   assert.match(canvasSource, /engine\.triggerBomb\(\)[\s\S]*?ONBOARDING_GAMEPLAY_ACTION_EVENT[\s\S]*?target: 'flight-bomb'/);
+  assert.doesNotMatch(onboardingSource, /Number\(style\.opacity \|\| 1\) > 0/);
+  assert.match(onboardingSource, /data-onboarding-active-target/);
+  assert.match(onboardingSource, /Press the bright Return Home button below/);
+  assert.match(victorySource, /data-guide-required=\{guideRequiresHome \? 'true' : 'false'\}/);
 });
 
 test('More still exposes a Flight Guide replay that returns Home before restarting', () => {

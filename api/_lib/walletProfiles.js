@@ -1712,7 +1712,7 @@ const isoNow = (now) => new Date(now).toISOString();
 const MAIN_SHIP_FIRE_RATE_MAX_LEVEL = 49;
 const MAIN_SHIP_STANDARD_UPGRADE_MAX_LEVEL = 7;
 // Mirrors MAIN_SHIP_ABILITY_MAX_LEVEL in services/squadProgression.ts.
-const MAIN_SHIP_ABILITY_MAX_LEVEL = 5;
+const MAIN_SHIP_ABILITY_MAX_LEVEL = 6;
 
 const createUpgradeLevels = () => ({
   fireRate: 0,

@@ -58,13 +58,12 @@ import {
   BTC_HASH_BURST_RADIUS,
   ETH_PRISM_VOLLEY_FRAME_URLS,
   RESEARCH_CHARGE_BLAST_RADIUS,
-  RESEARCH_CHARGE_FRAME_URLS,
-  RESEARCH_IMPACT_FRAME_URLS,
   SHIP_ABILITY_FRAME_URLS,
   getShipAbilityCooldownFrames,
   getShipAbilityDamageMultiplier,
   getShipAbilityRadiusMultiplier,
   getShipAbilityDefinition,
+  getShipAbilityUpgradeProfile,
   type ShipAbilityKind
 } from './shipAbilityService';
 import type { PlayerShipId } from './playerShipService';
@@ -1115,7 +1114,6 @@ const GAMEPLAY_ASSET_URLS = [
   ...ASSETS.RSC_TOKEN_FLIP_FRAMES,
   ...PLAYER_WEAPON_FRAME_URLS,
   ...SHIP_ABILITY_FRAME_URLS,
-  ...RESEARCH_IMPACT_FRAME_URLS,
   ...ASSETS.POWERUP_PROJECTILE_UPGRADE_FRAMES,
   ASSETS.POWERUP_MAX_SHOT,
   ...ASSETS.POWERUP_MAGNET_FRAMES,
@@ -1564,6 +1562,11 @@ export interface GameEngineOptions {
   initialWaveId?: string;
   /** Campaign Missions refill at level boundaries; endurance modes opt out. */
   refillLivesAtMissionBoundary?: boolean;
+  /**
+   * Endless generated campaigns use technical level boundaries to extend their
+   * difficulty runway. Keep those boundaries inside one uninterrupted run.
+   */
+  continuousStageBoundaries?: boolean;
   testMode?: boolean;
   squadLoadout?: RuntimeSquadLoadout;
   /** Fixed seed used by preview and deterministic tests. Production omits this. */
@@ -2403,6 +2406,7 @@ export class GameEngine {
   private readonly squadCompanions: ActiveSquadCompanion[];
   private readonly startingLives: number;
   private readonly refillLivesAtMissionBoundary: boolean;
+  private readonly continuousStageBoundaries: boolean;
   private readonly previewBossCollisionMask?: BossCollisionMask;
   private readonly previewBossCollisionEventId?: string;
   private readonly previewBossArtworkDesignSize?: BossPreviewArtworkDesignSize;
@@ -2427,7 +2431,9 @@ export class GameEngine {
     this.telemetrySink = options.telemetrySink;
     this.stats.shipAbilityCooldown = Math.max(0, Number(this.stats.shipAbilityCooldown) || 0);
     this.playerShipId = options.playerShipId ?? 'researchhub';
-    this.stats.shipAbilityCooldownMax = getShipAbilityDefinition(this.playerShipId).cooldownFrames;
+    this.stats.shipAbilityCooldownMax = this.getShipAbilityCooldownFrames(
+      getShipAbilityDefinition(this.playerShipId).cooldownFrames
+    );
     this.campaign = cloneGameCampaign(options.campaign ?? DEFAULT_GAME_CAMPAIGN);
     this.bombSpriteUrl = getPrimaryAssetPath(this.campaign.hudAssets.bombIconAssetKey);
     this.playerShipUrl = options.playerShipUrl || ASSETS.PLAYER_SHIP;
@@ -2458,6 +2464,7 @@ export class GameEngine {
     this.initialLevelId = options.initialLevelId;
     this.initialWaveId = options.initialWaveId;
     this.refillLivesAtMissionBoundary = options.refillLivesAtMissionBoundary ?? true;
+    this.continuousStageBoundaries = options.continuousStageBoundaries ?? false;
     this.testMode = Boolean(options.testMode);
     this.squadLoadout = options.squadLoadout ?? null;
     this.squadCompanions = (options.squadLoadout?.companions ?? []).map((companion, index) => ({
@@ -2638,6 +2645,41 @@ export class GameEngine {
       waves.forEach(({ wave }, waveIndex) => entries.push({ level, wave, levelIndex, waveIndex }));
     });
     return entries;
+  }
+
+  /**
+   * Extends an endless generated campaign without replacing the live engine.
+   * Existing authored levels must remain byte-for-byte stable; only a suffix may
+   * be appended. This deliberately preserves every fight-local runtime value.
+   */
+  replaceCampaignRunway(nextCampaign: GameCampaign) {
+    if (!this.continuousStageBoundaries || nextCampaign.id !== this.campaign.id) return false;
+    const currentEntry = this.getCurrentCampaignEntry();
+    if (!currentEntry || nextCampaign.levels.length < this.campaign.levels.length) return false;
+
+    const nextCampaignClone = cloneGameCampaign(nextCampaign);
+    const existingLevels = JSON.stringify(this.campaign.levels);
+    const candidatePrefix = JSON.stringify(
+      nextCampaignClone.levels.slice(0, this.campaign.levels.length)
+    );
+    if (candidatePrefix !== existingLevels) return false;
+
+    const nextCampaignWaves = this.buildCampaignWaveEntries(nextCampaignClone);
+    const nextCurrentIndex = nextCampaignWaves.findIndex((entry) => (
+      entry.level.id === currentEntry.level.id
+      && entry.wave.id === currentEntry.wave.id
+    ));
+    if (nextCurrentIndex < 0) return false;
+
+    this.campaign = nextCampaignClone;
+    this.campaignWaves = nextCampaignWaves;
+    this.currentCampaignIndex = nextCurrentIndex;
+    const nextBombSpriteUrl = getPrimaryAssetPath(this.campaign.hudAssets.bombIconAssetKey);
+    if (nextBombSpriteUrl !== this.bombSpriteUrl) {
+      this.bombSpriteUrl = nextBombSpriteUrl;
+      loadImage(this.bombSpriteUrl);
+    }
+    return true;
   }
 
   findCampaignWaveIndex(levelId?: string, waveId?: string) {
@@ -4942,7 +4984,9 @@ export class GameEngine {
     this.stats.bombCharge = this.testMode ? getChargeForStoredFlasks(40) : 0;
     this.stats.bombChargeMax = BASE_FLASK_CHARGE_MAX;
     this.stats.shipAbilityCooldown = 0;
-    this.stats.shipAbilityCooldownMax = getShipAbilityDefinition(this.playerShipId).cooldownFrames;
+    this.stats.shipAbilityCooldownMax = this.getShipAbilityCooldownFrames(
+      getShipAbilityDefinition(this.playerShipId).cooldownFrames
+    );
     this.stats.wave = this.wave;
     this.frameCount = 0;
     this.waveVictoryKillCounts = createWaveVictoryKillCounts();
@@ -5220,6 +5264,11 @@ export class GameEngine {
   }
 
   beginStageCompletion(label: string, color: string) {
+    if (this.continuousStageBoundaries) {
+      this.beginContinuousStageCompletion();
+      return;
+    }
+
     this.waveTransitionPending = true;
     this.clearStageBoundaryDebris(false, true, false);
     this.pendingBossStrikes = [];
@@ -5247,6 +5296,30 @@ export class GameEngine {
     this.stageRewardCollectionDuration = Math.max(0, Math.round(collectionSeconds * GAME_CONFIG.FPS));
     this.stageRewardCollectionFrames = this.stageRewardCollectionDuration;
     if (this.stageRewardCollectionFrames <= 0) this.beginStageTakeoff();
+  }
+
+  /**
+   * Publishes the cleared depth so persistence can advance its generated
+   * runway, but skips the Mission result/takeoff state entirely. Player fire,
+   * pickups, cooldowns, position, score, lives, and overdrive stay live.
+   */
+  beginContinuousStageCompletion() {
+    this.waveTransitionPending = true;
+    this.clearStageBoundaryDebris(false, true, false, true);
+    this.pendingBossStrikes = [];
+    for (const pendingLaser of this.pendingEnemyLasers) {
+      const telegraph = this.entities.find((entity) => entity.id === pendingLaser.telegraphId);
+      if (telegraph) telegraph.markedForDeletion = true;
+    }
+    this.pendingEnemyLasers = [];
+    this.waveVictorySummary = this.buildWaveVictorySummary();
+    this.recordWaveCompletion();
+    this.stageRewardCollectionDuration = 0;
+    this.stageRewardCollectionFrames = 0;
+    this.waveDepartureDuration = 0;
+    this.waveDepartureFrames = 0;
+    this.waveVictoryReady = true;
+    this.gameActive = false;
   }
 
   beginStageTakeoff() {
@@ -5312,6 +5385,7 @@ export class GameEngine {
     this.currentCampaignIndex = nextCampaignIndex;
     const nextEntry = this.getCurrentCampaignEntry();
     const stageBoundary = !previousEntry || !nextEntry || previousEntry.level.id !== nextEntry.level.id;
+    const seamlessStageBoundary = stageBoundary && this.continuousStageBoundaries;
     this.wave = this.getStageNumberForCampaignIndex();
     this.stats.wave = this.wave;
     this.resetWaveProgress(stageBoundary);
@@ -5319,7 +5393,7 @@ export class GameEngine {
     this.gameActive = true;
     this.campaignComplete = false;
     this.keepEntitiesForNextWave();
-    if (stageBoundary) {
+    if (stageBoundary && !seamlessStageBoundary) {
       if (this.refillLivesAtMissionBoundary) {
         this.syncPlayerLives(this.startingLives);
       }
@@ -5333,7 +5407,7 @@ export class GameEngine {
       this.beginWavePresentation('internal-wave');
     }
     const configuredIntroSeconds = Number(this.getCurrentWaveDefinition()?.introSeconds);
-    this.introFlightDuration = stageBoundary
+    this.introFlightDuration = stageBoundary && !seamlessStageBoundary
       ? Number.isFinite(configuredIntroSeconds) && configuredIntroSeconds >= 0
         ? Math.max(0, Math.round(configuredIntroSeconds * GAME_CONFIG.FPS))
         : 118
@@ -5341,7 +5415,7 @@ export class GameEngine {
     this.introFlightFrames = this.introFlightDuration;
     this.playerDrawScale = this.introFlightFrames > 0 ? 1.46 : 1;
     this.playerDrawAlpha = this.introFlightFrames > 0 ? 0 : 1;
-    if (stageBoundary) {
+    if (stageBoundary && !seamlessStageBoundary) {
       this.playerVel = { x: 0, y: 0 };
       this.playerTilt = 0;
       if (this.introFlightFrames > 0) {
@@ -5928,7 +6002,9 @@ export class GameEngine {
     if ((this.stats.shipAbilityCooldown || 0) > 0) {
       this.stats.shipAbilityCooldown = Math.max(0, this.stats.shipAbilityCooldown - 1);
     }
-    this.stats.shipAbilityCooldownMax = getShipAbilityDefinition(this.playerShipId).cooldownFrames;
+    this.stats.shipAbilityCooldownMax = this.getShipAbilityCooldownFrames(
+      getShipAbilityDefinition(this.playerShipId).cooldownFrames
+    );
     this.flushPendingPlayerShots();
     this.refreshLoadState();
     this.stats.lives = this.lives;
@@ -7358,6 +7434,7 @@ export class GameEngine {
 
   triggerShipAbility() {
     const ability = getShipAbilityDefinition(this.playerShipId);
+    const abilityUpgradeProfile = getShipAbilityUpgradeProfile(this.stats.upgrades?.ability || 0);
     if (
       (this.stats.shipAbilityCooldown || 0) > 0
       || !this.gameActive
@@ -7414,7 +7491,7 @@ export class GameEngine {
     } else {
       this.spawnShipAbilityProjectile({
         kind: 'research-charge',
-        frames: RESEARCH_CHARGE_FRAME_URLS,
+        frames: abilityUpgradeProfile.projectileFrames,
         width: 76,
         height: 92,
         speed: 7.2,
@@ -7489,18 +7566,21 @@ export class GameEngine {
     if (projectile.markedForDeletion) return;
     projectile.markedForDeletion = true;
 
-    const impact = new VisualEffect(centerX - 86, centerY - 86, 'sprite', '', '#ffffff');
-    impact.width = 172;
-    impact.height = 172;
-    // The legacy middle frames contain opaque circular outlines. Retain the
-    // spark and dissipating particle frames while the renderer supplies the
-    // edge-free radial light and the projectile supplies its beam trail.
-    impact.spriteFrames = [
-      RESEARCH_IMPACT_FRAME_URLS[0],
-      RESEARCH_IMPACT_FRAME_URLS[1]
-    ];
-    impact.life = 42;
-    impact.maxLife = 42;
+    const abilityUpgradeProfile = getShipAbilityUpgradeProfile(this.stats.upgrades?.ability || 0);
+    const impactSize = 148 + (abilityUpgradeProfile.impactTier - 1) * 18;
+    const impact = new VisualEffect(
+      centerX - impactSize / 2,
+      centerY - impactSize / 2,
+      'sprite',
+      '',
+      '#ffffff'
+    );
+    impact.width = impactSize;
+    impact.height = impactSize;
+    impact.spriteFrames = [...abilityUpgradeProfile.impactFrames];
+    impact.spriteFramePlaybackMode = 'once';
+    impact.life = abilityUpgradeProfile.impactFrames.length * 6;
+    impact.maxLife = impact.life;
     this.entities.push(impact);
 
     this.flashAlpha = Math.max(this.flashAlpha, 0.28);
@@ -9145,15 +9225,11 @@ export class GameEngine {
     return getShipAbilityRadiusMultiplier(this.stats.upgrades?.ability || 0);
   }
 
-  /**
-   * Signature cooldown for the active hull, tightened by the Fire Rate track
-   * so the upgrade the player is already buying improves their special too.
-   */
+  /** Signature cooldown for the active hull from its Signature Move track. */
   getShipAbilityCooldownFrames(baseCooldownFrames: number) {
     return getShipAbilityCooldownFrames(
       baseCooldownFrames,
-      this.stats.upgrades?.fireRate || 0,
-      FIRE_RATE_MAX_LEVEL
+      this.stats.upgrades?.ability || 0
     );
   }
 

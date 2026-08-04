@@ -163,11 +163,17 @@ test('the Hangar uses one position-driven squad bay and four-column fleet catalo
   assert.match(hangar, /rightPurchaseStatus === 'error'[\s\S]*?'TRY AGAIN'/);
   assert.match(hangar, /label="Research Coin"/);
   assert.match(hangar, /onOptions=\{onOpenRscSwap\}/);
-  assert.match(startScreen, /onOpenRscSwap=\{onOpenSwap\}/);
+  assert.match(startScreen, /onOpenRscSwap=\{\(\) => setShowRscAcquire\(true\)\}/);
   assert.match(hangar, /formatWholeRscBalance\(rscBalance\)/);
   assert.match(hangar, /rscBalance\.raw >= rightSupportCostRaw/);
-  assert.match(app, /window\.confirm\([\s\S]*Aerodrome RSC swap on Base/);
-  assert.match(app, /if \(!accepted\) return;[\s\S]*DONATION_CONFIG\.RSC_SWAP_URL/);
+  assert.match(startScreen, /role="dialog"[\s\S]*?Get Research Coin/);
+  assert.match(startScreen, /View RSC in Base/);
+  assert.match(startScreen, /Swap USDC for RSC/);
+  assert.match(startScreen, /onOpenRscInBase\(\)/);
+  assert.match(startScreen, /onOpenSwap\(\)/);
+  assert.match(app, /window\.location\.assign\(DONATION_CONFIG\.RSC_SWAP_URL\)/);
+  assert.match(app, /window\.location\.assign\(DONATION_CONFIG\.RSC_BASE_APP_URL\)/);
+  assert.doesNotMatch(app, /window\.confirm\(/);
   assert.match(hangar, /label="Tokens"/);
   assert.match(hangar, /TOKEN_EXCHANGE_SKU_IDS = \[[\s\S]*'tokens-500'[\s\S]*'tokens-2500'[\s\S]*'tokens-5000'/);
   assert.match(hangar, /500 Tokens per 1 RSC/);
@@ -207,8 +213,9 @@ test('main ship upgrade cards show the matching existing gameplay sprites', () =
   assert.match(hangar, /MAIN_UPGRADE_SPRITE: Readonly<Record<MainShipUpgradeId, string>>/);
   // Signature Move is the one track whose art depends on the selected hull, so
   // the tile shows that ship's actual move instead of a shared placeholder.
-  assert.match(hangar, /src=\{getMainUpgradeSprite\(upgrade\.id, mainShipId\)\}/);
-  assert.match(hangar, /upgradeId === 'ability'\s*\?\s*getShipAbilityDefinition\(shipId\)\.iconUrl/);
+  assert.match(hangar, /src=\{getMainUpgradeSprite\(upgrade\.id, mainShipId, level\)\}/);
+  assert.match(hangar, /shipId === 'researchhub'[\s\S]*?getShipAbilityUpgradeProfile\(abilityLevel\)\.projectileIconUrl/);
+  assert.match(hangar, /max=\{upgrade\.id === 'fireRate' \? MAIN_SHIP_UPGRADE_MAX_LEVEL : maxLevel\}/);
   assert.match(hangar, /getMainShipFireRateTier\(activeMainShipUpgrades\.fireRate\)/);
   assert.match(hangar, /getMainShipFireRateTierProgress\(activeMainShipUpgrades\.fireRate\)/);
   assert.doesNotMatch(hangar, /Array\.from\(\{ length: FIRE_RATE_TIER_COUNT \}/);
@@ -288,6 +295,7 @@ test('companions use the real engine and Projectile Upgrade stays on the main sh
 
 test('Hangar render helpers preserve the active upgrade view across parent state updates', () => {
   const startScreen = read('components', 'StartScreen.tsx');
+  const hangar = read('components', 'SquadHangar.tsx');
 
   assert.match(startScreen, /const renderMobileDashboardContent = \(\) =>/);
   assert.match(startScreen, /const renderSelectedDashboard = \(\) =>/);
@@ -295,6 +303,9 @@ test('Hangar render helpers preserve the active upgrade view across parent state
   assert.match(startScreen, /\{renderSelectedDashboard\(\)\}/);
   assert.doesNotMatch(startScreen, /<MobileDashboardContent\b|const MobileDashboardContent|function MobileDashboardContent/);
   assert.doesNotMatch(startScreen, /<SelectedDashboard\b|const SelectedDashboard|function SelectedDashboard/);
+  assert.match(hangar, /setMode\('catalog'\);\s*\}, \[activePosition\]\);/);
+  assert.doesNotMatch(hangar, /setMode\('catalog'\);[\s\S]{0,160}\}, \[activePosition, state\.equipped\]\);/);
+  assert.match(hangar, /\[activePosition, state\.equipped\.left, state\.equipped\.right\]/);
 });
 
 test('main ship upgrades remain isolated to the selected ship through the Hangar and game launch', () => {

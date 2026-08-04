@@ -81,7 +81,7 @@ Detailed main-path authored grants: Wave + Mission clear 9,427, first-clear + bo
 
 ## Exact persistent sink inventory
 
-- One complete main-ship set costs **567,445** per ship: Fire Rate 551,350, Movement Speed 1,835, Signature Move 5,800, and Starting Hearts 8,460. All four ships cost 2,269,780.
+- One complete main-ship set costs **571,445** per ship: Fire Rate 551,350, Movement Speed 1,835, Signature Move 9,800, and Starting Hearts 8,460. All four ships cost 2,285,780.
 - Fire Rate remains accessible at **60** and Speed at **55**. Fire Rate keeps the shipped first 21 prices exactly, then adds 28 premium purchases for Tiers 4-7.
 - Starting Hearts cost **180 / 320 / 560 / 900 / 1,400 / 2,100 / 3,000**, totaling **8,460**. Three base hearts plus seven purchases produces the hard **10-heart cap**.
 - Squad-slot gates are **50** for left and **500** for right. The left unlock includes Citation Dart at level 1.
@@ -108,12 +108,12 @@ For comparison, the simulator spends on one deterministic basket: Movement Speed
 
 | Scenario | Authored coins | Basket upgrades funded | Average Missions per funded upgrade | Longest no-purchase stretch | Bank | Next basket purchase |
 |---|---:|---:|---:|---:|---:|---|
-| Clear-only | 18,737 | 27/68 | 1.85 | 6 | 432 | fireRate 9 (810) |
-| Expected (Stars 1 + 2) | 21,212 | 29/68 | 1.72 | 5 | 1,077 | fireRate 11 (1,260) |
-| Full mastery (branch floor) | 40,942 | 37/68 | 1.35 | 4 | 697 | fireRate 19 (4,700) |
-| Full mastery (branch ceiling) | 41,199 | 37/68 | 1.35 | 3 | 954 | fireRate 19 (4,700) |
+| Clear-only | 18,737 | 26/69 | 1.92 | 7 | 62 | startingHearts 7 (3,000) |
+| Expected (Stars 1 + 2) | 21,212 | 26/69 | 1.92 | 6 | 2,537 | startingHearts 7 (3,000) |
+| Full mastery (branch floor) | 40,942 | 37/69 | 1.35 | 4 | 797 | fireRate 18 (4,100) |
+| Full mastery (branch ceiling) | 41,199 | 37/69 | 1.35 | 4 | 1,054 | fireRate 18 (4,100) |
 
-The expected path supplies **3.74%** of one fully maxed main ship if the player saves every authored coin. Full mastery supplies **7.22%-7.26%**. Because support purchases compete for the same balance, actual main-ship completion will be slower; this is an intentional long-tail constraint that still needs player telemetry.
+The expected path supplies **3.71%** of one fully maxed main ship if the player saves every authored coin. Full mastery supplies **7.16%-7.21%**. Because support purchases compete for the same balance, actual main-ship completion will be slower; this is an intentional long-tail constraint that still needs player telemetry.
 
 ### Sector-by-sector affordability
 
@@ -123,12 +123,12 @@ The expected path supplies **3.74%** of one fully maxed main ship if the player 
 | 2 - REDLINE FRONTIER | 1,326 | 2,574-2,574 | 10 / 14 |
 | 3 - GRAVITY RIFT | 1,549 | 3,021-3,021 | 14 / 18 |
 | 4 - TERMINUS FRONTIER | 1,782 | 3,491-3,491 | 15 / 21 |
-| 5 - PRISM EXPANSE | 2,008 | 3,879-3,879 | 18 / 25 |
-| 6 - RAIL MERIDIAN | 2,220 | 4,292-4,292 | 19 / 28 |
-| 7 - SINGULARITY REACH | 2,474 | 4,763-4,763 | 22 / 31 |
-| 8 - GYROSCOPE ARRAY | 2,688 | 5,179-5,179 | 25 / 33 |
-| 9 - HAMMERHEAD LINE | 2,917 | 5,609-5,609 | 26 / 35 |
-| 10 - CROWNCLAW FRONTIER | 3,131 | 6,026-6,026 | 29 / 37 |
+| 5 - PRISM EXPANSE | 2,008 | 3,879-3,879 | 18 / 22 |
+| 6 - RAIL MERIDIAN | 2,220 | 4,292-4,292 | 19 / 26 |
+| 7 - SINGULARITY REACH | 2,474 | 4,763-4,763 | 22 / 29 |
+| 8 - GYROSCOPE ARRAY | 2,688 | 5,179-5,179 | 22 / 33 |
+| 9 - HAMMERHEAD LINE | 2,917 | 5,609-5,609 | 25 / 35 |
+| 10 - CROWNCLAW FRONTIER | 3,131 | 6,026-6,026 | 26 / 37 |
 
 - Sector 1 covers multiple low-cost Speed/Fire upgrades without replay, while the first heart is deliberately no longer the cheapest purchase.
 - The restored seven-step health curve costs 8,460. Expected authored Campaign income can max health only by deferring offense and support purchases.
@@ -191,7 +191,7 @@ Seven-round volleys are simulated as one collision bundle per center or Triple S
 - **Pass:** total lives are capped at ten and the seven-heart Hangar track is 8,460 coins while early Speed/Fire prices remain unchanged.
 - **Pass:** the 49-level, seven-tier Fire Rate sink is included in every affordability percentage and deterministic purchase cadence above.
 - **Pass:** the report is generated from runtime source files and has a deterministic stale-file check.
-- **Affordability:** expected authored income supplies 3.74% of one maxed main ship; full mastery supplies 7.22%-7.26% before support spending.
+- **Affordability:** expected authored income supplies 3.71% of one maxed main ship; full mastery supplies 7.16%-7.21% before support spending.
 - **Pass with telemetry:** a full week of maximum Boss Archive charges remains below one third of expected authored Campaign income, while one 30-day gift cycle plus all lifetime achievement tiers stays near one expected Campaign. Combat pickups still require live retention telemetry.
 - **Not modeled as guaranteed income:** dropped coins, magnet collection, player deaths, clear rate, play time, and performance-dependent Present Drop results.
 - **Security limitation:** browser Campaign combat remains server-verifiable, not fully server-authoritative. Valuable rewards require the existing receipt/integrity controls.

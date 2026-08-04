@@ -25,7 +25,7 @@ const MAIN_SHIP_UPGRADE_COSTS = Object.freeze({
     25600, 27000, 28500, 30000, 31600, 33200, 34900
   ]),
   speed: Object.freeze([55, 85, 130, 200, 300, 440, 625]),
-  ability: Object.freeze([220, 480, 900, 1600, 2600]),
+  ability: Object.freeze([220, 480, 900, 1600, 2600, 4000]),
   startingHearts: Object.freeze([180, 320, 560, 900, 1400, 2100, 3000])
 });
 const MINI_SHIP_PURCHASE_COSTS = Object.freeze({

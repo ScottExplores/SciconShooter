@@ -78,4 +78,11 @@ test('the Trophy Deck separates Weekly Funding from Campaign progression', () =>
   ]) {
     assert.ok(panel[0].includes(label), `Campaign trophies should show "${label}"`);
   }
+  assert.match(panel[0], /authoredMissionTotal = CAMPAIGN_MISSIONS\.length/);
+  assert.match(panel[0], /authoredStarTotal = authoredMissionTotal \* CAMPAIGN_MISSION_MASTERY_STARS/);
+  assert.match(panel[0], /eliteCheckpointMissionIds/);
+  assert.match(panel[0], /authoredHangarUpgradeTotal/);
+  assert.match(panel[0], /Array<\{ label: string; value: number; total: number; hint: string \}>/);
+  assert.match(panel[0], /total: BOSS_ARCHIVE_CATALOG\.length/);
+  assert.match(panel[0], /\{formatNumber\(row\.value\)\} \/ \{formatNumber\(row\.total\)\}/);
 });

@@ -520,47 +520,60 @@
   text-transform: uppercase;
 }
 
-.sci-pause-track__select {
-  position: relative;
+.sci-pause-track__stepper {
   display: grid;
-  min-width: 0;
-}
-
-.sci-pause-track__select select {
-  width: 100%;
+  grid-template-columns: 2rem minmax(0, 1fr) 2rem;
+  align-items: stretch;
   min-width: 0;
   height: 2rem;
+}
+
+.sci-pause-track__stepper output {
+  display: grid;
+  min-width: 0;
+  place-items: center;
   appearance: none;
-  border: 1px solid rgba(103, 232, 249, 0.46);
+  border-block: 1px solid rgba(103, 232, 249, 0.46);
   border-radius: 0;
-  padding: 0 1.65rem 0 0.55rem;
+  padding: 0 0.3rem;
   overflow: hidden;
   background:
     linear-gradient(180deg, rgba(14, 116, 144, 0.38), rgba(3, 19, 38, 0.96));
   color: #ecfeff;
-  clip-path: polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px);
   font: inherit;
   font-size: 0.47rem;
   text-overflow: ellipsis;
   text-transform: uppercase;
   white-space: nowrap;
-  cursor: pointer;
 }
 
-.sci-pause-track__select select:focus-visible {
+.sci-pause-track__stepper button {
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(103, 232, 249, 0.58);
+  background: linear-gradient(180deg, rgba(8, 145, 178, 0.52), rgba(3, 19, 38, 0.98));
+  color: #cffafe;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.sci-pause-track__stepper button:first-child {
+  clip-path: polygon(4px 0, 100% 0, 100% 100%, 0 100%, 0 4px);
+}
+
+.sci-pause-track__stepper button:last-child {
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%);
+}
+
+.sci-pause-track__stepper button:hover {
+  border-color: rgba(254, 249, 195, 0.9);
+  color: #fef9c3;
+  filter: brightness(1.18);
+}
+
+.sci-pause-track__stepper button:focus-visible {
   outline: 2px solid #cffafe;
   outline-offset: 2px;
-}
-
-.sci-pause-track__select > span {
-  position: absolute;
-  top: 50%;
-  right: 0.52rem;
-  color: #67e8f9;
-  font-size: 0.7rem;
-  line-height: 1;
-  pointer-events: none;
-  transform: translateY(-50%);
 }
 
 .sci-pause-founder {

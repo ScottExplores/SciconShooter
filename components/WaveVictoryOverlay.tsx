@@ -255,6 +255,7 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
             <button
               className="wave-victory-secondary is-home"
               data-onboarding-target="mission-home"
+              data-guide-required={guideRequiresHome ? 'true' : 'false'}
               type="button"
               onClick={onReturnHome}
             >

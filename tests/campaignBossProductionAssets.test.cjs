@@ -91,5 +91,5 @@ test('campaign Helios resolves the promoted modular artwork package instead of s
   );
   assert.match(registrySource, /sampleHeliosModularPose/);
   assert.match(canvas, /resolveCampaignBossArtwork/);
-  assert.match(canvas, /previewBossArtwork: activeBossArtwork/);
+  assert.match(canvas, /previewBossArtwork: setupBossArtwork/);
 });

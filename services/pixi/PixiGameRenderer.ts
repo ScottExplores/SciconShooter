@@ -31,7 +31,7 @@ import {
   getPlayerWeaponFlightFrameIndex,
   getPlayerWeaponLaunchFrameIndex
 } from '../playerWeaponVisuals';
-import { RESEARCH_IMPACT_FRAME_URLS, SHIP_ABILITY_FRAME_URLS } from '../shipAbilityService';
+import { RESEARCH_IMPACT_ALL_FRAME_URLS, SHIP_ABILITY_FRAME_URLS } from '../shipAbilityService';
 import { MINI_SHIP_CATALOG } from '../squadProgression';
 import {
   runGameplayAssetPreloadQueue,
@@ -970,7 +970,6 @@ export const PIXI_GAMEPLAY_STARTUP_TEXTURE_URLS = Object.freeze([
   ...ASSETS.PIXI_BOSS_DAMAGE_EXPLOSION_FRAMES,
   ...PLAYER_WEAPON_FRAME_URLS,
   ...SHIP_ABILITY_FRAME_URLS,
-  ...RESEARCH_IMPACT_FRAME_URLS,
   ASSETS.POWERUP_MAX_SHOT_AURA,
   ...ASSETS.POWERUP_MAX_SHOT_AURA_FRAMES,
   ASSETS.RSC_TOKEN
@@ -5760,7 +5759,7 @@ export class PixiGameRenderer {
       const researchProjectile = entity.isPlayerShot
         && entity.projectileVisualKind === 'research-charge';
       const researchImpact = entity.type === EntityType.EFFECT
-        && entity.spriteFrames?.[0] === RESEARCH_IMPACT_FRAME_URLS[0];
+        && RESEARCH_IMPACT_ALL_FRAME_URLS.includes(entity.spriteFrames?.[0] ?? '');
       if (!researchProjectile && !researchImpact) continue;
 
       const slowPulse = 0.94 + Math.sin((engine.frameCount + entity.variant * 7) * 0.045) * 0.06;

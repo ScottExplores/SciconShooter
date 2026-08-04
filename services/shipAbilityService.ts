@@ -1,16 +1,56 @@
 import type { PlayerShipId } from './playerShipService';
 
-export const RESEARCH_CHARGE_FRAME_URLS = Array.from(
-  { length: 6 },
-  (_, index) => `/game-art/legacy/weapon-fx/research-charge/charged${index + 1}.png`
+const LEGACY_WEAPON_FX_ROOT = '/game-art/legacy/weapon-fx';
+const numberedFrameUrls = (root: string, prefix: string, count: number) => Object.freeze(
+  Array.from({ length: count }, (_, index) => `${root}/${prefix}${index + 1}.png`)
 );
 
-export const RESEARCH_IMPACT_FRAME_URLS = Array.from(
-  { length: 7 },
-  (_, index) => `/game-art/legacy/weapon-fx/research-impact/hits-5-${index + 1}.png`
+export const RESEARCH_SPARK_FRAME_URLS = numberedFrameUrls(
+  `${LEGACY_WEAPON_FX_ROOT}/research-spark`,
+  'spark-preview',
+  5
+);
+export const RESEARCH_BOLT_FRAME_URLS = numberedFrameUrls(
+  `${LEGACY_WEAPON_FX_ROOT}/research-bolt`,
+  'bolt',
+  4
+);
+export const RESEARCH_CHARGED_FRAME_URLS = numberedFrameUrls(
+  `${LEGACY_WEAPON_FX_ROOT}/research-charge`,
+  'charged',
+  6
 );
 
-export const RESEARCH_CHARGE_ICON_URL = RESEARCH_CHARGE_FRAME_URLS[5];
+export type ResearchSignatureProjectileTier = 'spark' | 'bolt' | 'charged';
+export type ResearchSignatureImpactTier = 1 | 2 | 3 | 4;
+
+export const RESEARCH_PROJECTILE_FRAME_URLS_BY_TIER: Readonly<
+  Record<ResearchSignatureProjectileTier, readonly string[]>
+> = Object.freeze({
+  spark: RESEARCH_SPARK_FRAME_URLS,
+  bolt: RESEARCH_BOLT_FRAME_URLS,
+  charged: RESEARCH_CHARGED_FRAME_URLS
+});
+
+export const RESEARCH_IMPACT_FRAME_URLS_BY_TIER: Readonly<
+  Record<ResearchSignatureImpactTier, readonly string[]>
+> = Object.freeze({
+  1: numberedFrameUrls(`${LEGACY_WEAPON_FX_ROOT}/research-impact/hits-1`, 'hits-1-', 5),
+  2: numberedFrameUrls(`${LEGACY_WEAPON_FX_ROOT}/research-impact/hits-2`, 'hits-2-', 7),
+  3: numberedFrameUrls(`${LEGACY_WEAPON_FX_ROOT}/research-impact/hits-3`, 'hits-3-', 5),
+  4: numberedFrameUrls(`${LEGACY_WEAPON_FX_ROOT}/research-impact/hits-4`, 'hits-4-', 7)
+});
+export const RESEARCH_IMPACT_ALL_FRAME_URLS = Object.freeze([
+  ...RESEARCH_IMPACT_FRAME_URLS_BY_TIER[1],
+  ...RESEARCH_IMPACT_FRAME_URLS_BY_TIER[2],
+  ...RESEARCH_IMPACT_FRAME_URLS_BY_TIER[3],
+  ...RESEARCH_IMPACT_FRAME_URLS_BY_TIER[4]
+]);
+
+/** Backwards-compatible level-zero aliases while engine call sites migrate to the profile helper. */
+export const RESEARCH_CHARGE_FRAME_URLS = RESEARCH_SPARK_FRAME_URLS;
+export const RESEARCH_IMPACT_FRAME_URLS = RESEARCH_IMPACT_FRAME_URLS_BY_TIER[1];
+export const RESEARCH_CHARGE_ICON_URL = RESEARCH_SPARK_FRAME_URLS[2];
 export const RESEARCH_CHARGE_COOLDOWN_FRAMES = 16 * 60;
 export const RESEARCH_CHARGE_COOLDOWN_SECONDS = 16;
 export const RESEARCH_CHARGE_BLAST_RADIUS = 124;
@@ -30,46 +70,101 @@ export const SHIP_ABILITY_COOLDOWN_SECONDS = Object.freeze({
   btc: 9
 });
 
-/**
- * Fire Rate also tightens the signature cooldown, up to this fraction, so the
- * primary-weapon track the player is already buying visibly improves the
- * ship's signature move too.
- */
+/** The Signature Move track bottoms out at a 35% cooldown reduction. */
 export const SHIP_ABILITY_COOLDOWN_MIN_MULTIPLIER = 0.65;
 
 /**
- * Signature-move scaling from the Hangar's Signature Move track.
- *
- * Damage and reach are separated so blast abilities (Research Charge, Hash
- * Burst, which deal fixed area damage) and projectile abilities (Genome Lance,
- * Prism Volley) both improve in a way the player can feel. Reach grows more
- * slowly than damage so a maxed radius never trivialises positioning.
+ * Six upgrades preserve the former max balance while making every purchase
+ * legible: four cooldown beats, three projectile identities, and four impact
+ * sizes. Level zero is part of the table because it is the Hangar preview and
+ * the unupgraded in-mission move.
  */
-export const SHIP_ABILITY_DAMAGE_PER_LEVEL = 0.28;
-export const SHIP_ABILITY_RADIUS_PER_LEVEL = 0.11;
+export const SHIP_ABILITY_MAX_LEVEL = 6;
+export const SHIP_ABILITY_DAMAGE_MAX_MULTIPLIER = 2.4;
+export const SHIP_ABILITY_RADIUS_MAX_MULTIPLIER = 1.55;
+export const SHIP_ABILITY_DAMAGE_PER_LEVEL = (
+  SHIP_ABILITY_DAMAGE_MAX_MULTIPLIER - 1
+) / SHIP_ABILITY_MAX_LEVEL;
+export const SHIP_ABILITY_RADIUS_PER_LEVEL = (
+  SHIP_ABILITY_RADIUS_MAX_MULTIPLIER - 1
+) / SHIP_ABILITY_MAX_LEVEL;
+
+export const SHIP_ABILITY_COOLDOWN_STEP_BY_LEVEL = Object.freeze([
+  0, 1, 1, 2, 2, 3, 4
+] as const);
+const SHIP_ABILITY_PROJECTILE_TIER_BY_LEVEL = Object.freeze([
+  'spark', 'spark', 'bolt', 'bolt', 'charged', 'charged', 'charged'
+] as const satisfies readonly ResearchSignatureProjectileTier[]);
+const SHIP_ABILITY_IMPACT_TIER_BY_LEVEL = Object.freeze([
+  1, 1, 2, 2, 3, 3, 4
+] as const satisfies readonly ResearchSignatureImpactTier[]);
+const SHIP_ABILITY_COOLDOWN_STEP_COUNT = 4;
+
+export const normalizeShipAbilityLevel = (abilityLevel: number) => (
+  Math.max(0, Math.min(SHIP_ABILITY_MAX_LEVEL, Math.floor(Number(abilityLevel) || 0)))
+);
 
 export const getShipAbilityDamageMultiplier = (abilityLevel: number) => (
-  1 + Math.max(0, Math.min(SHIP_ABILITY_MAX_LEVEL, Math.floor(Number(abilityLevel) || 0)))
-    * SHIP_ABILITY_DAMAGE_PER_LEVEL
+  1 + normalizeShipAbilityLevel(abilityLevel) * SHIP_ABILITY_DAMAGE_PER_LEVEL
 );
 
 export const getShipAbilityRadiusMultiplier = (abilityLevel: number) => (
-  1 + Math.max(0, Math.min(SHIP_ABILITY_MAX_LEVEL, Math.floor(Number(abilityLevel) || 0)))
-    * SHIP_ABILITY_RADIUS_PER_LEVEL
+  1 + normalizeShipAbilityLevel(abilityLevel) * SHIP_ABILITY_RADIUS_PER_LEVEL
 );
 
-/** Mirrors MAIN_SHIP_ABILITY_MAX_LEVEL; kept here so the engine has no import cycle. */
-export const SHIP_ABILITY_MAX_LEVEL = 5;
+export const getShipAbilityCooldownMultiplier = (abilityLevel: number) => {
+  const level = normalizeShipAbilityLevel(abilityLevel);
+  const cooldownStep = SHIP_ABILITY_COOLDOWN_STEP_BY_LEVEL[level];
+  const reductionProgress = cooldownStep / SHIP_ABILITY_COOLDOWN_STEP_COUNT;
+  return 1 - (1 - SHIP_ABILITY_COOLDOWN_MIN_MULTIPLIER) * reductionProgress;
+};
 
 export const getShipAbilityCooldownFrames = (
   baseCooldownFrames: number,
-  fireRateLevel: number,
-  fireRateMaxLevel: number
+  abilityLevel: number
 ) => {
-  const safeMax = Math.max(1, Math.floor(Number(fireRateMaxLevel) || 1));
-  const progress = Math.max(0, Math.min(1, (Number(fireRateLevel) || 0) / safeMax));
-  const multiplier = 1 - (1 - SHIP_ABILITY_COOLDOWN_MIN_MULTIPLIER) * progress;
-  return Math.max(1, Math.round(baseCooldownFrames * multiplier));
+  const safeBaseFrames = Math.max(1, Math.round(Number(baseCooldownFrames) || 1));
+  return Math.max(1, Math.round(safeBaseFrames * getShipAbilityCooldownMultiplier(abilityLevel)));
+};
+
+export interface ShipAbilityUpgradeProfile {
+  level: number;
+  maxLevel: number;
+  projectileTier: ResearchSignatureProjectileTier;
+  projectileFrames: readonly string[];
+  projectileIconUrl: string;
+  impactTier: ResearchSignatureImpactTier;
+  impactFrames: readonly string[];
+  cooldownStep: number;
+  cooldownMultiplier: number;
+  damageMultiplier: number;
+  radiusMultiplier: number;
+}
+
+/**
+ * Authoritative pure profile for combat, HUD, and Hangar previews.
+ *
+ * L0 Spark/hit 1; L1 cooldown; L2 Bolt/hit 2; L3 cooldown;
+ * L4 Charged/hit 3; L5 cooldown; L6 cooldown plus hit 4/max.
+ */
+export const getShipAbilityUpgradeProfile = (abilityLevel: number): ShipAbilityUpgradeProfile => {
+  const level = normalizeShipAbilityLevel(abilityLevel);
+  const projectileTier = SHIP_ABILITY_PROJECTILE_TIER_BY_LEVEL[level];
+  const impactTier = SHIP_ABILITY_IMPACT_TIER_BY_LEVEL[level];
+  const projectileFrames = RESEARCH_PROJECTILE_FRAME_URLS_BY_TIER[projectileTier];
+  return Object.freeze({
+    level,
+    maxLevel: SHIP_ABILITY_MAX_LEVEL,
+    projectileTier,
+    projectileFrames,
+    projectileIconUrl: projectileFrames[Math.floor(projectileFrames.length / 2)],
+    impactTier,
+    impactFrames: RESEARCH_IMPACT_FRAME_URLS_BY_TIER[impactTier],
+    cooldownStep: SHIP_ABILITY_COOLDOWN_STEP_BY_LEVEL[level],
+    cooldownMultiplier: getShipAbilityCooldownMultiplier(level),
+    damageMultiplier: getShipAbilityDamageMultiplier(level),
+    radiusMultiplier: getShipAbilityRadiusMultiplier(level)
+  });
 };
 
 /**
@@ -79,8 +174,9 @@ export const getShipAbilityCooldownFrames = (
  * drawn on a grid matching the projectile the engine spawns for it:
  * a helix lance, a single crystal shard, and a hexagonal hash lattice.
  *
- * ResearchHub is unchanged -- RESEARCH_CHARGE_FRAME_URLS above already points
- * at dedicated hand-made art, so there is nothing to replace.
+ * ResearchHub uses the CC0 Spark/Bolt/Charged ladder above. The generated pack
+ * remains dedicated to the three collectible hulls, preserving their distinct
+ * silhouettes while the shared upgrade profile scales their combat values.
  *
  * Source: tools/generate-signature-move-fx.mjs (procedural, regenerable).
  */
@@ -169,7 +265,10 @@ export const SHIP_ABILITY_DEFINITIONS: Readonly<Record<PlayerShipId, ShipAbility
 });
 
 export const SHIP_ABILITY_FRAME_URLS = [
-  ...RESEARCH_CHARGE_FRAME_URLS,
+  ...RESEARCH_SPARK_FRAME_URLS,
+  ...RESEARCH_BOLT_FRAME_URLS,
+  ...RESEARCH_CHARGED_FRAME_URLS,
+  ...RESEARCH_IMPACT_ALL_FRAME_URLS,
   ...BIO_GENOME_LANCE_FRAME_URLS,
   ...ETH_PRISM_VOLLEY_FRAME_URLS,
   ...BTC_HASH_BURST_FRAME_URLS

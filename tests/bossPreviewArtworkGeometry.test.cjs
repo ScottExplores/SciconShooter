@@ -81,7 +81,7 @@ test('the canonical canvas passes selected modular design bounds into GameEngine
 
   assert.match(
     canvas,
-    /previewBossArtworkDesignSize:[\s\S]*?activeBossArtwork\?\.modularRig\?\.manifest\.designSize/
+    /previewBossArtworkDesignSize:[\s\S]*?setupBossArtwork\?\.modularRig\?\.manifest\.designSize/
   );
   assert.match(engine, /resolveBossPreviewArtworkDimensions\(\{/);
   assert.match(engine, /selectedEventId: this\.previewBossCollisionEventId/);

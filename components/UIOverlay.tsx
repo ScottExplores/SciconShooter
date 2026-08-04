@@ -7,7 +7,8 @@ import { ONBOARDING_GAMEPLAY_ACTION_EVENT } from '../services/onboardingProgress
 import type { PlayerShipId } from '../services/playerShipService';
 import { formatTokenAmount } from '../services/tokenTerminology';
 import {
-  getShipAbilityDefinition
+  getShipAbilityDefinition,
+  getShipAbilityUpgradeProfile
 } from '../services/shipAbilityService';
 import { getFireRateTier, getFireRateTierProgress } from '../services/weaponTierProgression';
 
@@ -276,11 +277,15 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
   const bombs = stats.bombs || 0;
   const canUseBomb = (unlimitedBombs || bombs > 0) && !bombLocked;
   const abilityDefinition = getShipAbilityDefinition(selectedShipId ?? 'researchhub');
+  const abilityUpgradeProfile = getShipAbilityUpgradeProfile(stats.upgrades?.ability ?? 0);
+  const abilityIconUrl = selectedShipId === 'researchhub'
+    ? abilityUpgradeProfile.projectileIconUrl
+    : abilityDefinition.iconUrl;
   const abilityCooldownMax = stats.shipAbilityCooldownMax || abilityDefinition.cooldownFrames;
   const abilityCooldown = Math.max(0, stats.shipAbilityCooldown || 0);
   const abilityReady = abilityCooldown <= 0 && !shipAbilityLocked;
   const abilityRevealDegrees = Math.round((1 - Math.min(1, abilityCooldown / abilityCooldownMax)) * 360);
-  const abilitySeconds = Math.max(1, Math.ceil((abilityCooldown / abilityCooldownMax) * abilityDefinition.cooldownSeconds));
+  const abilitySeconds = Math.max(1, Math.ceil(abilityCooldown / 60));
   const lifeCapacityMissionRef = useRef(stats.wave);
   const lifeCapacityRef = useRef(Math.max(1, lifeCapacity ?? stats.lives));
   if (lifeCapacityMissionRef.current !== stats.wave) {
@@ -435,13 +440,13 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
               style={{ background: `radial-gradient(circle at 50% 35%, ${abilityDefinition.glow}, transparent 48%), linear-gradient(180deg, rgba(15,23,42,0.1), rgba(0,0,0,0.48))` }}
             />
             <img
-              src={abilityDefinition.iconUrl}
+              src={abilityIconUrl}
               alt=""
               className="absolute h-[78%] w-[78%] object-contain opacity-30 grayscale [image-rendering:pixelated]"
               style={{ transform: `rotate(${abilityDefinition.iconRotationDegrees}deg)` }}
             />
             <img
-              src={abilityDefinition.iconUrl}
+              src={abilityIconUrl}
               alt=""
               className="absolute h-[78%] w-[78%] object-contain [image-rendering:pixelated]"
               style={{

@@ -33,6 +33,8 @@ test('founder Hangar sandbox unlocks the fleet, supports reversible upgrades, an
   assert.match(squadSource, /unlockedSlots: \{ left: true, right: true \}/);
   assert.match(squadSource, /MINI_SHIP_CATALOG\.map\(\(entry\) => \[entry\.id, MINI_SHIP_MAX_LEVEL\]\)/);
   assert.match(squadSource, /PLAYABLE_PLAYER_SHIP_IDS\.map\(\(shipId\) => \[shipId, \{/);
+  assert.match(squadSource, /ability: MAIN_SHIP_ABILITY_MAX_LEVEL/);
+  assert.match(squadSource, /ability: Math\.max\(targetUpgrades\.ability, sourceUpgrades\.ability\)/);
   assert.match(squadSource, /adjustFounderMiniShipLevel/);
   assert.match(squadSource, /adjustFounderMainShipUpgrade/);
   assert.match(appSource, /adjustFounderMiniShipLevel\(current, id, -1\), false/);

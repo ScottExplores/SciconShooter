@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   MATCH_MUSIC_TRACKS,
+  cycleMatchMusicTrackId,
   type MatchMusicTrackId
 } from '../services/audioService';
 import '../styles/pause-menu.css';
@@ -90,24 +91,32 @@ const MatchMusicSelector: React.FC<{
   id: string;
   trackId: MatchMusicTrackId;
   onChange: (trackId: MatchMusicTrackId) => void;
-}> = ({ id, trackId, onChange }) => (
-  <label className="sci-pause-track" htmlFor={id}>
-    <span>Match music</span>
-    <span className="sci-pause-track__select">
-      <select
-        id={id}
-        value={trackId}
-        aria-label="Match music track"
-        onChange={(event) => onChange(event.currentTarget.value as MatchMusicTrackId)}
-      >
-        {MATCH_MUSIC_TRACKS.map((track) => (
-          <option key={track.id} value={track.id}>{track.name}</option>
-        ))}
-      </select>
-      <span aria-hidden="true">▾</span>
-    </span>
-  </label>
-);
+}> = ({ id, trackId, onChange }) => {
+  const track = MATCH_MUSIC_TRACKS.find((candidate) => candidate.id === trackId)
+    ?? MATCH_MUSIC_TRACKS[0];
+  return (
+    <div className="sci-pause-track">
+      <span id={`${id}-label`}>Match music</span>
+      <div className="sci-pause-track__stepper" role="group" aria-labelledby={`${id}-label`}>
+        <button
+          type="button"
+          aria-label={`Previous match music track. Current track: ${track.name}`}
+          onClick={() => onChange(cycleMatchMusicTrackId(track.id, -1))}
+        >
+          <span aria-hidden="true">‹</span>
+        </button>
+        <output id={id} aria-live="polite">{track.name}</output>
+        <button
+          type="button"
+          aria-label={`Next match music track. Current track: ${track.name}`}
+          onClick={() => onChange(cycleMatchMusicTrackId(track.id, 1))}
+        >
+          <span aria-hidden="true">›</span>
+        </button>
+      </div>
+    </div>
+  );
+};
 
 /**
  * The one canonical audio-settings surface. Both the pause overlay and the
