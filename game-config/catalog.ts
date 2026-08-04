@@ -287,9 +287,9 @@ export const getAssetKeysForRole = (role: GeneratedAssetRole): AssetKey[] => (
 export const ENEMY_CATALOG: Record<EnemyId, EnemyCatalogEntry> = {
   drone: {
     id: 'drone',
-    label: 'Paywall Interceptor',
+    label: 'Orbit Scout',
     entityType: 'ENEMY_DRONE',
-    defaultSpriteKey: 'ENEMY_DRONE_FRAMES',
+    defaultSpriteKey: 'SCICON_ENEMY_ORBIT_SCOUT_FRAMES',
     defaultMovementPatternId: 'drift-down',
     baseHealth: 2,
     baseSpeed: 2.5,
@@ -299,9 +299,9 @@ export const ENEMY_CATALOG: Record<EnemyId, EnemyCatalogEntry> = {
   },
   swarm: {
     id: 'swarm',
-    label: 'Citation Wraith',
+    label: 'Citation Dart',
     entityType: 'ENEMY_SWARM',
-    defaultSpriteKey: 'ENEMY_SWARM_FRAMES',
+    defaultSpriteKey: 'SCICON_ENEMY_CITATION_DART_FRAMES',
     defaultMovementPatternId: 'track-player',
     baseHealth: 1,
     baseSpeed: 3.5,
@@ -311,9 +311,9 @@ export const ENEMY_CATALOG: Record<EnemyId, EnemyCatalogEntry> = {
   },
   brick: {
     id: 'brick',
-    label: 'Peer Review Bulwark',
+    label: 'Peer Bulwark',
     entityType: 'ENEMY_BRICK',
-    defaultSpriteKey: 'ENEMY_BRICK_FRAMES',
+    defaultSpriteKey: 'SCICON_ENEMY_PEER_BULWARK_FRAMES',
     defaultMovementPatternId: 'drift-down',
     baseHealth: 8,
     baseSpeed: 1.5,
@@ -323,9 +323,9 @@ export const ENEMY_CATALOG: Record<EnemyId, EnemyCatalogEntry> = {
   },
   journal: {
     id: 'journal',
-    label: 'Predatory Journal Raider',
+    label: 'Journal Raider',
     entityType: 'ENEMY_JOURNAL',
-    defaultSpriteKey: 'ENEMY_JOURNAL_FRAMES',
+    defaultSpriteKey: 'SCICON_ENEMY_JOURNAL_RAIDER_FRAMES',
     defaultMovementPatternId: 'sine-drift',
     baseHealth: 3,
     baseSpeed: 4.4,
