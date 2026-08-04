@@ -313,12 +313,12 @@ test('GameCanvas applies preview loadouts through a narrow effect without recons
   assert.match(loadoutEffect, /squadLoadout/);
   assert.match(loadoutEffect, /publishPreviewEngineState\(engine\)/);
   assert.doesNotMatch(loadoutEffect, /restartPreview\s*\(/);
-  assert.match(canvasSource, /const setupPlayerShipIdDependency = previewMode \? null : playerShipId/);
-  assert.match(canvasSource, /const setupPlayerShipUrlDependency = previewMode \? null : playerShipUrl/);
-  assert.match(canvasSource, /const setupSquadLoadoutDependency = previewMode \? null : squadLoadout/);
-  assert.match(canvasSource, /const initialLoadout = runtimeLoadoutRef\.current/);
-  assert.match(canvasSource, /playerShipId: initialLoadout\.playerShipId/);
-  assert.match(canvasSource, /squadLoadout: initialLoadout\.squadLoadout/);
+  assert.match(canvasSource, /const setupPlayerShipIdDependency = previewMode \? null : productionSessionDependency/);
+  assert.match(canvasSource, /const setupPlayerShipUrlDependency = previewMode \? null : productionSessionDependency/);
+  assert.match(canvasSource, /const setupSquadLoadoutDependency = previewMode \? null : productionSessionDependency/);
+  assert.match(canvasSource, /const setup = runtimeSetupRef\.current/);
+  assert.match(canvasSource, /playerShipId: setup\.playerShipId/);
+  assert.match(canvasSource, /squadLoadout: setup\.squadLoadout/);
 });
 
 test('fire-rate and speed upgrades synchronize in place instead of restarting the preview', () => {

@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   GameEngine,
-  preloadGameplayAssets as preloadEngineGameplayAssets,
   type GameEngineDebugSnapshot,
   type GameEditorSnapshot,
   type GameRuntimeState,
@@ -30,18 +29,17 @@ import {
   createBoundedGameplayTelemetrySink,
   type GameplayTelemetrySnapshot
 } from '../services/gameplay/telemetry';
-import { waitForGameplayAssetPreload } from '../services/gameplayAssetPreloadBudget';
 import { createModularBossWeaponSocketPoseSampler } from '../services/pixi/boss-rigs/ModularBossWeaponSocketRuntime';
 import { resolveCampaignBossArtwork } from '../services/pixi/boss-rigs/CampaignBossArtworkRegistry';
 import type { BossModularProjectileVisualKind } from '../services/gameplay/bosses/BossProjectilePresentationRuntime';
 import { ONBOARDING_GAMEPLAY_ACTION_EVENT } from '../services/onboardingProgress';
+import {
+  collectCampaignTextureWindow,
+  collectRuntimeTextureUrls
+} from '../services/gameplayAssetManifest';
 
 export const preloadGameplayAssets = async () => {
-  const productionAssetWarmup = Promise.all([
-    preloadEngineGameplayAssets(),
-    preloadPixiGameplayTextures()
-  ]);
-  await waitForGameplayAssetPreload(productionAssetWarmup);
+  await preloadPixiGameplayTextures();
 };
 
 const HUD_STATS_SYNC_INTERVAL_MS = 650;
@@ -262,19 +260,42 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     ),
     [campaign, levelId, previewBossArtwork, waveId]
   );
-  const setupPlayerShipIdDependency = previewMode ? null : playerShipId;
-  const setupPlayerShipUrlDependency = previewMode ? null : playerShipUrl;
-  const setupSquadLoadoutDependency = previewMode ? null : squadLoadout;
-  const setupCampaignDependency = continuousStageBoundaries
-    ? campaign?.id ?? null
-    : campaign;
-  const setupBossArtworkDependency = continuousStageBoundaries
-    ? previewBossArtwork ?? null
-    : activeBossArtwork;
+  const startupRuntimeTextureUrls = useMemo(() => [
+    ...collectCampaignTextureWindow(
+      campaign ?? DEFAULT_GAME_CAMPAIGN,
+      levelId,
+      continuousStageBoundaries ? 3 : 1
+    ),
+    ...collectRuntimeTextureUrls(activeBossArtwork)
+  ], [activeBossArtwork, campaign, continuousStageBoundaries, levelId]);
+  // App keys each production flight by gameId. Keep every other live prop out
+  // of the renderer lifetime boundary so delayed profile/network updates can
+  // never reconstruct an active engine. Preview/editor sessions retain their
+  // authored hot-reload dependencies.
+  const productionSessionDependencyRef = useRef({});
+  const productionSessionDependency = productionSessionDependencyRef.current;
+  const setupPlayerShipIdDependency = previewMode ? null : productionSessionDependency;
+  const setupPlayerShipUrlDependency = previewMode ? null : productionSessionDependency;
+  const setupSquadLoadoutDependency = previewMode ? null : productionSessionDependency;
+  const setupCampaignDependency = previewMode
+    ? (continuousStageBoundaries ? campaign?.id ?? null : campaign)
+    : productionSessionDependency;
+  const setupBossArtworkDependency = previewMode
+    ? (continuousStageBoundaries ? previewBossArtwork ?? null : activeBossArtwork)
+    : productionSessionDependency;
+  const setupAudioEnabledDependency = previewMode ? audioEnabled : productionSessionDependency;
+  const setupContinuousRunDependency = previewMode
+    ? continuousStageBoundaries
+    : productionSessionDependency;
+  const setupDamageCapDependency = previewMode
+    ? maxPlayerDamagePerHit
+    : productionSessionDependency;
+  const setupLifeRefillDependency = previewMode
+    ? refillLivesAtMissionBoundary
+    : productionSessionDependency;
+  const setupSeedDependency = previewMode ? previewSeed : productionSessionDependency;
   const runtimeCampaignRef = useRef(campaign);
-  const runtimeBossArtworkRef = useRef(activeBossArtwork);
   runtimeCampaignRef.current = campaign;
-  runtimeBossArtworkRef.current = activeBossArtwork;
   const hostRef = useRef<HTMLDivElement>(null);
   const pixiRendererRef = useRef<PixiGameRenderer | null>(null);
   const engineRef = useRef<GameEngine | null>(null);
@@ -318,15 +339,49 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const onPreviewSnapshotRef = useRef(onPreviewSnapshot);
   const onPreviewPlayingChangeRef = useRef(onPreviewPlayingChange);
   const onPreviewCommandResultRef = useRef(onPreviewCommandResult);
-  const runtimeLoadoutRef = useRef({
+  const runtimeSetupRef = useRef({
+    stats,
+    campaign,
+    bossArtwork: activeBossArtwork,
+    startupTextureUrls: startupRuntimeTextureUrls,
     playerShipId,
     playerShipUrl,
-    squadLoadout
+    squadLoadout,
+    levelId,
+    waveId,
+    audioEnabled,
+    refillLivesAtMissionBoundary,
+    continuousStageBoundaries,
+    maxPlayerDamagePerHit,
+    randomSeed: previewMode ? previewSeed : randomSeed,
+    previewStartingLives,
+    previewUnlimitedBombs,
+    previewShipAbilityNoCooldown,
+    previewViewportWidth,
+    previewViewportHeight,
+    polishSettings
   });
-  runtimeLoadoutRef.current = {
+  runtimeSetupRef.current = {
+    stats,
+    campaign,
+    bossArtwork: activeBossArtwork,
+    startupTextureUrls: startupRuntimeTextureUrls,
     playerShipId,
     playerShipUrl,
-    squadLoadout
+    squadLoadout,
+    levelId,
+    waveId,
+    audioEnabled,
+    refillLivesAtMissionBoundary,
+    continuousStageBoundaries,
+    maxPlayerDamagePerHit,
+    randomSeed: previewMode ? previewSeed : randomSeed,
+    previewStartingLives,
+    previewUnlimitedBombs,
+    previewShipAbilityNoCooldown,
+    previewViewportWidth,
+    previewViewportHeight,
+    polishSettings
   };
   bombLockedRef.current = bombLocked;
 
@@ -819,29 +874,33 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     let pendingRenderer: PixiGameRenderer | null = null;
 
     const setupRuntime = async () => {
-      const setupCampaign = runtimeCampaignRef.current;
-      const setupBossArtwork = runtimeBossArtworkRef.current;
+      // Capture one immutable setup snapshot before the first network/decoder
+      // await. Later renders may update refs for hot controls, never this run.
+      const setup = runtimeSetupRef.current;
+      const setupCampaign = setup.campaign;
+      const setupBossArtwork = setup.bossArtwork;
       const initialRect = host.getBoundingClientRect();
-      const initialWidth = previewViewportWidth ?? Math.max(1, Math.round(initialRect.width || 720));
-      const initialHeight = previewViewportHeight ?? Math.max(1, Math.round(initialRect.height || 720));
+      const initialWidth = setup.previewViewportWidth ?? Math.max(1, Math.round(initialRect.width || 720));
+      const initialHeight = setup.previewViewportHeight ?? Math.max(1, Math.round(initialRect.height || 720));
       const renderer = new PixiGameRenderer({
         previewBossArtwork: setupBossArtwork,
         startupTextureUrls: [
-          ...(runtimeLoadoutRef.current.playerShipUrl
-            ? [runtimeLoadoutRef.current.playerShipUrl]
+          ...(setup.playerShipUrl
+            ? [setup.playerShipUrl]
             : []),
           ...(
-            runtimeLoadoutRef.current.squadLoadout?.companions
+            setup.squadLoadout?.companions
               .flatMap((companion) => companion.frames)
             ?? []
-          )
+          ),
+          ...setup.startupTextureUrls
         ]
       });
       pendingRenderer = renderer;
       const initialEnvironmentWindow = resolveCampaignEnvironmentWindow(
         setupCampaign ?? DEFAULT_GAME_CAMPAIGN,
-        levelId,
-        waveId
+        setup.levelId,
+        setup.waveId
       );
       await renderer.init(host, initialWidth, initialHeight, initialEnvironmentWindow);
       if (disposed) {
@@ -856,15 +915,14 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         previewMode ? 'Live Scicon Shooter Pixi wave preview' : 'Scicon Shooter Pixi gameplay'
       );
 
-      const initialStats = cloneStatsForReact(stats);
-      if (previewMode && previewStartingLives !== undefined) {
-        initialStats.lives = previewStartingLives;
+      const initialStats = cloneStatsForReact(setup.stats);
+      if (previewMode && setup.previewStartingLives !== undefined) {
+        initialStats.lives = setup.previewStartingLives;
       }
 
       const telemetrySink = previewMode
         ? createBoundedGameplayTelemetrySink({ maxEvents: 1024 })
         : undefined;
-      const initialLoadout = runtimeLoadoutRef.current;
       const previewBossReducedMotion = Boolean(setupBossArtwork)
         && (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false);
       const previewBossWeaponSocketPoseSampler = (
@@ -880,19 +938,19 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         campaign: setupCampaign,
         previewMode,
         previewInvincible: previewInvincibleRef.current,
-        previewUnlimitedBombs,
-        previewShipAbilityNoCooldown,
-        audioEnabled,
-        playerShipUrl: initialLoadout.playerShipUrl,
-        playerShipId: initialLoadout.playerShipId,
-        squadLoadout: initialLoadout.squadLoadout,
-        initialLevelId: levelId,
-        initialWaveId: waveId,
-        refillLivesAtMissionBoundary,
-        continuousStageBoundaries,
-        maxPlayerDamagePerHit,
+        previewUnlimitedBombs: setup.previewUnlimitedBombs,
+        previewShipAbilityNoCooldown: setup.previewShipAbilityNoCooldown,
+        audioEnabled: setup.audioEnabled,
+        playerShipUrl: setup.playerShipUrl,
+        playerShipId: setup.playerShipId,
+        squadLoadout: setup.squadLoadout,
+        initialLevelId: setup.levelId,
+        initialWaveId: setup.waveId,
+        refillLivesAtMissionBoundary: setup.refillLivesAtMissionBoundary,
+        continuousStageBoundaries: setup.continuousStageBoundaries,
+        maxPlayerDamagePerHit: setup.maxPlayerDamagePerHit,
         testMode: testModeRef.current,
-        randomSeed: previewMode ? previewSeed : randomSeed,
+        randomSeed: setup.randomSeed,
         previewBossCollisionEventId: setupBossArtwork?.eventId,
         previewBossCollisionMask: setupBossArtwork?.collisionMask,
         previewBossArtworkDesignSize:
@@ -906,9 +964,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
               setupBossArtwork.projectileAnimations
             ) as BossModularProjectileVisualKind[]
           : undefined,
-        telemetrySink
+        telemetrySink,
+        preloadCanvasAssets: false
       });
-      engine.polishSettings = polishSettings;
+      engine.polishSettings = setup.polishSettings;
       engineRef.current = engine;
       let targetFPS = 60;
       let frameInterval = 1000 / targetFPS;
@@ -921,6 +980,22 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       let lastTelemetryPublishTime = 0;
       let deathSequenceSafetyTimer: number | null = null;
       let readinessReported = false;
+      let prefetchedCampaignLevelId = '';
+
+    const publishRuntimeState = () => {
+      const runtimeState = engine.getRuntimeState();
+      onRuntimeStateRef.current?.(runtimeState);
+      if (runtimeState.levelId === prefetchedCampaignLevelId) return runtimeState;
+      prefetchedCampaignLevelId = runtimeState.levelId;
+      void renderer.preloadOptionalTextures(
+        collectCampaignTextureWindow(
+          runtimeCampaignRef.current ?? DEFAULT_GAME_CAMPAIGN,
+          runtimeState.levelId,
+          setup.continuousStageBoundaries ? 4 : 1
+        )
+      );
+      return runtimeState;
+    };
 
     const refreshFrameBudget = () => {
       const coarsePointer = window.matchMedia?.('(pointer: coarse)').matches ?? false;
@@ -960,8 +1035,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // Resize Handler
       const handleResize = () => {
         const rect = host.getBoundingClientRect();
-        const width = previewViewportWidth ?? Math.max(1, Math.round(rect.width || 720));
-        const height = previewViewportHeight ?? Math.max(1, Math.round(rect.height || 720));
+        const width = setup.previewViewportWidth ?? Math.max(1, Math.round(rect.width || 720));
+        const height = setup.previewViewportHeight ?? Math.max(1, Math.round(rect.height || 720));
         if (engine.width === width && engine.height === height) return;
         renderer.resize(width, height);
         refreshFrameBudget();
@@ -980,7 +1055,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     lastWaveVictoryIdRef.current = null;
     lastStatsPublishTimeRef.current = 0;
     lastTimeRef.current = 0;
-    onRuntimeStateRef.current?.(engine.getRuntimeState());
+    publishRuntimeState();
     onDebugSnapshotRef.current?.(engine.getDebugSnapshot());
     onEditorSnapshotRef.current?.(engine.getEditorSnapshot());
     if (previewMode) {
@@ -1280,7 +1355,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
       if (timestamp - lastRuntimeStatePublishTime >= RUNTIME_STATE_SYNC_INTERVAL_MS) {
         lastRuntimeStatePublishTime = timestamp;
-        onRuntimeStateRef.current?.(engine.getRuntimeState());
+        publishRuntimeState();
         onDebugSnapshotRef.current?.(engine.getDebugSnapshot());
         onEditorSnapshotRef.current?.(engine.getEditorSnapshot());
         if (previewMode) {
@@ -1355,7 +1430,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       pendingRenderer?.destroy();
       pendingRenderer = null;
     };
-  }, [audioEnabled, continuousStageBoundaries, maxPlayerDamagePerHit, previewMode, previewSeed, previewShipAbilityNoCooldown, previewStartingLives, previewUnlimitedBombs, previewViewportHeight, previewViewportWidth, randomSeed, refillLivesAtMissionBoundary, setupBossArtworkDependency, setupCampaignDependency, setupPlayerShipIdDependency, setupPlayerShipUrlDependency, setupSquadLoadoutDependency]);
+  }, [previewMode, previewShipAbilityNoCooldown, previewStartingLives, previewUnlimitedBombs, previewViewportHeight, previewViewportWidth, setupAudioEnabledDependency, setupBossArtworkDependency, setupCampaignDependency, setupContinuousRunDependency, setupDamageCapDependency, setupLifeRefillDependency, setupPlayerShipIdDependency, setupPlayerShipUrlDependency, setupSeedDependency, setupSquadLoadoutDependency]);
 
   return (
     <div

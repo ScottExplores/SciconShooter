@@ -330,8 +330,8 @@ test('the Canvas keeps a continuous Weekly engine mounted while generated runway
   assert.match(canvasSource, /maxPlayerDamagePerHit,/);
   assert.match(rendererSource, /state\.continuousRun[\s\S]{0,80}'WEEKLY RUN'/);
   assert.match(rendererSource, /state\.continuousRun[\s\S]{0,100}state\.absoluteWaveNumber/);
-  assert.match(canvasSource, /setupCampaignDependency = continuousStageBoundaries[\s\S]{0,100}campaign\?\.id/);
-  assert.match(canvasSource, /new GameEngine\(initialStats, \{[\s\S]{0,500}continuousStageBoundaries/);
+  assert.match(canvasSource, /setupCampaignDependency = previewMode[\s\S]{0,160}: productionSessionDependency/);
+  assert.match(canvasSource, /new GameEngine\(initialStats, \{[\s\S]{0,900}continuousStageBoundaries/);
   assert.doesNotMatch(
     canvasSource,
     /\}, \[activeBossArtwork, audioEnabled, campaign,/,

@@ -1,4 +1,5 @@
 import { PLAYER_SHIPS, type PlayerShipId } from './playerShipService';
+import { preloadDecodedImageUrls } from './browserImagePreload';
 
 export type PlayerSteeringState =
   | 'hard-left'
@@ -154,20 +155,11 @@ export const preloadPlayerShipCarouselFrames = () => {
   if (carouselFramePreload) return carouselFramePreload;
   if (typeof Image === 'undefined') return Promise.resolve();
 
-  carouselFramePreload = Promise.all(PLAYER_SHIP_CAROUSEL_FRAME_URLS.map((url) => (
-    new Promise<void>((resolve) => {
-      const image = new Image();
-      const finish = () => {
-        image.removeEventListener('load', finish);
-        image.removeEventListener('error', finish);
-        resolve();
-      };
-      image.addEventListener('load', finish, { once: true });
-      image.addEventListener('error', finish, { once: true });
-      image.src = url;
-      if (image.complete) finish();
-    })
-  ))).then(() => undefined);
+  carouselFramePreload = preloadDecodedImageUrls(
+    PLAYER_SHIP_CAROUSEL_FRAME_URLS
+  ).then(() => undefined).catch(() => {
+    carouselFramePreload = null;
+  });
 
   return carouselFramePreload;
 };

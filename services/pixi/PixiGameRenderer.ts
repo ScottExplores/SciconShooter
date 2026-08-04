@@ -34,8 +34,7 @@ import {
 import { RESEARCH_IMPACT_ALL_FRAME_URLS, SHIP_ABILITY_FRAME_URLS } from '../shipAbilityService';
 import { MINI_SHIP_CATALOG } from '../squadProgression';
 import {
-  runGameplayAssetPreloadQueue,
-  waitForGameplayAssetPreload
+  runRequiredGameplayAssetPreloadQueue
 } from '../gameplayAssetPreloadBudget';
 import { ArcadeEffectPool } from './ArcadeEffectPool';
 import { sampleBossLowHealthDamageCue } from './BossDamagePresentation';
@@ -171,6 +170,8 @@ type EntityView = {
   health: Graphics;
   label: Text;
   textureKey: string | null;
+  /** Last successfully decoded key; held while the next animation frame loads. */
+  displayedTextureKey: string | null;
   textureRequest: number;
   lastHp: number;
   lastFlashFrames: number;
@@ -1023,15 +1024,22 @@ export const PIXI_GAMEPLAY_TEXTURE_URLS = Object.freeze([
 
 let pixiGameplayTexturePreload: Promise<void> | null = null;
 
-/** Warms the complete deterministic runtime catalog behind the Mission loader. */
+/**
+ * Warms only the shared first-flight textures behind the Mission loader. Boss,
+ * environment, ship, and support art is added by the selected runtime below;
+ * decoding the entire campaign catalog here caused severe mobile jank.
+ */
 export const preloadPixiGameplayTextures = () => {
   if (!pixiGameplayTexturePreload) {
-    const urls = [...new Set(PIXI_GAMEPLAY_TEXTURE_URLS.filter(Boolean))];
-    const warmup = runGameplayAssetPreloadQueue(urls, async (url) => {
+    const urls = [...new Set(PIXI_GAMEPLAY_STARTUP_TEXTURE_URLS.filter(Boolean))];
+    const warmup = runRequiredGameplayAssetPreloadQueue(urls, async (url) => {
         const texture = await Assets.load<Texture>(url);
         texture.source.scaleMode = 'nearest';
       });
-    pixiGameplayTexturePreload = waitForGameplayAssetPreload(warmup).then(() => undefined);
+    pixiGameplayTexturePreload = warmup.catch((error: unknown) => {
+      pixiGameplayTexturePreload = null;
+      throw error;
+    });
   }
   return pixiGameplayTexturePreload;
 };
@@ -1898,22 +1906,19 @@ export class PixiGameRenderer {
       ...PIXI_GAMEPLAY_STARTUP_TEXTURE_URLS,
       ...selectedRuntimeTextureUrls
     ].filter(Boolean))];
-    const startupStatus = await this.textureBank.preload(startupTextureUrls);
+    await this.textureBank.preloadRequired(startupTextureUrls);
     this.bindStartupTextures();
-    if (startupStatus === 'timed-out') {
-      void runGameplayAssetPreloadQueue(
-        startupTextureUrls,
-        (url) => this.textureBank.load(url)
-      ).then(() => {
-        if (!this.destroyed) this.bindStartupTextures();
-      });
-    }
     if (this.destroyed) return;
     this.initialized = true;
   }
 
   get canvas() {
     return this.app.canvas;
+  }
+
+  /** Low-priority look-ahead for the next endless depth. */
+  preloadOptionalTextures(urls: readonly string[]) {
+    return this.textureBank.preload(urls, 2).then(() => undefined);
   }
 
   resize(width: number, height: number) {
@@ -2571,6 +2576,7 @@ export class PixiGameRenderer {
       });
       reused.body.filters = null;
       reused.textureKey = null;
+      reused.displayedTextureKey = null;
       reused.textureRequest++;
       reused.lastHp = entity.hp;
       reused.lastFlashFrames = 0;
@@ -2725,6 +2731,7 @@ export class PixiGameRenderer {
       health,
       label,
       textureKey: null,
+      displayedTextureKey: null,
       textureRequest: 0,
       lastHp: entity.hp,
       lastFlashFrames: 0,
@@ -2753,6 +2760,7 @@ export class PixiGameRenderer {
     view.sprite.filters = null;
     view.body.filters = null;
     view.textureKey = null;
+    view.displayedTextureKey = null;
     view.textureRequest++;
     view.trail.clear();
     view.aura.clear();
@@ -2793,6 +2801,7 @@ export class PixiGameRenderer {
   private setTexture(view: EntityView, key: string | null) {
     if (!key) {
       view.sprite.visible = false;
+      view.displayedTextureKey = null;
       if (view.textureKey !== null) {
         view.textureKey = null;
         view.textureRequest++;
@@ -2804,11 +2813,10 @@ export class PixiGameRenderer {
       const cached = this.textureBank.get(key);
       if (cached) {
         view.sprite.texture = cached;
+        view.displayedTextureKey = key;
         view.sprite.visible = true;
       } else {
-        // updateEntityView resets visibility before selecting art. Keep an
-        // unresolved same-key request hidden instead of flashing Texture.WHITE.
-        view.sprite.visible = false;
+        view.sprite.visible = Boolean(view.displayedTextureKey);
       }
       return;
     }
@@ -2818,16 +2826,20 @@ export class PixiGameRenderer {
     const ready = this.textureBank.get(key);
     if (ready) {
       view.sprite.texture = ready;
+      view.displayedTextureKey = key;
       view.sprite.visible = true;
       return;
     }
-    view.sprite.visible = false;
+    view.sprite.visible = Boolean(view.displayedTextureKey);
     this.textureBank.load(key).then((texture) => {
       if (this.destroyed || view.textureRequest !== request || view.textureKey !== key) return;
       view.sprite.texture = texture;
+      view.displayedTextureKey = key;
       view.sprite.visible = true;
     }).catch(() => {
-      if (view.textureRequest === request) view.sprite.visible = false;
+      if (view.textureRequest === request) {
+        view.sprite.visible = Boolean(view.displayedTextureKey);
+      }
     });
   }
 
@@ -3093,6 +3105,7 @@ export class PixiGameRenderer {
     if (modularProjectile) {
       if (view.textureKey !== null) {
         view.textureKey = null;
+        view.displayedTextureKey = null;
         view.textureRequest++;
       }
       const visualHeight = Math.max(
@@ -3117,6 +3130,7 @@ export class PixiGameRenderer {
     if (previewBossProjectileVfx) {
       if (view.textureKey !== null) {
         view.textureKey = null;
+        view.displayedTextureKey = null;
         view.textureRequest++;
       }
       const visualHeight = entity.projectileVisualKind === 'boss-pixel-pink'
@@ -3144,6 +3158,7 @@ export class PixiGameRenderer {
         : Math.max(34, Math.max(entity.width, entity.height) * 2.1);
       if (view.textureKey !== null) {
         view.textureKey = null;
+        view.displayedTextureKey = null;
         view.textureRequest++;
       }
       view.sprite.texture = previewBossPod.texture;
@@ -3281,6 +3296,7 @@ export class PixiGameRenderer {
         if (beamTexture) {
           if (view.textureKey !== null) {
             view.textureKey = null;
+            view.displayedTextureKey = null;
             view.textureRequest++;
           }
           view.sprite.texture = beamTexture;

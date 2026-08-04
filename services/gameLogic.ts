@@ -1556,6 +1556,8 @@ export interface GameEngineOptions {
   /** Preview-only resource override. Production ship abilities keep their real cooldown. */
   previewShipAbilityNoCooldown?: boolean;
   audioEnabled?: boolean;
+  /** Pixi owns production art; legacy Canvas callers may still warm their Image cache. */
+  preloadCanvasAssets?: boolean;
   playerShipUrl?: string;
   playerShipId?: PlayerShipId;
   initialLevelId?: string;
@@ -2502,7 +2504,9 @@ export class GameEngine {
     this.player.width = Math.round(128 * PLAYER_SHIP_SCALE);
     this.player.height = Math.round(128 * PLAYER_SHIP_SCALE);
 
-    GAMEPLAY_ASSET_URLS.forEach(loadImage);
+    if (options.preloadCanvasAssets !== false) {
+      GAMEPLAY_ASSET_URLS.forEach(loadImage);
+    }
   }
 
   private createEntity(type: EntityType, x: number, y: number) {

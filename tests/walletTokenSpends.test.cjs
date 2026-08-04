@@ -57,6 +57,9 @@ const campaignGraphStub = {
   indexCampaignGraph: () => ({})
 };
 const squad = compileService('squadProgression.ts', {
+  './browserImagePreload': {
+    preloadDecodedImageUrls: async () => undefined
+  },
   '../shared/weeklyRunPlan.browser': require('../shared/weeklyRunPlan.js'),
   '../shared/weeklyCompetitionBoundary.browser': {
     getWeeklyBoundaryMeta: () => ({ weekKey: '2026-08-02', endsAt: new Date('2026-08-09T19:00:00.000Z') })

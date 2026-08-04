@@ -90,6 +90,9 @@ const campaignProgression = compileService('campaignProgression.ts', {
 });
 
 const squadProgression = compileService('squadProgression.ts', {
+  './browserImagePreload': {
+    preloadDecodedImageUrls: async () => undefined
+  },
   '../shared/weeklyCompetitionBoundary.browser': {
     getWeeklyBoundaryMeta: () => ({ weekKey: '2026-07-26' })
   },

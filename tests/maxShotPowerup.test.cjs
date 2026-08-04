@@ -85,11 +85,12 @@ test('Max Shot presentation reuses one aura sprite and one bounded screen-edge g
   assert.match(engine, /completeBurstFloor/);
 });
 
-test('the conditional mission preload warms only the explicit production Pixi texture list', () => {
+test('the conditional mission preload warms only the critical production Pixi texture list', () => {
   const canvas = read('components', 'GameCanvas.tsx');
   assert.match(renderer, /export const PIXI_GAMEPLAY_TEXTURE_URLS = Object\.freeze\(\[/);
   assert.match(renderer, /export const preloadPixiGameplayTextures/);
   assert.match(renderer, /Assets\.load<Texture>\(url\)/);
-  assert.match(canvas, /preloadEngineGameplayAssets\(\)/);
+  assert.doesNotMatch(canvas, /preloadEngineGameplayAssets\(\)/);
   assert.match(canvas, /preloadPixiGameplayTextures\(\)/);
+  assert.match(canvas, /preloadCanvasAssets:\s*false/);
 });

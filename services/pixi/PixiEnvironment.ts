@@ -620,7 +620,7 @@ export class PixiEnvironment {
     this.height = Math.max(1, height);
     if (!this.built) this.build();
     this.resize(this.width, this.height);
-    await this.preloadProfileWindow(profileWindow);
+    await this.preloadProfileWindow(profileWindow, true);
     if (this.destroyed) return;
     this.applyProfile(profileWindow.currentBackgroundId, true);
     this.resize(this.width, this.height);
@@ -860,7 +860,10 @@ export class PixiEnvironment {
     }
   }
 
-  private preloadProfileWindow(profileWindow: PixiEnvironmentWindow) {
+  private preloadProfileWindow(
+    profileWindow: PixiEnvironmentWindow,
+    required = false
+  ) {
     const normalizedWindow: PixiEnvironmentWindow = {
       currentBackgroundId: resolveBackgroundId(profileWindow.currentBackgroundId),
       nextBackgroundId: profileWindow.nextBackgroundId
@@ -871,8 +874,10 @@ export class PixiEnvironment {
     if (profileWindowKey === this.profileWindowKey) return this.profileWindowPreload;
 
     this.profileWindowKey = profileWindowKey;
-    this.profileWindowPreload = this.textures
-      .preload([...getEnvironmentWindowTextureUrls(normalizedWindow)])
+    const textureUrls = [...getEnvironmentWindowTextureUrls(normalizedWindow)];
+    this.profileWindowPreload = (required
+      ? this.textures.preloadRequired(textureUrls)
+      : this.textures.preload(textureUrls))
       .then(() => undefined);
     return this.profileWindowPreload;
   }
