@@ -85,6 +85,10 @@
       "destination": "/api/mint-records?route=wallet-purchases"
     },
     {
+      "source": "/api/player-ship-access",
+      "destination": "/api/mint-records?route=player-ship-access"
+    },
+    {
       "source": "/api/continue-payments",
       "destination": "/api/mint-records?route=continue-payments"
     },

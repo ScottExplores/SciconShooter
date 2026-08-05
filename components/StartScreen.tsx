@@ -7,9 +7,17 @@ import {
   getProposalFundingMetrics,
   sortProposalsByFunding
 } from '../services/proposalFunding';
-import { ASSETS, DONATION_CONFIG, type RscPurchaseSkuId } from '../constants';
+import {
+  ASSETS,
+  DONATION_CONFIG,
+  type PlayerShipPurchaseSkuId,
+  type RscPurchaseSkuId
+} from '../constants';
 import type { RscBalanceSnapshot } from '../services/baseAccountWallet';
-import type { WalletPurchaseStatusUpdate } from './WalletRuntime';
+import type {
+  PlayerShipPurchaseStatusUpdate,
+  WalletPurchaseStatusUpdate
+} from './WalletRuntime';
 import type { WalletRunRecord } from '../services/playerRunService';
 import type { WeeklyProposalRecovery } from '../services/weeklyProposalRecovery';
 import {
@@ -25,8 +33,6 @@ import {
 } from '../shared/weeklyCompetitionBoundary.browser';
 import { buildMissionRecordCardPath } from '../shared/record-card/renderRecordCardSvg.mjs';
 import {
-  BTC_SHIP_SCORE_THRESHOLD,
-  ETH_SHIP_SCORE_THRESHOLD,
   isPlayerShipUnlocked,
   PLAYABLE_PLAYER_SHIP_IDS,
   PLAYER_SHIPS,
@@ -130,7 +136,10 @@ interface StartScreenProps {
   rscBalance: RscBalanceSnapshot | null;
   rscBalanceStatus: 'idle' | 'loading' | 'ready' | 'error';
   walletPurchaseStatus: WalletPurchaseStatusUpdate;
+  playerShipPurchaseStatus: PlayerShipPurchaseStatusUpdate;
   onPurchaseWithRsc: (skuId: RscPurchaseSkuId) => void;
+  onPurchasePlayerShip: (skuId: PlayerShipPurchaseSkuId) => void;
+  onRefreshPlayerShipAccess: () => void;
   onRefreshRscBalance: () => void;
   audioMuted: boolean;
   sfxVolumeLevel: number;
@@ -772,7 +781,10 @@ const StartScreen: React.FC<StartScreenProps> = ({
   rscBalance,
   rscBalanceStatus,
   walletPurchaseStatus,
+  playerShipPurchaseStatus,
   onPurchaseWithRsc,
+  onPurchasePlayerShip,
+  onRefreshPlayerShipAccess,
   onRefreshRscBalance,
   audioMuted,
   sfxVolumeLevel,
@@ -1097,12 +1109,13 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
   const focusedShip = PLAYER_SHIPS[shipFocusId];
   const focusedShipLocked = !isPlayerShipUnlocked(shipFocusId, shipUnlocks);
-  const getShipUnlockScore = (shipId: PlayerShipId) => shipId === 'btc'
-    ? BTC_SHIP_SCORE_THRESHOLD
-    : ETH_SHIP_SCORE_THRESHOLD;
-  const getShipUnlockMessage = (shipId: PlayerShipId) => (
-    `Mint a ${getShipUnlockScore(shipId).toLocaleString()}+ score NFT to unlock this ship.`
-  );
+  const getShipUnlockMessage = (shipId: PlayerShipId) => shipId === 'bio'
+    ? 'Hold at least 100 BIO on Base to fly this ship.'
+    : shipId === 'eth'
+      ? 'Unlock permanently for 0.001 ETH on Base.'
+      : shipId === 'btc'
+        ? `Earn all ${shipUnlocks.campaignStarsTotal} Campaign stars or unlock for 0.00008 cbBTC on Base.`
+        : 'This ship is ready.';
 
   const requestHangar = () => setDashboardTab('hangar');
 
@@ -2293,6 +2306,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
           rscBalance={rscBalance}
           rscBalanceStatus={rscBalanceStatus}
           walletPurchaseStatus={walletPurchaseStatus}
+          playerShipPurchaseStatus={playerShipPurchaseStatus}
           founderSandbox={founderSandbox}
           onSelectMainShip={(shipId) => {
             setShipFocusId(shipId);
@@ -2300,6 +2314,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
           }}
           onUnlockSlot={onUnlockSquadSlot}
           onPurchaseWithRsc={onPurchaseWithRsc}
+          onPurchasePlayerShip={onPurchasePlayerShip}
+          onRefreshPlayerShipAccess={onRefreshPlayerShipAccess}
           onOpenRscSwap={() => setShowRscAcquire(true)}
           onPurchaseMini={onPurchaseMiniShip}
           onUpgradeMini={onUpgradeMiniShip}
@@ -2334,6 +2350,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
           rscBalance={rscBalance}
           rscBalanceStatus={rscBalanceStatus}
           walletPurchaseStatus={walletPurchaseStatus}
+          playerShipPurchaseStatus={playerShipPurchaseStatus}
           founderSandbox={founderSandbox}
           onSelectMainShip={(shipId) => {
             setShipFocusId(shipId);
@@ -2341,6 +2358,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
           }}
           onUnlockSlot={onUnlockSquadSlot}
           onPurchaseWithRsc={onPurchaseWithRsc}
+          onPurchasePlayerShip={onPurchasePlayerShip}
+          onRefreshPlayerShipAccess={onRefreshPlayerShipAccess}
           onOpenRscSwap={() => setShowRscAcquire(true)}
           onPurchaseMini={onPurchaseMiniShip}
           onUpgradeMini={onUpgradeMiniShip}

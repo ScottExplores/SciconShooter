@@ -34,6 +34,12 @@ const MAX_SNAPSHOT_BYTES = 256 * 1024;
 
 const PLAYER_SHIP_IDS = ['researchhub', 'bio', 'eth', 'btc'];
 const PLAYER_SHIP_ID_SET = new Set(PLAYER_SHIP_IDS);
+const PLAYER_SHIP_ENTITLEMENT_VERSION = 1;
+const PLAYER_SHIP_PURCHASE_ENTITLEMENT_CONFIG = Object.freeze({
+  eth: Object.freeze({ source: 'base-eth-purchase' }),
+  btc: Object.freeze({ source: 'base-cbbtc-purchase' })
+});
+const PLAYER_SHIP_TRANSACTION_HASH_PATTERN = /^0x[a-f0-9]{64}$/;
 const MINI_SHIP_IDS = [
   'citation-dart',
   'helix-wasp',
@@ -2551,6 +2557,72 @@ const sanitizeWeeklyState = (rawValue, profileId, now) => {
   };
 };
 
+const campaignMasteryStatus = (rawSnapshot) => {
+  const snapshot = asObject(rawSnapshot);
+  const permanentState = asObject(snapshot.permanentState);
+  const progress = asObject(
+    permanentState.campaignProgress ?? snapshot.campaignProgress ?? rawSnapshot
+  );
+  const missionRecords = asObject(progress.missionRecords);
+  let missionsCompleted = 0;
+  let starsEarned = 0;
+
+  CAMPAIGN_LEVELS.forEach((level) => {
+    const record = asObject(missionRecords[level.id]);
+    const objectiveIds = campaignStarIds(level);
+    const earnedStarIds = new Set(stringList(record.earnedStarIds, {
+      maxItems: objectiveIds.length,
+      maxLength: 160
+    }));
+    if (record.completed === true) missionsCompleted += 1;
+    starsEarned += objectiveIds.filter((id) => earnedStarIds.has(id)).length;
+  });
+
+  const requiredMissions = CAMPAIGN_LEVELS.length;
+  const requiredStars = CAMPAIGN_LEVELS.reduce(
+    (total, level) => total + campaignStarIds(level).length,
+    0
+  );
+  return {
+    missionsCompleted,
+    requiredMissions,
+    starsEarned,
+    requiredStars,
+    complete: missionsCompleted === requiredMissions && starsEarned === requiredStars
+  };
+};
+
+const sanitizePlayerShipEntitlement = (rawValue, shipId) => {
+  const config = PLAYER_SHIP_PURCHASE_ENTITLEMENT_CONFIG[shipId];
+  const value = asObject(rawValue);
+  const transactionHash = typeof value.transactionHash === 'string'
+    ? value.transactionHash.trim().toLowerCase()
+    : '';
+  const grantedAtMs = typeof value.grantedAt === 'string'
+    ? Date.parse(value.grantedAt)
+    : Number.NaN;
+  if (
+    !config
+    || value.source !== config.source
+    || !PLAYER_SHIP_TRANSACTION_HASH_PATTERN.test(transactionHash)
+    || !Number.isFinite(grantedAtMs)
+  ) return null;
+  return {
+    source: config.source,
+    transactionHash,
+    grantedAt: new Date(grantedAtMs).toISOString()
+  };
+};
+
+const sanitizePlayerShipEntitlements = (rawValue) => {
+  const value = asObject(rawValue);
+  return {
+    version: PLAYER_SHIP_ENTITLEMENT_VERSION,
+    eth: sanitizePlayerShipEntitlement(value.eth, 'eth'),
+    btc: sanitizePlayerShipEntitlement(value.btc, 'btc')
+  };
+};
+
 const sanitizePermanentState = (rawValue, profileId, now) => {
   const value = asObject(rawValue);
   const dailyGifts = asObject(value.dailyGifts);
@@ -2610,6 +2682,7 @@ const sanitizePermanentState = (rawValue, profileId, now) => {
       maxItems: PLAYER_SHIP_IDS.length,
       maxLength: 16
     }).filter((id) => PLAYER_SHIP_ID_SET.has(id)),
+    playerShipEntitlements: sanitizePlayerShipEntitlements(value.playerShipEntitlements),
     bossArchive: sanitizeBossArchiveProgress(bossArchive, unlockedEventIds, now),
     campaignProgress: sanitizeCampaignProgress(value.campaignProgress, lifetimeStats, now),
     updatedAt: isoNow(now)
@@ -2702,6 +2775,21 @@ const preserveWalletPurchaseServerState = ({
 }) => {
   const currentWeekly = currentSnapshot?.weeklyState ?? null;
   const incomingWeekly = incomingSnapshot.weeklyState;
+  const currentPermanent = asObject(currentSnapshot?.permanentState);
+  const incomingPermanent = asObject(incomingSnapshot.permanentState);
+  const currentPlayerShipEntitlements = sanitizePlayerShipEntitlements(
+    currentPermanent.playerShipEntitlements
+  );
+  const currentUnlockedPlayerShips = new Set(stringList(
+    currentPermanent.unlockedPlayerShips,
+    { maxItems: PLAYER_SHIP_IDS.length, maxLength: 16 }
+  ).filter((id) => PLAYER_SHIP_ID_SET.has(id)));
+  if (campaignMasteryStatus(incomingSnapshot).complete) {
+    currentUnlockedPlayerShips.add('btc');
+  }
+  const unlockedPlayerShips = PLAYER_SHIP_IDS.filter((id) => (
+    currentUnlockedPlayerShips.has(id)
+  ));
   const protectedTokens = integer(purchasedTokensAvailable, 0, 1_000_000_000);
   const incomingCoins = integer(incomingWeekly.coins, 0, 1_000_000_000);
   const protectedCoins = Math.max(incomingCoins, protectedTokens);
@@ -2724,6 +2812,11 @@ const preserveWalletPurchaseServerState = ({
           ...incomingWeekly.unlockedSlots,
           right: false
         }
+      },
+      permanentState: {
+        ...incomingPermanent,
+        unlockedPlayerShips,
+        playerShipEntitlements: sanitizePlayerShipEntitlements(null)
       }
     };
   }
@@ -2762,9 +2855,11 @@ const preserveWalletPurchaseServerState = ({
       shipUpgrades: currentWeekly.shipUpgrades
     },
     permanentState: {
-      ...incomingSnapshot.permanentState,
+      ...incomingPermanent,
+      unlockedPlayerShips,
+      playerShipEntitlements: currentPlayerShipEntitlements,
       lifetimeStats: {
-        ...incomingSnapshot.permanentState.lifetimeStats,
+        ...incomingPermanent.lifetimeStats,
         hangarUpgradesPurchased: integer(
           currentSnapshot?.permanentState?.lifetimeStats?.hangarUpgradesPurchased,
           0,
@@ -2805,6 +2900,87 @@ const writeWalletProfileSnapshotCas = async ({ profile, snapshot, now }) => {
     }
   );
   return rowToProfile(Array.isArray(rows) ? rows[0] : null, now);
+};
+
+const grantPlayerShipEntitlement = async ({
+  address,
+  shipId,
+  transactionHash,
+  grantedAt,
+  now = Date.now(),
+  loadProfile = ensureWalletProfile,
+  writeProfile = writeWalletProfileSnapshotCas
+}) => {
+  const walletAddress = normalizeWalletAddress(address);
+  const config = PLAYER_SHIP_PURCHASE_ENTITLEMENT_CONFIG[shipId];
+  const normalizedTransactionHash = typeof transactionHash === 'string'
+    ? transactionHash.trim().toLowerCase()
+    : '';
+  const grantedAtMs = typeof grantedAt === 'string'
+    ? Date.parse(grantedAt)
+    : Number(grantedAt ?? now);
+  if (
+    !walletAddress
+    || !config
+    || !PLAYER_SHIP_TRANSACTION_HASH_PATTERN.test(normalizedTransactionHash)
+    || !Number.isFinite(grantedAtMs)
+  ) {
+    throw apiError('Player ship entitlement details are invalid.', 400, {
+      code: 'player_ship_entitlement_invalid'
+    });
+  }
+  const entitlement = {
+    source: config.source,
+    transactionHash: normalizedTransactionHash,
+    grantedAt: new Date(grantedAtMs).toISOString()
+  };
+
+  for (let retry = 0; retry < 5; retry += 1) {
+    const profile = await loadProfile(walletAddress, now);
+    if (!profile) {
+      throw apiError('The wallet profile could not be prepared for this unlock.', 503, {
+        code: 'player_ship_profile_unavailable'
+      });
+    }
+    const currentEntitlements = sanitizePlayerShipEntitlements(
+      profile.snapshot?.permanentState?.playerShipEntitlements
+    );
+    if (currentEntitlements[shipId]) {
+      return {
+        profile,
+        entitlement: currentEntitlements[shipId],
+        granted: false,
+        duplicate: true
+      };
+    }
+    const unlockedPlayerShips = new Set(stringList(
+      profile.snapshot?.permanentState?.unlockedPlayerShips,
+      { maxItems: PLAYER_SHIP_IDS.length, maxLength: 16 }
+    ).filter((id) => PLAYER_SHIP_ID_SET.has(id)));
+    unlockedPlayerShips.add(shipId);
+    const nextSnapshot = {
+      ...profile.snapshot,
+      permanentState: {
+        ...profile.snapshot.permanentState,
+        unlockedPlayerShips: PLAYER_SHIP_IDS.filter((id) => unlockedPlayerShips.has(id)),
+        playerShipEntitlements: {
+          ...currentEntitlements,
+          version: PLAYER_SHIP_ENTITLEMENT_VERSION,
+          [shipId]: entitlement
+        },
+        updatedAt: isoNow(now)
+      }
+    };
+    const saved = await writeProfile({ profile, snapshot: nextSnapshot, now });
+    if (saved) {
+      return { profile: saved, entitlement, granted: true, duplicate: false };
+    }
+  }
+  throw apiError(
+    'Player ship entitlement state changed repeatedly. Try settlement again.',
+    409,
+    { code: 'player_ship_entitlement_conflict' }
+  );
 };
 
 const reserveBossArchiveDailyAttempt = async ({
@@ -3198,7 +3374,9 @@ module.exports = {
   CHALLENGES_TABLE,
   CHALLENGE_LIFETIME_MS,
   MAX_SNAPSHOT_BYTES,
+  PLAYER_SHIP_ENTITLEMENT_VERSION,
   PROFILES_TABLE,
+  campaignMasteryStatus,
   consumeWalletProfileChallenge,
   createWeeklyCampaignStreakRunBinding,
   createWalletProfileChallenge,
@@ -3207,6 +3385,7 @@ module.exports = {
   fetchWalletProfile,
   fetchPurchasedTokensAvailable,
   fetchBossArchiveDailyLedger,
+  grantPlayerShipEntitlement,
   getBossArchiveChallengeConfig,
   getWalletProfileChallenge,
   rowToProfile,
@@ -3214,6 +3393,7 @@ module.exports = {
   mergeCampaignGraphProgress,
   sanitizeCampaignBranchProgress,
   sanitizePermanentState,
+  sanitizePlayerShipEntitlements,
   sanitizeStats,
   sanitizeWalletSnapshot,
   sanitizeWeeklyState,

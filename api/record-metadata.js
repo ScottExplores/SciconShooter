@@ -13,9 +13,9 @@ const sendJson = (res, status, payload) => {
 };
 
 const getScoreAchievement = (score) => {
-  if (score >= 10000) return { tier: 'Bitcoin Ace', unlocks: 'ETH + BTC ships' };
-  if (score >= 1000) return { tier: 'Ethereum Pilot', unlocks: 'ETH ship' };
-  return { tier: 'Mission Record', unlocks: 'None' };
+  if (score >= 10000) return { tier: 'Bitcoin Ace' };
+  if (score >= 1000) return { tier: 'Ethereum Pilot' };
+  return { tier: 'Mission Record' };
 };
 
 module.exports = async (req, res) => {
@@ -39,13 +39,12 @@ module.exports = async (req, res) => {
     const achievement = getScoreAchievement(record.score);
     return sendJson(res, 200, {
       name: `Scicon ${achievement.tier} - ${record.pilotName}`,
-      description: `${record.pilotName} scored ${record.score.toLocaleString('en-US')} in ${record.encounter}, reaching wave ${record.wave} with ${record.targetsDefeated} targets defeated. This verified Mission Record unlocks: ${achievement.unlocks}.`,
+      description: `${record.pilotName} scored ${record.score.toLocaleString('en-US')} in ${record.encounter}, reaching wave ${record.wave} with ${record.targetsDefeated} targets defeated. This is a verified Scicon Shooter Mission Record.`,
       image: `${origin}${buildMissionRecordCardPath(runId, record.playerShipId)}`,
       external_url: `${origin}/?view=trophies`,
       attributes: [
         { trait_type: 'Record Type', value: 'Mission Record' },
         { trait_type: 'Achievement Tier', value: achievement.tier },
-        { trait_type: 'Ship Unlocks', value: achievement.unlocks },
         { trait_type: 'Score', value: record.score, display_type: 'number' },
         { trait_type: 'Wave', value: record.wave, display_type: 'number' },
         { trait_type: 'Encounter', value: record.encounter },

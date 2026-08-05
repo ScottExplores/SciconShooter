@@ -63,7 +63,8 @@ test('switching wallets loads a distinct authenticated cloud profile', () => {
   assert.match(app, /localStorage\.setItem\(STORAGE_KEYS\.WALLET_ADDRESS, activeWalletAddress\)/);
   assert.match(app, /getWalletRecords\(activeWalletAddress\)/);
   assert.match(app, /getWalletRuns\(activeWalletAddress\)/);
-  assert.match(app, /getPlayerShipUnlocks\(activeWalletAddress, walletRecords/);
+  assert.match(app, /getPlayerShipUnlocks\(\{/);
+  assert.match(app, /authoritativePaidUnlockIds: access\?\.unlockedPlayerShips/);
   assert.match(profiles, /readCachedWalletProfile/);
   assert.match(profiles, /authenticateWalletProfile/);
   assert.match(profiles, /saveAuthenticatedWalletProfile/);

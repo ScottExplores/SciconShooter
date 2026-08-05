@@ -8,11 +8,16 @@ import {
   http,
   parseUnits,
   stringToHex,
+  toHex,
   type Address,
   type Hex
 } from 'viem';
 import { base } from 'viem/chains';
-import { DONATION_CONFIG } from '../constants';
+import {
+  BIO_SHIP_HOLDING_REQUIREMENT,
+  DONATION_CONFIG,
+  PLAYER_SHIP_PURCHASE_SKUS
+} from '../constants';
 
 type CallsStatusResponse = {
   status?: number;
@@ -68,6 +73,15 @@ export interface RscBalanceSnapshot {
   symbol: 'RSC';
 }
 
+export interface BioBalanceSnapshot {
+  address: Address;
+  raw: bigint;
+  formatted: string;
+  decimals: typeof BIO_SHIP_HOLDING_REQUIREMENT.decimals;
+  symbol: typeof BIO_SHIP_HOLDING_REQUIREMENT.tokenSymbol;
+  meetsRequirement: boolean;
+}
+
 export const getRscBalance = async (address: Address): Promise<RscBalanceSnapshot> => {
   const [decimals, raw] = await Promise.all([
     readRscDecimals(),
@@ -84,6 +98,29 @@ export const getRscBalance = async (address: Address): Promise<RscBalanceSnapsho
     formatted: formatUnits(raw, decimals),
     decimals,
     symbol: 'RSC'
+  };
+};
+
+/**
+ * Reads BIO as a raw bigint and only formats it after the exact holding check.
+ * Ship admission is still decided by the authenticated access API; this helper
+ * is useful for an immediate wallet-side refresh without number coercion.
+ */
+export const getBioBalance = async (address: Address): Promise<BioBalanceSnapshot> => {
+  const raw = await publicClient.readContract({
+    address: BIO_SHIP_HOLDING_REQUIREMENT.tokenAddress as Address,
+    abi: erc20Abi,
+    functionName: 'balanceOf',
+    args: [address]
+  } as any) as bigint;
+  const minimum = BigInt(BIO_SHIP_HOLDING_REQUIREMENT.minimumAmountRaw);
+  return {
+    address,
+    raw,
+    formatted: formatUnits(raw, BIO_SHIP_HOLDING_REQUIREMENT.decimals),
+    decimals: BIO_SHIP_HOLDING_REQUIREMENT.decimals,
+    symbol: BIO_SHIP_HOLDING_REQUIREMENT.tokenSymbol,
+    meetsRequirement: raw >= minimum
   };
 };
 
@@ -195,6 +232,121 @@ export const sendAttributedBaseCalls = async ({
 
   onSubmitted?.(callsId);
   return waitForBaseCallsTransaction(callsId);
+};
+
+const assertBaseMainnetProvider = async () => {
+  const providerChainId = await baseAccountProvider.request({ method: 'eth_chainId' });
+  let chainId: bigint;
+  try {
+    chainId = BigInt(String(providerChainId));
+  } catch {
+    throw new Error('Base Account returned an invalid network identifier.');
+  }
+  if (chainId !== BigInt(DONATION_CONFIG.BASE_CHAIN_ID)) {
+    throw new Error('Switch Base Account to Base Mainnet before purchasing this ship.');
+  }
+};
+
+const assertShipPurchaseRecipient = (from: Address, recipient: Address) => {
+  const normalizedRecipient = recipient.toLowerCase();
+  if (
+    !/^0x[0-9a-f]{40}$/.test(normalizedRecipient)
+    || normalizedRecipient === '0x0000000000000000000000000000000000000000'
+    || normalizedRecipient !== DONATION_CONFIG.RECIPIENT_ADDRESS.toLowerCase()
+    || normalizedRecipient === from.toLowerCase()
+  ) {
+    throw new Error('The ship purchase recipient does not match the published Scicon store wallet.');
+  }
+};
+
+/**
+ * Sends the published 0.001 ETH ship payment as one native Base call. This
+ * intentionally omits attribution capabilities so the payment calldata stays
+ * exactly `0x`. Persisting the calls ID before polling makes an approved
+ * payment recoverable if the page closes before the transaction hash arrives.
+ */
+export const sendEthShipPurchaseTransfer = async ({
+  from,
+  recipient,
+  amountRaw,
+  onSubmitted
+}: {
+  from: Address;
+  recipient: Address;
+  amountRaw: bigint;
+  onSubmitted?: (callsId: Hex) => void;
+}): Promise<Hex> => {
+  assertShipPurchaseRecipient(from, recipient);
+  if (amountRaw !== BigInt(PLAYER_SHIP_PURCHASE_SKUS['eth-ship'].amountRaw)) {
+    throw new Error('The ETH ship payment does not match the published 0.001 ETH price.');
+  }
+  await assertBaseMainnetProvider();
+  const response = await baseAccountProvider.request({
+    method: 'wallet_sendCalls',
+    params: [{
+      version: '2.0.0',
+      chainId: DONATION_CONFIG.BASE_CHAIN_ID_HEX as Hex,
+      atomicRequired: true,
+      from,
+      calls: [{
+        to: recipient,
+        value: toHex(amountRaw),
+        data: '0x'
+      }]
+    }]
+  }) as SendCallsResponse;
+  const callsId = typeof response === 'string'
+    ? response
+    : response.id || response.batchId;
+  if (!callsId) {
+    throw new Error('Base Account did not return an ETH payment call ID.');
+  }
+  onSubmitted?.(callsId);
+  return waitForBaseCallsTransaction(callsId);
+};
+
+export const waitForBaseTransactionReceipt = async (transactionHash: Hex): Promise<Hex> => {
+  const receipt = await publicClient.waitForTransactionReceipt({
+    hash: transactionHash,
+    confirmations: 1,
+    timeout: 90_000
+  });
+  if (receipt.status !== 'success') {
+    throw new Error('The Base transaction reverted before confirmation.');
+  }
+  return transactionHash;
+};
+
+/** Sends the published 0.00008 cbBTC ship payment as one ERC-20 call. */
+export const sendCbBtcShipPurchaseTransfer = async ({
+  from,
+  recipient,
+  amountRaw,
+  onSubmitted
+}: {
+  from: Address;
+  recipient: Address;
+  amountRaw: bigint;
+  onSubmitted?: (callsId: Hex) => void;
+}): Promise<Hex> => {
+  assertShipPurchaseRecipient(from, recipient);
+  if (amountRaw !== BigInt(PLAYER_SHIP_PURCHASE_SKUS['btc-ship'].amountRaw)) {
+    throw new Error('The BTC ship payment does not match the published 0.00008 cbBTC price.');
+  }
+  await assertBaseMainnetProvider();
+  return sendAttributedBaseCalls({
+    from,
+    calls: [{
+      to: DONATION_CONFIG.CBBTC_CONTRACT_ADDRESS as Address,
+      value: '0x0',
+      data: encodeFunctionData({
+        abi: erc20Abi,
+        functionName: 'transfer',
+        args: [recipient, amountRaw]
+      })
+    }],
+    onSubmitted
+  });
 };
 
 export const sendRscContinuePayment = async ({

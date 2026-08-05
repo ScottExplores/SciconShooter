@@ -20,6 +20,7 @@ import {
   STORAGE_KEYS,
   getFieldUpgradeFlaskCost,
   getFieldUpgradeLevel,
+  type PlayerShipPurchaseSkuId,
   type RscPurchaseSkuId
 } from './constants';
 import { ALL_TIME_SCORE_LIMIT, WEEKLY_SCORE_LIMIT, getLeaderboardData, getLeaderboardWeekScores, saveScore, saveWeeklyLeaderProposal } from './services/leaderboardService';
@@ -37,6 +38,8 @@ import {
 import { loadOnboardingProgress, type OnboardingStepId } from './services/onboardingProgress';
 import { BASE_FLASK_CHARGE_MAX, getChargeForStoredFlasks, getFlaskProgress, spendStoredFlasks } from './services/flaskProgress';
 import type {
+  PlayerShipAccessUpdate,
+  PlayerShipPurchaseStatusUpdate,
   RscBalanceUpdate,
   WalletPurchaseStatusUpdate,
   WalletRuntimeAction
@@ -47,6 +50,10 @@ import {
   type WeeklyRunAttemptQuota
 } from './services/walletPurchaseService';
 import type { ContinuePaymentSettlement } from './services/continuePaymentService';
+import {
+  loadPlayerShipAccess,
+  type PlayerShipPurchaseSettlement
+} from './services/playerShipAccessService';
 import {
   applyWalletTokenSpend,
   WalletTokenSpendRequestError,
@@ -69,6 +76,7 @@ import { getWalletRuns, type WalletRunRecord } from './services/playerRunService
 import { getWeeklyProposalRecovery } from './services/weeklyProposalRecovery';
 import { getWeeklyProposalLifecycle } from './services/weeklyProposalLifecycle';
 import {
+  addCampaignMasteryBtcUnlock,
   getUsablePlayerShip,
   getPlayerShipUnlocks,
   parsePlayerShipId,
@@ -751,6 +759,13 @@ const App: React.FC = () => {
   const [walletPurchaseStatus, setWalletPurchaseStatus] = useState<WalletPurchaseStatusUpdate>({
     status: 'idle'
   });
+  const [playerShipAccessUpdate, setPlayerShipAccessUpdate] = useState<PlayerShipAccessUpdate>({
+    status: 'idle',
+    access: null
+  });
+  const [playerShipPurchaseStatus, setPlayerShipPurchaseStatus] = useState<PlayerShipPurchaseStatusUpdate>({
+    status: 'idle'
+  });
   const [walletSession, setWalletSession] = useState<WalletSession>({
     address: null,
     chainId: null,
@@ -1267,13 +1282,24 @@ const App: React.FC = () => {
     proposalLifecycle: weeklyProposalLifecycle
   }), [activeWalletAddress, monthlyLeaderboard, walletRuns, weeklyProposalLifecycle]);
   const shipUnlocks = useMemo(() => {
-    const unlocks = getPlayerShipUnlocks(activeWalletAddress, walletRecords, { unlockAll: isOwnerWallet });
-    return {
-      ...unlocks,
-      eth: unlocks.eth || permanentSquadState.unlockedPlayerShips.includes('eth'),
-      btc: unlocks.btc || permanentSquadState.unlockedPlayerShips.includes('btc')
-    };
-  }, [activeWalletAddress, isOwnerWallet, permanentSquadState.unlockedPlayerShips, walletRecords]);
+    const access = playerShipAccessUpdate.access;
+    return getPlayerShipUnlocks({
+      bioUnlocked: access?.bio === true,
+      bioBalanceRaw: access?.bioBalanceRaw ?? null,
+      bioBalance: access?.bioBalance ?? null,
+      authoritativePaidUnlockIds: access?.unlockedPlayerShips ?? [],
+      permanentUnlockIds: permanentSquadState.unlockedPlayerShips,
+      campaignProgress: permanentSquadState.campaignProgress,
+      accessStatus: playerShipAccessUpdate.status,
+      accessError: playerShipAccessUpdate.error,
+      unlockAll: isOwnerWallet
+    });
+  }, [
+    isOwnerWallet,
+    permanentSquadState.campaignProgress,
+    permanentSquadState.unlockedPlayerShips,
+    playerShipAccessUpdate
+  ]);
   const usableShipId = getUsablePlayerShip(selectedShipId, shipUnlocks);
   const activeMissionPlayerShipUrl = PLAYER_SHIPS[activeMissionShipId].assetUrl;
 
@@ -1301,6 +1327,16 @@ const App: React.FC = () => {
       return next;
     });
   }, []);
+
+  useEffect(() => {
+    if (permanentSquadState.unlockedPlayerShips.includes('btc')) return;
+    updatePermanentSquadState((current) => {
+      const next = addCampaignMasteryBtcUnlock(current, current.campaignProgress);
+      return next === current
+        ? current
+        : { ...next, updatedAt: new Date().toISOString() };
+    });
+  }, [permanentSquadState.campaignProgress, permanentSquadState.unlockedPlayerShips, updatePermanentSquadState]);
 
   const handleBossArchiveViewed = useCallback((eventId: string) => {
     updatePermanentSquadState((current) => markBossArchiveViewed(current, eventId));
@@ -2558,6 +2594,42 @@ const App: React.FC = () => {
       setCampaignMapError('Campaign Lab launch rejected: connect the authorized founder wallet.');
       releaseLaunchReservation();
       return;
+    }
+
+    // BIO is a live holding gate rather than a one-time ownership flag. Recheck
+    // it at the launch boundary so moving the tokens after opening the Hangar
+    // cannot start a new flight with stale eligibility. Never revoke a hull in
+    // the middle of a flight.
+    if (!authorizedCampaignLabRequest && usableShipId === 'bio' && !isOwnerWallet) {
+      if (!activeWalletAddress) {
+        setWalletError('Connect the Base Account holding at least 100 BIO before starting this flight.');
+        releaseLaunchReservation();
+        return;
+      }
+      setPlayerShipAccessUpdate((current) => ({
+        status: 'loading',
+        access: current.access
+      }));
+      try {
+        const verifiedAccess = await loadPlayerShipAccess(activeWalletAddress as Address, {
+          interactive: false
+        });
+        setPlayerShipAccessUpdate({ status: 'ready', access: verifiedAccess });
+        if (!verifiedAccess.bio) {
+          setWalletError('This Base Account needs at least 100 BIO to fly the BIO ship. Choose another ship or add BIO, then refresh access.');
+          releaseLaunchReservation();
+          return;
+        }
+        setWalletError('');
+      } catch (error) {
+        const message = error instanceof Error
+          ? error.message
+          : 'BIO holdings could not be verified before launch.';
+        setPlayerShipAccessUpdate({ status: 'error', access: null, error: message });
+        setWalletError(message);
+        releaseLaunchReservation();
+        return;
+      }
     }
 
     const requestedBossReplay = bossEncounterId ? getBossArchiveEntry(bossEncounterId) : null;
@@ -5450,6 +5522,25 @@ const App: React.FC = () => {
     });
   }, [activeWalletAddress, connectWallet]);
 
+  const refreshPlayerShipAccess = useCallback(() => {
+    if (!activeWalletAddress) {
+      connectWallet();
+      return;
+    }
+    warmWalletRuntime();
+    setWalletRuntimeEnabled(true);
+    walletActionNonceRef.current += 1;
+    setWalletRuntimeAction({
+      type: 'refresh-player-ship-access',
+      nonce: walletActionNonceRef.current
+    });
+  }, [activeWalletAddress, connectWallet]);
+
+  useEffect(() => {
+    if (!activeWalletAddress || walletProfileStatus !== 'ready') return;
+    refreshPlayerShipAccess();
+  }, [activeWalletAddress, refreshPlayerShipAccess, walletProfileStatus]);
+
   const requestRscPurchase = useCallback(async (skuId: RscPurchaseSkuId) => {
     if (isOwnerWallet) {
       if (skuId === 'right-support') {
@@ -5510,6 +5601,55 @@ const App: React.FC = () => {
       nonce: walletActionNonceRef.current
     });
   }, [activeWalletAddress, handleUnlockSquadSlot, isOwnerWallet, walletProfileStatus]);
+
+  const requestPlayerShipPurchase = useCallback(async (skuId: PlayerShipPurchaseSkuId) => {
+    if (isOwnerWallet) {
+      setPlayerShipPurchaseStatus({
+        status: 'error',
+        skuId,
+        error: 'This wallet receives Scicon Shooter payments. Switch to a different Base Account to make a purchase.'
+      });
+      return;
+    }
+    setPlayerShipPurchaseStatus({ status: 'connecting', skuId });
+    if (activeWalletAddress && walletProfileStatus === 'ready') {
+      const normalizedAddress = activeWalletAddress.toLowerCase();
+      const flushTask = walletProfileSaveChainRef.current
+        .catch(() => undefined)
+        .then(async () => {
+          const flushedProfile = await flushDirtyWalletProfile(normalizedAddress);
+          if (!flushedProfile || walletProfileAddressRef.current !== normalizedAddress) return;
+          walletProfileRevisionRef.current = flushedProfile.revision;
+          walletProfileSyncedSnapshotRef.current = flushedProfile.snapshot;
+          cacheWalletProfile(flushedProfile);
+        });
+      walletProfileSaveChainRef.current = flushTask.then(
+        () => undefined,
+        () => undefined
+      );
+      try {
+        await flushTask;
+      } catch (error) {
+        setPlayerShipPurchaseStatus({
+          status: 'error',
+          skuId,
+          error: error instanceof Error
+            ? error.message
+            : 'Your wallet profile could not sync before this ship purchase.'
+        });
+        return;
+      }
+    }
+
+    warmWalletRuntime();
+    setWalletRuntimeEnabled(true);
+    walletActionNonceRef.current += 1;
+    setWalletRuntimeAction({
+      type: 'purchase-player-ship',
+      skuId,
+      nonce: walletActionNonceRef.current
+    });
+  }, [activeWalletAddress, isOwnerWallet, walletProfileStatus]);
 
   const handleWalletPurchaseSuccess = useCallback((settlement: WalletPurchaseSettlement) => {
     const normalizedAddress = settlement.profile.walletAddress.toLowerCase();
@@ -5590,6 +5730,70 @@ const App: React.FC = () => {
       );
     }
   }, [activeWalletAddress, applyWeeklyRunAttemptQuota, hydrateActiveProfile]);
+
+  const handlePlayerShipPurchaseSuccess = useCallback((settlement: PlayerShipPurchaseSettlement) => {
+    const normalizedAddress = settlement.profile.walletAddress.toLowerCase();
+    if (activeWalletAddress && activeWalletAddress.toLowerCase() !== normalizedAddress) return;
+    if (!settlement.access[settlement.grantsShipId]) {
+      setWalletError('Payment confirmed, but the ship entitlement could not be verified. Your local profile was not changed.');
+      return;
+    }
+    walletProfileAddressRef.current = normalizedAddress;
+
+    let rebasedDirty: ReturnType<typeof rebaseWalletProfileDirtyAfterServerPurchase> = null;
+    try {
+      rebasedDirty = rebaseWalletProfileDirtyAfterServerPurchase({
+        address: normalizedAddress,
+        savedProfile: settlement.profile
+      });
+    } catch (error) {
+      console.error('Player ship purchase profile merge failed:', error);
+      setWalletError('Payment confirmed, but this device could not safely merge its newest progress. Your local progress was not changed.');
+      return;
+    }
+
+    cacheWalletProfile(settlement.profile);
+    walletProfileRevisionRef.current = settlement.profile.revision;
+    walletProfileSyncedSnapshotRef.current = settlement.profile.snapshot;
+    const hydratedSnapshot = hydrateActiveProfile({
+      profileId: settlement.profile.profileId,
+      snapshot: rebasedDirty?.snapshot ?? settlement.profile.snapshot,
+      founderSandbox: false
+    });
+    walletProfileLocalBaselineRef.current = hydratedSnapshot;
+    weeklySquadStateRef.current = hydratedSnapshot.weeklyState;
+    permanentSquadStateRef.current = hydratedSnapshot.permanentState;
+    setPlayerShipAccessUpdate({ status: 'ready', access: settlement.access });
+    setWalletProfileStatus('ready');
+    setWalletError('');
+
+    if (rebasedDirty) {
+      const flushTask = walletProfileSaveChainRef.current
+        .then(async () => {
+          const flushedProfile = await flushDirtyWalletProfile(normalizedAddress);
+          if (!flushedProfile || walletProfileAddressRef.current !== normalizedAddress) return;
+          walletProfileRevisionRef.current = flushedProfile.revision;
+          walletProfileSyncedSnapshotRef.current = flushedProfile.snapshot;
+          cacheWalletProfile(flushedProfile);
+          const flushedSnapshot = hydrateActiveProfile({
+            profileId: flushedProfile.profileId,
+            snapshot: flushedProfile.snapshot,
+            founderSandbox: false
+          });
+          walletProfileLocalBaselineRef.current = flushedSnapshot;
+          weeklySquadStateRef.current = flushedSnapshot.weeklyState;
+          permanentSquadStateRef.current = flushedSnapshot.permanentState;
+          setWalletError('');
+        })
+        .catch(() => {
+          setWalletError('Ship purchase confirmed. Your newer local progress is preserved and will retry syncing.');
+        });
+      walletProfileSaveChainRef.current = flushTask.then(
+        () => undefined,
+        () => undefined
+      );
+    }
+  }, [activeWalletAddress, hydrateActiveProfile]);
 
   const persistRewardClaim = useCallback((
     nextPermanentState: PermanentSquadState,
@@ -6694,6 +6898,9 @@ const App: React.FC = () => {
             onRscBalanceChange={setRscBalanceUpdate}
             onWalletPurchaseStatus={setWalletPurchaseStatus}
             onWalletPurchaseSuccess={handleWalletPurchaseSuccess}
+            onPlayerShipAccessChange={setPlayerShipAccessUpdate}
+            onPlayerShipPurchaseStatus={setPlayerShipPurchaseStatus}
+            onPlayerShipPurchaseSuccess={handlePlayerShipPurchaseSuccess}
             onChampionClaimStatus={handleChampionClaimStatus}
             onMissionMintStatus={handleMissionMintStatus}
           />
@@ -6933,7 +7140,10 @@ const App: React.FC = () => {
           rscBalance={rscBalanceUpdate.balance}
           rscBalanceStatus={rscBalanceUpdate.status}
           walletPurchaseStatus={walletPurchaseStatus}
+          playerShipPurchaseStatus={playerShipPurchaseStatus}
           onPurchaseWithRsc={requestRscPurchase}
+          onPurchasePlayerShip={requestPlayerShipPurchase}
+          onRefreshPlayerShipAccess={refreshPlayerShipAccess}
           onRefreshRscBalance={refreshRscBalance}
           audioMuted={audioMuted}
           sfxVolumeLevel={sfxVolumeLevel}
@@ -7075,7 +7285,10 @@ const App: React.FC = () => {
             rscBalance={rscBalanceUpdate.balance}
             rscBalanceStatus={rscBalanceUpdate.status}
             walletPurchaseStatus={walletPurchaseStatus}
+            playerShipPurchaseStatus={playerShipPurchaseStatus}
             onPurchaseWithRsc={requestRscPurchase}
+            onPurchasePlayerShip={requestPlayerShipPurchase}
+            onRefreshPlayerShipAccess={refreshPlayerShipAccess}
             onRefreshRscBalance={refreshRscBalance}
             audioMuted={audioMuted}
             sfxVolumeLevel={sfxVolumeLevel}

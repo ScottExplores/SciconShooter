@@ -148,6 +148,14 @@ export interface CampaignProgress {
   updatedAt: string;
 }
 
+export interface CampaignMasteryStatus {
+  completedMissions: number;
+  totalMissions: number;
+  earnedStars: number;
+  totalStars: number;
+  mastered: boolean;
+}
+
 export type CampaignRouteSelectionResult =
   | {
     accepted: true;
@@ -568,6 +576,69 @@ export const buildCampaignMissionDefinitions = (
 };
 
 export const CAMPAIGN_MISSIONS = buildCampaignMissionDefinitions();
+
+export const CAMPAIGN_MISSION_TOTAL = CAMPAIGN_MISSIONS.length;
+export const CAMPAIGN_STAR_TOTAL = CAMPAIGN_MISSIONS.reduce(
+  (total, mission) => total + mission.starObjectives.length,
+  0
+);
+
+/**
+ * Campaign mastery is stricter than reaching a terminal graph node. Every
+ * authored Mission must be complete and every authored objective ID must be
+ * present in that Mission's record. This keeps optional routes and later
+ * Campaign additions from being silently skipped by the BTC unlock.
+ */
+export const getCampaignMasteryStatus = (
+  progress: CampaignProgress | null | undefined,
+  missions: readonly CampaignMissionDefinition[] = CAMPAIGN_MISSIONS
+): CampaignMasteryStatus => {
+  const totalMissions = missions.length;
+  const totalStars = missions.reduce(
+    (total, mission) => total + mission.starObjectives.length,
+    0
+  );
+  if (!progress) {
+    return {
+      completedMissions: 0,
+      totalMissions,
+      earnedStars: 0,
+      totalStars,
+      mastered: false
+    };
+  }
+
+  const completedMissionIds = new Set(progress.completedMissionIds);
+  let completedMissions = 0;
+  let earnedStars = 0;
+  let masteredMissions = 0;
+
+  missions.forEach((mission) => {
+    const record = progress.missionRecords[mission.id];
+    const completed = Boolean(record?.completed) && completedMissionIds.has(mission.id);
+    if (!completed) return;
+    completedMissions += 1;
+
+    const earnedObjectiveIds = new Set(record.earnedStarIds);
+    const missionStars = mission.starObjectives.reduce(
+      (count, objective) => count + (earnedObjectiveIds.has(objective.id) ? 1 : 0),
+      0
+    );
+    earnedStars += missionStars;
+    if (missionStars === mission.starObjectives.length) masteredMissions += 1;
+  });
+
+  return {
+    completedMissions,
+    totalMissions,
+    earnedStars,
+    totalStars,
+    mastered: totalMissions > 0
+      && completedMissions === totalMissions
+      && masteredMissions === totalMissions
+      && earnedStars === totalStars
+  };
+};
 
 const createMissionRecord = (): CampaignMissionRecord => ({
   completedWaveIds: [],

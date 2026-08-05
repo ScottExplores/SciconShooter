@@ -227,6 +227,57 @@ const clearFirstMission = (options = {}) => {
   return { fresh, firstWave, finalWave };
 };
 
+test('perfect Campaign mastery requires every Mission and every authored objective ID', () => {
+  const missions = progression.buildCampaignMissionDefinitions(TEST_CAMPAIGN);
+  const fresh = progression.createCampaignProgress(TEST_CAMPAIGN);
+  assert.deepEqual(
+    progression.getCampaignMasteryStatus(fresh, missions),
+    {
+      completedMissions: 0,
+      totalMissions: 2,
+      earnedStars: 0,
+      totalStars: 6,
+      mastered: false
+    }
+  );
+
+  const perfect = structuredClone(fresh);
+  perfect.completedMissionIds = missions.map((mission) => mission.id);
+  missions.forEach((mission) => {
+    perfect.missionRecords[mission.id] = {
+      ...perfect.missionRecords[mission.id],
+      completed: true,
+      stars: mission.starObjectives.length,
+      earnedStarIds: mission.starObjectives.map((objective) => objective.id)
+    };
+  });
+  assert.deepEqual(
+    progression.getCampaignMasteryStatus(perfect, missions),
+    {
+      completedMissions: 2,
+      totalMissions: 2,
+      earnedStars: 6,
+      totalStars: 6,
+      mastered: true
+    }
+  );
+
+  const missingObjective = structuredClone(perfect);
+  missingObjective.missionRecords[missions[1].id].earnedStarIds.pop();
+  // The display counter alone is not authority for the BTC Campaign route.
+  missingObjective.missionRecords[missions[1].id].stars = 3;
+  assert.deepEqual(
+    progression.getCampaignMasteryStatus(missingObjective, missions),
+    {
+      completedMissions: 2,
+      totalMissions: 2,
+      earnedStars: 5,
+      totalStars: 6,
+      mastered: false
+    }
+  );
+});
+
 test('Mission definitions prefer authored Campaign metadata and preserve compatibility defaults', () => {
   const fallbackMission = progression.buildCampaignMissionDefinitions(TEST_CAMPAIGN)[0];
   assert.deepEqual(fallbackMission.reward, {

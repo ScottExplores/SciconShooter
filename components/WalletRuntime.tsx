@@ -3,6 +3,7 @@ import type { Address } from 'viem';
 import {
   DONATION_CONFIG,
   STORAGE_KEYS,
+  type PlayerShipPurchaseSkuId,
   type RscPurchaseSkuId
 } from '../constants';
 import { DonationStatus, WalletSession } from '../types';
@@ -21,6 +22,14 @@ import {
   type WalletPurchaseSettlement
 } from '../services/walletPurchaseService';
 import { readPendingWalletPurchase } from '../services/walletPurchasePendingStore';
+import {
+  executePlayerShipPurchase,
+  loadPlayerShipAccess,
+  resumePendingPlayerShipPurchase,
+  type PlayerShipAccessSnapshot,
+  type PlayerShipPurchaseSettlement
+} from '../services/playerShipAccessService';
+import { readPendingPlayerShipPurchase } from '../services/playerShipPurchasePendingStore';
 import {
   executeContinuePayment,
   type ContinuePaymentSettlement
@@ -43,6 +52,8 @@ export type WalletRuntimeAction =
     }
   | { nonce: number; type: 'refresh-rsc-balance' }
   | { nonce: number; type: 'purchase-rsc'; skuId: RscPurchaseSkuId }
+  | { nonce: number; type: 'refresh-player-ship-access' }
+  | { nonce: number; type: 'purchase-player-ship'; skuId: PlayerShipPurchaseSkuId }
   | { nonce: number; type: 'claim-champion'; weekKey: string; proposal: ResearchHubProposal }
   | { nonce: number; type: 'mint-mission'; receipt: RunReceipt };
 
@@ -65,6 +76,19 @@ export interface WalletPurchaseStatusUpdate {
   error?: string;
 }
 
+export interface PlayerShipAccessUpdate {
+  status: 'idle' | 'loading' | 'ready' | 'error';
+  access: PlayerShipAccessSnapshot | null;
+  error?: string;
+}
+
+export interface PlayerShipPurchaseStatusUpdate {
+  status: 'idle' | 'connecting' | 'authorizing' | 'confirming' | 'settling' | 'confirmed' | 'error';
+  skuId?: PlayerShipPurchaseSkuId;
+  transactionHash?: string;
+  error?: string;
+}
+
 interface WalletRuntimeProps {
   action: WalletRuntimeAction | null;
   donatedWallets: Record<string, boolean>;
@@ -80,6 +104,12 @@ interface WalletRuntimeProps {
   onWalletPurchaseStatus?: (update: WalletPurchaseStatusUpdate) => void;
   /** Apply the returned authoritative profile; do not recreate the reward client-side. */
   onWalletPurchaseSuccess?: (settlement: WalletPurchaseSettlement) => void;
+  /** Exact BIO holding and permanent ETH/BTC access reported by the server. */
+  onPlayerShipAccessChange?: (update: PlayerShipAccessUpdate) => void;
+  /** Dedicated lifecycle so ship payments cannot overwrite RSC store status. */
+  onPlayerShipPurchaseStatus?: (update: PlayerShipPurchaseStatusUpdate) => void;
+  /** Apply the returned authoritative wallet profile after settlement. */
+  onPlayerShipPurchaseSuccess?: (settlement: PlayerShipPurchaseSettlement) => void;
   onChampionClaimStatus: (status: 'idle' | 'connecting' | 'signing' | 'confirmed' | 'error', message?: string) => void;
   onMissionMintStatus: (status: 'idle' | 'authorizing' | 'confirming' | 'confirmed' | 'error', message?: string, hash?: string) => void;
 }
@@ -132,6 +162,9 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
   onRscBalanceChange,
   onWalletPurchaseStatus,
   onWalletPurchaseSuccess,
+  onPlayerShipAccessChange,
+  onPlayerShipPurchaseStatus,
+  onPlayerShipPurchaseSuccess,
   onChampionClaimStatus,
   onMissionMintStatus
 }) => {
@@ -139,8 +172,10 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
   const [isConnecting, setIsConnecting] = useState(false);
   const startedActionNonceRef = useRef<number | null>(null);
   const purchaseBusyRef = useRef(false);
+  const playerShipPurchaseBusyRef = useRef(false);
   const activeWalletAddressRef = useRef<Address | null>(activeWalletAddress);
   const resumedPurchaseOrdersRef = useRef(new Set<string>());
+  const resumedPlayerShipPurchaseOrdersRef = useRef(new Set<string>());
 
   useEffect(() => {
     activeWalletAddressRef.current = activeWalletAddress;
@@ -238,12 +273,13 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
       activeWalletAddressRef.current = null;
       setActiveWalletAddress(null);
       onRscBalanceChange?.({ status: 'idle', balance: null });
+      onPlayerShipAccessChange?.({ status: 'idle', access: null });
       onWalletError('');
     } catch (error: any) {
       console.error('Base Account disconnect failed', error);
       onWalletError(getUserFacingMessage(error, 'Base Account could not disconnect.'));
     }
-  }, [onRscBalanceChange, onWalletError]);
+  }, [onPlayerShipAccessChange, onRscBalanceChange, onWalletError]);
 
   const refreshRscBalance = useCallback(async (requestedAddress?: Address | null) => {
     const address = requestedAddress || activeWalletAddress;
@@ -278,6 +314,49 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
     if (!onRscBalanceChange) return;
     void refreshRscBalance(activeWalletAddress);
   }, [activeWalletAddress, onRscBalanceChange, refreshRscBalance]);
+
+  const refreshPlayerShipAccess = useCallback(async (
+    requestedAddress?: Address | null
+  ) => {
+    const address = requestedAddress || activeWalletAddress;
+    if (!address) {
+      onPlayerShipAccessChange?.({ status: 'idle', access: null });
+      return null;
+    }
+    onPlayerShipAccessChange?.({ status: 'loading', access: null });
+    try {
+      const access = await loadPlayerShipAccess(address, { interactive: false });
+      if (
+        activeWalletAddressRef.current
+        && activeWalletAddressRef.current.toLowerCase() !== address.toLowerCase()
+      ) {
+        return null;
+      }
+      onPlayerShipAccessChange?.({ status: 'ready', access });
+      return access;
+    } catch (error: any) {
+      if (
+        activeWalletAddressRef.current
+        && activeWalletAddressRef.current.toLowerCase() !== address.toLowerCase()
+      ) {
+        return null;
+      }
+      onPlayerShipAccessChange?.({
+        status: 'error',
+        access: null,
+        error: getUserFacingMessage(
+          error,
+          'Ship access could not be refreshed. Reconnect Base Account and try again.'
+        )
+      });
+      return null;
+    }
+  }, [activeWalletAddress, onPlayerShipAccessChange]);
+
+  useEffect(() => {
+    if (!onPlayerShipAccessChange) return;
+    void refreshPlayerShipAccess(activeWalletAddress);
+  }, [activeWalletAddress, onPlayerShipAccessChange, refreshPlayerShipAccess]);
 
   const purchaseWithRsc = useCallback(async (skuId: RscPurchaseSkuId) => {
     if (purchaseBusyRef.current) return;
@@ -373,6 +452,129 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
     };
   }, [activeWalletAddress, onWalletPurchaseStatus, onWalletPurchaseSuccess, refreshRscBalance]);
 
+  const purchasePlayerShip = useCallback(async (
+    skuId: PlayerShipPurchaseSkuId
+  ) => {
+    if (playerShipPurchaseBusyRef.current) return;
+    playerShipPurchaseBusyRef.current = true;
+    try {
+      onPlayerShipPurchaseStatus?.({ status: 'connecting', skuId });
+      const address = activeWalletAddress || await connectWallet();
+      if (!address) {
+        onPlayerShipPurchaseStatus?.({
+          status: 'error',
+          skuId,
+          error: 'Connect a Base Account before purchasing this ship.'
+        });
+        return;
+      }
+      onPlayerShipPurchaseStatus?.({ status: 'authorizing', skuId });
+      const settlement = await executePlayerShipPurchase({
+        walletAddress: address,
+        skuId,
+        onQuote: () => {
+          onPlayerShipPurchaseStatus?.({ status: 'confirming', skuId });
+        },
+        onBatchSubmitted: () => {
+          onPlayerShipPurchaseStatus?.({ status: 'settling', skuId });
+        },
+        onSubmitted: (transactionHash) => {
+          onPlayerShipPurchaseStatus?.({
+            status: 'settling',
+            skuId,
+            transactionHash
+          });
+        }
+      });
+      if (activeWalletAddressRef.current?.toLowerCase() !== address.toLowerCase()) {
+        onPlayerShipPurchaseStatus?.({
+          status: 'error',
+          skuId,
+          transactionHash: settlement.transactionHash,
+          error: 'Ship purchase confirmed for the previous Base Account. Reconnect that account to load it.'
+        });
+        return;
+      }
+      onPlayerShipPurchaseSuccess?.(settlement);
+      onPlayerShipAccessChange?.({ status: 'ready', access: settlement.access });
+      onPlayerShipPurchaseStatus?.({
+        status: 'confirmed',
+        skuId,
+        transactionHash: settlement.transactionHash
+      });
+    } catch (error: any) {
+      const tokenLabel = skuId === 'eth-ship' ? 'ETH' : 'cbBTC';
+      onPlayerShipPurchaseStatus?.({
+        status: 'error',
+        skuId,
+        error: getUserFacingMessage(
+          error,
+          `${tokenLabel} ship purchase was cancelled.`,
+          tokenLabel
+        )
+      });
+    } finally {
+      playerShipPurchaseBusyRef.current = false;
+    }
+  }, [
+    activeWalletAddress,
+    connectWallet,
+    onPlayerShipAccessChange,
+    onPlayerShipPurchaseStatus,
+    onPlayerShipPurchaseSuccess
+  ]);
+
+  useEffect(() => {
+    if (!activeWalletAddress) return;
+    const pending = readPendingPlayerShipPurchase(activeWalletAddress);
+    if (!pending || (!pending.callsId && !pending.transactionHash)) return;
+    const recoveryKey = `${pending.walletAddress}:${pending.orderId}`;
+    if (resumedPlayerShipPurchaseOrdersRef.current.has(recoveryKey)) return;
+    resumedPlayerShipPurchaseOrdersRef.current.add(recoveryKey);
+    let active = true;
+    const timeoutId = window.setTimeout(() => {
+      if (!active) return;
+      onPlayerShipPurchaseStatus?.({
+        status: 'settling',
+        skuId: pending.skuId,
+        transactionHash: pending.transactionHash
+      });
+      void resumePendingPlayerShipPurchase(activeWalletAddress)
+        .then((settlement) => {
+          if (!active || !settlement) return;
+          onPlayerShipPurchaseSuccess?.(settlement);
+          onPlayerShipAccessChange?.({ status: 'ready', access: settlement.access });
+          onPlayerShipPurchaseStatus?.({
+            status: 'confirmed',
+            skuId: settlement.skuId,
+            transactionHash: settlement.transactionHash
+          });
+        })
+        .catch((error: any) => {
+          if (!active) return;
+          resumedPlayerShipPurchaseOrdersRef.current.delete(recoveryKey);
+          onPlayerShipPurchaseStatus?.({
+            status: 'error',
+            skuId: pending.skuId,
+            transactionHash: pending.transactionHash,
+            error: getUserFacingMessage(
+              error,
+              'The pending ship purchase could not be restored.'
+            )
+          });
+        });
+    }, 1200);
+    return () => {
+      active = false;
+      window.clearTimeout(timeoutId);
+    };
+  }, [
+    activeWalletAddress,
+    onPlayerShipAccessChange,
+    onPlayerShipPurchaseStatus,
+    onPlayerShipPurchaseSuccess
+  ]);
+
   const continueWithRsc = useCallback(async ({
     runId,
     startToken,
@@ -466,6 +668,10 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
         await refreshRscBalance();
       } else if (currentAction.type === 'purchase-rsc') {
         await purchaseWithRsc(currentAction.skuId);
+      } else if (currentAction.type === 'refresh-player-ship-access') {
+        await refreshPlayerShipAccess();
+      } else if (currentAction.type === 'purchase-player-ship') {
+        await purchasePlayerShip(currentAction.skuId);
       } else if (currentAction.type === 'claim-champion') {
         await claimChampion(currentAction.weekKey, currentAction.proposal);
       } else if (currentAction.type === 'mint-mission') {
@@ -474,7 +680,20 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
     };
 
     void runAction();
-  }, [action, claimChampion, connectWallet, continueWithRsc, disconnectWallet, mintMission, onActionHandled, purchaseWithRsc, refreshRscBalance, switchWallet]);
+  }, [
+    action,
+    claimChampion,
+    connectWallet,
+    continueWithRsc,
+    disconnectWallet,
+    mintMission,
+    onActionHandled,
+    purchasePlayerShip,
+    purchaseWithRsc,
+    refreshPlayerShipAccess,
+    refreshRscBalance,
+    switchWallet
+  ]);
 
   return null;
 };

@@ -100,12 +100,18 @@ const PROFILE_ID = `wallet:${WALLET}`;
 const profileWithTokens = ({
   coins = 10_000,
   durableCampaignCoins = 5_000,
-  unlockedPlayerShips = []
+  unlockedPlayerShips = [],
+  playerShipEntitlements = null
 } = {}) => {
   const snapshot = walletProfiles.sanitizeWalletSnapshot({}, WALLET, Date.parse('2026-08-03T12:00:00.000Z'));
   snapshot.weeklyState.coins = coins;
   snapshot.weeklyState.durableCampaignCoins = durableCampaignCoins;
   snapshot.permanentState.unlockedPlayerShips = unlockedPlayerShips;
+  if (playerShipEntitlements) {
+    snapshot.permanentState.playerShipEntitlements = walletProfiles.sanitizePlayerShipEntitlements(
+      playerShipEntitlements
+    );
+  }
   return {
     walletAddress: WALLET,
     profileId: PROFILE_ID,
@@ -148,11 +154,29 @@ test('canonical left-slot spend applies the exact gameplay purchase and seasonal
 test('canonical main-ship spend rejects locked hulls and permits canonical unlocks', () => {
   assert.throws(() => serverSpends.canonicalWalletTokenSpend({
     profile: profileWithTokens(),
+    action: { kind: 'upgrade-main-ship', shipId: 'bio', upgradeId: 'speed' }
+  }), (error) => error.code === 'wallet_token_action_locked');
+
+  assert.throws(() => serverSpends.canonicalWalletTokenSpend({
+    profile: profileWithTokens(),
+    action: { kind: 'upgrade-main-ship', shipId: 'eth', upgradeId: 'speed' }
+  }), (error) => error.code === 'wallet_token_action_locked');
+
+  assert.throws(() => serverSpends.canonicalWalletTokenSpend({
+    profile: profileWithTokens({ unlockedPlayerShips: ['eth'] }),
     action: { kind: 'upgrade-main-ship', shipId: 'eth', upgradeId: 'speed' }
   }), (error) => error.code === 'wallet_token_action_locked');
 
   const canonical = serverSpends.canonicalWalletTokenSpend({
-    profile: profileWithTokens({ unlockedPlayerShips: ['eth'] }),
+    profile: profileWithTokens({
+      playerShipEntitlements: {
+        eth: {
+          source: 'base-eth-purchase',
+          transactionHash: `0x${'ab'.repeat(32)}`,
+          grantedAt: '2026-08-03T12:00:00.000Z'
+        }
+      }
+    }),
     action: { kind: 'upgrade-main-ship', shipId: 'eth', upgradeId: 'speed' }
   });
   assert.equal(canonical.cost, squad.getMainShipUpgradeCost('speed', 0));
