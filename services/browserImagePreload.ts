@@ -1,5 +1,11 @@
 import { runGameplayAssetPreloadQueue } from './gameplayAssetPreloadBudget';
 
+export type DecodedImagePreloadItemStatus = 'loaded' | 'failed' | 'unavailable';
+export type DecodedImagePreloadItemListener = (
+  url: string,
+  status: DecodedImagePreloadItemStatus
+) => void;
+
 const loadDecodedImage = async (url: string) => {
   await new Promise<void>((resolve, reject) => {
     const image = new Image();
@@ -44,17 +50,31 @@ const loadDecodedImage = async (url: string) => {
 /** Browser-image warmup used by menus, with a small mobile-safe worker pool. */
 export const preloadDecodedImageUrls = (
   urls: readonly string[],
-  concurrency = 4
+  concurrency = 4,
+  onItemSettled?: DecodedImagePreloadItemListener
 ) => {
-  if (typeof Image === 'undefined') return Promise.resolve();
+  const uniqueUrls = [...new Set(urls.filter(Boolean))];
+  const notifyItemSettled = (url: string, status: DecodedImagePreloadItemStatus) => {
+    try {
+      onItemSettled?.(url, status);
+    } catch {
+      // Progress presentation must never turn an optional image into a failure.
+    }
+  };
+  if (typeof Image === 'undefined') {
+    uniqueUrls.forEach((url) => notifyItemSettled(url, 'unavailable'));
+    return Promise.resolve();
+  }
   const failedUrls: string[] = [];
   return runGameplayAssetPreloadQueue(
-    [...new Set(urls.filter(Boolean))],
+    uniqueUrls,
     async (url) => {
       try {
         await loadDecodedImage(url);
+        notifyItemSettled(url, 'loaded');
       } catch {
         failedUrls.push(url);
+        notifyItemSettled(url, 'failed');
       }
     },
     concurrency

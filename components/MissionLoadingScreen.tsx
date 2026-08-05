@@ -31,6 +31,15 @@ const PHASE_LABELS: Record<MissionLoadingPhase, string> = {
   error: 'Mission link interrupted'
 };
 
+const STARTUP_PHASE_LABELS: Record<MissionLoadingPhase, string> = {
+  'flight-systems': 'Loading command deck',
+  'mission-interface': 'Calibrating interface',
+  'mission-art': 'Decoding ship and menu art',
+  'runtime-sync': 'Restoring pilot profile',
+  ready: 'Command deck ready',
+  error: 'Startup link interrupted'
+};
+
 const MissionLoadingScreen: React.FC<MissionLoadingScreenProps> = ({
   progress,
   phase,
@@ -42,6 +51,7 @@ const MissionLoadingScreen: React.FC<MissionLoadingScreenProps> = ({
   const safeProgress = Math.max(0, Math.min(100, Math.round(progress)));
   const hasError = phase === 'error';
   const isStartup = context === 'startup';
+  const phaseLabel = (isStartup ? STARTUP_PHASE_LABELS : PHASE_LABELS)[phase];
 
   return (
     <section
@@ -69,14 +79,14 @@ const MissionLoadingScreen: React.FC<MissionLoadingScreenProps> = ({
 
         <div className="sci-mission-loader__status">
           <div className="sci-mission-loader__status-line">
-            <span>{PHASE_LABELS[phase]}</span>
+            <span>{phaseLabel}</span>
             <strong>{hasError ? '—' : `${safeProgress}%`}</strong>
           </div>
 
           <div
             className={`sci-mission-loader__progress${hasError ? ' sci-mission-loader__progress--error' : ''}`}
             role="progressbar"
-            aria-label={PHASE_LABELS[phase]}
+            aria-label={phaseLabel}
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={safeProgress}

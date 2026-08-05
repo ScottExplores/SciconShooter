@@ -85,6 +85,11 @@ import {
 } from './services/playerShipService';
 import type { GameEngineDebugSnapshot, GameRuntimeState, WaveVictorySummary } from './services/gameLogic';
 import { waitForRequiredGameplayAssetPreload } from './services/gameplayAssetPreloadBudget';
+import {
+  getStartupPreloadSnapshot,
+  preloadStartupAssets,
+  type StartupPreloadSnapshot
+} from './services/startupPreload';
 import PauseMenu from './components/PauseMenu';
 import GameOverPresentation from './components/GameOverPresentation';
 import PixelActionButton from './components/PixelActionButton';
@@ -590,6 +595,8 @@ const INITIAL_DEPLOYMENT_UPDATE_CHECK_MS = 12_000;
 const OWNER_TEST_FLASK_CHARGE = getChargeForStoredFlasks(OWNER_TEST_FLASK_COUNT);
 const BACKGROUND_LEADERBOARD_REFRESH_MS = 60_000;
 const PROPOSAL_REFRESH_MS = 5 * 60 * 1000;
+const STARTUP_LOADING_MINIMUM_MS = 650;
+const STARTUP_LOADING_READY_HOLD_MS = 180;
 type IdleWindow = Window & {
   requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number;
   cancelIdleCallback?: (handle: number) => void;
@@ -682,6 +689,10 @@ const App: React.FC = () => {
   const [gameId, setGameId] = useState<number>(0);
   const [activeRunLifeCapacity, setActiveRunLifeCapacity] = useState(GAME_CONFIG.PLAYER_LIVES);
   const [gameRuntimeReady, setGameRuntimeReady] = useState(false);
+  const [startupLoading, setStartupLoading] = useState<StartupPreloadSnapshot | null>(
+    getStartupPreloadSnapshot
+  );
+  const [startupLoadingTip] = useState(getRandomMissionLoadingTip);
   const [missionLoading, setMissionLoading] = useState<MissionLoadingState | null>(null);
   const [onboardingRestartNonce, setOnboardingRestartNonce] = useState(0);
   const [onboardingInvitationNonce, setOnboardingInvitationNonce] = useState(0);
@@ -1301,7 +1312,48 @@ const App: React.FC = () => {
     playerShipAccessUpdate
   ]);
   const usableShipId = getUsablePlayerShip(selectedShipId, shipUnlocks);
+  const startupShipIdRef = useRef(usableShipId);
   const activeMissionPlayerShipUrl = PLAYER_SHIPS[activeMissionShipId].assetUrl;
+
+  useEffect(() => {
+    let cancelled = false;
+    const startedAt = Date.now();
+
+    const finishStartup = async () => {
+      const result = await preloadStartupAssets({
+        selectedShipId: startupShipIdRef.current,
+        onProgress: (snapshot) => {
+          if (!cancelled) setStartupLoading(snapshot);
+        }
+      });
+      const remainingMinimum = Math.max(
+        0,
+        STARTUP_LOADING_MINIMUM_MS - (Date.now() - startedAt)
+      );
+      if (remainingMinimum > 0) {
+        await new Promise<void>((resolve) => {
+          window.setTimeout(resolve, remainingMinimum);
+        });
+      }
+      if (cancelled) return;
+
+      setStartupLoading((current) => ({
+        ...(current ?? getStartupPreloadSnapshot()),
+        progress: 100,
+        phase: 'ready',
+        status: result.status
+      }));
+      await new Promise<void>((resolve) => {
+        window.setTimeout(resolve, STARTUP_LOADING_READY_HOLD_MS);
+      });
+      if (!cancelled) setStartupLoading(null);
+    };
+
+    void finishStartup();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const updateWeeklySquadState = useCallback((
     update: (current: WeeklySquadState) => WeeklySquadState,
@@ -1829,7 +1881,7 @@ const App: React.FC = () => {
       score: stats.score,
       lives: stats.lives,
       selectedShipId: activeMissionShipId,
-      loadingPhase: missionLoading?.phase ?? 'none',
+      loadingPhase: startupLoading?.phase ?? missionLoading?.phase ?? 'none',
       bossActive: stats.isBossActive
     });
   }, [
@@ -1848,6 +1900,7 @@ const App: React.FC = () => {
     stats.isBossActive,
     stats.lives,
     stats.score,
+    startupLoading?.phase,
     stats.wave
   ]);
 
@@ -1856,9 +1909,9 @@ const App: React.FC = () => {
       game_state: gameState,
       game_id: gameId,
       run_mode: activeRunMode,
-      loading_phase: missionLoading?.phase ?? 'none'
+      loading_phase: startupLoading?.phase ?? missionLoading?.phase ?? 'none'
     });
-  }, [activeRunMode, gameId, gameState, missionLoading?.phase]);
+  }, [activeRunMode, gameId, gameState, missionLoading?.phase, startupLoading?.phase]);
 
   const applyAuthoritativeHangarSpend = useCallback(async (
     action: WalletTokenSpendAction
@@ -6869,7 +6922,8 @@ const App: React.FC = () => {
   const hasCampaignClear = permanentSquadState.campaignProgress.completedMissionIds.length > 0
     || permanentSquadState.lifetimeStats.campaignMissionsCleared > 0;
   const onboardingSuspended = Boolean(
-    missionLoading
+    startupLoading
+    || missionLoading
     || activeStoryBeat
     || introMissionLocked
     || showNameInput
@@ -6884,7 +6938,7 @@ const App: React.FC = () => {
 
   return (
     <div className="relative h-full w-full select-none bg-[#0b1020]">
-      {walletRuntimeEnabled ? (
+      {walletRuntimeEnabled && !startupLoading ? (
         <React.Suspense fallback={null}>
           <WalletRuntime
             action={walletRuntimeAction}
@@ -6907,7 +6961,14 @@ const App: React.FC = () => {
         </React.Suspense>
       ) : null}
 
-      {missionLoading ? (
+      {startupLoading ? (
+        <MissionLoadingScreen
+          context="startup"
+          progress={startupLoading.progress}
+          phase={startupLoading.phase}
+          tip={startupLoadingTip}
+        />
+      ) : missionLoading ? (
         <MissionLoadingScreen
           progress={missionLoading.progress}
           phase={missionLoading.phase}

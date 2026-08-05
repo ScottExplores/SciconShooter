@@ -15,6 +15,8 @@ test('the app installs bounded global monitoring and a React recovery boundary b
   assert.match(boundary, /this\.state\.reportId[\s\S]*bounded diagnostic report was queued for delivery/i);
   assert.doesNotMatch(boundary, /diagnostic report was saved automatically/i);
   assert.match(boundary, /Reload game/);
+  assert.match(boundary, /reloadFromLastSafeState/);
+  assert.doesNotMatch(boundary, /window\.location\.reload\(\)/);
 });
 
 test('flight lifecycle diagnostics cover launch, preload, first frame, wave, and disposal without frame-loop uploads', () => {

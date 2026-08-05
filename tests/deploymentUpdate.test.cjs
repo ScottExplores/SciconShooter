@@ -90,6 +90,34 @@ test('deployment update checks ignore matching builds and cache-bust a confirmed
   assert.match(replacedUrl, /__scicon_build=index-new\.js/);
 });
 
+test('application recovery preserves progress while clearing only the transient wallet session', () => {
+  const service = loadUpdateService();
+  const stored = new Map([
+    ['scicon_wallet_address', '0x1111111111111111111111111111111111111111'],
+    ['scicon_pilot_profile_id', 'pilot-safe'],
+    ['scicon_wallet_profile_dirty', '{"tokens":42}']
+  ]);
+  let replacedUrl = '';
+
+  service.reloadFromLastSafeState({
+    locationRef: {
+      href: 'https://sciconshooter.xyz/?display=mobile-frame&view=hangar',
+      replace: (url) => { replacedUrl = url; }
+    },
+    storageRef: {
+      removeItem: (key) => stored.delete(key)
+    },
+    now: 246_810
+  });
+
+  assert.equal(stored.has('scicon_wallet_address'), false);
+  assert.equal(stored.get('scicon_pilot_profile_id'), 'pilot-safe');
+  assert.equal(stored.get('scicon_wallet_profile_dirty'), '{"tokens":42}');
+  assert.match(replacedUrl, /display=mobile-frame/);
+  assert.match(replacedUrl, /view=hangar/);
+  assert.match(replacedUrl, /__scicon_recovery=246810/);
+});
+
 test('the app refreshes new deployments only at a safe menu boundary', () => {
   const app = fs.readFileSync(path.join(root, 'App.tsx'), 'utf8');
   const vercel = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
