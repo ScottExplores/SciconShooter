@@ -817,8 +817,8 @@ test('wallet purchase API is session-bound and same-origin, while runtime expose
   assert.match(runtime, /type: 'purchase-rsc'; skuId: RscPurchaseSkuId/);
   assert.match(runtime, /activeWalletAddress \|\| await connectWallet\(\)/);
   assert.match(runtime, /onWalletPurchaseSuccess\?: \(settlement: WalletPurchaseSettlement\)/);
-  assert.match(runtime, /activeWalletAddressRef\.current\?\.toLowerCase\(\) !== address\.toLowerCase\(\)/);
-  assert.match(runtime, /Purchase confirmed for the previous Base Account/);
+  assert.match(runtime, /const isCurrentWalletAddress = useCallback/);
+  assert.match(runtime, /if \(!isCurrentWalletAddress\(address\)\) return/);
   assert.match(runtime, /type: 'refresh-rsc-balance'/);
   assert.match(client, /loadAuthenticatedWalletProfile\(walletAddress, \{ interactive: true \}\)/);
   assert.match(client, /assertQuoteMatchesPublishedTerms/);

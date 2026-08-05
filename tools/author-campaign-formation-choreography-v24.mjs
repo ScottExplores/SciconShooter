@@ -73,7 +73,7 @@ const EVENT_CHOREOGRAPHY = Object.freeze({
   },
   'stage-paywall-siege-wave-2-primary': {
     levelId: 'stage-paywall-siege', waveId: 'stage-paywall-siege-wave-2', patternId: 'pincer', count: 8,
-    roleIds: ['role-jet-interceptor', 'role-jet-scout'],
+    roleIds: ['role-jet-interceptor', 'role-jet-scout', 'role-research-drone'],
     formationBehavior: {
       entryPathId: 'paired-flank', movementId: 'lateral-sweep', attackId: 'pincer-pass', firingBehavior: 'priority',
       returnId: 'reform', holdSeconds: 1.5, telegraphSeconds: 0.75, attackDurationSeconds: 1.4,
@@ -82,7 +82,7 @@ const EVENT_CHOREOGRAPHY = Object.freeze({
   },
   'stage-open-galaxy-wave-2-primary': {
     levelId: 'stage-open-galaxy', waveId: 'stage-open-galaxy-wave-2', patternId: 'diamond', count: 8,
-    roleIds: ['role-jet-interceptor'],
+    roleIds: ['role-jet-interceptor', 'role-protocol-vanguard'],
     formationBehavior: {
       entryPathId: 'diamond-lock', movementId: 'expand-collapse', attackId: 'leader-escorts', firingBehavior: 'priority',
       returnId: 'reform', holdSeconds: 1.7, telegraphSeconds: 0.9, attackDurationSeconds: 1.4,

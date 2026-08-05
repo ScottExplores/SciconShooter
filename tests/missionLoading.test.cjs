@@ -25,7 +25,7 @@ const loadTypeScriptModule = (...segments) => {
   return module.exports;
 };
 
-test('app defers one cached production readiness pipeline until proposal data settles and the browser is idle', () => {
+test('app presents bounded startup loading while deferring the heavier gameplay warmup', () => {
   const app = fs.readFileSync(path.join(root, 'App.tsx'), 'utf8');
 
   assert.match(app, /let gameplayPreloadPromise: Promise<void> \| null = null/);
@@ -36,7 +36,11 @@ test('app defers one cached production readiness pipeline until proposal data se
   assert.match(app, /return runAfterFirstPaint\(\(\) => \{\s*void preloadGameplayComponents\(\)\.catch\(\(\) => undefined\)/);
   assert.match(app, /delayMs: 1_200,[\s\S]*timeoutMs: 5_000/);
   assert.match(app, /void preloadGameplayComponents\(\)\.catch\(\(\) => undefined\)/);
-  assert.doesNotMatch(app, /startupLoading|beginStartupPreload|context="startup"/);
+  assert.match(app, /const \[startupLoading, setStartupLoading\]/);
+  assert.match(app, /preloadStartupAssets\(\{/);
+  assert.match(app, /STARTUP_LOADING_MINIMUM_MS/);
+  assert.match(app, /context="startup"/);
+  assert.match(app, /walletRuntimeEnabled && !startupLoading/);
   assert.match(app, /if \(missionLaunchPendingRef\.current\) return/);
   assert.doesNotMatch(app, /missionLaunchPendingRef\.current \|\| !gameplayPreloadReady/);
   assert.match(app, /const shouldShowMissionLoading = !gameplayPreloadReady/);
@@ -108,6 +112,8 @@ test('loading presentation uses generated Scicon art and an accessible real prog
   assert.match(component, /role="progressbar"/);
   assert.match(component, /aria-valuenow=\{safeProgress\}/);
   assert.match(component, /Loading only the systems needed for play/);
+  assert.match(component, /Loading command deck/);
+  assert.match(component, /Decoding ship and menu art/);
   assert.match(styles, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(document, /rel="preload" href="\/game-art\/generated\/ui\/scicon-mission-loading-v1\/loading-emblem\.png" as="image" fetchpriority="high"/);
   assert.match(document, /rel="preload" href="\/game-art\/generated\/ui\/scicon-mission-loading-v1\/loading-background\.png" as="image" fetchpriority="high"/);
@@ -326,13 +332,21 @@ test('mission loading strictly warms critical and selected-mission art without f
     'ENEMY_SWARM_FRAMES',
     'ENEMY_BRICK_FRAMES',
     'ENEMY_JOURNAL_FRAMES',
-    'PIXI_JET_SCOUT_FRAMES',
-    'PIXI_JET_INTERCEPTOR_FRAMES',
-    'PIXI_JET_HEAVY_FRAMES'
+    'SCICON_ENEMY_REDLINE_SKIRMISHER_FRAMES',
+    'SCICON_ENEMY_CROSSCUT_RAIDER_FRAMES',
+    'SCICON_ENEMY_AUDIT_BULWARK_FRAMES',
+    'SCICON_ENEMY_QUASAR_LANCER_V2_FRAMES',
+    'SCICON_ENEMY_VECTOR_REAVER_V2_FRAMES'
   ].forEach((family) => {
     assert.match(startupCatalog, new RegExp(`\\.\\.\\.ASSETS\\.${family}`));
   });
-  assert.doesNotMatch(startupCatalog, /SCICON_ENEMY_/);
+  [
+    'PIXI_JET_SCOUT_FRAMES',
+    'PIXI_JET_INTERCEPTOR_FRAMES',
+    'PIXI_JET_HEAVY_FRAMES'
+  ].forEach((retiredFamily) => {
+    assert.doesNotMatch(startupCatalog, new RegExp(`\\.\\.\\.ASSETS\\.${retiredFamily}`));
+  });
   assert.doesNotMatch(startupCatalog, /PLAYER_SHIP_STEERING_FRAME_URLS/);
   assert.doesNotMatch(startupCatalog, /PIXI_ENVIRONMENT_TEXTURE_URLS/);
   assert.doesNotMatch(startupCatalog, /PIXI_BOSS_(?:OPEN_ORBIT|CITATION|PAYWALL|OPEN_GALAXY|CROWNCLAW)_FRAMES/);

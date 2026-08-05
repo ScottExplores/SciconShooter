@@ -1540,10 +1540,143 @@
           max-height: calc(100dvh - env(safe-area-inset-top) - 26px) !important;
         }
       }
+
+      /* Visible before the entry module downloads. React replaces this shell
+         on its first commit and continues with the measured startup loader. */
+      .sci-boot-shell {
+        position: absolute;
+        inset: 0;
+        z-index: 200;
+        display: grid;
+        grid-template-rows: 1fr auto;
+        overflow: hidden;
+        padding: max(2rem, env(safe-area-inset-top)) 1.25rem max(1.25rem, env(safe-area-inset-bottom));
+        color: #effcff;
+        background:
+          radial-gradient(circle at 50% 32%, rgba(34, 211, 238, 0.17), transparent 31%),
+          radial-gradient(circle at 18% 12%, rgba(67, 56, 202, 0.2), transparent 38%),
+          linear-gradient(180deg, #050b20, #020617 72%);
+        box-sizing: border-box;
+      }
+
+      .sci-boot-shell::after {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background: repeating-linear-gradient(180deg, transparent 0 3px, rgba(103, 232, 249, 0.07) 4px);
+        content: "";
+      }
+
+      .sci-boot-shell__brand {
+        align-self: center;
+        text-align: center;
+      }
+
+      .sci-boot-shell__emblem {
+        display: block;
+        width: clamp(8.5rem, 42vw, 13rem);
+        margin: 0 auto -0.4rem;
+        image-rendering: pixelated;
+        filter: drop-shadow(0 0 1.15rem rgba(34, 211, 238, 0.46));
+      }
+
+      .sci-boot-shell__eyebrow,
+      .sci-boot-shell__status-line {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.62rem;
+        font-weight: 900;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+      }
+
+      .sci-boot-shell__eyebrow {
+        margin: 0;
+        color: #67e8f9;
+      }
+
+      .sci-boot-shell__title {
+        margin: 0.35rem 0 0;
+        font-family: 'Orbitron', ui-sans-serif, system-ui, sans-serif;
+        font-size: clamp(2.15rem, 10.5vw, 3.65rem);
+        font-weight: 900;
+        letter-spacing: -0.025em;
+        line-height: 0.84;
+        text-shadow: 0 3px 0 #155385, 0 0 1.25rem rgba(34, 211, 238, 0.68);
+      }
+
+      .sci-boot-shell__status {
+        position: relative;
+        z-index: 1;
+        width: min(100%, 31rem);
+        margin: 0 auto;
+      }
+
+      .sci-boot-shell__status-line {
+        display: flex;
+        justify-content: space-between;
+        margin: 0 0.35rem 0.4rem;
+        color: #cffafe;
+      }
+
+      .sci-boot-shell__status-line strong {
+        color: #67e8f9;
+      }
+
+      .sci-boot-shell__progress {
+        height: 0.85rem;
+        overflow: hidden;
+        border: 1px solid rgba(103, 232, 249, 0.72);
+        background: rgba(0, 6, 17, 0.94);
+        box-shadow: inset 0 0 0 2px rgba(8, 47, 73, 0.82), 0 0 1rem rgba(34, 211, 238, 0.16);
+        clip-path: polygon(0.45rem 0, 100% 0, calc(100% - 0.45rem) 100%, 0 100%);
+      }
+
+      .sci-boot-shell__progress-fill {
+        display: block;
+        width: 5%;
+        height: 100%;
+        background: linear-gradient(90deg, #0877bb, #13dfff 72%, #d8ffff);
+        box-shadow: 0 0 0.7rem #22dfff;
+      }
     </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <section
+        class="sci-boot-shell"
+        role="status"
+        aria-label="Loading Scicon Shooter"
+        aria-live="polite"
+        aria-busy="true"
+      >
+        <div class="sci-boot-shell__brand">
+          <img
+            class="sci-boot-shell__emblem"
+            src="/game-art/generated/ui/scicon-mission-loading-v1/loading-emblem.png"
+            alt=""
+            aria-hidden="true"
+          />
+          <p class="sci-boot-shell__eyebrow">Research Command Network</p>
+          <p class="sci-boot-shell__title">SCICON<br />SHOOTER</p>
+        </div>
+        <div class="sci-boot-shell__status">
+          <div class="sci-boot-shell__status-line">
+            <span>Loading flight systems</span>
+            <strong>5%</strong>
+          </div>
+          <div
+            class="sci-boot-shell__progress"
+            role="progressbar"
+            aria-label="Loading flight systems"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="5"
+          >
+            <span class="sci-boot-shell__progress-fill"></span>
+          </div>
+        </div>
+      </section>
+    </div>
     <script>
       (() => {
         const setVisualViewportHeight = () => {

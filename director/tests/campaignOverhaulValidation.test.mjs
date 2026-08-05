@@ -78,8 +78,10 @@ test('authored formation metadata, weighted budgets, and teaching encounters mat
     level.waves.forEach((wave, waveIndex) => {
       const spawnEvents = wave.events.filter((event) => event.kind === 'spawn');
       const weightedThreat = spawnEvents.reduce((sum, event) => {
-        const enemyIds = event.enemies.map((enemy) => enemy.enemyId);
-        assert.equal(new Set(enemyIds).size, enemyIds.length, `${event.id} must not repeat an enemy archetype`);
+        const roleIds = event.enemies.map((enemy) => enemy.roleId);
+        const spriteKeys = event.enemies.map((enemy) => enemy.spriteKey);
+        assert.equal(new Set(roleIds).size, roleIds.length, `${event.id} must not repeat an enemy role`);
+        assert.equal(new Set(spriteKeys).size, spriteKeys.length, `${event.id} must not repeat an enemy silhouette`);
         event.enemies.forEach((enemy) => {
           const role = rolesById.get(enemy.roleId);
           assert.equal(enemy.enemyId, role.enemyId, `${event.id} enemyId must match ${enemy.roleId}`);

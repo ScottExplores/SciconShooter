@@ -7,9 +7,17 @@ import {
   getProposalFundingMetrics,
   sortProposalsByFunding
 } from '../services/proposalFunding';
-import { ASSETS, DONATION_CONFIG, type RscPurchaseSkuId } from '../constants';
+import {
+  ASSETS,
+  DONATION_CONFIG,
+  type PlayerShipPurchaseSkuId,
+  type RscPurchaseSkuId
+} from '../constants';
 import type { RscBalanceSnapshot } from '../services/baseAccountWallet';
-import type { WalletPurchaseStatusUpdate } from './WalletRuntime';
+import type {
+  PlayerShipPurchaseStatusUpdate,
+  WalletPurchaseStatusUpdate
+} from './WalletRuntime';
 import type { WalletRunRecord } from '../services/playerRunService';
 import type { WeeklyProposalRecovery } from '../services/weeklyProposalRecovery';
 import {
@@ -25,8 +33,6 @@ import {
 } from '../shared/weeklyCompetitionBoundary.browser';
 import { buildMissionRecordCardPath } from '../shared/record-card/renderRecordCardSvg.mjs';
 import {
-  BTC_SHIP_SCORE_THRESHOLD,
-  ETH_SHIP_SCORE_THRESHOLD,
   isPlayerShipUnlocked,
   PLAYABLE_PLAYER_SHIP_IDS,
   PLAYER_SHIPS,
@@ -34,6 +40,7 @@ import {
   type PlayerShipUnlocks
 } from '../services/playerShipService';
 import SquadHangar from './SquadHangar';
+import PlayerShipAccessDialog, { type PlayerShipAccessId } from './PlayerShipAccessDialog';
 import PixelActionButton from './PixelActionButton';
 import AudioSettingsControls from './AudioSettingsControls';
 import PlayerReportDialog from './PlayerReportDialog';
@@ -130,7 +137,10 @@ interface StartScreenProps {
   rscBalance: RscBalanceSnapshot | null;
   rscBalanceStatus: 'idle' | 'loading' | 'ready' | 'error';
   walletPurchaseStatus: WalletPurchaseStatusUpdate;
+  playerShipPurchaseStatus: PlayerShipPurchaseStatusUpdate;
   onPurchaseWithRsc: (skuId: RscPurchaseSkuId) => void;
+  onPurchasePlayerShip: (skuId: PlayerShipPurchaseSkuId) => void;
+  onRefreshPlayerShipAccess: () => void;
   onRefreshRscBalance: () => void;
   audioMuted: boolean;
   sfxVolumeLevel: number;
@@ -354,6 +364,7 @@ const dashboardTabs: Array<{
 ];
 
 const playerShipOrder: PlayerShipId[] = [...PLAYABLE_PLAYER_SHIP_IDS];
+const WEEKLY_EMPTY_TROPHY = '/game-art/generated/ui/scicon-interface-pack-v1/resources/trophy.png';
 
 const PODIUM_ASSET_ROOT = '/game-art/generated/ui/scicon-ui-system-v2';
 const FIRST_PLACE_ANIMATION_ROOT = `${PODIUM_ASSET_ROOT}/animations/first-place-row-idle/parts`;
@@ -772,7 +783,10 @@ const StartScreen: React.FC<StartScreenProps> = ({
   rscBalance,
   rscBalanceStatus,
   walletPurchaseStatus,
+  playerShipPurchaseStatus,
   onPurchaseWithRsc,
+  onPurchasePlayerShip,
+  onRefreshPlayerShipAccess,
   onRefreshRscBalance,
   audioMuted,
   sfxVolumeLevel,
@@ -842,6 +856,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const [championClaimWinner, setChampionClaimWinner] = useState<ArchivedWinner | null>(null);
   const [testSelectedProposal, setTestSelectedProposal] = useState<ResearchHubProposal | null>(null);
   const [shipFocusId, setShipFocusId] = useState<PlayerShipId>(selectedShipId);
+  const [homeShipAccessId, setHomeShipAccessId] = useState<PlayerShipAccessId | null>(null);
   const [shipLockNudgeRevision, setShipLockNudgeRevision] = useState(0);
   const [weeklyClock, setWeeklyClock] = useState(() => Date.now());
   const [selectedLeaderboardRecord, setSelectedLeaderboardRecord] = useState<LeaderboardEntry | null>(null);
@@ -1097,19 +1112,20 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
   const focusedShip = PLAYER_SHIPS[shipFocusId];
   const focusedShipLocked = !isPlayerShipUnlocked(shipFocusId, shipUnlocks);
-  const getShipUnlockScore = (shipId: PlayerShipId) => shipId === 'btc'
-    ? BTC_SHIP_SCORE_THRESHOLD
-    : ETH_SHIP_SCORE_THRESHOLD;
-  const getShipUnlockMessage = (shipId: PlayerShipId) => (
-    `Mint a ${getShipUnlockScore(shipId).toLocaleString()}+ score NFT to unlock this ship.`
-  );
+  const getShipUnlockMessage = (shipId: PlayerShipId) => shipId === 'bio'
+    ? 'Hold at least 100 BIO on Base to fly this ship.'
+    : shipId === 'eth'
+      ? 'Unlock permanently for 0.001 ETH on Base.'
+      : shipId === 'btc'
+        ? `Earn all ${shipUnlocks.campaignStarsTotal} Campaign stars or unlock for 0.00008 cbBTC on Base.`
+        : 'This ship is ready.';
 
   const requestHangar = () => setDashboardTab('hangar');
 
   const requestFocusedShip = () => {
     if (focusedShipLocked) {
       setShipLockNudgeRevision((revision) => revision + 1);
-      requestHangar();
+      if (shipFocusId !== 'researchhub') setHomeShipAccessId(shipFocusId);
       return;
     }
 
@@ -1437,14 +1453,12 @@ const StartScreen: React.FC<StartScreenProps> = ({
             <span className="sci-campaign-mode-strip__label">Campaign</span>
             <span className="sci-campaign-mode-strip__value">
               Mission {String(campaignCheckpoint.missionNumber).padStart(2, '0')}
-              {' · '}
-              Wave {campaignCheckpoint.waveNumber}/{campaignCheckpoint.waveTotal}
             </span>
           </p>
           <PixelActionButton
             onClick={onStart}
             data-onboarding-target="campaign-start"
-            aria-label={`${campaignCheckpoint.action}. Mission ${campaignCheckpoint.missionNumber}, ${campaignCheckpoint.waveTotal} WAVES, ${campaignCheckpoint.missionName}.`}
+            aria-label={`${campaignCheckpoint.action}. Mission ${campaignCheckpoint.missionNumber}, ${campaignCheckpoint.missionName}.`}
             tone="green"
             ready
             shine
@@ -1646,7 +1660,12 @@ const StartScreen: React.FC<StartScreenProps> = ({
                 {...(compact ? { style: { gridTemplateColumns: '4rem minmax(0,1fr)' } } : {})}
               >
                 <span className="sci-weekly-project-image relative flex aspect-square items-center justify-center overflow-hidden rounded-[8px] border border-cyan-200/25 bg-cyan-300/10">
-                  <img src={ASSETS.PLAYER_SHIP} alt="" className="h-16 w-16 object-contain drop-shadow-[0_0_18px_rgba(34,211,238,0.7)]" />
+                  <img
+                    src={weeklyLeader ? ASSETS.PLAYER_SHIP : WEEKLY_EMPTY_TROPHY}
+                    data-weekly-leader-art={weeklyLeader ? 'ship' : 'trophy'}
+                    alt=""
+                    className="h-16 w-16 object-contain drop-shadow-[0_0_18px_rgba(34,211,238,0.7)]"
+                  />
                   <span className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-cyan-200/10" />
                 </span>
 
@@ -2293,6 +2312,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
           rscBalance={rscBalance}
           rscBalanceStatus={rscBalanceStatus}
           walletPurchaseStatus={walletPurchaseStatus}
+          playerShipPurchaseStatus={playerShipPurchaseStatus}
           founderSandbox={founderSandbox}
           onSelectMainShip={(shipId) => {
             setShipFocusId(shipId);
@@ -2300,6 +2320,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
           }}
           onUnlockSlot={onUnlockSquadSlot}
           onPurchaseWithRsc={onPurchaseWithRsc}
+          onPurchasePlayerShip={onPurchasePlayerShip}
+          onRefreshPlayerShipAccess={onRefreshPlayerShipAccess}
           onOpenRscSwap={() => setShowRscAcquire(true)}
           onPurchaseMini={onPurchaseMiniShip}
           onUpgradeMini={onUpgradeMiniShip}
@@ -2334,6 +2356,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
           rscBalance={rscBalance}
           rscBalanceStatus={rscBalanceStatus}
           walletPurchaseStatus={walletPurchaseStatus}
+          playerShipPurchaseStatus={playerShipPurchaseStatus}
           founderSandbox={founderSandbox}
           onSelectMainShip={(shipId) => {
             setShipFocusId(shipId);
@@ -2341,6 +2364,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
           }}
           onUnlockSlot={onUnlockSquadSlot}
           onPurchaseWithRsc={onPurchaseWithRsc}
+          onPurchasePlayerShip={onPurchasePlayerShip}
+          onRefreshPlayerShipAccess={onRefreshPlayerShipAccess}
           onOpenRscSwap={() => setShowRscAcquire(true)}
           onPurchaseMini={onPurchaseMiniShip}
           onUpgradeMini={onUpgradeMiniShip}
@@ -2819,6 +2844,21 @@ const StartScreen: React.FC<StartScreenProps> = ({
           </section>
         </div>
       )}
+
+      <PlayerShipAccessDialog
+        shipId={homeShipAccessId}
+        shipUnlocks={shipUnlocks}
+        walletConnected={Boolean(walletAddress)}
+        playerShipPurchaseStatus={playerShipPurchaseStatus}
+        onClose={() => setHomeShipAccessId(null)}
+        onRefreshPlayerShipAccess={onRefreshPlayerShipAccess}
+        onPurchasePlayerShip={onPurchasePlayerShip}
+        onUnlockedAction={(shipId) => {
+          onSelectShip(shipId);
+          setHomeShipAccessId(null);
+        }}
+        unlockedActionLabel="Unlocked - select ship"
+      />
 
       <RewardCenter
         open={showRewardCenter}

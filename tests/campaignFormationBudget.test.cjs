@@ -182,7 +182,7 @@ test('tracked Campaign resolves every grouped spawn to one declared compatible f
   assert.deepEqual(paywall.waves.at(-1).formationPackIds, ['pack-light-jet-pincer']);
   assert.deepEqual(
     packsById.get('pack-light-jet-pincer').enemyRoleIds,
-    ['role-jet-scout', 'role-jet-interceptor'],
-    'the first elite checkpoint cannot inherit the not-yet-introduced Jet Heavy role'
+    ['role-jet-scout', 'role-jet-interceptor', 'role-research-drone', 'role-citation-swarm'],
+    'the first elite checkpoint mixes early escorts without inheriting the not-yet-introduced Audit Bulwark role'
   );
 });

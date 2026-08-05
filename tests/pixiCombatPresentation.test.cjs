@@ -72,15 +72,41 @@ test('paywall formations share one integrity bar and later waves use terrain-pac
     'LEGACY_ENEMY_DRONE_FRAMES',
     'ENEMY_SWARM_FRAMES',
     'ENEMY_JOURNAL_FRAMES',
-    'PIXI_JET_SCOUT_FRAMES',
-    'PIXI_JET_INTERCEPTOR_FRAMES',
-    'PIXI_JET_HEAVY_FRAMES',
+    'SCICON_ENEMY_REDLINE_SKIRMISHER_FRAMES',
+    'SCICON_ENEMY_CROSSCUT_RAIDER_FRAMES',
+    'SCICON_ENEMY_AUDIT_BULWARK_FRAMES',
     'CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL',
     'CAMPAIGN_ENEMY_DNA_CONDUCTOR'
   ]) {
     assert.ok(laterAssetKeys.includes(family), `${family} appears in the later campaign`);
   }
-  assert.ok(!laterAssetKeys.some((key) => key.startsWith('SCICON_ENEMY_')));
+  // Retired enemy art stays out, while the active Retraction Fleet and the
+  // remaining late-sector hulls intentionally use SCICON_ENEMY_* keys.
+  for (const retiredFamily of [
+    'PIXI_JET_SCOUT_FRAMES',
+    'PIXI_JET_INTERCEPTOR_FRAMES',
+    'PIXI_JET_HEAVY_FRAMES',
+    'SCICON_ENEMY_QUASAR_LANCER_FRAMES',
+    'SCICON_ENEMY_VECTOR_REAVER_FRAMES',
+    'SCICON_ENEMY_ORBIT_SCOUT_FRAMES',
+    'SCICON_ENEMY_CITATION_DART_FRAMES',
+    'SCICON_ENEMY_RESEARCH_SENTRY_FRAMES',
+    'SCICON_ENEMY_PEER_BULWARK_FRAMES',
+    'SCICON_ENEMY_JOURNAL_RAIDER_FRAMES',
+    'SCICON_ENEMY_HELIX_CONDUCTOR_FRAMES',
+    'SCICON_ENEMY_PRISM_ARTILLERY_FRAMES'
+  ]) {
+    assert.equal(laterAssetKeys.includes(retiredFamily), false, retiredFamily);
+  }
+  for (const advancedFamily of [
+    'SCICON_ENEMY_QUASAR_LANCER_V2_FRAMES',
+    'SCICON_ENEMY_NULL_BASTION_FRAMES',
+    'SCICON_ENEMY_VECTOR_REAVER_V2_FRAMES',
+    'SCICON_ENEMY_RIFT_WEAVER_FRAMES',
+    'SCICON_ENEMY_PULSE_HERALD_FRAMES'
+  ]) {
+    assert.ok(laterAssetKeys.includes(advancedFamily), `${advancedFamily} appears after its gate`);
+  }
 });
 
 test('Paywall Bastions use attack and real health decay frames across authored checkpoints', () => {

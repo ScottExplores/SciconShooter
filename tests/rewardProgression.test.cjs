@@ -6,7 +6,7 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const read = (...segments) => fs.readFileSync(path.join(root, ...segments), 'utf8');
 
-test('daily gifts define a persistent 30-day calendar with ship milestones', () => {
+test('daily gifts keep the 30-day Token calendar without granting gated ships', () => {
   const rewards = read('services', 'rewardProgression.ts');
   const squad = read('services', 'squadProgression.ts');
 
@@ -16,13 +16,13 @@ test('daily gifts define a persistent 30-day calendar with ship milestones', () 
 
   assert.equal(coins.length, 30);
   assert.deepEqual(coins.slice(0, 5), [50, 100, 200, 400, 800]);
-  assert.equal(coins[13], 500, 'the ETH milestone should retain a larger coin grant');
+  assert.equal(coins[13], 500, 'the two-week milestone should retain a larger coin grant');
   assert.equal(coins[20], 500, 'the third-week milestone should retain a larger coin grant');
-  assert.equal(coins[29], 1000, 'the BTC milestone should remain the calendar peak');
+  assert.equal(coins[29], 1000, 'the final milestone should remain the calendar peak');
   assert.equal(coins.reduce((total, reward) => total + reward, 0), 9450);
   assert.ok(coins.every((coinsForDay) => coinsForDay <= 1000));
-  assert.match(rewards, /day === 14 \? \{ shipId: 'eth' as const \}/);
-  assert.match(rewards, /day === 30 \? \{ shipId: 'btc' as const \}/);
+  assert.doesNotMatch(rewards, /day === 14 \? \{ shipId: 'eth' as const \}/);
+  assert.doesNotMatch(rewards, /day === 30 \? \{ shipId: 'btc' as const \}/);
   assert.match(rewards, /daysSinceClaim === 1/);
   assert.match(rewards, /currentDay >= 30 \? 1 : state\.dailyGifts\.currentDay \+ 1/);
   assert.match(rewards, /claimableDay: 1, claimedToday: false, isAvailable: true, streakReset: true/);

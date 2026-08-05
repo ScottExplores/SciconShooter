@@ -289,9 +289,10 @@ test('generated waves are fully formed and reference real enemy roles', () => {
         spawnEvents += 1;
         assert.ok(event.count > 0);
         assert.ok(event.enemies.length > 0);
-        // Enemies must stay distinct by base enemy, exactly as authored waves do.
-        const enemyIds = event.enemies.map((enemy) => enemy.enemyId);
-        assert.equal(new Set(enemyIds).size, enemyIds.length, `${event.id} has duplicate enemyIds`);
+        // Tactical roles stay distinct even when two variants intentionally
+        // share one base chassis and use different sprite/behavior contracts.
+        const eventRoleIds = event.enemies.map((enemy) => enemy.roleId);
+        assert.equal(new Set(eventRoleIds).size, eventRoleIds.length, `${event.id} has duplicate roleIds`);
         const weightSum = event.enemies.reduce((sum, enemy) => sum + enemy.weight, 0);
         assert.ok(Math.abs(weightSum - 1) < 0.02, `${event.id} weights sum to ${weightSum}`);
         for (const enemy of event.enemies) {
@@ -495,4 +496,34 @@ test('Weekly Run starting lives are fixed and independent of Hangar upgrades', (
   assert.doesNotMatch(startingLivesBlock, /carriedWeeklyLives/);
   // Starting Hearts is a Campaign-only track; it must not reach the Weekly Run.
   assert.match(squad, /CAMPAIGN_MAX_STARTING_LIVES = 10/);
+});
+
+test('role-authored Weekly squadrons may share a chassis without becoming duplicates', async () => {
+  const run = generator.buildWeeklyRunCampaign('2026-W32', campaign, 48);
+  const sharedChassisEvent = run.levels
+    .flatMap((level) => level.waves)
+    .flatMap((wave) => wave.events)
+    .find((event) => (
+      event.kind === 'spawn'
+      && event.enemies.length > 1
+      && new Set(event.enemies.map((enemy) => enemy.enemyId)).size < event.enemies.length
+      && new Set(event.enemies.map((enemy) => enemy.roleId)).size === event.enemies.length
+    ));
+  assert.ok(sharedChassisEvent, 'the generated runway exercises distinct roles on one chassis');
+
+  const browserIssues = validator.validateGameCampaign(run).issues.filter((issue) => (
+    issue.code === 'duplicate_id'
+    && (issue.path.includes('/enemies/enemyId') || issue.path.includes('/enemies/roleId'))
+  ));
+  assert.deepEqual(browserIssues, []);
+
+  const { pathToFileURL } = require('node:url');
+  const directorValidator = await import(pathToFileURL(
+    path.join(root, 'director', 'server', 'gameCampaignValidation.mjs')
+  ).href);
+  const directorDuplicateErrors = directorValidator.validateGameCampaign(run).errors.filter((error) => (
+    error.includes('/enemies contains duplicate enemyId')
+    || error.includes('/enemies contains duplicate roleId')
+  ));
+  assert.deepEqual(directorDuplicateErrors, []);
 });

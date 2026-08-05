@@ -78,19 +78,16 @@ test('Pilot progress keeps standalone and Campaign settlement paths separate', (
   assert.doesNotMatch(app, /activeWalletAddress && !isFounderSandboxRun/);
 });
 
-test('minted ship ownership remains scoped to the connected wallet', () => {
+test('paid ship access remains scoped to the connected authenticated wallet', () => {
   const app = read('App.tsx');
   const ships = read('services', 'playerShipService.ts');
   const squad = read('services', 'squadProgression.ts');
 
-  assert.match(app, /getPlayerShipUnlocks\(activeWalletAddress, walletRecords, \{ unlockAll: isOwnerWallet \}\)/);
-  assert.match(ships, /const normalizedWallet = walletAddress\?\.toLowerCase\(\)/);
-  assert.match(ships, /record\.walletAddress\?\.toLowerCase\(\) === normalizedWallet/);
-  assert.match(ships, /record\.recordType === 'mission'/);
-  assert.match(ships, /record\.status === 'confirmed'/);
-  assert.match(ships, /record\.ownershipVerified !== false/);
-  assert.match(app, /eth: unlocks\.eth \|\| permanentSquadState\.unlockedPlayerShips\.includes\('eth'\)/);
-  assert.match(app, /btc: unlocks\.btc \|\| permanentSquadState\.unlockedPlayerShips\.includes\('btc'\)/);
+  assert.match(app, /loadPlayerShipAccess\(activeWalletAddress as Address/);
+  assert.match(app, /getPlayerShipUnlocks\(\{[\s\S]*?authoritativePaidUnlockIds: access\?\.unlockedPlayerShips/);
+  assert.match(ships, /Server-verified payment entitlements/);
+  assert.match(ships, /accessReady && paidUnlockIds\.has\('eth'\)/);
+  assert.match(ships, /campaign\.mastered \|\| \(accessReady && paidUnlockIds\.has\('btc'\)\)/);
   assert.match(squad, /Minted ownership always follows the currently connected wallet/);
   assert.match(squad, /mintedMiniShips: target\.mintedMiniShips/);
   assert.match(squad, /const bossArchive = mergeBossArchiveProgress\(\s*target\.bossArchive,\s*source\.bossArchive\s*\)/);

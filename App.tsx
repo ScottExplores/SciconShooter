@@ -20,6 +20,7 @@ import {
   STORAGE_KEYS,
   getFieldUpgradeFlaskCost,
   getFieldUpgradeLevel,
+  type PlayerShipPurchaseSkuId,
   type RscPurchaseSkuId
 } from './constants';
 import { ALL_TIME_SCORE_LIMIT, WEEKLY_SCORE_LIMIT, getLeaderboardData, getLeaderboardWeekScores, saveScore, saveWeeklyLeaderProposal } from './services/leaderboardService';
@@ -37,6 +38,8 @@ import {
 import { loadOnboardingProgress, type OnboardingStepId } from './services/onboardingProgress';
 import { BASE_FLASK_CHARGE_MAX, getChargeForStoredFlasks, getFlaskProgress, spendStoredFlasks } from './services/flaskProgress';
 import type {
+  PlayerShipAccessUpdate,
+  PlayerShipPurchaseStatusUpdate,
   RscBalanceUpdate,
   WalletPurchaseStatusUpdate,
   WalletRuntimeAction
@@ -47,6 +50,10 @@ import {
   type WeeklyRunAttemptQuota
 } from './services/walletPurchaseService';
 import type { ContinuePaymentSettlement } from './services/continuePaymentService';
+import {
+  loadPlayerShipAccess,
+  type PlayerShipPurchaseSettlement
+} from './services/playerShipAccessService';
 import {
   applyWalletTokenSpend,
   WalletTokenSpendRequestError,
@@ -69,6 +76,7 @@ import { getWalletRuns, type WalletRunRecord } from './services/playerRunService
 import { getWeeklyProposalRecovery } from './services/weeklyProposalRecovery';
 import { getWeeklyProposalLifecycle } from './services/weeklyProposalLifecycle';
 import {
+  addCampaignMasteryBtcUnlock,
   getUsablePlayerShip,
   getPlayerShipUnlocks,
   parsePlayerShipId,
@@ -77,6 +85,11 @@ import {
 } from './services/playerShipService';
 import type { GameEngineDebugSnapshot, GameRuntimeState, WaveVictorySummary } from './services/gameLogic';
 import { waitForRequiredGameplayAssetPreload } from './services/gameplayAssetPreloadBudget';
+import {
+  getStartupPreloadSnapshot,
+  preloadStartupAssets,
+  type StartupPreloadSnapshot
+} from './services/startupPreload';
 import PauseMenu from './components/PauseMenu';
 import GameOverPresentation from './components/GameOverPresentation';
 import PixelActionButton from './components/PixelActionButton';
@@ -582,6 +595,8 @@ const INITIAL_DEPLOYMENT_UPDATE_CHECK_MS = 12_000;
 const OWNER_TEST_FLASK_CHARGE = getChargeForStoredFlasks(OWNER_TEST_FLASK_COUNT);
 const BACKGROUND_LEADERBOARD_REFRESH_MS = 60_000;
 const PROPOSAL_REFRESH_MS = 5 * 60 * 1000;
+const STARTUP_LOADING_MINIMUM_MS = 650;
+const STARTUP_LOADING_READY_HOLD_MS = 180;
 type IdleWindow = Window & {
   requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number;
   cancelIdleCallback?: (handle: number) => void;
@@ -674,6 +689,10 @@ const App: React.FC = () => {
   const [gameId, setGameId] = useState<number>(0);
   const [activeRunLifeCapacity, setActiveRunLifeCapacity] = useState(GAME_CONFIG.PLAYER_LIVES);
   const [gameRuntimeReady, setGameRuntimeReady] = useState(false);
+  const [startupLoading, setStartupLoading] = useState<StartupPreloadSnapshot | null>(
+    getStartupPreloadSnapshot
+  );
+  const [startupLoadingTip] = useState(getRandomMissionLoadingTip);
   const [missionLoading, setMissionLoading] = useState<MissionLoadingState | null>(null);
   const [onboardingRestartNonce, setOnboardingRestartNonce] = useState(0);
   const [onboardingInvitationNonce, setOnboardingInvitationNonce] = useState(0);
@@ -749,6 +768,13 @@ const App: React.FC = () => {
     balance: null
   });
   const [walletPurchaseStatus, setWalletPurchaseStatus] = useState<WalletPurchaseStatusUpdate>({
+    status: 'idle'
+  });
+  const [playerShipAccessUpdate, setPlayerShipAccessUpdate] = useState<PlayerShipAccessUpdate>({
+    status: 'idle',
+    access: null
+  });
+  const [playerShipPurchaseStatus, setPlayerShipPurchaseStatus] = useState<PlayerShipPurchaseStatusUpdate>({
     status: 'idle'
   });
   const [walletSession, setWalletSession] = useState<WalletSession>({
@@ -1267,15 +1293,67 @@ const App: React.FC = () => {
     proposalLifecycle: weeklyProposalLifecycle
   }), [activeWalletAddress, monthlyLeaderboard, walletRuns, weeklyProposalLifecycle]);
   const shipUnlocks = useMemo(() => {
-    const unlocks = getPlayerShipUnlocks(activeWalletAddress, walletRecords, { unlockAll: isOwnerWallet });
-    return {
-      ...unlocks,
-      eth: unlocks.eth || permanentSquadState.unlockedPlayerShips.includes('eth'),
-      btc: unlocks.btc || permanentSquadState.unlockedPlayerShips.includes('btc')
-    };
-  }, [activeWalletAddress, isOwnerWallet, permanentSquadState.unlockedPlayerShips, walletRecords]);
+    const access = playerShipAccessUpdate.access;
+    return getPlayerShipUnlocks({
+      bioUnlocked: access?.bio === true,
+      bioBalanceRaw: access?.bioBalanceRaw ?? null,
+      bioBalance: access?.bioBalance ?? null,
+      authoritativePaidUnlockIds: access?.unlockedPlayerShips ?? [],
+      permanentUnlockIds: permanentSquadState.unlockedPlayerShips,
+      campaignProgress: permanentSquadState.campaignProgress,
+      accessStatus: playerShipAccessUpdate.status,
+      accessError: playerShipAccessUpdate.error,
+      unlockAll: isOwnerWallet
+    });
+  }, [
+    isOwnerWallet,
+    permanentSquadState.campaignProgress,
+    permanentSquadState.unlockedPlayerShips,
+    playerShipAccessUpdate
+  ]);
   const usableShipId = getUsablePlayerShip(selectedShipId, shipUnlocks);
+  const startupShipIdRef = useRef(usableShipId);
   const activeMissionPlayerShipUrl = PLAYER_SHIPS[activeMissionShipId].assetUrl;
+
+  useEffect(() => {
+    let cancelled = false;
+    const startedAt = Date.now();
+
+    const finishStartup = async () => {
+      const result = await preloadStartupAssets({
+        selectedShipId: startupShipIdRef.current,
+        onProgress: (snapshot) => {
+          if (!cancelled) setStartupLoading(snapshot);
+        }
+      });
+      const remainingMinimum = Math.max(
+        0,
+        STARTUP_LOADING_MINIMUM_MS - (Date.now() - startedAt)
+      );
+      if (remainingMinimum > 0) {
+        await new Promise<void>((resolve) => {
+          window.setTimeout(resolve, remainingMinimum);
+        });
+      }
+      if (cancelled) return;
+
+      setStartupLoading((current) => ({
+        ...(current ?? getStartupPreloadSnapshot()),
+        progress: 100,
+        phase: 'ready',
+        status: result.status
+      }));
+      await new Promise<void>((resolve) => {
+        window.setTimeout(resolve, STARTUP_LOADING_READY_HOLD_MS);
+      });
+      if (!cancelled) setStartupLoading(null);
+    };
+
+    void finishStartup();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const updateWeeklySquadState = useCallback((
     update: (current: WeeklySquadState) => WeeklySquadState,
@@ -1301,6 +1379,16 @@ const App: React.FC = () => {
       return next;
     });
   }, []);
+
+  useEffect(() => {
+    if (permanentSquadState.unlockedPlayerShips.includes('btc')) return;
+    updatePermanentSquadState((current) => {
+      const next = addCampaignMasteryBtcUnlock(current, current.campaignProgress);
+      return next === current
+        ? current
+        : { ...next, updatedAt: new Date().toISOString() };
+    });
+  }, [permanentSquadState.campaignProgress, permanentSquadState.unlockedPlayerShips, updatePermanentSquadState]);
 
   const handleBossArchiveViewed = useCallback((eventId: string) => {
     updatePermanentSquadState((current) => markBossArchiveViewed(current, eventId));
@@ -1793,7 +1881,7 @@ const App: React.FC = () => {
       score: stats.score,
       lives: stats.lives,
       selectedShipId: activeMissionShipId,
-      loadingPhase: missionLoading?.phase ?? 'none',
+      loadingPhase: startupLoading?.phase ?? missionLoading?.phase ?? 'none',
       bossActive: stats.isBossActive
     });
   }, [
@@ -1812,6 +1900,7 @@ const App: React.FC = () => {
     stats.isBossActive,
     stats.lives,
     stats.score,
+    startupLoading?.phase,
     stats.wave
   ]);
 
@@ -1820,9 +1909,9 @@ const App: React.FC = () => {
       game_state: gameState,
       game_id: gameId,
       run_mode: activeRunMode,
-      loading_phase: missionLoading?.phase ?? 'none'
+      loading_phase: startupLoading?.phase ?? missionLoading?.phase ?? 'none'
     });
-  }, [activeRunMode, gameId, gameState, missionLoading?.phase]);
+  }, [activeRunMode, gameId, gameState, missionLoading?.phase, startupLoading?.phase]);
 
   const applyAuthoritativeHangarSpend = useCallback(async (
     action: WalletTokenSpendAction
@@ -2558,6 +2647,42 @@ const App: React.FC = () => {
       setCampaignMapError('Campaign Lab launch rejected: connect the authorized founder wallet.');
       releaseLaunchReservation();
       return;
+    }
+
+    // BIO is a live holding gate rather than a one-time ownership flag. Recheck
+    // it at the launch boundary so moving the tokens after opening the Hangar
+    // cannot start a new flight with stale eligibility. Never revoke a hull in
+    // the middle of a flight.
+    if (!authorizedCampaignLabRequest && usableShipId === 'bio' && !isOwnerWallet) {
+      if (!activeWalletAddress) {
+        setWalletError('Connect the Base Account holding at least 100 BIO before starting this flight.');
+        releaseLaunchReservation();
+        return;
+      }
+      setPlayerShipAccessUpdate((current) => ({
+        status: 'loading',
+        access: current.access
+      }));
+      try {
+        const verifiedAccess = await loadPlayerShipAccess(activeWalletAddress as Address, {
+          interactive: false
+        });
+        setPlayerShipAccessUpdate({ status: 'ready', access: verifiedAccess });
+        if (!verifiedAccess.bio) {
+          setWalletError('This Base Account needs at least 100 BIO to fly the BIO ship. Choose another ship or add BIO, then refresh access.');
+          releaseLaunchReservation();
+          return;
+        }
+        setWalletError('');
+      } catch (error) {
+        const message = error instanceof Error
+          ? error.message
+          : 'BIO holdings could not be verified before launch.';
+        setPlayerShipAccessUpdate({ status: 'error', access: null, error: message });
+        setWalletError(message);
+        releaseLaunchReservation();
+        return;
+      }
     }
 
     const requestedBossReplay = bossEncounterId ? getBossArchiveEntry(bossEncounterId) : null;
@@ -5450,6 +5575,25 @@ const App: React.FC = () => {
     });
   }, [activeWalletAddress, connectWallet]);
 
+  const refreshPlayerShipAccess = useCallback(() => {
+    if (!activeWalletAddress) {
+      connectWallet();
+      return;
+    }
+    warmWalletRuntime();
+    setWalletRuntimeEnabled(true);
+    walletActionNonceRef.current += 1;
+    setWalletRuntimeAction({
+      type: 'refresh-player-ship-access',
+      nonce: walletActionNonceRef.current
+    });
+  }, [activeWalletAddress, connectWallet]);
+
+  useEffect(() => {
+    if (!activeWalletAddress || walletProfileStatus !== 'ready') return;
+    refreshPlayerShipAccess();
+  }, [activeWalletAddress, refreshPlayerShipAccess, walletProfileStatus]);
+
   const requestRscPurchase = useCallback(async (skuId: RscPurchaseSkuId) => {
     if (isOwnerWallet) {
       if (skuId === 'right-support') {
@@ -5510,6 +5654,55 @@ const App: React.FC = () => {
       nonce: walletActionNonceRef.current
     });
   }, [activeWalletAddress, handleUnlockSquadSlot, isOwnerWallet, walletProfileStatus]);
+
+  const requestPlayerShipPurchase = useCallback(async (skuId: PlayerShipPurchaseSkuId) => {
+    if (isOwnerWallet) {
+      setPlayerShipPurchaseStatus({
+        status: 'error',
+        skuId,
+        error: 'This wallet receives Scicon Shooter payments. Switch to a different Base Account to make a purchase.'
+      });
+      return;
+    }
+    setPlayerShipPurchaseStatus({ status: 'connecting', skuId });
+    if (activeWalletAddress && walletProfileStatus === 'ready') {
+      const normalizedAddress = activeWalletAddress.toLowerCase();
+      const flushTask = walletProfileSaveChainRef.current
+        .catch(() => undefined)
+        .then(async () => {
+          const flushedProfile = await flushDirtyWalletProfile(normalizedAddress);
+          if (!flushedProfile || walletProfileAddressRef.current !== normalizedAddress) return;
+          walletProfileRevisionRef.current = flushedProfile.revision;
+          walletProfileSyncedSnapshotRef.current = flushedProfile.snapshot;
+          cacheWalletProfile(flushedProfile);
+        });
+      walletProfileSaveChainRef.current = flushTask.then(
+        () => undefined,
+        () => undefined
+      );
+      try {
+        await flushTask;
+      } catch (error) {
+        setPlayerShipPurchaseStatus({
+          status: 'error',
+          skuId,
+          error: error instanceof Error
+            ? error.message
+            : 'Your wallet profile could not sync before this ship purchase.'
+        });
+        return;
+      }
+    }
+
+    warmWalletRuntime();
+    setWalletRuntimeEnabled(true);
+    walletActionNonceRef.current += 1;
+    setWalletRuntimeAction({
+      type: 'purchase-player-ship',
+      skuId,
+      nonce: walletActionNonceRef.current
+    });
+  }, [activeWalletAddress, isOwnerWallet, walletProfileStatus]);
 
   const handleWalletPurchaseSuccess = useCallback((settlement: WalletPurchaseSettlement) => {
     const normalizedAddress = settlement.profile.walletAddress.toLowerCase();
@@ -5590,6 +5783,70 @@ const App: React.FC = () => {
       );
     }
   }, [activeWalletAddress, applyWeeklyRunAttemptQuota, hydrateActiveProfile]);
+
+  const handlePlayerShipPurchaseSuccess = useCallback((settlement: PlayerShipPurchaseSettlement) => {
+    const normalizedAddress = settlement.profile.walletAddress.toLowerCase();
+    if (activeWalletAddress && activeWalletAddress.toLowerCase() !== normalizedAddress) return;
+    if (!settlement.access[settlement.grantsShipId]) {
+      setWalletError('Payment confirmed, but the ship entitlement could not be verified. Your local profile was not changed.');
+      return;
+    }
+    walletProfileAddressRef.current = normalizedAddress;
+
+    let rebasedDirty: ReturnType<typeof rebaseWalletProfileDirtyAfterServerPurchase> = null;
+    try {
+      rebasedDirty = rebaseWalletProfileDirtyAfterServerPurchase({
+        address: normalizedAddress,
+        savedProfile: settlement.profile
+      });
+    } catch (error) {
+      console.error('Player ship purchase profile merge failed:', error);
+      setWalletError('Payment confirmed, but this device could not safely merge its newest progress. Your local progress was not changed.');
+      return;
+    }
+
+    cacheWalletProfile(settlement.profile);
+    walletProfileRevisionRef.current = settlement.profile.revision;
+    walletProfileSyncedSnapshotRef.current = settlement.profile.snapshot;
+    const hydratedSnapshot = hydrateActiveProfile({
+      profileId: settlement.profile.profileId,
+      snapshot: rebasedDirty?.snapshot ?? settlement.profile.snapshot,
+      founderSandbox: false
+    });
+    walletProfileLocalBaselineRef.current = hydratedSnapshot;
+    weeklySquadStateRef.current = hydratedSnapshot.weeklyState;
+    permanentSquadStateRef.current = hydratedSnapshot.permanentState;
+    setPlayerShipAccessUpdate({ status: 'ready', access: settlement.access });
+    setWalletProfileStatus('ready');
+    setWalletError('');
+
+    if (rebasedDirty) {
+      const flushTask = walletProfileSaveChainRef.current
+        .then(async () => {
+          const flushedProfile = await flushDirtyWalletProfile(normalizedAddress);
+          if (!flushedProfile || walletProfileAddressRef.current !== normalizedAddress) return;
+          walletProfileRevisionRef.current = flushedProfile.revision;
+          walletProfileSyncedSnapshotRef.current = flushedProfile.snapshot;
+          cacheWalletProfile(flushedProfile);
+          const flushedSnapshot = hydrateActiveProfile({
+            profileId: flushedProfile.profileId,
+            snapshot: flushedProfile.snapshot,
+            founderSandbox: false
+          });
+          walletProfileLocalBaselineRef.current = flushedSnapshot;
+          weeklySquadStateRef.current = flushedSnapshot.weeklyState;
+          permanentSquadStateRef.current = flushedSnapshot.permanentState;
+          setWalletError('');
+        })
+        .catch(() => {
+          setWalletError('Ship purchase confirmed. Your newer local progress is preserved and will retry syncing.');
+        });
+      walletProfileSaveChainRef.current = flushTask.then(
+        () => undefined,
+        () => undefined
+      );
+    }
+  }, [activeWalletAddress, hydrateActiveProfile]);
 
   const persistRewardClaim = useCallback((
     nextPermanentState: PermanentSquadState,
@@ -6628,8 +6885,7 @@ const App: React.FC = () => {
     return {
       sectorReached: visitedSectors.size > 0 ? Math.max(...visitedSectors) : 1,
       bossesCleared,
-      points: streak.score.totalPoints,
-      completed: streak.finalization.status === 'finalized'
+      points: streak.score.totalPoints
     };
   }, [isWeeklyCampaignRun, weeklySquadState.weeklyCampaignStreak]);
 
@@ -6666,7 +6922,8 @@ const App: React.FC = () => {
   const hasCampaignClear = permanentSquadState.campaignProgress.completedMissionIds.length > 0
     || permanentSquadState.lifetimeStats.campaignMissionsCleared > 0;
   const onboardingSuspended = Boolean(
-    missionLoading
+    startupLoading
+    || missionLoading
     || activeStoryBeat
     || introMissionLocked
     || showNameInput
@@ -6681,7 +6938,7 @@ const App: React.FC = () => {
 
   return (
     <div className="relative h-full w-full select-none bg-[#0b1020]">
-      {walletRuntimeEnabled ? (
+      {walletRuntimeEnabled && !startupLoading ? (
         <React.Suspense fallback={null}>
           <WalletRuntime
             action={walletRuntimeAction}
@@ -6695,13 +6952,23 @@ const App: React.FC = () => {
             onRscBalanceChange={setRscBalanceUpdate}
             onWalletPurchaseStatus={setWalletPurchaseStatus}
             onWalletPurchaseSuccess={handleWalletPurchaseSuccess}
+            onPlayerShipAccessChange={setPlayerShipAccessUpdate}
+            onPlayerShipPurchaseStatus={setPlayerShipPurchaseStatus}
+            onPlayerShipPurchaseSuccess={handlePlayerShipPurchaseSuccess}
             onChampionClaimStatus={handleChampionClaimStatus}
             onMissionMintStatus={handleMissionMintStatus}
           />
         </React.Suspense>
       ) : null}
 
-      {missionLoading ? (
+      {startupLoading ? (
+        <MissionLoadingScreen
+          context="startup"
+          progress={startupLoading.progress}
+          phase={startupLoading.phase}
+          tip={startupLoadingTip}
+        />
+      ) : missionLoading ? (
         <MissionLoadingScreen
           progress={missionLoading.progress}
           phase={missionLoading.phase}
@@ -6934,7 +7201,10 @@ const App: React.FC = () => {
           rscBalance={rscBalanceUpdate.balance}
           rscBalanceStatus={rscBalanceUpdate.status}
           walletPurchaseStatus={walletPurchaseStatus}
+          playerShipPurchaseStatus={playerShipPurchaseStatus}
           onPurchaseWithRsc={requestRscPurchase}
+          onPurchasePlayerShip={requestPlayerShipPurchase}
+          onRefreshPlayerShipAccess={refreshPlayerShipAccess}
           onRefreshRscBalance={refreshRscBalance}
           audioMuted={audioMuted}
           sfxVolumeLevel={sfxVolumeLevel}
@@ -7076,7 +7346,10 @@ const App: React.FC = () => {
             rscBalance={rscBalanceUpdate.balance}
             rscBalanceStatus={rscBalanceUpdate.status}
             walletPurchaseStatus={walletPurchaseStatus}
+            playerShipPurchaseStatus={playerShipPurchaseStatus}
             onPurchaseWithRsc={requestRscPurchase}
+            onPurchasePlayerShip={requestPlayerShipPurchase}
+            onRefreshPlayerShipAccess={refreshPlayerShipAccess}
             onRefreshRscBalance={refreshRscBalance}
             audioMuted={audioMuted}
             sfxVolumeLevel={sfxVolumeLevel}
@@ -7269,26 +7542,24 @@ const App: React.FC = () => {
             <div className="sci-gameover-result-content relative z-10 grid gap-2 p-1 text-center">
               {weeklyRunResultSummary ? (
                 <div className="sci-weekly-run-result">
-                  <p className="sci-weekly-run-result__eyebrow">
-                    {weeklyRunResultSummary.completed ? 'Gauntlet Cleared' : 'Weekly Run Ended'}
-                  </p>
+                  <p className="sci-weekly-run-result__eyebrow">Weekly Run</p>
                   <div className="sci-weekly-run-result__grid">
                     <div>
                       <strong>{weeklyRunResultSummary.sectorReached}</strong>
-                      <span>depth reached</span>
+                      <span>Wave</span>
                     </div>
                     <div>
                       <strong>{weeklyRunResultSummary.bossesCleared}</strong>
-                      <span>bosses down</span>
+                      <span>Bosses</span>
                     </div>
                     <div>
                       <strong>{weeklyRunResultSummary.points.toLocaleString()}</strong>
-                      <span>weekly points</span>
+                      <span>Score</span>
                     </div>
                   </div>
                 </div>
               ) : null}
-              {missionResultBanner}
+              {weeklyRunResultSummary ? null : missionResultBanner}
 
               {showNameInput ? (
                 <>

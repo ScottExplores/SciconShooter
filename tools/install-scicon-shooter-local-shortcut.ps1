@@ -55,5 +55,5 @@ $shortcut.Save()
 [pscustomobject]@{
   DesktopShortcut = $desktopShortcut
   Launcher = $launcher
-  GameUrl = 'http://127.0.0.1:5176/'
+  GameUrl = 'http://127.0.0.1:5179/?display=mobile-frame'
 }

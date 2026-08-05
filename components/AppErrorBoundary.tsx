@@ -1,5 +1,6 @@
 import React from 'react';
 import { capturePlayerRuntimeError } from '../services/playerReportService';
+import { reloadFromLastSafeState } from '../services/deploymentUpdateService';
 
 interface AppErrorBoundaryState {
   failed: boolean;
@@ -43,7 +44,7 @@ class AppErrorBoundary extends React.Component<React.PropsWithChildren, AppError
             {this.state.reportId
               ? 'A bounded diagnostic report was queued for delivery. '
               : ''}
-            Reloading starts from the last safely stored progress.
+            Reloading keeps your safely stored progress and resets the temporary wallet connection.
           </p>
           {this.state.reportId ? (
             <p className="mt-3 break-all font-mono text-[0.65rem] text-cyan-200">
@@ -52,7 +53,7 @@ class AppErrorBoundary extends React.Component<React.PropsWithChildren, AppError
           ) : null}
           <button
             type="button"
-            onClick={() => window.location.reload()}
+            onClick={() => reloadFromLastSafeState()}
             className="mt-5 min-h-11 w-full rounded-[6px] border border-cyan-200/40 bg-cyan-300/15 px-4 py-2 font-black text-cyan-50 transition hover:bg-cyan-300/25"
           >
             Reload game

@@ -24,11 +24,10 @@ test('current Campaign retains its newer topology and complete pack choreography
   const campaign = readCampaign();
   assert.equal(campaign.revision, 24);
   assert.equal(campaign.levels.length, 60);
-  // 311 waves / 628 spawn events after the sector-aware surge pass
-  // (introductions grow to 7 from sector 7, first remixes to 8 from sector 4).
+  // 311 waves / 628 surge-pass spawns + 29 advanced late-game cohorts.
   assert.equal(campaign.levels.reduce((sum, level) => sum + level.waves.length, 0), 311);
-  assert.equal(spawnEvents(campaign).length, 628);
-  assert.equal(campaign.formationPacks.length, 11);
+  assert.equal(spawnEvents(campaign).length, 657);
+  assert.equal(campaign.formationPacks.length, 16);
   campaign.formationPacks.forEach((pack) => {
     requiredPackKeys.forEach((key) => assert.notEqual(pack[key], undefined, `${pack.id}/${key}`));
     assert.ok(pack.holdSeconds >= 0.35, pack.id);

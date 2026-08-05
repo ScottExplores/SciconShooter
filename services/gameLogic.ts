@@ -86,6 +86,7 @@ import {
   isCampaignPriorityFireRole,
   resolveCampaignFormationFiringBehavior
 } from './campaignEnemyFiring';
+import { resolveCampaignEnemySpecialAttack } from './campaignEnemySpecialAttacks';
 import {
   getEnemyCharacteristicProfile,
   type EnemyCharacteristic
@@ -904,6 +905,7 @@ export class Entity {
   campaignThreatCost: number = 1;
   campaignPerformanceCost: number = 1;
   campaignFireBehavior?: EnemyRoleDefinition['fireBehavior'];
+  campaignSpecialAttack?: EnemyRoleDefinition['specialAttack'];
   campaignFireDelaySeconds: number = 0;
   /** Simulation-owned timestamp for stateful authored enemy firing art. */
   campaignLastFireFrame: number = -999;
@@ -1898,6 +1900,7 @@ export interface GameEngineDebugSnapshot {
     gameplayRole: EnemyGameplayRole | null;
     durabilityClass: EnemyDurabilityClass | null;
     fireBehavior: EnemyRoleDefinition['fireBehavior'] | null;
+    specialAttack: NonNullable<EnemyRoleDefinition['specialAttack']> | null;
     fireDelaySeconds: number;
     formationFiringBehavior: FormationPackDefinition['firingBehavior'] | null;
     threatCost: number;
@@ -2389,6 +2392,7 @@ export class GameEngine {
   /** Authoring-only visibility toggle consumed by Pixi compact entity bars. */
   compactMiniBossHealthBarsVisible: boolean = true;
   audioEnabled: boolean = true;
+  preloadCanvasAssets: boolean = true;
   previewComplete: boolean = false;
   configuredEncounterIds: Set<string> = new Set();
   configuredSpawnCounts: Map<string, number> = new Map();
@@ -2504,7 +2508,8 @@ export class GameEngine {
     this.player.width = Math.round(128 * PLAYER_SHIP_SCALE);
     this.player.height = Math.round(128 * PLAYER_SHIP_SCALE);
 
-    if (options.preloadCanvasAssets !== false) {
+    this.preloadCanvasAssets = options.preloadCanvasAssets !== false;
+    if (this.preloadCanvasAssets) {
       GAMEPLAY_ASSET_URLS.forEach(loadImage);
     }
   }
@@ -2953,6 +2958,7 @@ export class GameEngine {
         gameplayRole: entity.campaignGameplayRole ?? null,
         durabilityClass: entity.campaignDurabilityClass ?? null,
         fireBehavior: entity.campaignFireBehavior ?? null,
+        specialAttack: entity.campaignSpecialAttack ?? null,
         fireDelaySeconds: entity.campaignFireDelaySeconds,
         formationFiringBehavior: entity.campaignFormationFiringBehavior ?? null,
         threatCost: entity.campaignThreatCost,
@@ -8272,6 +8278,7 @@ export class GameEngine {
         if (
           candidate.markedForDeletion
           || candidate.isElite
+          || candidate.campaignSpecialAttack !== undefined
           || candidate.formation === 'orbit'
           || (
             allowedCampaignShooterIds !== undefined
@@ -8396,8 +8403,12 @@ export class GameEngine {
       damage: Math.max(1, Number(source.projectileDamage) || 1),
       frames: warningFrames,
       warningFrames,
-      requireEliteSource: true
+      // An authored role special is authoritative even if a future spawn
+      // forgets the redundant elite rank flag. Legacy lane lasers still keep
+      // their original elite-only ownership rule.
+      requireEliteSource: source.campaignSpecialAttack === undefined
     });
+    source.isCharging = true;
     this.spawnFloatingText(
       axis === 'vertical' ? coordinate : sourceCenterX,
       axis === 'horizontal' ? coordinate - 20 : Math.max(72, source.y + source.height),
@@ -8471,6 +8482,7 @@ export class GameEngine {
 
       if (telegraph) telegraph.markedForDeletion = true;
       source.isCharging = false;
+      source.campaignLastFireFrame = this.frameCount;
       this.spawnEnemyLaneLaser(
         pending.sourceId,
         pending.axis,
@@ -8560,8 +8572,10 @@ export class GameEngine {
     for (const source of this.entities) {
       if (
         source.markedForDeletion
-        || !source.isElite
-        || source.eliteAttackPattern !== 'aimed-burst'
+        || (
+          source.campaignSpecialAttack === undefined
+          && (!source.isElite || source.eliteAttackPattern !== 'aimed-burst')
+        )
         || (
           allowedCampaignShooterIds !== undefined
           && source.campaignFireBehavior !== undefined
@@ -8592,21 +8606,24 @@ export class GameEngine {
 
       const progressionTier = this.getCampaignCycle();
       const archetype = this.getCampaignEnemyArchetype(source);
+      const specialAttack = resolveCampaignEnemySpecialAttack(source.campaignSpecialAttack, archetype);
       if (
-        (archetype === 'ring-sentinel' || archetype === 'bullet-ring-emitter' || archetype === 'dna-conductor')
+        specialAttack === 'ring-burst'
         && source.eliteAttackSequence % 2 === 1
       ) {
         const emitted = this.spawnEliteRingBurst(source, shotCap - activeEnemyShots);
         if (emitted > 0) {
+          source.campaignLastFireFrame = this.frameCount;
           activeEnemyShots += emitted;
           this.playSound('boss_shoot', 1.02, { pitchJitter: 0.04, pitchOffset: -0.08 });
           this.flashEntity(source, 3);
           continue;
         }
       }
-      if (archetype === 'crescent-minelayer' && source.eliteAttackSequence % 2 === 1) {
+      if (specialAttack === 'mine-fan' && source.eliteAttackSequence % 2 === 1) {
         const emitted = this.spawnEliteMineFan(source, shotCap - activeEnemyShots);
         if (emitted > 0) {
+          source.campaignLastFireFrame = this.frameCount;
           activeEnemyShots += emitted;
           this.playSound('boss_shoot', 0.92, { pitchJitter: 0.05, pitchOffset: -0.18 });
           this.flashEntity(source, 3);
@@ -8618,7 +8635,7 @@ export class GameEngine {
       const laserCadence = Math.max(3, 6 - progressionTier);
       if (
         progressionTier >= 1
-        && (archetype === 'laser-hunter' || archetype === 'laser-stalker' || archetype.includes('wall-sniper') || source.eliteAttackSequence % 2 === 0)
+        && (specialAttack === 'lane-laser' || source.eliteAttackSequence % 2 === 0)
         && source.eliteAttackSequence % laserCadence === 0
         && this.queueEliteLaneLaser(source)
       ) {
@@ -8633,6 +8650,7 @@ export class GameEngine {
       const burstCount = Math.max(1, source.configuredBurstCount ?? 3);
       const speed = source.projectileSpeed ?? 4.8;
       const spread = burstCount <= 1 ? 0 : 0.14;
+      source.campaignLastFireFrame = this.frameCount;
 
       for (let index = 0; index < burstCount && activeEnemyShots < shotCap; index++) {
         const centeredIndex = index - ((burstCount - 1) / 2);
@@ -8663,9 +8681,10 @@ export class GameEngine {
       try {
         const catalogPath = getPrimaryAssetPath(spriteKey as AssetKey);
         if (catalogPath) {
-          // Catalog images created by the local Director are loaded only when a
-          // configured entity first resolves them, never in the eager preload.
-          loadImage(catalogPath);
+          // Canvas presentation lazily decodes configured art here. Pixi-owned
+          // gameplay has already warmed these textures and skips the duplicate
+          // HTMLImageElement cache entirely.
+          if (this.preloadCanvasAssets) loadImage(catalogPath);
           return catalogPath;
         }
       } catch {
@@ -8704,7 +8723,7 @@ export class GameEngine {
     try {
       const paths = getAssetPaths(spriteKey as AssetKey);
       if (paths.length > 1) {
-        paths.forEach(loadImage);
+        if (this.preloadCanvasAssets) paths.forEach(loadImage);
         return [...paths];
       }
       return undefined;
@@ -9754,6 +9773,7 @@ export class GameEngine {
     enemy.campaignThreatCost = countTowardCombatBudget ? threatCost : 0;
     enemy.campaignPerformanceCost = performanceCost;
     enemy.campaignFireBehavior = countTowardCombatBudget ? role?.fireBehavior : 'none';
+    enemy.campaignSpecialAttack = countTowardCombatBudget ? role?.specialAttack : undefined;
     enemy.campaignFireDelaySeconds = countTowardCombatBudget
       ? Math.max(0, Number(role?.fireDelaySeconds) || 0)
       : 0;
@@ -10216,11 +10236,11 @@ export class GameEngine {
     }
     if (overrides.spriteUrl) {
       e.spriteUrl = overrides.spriteUrl;
-      loadImage(e.spriteUrl);
+      if (this.preloadCanvasAssets) loadImage(e.spriteUrl);
     }
     if (overrides.spriteFrames?.length) {
       e.spriteFrames = [...overrides.spriteFrames];
-      e.spriteFrames.forEach(loadImage);
+      if (this.preloadCanvasAssets) e.spriteFrames.forEach(loadImage);
     }
     if (overrides.spriteStyle) e.spriteStyle = { ...overrides.spriteStyle };
     e.maxHp = e.hp;

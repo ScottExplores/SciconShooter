@@ -8,6 +8,15 @@ Live app: https://sciconshooter.xyz
 
 Scicon Shooter is not presented as an official ResearchHub product.
 
+## Owner quick start
+
+On the project computer, double-click **Scicon Shooter Control Center** on the
+desktop. The organized **Scicon Shooter Tools** folder provides direct access to the
+bug and feedback log, Boss Sandbox, Mission Builder, Combat Lab, local game, live
+game, project folder, and Sprite Gallery. See
+[`docs/OWNER_CONTROL_CENTER.md`](docs/OWNER_CONTROL_CENTER.md) for the return
+checklist and canonical project map.
+
 ## Product loop
 
 1. Play a mission without connecting a wallet.

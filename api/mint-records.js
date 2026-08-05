@@ -4,6 +4,7 @@ const { handlePlayerRuns } = require('./_lib/playerRuns');
 const continuePaymentHandler = require('./_lib/continuePaymentRoute');
 const walletProfileHandler = require('./_lib/walletProfileRoute');
 const walletPurchaseHandler = require('./_lib/walletPurchaseRoute');
+const playerShipAccessHandler = require('./_lib/playerShipAccessRoute');
 const walletTokenSpendHandler = require('./_lib/walletTokenSpendRoute');
 
 const MINTS_TABLE = process.env.SUPABASE_MINT_RECORDS_TABLE || 'scicon_mint_records';
@@ -91,6 +92,7 @@ module.exports = async (req, res) => {
   if (req.query?.route === 'continue-payments') return continuePaymentHandler(req, res);
   if (req.query?.route === 'wallet-profile') return walletProfileHandler(req, res);
   if (req.query?.route === 'wallet-purchases') return walletPurchaseHandler(req, res);
+  if (req.query?.route === 'player-ship-access') return playerShipAccessHandler(req, res);
   if (req.query?.route === 'wallet-token-spends') return walletTokenSpendHandler(req, res);
 
   try {

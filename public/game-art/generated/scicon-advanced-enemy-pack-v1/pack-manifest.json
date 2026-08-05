@@ -1,0 +1,200 @@
+{
+  "id": "scicon-advanced-enemy-pack-v1",
+  "version": 1,
+  "generated": "2026-08-04",
+  "sourceMode": "OpenAI built-in image generation with chroma-key removal",
+  "productionFormat": "Three-frame transparent PNG sprite sheets",
+  "style": "Scicon late-game semi-pixel-art enemy craft",
+  "frame": {
+    "width": 256,
+    "height": 256,
+    "colorMode": "RGBA"
+  },
+  "frameCount": 3,
+  "frameOrder": [
+    "neutral",
+    "charge",
+    "fire"
+  ],
+  "fps": 8,
+  "fixedRegistration": true,
+  "hitboxInvariant": "Runtime collision is defined by the assigned enemy chassis, not sprite alpha bounds.",
+  "animation": {
+    "sequence": [
+      "neutral",
+      "charge",
+      "fire",
+      "charge"
+    ],
+    "durationsMs": [
+      180,
+      120,
+      180,
+      120
+    ],
+    "loop": true,
+    "protocol": "Animate individual PNG frames in runtime; sheets and GIFs are QA/reference only."
+  },
+  "overview": "/game-art/generated/scicon-advanced-enemy-pack-v1/scicon-advanced-enemy-overview.png",
+  "overviewSize": [
+    768,
+    1280
+  ],
+  "enemies": [
+    {
+      "id": "quasar-lancer",
+      "name": "Quasar Lancer",
+      "assetKey": "SCICON_ENEMY_QUASAR_LANCER_FRAMES",
+      "roleIds": [
+        "role-quasar-lancer"
+      ],
+      "source": "tools/imagegen-sources/scicon-advanced-enemy-pack-v1/01-quasar-lancer-rgba.png",
+      "states": [
+        "neutral",
+        "charge",
+        "fire"
+      ],
+      "frames": [
+        "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/quasar-lancer/frames/quasar-lancer-01-neutral.png",
+        "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/quasar-lancer/frames/quasar-lancer-02-charge.png",
+        "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/quasar-lancer/frames/quasar-lancer-03-fire.png"
+      ],
+      "framePixelHashes": {
+        "neutral": "310641289e9e1b422669455320a2df53f0b8ca9762a8e8e7158e0949565f5f8d",
+        "charge": "97dcc141b20dd94ab1e07aa1d5c3e897f8431e8852fe4515cdd5f840177d01a4",
+        "fire": "d73d0564a0c72e8de438766b7e767cba47b3744deee692292d1d809e7ec306cf"
+      },
+      "frameFileHashes": {
+        "neutral": "b7912908e26aa7c2f343b79fa80445344b275fbfb344dc8c9103caeef9cc6e08",
+        "charge": "0965958b42c818e8b212f4e4674b96b3dbb2def350a37d1ca43db7ffe119bab9",
+        "fire": "1462ac354dc927029dd694aa27fb4f3c5eb0745a1956c019ff54a9acb3087e89"
+      },
+      "sheet": "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/quasar-lancer/quasar-lancer-sprite-sheet.png",
+      "previewGif": "/game-art/generated/scicon-advanced-enemy-pack-v1/previews/quasar-lancer-animation-preview.gif"
+    },
+    {
+      "id": "null-bastion",
+      "name": "Null Bastion",
+      "assetKey": "SCICON_ENEMY_NULL_BASTION_FRAMES",
+      "roleIds": [
+        "role-null-bastion"
+      ],
+      "source": "tools/imagegen-sources/scicon-advanced-enemy-pack-v1/02-null-bastion-rgba.png",
+      "states": [
+        "neutral",
+        "charge",
+        "fire"
+      ],
+      "frames": [
+        "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/null-bastion/frames/null-bastion-01-neutral.png",
+        "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/null-bastion/frames/null-bastion-02-charge.png",
+        "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/null-bastion/frames/null-bastion-03-fire.png"
+      ],
+      "framePixelHashes": {
+        "neutral": "12b2bc2eb29f7d846adbfb2fb2d5c286eac696f4ab216c87eeefc0e648626e43",
+        "charge": "67d62b6442c4e4243c5db530c76df75109180e747a41d469bed901c6eff3014e",
+        "fire": "727baef2ab31da0faf778b5ee188263d75068a68a6afae1a1196c8fc887ed654"
+      },
+      "frameFileHashes": {
+        "neutral": "b068e964993744e289c96ee7b25a2e6fa9e0c2665f0ac5d62d2c42799b611d70",
+        "charge": "ec0638d0a97801e2c7e81fe12171d577057ee4b58f93acb8bc1e7a83ec83db61",
+        "fire": "ac2362a29b589122b77a12959358df35d8d8f010aed229c89db111cba576f36a"
+      },
+      "sheet": "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/null-bastion/null-bastion-sprite-sheet.png",
+      "previewGif": "/game-art/generated/scicon-advanced-enemy-pack-v1/previews/null-bastion-animation-preview.gif"
+    },
+    {
+      "id": "vector-reaver",
+      "name": "Vector Reaver",
+      "assetKey": "SCICON_ENEMY_VECTOR_REAVER_FRAMES",
+      "roleIds": [
+        "role-vector-reaver"
+      ],
+      "source": "tools/imagegen-sources/scicon-advanced-enemy-pack-v1/03-vector-reaver-rgba.png",
+      "states": [
+        "neutral",
+        "charge",
+        "fire"
+      ],
+      "frames": [
+        "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/vector-reaver/frames/vector-reaver-01-neutral.png",
+        "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/vector-reaver/frames/vector-reaver-02-charge.png",
+        "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/vector-reaver/frames/vector-reaver-03-fire.png"
+      ],
+      "framePixelHashes": {
+        "neutral": "dc924fd72469f53dd2811762ec2b6b7cd7b109784a5897666d2dec56d058fcab",
+        "charge": "72dd2702f0c99887641ce63acf8a607d76493806173f16027b0085a527379fdd",
+        "fire": "11ca760a15be912212d99723c29e7362a99eb1db555e48213c7983af15dd0a31"
+      },
+      "frameFileHashes": {
+        "neutral": "6db2a59c1045726db33f66ff12068757b57cccd43975dc4bdd426c6f6bd83557",
+        "charge": "645add5a9dd5b293747cf481a660ce13209a9a23624e6e722416a0723699484d",
+        "fire": "ad10f2399f2afa0ff9b7507210d20776e4b3496d57f5934e199a99dd9462665e"
+      },
+      "sheet": "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/vector-reaver/vector-reaver-sprite-sheet.png",
+      "previewGif": "/game-art/generated/scicon-advanced-enemy-pack-v1/previews/vector-reaver-animation-preview.gif"
+    },
+    {
+      "id": "rift-weaver",
+      "name": "Rift Weaver",
+      "assetKey": "SCICON_ENEMY_RIFT_WEAVER_FRAMES",
+      "roleIds": [
+        "role-rift-weaver"
+      ],
+      "source": "tools/imagegen-sources/scicon-advanced-enemy-pack-v1/04-rift-weaver-rgba.png",
+      "states": [
+        "neutral",
+        "charge",
+        "fire"
+      ],
+      "frames": [
+        "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/rift-weaver/frames/rift-weaver-01-neutral.png",
+        "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/rift-weaver/frames/rift-weaver-02-charge.png",
+        "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/rift-weaver/frames/rift-weaver-03-fire.png"
+      ],
+      "framePixelHashes": {
+        "neutral": "56e4bd12845dc3a42c0b14b9fccc5582319a79c35e1b35a4feb0bae697b4c267",
+        "charge": "407527cf488adb0a443eb4b074874dc743ac3a2894bb73ce1d22aa9501a12c6f",
+        "fire": "f1228588a4e893e83f7168da6d16088c33d310f727938268b997159c400bcbba"
+      },
+      "frameFileHashes": {
+        "neutral": "497d4dad418c032267511d71d64d0dab1da7e896142ca748b1ca69ba77389232",
+        "charge": "6c715c82864d6f9c8a0e73e59bbdbaee00dfa77df8a1ce30e9b2acbe2ae7dd53",
+        "fire": "32346088f03b73fe6be6891bd26d9cd2da322ccf6e83b74f47874db50d63e3b7"
+      },
+      "sheet": "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/rift-weaver/rift-weaver-sprite-sheet.png",
+      "previewGif": "/game-art/generated/scicon-advanced-enemy-pack-v1/previews/rift-weaver-animation-preview.gif"
+    },
+    {
+      "id": "pulse-herald",
+      "name": "Pulse Herald",
+      "assetKey": "SCICON_ENEMY_PULSE_HERALD_FRAMES",
+      "roleIds": [
+        "role-pulse-herald"
+      ],
+      "source": "tools/imagegen-sources/scicon-advanced-enemy-pack-v1/05-pulse-herald-rgba.png",
+      "states": [
+        "neutral",
+        "charge",
+        "fire"
+      ],
+      "frames": [
+        "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/pulse-herald/frames/pulse-herald-01-neutral.png",
+        "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/pulse-herald/frames/pulse-herald-02-charge.png",
+        "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/pulse-herald/frames/pulse-herald-03-fire.png"
+      ],
+      "framePixelHashes": {
+        "neutral": "e8038e81a55bf57e18c060b14f86b06c1d12ff2bbd89dbc4841054d314748680",
+        "charge": "9f368009c56e7f0a0e5ee076ec4dbf8c07e01a9b45c5dd970618d16bcfe7c4c3",
+        "fire": "b90ca860ac507d88e44362a63cf05064629dff657cbe2a7eac1458f7d38e8b0a"
+      },
+      "frameFileHashes": {
+        "neutral": "a6736f43c5961b7d45fb465165fcf1768239c2826aa1ed0b6880eb9f2f93ffc4",
+        "charge": "66b18f075862623a1f20f1f92a879b5dc539411fcfc7e94fa9df744fea3ce8a5",
+        "fire": "537df7021ac4d5726f263758fe1f7c5154922fb44bed4b1ba648b289b6ab559b"
+      },
+      "sheet": "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/pulse-herald/pulse-herald-sprite-sheet.png",
+      "previewGif": "/game-art/generated/scicon-advanced-enemy-pack-v1/previews/pulse-herald-animation-preview.gif"
+    }
+  ]
+}

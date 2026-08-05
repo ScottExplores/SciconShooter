@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const ts = require('typescript');
 
 const root = path.resolve(__dirname, '..');
 const appSource = fs.readFileSync(path.join(root, 'App.tsx'), 'utf8');
@@ -12,6 +13,41 @@ const shipServiceSource = fs.readFileSync(path.join(root, 'services', 'playerShi
 const mintRecordsSource = fs.readFileSync(path.join(root, 'api', 'mint-records.js'), 'utf8');
 const metadataSource = fs.readFileSync(path.join(root, 'api', 'record-metadata.js'), 'utf8');
 const indexSource = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+const campaignConfig = require('../game-config/campaign.json');
+
+const compilePlayerShipService = () => {
+  const compiled = ts.transpileModule(shipServiceSource, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
+  }).outputText;
+  const moduleBox = { exports: {} };
+  const localRequire = (request) => {
+    if (request === '../constants') {
+      return {
+        ASSETS: {
+          PLAYER_SHIP: 'researchhub.png',
+          BIO_SHIP: 'bio.png',
+          ETH_SHIP: 'eth.png',
+          BTC_SHIP: 'btc.png'
+        }
+      };
+    }
+    if (request === './campaignProgression') {
+      return {
+        CAMPAIGN_STAR_TOTAL: 180,
+        getCampaignMasteryStatus: (progress) => ({
+          completedMissions: progress?.mastered ? 60 : 0,
+          totalMissions: 60,
+          earnedStars: progress?.mastered ? 180 : 0,
+          totalStars: 180,
+          mastered: progress?.mastered === true
+        })
+      };
+    }
+    return require(request);
+  };
+  Function('exports', 'require', 'module', compiled)(moduleBox.exports, localRequire, moduleBox);
+  return moduleBox.exports;
+};
 
 test('BIO ship is a compact square RGBA pixel sprite', () => {
   const spritePath = path.join(root, 'public', 'game-art', 'branding', 'bio-ship.png');
@@ -53,26 +89,75 @@ test('BTC ship uses the updated neutral RGBA motion-pack frame', () => {
   assert.equal(png[25], 6);
 });
 
-test('confirmed Mission Record scores cumulatively unlock ETH and BTC ships', () => {
-  assert.match(shipServiceSource, /record\.walletAddress\?\.toLowerCase\(\) === normalizedWallet/);
-  assert.match(shipServiceSource, /record\.recordType === 'mission'/);
-  assert.match(shipServiceSource, /record\.status === 'confirmed'/);
-  assert.match(shipServiceSource, /ETH_SHIP_SCORE_THRESHOLD = 1_000/);
-  assert.match(shipServiceSource, /BTC_SHIP_SCORE_THRESHOLD = 10_000/);
-  assert.match(shipServiceSource, /eth: options\.unlockAll === true \|\| highestMintedScore >= ETH_SHIP_SCORE_THRESHOLD/);
-  assert.match(shipServiceSource, /btc: options\.unlockAll === true \|\| highestMintedScore >= BTC_SHIP_SCORE_THRESHOLD/);
+test('token access, paid entitlements, and perfect Campaign mastery are the only ship gates', () => {
+  const ships = compilePlayerShipService();
+  const locked = ships.getPlayerShipUnlocks({
+    accessStatus: 'ready',
+    permanentUnlockIds: ['bio', 'eth', 'btc']
+  });
+  assert.equal(ships.isPlayerShipUnlocked('researchhub', locked), true);
+  assert.equal(locked.bio, false, 'a legacy local BIO flag is not holder proof');
+  assert.equal(locked.eth, false, 'a legacy local ETH flag is not payment proof');
+  assert.equal(locked.btc, false, 'a legacy local BTC flag is not payment or mastery proof');
+
+  const holder = ships.getPlayerShipUnlocks({
+    accessStatus: 'ready',
+    bioUnlocked: true,
+    bioBalanceRaw: '100000000000000000000',
+    bioBalance: '100'
+  });
+  assert.equal(holder.bio, true);
+  assert.equal(holder.bioBalance, '100');
+
+  const loadingPaidAccess = ships.getPlayerShipUnlocks({
+    accessStatus: 'loading',
+    authoritativePaidUnlockIds: ['eth', 'btc']
+  });
+  assert.equal(loadingPaidAccess.eth, false, 'wallet access fails closed until verification completes');
+  assert.equal(loadingPaidAccess.btc, false);
+
+  const paidAccess = ships.getPlayerShipUnlocks({
+    accessStatus: 'ready',
+    authoritativePaidUnlockIds: ['eth', 'btc']
+  });
+  assert.equal(paidAccess.eth, true);
+  assert.equal(paidAccess.btc, true);
+
+  const campaignAccess = ships.getPlayerShipUnlocks({ campaignProgress: { mastered: true } });
+  assert.equal(campaignAccess.eth, false);
+  assert.equal(campaignAccess.btc, true);
+  assert.equal(campaignAccess.campaignStarsEarned, 180);
+  assert.equal(campaignAccess.campaignStarsTotal, 180);
+
+  const localState = { unlockedPlayerShips: ['researchhub'] };
+  const unchanged = ships.addCampaignMasteryBtcUnlock(localState, { mastered: false });
+  assert.equal(unchanged, localState);
+  const awarded = ships.addCampaignMasteryBtcUnlock(localState, { mastered: true });
+  assert.deepEqual(awarded.unlockedPlayerShips, ['researchhub', 'btc']);
+  assert.equal(ships.addCampaignMasteryBtcUnlock(awarded, { mastered: true }), awarded);
+
+  assert.equal(campaignConfig.levels.length, 60);
+  assert.equal(
+    campaignConfig.levels.reduce((total, level) => (
+      total + level.campaignProgression.masteryObjectives.length
+    ), 0),
+    180
+  );
+  assert.doesNotMatch(shipServiceSource, /MintRecord|SCORE_THRESHOLD|highestMintedScore/);
   assert.match(mintRecordsSource, /select=run_id,score/);
   assert.match(mintRecordsSource, /functionName: 'ownerOf'/);
-  assert.match(appSource, /getPlayerShipUnlocks\(activeWalletAddress, walletRecords, \{ unlockAll: isOwnerWallet \}\)/);
   assert.match(appSource, /getUsablePlayerShip\(selectedShipId, shipUnlocks\)/);
-  assert.match(metadataSource, /Bitcoin Ace/);
-  assert.match(metadataSource, /Ethereum Pilot/);
+  assert.doesNotMatch(metadataSource, /Ship Unlocks|Mission Record unlocks/);
 });
 
-test('project wallet bypasses every score-gated ship lock', () => {
+test('project wallet can bypass every ship lock for owner testing', () => {
+  const ships = compilePlayerShipService();
+  const unlocks = ships.getPlayerShipUnlocks({ unlockAll: true });
+  assert.equal(unlocks.bio, true);
+  assert.equal(unlocks.eth, true);
+  assert.equal(unlocks.btc, true);
   assert.match(shipServiceSource, /export interface PlayerShipUnlockOptions/);
   assert.match(shipServiceSource, /unlockAll\?: boolean/);
-  assert.match(appSource, /\[activeWalletAddress, isOwnerWallet, permanentSquadState\.unlockedPlayerShips, walletRecords\]/);
 });
 
 test('title screen keeps the updated BTC ship in the playable roster', () => {
@@ -80,7 +165,10 @@ test('title screen keeps the updated BTC ship in the playable roster', () => {
   assert.match(carouselSource, /aria-label="Next ship"/);
   assert.match(startScreenSource, /PLAYER_SHIPS\[shipFocusId\]/);
   assert.match(carouselSource, /sci-ship-carousel-item--locked/);
-  assert.match(startScreenSource, /Mint a \$\{getShipUnlockScore\(shipId\)\.toLocaleString\(\)\}\+ score NFT to unlock this ship/);
+  assert.match(startScreenSource, /Hold at least 100 BIO on Base/);
+  assert.match(startScreenSource, /Unlock permanently for 0\.001 ETH on Base/);
+  assert.match(startScreenSource, /0\.00008 cbBTC on Base/);
+  assert.doesNotMatch(startScreenSource, /score NFT to unlock this ship/);
   assert.match(startScreenSource, /\[\.\.\.PLAYABLE_PLAYER_SHIP_IDS\]/);
   assert.match(shipServiceSource, /PLAYABLE_PLAYER_SHIP_IDS = \['researchhub', 'bio', 'eth', 'btc'\]/);
   assert.match(startScreenSource, /onSettleShip=\{\(shipId\) => \{[\s\S]*isPlayerShipUnlocked\(shipId, shipUnlocks\)/);

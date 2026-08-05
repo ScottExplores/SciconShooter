@@ -16,12 +16,12 @@ const campaignPath = path.join(root, 'game-config', 'campaign.json');
 
 export const SCICON_ENEMY_FAMILY_BY_ROLE = Object.freeze({
   'role-orbit-scout': 'SCICON_ENEMY_ORBIT_SCOUT_FRAMES',
-  'role-jet-scout': 'SCICON_ENEMY_ORBIT_SCOUT_FRAMES',
+  'role-jet-scout': 'SCICON_ENEMY_REDLINE_SKIRMISHER_FRAMES',
   'role-orbit-disc': 'SCICON_ENEMY_ORBIT_SCOUT_FRAMES',
   'role-citation-swarm': 'SCICON_ENEMY_CITATION_DART_FRAMES',
-  'role-jet-interceptor': 'SCICON_ENEMY_CITATION_DART_FRAMES',
+  'role-jet-interceptor': 'SCICON_ENEMY_CROSSCUT_RAIDER_FRAMES',
   'role-research-drone': 'SCICON_ENEMY_RESEARCH_SENTRY_FRAMES',
-  'role-jet-heavy': 'SCICON_ENEMY_PEER_BULWARK_FRAMES',
+  'role-jet-heavy': 'SCICON_ENEMY_AUDIT_BULWARK_FRAMES',
   'role-dark-sentinel': 'SCICON_ENEMY_PEER_BULWARK_FRAMES',
   'role-shield-rammer': 'SCICON_ENEMY_PEER_BULWARK_FRAMES',
   'role-protocol-vanguard': 'SCICON_ENEMY_PEER_BULWARK_FRAMES',
@@ -45,9 +45,9 @@ const SCORECARD_REPLACEMENTS = Object.freeze({
   ENEMY_BRICK_FRAMES: 'SCICON_ENEMY_PEER_BULWARK_FRAMES',
   ENEMY_JOURNAL: 'SCICON_ENEMY_JOURNAL_RAIDER_FRAMES',
   ENEMY_JOURNAL_FRAMES: 'SCICON_ENEMY_JOURNAL_RAIDER_FRAMES',
-  PIXI_JET_SCOUT_FRAMES: 'SCICON_ENEMY_ORBIT_SCOUT_FRAMES',
-  PIXI_JET_INTERCEPTOR_FRAMES: 'SCICON_ENEMY_CITATION_DART_FRAMES',
-  PIXI_JET_HEAVY_FRAMES: 'SCICON_ENEMY_PEER_BULWARK_FRAMES',
+  PIXI_JET_SCOUT_FRAMES: 'SCICON_ENEMY_REDLINE_SKIRMISHER_FRAMES',
+  PIXI_JET_INTERCEPTOR_FRAMES: 'SCICON_ENEMY_CROSSCUT_RAIDER_FRAMES',
+  PIXI_JET_HEAVY_FRAMES: 'SCICON_ENEMY_AUDIT_BULWARK_FRAMES',
   CAMPAIGN_ENEMY_BULLET_RING_EMITTER: 'SCICON_ENEMY_PRISM_ARTILLERY_FRAMES',
   CAMPAIGN_ENEMY_CRESCENT_MINELAYER: 'SCICON_ENEMY_JOURNAL_RAIDER_FRAMES',
   CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL: 'SCICON_ENEMY_PEER_BULWARK_FRAMES',
@@ -82,11 +82,9 @@ const normalizeWeights = (enemies) => {
 const campaign = JSON.parse(fs.readFileSync(campaignPath, 'utf8'));
 const rolesById = new Map(campaign.enemyRoles.map((role) => [role.id, role]));
 const expectedRoleIds = Object.keys(SCICON_ENEMY_FAMILY_BY_ROLE);
-if (campaign.enemyRoles.length !== expectedRoleIds.length
-  || expectedRoleIds.some((roleId) => !rolesById.has(roleId))) {
+if (expectedRoleIds.some((roleId) => !rolesById.has(roleId))) {
   const missing = expectedRoleIds.filter((roleId) => !rolesById.has(roleId));
-  const extra = campaign.enemyRoles.map((role) => role.id).filter((roleId) => !(roleId in SCICON_ENEMY_FAMILY_BY_ROLE));
-  throw new Error(`Squadron mapping must cover the exact active roster. Missing: ${missing.join(', ') || 'none'}; extra: ${extra.join(', ') || 'none'}.`);
+  throw new Error(`Squadron mapping is missing restored roster roles: ${missing.join(', ')}.`);
 }
 
 // Mission 4 already debuts the Bulwark family. Hold the Journal family until
@@ -114,6 +112,9 @@ journalRole.introductionMission = 4;
 let roleChanges = 0;
 for (const role of campaign.enemyRoles) {
   const spriteKey = SCICON_ENEMY_FAMILY_BY_ROLE[role.id];
+  // Generated late-game roles extend the restored roster and are intentionally
+  // outside this retired v1 rebinding pass.
+  if (!spriteKey) continue;
   if (role.spriteKey !== spriteKey) roleChanges += 1;
   role.spriteKey = spriteKey;
 }
@@ -165,7 +166,19 @@ for (const level of [...campaign.levels].sort((left, right) => left.order - righ
     unseen.forEach((key) => seenFamilies.add(key));
   }
 }
-if (seenFamilies.size !== 7) throw new Error(`Campaign uses ${seenFamilies.size} Squadron families; expected 7.`);
+const additionalFamilyKeys = campaign.enemyRoles
+  .filter((role) => !(role.id in SCICON_ENEMY_FAMILY_BY_ROLE))
+  .map((role) => role.spriteKey);
+const expectedFamilyKeys = new Set([
+  ...Object.values(SCICON_ENEMY_FAMILY_BY_ROLE),
+  ...additionalFamilyKeys
+]);
+if (seenFamilies.size !== expectedFamilyKeys.size
+  || [...expectedFamilyKeys].some((key) => !seenFamilies.has(key))) {
+  throw new Error(
+    `Campaign uses ${seenFamilies.size}/${expectedFamilyKeys.size} expected regular enemy families.`
+  );
+}
 
 const output = `${JSON.stringify(campaign, null, 2)}\n`;
 const current = fs.readFileSync(campaignPath, 'utf8');

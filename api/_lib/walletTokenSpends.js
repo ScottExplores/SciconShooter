@@ -1,7 +1,9 @@
 const { fetchSupabaseJson, supabaseHeaders } = require('./supabase');
 const { normalizeWalletAddress } = require('./walletProfileAuth');
 const {
+  campaignMasteryStatus,
   fetchWalletProfile,
+  sanitizePlayerShipEntitlements,
   sanitizeWalletSnapshot
 } = require('./walletProfiles');
 
@@ -60,6 +62,24 @@ const boundedTokenInteger = (value) => {
 
 const cloneSnapshot = (snapshot) => JSON.parse(JSON.stringify(snapshot));
 
+const profilePlayerShipUpgradeAccess = (profile, bioStatus = null) => {
+  const rawEntitlements = asObject(
+    profile?.snapshot?.permanentState?.playerShipEntitlements
+  );
+  const entitlements = typeof sanitizePlayerShipEntitlements === 'function'
+    ? sanitizePlayerShipEntitlements(rawEntitlements)
+    : rawEntitlements;
+  const mastery = typeof campaignMasteryStatus === 'function'
+    ? campaignMasteryStatus(profile?.snapshot)
+    : { complete: false };
+  return {
+    researchhub: true,
+    bio: bioStatus?.verificationStatus === 'verified' && bioStatus.unlocked === true,
+    eth: Boolean(entitlements.eth),
+    btc: Boolean(entitlements.btc) || mastery.complete === true
+  };
+};
+
 const spendSnapshotTokens = (weeklyState, cost) => {
   const coins = boundedTokenInteger(weeklyState.coins);
   const durableTokens = Math.min(
@@ -99,7 +119,12 @@ const normalizeAction = (rawAction) => {
   return null;
 };
 
-const canonicalWalletTokenSpend = ({ profile, action, now = Date.now() }) => {
+const canonicalWalletTokenSpend = ({
+  profile,
+  action,
+  now = Date.now(),
+  playerShipAccess = null
+}) => {
   const normalizedAction = normalizeAction(action);
   if (!normalizedAction) {
     throw apiError(
@@ -158,14 +183,8 @@ const canonicalWalletTokenSpend = ({ profile, action, now = Date.now() }) => {
     ownedMiniShips[miniShipId] = level + 1;
   } else {
     const { shipId, upgradeId } = normalizedAction;
-    const unlockedPlayerShips = Array.isArray(permanentState.unlockedPlayerShips)
-      ? permanentState.unlockedPlayerShips
-      : [];
-    if (
-      shipId !== 'researchhub'
-      && shipId !== 'bio'
-      && !unlockedPlayerShips.includes(shipId)
-    ) {
+    const verifiedPlayerShipAccess = playerShipAccess || profilePlayerShipUpgradeAccess(profile);
+    if (verifiedPlayerShipAccess[shipId] !== true) {
       throw apiError(
         'Unlock this player ship before purchasing its upgrades.',
         409,
@@ -303,7 +322,8 @@ const applyWalletTokenSpend = async ({
   spendId,
   expectedRevision,
   action,
-  now = Date.now()
+  now = Date.now(),
+  publicClient = null
 }) => {
   const walletAddress = normalizeWalletAddress(address);
   const normalizedSpendId = String(spendId || '').trim().toLowerCase();
@@ -349,7 +369,31 @@ const applyWalletTokenSpend = async ({
     );
   }
 
-  const canonical = canonicalWalletTokenSpend({ profile, action: normalizedAction, now });
+  let verifiedPlayerShipAccess = profilePlayerShipUpgradeAccess(profile);
+  if (
+    normalizedAction.kind === 'upgrade-main-ship'
+    && normalizedAction.shipId === 'bio'
+  ) {
+    const { getBioHoldingStatus } = require('./playerShipAccess');
+    const bioStatus = await getBioHoldingStatus({
+      address: walletAddress,
+      publicClient
+    });
+    if (bioStatus.verificationStatus !== 'verified') {
+      throw apiError(
+        'BIO holding verification is temporarily unavailable. No Tokens were spent.',
+        503,
+        'wallet_token_bio_verification_unavailable'
+      );
+    }
+    verifiedPlayerShipAccess = profilePlayerShipUpgradeAccess(profile, bioStatus);
+  }
+  const canonical = canonicalWalletTokenSpend({
+    profile,
+    action: normalizedAction,
+    now,
+    playerShipAccess: verifiedPlayerShipAccess
+  });
   let rawResult;
   try {
     rawResult = await fetchSupabaseJson(`rpc/${APPLY_TOKEN_SPEND_RPC}`, {

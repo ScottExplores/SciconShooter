@@ -3,6 +3,8 @@ const UPDATE_QUERY_KEY = '__scicon_build';
 const MODULE_RECOVERY_QUERY_KEY = '__scicon_module_retry';
 const MODULE_RECOVERY_STORAGE_KEY = 'scicon:module-preload-recovery';
 const MODULE_RECOVERY_COOLDOWN_MS = 60_000;
+const APP_RECOVERY_QUERY_KEY = '__scicon_recovery';
+const TRANSIENT_WALLET_STORAGE_KEY = 'scicon_wallet_address';
 
 const normalizeAssetPath = (assetUrl: string, baseUrl: string) => {
   try {
@@ -64,6 +66,31 @@ export const reloadForDeploymentUpdate = (
 ) => {
   const nextUrl = new URL(locationRef.href);
   nextUrl.searchParams.set(UPDATE_QUERY_KEY, entryAsset.split('/').pop() || String(Date.now()));
+  locationRef.replace(nextUrl.toString());
+};
+
+/**
+ * Recover from an application render failure without replaying a stale wallet
+ * session or reusing the exact same cached document URL. Persistent pilot,
+ * campaign, purchase, and dirty-profile data deliberately remain untouched.
+ */
+export const reloadFromLastSafeState = ({
+  locationRef = window.location,
+  storageRef = window.localStorage,
+  now = Date.now()
+}: {
+  locationRef?: Pick<Location, 'href' | 'replace'>;
+  storageRef?: Pick<Storage, 'removeItem'>;
+  now?: number;
+} = {}) => {
+  try {
+    storageRef.removeItem(TRANSIENT_WALLET_STORAGE_KEY);
+  } catch {
+    // Private storage restrictions must not prevent recovery.
+  }
+
+  const nextUrl = new URL(locationRef.href);
+  nextUrl.searchParams.set(APP_RECOVERY_QUERY_KEY, String(now));
   locationRef.replace(nextUrl.toString());
 };
 

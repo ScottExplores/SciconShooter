@@ -64,6 +64,8 @@ test('verified Weekly Run admission is server-authoritative and database-atomic'
   assert.match(sql, /revoke all on table public\.scicon_weekly_run_attempts[\s\S]*from public, anon, authenticated/);
   assert.match(route, /await createReservedRunStart/);
   assert.match(client, /if \(runMode === 'weekly-streak'\)[\s\S]*throw error/);
+  assert.match(client, /if \(session\.runMode === 'weekly-streak'\)[\s\S]*No wallet is required/);
+  assert.match(client, /Weekly Run verification was interrupted; keeping the signed run available for retry/);
   assert.ok(
     app.indexOf('const session = await sessionPromise') < app.indexOf("setActiveRunMode('weekly-streak')"),
     'Weekly Run gameplay must not unlock before the server reservation resolves'

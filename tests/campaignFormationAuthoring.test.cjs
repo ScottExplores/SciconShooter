@@ -37,16 +37,16 @@ test('formation normalization is idempotent and never changes Campaign route top
   const first = normalizeCampaignFormationAuthoring(campaign);
   const second = normalizeCampaignFormationAuthoring(campaign);
 
-  // 528 at the flat six/seven-wave pass; +18 grouped spawns from the eleven
-  // sector-aware surge waves (4 introduction blocks, 7 remix double-blocks).
-  assert.equal(first.groupedSpawnCount, 546);
+  // 546 after the sector-aware surge pass, plus 29 deterministic advanced
+  // enemy cohorts across five introductions and both late route trains.
+  assert.equal(first.groupedSpawnCount, 575);
   assert.deepEqual(first.declarationChanges, []);
   assert.deepEqual(first.cooldownChanges, []);
   assert.deepEqual(second.declarationChanges, []);
   assert.deepEqual(second.cooldownChanges, []);
   assert.deepEqual(campaign.campaignGraph, graphBefore);
   assert.deepEqual(campaign.sectors, sectorsBefore);
-  assert.equal(campaign.formationPacks.length, 11);
+  assert.equal(campaign.formationPacks.length, 16);
 });
 
 test('authored role reuse satisfies every nonzero internal-Wave cooldown', () => {

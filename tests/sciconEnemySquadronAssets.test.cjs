@@ -16,17 +16,16 @@ const directorValidatorSource = fs.readFileSync(path.join(root, 'director', 'ser
 const recordCardApiSource = fs.readFileSync(path.join(root, 'api', 'record-card.js'), 'utf8');
 const authoringSource = fs.readFileSync(path.join(root, 'tools', 'author-campaign-overhaul-v22.mjs'), 'utf8');
 
-// Scott restored the legacy animated roster on 2026-08-03: every role wears
-// its original art again (flight-motion pack, jets, stage-20 specialists).
-// The consolidated Squadron keys are the retired direction; the pack's art
-// files stay in the repo and their integrity tests below still run.
+// Established roles retain their distinct animated families. The obsolete
+// pink terrain jets are the exception: they now use the compact Retraction
+// Fleet silhouettes while the retired Squadron-v1 files remain integrity-tested.
 const EXPECTED_FAMILY_BY_ROLE = new Map([
   ['role-orbit-scout', 'LEGACY_ENEMY_DRONE_FRAMES'],
   ['role-research-drone', 'ENEMY_DRONE_FRAMES'],
   ['role-citation-swarm', 'ENEMY_SWARM_FRAMES'],
-  ['role-jet-scout', 'PIXI_JET_SCOUT_FRAMES'],
-  ['role-jet-interceptor', 'PIXI_JET_INTERCEPTOR_FRAMES'],
-  ['role-jet-heavy', 'PIXI_JET_HEAVY_FRAMES'],
+  ['role-jet-scout', 'SCICON_ENEMY_REDLINE_SKIRMISHER_FRAMES'],
+  ['role-jet-interceptor', 'SCICON_ENEMY_CROSSCUT_RAIDER_FRAMES'],
+  ['role-jet-heavy', 'SCICON_ENEMY_AUDIT_BULWARK_FRAMES'],
   ['role-journal-priority', 'ENEMY_JOURNAL_FRAMES'],
   ['role-dna-conductor', 'CAMPAIGN_ENEMY_DNA_CONDUCTOR'],
   ['role-laser-stalker', 'CAMPAIGN_ENEMY_LASER_STALKER'],
@@ -123,19 +122,21 @@ test('Squadron v1 registers exactly seven family keys across runtime, Director, 
   }
 });
 
-test('all twenty active roles and every authored spawn use their assigned legacy family', () => {
-  assert.equal(campaign.enemyRoles.length, 20);
-  assert.deepEqual(new Set(campaign.enemyRoles.map((role) => role.id)), new Set(EXPECTED_FAMILY_BY_ROLE.keys()));
-  for (const role of campaign.enemyRoles) {
+test('all twenty baseline roles and their spawns keep their assigned family', () => {
+  assert.equal(campaign.enemyRoles.length, 25, 'five generated late roles extend the restored twenty');
+  const legacyRoles = campaign.enemyRoles.filter((role) => EXPECTED_FAMILY_BY_ROLE.has(role.id));
+  assert.deepEqual(new Set(legacyRoles.map((role) => role.id)), new Set(EXPECTED_FAMILY_BY_ROLE.keys()));
+  for (const role of legacyRoles) {
     assert.equal(role.spriteKey, EXPECTED_FAMILY_BY_ROLE.get(role.id), role.id);
     assert.equal(RETIRED_REGULAR_KEYS.has(role.spriteKey), false, role.id);
   }
   assert.ok(spawnEnemies.length > 1000);
-  for (const enemy of spawnEnemies) {
+  const legacySpawnEnemies = spawnEnemies.filter((enemy) => EXPECTED_FAMILY_BY_ROLE.has(enemy.roleId));
+  for (const enemy of legacySpawnEnemies) {
     assert.equal(enemy.spriteKey, EXPECTED_FAMILY_BY_ROLE.get(enemy.roleId), enemy.roleId);
     assert.equal(RETIRED_REGULAR_KEYS.has(enemy.spriteKey), false, enemy.roleId);
   }
-  assert.deepEqual(new Set(spawnEnemies.map((enemy) => enemy.spriteKey)), ACTIVE_KEYS);
+  assert.deepEqual(new Set(legacySpawnEnemies.map((enemy) => enemy.spriteKey)), ACTIVE_KEYS);
   for (const level of campaign.levels) {
     const key = level.scorecard?.encounterAssetKey;
     assert.equal(RETIRED_REGULAR_KEYS.has(key), false, `${level.id} scorecard`);
@@ -151,7 +152,7 @@ test('family debuts stay readable (thematic pairs at most) and Journal Raider wa
         .filter((event) => event.kind === 'spawn')
         .flatMap((event) => (event.enemies ?? []).map((enemy) => enemy.spriteKey)));
       const unseen = [...families].filter((key) => !seen.has(key));
-      // The legacy roster debuts thematic pairs together (the two jets,
+      // The baseline roster debuts thematic pairs together (the two raiders,
       // sentinel + minelayer). Three or more new silhouettes in one wave is
       // still unreadable art soup.
       assert.ok(unseen.length <= 2, `${level.id}/Wave ${waveIndex + 1} introduces ${unseen.join(', ')}`);
@@ -161,7 +162,7 @@ test('family debuts stay readable (thematic pairs at most) and Journal Raider wa
       });
     }
   }
-  assert.equal(seen.size, 20);
+  assert.equal(seen.size, 25);
   assert.deepEqual(
     debuts.find((debut) => debut.key === 'ENEMY_JOURNAL_FRAMES'),
     { key: 'ENEMY_JOURNAL_FRAMES', levelId: 'stage-bastion-protocol', wave: 1 }
@@ -231,7 +232,7 @@ test('every production frame is hashed, 128px RGBA, transparent, and safely boun
   }
 });
 
-test('the legacy v22 author seeds legacy keys and uses role-aware source inference', () => {
+test('the v22 author seeds active keys and uses role-aware source inference', () => {
   const roleSeed = authoringSource.match(/const roleSeed = \[([\s\S]*?)\n\];/)?.[1] ?? '';
   assert.ok(roleSeed.length > 0);
   // The Protocol Vanguard is seeded by its own sprite-inference row rather

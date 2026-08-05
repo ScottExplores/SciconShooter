@@ -29,6 +29,7 @@ authoring and testing surface. Stable routes are registered in
 | `/sandbox` | Combat Lab |
 | `/loadouts` | Combat Lab |
 | `/assets` | Combat Lab |
+| `/gallery` | Read-only Wave & Formation Gallery for every Campaign mission |
 | `/analytics` | Local playtest metrics, comparison, and export |
 | `/reviews` | Mission Builder review surface |
 | `/studio` | Read-only legacy migration reference |
@@ -36,6 +37,13 @@ authoring and testing surface. Stable routes are registered in
 The old `/level-editor` and `/combat-lab` URLs remain compatibility aliases for
 `/missions` and `/sandbox`. All routes retain the same loopback-only status and
 production exclusion boundary.
+
+The read-only **Wave & Formation Gallery** is at
+`http://127.0.0.1:5174/gallery`. Choose a sector, mission, and wave to see its
+actual enemy artwork, weighted roster, counts, formation layout, entry path,
+movement, attack, firing behavior, and special moves without opening or editing
+Campaign JSON. The gallery reads the tracked Campaign from disk and has no save
+or publish controls.
 
 The game-first **Mission Builder** is at `http://127.0.0.1:5174/missions`. Its center
 stage is the real `GameStage`, not a mock dashboard. Select missions and waves on the
@@ -143,10 +151,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools/install-scicon-directo
 
 It creates:
 
-- `Scicon Director` on the desktop. Double-clicking it starts the local server if
-  necessary and opens the Director in the default browser.
-- `Scicon Combat Lab` on the desktop. Double-clicking it starts the same local
-  server if necessary and opens the gameplay experimentation workspace directly.
+- `Scicon Shooter Control Center` on the desktop. Double-clicking it starts the
+  local tools, warms the canonical game preview, and opens the owner dashboard.
+- `Scicon Shooter Tools` on the desktop. This organized folder contains direct
+  shortcuts for the bug and feedback log, Boss Sandbox, Mission Builder, Combat Lab,
+  Project Guide, local and live games, project folder, and Sprite Gallery.
+- The existing `Scicon Director`, `Scicon Combat Lab`, and `Scicon Shooter Local`
+  desktop shortcuts remain available and are updated to their canonical routes.
 - `Scicon Director Auto Start` in the current user's Windows Startup folder. It
   starts the server silently after Windows sign-in following a restart, but does
   not open a browser window automatically.
@@ -155,6 +166,12 @@ The launcher refuses to use anything except the Director's loopback health check
 Startup logs live in `%LOCALAPPDATA%\Scicon Director`. To disable automatic startup,
 disable or remove `Scicon Director Auto Start` from the Windows Startup folder; the
 desktop shortcut will continue to work.
+
+The dedicated Player Reports screen is read-only and consumes a sanitized local
+cache. Server-only Supabase credentials remain in the repository-root `.env.local`
+file and are never passed to Director browser code. See
+`docs/OWNER_CONTROL_CENTER.md` for the return checklist, report-review setup, and the
+canonical project map.
 
 The Director has no deployment build. `npm --prefix director run build` exits with
 an error by design, `.vercelignore` excludes the package and its data, and the root

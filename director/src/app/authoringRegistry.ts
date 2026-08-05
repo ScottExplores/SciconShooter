@@ -1,5 +1,6 @@
 export type HubToolId =
   | 'overview'
+  | 'project'
   | 'missions'
   | 'waves'
   | 'bosses'
@@ -7,15 +8,20 @@ export type HubToolId =
   | 'sandbox'
   | 'loadouts'
   | 'assets'
+  | 'gallery'
+  | 'reports'
   | 'analytics'
   | 'reviews'
   | 'legacy';
 
 export type HubToolHost =
   | 'overview'
+  | 'project-guide'
   | 'mission-builder'
   | 'boss-sandbox'
   | 'combat-lab'
+  | 'report-inbox'
+  | 'wave-gallery'
   | 'analytics-foundation'
   | 'legacy';
 
@@ -31,6 +37,8 @@ export type AuthoringResourceKind =
   | 'sandbox-preset'
   | 'loadout'
   | 'asset'
+  | 'player-report'
+  | 'project-status'
   | 'playtest-session'
   | 'review';
 
@@ -62,15 +70,31 @@ export const AUTHORING_DESCRIPTORS = [
     id: 'overview',
     path: '/',
     aliases: [],
-    label: 'Developer Hub',
-    shortLabel: 'Overview',
-    glyph: 'DH',
-    eyebrow: 'Workspace',
-    description: 'The local launchpad for authoring, testing, balancing, and reviewing SciCon Shooter content.',
+    label: 'Control Center',
+    shortLabel: 'Home',
+    glyph: 'CC',
+    eyebrow: 'Start',
+    description: 'The owner-friendly home for Scicon Shooter tools, reports, project status, and local previews.',
     group: 'hub',
     host: 'overview',
     status: 'live',
     resourceKinds: [],
+    previewSurface: 'none',
+    navigation: true
+  },
+  {
+    id: 'project',
+    path: '/project',
+    aliases: ['/status'],
+    label: 'Project Guide',
+    shortLabel: 'Project',
+    glyph: 'PG',
+    eyebrow: 'Start',
+    description: 'See the current local branch, important addresses, tool map, and the return-to-project checklist.',
+    group: 'hub',
+    host: 'project-guide',
+    status: 'live',
+    resourceKinds: ['project-status'],
     previewSurface: 'none',
     navigation: true
   },
@@ -187,6 +211,22 @@ export const AUTHORING_DESCRIPTORS = [
     navigation: true
   },
   {
+    id: 'gallery',
+    path: '/gallery',
+    aliases: ['/wave-gallery'],
+    label: 'Wave Gallery',
+    shortLabel: 'Gallery',
+    glyph: 'WG',
+    eyebrow: 'Inspect',
+    description: 'Browse every Campaign mission and wave as a simple read-only formation and enemy gallery.',
+    group: 'inspect',
+    host: 'wave-gallery',
+    status: 'live',
+    resourceKinds: ['wave', 'formation'],
+    previewSurface: 'none',
+    navigation: true
+  },
+  {
     id: 'analytics',
     path: '/analytics',
     aliases: [],
@@ -199,6 +239,22 @@ export const AUTHORING_DESCRIPTORS = [
     host: 'analytics-foundation',
     status: 'live',
     resourceKinds: ['playtest-session'],
+    previewSurface: 'none',
+    navigation: true
+  },
+  {
+    id: 'reports',
+    path: '/reports',
+    aliases: ['/bugs'],
+    label: 'Player Reports',
+    shortLabel: 'Reports',
+    glyph: 'RP',
+    eyebrow: 'Inspect',
+    description: 'Review the sanitized local cache of player bugs, feedback, and bounded crash diagnostics.',
+    group: 'inspect',
+    host: 'report-inbox',
+    status: 'live',
+    resourceKinds: ['player-report'],
     previewSurface: 'none',
     navigation: true
   },

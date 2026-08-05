@@ -2,11 +2,15 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   ASSETS,
   RSC_PURCHASE_SKUS,
+  type PlayerShipPurchaseSkuId,
   type RscPurchaseSkuId
 } from '../constants';
 import type { RscBalanceSnapshot } from '../services/baseAccountWallet';
 import { formatWholeRscBalance } from '../services/rscBalancePresentation';
-import type { WalletPurchaseStatusUpdate } from './WalletRuntime';
+import type {
+  PlayerShipPurchaseStatusUpdate,
+  WalletPurchaseStatusUpdate
+} from './WalletRuntime';
 import {
   isPlayerShipUnlocked,
   PLAYABLE_PLAYER_SHIP_IDS,
@@ -43,10 +47,15 @@ import {
   getShipAbilityDefinition,
   getShipAbilityUpgradeProfile
 } from '../services/shipAbilityService';
-import { PLAYER_SHIP_WEAPON_SPECS } from '../services/weaponOverdrive';
+import {
+  getPlayerWeaponPreviewFrames,
+  PLAYER_SHIP_WEAPON_PREVIEW_SPECS
+} from '../services/playerWeaponPreview';
 import { calculateSquadPowerRating } from '../services/squadPowerRating';
 import { FIRE_RATE_TIER_COUNT } from '../services/weaponTierProgression';
 import PixelActionButton from './PixelActionButton';
+import PlayerShipAccessDialog, { type PlayerShipAccessId } from './PlayerShipAccessDialog';
+import ShipWeaponPreviewDialog from './ShipWeaponPreviewDialog';
 import { preloadDecodedImageUrls } from '../services/browserImagePreload';
 
 type HangarPosition = 'main' | SquadSlotId;
@@ -66,10 +75,13 @@ interface SquadHangarProps {
   rscBalance: RscBalanceSnapshot | null;
   rscBalanceStatus: 'idle' | 'loading' | 'ready' | 'error';
   walletPurchaseStatus: WalletPurchaseStatusUpdate;
+  playerShipPurchaseStatus: PlayerShipPurchaseStatusUpdate;
   founderSandbox?: boolean;
   onSelectMainShip: (id: PlayerShipId) => void;
   onUnlockSlot: (slot: SquadSlotId) => void;
   onPurchaseWithRsc: (skuId: RscPurchaseSkuId) => void;
+  onPurchasePlayerShip: (skuId: PlayerShipPurchaseSkuId) => void;
+  onRefreshPlayerShipAccess: () => void;
   onOpenRscSwap: () => void;
   onPurchaseMini: (id: MiniShipId) => void;
   onUpgradeMini: (id: MiniShipId) => void;
@@ -266,10 +278,13 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
   rscBalance,
   rscBalanceStatus,
   walletPurchaseStatus,
+  playerShipPurchaseStatus,
   founderSandbox = false,
   onSelectMainShip,
   onUnlockSlot,
   onPurchaseWithRsc,
+  onPurchasePlayerShip,
+  onRefreshPlayerShipAccess,
   onOpenRscSwap,
   onPurchaseMini,
   onUpgradeMini,
@@ -282,6 +297,8 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
   const [mode, setMode] = useState<HangarMode>('catalog');
   const [selectedMiniId, setSelectedMiniId] = useState<MiniShipId | null>(null);
   const [showTokenExchange, setShowTokenExchange] = useState(false);
+  const [weaponPreviewShipId, setWeaponPreviewShipId] = useState<PlayerShipId | null>(null);
+  const [lockedPlayerShipId, setLockedPlayerShipId] = useState<PlayerShipAccessId | null>(null);
   const [upgradeFeedback, setUpgradeFeedback] = useState<{ target: string; label: string; nonce: number } | null>(null);
   const playerSelectionFrame = useAnimationFrame(
     PLAYER_SELECTION_FRAME_COUNT,
@@ -300,6 +317,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
       ...Object.values(MAIN_UPGRADE_SPRITE),
       // Preload every hull's signature-move icon, not just the fallback.
       ...PLAYER_SHIP_ORDER.map((id) => getShipAbilityDefinition(id).iconUrl),
+      ...PLAYER_SHIP_ORDER.flatMap((id) => getPlayerWeaponPreviewFrames(id)),
       ...Array.from(
         { length: MAIN_SHIP_ABILITY_MAX_LEVEL + 1 },
         (_, level) => getShipAbilityUpgradeProfile(level).projectileIconUrl
@@ -368,6 +386,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
     && (TOKEN_EXCHANGE_SKU_IDS as ReadonlyArray<RscPurchaseSkuId>)
       .includes(walletPurchaseStatus.skuId)
   );
+
   const isRightSupportPurchase = walletPurchaseStatus.skuId === 'right-support'
     && walletPurchaseStatus.status !== 'idle';
   const rightSupportMessage = walletPurchaseStatus.status === 'error'
@@ -484,19 +503,32 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
           <button
             key={shipId}
             type="button"
-            disabled={!unlocked}
             onClick={() => {
+              if (!unlocked) {
+                if (shipId !== 'researchhub') setLockedPlayerShipId(shipId);
+                return;
+              }
               if (selected) {
                 setMode('upgrades');
                 return;
               }
-              onSelectMainShip(shipId);
+              setWeaponPreviewShipId(shipId);
             }}
-            className={`relative aspect-[0.78] min-w-0 overflow-hidden border bg-slate-950/72 p-1.5 transition hover:border-cyan-200/70 disabled:cursor-not-allowed ${selected ? 'border-yellow-200/70' : 'border-cyan-200/22'} ${unlocked ? '' : 'grayscale'}`}
+            aria-label={!unlocked
+              ? `View ${ship.name} unlock requirements`
+              : selected
+                ? `Open ${ship.name} upgrades`
+                : `Preview ${ship.name} primary weapon before equipping`}
+            className={`relative aspect-[0.78] min-w-0 overflow-hidden border bg-slate-950/72 p-1.5 transition hover:border-cyan-200/70 ${selected ? 'border-yellow-200/70' : 'border-cyan-200/22'} ${unlocked ? '' : 'grayscale'}`}
           >
             {selected ? <AnimatedSelector size="ship" color="gold" className="absolute inset-0 h-full w-full scale-[1.17]" /> : null}
             <span className="absolute left-1.5 top-1 text-[0.52rem] font-black uppercase text-white/85">T{shipTier}</span>
-            {!unlocked ? <span className="absolute inset-0 z-20 flex items-center justify-center bg-slate-950/66 text-[0.58rem] font-black uppercase text-slate-200">Locked</span> : null}
+            {!unlocked ? (
+              <span className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-950/66 px-1 text-center text-[0.54rem] font-black uppercase text-slate-200">
+                <span>Locked</span>
+                <span className="mt-1 text-[0.46rem] text-yellow-200">View access</span>
+              </span>
+            ) : null}
             <AnimatedPlayerShip shipId={shipId} frame={playerSelectionFrame} className="relative z-10 mx-auto mt-4 h-[52%] w-[86%] drop-shadow-[0_0_10px_rgba(34,211,238,0.4)]" />
             <span className={`relative z-10 mt-1 block truncate text-[0.52rem] font-black uppercase ${selected ? 'text-yellow-200' : 'text-slate-300'}`}>{ship.name.replace(/ ship$/i, '')}</span>
             <div className="relative z-10 mt-1"><LevelPips level={shipTier} max={FIRE_RATE_TIER_COUNT} /></div>
@@ -552,7 +584,8 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
   };
 
   return (
-    <div className="relative mx-auto min-h-full w-full max-w-3xl overflow-hidden border border-cyan-300/20 bg-[#020817] text-white shadow-[0_0_32px_rgba(8,145,178,0.18)]">
+    <>
+      <div className="relative mx-auto min-h-full w-full max-w-3xl overflow-hidden border border-cyan-300/20 bg-[#020817] text-white shadow-[0_0_32px_rgba(8,145,178,0.18)]">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_25%,rgba(34,211,238,0.15),transparent_30%),radial-gradient(circle_at_12%_44%,rgba(16,185,129,0.08),transparent_22%),linear-gradient(rgba(103,232,249,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(103,232,249,0.025)_1px,transparent_1px)] bg-[size:auto,auto,28px_28px,28px_28px]" />
 
       <header className="relative z-10 border-b border-cyan-200/18 bg-slate-950/88 p-2">
@@ -775,16 +808,27 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
           ) : null}
           {/* Patterns belong to the selected hull, and Overdrive amplifies them
               without replacing that ship's primary-weapon identity. */}
-          <p className="sci-weapon-spec">
-            Weapon: {PLAYER_SHIP_WEAPON_SPECS[mainShipId] ?? PLAYER_SHIP_WEAPON_SPECS.researchhub}
-          </p>
+          <div className="sci-weapon-spec-row">
+            <p className="sci-weapon-spec">
+              Weapon: {PLAYER_SHIP_WEAPON_PREVIEW_SPECS[mainShipId]}
+            </p>
+            <PixelActionButton
+              type="button"
+              tone="cyan"
+              onClick={() => setWeaponPreviewShipId(mainShipId)}
+              aria-label={`Preview ${PLAYER_SHIPS[mainShipId].name} primary weapon`}
+              className="min-h-10 shrink-0 px-2 text-[0.58rem] font-black uppercase"
+            >
+              Preview fire
+            </PixelActionButton>
+          </div>
 
           {mode === 'catalog' ? (
             <>
               {activePosition === 'main' ? renderMainCatalog() : renderMiniCatalog()}
               <p className="mt-3 text-center text-[0.55rem] font-bold uppercase tracking-[0.1em] text-slate-500">
                 {activePosition === 'main'
-                  ? 'Tap the selected ship again to open upgrades'
+                  ? 'Tap a new ship to preview it · Tap the selected ship for upgrades'
                   : 'Tap the selected mini ship again to view details'}
               </p>
             </>
@@ -949,8 +993,30 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
             <p className="border border-cyan-200/20 bg-slate-950/60 p-4 text-center text-xs uppercase text-slate-400">Choose or purchase a mini ship first.</p>
           )}
         </section>
-      </main>
-    </div>
+        </main>
+      </div>
+      <PlayerShipAccessDialog
+        shipId={lockedPlayerShipId}
+        shipUnlocks={shipUnlocks}
+        walletConnected={walletConnected}
+        playerShipPurchaseStatus={playerShipPurchaseStatus}
+        onClose={() => setLockedPlayerShipId(null)}
+        onRefreshPlayerShipAccess={onRefreshPlayerShipAccess}
+        onPurchasePlayerShip={onPurchasePlayerShip}
+        onUnlockedAction={(shipId) => {
+          setLockedPlayerShipId(null);
+          setWeaponPreviewShipId(shipId);
+        }}
+        unlockedActionLabel="Unlocked - preview fire"
+      />
+      <ShipWeaponPreviewDialog
+        shipId={weaponPreviewShipId}
+        fireRateLevel={weaponPreviewShipId ? state.shipUpgrades[weaponPreviewShipId].fireRate : 0}
+        selected={weaponPreviewShipId === mainShipId}
+        onClose={() => setWeaponPreviewShipId(null)}
+        onSelect={onSelectMainShip}
+      />
+    </>
   );
 };
 

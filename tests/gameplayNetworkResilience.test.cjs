@@ -137,7 +137,9 @@ test('Pixi-backed gameplay does not start the legacy all-image flood', () => {
   const engine = read('services', 'gameLogic.ts');
 
   assert.match(engine, /preloadCanvasAssets\?: boolean/);
-  assert.match(engine, /if \(options\.preloadCanvasAssets !== false\) \{\s*GAMEPLAY_ASSET_URLS\.forEach\(loadImage\)/);
+  assert.match(engine, /this\.preloadCanvasAssets = options\.preloadCanvasAssets !== false/);
+  assert.match(engine, /if \(this\.preloadCanvasAssets\) \{\s*GAMEPLAY_ASSET_URLS\.forEach\(loadImage\)/);
+  assert.match(engine, /if \(this\.preloadCanvasAssets\) paths\.forEach\(loadImage\)/);
   assert.match(canvas, /preloadCanvasAssets:\s*false/);
 });
 

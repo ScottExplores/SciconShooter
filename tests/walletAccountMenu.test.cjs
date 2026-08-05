@@ -39,6 +39,7 @@ test('switching reopens Base account access while disconnect remains a separate 
 
 test('returning sessions restore automatically and provider disconnect events clear local state', () => {
   const app = read('App.tsx');
+  const service = read('services', 'baseAccountWallet.ts');
   const runtime = read('components', 'WalletRuntime.tsx');
 
   assert.match(app, /useState\(\(\) => \(\s*Boolean\(localStorage\.getItem\(STORAGE_KEYS\.WALLET_ADDRESS\)\)/);
@@ -48,6 +49,40 @@ test('returning sessions restore automatically and provider disconnect events cl
   assert.match(runtime, /baseAccountProvider\.on\('disconnect', handleDisconnect\)/);
   assert.match(runtime, /removeListener\('disconnect', handleDisconnect\)/);
   assert.match(runtime, /localStorage\.removeItem\(STORAGE_KEYS\.WALLET_ADDRESS\)/);
+  assert.match(runtime, /localStorage\.setItem\(STORAGE_KEYS\.WALLET_ADDRESS, nextAddress\)/);
+  assert.match(runtime, /parseBaseAccountAccounts\(accounts\)/);
+  assert.match(runtime, /Base Account sent an invalid account update/);
+  assert.match(service, /export const parseBaseAccountAddress = \(value: unknown\)/);
+  assert.match(service, /export const parseBaseAccountAccounts = \(value: unknown\)/);
+});
+
+test('wallet transitions clear account-scoped state and disconnect locally even if provider cleanup fails', () => {
+  const runtime = read('components', 'WalletRuntime.tsx');
+
+  assert.match(runtime, /const commitActiveWalletAddress = useCallback/);
+  assert.match(runtime, /onRscBalanceChange\?\.\(\{ status: 'idle', balance: null \}\)/);
+  assert.match(runtime, /onWalletPurchaseStatus\?\.\(\{ status: 'idle' \}\)/);
+  assert.match(runtime, /onPlayerShipAccessChange\?\.\(\{ status: 'idle', access: null \}\)/);
+  assert.match(runtime, /onPlayerShipPurchaseStatus\?\.\(\{ status: 'idle' \}\)/);
+  assert.match(
+    runtime,
+    /const disconnectWallet = useCallback[\s\S]*finally \{[\s\S]*commitActiveWalletAddress\(null\)/
+  );
+  assert.match(runtime, /This wallet was disconnected from the game/);
+});
+
+test('late wallet requests cannot repopulate state after disconnect or account switch', () => {
+  const runtime = read('components', 'WalletRuntime.tsx');
+
+  assert.match(
+    runtime,
+    /activeWalletAddressRef\.current\?\.toLowerCase\(\) === address\.toLowerCase\(\)/
+  );
+  assert.ok(
+    (runtime.match(/!isCurrentWalletAddress\(address\)/g) || []).length >= 6,
+    'balance, ship access, and purchase callbacks should all reject stale wallet results'
+  );
+  assert.match(runtime, /!isCurrentWalletAddress\(activeWalletAddress\)/);
 });
 
 test('switching wallets loads a distinct authenticated cloud profile', () => {
@@ -63,7 +98,8 @@ test('switching wallets loads a distinct authenticated cloud profile', () => {
   assert.match(app, /localStorage\.setItem\(STORAGE_KEYS\.WALLET_ADDRESS, activeWalletAddress\)/);
   assert.match(app, /getWalletRecords\(activeWalletAddress\)/);
   assert.match(app, /getWalletRuns\(activeWalletAddress\)/);
-  assert.match(app, /getPlayerShipUnlocks\(activeWalletAddress, walletRecords/);
+  assert.match(app, /getPlayerShipUnlocks\(\{/);
+  assert.match(app, /authoritativePaidUnlockIds: access\?\.unlockedPlayerShips/);
   assert.match(profiles, /readCachedWalletProfile/);
   assert.match(profiles, /authenticateWalletProfile/);
   assert.match(profiles, /saveAuthenticatedWalletProfile/);

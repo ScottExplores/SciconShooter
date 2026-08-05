@@ -90,15 +90,10 @@ const DAILY_COIN_REWARDS = [
   300, 300, 300, 300, 1000
 ] as const;
 
-export const DAILY_GIFT_REWARDS: readonly DailyGiftReward[] = DAILY_COIN_REWARDS.map((coins, index) => {
-  const day = index + 1;
-  return {
-    day,
-    coins,
-    ...(day === 14 ? { shipId: 'eth' as const } : {}),
-    ...(day === 30 ? { shipId: 'btc' as const } : {})
-  };
-});
+export const DAILY_GIFT_REWARDS: readonly DailyGiftReward[] = DAILY_COIN_REWARDS.map((coins, index) => ({
+  day: index + 1,
+  coins
+}));
 
 export const ACHIEVEMENT_DEFINITIONS: readonly AchievementDefinition[] = [
   {

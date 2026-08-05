@@ -150,10 +150,12 @@ test('later authored tiers add deterministic telegraphs, lane lasers, roaming, a
 
 test('generated campaign enemies have readable specialist attacks and side sentry holds', () => {
   assert.match(engine, /getCampaignEnemyArchetype\(source: Entity\)/);
+  assert.match(engine, /resolveCampaignEnemySpecialAttack\(source\.campaignSpecialAttack, archetype\)/);
   assert.match(engine, /spawnEliteRingBurst\(source: Entity, availableShots: number\)/);
   assert.match(engine, /gapDistance < 0\.42/);
   assert.match(engine, /spawnEliteMineFan\(source: Entity, availableShots: number\)/);
-  assert.match(engine, /archetype === 'laser-hunter'/);
+  assert.match(engine, /specialAttack === 'lane-laser'/);
+  assert.match(engine, /campaignSpecialAttack = countTowardCombatBudget \? role\?\.specialAttack : undefined/);
   assert.match(engine, /enemy\.spriteUrl\?\.includes\('\/wall-sniper-'\)/);
   assert.match(engine, /resolveFormationEntryPlan\(/);
 });

@@ -45,5 +45,7 @@ test('shared card and mint metadata resolve the signed ship with legacy Research
   assert.match(metadataApiSource, /buildMissionRecordCardPath\(runId, record\.playerShipId\)/);
   assert.match(metadataApiSource, /trait_type: 'Tokens Collected'/);
   assert.doesNotMatch(metadataApiSource, /trait_type: 'Coins Collected'/);
+  assert.doesNotMatch(metadataApiSource, /trait_type: 'Ship Unlocks'/);
+  assert.doesNotMatch(metadataApiSource, /Mission Record unlocks/);
   assert.match(mintAuthorizationSource, /buildMissionRecordMetadataPath\(receipt\.runId, receipt\.metrics\.playerShipId\)/);
 });

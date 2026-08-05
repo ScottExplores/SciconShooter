@@ -15,6 +15,7 @@ const mintAuthorizationHandler = require('./api/mint-authorization.js');
 const mintRecordsHandler = require('./api/mint-records.js');
 const walletProfileHandler = require('./api/_lib/walletProfileRoute.js');
 const walletPurchaseHandler = require('./api/_lib/walletPurchaseRoute.js');
+const playerShipAccessHandler = require('./api/_lib/playerShipAccessRoute.js');
 const continuePaymentHandler = require('./api/_lib/continuePaymentRoute.js');
 const walletTokenSpendHandler = require('./api/_lib/walletTokenSpendRoute.js');
 const { handlePlayerRuns } = require('./api/_lib/playerRuns.js');
@@ -150,6 +151,10 @@ const localApiRoutes = () => ({
     mount('/api/wallet-purchases', async (req, res) => {
       if (useRemotePersistence) return proxyPublicApi('/api/wallet-purchases', req, res);
       return walletPurchaseHandler(req, res);
+    });
+    mount('/api/player-ship-access', async (req, res) => {
+      if (useRemotePersistence) return proxyPublicApi('/api/player-ship-access', req, res);
+      return playerShipAccessHandler(req, res);
     });
     mount('/api/continue-payments', async (req, res) => {
       if (useRemotePersistence) return proxyPublicApi('/api/continue-payments', req, res);

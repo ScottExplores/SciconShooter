@@ -259,6 +259,56 @@ export const ASSETS = {
     "/game-art/generated/scicon-protocol-vanguard-v1/enemies/protocol-vanguard/frames/protocol-vanguard-03-fire.png",
     "/game-art/generated/scicon-protocol-vanguard-v1/enemies/protocol-vanguard/frames/protocol-vanguard-04-damage.png"
   ],
+  SCICON_ENEMY_REDLINE_SKIRMISHER_FRAMES: [
+    "/game-art/generated/scicon-retraction-fleet-v2/enemies/redline-skirmisher/frames/redline-skirmisher-01-neutral.png",
+    "/game-art/generated/scicon-retraction-fleet-v2/enemies/redline-skirmisher/frames/redline-skirmisher-02-charge.png",
+    "/game-art/generated/scicon-retraction-fleet-v2/enemies/redline-skirmisher/frames/redline-skirmisher-03-fire.png"
+  ],
+  SCICON_ENEMY_CROSSCUT_RAIDER_FRAMES: [
+    "/game-art/generated/scicon-retraction-fleet-v2/enemies/crosscut-raider/frames/crosscut-raider-01-neutral.png",
+    "/game-art/generated/scicon-retraction-fleet-v2/enemies/crosscut-raider/frames/crosscut-raider-02-charge.png",
+    "/game-art/generated/scicon-retraction-fleet-v2/enemies/crosscut-raider/frames/crosscut-raider-03-fire.png"
+  ],
+  SCICON_ENEMY_AUDIT_BULWARK_FRAMES: [
+    "/game-art/generated/scicon-retraction-fleet-v2/enemies/audit-bulwark/frames/audit-bulwark-01-neutral.png",
+    "/game-art/generated/scicon-retraction-fleet-v2/enemies/audit-bulwark/frames/audit-bulwark-02-charge.png",
+    "/game-art/generated/scicon-retraction-fleet-v2/enemies/audit-bulwark/frames/audit-bulwark-03-fire.png"
+  ],
+  SCICON_ENEMY_QUASAR_LANCER_V2_FRAMES: [
+    "/game-art/generated/scicon-retraction-fleet-v2/enemies/quasar-lancer-v2/frames/quasar-lancer-v2-01-neutral.png",
+    "/game-art/generated/scicon-retraction-fleet-v2/enemies/quasar-lancer-v2/frames/quasar-lancer-v2-02-charge.png",
+    "/game-art/generated/scicon-retraction-fleet-v2/enemies/quasar-lancer-v2/frames/quasar-lancer-v2-03-fire.png"
+  ],
+  SCICON_ENEMY_VECTOR_REAVER_V2_FRAMES: [
+    "/game-art/generated/scicon-retraction-fleet-v2/enemies/vector-reaver-v2/frames/vector-reaver-v2-01-neutral.png",
+    "/game-art/generated/scicon-retraction-fleet-v2/enemies/vector-reaver-v2/frames/vector-reaver-v2-02-charge.png",
+    "/game-art/generated/scicon-retraction-fleet-v2/enemies/vector-reaver-v2/frames/vector-reaver-v2-03-fire.png"
+  ],
+  SCICON_ENEMY_QUASAR_LANCER_FRAMES: [
+    "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/quasar-lancer/frames/quasar-lancer-01-neutral.png",
+    "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/quasar-lancer/frames/quasar-lancer-02-charge.png",
+    "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/quasar-lancer/frames/quasar-lancer-03-fire.png"
+  ],
+  SCICON_ENEMY_NULL_BASTION_FRAMES: [
+    "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/null-bastion/frames/null-bastion-01-neutral.png",
+    "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/null-bastion/frames/null-bastion-02-charge.png",
+    "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/null-bastion/frames/null-bastion-03-fire.png"
+  ],
+  SCICON_ENEMY_VECTOR_REAVER_FRAMES: [
+    "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/vector-reaver/frames/vector-reaver-01-neutral.png",
+    "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/vector-reaver/frames/vector-reaver-02-charge.png",
+    "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/vector-reaver/frames/vector-reaver-03-fire.png"
+  ],
+  SCICON_ENEMY_RIFT_WEAVER_FRAMES: [
+    "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/rift-weaver/frames/rift-weaver-01-neutral.png",
+    "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/rift-weaver/frames/rift-weaver-02-charge.png",
+    "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/rift-weaver/frames/rift-weaver-03-fire.png"
+  ],
+  SCICON_ENEMY_PULSE_HERALD_FRAMES: [
+    "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/pulse-herald/frames/pulse-herald-01-neutral.png",
+    "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/pulse-herald/frames/pulse-herald-02-charge.png",
+    "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/pulse-herald/frames/pulse-herald-03-fire.png"
+  ],
   CAMPAIGN_ENEMY_PRISM_ARTILLERY: "/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/prism-artillery.png",
   CAMPAIGN_ENEMY_RING_SENTINEL: "/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/ring-sentinel.png",
   CAMPAIGN_ENEMY_SHIELD_RAMMER: "/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/shield-rammer.png",
@@ -390,6 +440,8 @@ export const DONATION_CONFIG = {
   BUILDER_CODE: "bc_ww78gi4f",
   RECIPIENT_ADDRESS: "0x3A8D692Aabdd4981080a8F6af8375a21359464Bf",
   RSC_CONTRACT_ADDRESS: "0xfbb75a59193a3525a8825bebe7d4b56899e2f7e1",
+  BIO_CONTRACT_ADDRESS: "0x226a2fa2556c48245e57cd1cba4c6c9e67077dd2",
+  CBBTC_CONTRACT_ADDRESS: "0xcbb7c0000ab88b473b1f5afd9ef808440eed33bf",
   USDC_CONTRACT_ADDRESS: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
   BASE_CHAIN_ID: 8453,
   BASE_CHAIN_ID_HEX: "0x2105",
@@ -401,6 +453,51 @@ export const DONATION_CONFIG = {
   X_PROFILE_URL: "https://x.com/ScottExplores29",
   GAME_URL: "https://sciconshooter.xyz"
 };
+
+/**
+ * Public, immutable BIO holding requirement. The access API independently
+ * reads this exact ERC-20 balance on Base before reporting the ship unlocked.
+ * BIO uses 18 decimals on the configured Base contract.
+ */
+export const BIO_SHIP_HOLDING_REQUIREMENT = Object.freeze({
+  shipId: 'bio',
+  tokenAddress: DONATION_CONFIG.BIO_CONTRACT_ADDRESS,
+  tokenSymbol: 'BIO',
+  decimals: 18,
+  minimumAmount: '100',
+  minimumAmountRaw: '100000000000000000000'
+} as const);
+
+/**
+ * Public ship-purchase terms mirrored by the server. Values are strings so no
+ * floating-point conversion can alter the exact amount sent to the wallet.
+ */
+export const PLAYER_SHIP_PURCHASE_SKUS = Object.freeze({
+  'eth-ship': Object.freeze({
+    id: 'eth-ship',
+    label: 'Unlock ETH ship',
+    grantsShipId: 'eth',
+    paymentKind: 'native',
+    tokenAddress: null,
+    tokenSymbol: 'ETH',
+    decimals: 18,
+    amount: '0.001',
+    amountRaw: '1000000000000000'
+  }),
+  'btc-ship': Object.freeze({
+    id: 'btc-ship',
+    label: 'Unlock BTC ship',
+    grantsShipId: 'btc',
+    paymentKind: 'erc20',
+    tokenAddress: DONATION_CONFIG.CBBTC_CONTRACT_ADDRESS,
+    tokenSymbol: 'cbBTC',
+    decimals: 8,
+    amount: '0.00008',
+    amountRaw: '8000'
+  })
+} as const);
+
+export type PlayerShipPurchaseSkuId = keyof typeof PLAYER_SHIP_PURCHASE_SKUS;
 
 // Paid Token packs use the server-authoritative purchase and Token reserve
 // ledger. The API independently verifies every exact RSC transfer on Base.

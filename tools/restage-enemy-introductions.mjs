@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 // This path used to mutate the revision-24 Campaign by moving enemy-role
 // introductions and rebinding formation packs. That migration is complete.
-// The current Campaign intentionally consolidates twenty roles into seven
-// Scicon Squadron families, so replaying the old rewrite would undo authored
-// choreography. Keep the command as a non-mutating compatibility check.
+// Replaying the old rewrite would undo authored choreography. Keep the command
+// as a non-mutating compatibility check for the restored roster plus the five
+// generated late-game families.
 //
 // Usage: node tools/restage-enemy-introductions.mjs
 
@@ -37,19 +37,24 @@ const INTRODUCTION_SCHEDULE = Object.freeze({
   'role-shield-rammer': [7, 2],
   'role-prism-artillery': [8, 2],
   'role-ring-sentinel': [9, 2],
-  'role-ring-emitter': [10, 2]
+  'role-ring-emitter': [10, 2],
+  'role-quasar-lancer': [6, 1],
+  'role-null-bastion': [7, 1],
+  'role-vector-reaver': [8, 1],
+  'role-rift-weaver': [9, 1],
+  'role-pulse-herald': [10, 1]
 });
 
-// Scott restored the legacy enemy roster on 2026-08-03: every role keeps its
-// original animated art (flight-motion pack, jets, stage-20 specialists). The
-// consolidated seven-key Squadron pass is the retired direction now.
+// Compact Retraction Fleet art replaces the obsolete pink terrain jets and
+// the two needle-shaped advanced hulls. Other established silhouettes remain
+// distinct instead of being collapsed into one generic squadron family.
 const ROLE_SPRITE_KEYS = Object.freeze({
   'role-orbit-scout': 'LEGACY_ENEMY_DRONE_FRAMES',
   'role-research-drone': 'ENEMY_DRONE_FRAMES',
   'role-citation-swarm': 'ENEMY_SWARM_FRAMES',
-  'role-jet-scout': 'PIXI_JET_SCOUT_FRAMES',
-  'role-jet-interceptor': 'PIXI_JET_INTERCEPTOR_FRAMES',
-  'role-jet-heavy': 'PIXI_JET_HEAVY_FRAMES',
+  'role-jet-scout': 'SCICON_ENEMY_REDLINE_SKIRMISHER_FRAMES',
+  'role-jet-interceptor': 'SCICON_ENEMY_CROSSCUT_RAIDER_FRAMES',
+  'role-jet-heavy': 'SCICON_ENEMY_AUDIT_BULWARK_FRAMES',
   'role-journal-priority': 'ENEMY_JOURNAL_FRAMES',
   'role-dna-conductor': 'CAMPAIGN_ENEMY_DNA_CONDUCTOR',
   'role-laser-stalker': 'CAMPAIGN_ENEMY_LASER_STALKER',
@@ -63,7 +68,12 @@ const ROLE_SPRITE_KEYS = Object.freeze({
   'role-shield-rammer': 'CAMPAIGN_ENEMY_SHIELD_RAMMER',
   'role-prism-artillery': 'CAMPAIGN_ENEMY_PRISM_ARTILLERY',
   'role-ring-sentinel': 'CAMPAIGN_ENEMY_RING_SENTINEL',
-  'role-ring-emitter': 'CAMPAIGN_ENEMY_BULLET_RING_EMITTER'
+  'role-ring-emitter': 'CAMPAIGN_ENEMY_BULLET_RING_EMITTER',
+  'role-quasar-lancer': 'SCICON_ENEMY_QUASAR_LANCER_V2_FRAMES',
+  'role-null-bastion': 'SCICON_ENEMY_NULL_BASTION_FRAMES',
+  'role-vector-reaver': 'SCICON_ENEMY_VECTOR_REAVER_V2_FRAMES',
+  'role-rift-weaver': 'SCICON_ENEMY_RIFT_WEAVER_FRAMES',
+  'role-pulse-herald': 'SCICON_ENEMY_PULSE_HERALD_FRAMES'
 });
 
 const SCICON_FAMILY_KEYS = new Set(Object.values(ROLE_SPRITE_KEYS));
