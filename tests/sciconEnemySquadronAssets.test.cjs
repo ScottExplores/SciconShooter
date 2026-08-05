@@ -123,19 +123,21 @@ test('Squadron v1 registers exactly seven family keys across runtime, Director, 
   }
 });
 
-test('all twenty active roles and every authored spawn use their assigned legacy family', () => {
-  assert.equal(campaign.enemyRoles.length, 20);
-  assert.deepEqual(new Set(campaign.enemyRoles.map((role) => role.id)), new Set(EXPECTED_FAMILY_BY_ROLE.keys()));
-  for (const role of campaign.enemyRoles) {
+test('all twenty restored roles and their spawns keep their assigned legacy family', () => {
+  assert.equal(campaign.enemyRoles.length, 25, 'five generated late roles extend the restored twenty');
+  const legacyRoles = campaign.enemyRoles.filter((role) => EXPECTED_FAMILY_BY_ROLE.has(role.id));
+  assert.deepEqual(new Set(legacyRoles.map((role) => role.id)), new Set(EXPECTED_FAMILY_BY_ROLE.keys()));
+  for (const role of legacyRoles) {
     assert.equal(role.spriteKey, EXPECTED_FAMILY_BY_ROLE.get(role.id), role.id);
     assert.equal(RETIRED_REGULAR_KEYS.has(role.spriteKey), false, role.id);
   }
   assert.ok(spawnEnemies.length > 1000);
-  for (const enemy of spawnEnemies) {
+  const legacySpawnEnemies = spawnEnemies.filter((enemy) => EXPECTED_FAMILY_BY_ROLE.has(enemy.roleId));
+  for (const enemy of legacySpawnEnemies) {
     assert.equal(enemy.spriteKey, EXPECTED_FAMILY_BY_ROLE.get(enemy.roleId), enemy.roleId);
     assert.equal(RETIRED_REGULAR_KEYS.has(enemy.spriteKey), false, enemy.roleId);
   }
-  assert.deepEqual(new Set(spawnEnemies.map((enemy) => enemy.spriteKey)), ACTIVE_KEYS);
+  assert.deepEqual(new Set(legacySpawnEnemies.map((enemy) => enemy.spriteKey)), ACTIVE_KEYS);
   for (const level of campaign.levels) {
     const key = level.scorecard?.encounterAssetKey;
     assert.equal(RETIRED_REGULAR_KEYS.has(key), false, `${level.id} scorecard`);
@@ -161,7 +163,7 @@ test('family debuts stay readable (thematic pairs at most) and Journal Raider wa
       });
     }
   }
-  assert.equal(seen.size, 20);
+  assert.equal(seen.size, 25);
   assert.deepEqual(
     debuts.find((debut) => debut.key === 'ENEMY_JOURNAL_FRAMES'),
     { key: 'ENEMY_JOURNAL_FRAMES', levelId: 'stage-bastion-protocol', wave: 1 }

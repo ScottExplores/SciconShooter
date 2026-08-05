@@ -1165,6 +1165,18 @@ const getDefaultEntityTexture = (engine: GameEngine, entity: Entity) => {
       if (entity.formationAttackSelected || entity.formationAttackActive) return entity.spriteFrames[1];
       return entity.spriteFrames[0];
     }
+    // Advanced enemy frames encode neutral / charge / fire states. Tie those
+    // states to simulation timing before falling back to the subtle formation
+    // motion loop so special attacks read clearly without visual desync.
+    if (
+      entity.spriteFrames.length === 3
+      && entity.spriteUrl?.includes('/scicon-advanced-enemy-pack-v1/')
+    ) {
+      if (engine.frameCount - entity.campaignLastFireFrame <= 8) return entity.spriteFrames[2];
+      if (entity.isCharging) return entity.spriteFrames[1];
+      const motionFrame = getFormationMotionFrameIndex(engine, entity);
+      return entity.spriteFrames[motionFrame === 2 ? 1 : motionFrame];
+    }
     if (entity.type === EntityType.ENEMY_INVADER && entity.spriteFrames.length >= 5) {
       return entity.spriteFrames[getPaywallBastionFrameIndex(engine, entity)];
     }

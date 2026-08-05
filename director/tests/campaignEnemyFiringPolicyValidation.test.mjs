@@ -29,4 +29,17 @@ test('Director requires the same readable Campaign enemy fire policy as the game
   const standardRoleIndex = incompatibleElite.enemyRoles.findIndex((role) => role.durabilityClass === 'standard');
   incompatibleElite.enemyRoles[standardRoleIndex].fireBehavior = 'elite-only';
   assert.equal(validationIncludes(incompatibleElite, 'elite-only requires elite durability'), true);
+
+  const validSpecialAttack = structuredClone(campaign);
+  validSpecialAttack.enemyRoles[firingRoleIndex].specialAttack = 'ring-burst';
+  assert.deepEqual(validateGameCampaign(validSpecialAttack), { valid: true, errors: [] });
+
+  const disabledSpecialAttack = structuredClone(campaign);
+  const neverFireRoleIndex = disabledSpecialAttack.enemyRoles.findIndex((role) => role.fireBehavior === 'none');
+  disabledSpecialAttack.enemyRoles[neverFireRoleIndex].specialAttack = 'ring-burst';
+  assert.equal(validationIncludes(disabledSpecialAttack, 'requires an enabled fireBehavior'), true);
+
+  const invalidSpecialAttack = structuredClone(campaign);
+  invalidSpecialAttack.enemyRoles[0].specialAttack = 'screen-wipe';
+  assert.equal(validationIncludes(invalidSpecialAttack, '/enemyRoles/0/specialAttack'), true);
 });

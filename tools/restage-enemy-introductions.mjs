@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 // This path used to mutate the revision-24 Campaign by moving enemy-role
 // introductions and rebinding formation packs. That migration is complete.
-// The current Campaign intentionally consolidates twenty roles into seven
-// Scicon Squadron families, so replaying the old rewrite would undo authored
-// choreography. Keep the command as a non-mutating compatibility check.
+// Replaying the old rewrite would undo authored choreography. Keep the command
+// as a non-mutating compatibility check for the restored roster plus the five
+// generated late-game families.
 //
 // Usage: node tools/restage-enemy-introductions.mjs
 
@@ -37,7 +37,12 @@ const INTRODUCTION_SCHEDULE = Object.freeze({
   'role-shield-rammer': [7, 2],
   'role-prism-artillery': [8, 2],
   'role-ring-sentinel': [9, 2],
-  'role-ring-emitter': [10, 2]
+  'role-ring-emitter': [10, 2],
+  'role-quasar-lancer': [6, 1],
+  'role-null-bastion': [7, 1],
+  'role-vector-reaver': [8, 1],
+  'role-rift-weaver': [9, 1],
+  'role-pulse-herald': [10, 1]
 });
 
 // Scott restored the legacy enemy roster on 2026-08-03: every role keeps its
@@ -63,7 +68,12 @@ const ROLE_SPRITE_KEYS = Object.freeze({
   'role-shield-rammer': 'CAMPAIGN_ENEMY_SHIELD_RAMMER',
   'role-prism-artillery': 'CAMPAIGN_ENEMY_PRISM_ARTILLERY',
   'role-ring-sentinel': 'CAMPAIGN_ENEMY_RING_SENTINEL',
-  'role-ring-emitter': 'CAMPAIGN_ENEMY_BULLET_RING_EMITTER'
+  'role-ring-emitter': 'CAMPAIGN_ENEMY_BULLET_RING_EMITTER',
+  'role-quasar-lancer': 'SCICON_ENEMY_QUASAR_LANCER_FRAMES',
+  'role-null-bastion': 'SCICON_ENEMY_NULL_BASTION_FRAMES',
+  'role-vector-reaver': 'SCICON_ENEMY_VECTOR_REAVER_FRAMES',
+  'role-rift-weaver': 'SCICON_ENEMY_RIFT_WEAVER_FRAMES',
+  'role-pulse-herald': 'SCICON_ENEMY_PULSE_HERALD_FRAMES'
 });
 
 const SCICON_FAMILY_KEYS = new Set(Object.values(ROLE_SPRITE_KEYS));

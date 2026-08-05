@@ -259,6 +259,31 @@ export const ASSETS = {
     "/game-art/generated/scicon-protocol-vanguard-v1/enemies/protocol-vanguard/frames/protocol-vanguard-03-fire.png",
     "/game-art/generated/scicon-protocol-vanguard-v1/enemies/protocol-vanguard/frames/protocol-vanguard-04-damage.png"
   ],
+  SCICON_ENEMY_QUASAR_LANCER_FRAMES: [
+    "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/quasar-lancer/frames/quasar-lancer-01-neutral.png",
+    "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/quasar-lancer/frames/quasar-lancer-02-charge.png",
+    "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/quasar-lancer/frames/quasar-lancer-03-fire.png"
+  ],
+  SCICON_ENEMY_NULL_BASTION_FRAMES: [
+    "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/null-bastion/frames/null-bastion-01-neutral.png",
+    "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/null-bastion/frames/null-bastion-02-charge.png",
+    "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/null-bastion/frames/null-bastion-03-fire.png"
+  ],
+  SCICON_ENEMY_VECTOR_REAVER_FRAMES: [
+    "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/vector-reaver/frames/vector-reaver-01-neutral.png",
+    "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/vector-reaver/frames/vector-reaver-02-charge.png",
+    "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/vector-reaver/frames/vector-reaver-03-fire.png"
+  ],
+  SCICON_ENEMY_RIFT_WEAVER_FRAMES: [
+    "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/rift-weaver/frames/rift-weaver-01-neutral.png",
+    "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/rift-weaver/frames/rift-weaver-02-charge.png",
+    "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/rift-weaver/frames/rift-weaver-03-fire.png"
+  ],
+  SCICON_ENEMY_PULSE_HERALD_FRAMES: [
+    "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/pulse-herald/frames/pulse-herald-01-neutral.png",
+    "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/pulse-herald/frames/pulse-herald-02-charge.png",
+    "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/pulse-herald/frames/pulse-herald-03-fire.png"
+  ],
   CAMPAIGN_ENEMY_PRISM_ARTILLERY: "/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/prism-artillery.png",
   CAMPAIGN_ENEMY_RING_SENTINEL: "/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/ring-sentinel.png",
   CAMPAIGN_ENEMY_SHIELD_RAMMER: "/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/shield-rammer.png",

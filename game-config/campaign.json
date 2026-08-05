@@ -22483,11 +22483,12 @@
           "introSeconds": 1,
           "delayAfterSeconds": 0,
           "scoreMultiplier": 26,
-          "threatCap": 34,
-          "combatBudget": 136.08,
+          "threatCap": 52,
+          "combatBudget": 295.36,
           "rhythm": "warm-up",
           "formationPackIds": [
-            "pack-dna-helix"
+            "pack-dna-helix",
+            "pack-quasar-lance"
           ],
           "events": [
             {
@@ -22569,6 +22570,37 @@
                 "magnet",
                 "shield",
                 "research-beam"
+              ]
+            },
+            {
+              "id": "stage-rail-meridian-signal-wave-1-advanced-enemy-v1-quasar-lancer-1",
+              "kind": "spawn",
+              "label": "Quasar Lancer arrival",
+              "startSeconds": 1.45,
+              "durationSeconds": 7.55,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 8,
+              "patternId": "pincer",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.21,
+              "enemies": [
+                {
+                  "enemyId": "journal",
+                  "spriteKey": "SCICON_ENEMY_QUASAR_LANCER_FRAMES",
+                  "weight": 1,
+                  "health": 12,
+                  "speed": 2.18,
+                  "damage": 1,
+                  "scoreValue": 280,
+                  "powerupDropChance": 0,
+                  "roleId": "role-quasar-lancer",
+                  "rank": "elite",
+                  "attackPatternId": "aimed-burst",
+                  "attackIntervalSeconds": 3.6,
+                  "projectileSpeed": 4.8,
+                  "burstCount": 1
+                }
               ]
             }
           ]
@@ -23911,16 +23943,17 @@
           "backgroundId": "helix-redline",
           "completionRule": "clear-after-duration",
           "difficultyMultiplier": 1.177,
-          "durationSeconds": 9,
+          "durationSeconds": 11.1,
           "introSeconds": 0,
           "delayAfterSeconds": 0,
           "scoreMultiplier": 27,
-          "threatCap": 37,
-          "combatBudget": 474.08,
+          "threatCap": 52,
+          "combatBudget": 544.08,
           "rhythm": "variation",
           "formationPackIds": [
             "pack-dna-helix",
-            "pack-wall-crossfire"
+            "pack-wall-crossfire",
+            "pack-quasar-lance"
           ],
           "events": [
             {
@@ -24005,6 +24038,37 @@
                   "scoreValue": 73,
                   "powerupDropChance": 0,
                   "roleId": "role-laser-hunter"
+                }
+              ]
+            },
+            {
+              "id": "stage-rail-meridian-crossing-wave-extra-4-advanced-enemy-v1-quasar-lancer-1",
+              "kind": "spawn",
+              "label": "Quasar Lancer reinforcement train",
+              "startSeconds": 4,
+              "durationSeconds": 7.1,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 10,
+              "patternId": "pincer",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.21,
+              "enemies": [
+                {
+                  "enemyId": "journal",
+                  "spriteKey": "SCICON_ENEMY_QUASAR_LANCER_FRAMES",
+                  "weight": 1,
+                  "health": 12,
+                  "speed": 2.18,
+                  "damage": 1,
+                  "scoreValue": 280,
+                  "powerupDropChance": 0,
+                  "roleId": "role-quasar-lancer",
+                  "rank": "elite",
+                  "attackPatternId": "aimed-burst",
+                  "attackIntervalSeconds": 3.6,
+                  "projectileSpeed": 4.8,
+                  "burstCount": 1
                 }
               ]
             }
@@ -27978,11 +28042,12 @@
           "introSeconds": 1,
           "delayAfterSeconds": 0,
           "scoreMultiplier": 31,
-          "threatCap": 34,
-          "combatBudget": 136.08,
+          "threatCap": 59,
+          "combatBudget": 323.36,
           "rhythm": "warm-up",
           "formationPackIds": [
-            "pack-dna-helix"
+            "pack-dna-helix",
+            "pack-null-bastion-phalanx"
           ],
           "events": [
             {
@@ -28064,6 +28129,32 @@
                 "magnet",
                 "shield",
                 "research-beam"
+              ]
+            },
+            {
+              "id": "stage-singularity-reach-signal-wave-1-advanced-enemy-v1-null-bastion-1",
+              "kind": "spawn",
+              "label": "Null Bastion arrival",
+              "startSeconds": 1.45,
+              "durationSeconds": 7.55,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 9,
+              "patternId": "grid",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.2,
+              "enemies": [
+                {
+                  "enemyId": "brick",
+                  "spriteKey": "SCICON_ENEMY_NULL_BASTION_FRAMES",
+                  "weight": 1,
+                  "health": 20,
+                  "speed": 1.82,
+                  "damage": 1,
+                  "scoreValue": 305,
+                  "powerupDropChance": 0,
+                  "roleId": "role-null-bastion"
+                }
               ]
             }
           ]
@@ -29453,16 +29544,18 @@
           "backgroundId": "gravity-rift",
           "completionRule": "clear-after-duration",
           "difficultyMultiplier": 1.177,
-          "durationSeconds": 9,
+          "durationSeconds": 13.2,
           "introSeconds": 0,
           "delayAfterSeconds": 0,
           "scoreMultiplier": 32,
-          "threatCap": 37,
-          "combatBudget": 474.08,
+          "threatCap": 59,
+          "combatBudget": 647.08,
           "rhythm": "variation",
           "formationPackIds": [
             "pack-dna-helix",
-            "pack-orbit-v"
+            "pack-orbit-v",
+            "pack-quasar-lance",
+            "pack-null-bastion-phalanx"
           ],
           "events": [
             {
@@ -29536,6 +29629,63 @@
                   "scoreValue": 73,
                   "powerupDropChance": 0,
                   "roleId": "role-orbit-scout"
+                }
+              ]
+            },
+            {
+              "id": "stage-singularity-reach-crossing-wave-extra-4-advanced-enemy-v1-quasar-lancer-1",
+              "kind": "spawn",
+              "label": "Quasar Lancer reinforcement train",
+              "startSeconds": 4,
+              "durationSeconds": 9.2,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 11,
+              "patternId": "pincer",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.2,
+              "enemies": [
+                {
+                  "enemyId": "journal",
+                  "spriteKey": "SCICON_ENEMY_QUASAR_LANCER_FRAMES",
+                  "weight": 1,
+                  "health": 13.75,
+                  "speed": 2.225,
+                  "damage": 1,
+                  "scoreValue": 295,
+                  "powerupDropChance": 0,
+                  "roleId": "role-quasar-lancer",
+                  "rank": "elite",
+                  "attackPatternId": "aimed-burst",
+                  "attackIntervalSeconds": 3.6,
+                  "projectileSpeed": 4.8,
+                  "burstCount": 1
+                }
+              ]
+            },
+            {
+              "id": "stage-singularity-reach-crossing-wave-extra-4-advanced-enemy-v1-null-bastion-2",
+              "kind": "spawn",
+              "label": "Null Bastion reinforcement train",
+              "startSeconds": 5.8,
+              "durationSeconds": 7.4,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 12,
+              "patternId": "grid",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.2,
+              "enemies": [
+                {
+                  "enemyId": "brick",
+                  "spriteKey": "SCICON_ENEMY_NULL_BASTION_FRAMES",
+                  "weight": 1,
+                  "health": 20,
+                  "speed": 1.82,
+                  "damage": 1,
+                  "scoreValue": 305,
+                  "powerupDropChance": 0,
+                  "roleId": "role-null-bastion"
                 }
               ]
             }
@@ -31751,11 +31901,12 @@
           "introSeconds": 1,
           "delayAfterSeconds": 0,
           "scoreMultiplier": 36,
-          "threatCap": 34,
-          "combatBudget": 136.08,
+          "threatCap": 66,
+          "combatBudget": 295.36,
           "rhythm": "warm-up",
           "formationPackIds": [
-            "pack-dna-helix"
+            "pack-dna-helix",
+            "pack-vector-reaver-scissors"
           ],
           "events": [
             {
@@ -31837,6 +31988,34 @@
                 "magnet",
                 "shield",
                 "research-beam"
+              ]
+            },
+            {
+              "id": "stage-gyroscope-array-signal-wave-1-advanced-enemy-v1-vector-reaver-1",
+              "kind": "spawn",
+              "label": "Vector Reaver arrival",
+              "startSeconds": 1.45,
+              "durationSeconds": 7.55,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 10,
+              "patternId": "pincer",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.19,
+              "enemies": [
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "SCICON_ENEMY_VECTOR_REAVER_FRAMES",
+                  "weight": 1,
+                  "health": 10,
+                  "speed": 3.05,
+                  "damage": 1,
+                  "scoreValue": 310,
+                  "powerupDropChance": 0,
+                  "roleId": "role-vector-reaver",
+                  "projectileSpeed": 5.2,
+                  "burstCount": 3
+                }
               ]
             }
           ]
@@ -33226,16 +33405,19 @@
           "backgroundId": "open-galaxy",
           "completionRule": "clear-after-duration",
           "difficultyMultiplier": 1.177,
-          "durationSeconds": 9,
+          "durationSeconds": 15.26,
           "introSeconds": 0,
           "delayAfterSeconds": 0,
           "scoreMultiplier": 37,
-          "threatCap": 37,
-          "combatBudget": 474.08,
+          "threatCap": 66,
+          "combatBudget": 760.08,
           "rhythm": "variation",
           "formationPackIds": [
             "pack-dna-helix",
-            "pack-orbit-v"
+            "pack-orbit-v",
+            "pack-quasar-lance",
+            "pack-null-bastion-phalanx",
+            "pack-vector-reaver-scissors"
           ],
           "events": [
             {
@@ -33309,6 +33491,91 @@
                   "scoreValue": 73,
                   "powerupDropChance": 0,
                   "roleId": "role-orbit-scout"
+                }
+              ]
+            },
+            {
+              "id": "stage-gyroscope-array-crossing-wave-extra-4-advanced-enemy-v1-quasar-lancer-1",
+              "kind": "spawn",
+              "label": "Quasar Lancer reinforcement train",
+              "startSeconds": 4,
+              "durationSeconds": 11.26,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 12,
+              "patternId": "pincer",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.19,
+              "enemies": [
+                {
+                  "enemyId": "journal",
+                  "spriteKey": "SCICON_ENEMY_QUASAR_LANCER_FRAMES",
+                  "weight": 1,
+                  "health": 15.5,
+                  "speed": 2.27,
+                  "damage": 1,
+                  "scoreValue": 310,
+                  "powerupDropChance": 0,
+                  "roleId": "role-quasar-lancer",
+                  "rank": "elite",
+                  "attackPatternId": "aimed-burst",
+                  "attackIntervalSeconds": 3.6,
+                  "projectileSpeed": 4.8,
+                  "burstCount": 1
+                }
+              ]
+            },
+            {
+              "id": "stage-gyroscope-array-crossing-wave-extra-4-advanced-enemy-v1-null-bastion-2",
+              "kind": "spawn",
+              "label": "Null Bastion reinforcement train",
+              "startSeconds": 5.8,
+              "durationSeconds": 9.46,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 13,
+              "patternId": "grid",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.19,
+              "enemies": [
+                {
+                  "enemyId": "brick",
+                  "spriteKey": "SCICON_ENEMY_NULL_BASTION_FRAMES",
+                  "weight": 1,
+                  "health": 21.75,
+                  "speed": 1.865,
+                  "damage": 1,
+                  "scoreValue": 320,
+                  "powerupDropChance": 0,
+                  "roleId": "role-null-bastion"
+                }
+              ]
+            },
+            {
+              "id": "stage-gyroscope-array-crossing-wave-extra-4-advanced-enemy-v1-vector-reaver-3",
+              "kind": "spawn",
+              "label": "Vector Reaver reinforcement train",
+              "startSeconds": 7.6,
+              "durationSeconds": 7.66,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 14,
+              "patternId": "pincer",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.19,
+              "enemies": [
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "SCICON_ENEMY_VECTOR_REAVER_FRAMES",
+                  "weight": 1,
+                  "health": 10,
+                  "speed": 3.05,
+                  "damage": 1,
+                  "scoreValue": 310,
+                  "powerupDropChance": 0,
+                  "roleId": "role-vector-reaver",
+                  "projectileSpeed": 5.2,
+                  "burstCount": 3
                 }
               ]
             }
@@ -35524,11 +35791,12 @@
           "introSeconds": 1,
           "delayAfterSeconds": 0,
           "scoreMultiplier": 41,
-          "threatCap": 34,
-          "combatBudget": 136.08,
+          "threatCap": 73,
+          "combatBudget": 323.36,
           "rhythm": "warm-up",
           "formationPackIds": [
-            "pack-dna-helix"
+            "pack-dna-helix",
+            "pack-rift-weaver-helix"
           ],
           "events": [
             {
@@ -35610,6 +35878,37 @@
                 "magnet",
                 "shield",
                 "research-beam"
+              ]
+            },
+            {
+              "id": "stage-hammerhead-line-signal-wave-1-advanced-enemy-v1-rift-weaver-1",
+              "kind": "spawn",
+              "label": "Rift Weaver arrival",
+              "startSeconds": 1.45,
+              "durationSeconds": 7.55,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 11,
+              "patternId": "sine",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.18,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "SCICON_ENEMY_RIFT_WEAVER_FRAMES",
+                  "weight": 1,
+                  "health": 15,
+                  "speed": 2.62,
+                  "damage": 1,
+                  "scoreValue": 335,
+                  "powerupDropChance": 0,
+                  "roleId": "role-rift-weaver",
+                  "rank": "elite",
+                  "attackPatternId": "aimed-burst",
+                  "attackIntervalSeconds": 3.2,
+                  "projectileSpeed": 4.4,
+                  "burstCount": 3
+                }
               ]
             }
           ]
@@ -36999,16 +37298,19 @@
           "backgroundId": "shattered-void",
           "completionRule": "clear-after-duration",
           "difficultyMultiplier": 1.177,
-          "durationSeconds": 9,
+          "durationSeconds": 15.3,
           "introSeconds": 0,
           "delayAfterSeconds": 0,
           "scoreMultiplier": 42,
-          "threatCap": 37,
-          "combatBudget": 474.08,
+          "threatCap": 73,
+          "combatBudget": 796.08,
           "rhythm": "variation",
           "formationPackIds": [
             "pack-dna-helix",
-            "pack-orbit-v"
+            "pack-orbit-v",
+            "pack-null-bastion-phalanx",
+            "pack-vector-reaver-scissors",
+            "pack-rift-weaver-helix"
           ],
           "events": [
             {
@@ -37082,6 +37384,91 @@
                   "scoreValue": 73,
                   "powerupDropChance": 0,
                   "roleId": "role-orbit-scout"
+                }
+              ]
+            },
+            {
+              "id": "stage-hammerhead-line-crossing-wave-extra-4-advanced-enemy-v1-null-bastion-1",
+              "kind": "spawn",
+              "label": "Null Bastion reinforcement train",
+              "startSeconds": 4,
+              "durationSeconds": 11.3,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 13,
+              "patternId": "grid",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.18,
+              "enemies": [
+                {
+                  "enemyId": "brick",
+                  "spriteKey": "SCICON_ENEMY_NULL_BASTION_FRAMES",
+                  "weight": 1,
+                  "health": 23.5,
+                  "speed": 1.91,
+                  "damage": 1,
+                  "scoreValue": 335,
+                  "powerupDropChance": 0,
+                  "roleId": "role-null-bastion"
+                }
+              ]
+            },
+            {
+              "id": "stage-hammerhead-line-crossing-wave-extra-4-advanced-enemy-v1-vector-reaver-2",
+              "kind": "spawn",
+              "label": "Vector Reaver reinforcement train",
+              "startSeconds": 5.8,
+              "durationSeconds": 9.5,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 14,
+              "patternId": "pincer",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.18,
+              "enemies": [
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "SCICON_ENEMY_VECTOR_REAVER_FRAMES",
+                  "weight": 1,
+                  "health": 11.75,
+                  "speed": 3.095,
+                  "damage": 1,
+                  "scoreValue": 325,
+                  "powerupDropChance": 0,
+                  "roleId": "role-vector-reaver",
+                  "projectileSpeed": 5.2,
+                  "burstCount": 3
+                }
+              ]
+            },
+            {
+              "id": "stage-hammerhead-line-crossing-wave-extra-4-advanced-enemy-v1-rift-weaver-3",
+              "kind": "spawn",
+              "label": "Rift Weaver reinforcement train",
+              "startSeconds": 7.6,
+              "durationSeconds": 7.7,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 15,
+              "patternId": "sine",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.18,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "SCICON_ENEMY_RIFT_WEAVER_FRAMES",
+                  "weight": 1,
+                  "health": 15,
+                  "speed": 2.62,
+                  "damage": 1,
+                  "scoreValue": 335,
+                  "powerupDropChance": 0,
+                  "roleId": "role-rift-weaver",
+                  "rank": "elite",
+                  "attackPatternId": "aimed-burst",
+                  "attackIntervalSeconds": 3.2,
+                  "projectileSpeed": 4.4,
+                  "burstCount": 3
                 }
               ]
             }
@@ -39297,11 +39684,12 @@
           "introSeconds": 1,
           "delayAfterSeconds": 0,
           "scoreMultiplier": 46,
-          "threatCap": 34,
-          "combatBudget": 136.08,
+          "threatCap": 80,
+          "combatBudget": 351.36,
           "rhythm": "warm-up",
           "formationPackIds": [
-            "pack-dna-helix"
+            "pack-dna-helix",
+            "pack-pulse-herald-orbit"
           ],
           "events": [
             {
@@ -39383,6 +39771,37 @@
                 "magnet",
                 "shield",
                 "research-beam"
+              ]
+            },
+            {
+              "id": "stage-crownclaw-frontier-signal-wave-1-advanced-enemy-v1-pulse-herald-1",
+              "kind": "spawn",
+              "label": "Pulse Herald arrival",
+              "startSeconds": 1.45,
+              "durationSeconds": 7.55,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 12,
+              "patternId": "spiral",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.17,
+              "enemies": [
+                {
+                  "enemyId": "journal",
+                  "spriteKey": "SCICON_ENEMY_PULSE_HERALD_FRAMES",
+                  "weight": 1,
+                  "health": 18,
+                  "speed": 2.28,
+                  "damage": 1,
+                  "scoreValue": 360,
+                  "powerupDropChance": 0,
+                  "roleId": "role-pulse-herald",
+                  "rank": "elite",
+                  "attackPatternId": "aimed-burst",
+                  "attackIntervalSeconds": 3.5,
+                  "projectileSpeed": 4.1,
+                  "burstCount": 6
+                }
               ]
             }
           ]
@@ -40772,16 +41191,19 @@
           "backgroundId": "terminus-frontier",
           "completionRule": "clear-after-duration",
           "difficultyMultiplier": 1.177,
-          "durationSeconds": 9,
+          "durationSeconds": 15.32,
           "introSeconds": 0,
           "delayAfterSeconds": 0,
           "scoreMultiplier": 47,
-          "threatCap": 37,
-          "combatBudget": 474.08,
+          "threatCap": 80,
+          "combatBudget": 836.08,
           "rhythm": "variation",
           "formationPackIds": [
             "pack-dna-helix",
-            "pack-orbit-v"
+            "pack-orbit-v",
+            "pack-vector-reaver-scissors",
+            "pack-rift-weaver-helix",
+            "pack-pulse-herald-orbit"
           ],
           "events": [
             {
@@ -40855,6 +41277,96 @@
                   "scoreValue": 73,
                   "powerupDropChance": 0,
                   "roleId": "role-orbit-scout"
+                }
+              ]
+            },
+            {
+              "id": "stage-crownclaw-frontier-crossing-wave-extra-4-advanced-enemy-v1-vector-reaver-1",
+              "kind": "spawn",
+              "label": "Vector Reaver reinforcement train",
+              "startSeconds": 4,
+              "durationSeconds": 11.32,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 14,
+              "patternId": "pincer",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.17,
+              "enemies": [
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "SCICON_ENEMY_VECTOR_REAVER_FRAMES",
+                  "weight": 1,
+                  "health": 13.5,
+                  "speed": 3.14,
+                  "damage": 1,
+                  "scoreValue": 340,
+                  "powerupDropChance": 0,
+                  "roleId": "role-vector-reaver",
+                  "projectileSpeed": 5.2,
+                  "burstCount": 3
+                }
+              ]
+            },
+            {
+              "id": "stage-crownclaw-frontier-crossing-wave-extra-4-advanced-enemy-v1-rift-weaver-2",
+              "kind": "spawn",
+              "label": "Rift Weaver reinforcement train",
+              "startSeconds": 5.8,
+              "durationSeconds": 9.52,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 15,
+              "patternId": "sine",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.17,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "SCICON_ENEMY_RIFT_WEAVER_FRAMES",
+                  "weight": 1,
+                  "health": 16.75,
+                  "speed": 2.665,
+                  "damage": 1,
+                  "scoreValue": 350,
+                  "powerupDropChance": 0,
+                  "roleId": "role-rift-weaver",
+                  "rank": "elite",
+                  "attackPatternId": "aimed-burst",
+                  "attackIntervalSeconds": 3.2,
+                  "projectileSpeed": 4.4,
+                  "burstCount": 3
+                }
+              ]
+            },
+            {
+              "id": "stage-crownclaw-frontier-crossing-wave-extra-4-advanced-enemy-v1-pulse-herald-3",
+              "kind": "spawn",
+              "label": "Pulse Herald reinforcement train",
+              "startSeconds": 7.6,
+              "durationSeconds": 7.72,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 16,
+              "patternId": "spiral",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.17,
+              "enemies": [
+                {
+                  "enemyId": "journal",
+                  "spriteKey": "SCICON_ENEMY_PULSE_HERALD_FRAMES",
+                  "weight": 1,
+                  "health": 18,
+                  "speed": 2.28,
+                  "damage": 1,
+                  "scoreValue": 360,
+                  "powerupDropChance": 0,
+                  "roleId": "role-pulse-herald",
+                  "rank": "elite",
+                  "attackPatternId": "aimed-burst",
+                  "attackIntervalSeconds": 3.5,
+                  "projectileSpeed": 4.1,
+                  "burstCount": 6
                 }
               ]
             }
@@ -48224,16 +48736,17 @@
           "backgroundId": "helix-redline",
           "completionRule": "clear-after-duration",
           "difficultyMultiplier": 1.38996,
-          "durationSeconds": 9,
+          "durationSeconds": 11.1,
           "introSeconds": 0,
           "delayAfterSeconds": 0,
           "scoreMultiplier": 27,
-          "threatCap": 37,
-          "combatBudget": 473.08,
+          "threatCap": 52,
+          "combatBudget": 543.08,
           "rhythm": "variation",
           "formationPackIds": [
             "pack-citation-spiral",
-            "pack-dna-helix"
+            "pack-dna-helix",
+            "pack-quasar-lance"
           ],
           "events": [
             {
@@ -48318,6 +48831,37 @@
                   "scoreValue": 140,
                   "powerupDropChance": 0,
                   "roleId": "role-orbit-disc"
+                }
+              ]
+            },
+            {
+              "id": "stage-rail-meridian-route-b-wave-extra-3-advanced-enemy-v1-quasar-lancer-1",
+              "kind": "spawn",
+              "label": "Quasar Lancer reinforcement train",
+              "startSeconds": 4,
+              "durationSeconds": 7.1,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 10,
+              "patternId": "pincer",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.21,
+              "enemies": [
+                {
+                  "enemyId": "journal",
+                  "spriteKey": "SCICON_ENEMY_QUASAR_LANCER_FRAMES",
+                  "weight": 1,
+                  "health": 12,
+                  "speed": 2.18,
+                  "damage": 1,
+                  "scoreValue": 280,
+                  "powerupDropChance": 0,
+                  "roleId": "role-quasar-lancer",
+                  "rank": "elite",
+                  "attackPatternId": "aimed-burst",
+                  "attackIntervalSeconds": 3.6,
+                  "projectileSpeed": 4.8,
+                  "burstCount": 1
                 }
               ]
             }
@@ -49196,16 +49740,18 @@
           "backgroundId": "gravity-rift",
           "completionRule": "clear-after-duration",
           "difficultyMultiplier": 1.4493600000000002,
-          "durationSeconds": 9,
+          "durationSeconds": 13.2,
           "introSeconds": 0,
           "delayAfterSeconds": 0,
           "scoreMultiplier": 32,
-          "threatCap": 37,
-          "combatBudget": 473.08,
+          "threatCap": 59,
+          "combatBudget": 646.08,
           "rhythm": "variation",
           "formationPackIds": [
             "pack-citation-spiral",
-            "pack-dna-helix"
+            "pack-dna-helix",
+            "pack-quasar-lance",
+            "pack-null-bastion-phalanx"
           ],
           "events": [
             {
@@ -49290,6 +49836,63 @@
                   "scoreValue": 140,
                   "powerupDropChance": 0,
                   "roleId": "role-orbit-disc"
+                }
+              ]
+            },
+            {
+              "id": "stage-singularity-reach-route-b-wave-extra-3-advanced-enemy-v1-quasar-lancer-1",
+              "kind": "spawn",
+              "label": "Quasar Lancer reinforcement train",
+              "startSeconds": 4,
+              "durationSeconds": 9.2,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 11,
+              "patternId": "pincer",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.2,
+              "enemies": [
+                {
+                  "enemyId": "journal",
+                  "spriteKey": "SCICON_ENEMY_QUASAR_LANCER_FRAMES",
+                  "weight": 1,
+                  "health": 13.75,
+                  "speed": 2.225,
+                  "damage": 1,
+                  "scoreValue": 295,
+                  "powerupDropChance": 0,
+                  "roleId": "role-quasar-lancer",
+                  "rank": "elite",
+                  "attackPatternId": "aimed-burst",
+                  "attackIntervalSeconds": 3.6,
+                  "projectileSpeed": 4.8,
+                  "burstCount": 1
+                }
+              ]
+            },
+            {
+              "id": "stage-singularity-reach-route-b-wave-extra-3-advanced-enemy-v1-null-bastion-2",
+              "kind": "spawn",
+              "label": "Null Bastion reinforcement train",
+              "startSeconds": 5.8,
+              "durationSeconds": 7.4,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 12,
+              "patternId": "grid",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.2,
+              "enemies": [
+                {
+                  "enemyId": "brick",
+                  "spriteKey": "SCICON_ENEMY_NULL_BASTION_FRAMES",
+                  "weight": 1,
+                  "health": 20,
+                  "speed": 1.82,
+                  "damage": 1,
+                  "scoreValue": 305,
+                  "powerupDropChance": 0,
+                  "roleId": "role-null-bastion"
                 }
               ]
             }
@@ -50168,16 +50771,19 @@
           "backgroundId": "open-galaxy",
           "completionRule": "clear-after-duration",
           "difficultyMultiplier": 1.50876,
-          "durationSeconds": 9,
+          "durationSeconds": 15.26,
           "introSeconds": 0,
           "delayAfterSeconds": 0,
           "scoreMultiplier": 37,
-          "threatCap": 37,
-          "combatBudget": 473.08,
+          "threatCap": 66,
+          "combatBudget": 759.08,
           "rhythm": "variation",
           "formationPackIds": [
             "pack-citation-spiral",
-            "pack-dna-helix"
+            "pack-dna-helix",
+            "pack-quasar-lance",
+            "pack-null-bastion-phalanx",
+            "pack-vector-reaver-scissors"
           ],
           "events": [
             {
@@ -50262,6 +50868,91 @@
                   "scoreValue": 140,
                   "powerupDropChance": 0,
                   "roleId": "role-orbit-disc"
+                }
+              ]
+            },
+            {
+              "id": "stage-gyroscope-array-route-b-wave-extra-3-advanced-enemy-v1-quasar-lancer-1",
+              "kind": "spawn",
+              "label": "Quasar Lancer reinforcement train",
+              "startSeconds": 4,
+              "durationSeconds": 11.26,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 12,
+              "patternId": "pincer",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.19,
+              "enemies": [
+                {
+                  "enemyId": "journal",
+                  "spriteKey": "SCICON_ENEMY_QUASAR_LANCER_FRAMES",
+                  "weight": 1,
+                  "health": 15.5,
+                  "speed": 2.27,
+                  "damage": 1,
+                  "scoreValue": 310,
+                  "powerupDropChance": 0,
+                  "roleId": "role-quasar-lancer",
+                  "rank": "elite",
+                  "attackPatternId": "aimed-burst",
+                  "attackIntervalSeconds": 3.6,
+                  "projectileSpeed": 4.8,
+                  "burstCount": 1
+                }
+              ]
+            },
+            {
+              "id": "stage-gyroscope-array-route-b-wave-extra-3-advanced-enemy-v1-null-bastion-2",
+              "kind": "spawn",
+              "label": "Null Bastion reinforcement train",
+              "startSeconds": 5.8,
+              "durationSeconds": 9.46,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 13,
+              "patternId": "grid",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.19,
+              "enemies": [
+                {
+                  "enemyId": "brick",
+                  "spriteKey": "SCICON_ENEMY_NULL_BASTION_FRAMES",
+                  "weight": 1,
+                  "health": 21.75,
+                  "speed": 1.865,
+                  "damage": 1,
+                  "scoreValue": 320,
+                  "powerupDropChance": 0,
+                  "roleId": "role-null-bastion"
+                }
+              ]
+            },
+            {
+              "id": "stage-gyroscope-array-route-b-wave-extra-3-advanced-enemy-v1-vector-reaver-3",
+              "kind": "spawn",
+              "label": "Vector Reaver reinforcement train",
+              "startSeconds": 7.6,
+              "durationSeconds": 7.66,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 14,
+              "patternId": "pincer",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.19,
+              "enemies": [
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "SCICON_ENEMY_VECTOR_REAVER_FRAMES",
+                  "weight": 1,
+                  "health": 10,
+                  "speed": 3.05,
+                  "damage": 1,
+                  "scoreValue": 310,
+                  "powerupDropChance": 0,
+                  "roleId": "role-vector-reaver",
+                  "projectileSpeed": 5.2,
+                  "burstCount": 3
                 }
               ]
             }
@@ -51140,16 +51831,19 @@
           "backgroundId": "shattered-void",
           "completionRule": "clear-after-duration",
           "difficultyMultiplier": 1.56816,
-          "durationSeconds": 9,
+          "durationSeconds": 15.3,
           "introSeconds": 0,
           "delayAfterSeconds": 0,
           "scoreMultiplier": 42,
-          "threatCap": 37,
-          "combatBudget": 473.08,
+          "threatCap": 73,
+          "combatBudget": 795.08,
           "rhythm": "variation",
           "formationPackIds": [
             "pack-citation-spiral",
-            "pack-dna-helix"
+            "pack-dna-helix",
+            "pack-null-bastion-phalanx",
+            "pack-vector-reaver-scissors",
+            "pack-rift-weaver-helix"
           ],
           "events": [
             {
@@ -51234,6 +51928,91 @@
                   "scoreValue": 140,
                   "powerupDropChance": 0,
                   "roleId": "role-orbit-disc"
+                }
+              ]
+            },
+            {
+              "id": "stage-hammerhead-line-route-b-wave-extra-3-advanced-enemy-v1-null-bastion-1",
+              "kind": "spawn",
+              "label": "Null Bastion reinforcement train",
+              "startSeconds": 4,
+              "durationSeconds": 11.3,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 13,
+              "patternId": "grid",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.18,
+              "enemies": [
+                {
+                  "enemyId": "brick",
+                  "spriteKey": "SCICON_ENEMY_NULL_BASTION_FRAMES",
+                  "weight": 1,
+                  "health": 23.5,
+                  "speed": 1.91,
+                  "damage": 1,
+                  "scoreValue": 335,
+                  "powerupDropChance": 0,
+                  "roleId": "role-null-bastion"
+                }
+              ]
+            },
+            {
+              "id": "stage-hammerhead-line-route-b-wave-extra-3-advanced-enemy-v1-vector-reaver-2",
+              "kind": "spawn",
+              "label": "Vector Reaver reinforcement train",
+              "startSeconds": 5.8,
+              "durationSeconds": 9.5,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 14,
+              "patternId": "pincer",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.18,
+              "enemies": [
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "SCICON_ENEMY_VECTOR_REAVER_FRAMES",
+                  "weight": 1,
+                  "health": 11.75,
+                  "speed": 3.095,
+                  "damage": 1,
+                  "scoreValue": 325,
+                  "powerupDropChance": 0,
+                  "roleId": "role-vector-reaver",
+                  "projectileSpeed": 5.2,
+                  "burstCount": 3
+                }
+              ]
+            },
+            {
+              "id": "stage-hammerhead-line-route-b-wave-extra-3-advanced-enemy-v1-rift-weaver-3",
+              "kind": "spawn",
+              "label": "Rift Weaver reinforcement train",
+              "startSeconds": 7.6,
+              "durationSeconds": 7.7,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 15,
+              "patternId": "sine",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.18,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "SCICON_ENEMY_RIFT_WEAVER_FRAMES",
+                  "weight": 1,
+                  "health": 15,
+                  "speed": 2.62,
+                  "damage": 1,
+                  "scoreValue": 335,
+                  "powerupDropChance": 0,
+                  "roleId": "role-rift-weaver",
+                  "rank": "elite",
+                  "attackPatternId": "aimed-burst",
+                  "attackIntervalSeconds": 3.2,
+                  "projectileSpeed": 4.4,
+                  "burstCount": 3
                 }
               ]
             }
@@ -52112,16 +52891,19 @@
           "backgroundId": "terminus-frontier",
           "completionRule": "clear-after-duration",
           "difficultyMultiplier": 1.6275600000000003,
-          "durationSeconds": 9,
+          "durationSeconds": 15.32,
           "introSeconds": 0,
           "delayAfterSeconds": 0,
           "scoreMultiplier": 47,
-          "threatCap": 37,
-          "combatBudget": 473.08,
+          "threatCap": 80,
+          "combatBudget": 835.08,
           "rhythm": "variation",
           "formationPackIds": [
             "pack-citation-spiral",
-            "pack-dna-helix"
+            "pack-dna-helix",
+            "pack-vector-reaver-scissors",
+            "pack-rift-weaver-helix",
+            "pack-pulse-herald-orbit"
           ],
           "events": [
             {
@@ -52206,6 +52988,96 @@
                   "scoreValue": 140,
                   "powerupDropChance": 0,
                   "roleId": "role-orbit-disc"
+                }
+              ]
+            },
+            {
+              "id": "stage-crownclaw-frontier-route-b-wave-extra-3-advanced-enemy-v1-vector-reaver-1",
+              "kind": "spawn",
+              "label": "Vector Reaver reinforcement train",
+              "startSeconds": 4,
+              "durationSeconds": 11.32,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 14,
+              "patternId": "pincer",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.17,
+              "enemies": [
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "SCICON_ENEMY_VECTOR_REAVER_FRAMES",
+                  "weight": 1,
+                  "health": 13.5,
+                  "speed": 3.14,
+                  "damage": 1,
+                  "scoreValue": 340,
+                  "powerupDropChance": 0,
+                  "roleId": "role-vector-reaver",
+                  "projectileSpeed": 5.2,
+                  "burstCount": 3
+                }
+              ]
+            },
+            {
+              "id": "stage-crownclaw-frontier-route-b-wave-extra-3-advanced-enemy-v1-rift-weaver-2",
+              "kind": "spawn",
+              "label": "Rift Weaver reinforcement train",
+              "startSeconds": 5.8,
+              "durationSeconds": 9.52,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 15,
+              "patternId": "sine",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.17,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "SCICON_ENEMY_RIFT_WEAVER_FRAMES",
+                  "weight": 1,
+                  "health": 16.75,
+                  "speed": 2.665,
+                  "damage": 1,
+                  "scoreValue": 350,
+                  "powerupDropChance": 0,
+                  "roleId": "role-rift-weaver",
+                  "rank": "elite",
+                  "attackPatternId": "aimed-burst",
+                  "attackIntervalSeconds": 3.2,
+                  "projectileSpeed": 4.4,
+                  "burstCount": 3
+                }
+              ]
+            },
+            {
+              "id": "stage-crownclaw-frontier-route-b-wave-extra-3-advanced-enemy-v1-pulse-herald-3",
+              "kind": "spawn",
+              "label": "Pulse Herald reinforcement train",
+              "startSeconds": 7.6,
+              "durationSeconds": 7.72,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 16,
+              "patternId": "spiral",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.17,
+              "enemies": [
+                {
+                  "enemyId": "journal",
+                  "spriteKey": "SCICON_ENEMY_PULSE_HERALD_FRAMES",
+                  "weight": 1,
+                  "health": 18,
+                  "speed": 2.28,
+                  "damage": 1,
+                  "scoreValue": 360,
+                  "powerupDropChance": 0,
+                  "roleId": "role-pulse-herald",
+                  "rank": "elite",
+                  "attackPatternId": "aimed-burst",
+                  "attackIntervalSeconds": 3.5,
+                  "projectileSpeed": 4.1,
+                  "burstCount": 6
                 }
               ]
             }
@@ -53239,6 +54111,134 @@
       "maximumSimultaneousCount": 3,
       "performanceCost": 4,
       "characteristic": "artillery"
+    },
+    {
+      "id": "role-quasar-lancer",
+      "label": "Quasar Lancer",
+      "enemyId": "journal",
+      "spriteKey": "SCICON_ENEMY_QUASAR_LANCER_FRAMES",
+      "role": "suppressor",
+      "threatCost": 7,
+      "introductionSector": 6,
+      "introductionMission": 1,
+      "durabilityClass": "elite",
+      "fireBehavior": "elite-only",
+      "specialAttack": "lane-laser",
+      "fireDelaySeconds": 2.8,
+      "entryBehavior": "lane",
+      "compatibleFormationPackIds": [
+        "pack-quasar-lance"
+      ],
+      "synergyTags": [
+        "ranged-pressure",
+        "lane-control"
+      ],
+      "reuseCooldownWaves": 0,
+      "maximumSimultaneousCount": 6,
+      "performanceCost": 4,
+      "characteristic": "artillery"
+    },
+    {
+      "id": "role-null-bastion",
+      "label": "Null Bastion",
+      "enemyId": "brick",
+      "spriteKey": "SCICON_ENEMY_NULL_BASTION_FRAMES",
+      "role": "armored-unit",
+      "threatCost": 8,
+      "introductionSector": 7,
+      "introductionMission": 1,
+      "durabilityClass": "elite",
+      "fireBehavior": "post-formation",
+      "fireDelaySeconds": 2.6,
+      "entryBehavior": "formation",
+      "compatibleFormationPackIds": [
+        "pack-null-bastion-phalanx"
+      ],
+      "synergyTags": [
+        "armor",
+        "sustained-damage"
+      ],
+      "reuseCooldownWaves": 0,
+      "maximumSimultaneousCount": 8,
+      "performanceCost": 5,
+      "characteristic": "holder"
+    },
+    {
+      "id": "role-vector-reaver",
+      "label": "Vector Reaver",
+      "enemyId": "swarm",
+      "spriteKey": "SCICON_ENEMY_VECTOR_REAVER_FRAMES",
+      "role": "flanker",
+      "threatCost": 7,
+      "introductionSector": 8,
+      "introductionMission": 1,
+      "durabilityClass": "armored",
+      "fireBehavior": "aimed-burst",
+      "fireDelaySeconds": 2.2,
+      "entryBehavior": "flank",
+      "compatibleFormationPackIds": [
+        "pack-vector-reaver-scissors"
+      ],
+      "synergyTags": [
+        "formation-pressure",
+        "ranged-pressure"
+      ],
+      "reuseCooldownWaves": 0,
+      "maximumSimultaneousCount": 14,
+      "performanceCost": 3,
+      "characteristic": "flanker"
+    },
+    {
+      "id": "role-rift-weaver",
+      "label": "Rift Weaver",
+      "enemyId": "drone",
+      "spriteKey": "SCICON_ENEMY_RIFT_WEAVER_FRAMES",
+      "role": "support-unit",
+      "threatCost": 8,
+      "introductionSector": 9,
+      "introductionMission": 1,
+      "durabilityClass": "elite",
+      "fireBehavior": "elite-only",
+      "specialAttack": "mine-fan",
+      "fireDelaySeconds": 2.5,
+      "entryBehavior": "flank",
+      "compatibleFormationPackIds": [
+        "pack-rift-weaver-helix"
+      ],
+      "synergyTags": [
+        "support",
+        "formation-pressure"
+      ],
+      "reuseCooldownWaves": 0,
+      "maximumSimultaneousCount": 8,
+      "performanceCost": 4,
+      "characteristic": "flanker"
+    },
+    {
+      "id": "role-pulse-herald",
+      "label": "Pulse Herald",
+      "enemyId": "journal",
+      "spriteKey": "SCICON_ENEMY_PULSE_HERALD_FRAMES",
+      "role": "formation-leader",
+      "threatCost": 9,
+      "introductionSector": 10,
+      "introductionMission": 1,
+      "durabilityClass": "elite",
+      "fireBehavior": "formation-command",
+      "specialAttack": "ring-burst",
+      "fireDelaySeconds": 2.7,
+      "entryBehavior": "formation",
+      "compatibleFormationPackIds": [
+        "pack-pulse-herald-orbit"
+      ],
+      "synergyTags": [
+        "formation-pressure",
+        "priority"
+      ],
+      "reuseCooldownWaves": 0,
+      "maximumSimultaneousCount": 6,
+      "performanceCost": 5,
+      "characteristic": "commander"
     }
   ],
   "formationPacks": [
@@ -53740,6 +54740,196 @@
       "attackDurationSeconds": 1.9,
       "attackRecoverySeconds": 1.7,
       "attackGroupSize": 4,
+      "attackCycles": 3
+    },
+    {
+      "id": "pack-quasar-lance",
+      "label": "Quasar Cross-Lane",
+      "enemyRoleIds": [
+        "role-quasar-lancer"
+      ],
+      "enemyCount": 28,
+      "totalThreatCost": 196,
+      "entryDirection": "split",
+      "entryPath": "side-wall-entry",
+      "formationShape": "pincer",
+      "firingBehavior": "priority",
+      "synergyAdjustment": 4,
+      "minimumSector": 6,
+      "maximumSimultaneousInstances": 3,
+      "recoveryRequiredSeconds": 0.4,
+      "compatibleMissionRoles": [
+        "introduction",
+        "formation-remix",
+        "elite-checkpoint",
+        "boss-preparation"
+      ],
+      "compatibleSectorIds": [
+        "sector-rail-meridian",
+        "sector-singularity-reach",
+        "sector-gyroscope-array",
+        "sector-hammerhead-line",
+        "sector-crownclaw-frontier"
+      ],
+      "mobilePerformanceCost": 20,
+      "movementBehavior": "lane-shift",
+      "attackBehavior": "aimed-volley",
+      "returnBehavior": "retreat",
+      "holdSeconds": 1.75,
+      "telegraphSeconds": 1,
+      "attackDurationSeconds": 1.7,
+      "attackRecoverySeconds": 1.5,
+      "attackGroupSize": 2,
+      "attackCycles": 2
+    },
+    {
+      "id": "pack-null-bastion-phalanx",
+      "label": "Null Bastion Phalanx",
+      "enemyRoleIds": [
+        "role-null-bastion"
+      ],
+      "enemyCount": 28,
+      "totalThreatCost": 224,
+      "entryDirection": "split",
+      "entryPath": "loop-the-loop",
+      "formationShape": "grid",
+      "firingBehavior": "staggered",
+      "synergyAdjustment": 5,
+      "minimumSector": 7,
+      "maximumSimultaneousInstances": 3,
+      "recoveryRequiredSeconds": 0.4,
+      "compatibleMissionRoles": [
+        "introduction",
+        "formation-remix",
+        "elite-checkpoint",
+        "boss-preparation"
+      ],
+      "compatibleSectorIds": [
+        "sector-singularity-reach",
+        "sector-gyroscope-array",
+        "sector-hammerhead-line",
+        "sector-crownclaw-frontier"
+      ],
+      "mobilePerformanceCost": 22,
+      "movementBehavior": "expand-collapse",
+      "attackBehavior": "row-sequence",
+      "returnBehavior": "reform",
+      "holdSeconds": 1.9,
+      "telegraphSeconds": 1,
+      "attackDurationSeconds": 1.8,
+      "attackRecoverySeconds": 1.55,
+      "attackGroupSize": 3,
+      "attackCycles": 3
+    },
+    {
+      "id": "pack-vector-reaver-scissors",
+      "label": "Vector Reaver Scissors",
+      "enemyRoleIds": [
+        "role-vector-reaver"
+      ],
+      "enemyCount": 28,
+      "totalThreatCost": 196,
+      "entryDirection": "split",
+      "entryPath": "paired-flank",
+      "formationShape": "pincer",
+      "firingBehavior": "priority",
+      "synergyAdjustment": 5,
+      "minimumSector": 8,
+      "maximumSimultaneousInstances": 3,
+      "recoveryRequiredSeconds": 0.4,
+      "compatibleMissionRoles": [
+        "introduction",
+        "formation-remix",
+        "elite-checkpoint",
+        "boss-preparation"
+      ],
+      "compatibleSectorIds": [
+        "sector-gyroscope-array",
+        "sector-hammerhead-line",
+        "sector-crownclaw-frontier"
+      ],
+      "mobilePerformanceCost": 24,
+      "movementBehavior": "lateral-sweep",
+      "attackBehavior": "pincer-pass",
+      "returnBehavior": "reform",
+      "holdSeconds": 1.25,
+      "telegraphSeconds": 0.7,
+      "attackDurationSeconds": 1.55,
+      "attackRecoverySeconds": 1.15,
+      "attackGroupSize": 4,
+      "attackCycles": 4
+    },
+    {
+      "id": "pack-rift-weaver-helix",
+      "label": "Rift Weaver Helix",
+      "enemyRoleIds": [
+        "role-rift-weaver"
+      ],
+      "enemyCount": 28,
+      "totalThreatCost": 224,
+      "entryDirection": "split",
+      "entryPath": "serpentine-weave",
+      "formationShape": "sine",
+      "firingBehavior": "priority",
+      "synergyAdjustment": 6,
+      "minimumSector": 9,
+      "maximumSimultaneousInstances": 3,
+      "recoveryRequiredSeconds": 0.4,
+      "compatibleMissionRoles": [
+        "introduction",
+        "formation-remix",
+        "elite-checkpoint",
+        "boss-preparation"
+      ],
+      "compatibleSectorIds": [
+        "sector-hammerhead-line",
+        "sector-crownclaw-frontier"
+      ],
+      "mobilePerformanceCost": 26,
+      "movementBehavior": "snake-weave",
+      "attackBehavior": "alternating-wings",
+      "returnBehavior": "transform",
+      "holdSeconds": 1.45,
+      "telegraphSeconds": 0.85,
+      "attackDurationSeconds": 1.7,
+      "attackRecoverySeconds": 1.35,
+      "attackGroupSize": 3,
+      "attackCycles": 3
+    },
+    {
+      "id": "pack-pulse-herald-orbit",
+      "label": "Pulse Herald Orbit",
+      "enemyRoleIds": [
+        "role-pulse-herald"
+      ],
+      "enemyCount": 28,
+      "totalThreatCost": 252,
+      "entryDirection": "split",
+      "entryPath": "ring-assemble",
+      "formationShape": "spiral",
+      "firingBehavior": "priority",
+      "synergyAdjustment": 7,
+      "minimumSector": 10,
+      "maximumSimultaneousInstances": 3,
+      "recoveryRequiredSeconds": 0.4,
+      "compatibleMissionRoles": [
+        "introduction",
+        "formation-remix",
+        "elite-checkpoint",
+        "boss-preparation"
+      ],
+      "compatibleSectorIds": [
+        "sector-crownclaw-frontier"
+      ],
+      "mobilePerformanceCost": 28,
+      "movementBehavior": "rotating-wheel",
+      "attackBehavior": "ring-collapse",
+      "returnBehavior": "transform",
+      "holdSeconds": 1.6,
+      "telegraphSeconds": 1.05,
+      "attackDurationSeconds": 1.9,
+      "attackRecoverySeconds": 1.6,
+      "attackGroupSize": 3,
       "attackCycles": 3
     }
   ],

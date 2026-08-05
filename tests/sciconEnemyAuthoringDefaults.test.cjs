@@ -14,7 +14,8 @@ const digest = (filePath) => crypto.createHash('sha256').update(fs.readFileSync(
 
 // Scott restored the legacy animated roster on 2026-08-03: every enemy family
 // keeps its original art (flight-motion pack, jets, stage-20 specialists)
-// instead of the consolidated seven-key Squadron pass.
+// instead of the consolidated seven-key Squadron pass. Five generated late
+// families extend that roster without replacing its defaults.
 const expectedDefaults = Object.freeze({
   drone: 'ENEMY_DRONE_FRAMES',
   swarm: 'ENEMY_SWARM_FRAMES',
@@ -49,9 +50,9 @@ test('retired introduction migration audits the complete legacy roster', async (
   const current = auditEnemyIntroductionSchedule(campaign);
   assert.deepEqual(current, {
     issues: [],
-    roleCount: 20,
-    familyCount: 20,
-    authoredRoleCount: 20
+    roleCount: 25,
+    familyCount: 25,
+    authoredRoleCount: 25
   });
 
   const invalid = structuredClone(campaign);
@@ -72,7 +73,7 @@ test('retired introduction command is repeatable, non-mutating, and rejects writ
   assert.equal(first.status, 0, first.stderr);
   assert.equal(second.status, 0, second.stderr);
   assert.equal(first.stdout, second.stdout);
-  assert.match(first.stdout, /Roles 20\/20; Squadron families 20\/20\./);
+  assert.match(first.stdout, /Roles 25\/25; Squadron families 25\/25\./);
   assert.match(first.stdout, /No files written\./);
   assert.equal(digest(campaignPath), before);
 

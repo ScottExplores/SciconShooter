@@ -90,7 +90,7 @@ const CAMPAIGN_ROUTE_SUMMARY_KEYS = [
 const CAMPAIGN_VISUAL_THEME_KEYS = ['id', 'label', 'backgroundId', 'accent', 'description'];
 const ENEMY_ROLE_KEYS = [
   'id', 'label', 'enemyId', 'spriteKey', 'role', 'threatCost', 'introductionSector',
-  'introductionMission', 'durabilityClass', 'fireBehavior', 'fireDelaySeconds', 'entryBehavior',
+  'introductionMission', 'durabilityClass', 'fireBehavior', 'specialAttack', 'fireDelaySeconds', 'entryBehavior',
   'compatibleFormationPackIds', 'synergyTags', 'reuseCooldownWaves', 'maximumSimultaneousCount',
   'performanceCost', 'characteristic'
 ];
@@ -251,6 +251,7 @@ const ENEMY_GAMEPLAY_ROLES = new Set([
 const ENEMY_FIRE_BEHAVIORS = new Set([
   'none', 'post-formation', 'aimed-burst', 'formation-command', 'elite-only'
 ]);
+const ENEMY_SPECIAL_ATTACKS = new Set(['lane-laser', 'mine-fan', 'ring-burst']);
 const ENEMY_ENTRY_BEHAVIORS = new Set(['formation', 'dive', 'flank', 'lane']);
 const FORMATION_ENTRY_DIRECTIONS = new Set(['top', 'left', 'right', 'split']);
 const FORMATION_FIRING_BEHAVIORS = new Set(['none', 'post-formation', 'staggered', 'priority']);
@@ -956,6 +957,13 @@ const validateEnemyRoleManifest = (value: unknown, issues: CampaignValidationIss
     if (typeof role.fireBehavior !== 'string' || !ENEMY_FIRE_BEHAVIORS.has(role.fireBehavior)) {
       pushIssue(issues, `${path}/fireBehavior`, 'unknown_reference', `Unknown enemy fire behavior: ${String(role.fireBehavior)}`);
     }
+    if (role.specialAttack !== undefined
+      && (typeof role.specialAttack !== 'string' || !ENEMY_SPECIAL_ATTACKS.has(role.specialAttack))) {
+      pushIssue(issues, `${path}/specialAttack`, 'unknown_reference', `Unknown enemy special attack: ${String(role.specialAttack)}`);
+    }
+    if (role.specialAttack !== undefined && role.fireBehavior === 'none') {
+      pushIssue(issues, `${path}/specialAttack`, 'incompatible_reference', 'Enemy special attacks require an enabled fire behavior');
+    }
     checkNumber(role.fireDelaySeconds, `${path}/fireDelaySeconds`, issues, 0, 30);
     if (role.fireBehavior === 'none' && role.fireDelaySeconds !== 0) {
       pushIssue(issues, `${path}/fireDelaySeconds`, 'invalid_value', 'Never-fire roles must use a zero fire delay');
@@ -1615,6 +1623,9 @@ const validateCampaignBranches = (
 
 const validateSpawnEnemies = (value: unknown, path: string, issues: CampaignValidationIssue[]) => {
   if (!checkArray(value, path, issues)) return;
+  const useRoleIdentity = value.every((candidate) => (
+    isRecord(candidate) && typeof candidate.roleId === 'string' && candidate.roleId.trim().length > 0
+  ));
   const ids: unknown[] = [];
   let weight = 0;
   value.forEach((candidate, index) => {
@@ -1624,7 +1635,7 @@ const validateSpawnEnemies = (value: unknown, path: string, issues: CampaignVali
       return;
     }
     checkKeys(candidate, SPAWN_ENEMY_KEYS, itemPath, issues);
-    ids.push(candidate.enemyId);
+    ids.push(useRoleIdentity ? candidate.roleId : candidate.enemyId);
     checkCatalogRef(candidate.enemyId, ENEMY_CATALOG, `${itemPath}/enemyId`, issues);
     if (candidate.roleId !== undefined) checkString(candidate.roleId, `${itemPath}/roleId`, issues, { id: true });
     if (!checkCatalogRef(candidate.spriteKey, ASSET_CATALOG, `${itemPath}/spriteKey`, issues) || !isAssetAllowedForRole(candidate.spriteKey as string, 'enemy')) {
@@ -1651,7 +1662,7 @@ const validateSpawnEnemies = (value: unknown, path: string, issues: CampaignVali
     if (candidate.projectileSpeed !== undefined) checkNumber(candidate.projectileSpeed, `${itemPath}/projectileSpeed`, issues, 0.1, 30);
     if (candidate.burstCount !== undefined) checkNumber(candidate.burstCount, `${itemPath}/burstCount`, issues, 1, 8, true);
   });
-  checkUniqueStrings(ids, `${path}/enemyId`, issues);
+  checkUniqueStrings(ids, `${path}/${useRoleIdentity ? 'roleId' : 'enemyId'}`, issues);
   if (value.length > 0 && Math.abs(weight - 1) > EPSILON) {
     pushIssue(issues, path, 'invalid_weights', `Enemy weights must sum to 1 (received ${weight})`);
   }

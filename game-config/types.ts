@@ -51,6 +51,11 @@ export type BuiltInAssetKey =
   | 'CAMPAIGN_ENEMY_SHIELD_RAMMER'
   | 'CAMPAIGN_ENEMY_WALL_SNIPER_LEFT'
   | 'CAMPAIGN_ENEMY_WALL_SNIPER_RIGHT'
+  | 'SCICON_ENEMY_QUASAR_LANCER_FRAMES'
+  | 'SCICON_ENEMY_NULL_BASTION_FRAMES'
+  | 'SCICON_ENEMY_VECTOR_REAVER_FRAMES'
+  | 'SCICON_ENEMY_RIFT_WEAVER_FRAMES'
+  | 'SCICON_ENEMY_PULSE_HERALD_FRAMES'
   | 'SCICON_ENEMY_ORBIT_SCOUT_FRAMES'
   | 'SCICON_ENEMY_CITATION_DART_FRAMES'
   | 'SCICON_ENEMY_RESEARCH_SENTRY_FRAMES'
@@ -403,6 +408,8 @@ export interface EnemyRoleDefinition {
   introductionMission: number;
   durabilityClass: EnemyDurabilityClass;
   fireBehavior: 'none' | 'post-formation' | 'aimed-burst' | 'formation-command' | 'elite-only';
+  /** Optional authored specialist move; the role contract owns its runtime dispatch. */
+  specialAttack?: 'lane-laser' | 'mine-fan' | 'ring-burst';
   /** Quiet window after spawn before this role may fire. Never-fire roles use zero. */
   fireDelaySeconds: number;
   entryBehavior: 'formation' | 'dive' | 'flank' | 'lane';

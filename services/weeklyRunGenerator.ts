@@ -4,6 +4,7 @@ import type {
   FormationPackDefinition,
   GameCampaignConfig,
   LevelDefinition,
+  SpawnEnemySetting,
   SpawnEvent,
   WaveDefinition
 } from '../game-config/types';
@@ -240,10 +241,21 @@ const resolvesUniquelyToPack = (
 const selectFormationPackTrain = (
   random: () => number,
   eligible: readonly FormationPackDefinition[],
-  eventCount: number
+  eventCount: number,
+  preferredMinimumSector?: number
 ) => {
   const declared: FormationPackDefinition[] = [];
-  for (const candidate of shuffle(random, eligible)) {
+  const randomized = shuffle(random, eligible);
+  // Each newly opened four-depth band leads with one formation from that
+  // band. This preserves weekly determinism while guaranteeing that late
+  // roster additions really appear instead of merely entering a large pool.
+  const candidates = preferredMinimumSector === undefined
+    ? randomized
+    : [
+        ...randomized.filter((pack) => pack.minimumSector === preferredMinimumSector),
+        ...randomized.filter((pack) => pack.minimumSector !== preferredMinimumSector)
+      ];
+  for (const candidate of candidates) {
     const next = [...declared, candidate];
     if (!next.every((pack) => resolvesUniquelyToPack(pack, next))) continue;
     declared.push(candidate);
@@ -268,27 +280,45 @@ const buildSpawnEnemySettings = (
   stage: WeeklyRunStagePlan,
   eventIndex: number,
   waveIndex: number
-) => {
+): SpawnEnemySetting[] => {
   const seen = new Set<string>();
   const distinctRoles = roles.filter((role) => (
-    seen.has(role.enemyId) ? false : (seen.add(role.enemyId), true)
+    seen.has(role.id) ? false : (seen.add(role.id), true)
   ));
-  return distinctRoles.map((role, roleIndex, list) => ({
-    enemyId: role.enemyId,
-    spriteKey: role.spriteKey,
-    weight: roleIndex === list.length - 1
-      ? Number((1 - (list.length - 1) * Math.floor(100 / list.length) / 100).toFixed(4))
-      : Math.floor(100 / list.length) / 100,
-    // Endless intensity is applied by the Level exactly once. Base hull stats
-    // describe role durability instead of multiplying the same curve again.
-    health: Number((BASE_ENEMY_HEALTH_BY_DURABILITY[role.durabilityClass]
-      + role.threatCost * 0.18).toFixed(2)),
-    speed: Number((2.12 + Math.min(0.68, role.threatCost * 0.085)).toFixed(2)),
-    damage: 1,
-    scoreValue: Math.round(10 + stage.index * 4),
-    powerupDropChance: eventIndex === 0 && waveIndex === 0 ? 0.12 : 0,
-    roleId: role.id
-  }));
+  return distinctRoles.map((role, roleIndex, list) => {
+    const specialistTuning = role.specialAttack === 'lane-laser'
+      ? { projectileSpeed: 4.8, burstCount: 1 }
+      : role.specialAttack === 'mine-fan'
+        ? { projectileSpeed: 4.4, burstCount: 3 }
+        : { projectileSpeed: 4.1, burstCount: 6 };
+    return {
+      enemyId: role.enemyId,
+      spriteKey: role.spriteKey,
+      weight: roleIndex === list.length - 1
+        ? Number((1 - (list.length - 1) * Math.floor(100 / list.length) / 100).toFixed(4))
+        : Math.floor(100 / list.length) / 100,
+      // Endless intensity is applied by the Level exactly once. Base hull stats
+      // describe role durability instead of multiplying the same curve again.
+      health: Number((BASE_ENEMY_HEALTH_BY_DURABILITY[role.durabilityClass]
+        + role.threatCost * 0.18).toFixed(2)),
+      speed: Number((2.12 + Math.min(0.68, role.threatCost * 0.085)).toFixed(2)),
+      damage: 1,
+      scoreValue: Math.round(10 + stage.index * 4),
+      powerupDropChance: eventIndex === 0 && waveIndex === 0 ? 0.12 : 0,
+      roleId: role.id,
+      ...(role.specialAttack ? {
+        // Keep specialist instances elite for their durability/presentation;
+        // the authored role remains authoritative for the actual special move.
+        rank: 'elite' as const,
+        attackPatternId: 'aimed-burst' as const,
+        attackIntervalSeconds: Number(Math.max(2.6, role.fireDelaySeconds + 0.65).toFixed(2)),
+        ...specialistTuning
+      } : role.fireBehavior === 'aimed-burst' ? {
+        projectileSpeed: 5.1,
+        burstCount: 3
+      } : {})
+    };
+  });
 };
 
 /**
@@ -368,7 +398,12 @@ const buildCombatWave = (
 ): WaveDefinition => {
   const eligiblePacks = formationPacksForDepth(campaign, stage.index);
   const eventCount = getWeeklyRunFormationEventCount(stage.index);
-  const { declared, train } = selectFormationPackTrain(random, eligiblePacks, eventCount);
+  const { declared, train } = selectFormationPackTrain(
+    random,
+    eligiblePacks,
+    eventCount,
+    getWeeklyRunFormationSector(stage.index)
+  );
   if (train.length === 0) {
     throw new Error(`Weekly Run depth ${stage.index + 1} has no eligible authored formation pack.`);
   }

@@ -60,6 +60,13 @@ const SCICON_ENEMY_SQUADRON_ASSET_KEYS = [
   'SCICON_ENEMY_HELIX_CONDUCTOR_FRAMES',
   'SCICON_ENEMY_PRISM_ARTILLERY_FRAMES'
 ];
+const SCICON_ADVANCED_ENEMY_ASSET_KEYS = [
+  'SCICON_ENEMY_QUASAR_LANCER_FRAMES',
+  'SCICON_ENEMY_NULL_BASTION_FRAMES',
+  'SCICON_ENEMY_VECTOR_REAVER_FRAMES',
+  'SCICON_ENEMY_RIFT_WEAVER_FRAMES',
+  'SCICON_ENEMY_PULSE_HERALD_FRAMES'
+];
 
 const BUILT_IN_ASSET_KEYS = [
   'PLAYER_SHIP', 'RSC_TOKEN', 'REAL_RSC_ICON', 'GAME_BG_BACK', 'GAME_BG_STARS',
@@ -77,6 +84,7 @@ const BUILT_IN_ASSET_KEYS = [
   ...CAMPAIGN_BOSS_ASSET_KEYS,
   ...CAMPAIGN_ENEMY_ASSET_KEYS,
   ...SCICON_ENEMY_SQUADRON_ASSET_KEYS,
+  ...SCICON_ADVANCED_ENEMY_ASSET_KEYS,
   'POWERUP_MAX_SHOT_AURA_FRAMES'
 ];
 const GENERATED_ASSET_ROLES = new Set(['enemy', 'boss', 'asteroid', 'supply-drop', 'hud', 'player', 'background', 'scorecard']);
@@ -162,6 +170,7 @@ const refreshGeneratedAssetCatalog = () => {
     'PIXI_JET_HEAVY_FRAMES',
     ...CAMPAIGN_ENEMY_ASSET_KEYS,
     ...SCICON_ENEMY_SQUADRON_ASSET_KEYS,
+    ...SCICON_ADVANCED_ENEMY_ASSET_KEYS,
     ...generatedForRole('enemy')
   ]);
   replaceSet(BOSS_SPRITE_KEYS, [
@@ -189,6 +198,7 @@ const refreshGeneratedAssetCatalog = () => {
     ...CAMPAIGN_BOSS_ASSET_KEYS,
     ...CAMPAIGN_ENEMY_ASSET_KEYS,
     ...SCICON_ENEMY_SQUADRON_ASSET_KEYS,
+    ...SCICON_ADVANCED_ENEMY_ASSET_KEYS,
     ...generatedForRole('scorecard')
   ]);
 };
@@ -278,6 +288,7 @@ const ENEMY_GAMEPLAY_ROLES = new Set([
 const ENEMY_FIRE_BEHAVIORS = new Set([
   'none', 'post-formation', 'aimed-burst', 'formation-command', 'elite-only'
 ]);
+const ENEMY_SPECIAL_ATTACKS = new Set(['lane-laser', 'mine-fan', 'ring-burst']);
 const ENEMY_ENTRY_BEHAVIORS = new Set(['formation', 'dive', 'flank', 'lane']);
 /** What a hull does once it holds a slot. See services/enemyCharacteristics.ts. */
 const ENEMY_CHARACTERISTICS = new Set(['holder', 'diver', 'kamikaze', 'flanker', 'artillery', 'commander']);
@@ -889,7 +900,7 @@ const validateEnemyRoleManifest = (roles, errors) => {
     if (!requireObject(role, location, errors)) return;
     allowedKeys(role, [
       'id', 'label', 'enemyId', 'spriteKey', 'role', 'threatCost', 'introductionSector',
-      'introductionMission', 'durabilityClass', 'fireBehavior', 'fireDelaySeconds', 'entryBehavior',
+      'introductionMission', 'durabilityClass', 'fireBehavior', 'specialAttack', 'fireDelaySeconds', 'entryBehavior',
       'compatibleFormationPackIds', 'synergyTags', 'reuseCooldownWaves', 'maximumSimultaneousCount',
       'performanceCost', 'characteristic'
     ], location, errors);
@@ -905,6 +916,12 @@ const validateEnemyRoleManifest = (roles, errors) => {
     requireNumber(role.introductionMission, `${location}/introductionMission`, errors, { minimum: 1, maximum: 5, integer: true });
     requireEnum(role.durabilityClass, ENEMY_DURABILITY_CLASSES, `${location}/durabilityClass`, errors);
     requireEnum(role.fireBehavior, ENEMY_FIRE_BEHAVIORS, `${location}/fireBehavior`, errors);
+    if (role.specialAttack !== undefined) {
+      requireEnum(role.specialAttack, ENEMY_SPECIAL_ATTACKS, `${location}/specialAttack`, errors);
+    }
+    if (role.specialAttack !== undefined && role.fireBehavior === 'none') {
+      errors.push(`${location}/specialAttack requires an enabled fireBehavior`);
+    }
     requireNumber(role.fireDelaySeconds, `${location}/fireDelaySeconds`, errors, { minimum: 0, maximum: 30 });
     if (role.fireBehavior === 'none' && role.fireDelaySeconds !== 0) {
       errors.push(`${location}/fireDelaySeconds must be zero when fireBehavior is none`);
@@ -1870,11 +1887,16 @@ const validateSpawnEvent = (event, location, errors) => {
     errors.push(`${location}/enemies must be a non-empty array`);
     return;
   }
-  const enemyIds = new Set();
+  const useRoleIdentity = event.enemies.every((enemy) => (
+    enemy && typeof enemy.roleId === 'string' && enemy.roleId.trim().length > 0
+  ));
+  const enemyIdentities = new Set();
   event.enemies.forEach((enemy, index) => {
     validateSpawnEnemy(enemy, `${location}/enemies/${index}`, errors);
-    if (enemyIds.has(enemy?.enemyId)) errors.push(`${location}/enemies contains duplicate enemyId: ${String(enemy?.enemyId)}`);
-    enemyIds.add(enemy?.enemyId);
+    const identity = useRoleIdentity ? enemy?.roleId : enemy?.enemyId;
+    const identityLabel = useRoleIdentity ? 'roleId' : 'enemyId';
+    if (enemyIdentities.has(identity)) errors.push(`${location}/enemies contains duplicate ${identityLabel}: ${String(identity)}`);
+    enemyIdentities.add(identity);
   });
   const weights = event.enemies.map((enemy) => enemy?.weight);
   if (weights.every(isFiniteNumber) && Math.abs(weights.reduce((sum, weight) => sum + weight, 0) - 1) > EPSILON) {

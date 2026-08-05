@@ -64,6 +64,28 @@ test('enemy fire policy requires readable delays and compatible elite-only roles
     issueMatches(validateGameCampaign(incompatibleElite), 'incompatible_reference', `/enemyRoles/${standardRoleIndex}/fireBehavior`),
     true
   );
+
+  const validSpecialAttack = cloneCampaign();
+  validSpecialAttack.enemyRoles[firingRoleIndex].specialAttack = 'lane-laser';
+  assert.deepEqual(validateGameCampaign(validSpecialAttack), { valid: true, issues: [] });
+
+  const disabledSpecialAttack = cloneCampaign();
+  disabledSpecialAttack.enemyRoles[passiveRoleIndex].specialAttack = 'lane-laser';
+  assert.equal(
+    issueMatches(
+      validateGameCampaign(disabledSpecialAttack),
+      'incompatible_reference',
+      `/enemyRoles/${passiveRoleIndex}/specialAttack`
+    ),
+    true
+  );
+
+  const invalidSpecialAttack = cloneCampaign();
+  invalidSpecialAttack.enemyRoles[0].specialAttack = 'screen-wipe';
+  assert.equal(
+    issueMatches(validateGameCampaign(invalidSpecialAttack), 'unknown_reference', '/enemyRoles/0/specialAttack'),
+    true
+  );
 });
 
 test('legacy Campaign packages may omit graph and sector graph-node fields', () => {
