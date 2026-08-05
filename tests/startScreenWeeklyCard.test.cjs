@@ -36,7 +36,13 @@ test('Home offers the Campaign entry point and the Weekly Run as separate contro
   assert.match(appSource, /weeklyRunAttemptsRemaining=\{weeklyRunAttemptQuotaOwner === activeWalletAddress\?\.toLowerCase\(\)[\s\S]*weeklyRunAttemptQuota\.attemptsRemaining[\s\S]*getWeeklyRunAttemptsRemaining\(weeklySquadState\)\}/);
   assert.match(appSource, /weeklyRunAttemptQuotaUnknown=\{Boolean\([\s\S]*walletProfileStatus === 'ready'/);
   assert.match(source, /onClick=\{onStart\}/);
-  assert.match(source, /\{campaignCheckpoint\.waveTotal\} WAVES/);
+  const campaignStrip = source.slice(
+    source.indexOf('<p className="sci-campaign-mode-strip">'),
+    source.indexOf('</p>', source.indexOf('<p className="sci-campaign-mode-strip">'))
+  );
+  assert.match(campaignStrip, /Mission \{String\(campaignCheckpoint\.missionNumber\)/);
+  assert.doesNotMatch(campaignStrip, /Wave|waveNumber|waveTotal/);
+  assert.doesNotMatch(source, /\{campaignCheckpoint\.waveTotal\} WAVES/);
 });
 
 test('the Weekly Run drawer omits the ship thumbnail and keeps its quota copy compact', () => {
@@ -126,11 +132,29 @@ test('an open weekly pilot slot renders no proposal title, image, or progress', 
   assert.match(source, /key=\{`\$\{weeklyProposalSelection\.id\}:\$\{weeklyProposalSelection\.imageUrl\}`\}/);
 });
 
-test('home winner image has no trophy overlay', () => {
+test('an empty weekly pilot slot uses the trophy while a scored leader keeps the ship', () => {
   const imageStart = source.indexOf('sci-weekly-project-image');
   const imageEnd = source.indexOf('<span className="min-w-0 self-center">', imageStart);
   assert.ok(imageStart >= 0 && imageEnd > imageStart);
-  assert.doesNotMatch(source.slice(imageStart, imageEnd), /name="trophy"/);
+  assert.match(
+    source.slice(imageStart, imageEnd),
+    /src=\{weeklyLeader \? ASSETS\.PLAYER_SHIP : WEEKLY_EMPTY_TROPHY\}/
+  );
+  assert.match(
+    source.slice(imageStart, imageEnd),
+    /data-weekly-leader-art=\{weeklyLeader \? 'ship' : 'trophy'\}/
+  );
+  assert.ok(fs.existsSync(path.join(
+    __dirname,
+    '..',
+    'public',
+    'game-art',
+    'generated',
+    'ui',
+    'scicon-interface-pack-v1',
+    'resources',
+    'trophy.png'
+  )));
 });
 
 test('home winner card slides between the pilot score and the exact selected proposal', () => {

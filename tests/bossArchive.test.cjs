@@ -442,6 +442,7 @@ test('production integration unlocks only authored boss victories and keeps repl
   const app = fs.readFileSync(path.join(root, 'App.tsx'), 'utf8');
   const engine = fs.readFileSync(path.join(root, 'services', 'gameLogic.ts'), 'utf8');
   const startScreen = fs.readFileSync(path.join(root, 'components', 'StartScreen.tsx'), 'utf8');
+  const styles = fs.readFileSync(path.join(root, 'styles', 'tailwind.input.css'), 'utf8');
 
   assert.match(engine, /bossEncounterId: defeatedMainBoss\?\.id \?\? null/);
   assert.match(engine, /event\.kind === 'boss' && isMajorBossId\(event\.bossId\)/);
@@ -491,6 +492,10 @@ test('production integration unlocks only authored boss victories and keeps repl
   assert.match(startScreen, /const bossArchiveNotificationCount = newBossArchiveEventIds\.length/);
   assert.match(startScreen, /data-attention=\{bossArchiveNotificationCount > 0 \? 'true' : 'false'\}/);
   assert.match(startScreen, /sci-home-command-icon__art--boss/);
+  assert.match(
+    styles,
+    /\.sci-home-command-icon__art--boss\s*\{[\s\S]*?width:\s*118%;[\s\S]*?height:\s*118%;/
+  );
   assert.doesNotMatch(startScreen, /boss-alert-banners-v1\/effects\/warning-ring-red\.png/);
   assert.doesNotMatch(startScreen, />\s*Bosses\s*<\/span>/);
   assert.match(

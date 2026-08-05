@@ -260,13 +260,38 @@ test('the dashboard centers Home and exposes Hangar immediately to its right', (
   assert.doesNotMatch(styles, /data-dashboard-tab='hangar'\][^{]*sci-dashboard-nav-icon/);
 });
 
-test('minted ship locks replay their animation without re-locking the guest Hangar', () => {
+test('locked Home ships open the shared access dialog without navigating to Hangar', () => {
   const startScreen = read('components', 'StartScreen.tsx');
   const carousel = read('components', 'ShipCarousel.tsx');
+  const hangar = read('components', 'SquadHangar.tsx');
+  const accessDialog = read('components', 'PlayerShipAccessDialog.tsx');
   const html = read('index.html');
+  const requestStart = startScreen.indexOf('const requestFocusedShip = () =>');
+  const requestEnd = startScreen.indexOf('const weeklyAllocation', requestStart);
+  const requestFocusedShip = startScreen.slice(requestStart, requestEnd);
+  const lockedBranchEnd = requestFocusedShip.indexOf('requestHangar();');
+  const lockedBranch = requestFocusedShip.slice(0, lockedBranchEnd);
 
   assert.match(startScreen, /setShipLockNudgeRevision\(\(revision\) => revision \+ 1\)/);
   assert.match(startScreen, /onActivateFocusedShip=\{requestFocusedShip\}/);
+  assert.match(lockedBranch, /setHomeShipAccessId\(shipFocusId\)/);
+  assert.doesNotMatch(lockedBranch, /requestHangar\(\)/);
+  assert.match(requestFocusedShip.slice(lockedBranchEnd), /requestHangar\(\)/);
+  assert.match(startScreen, /<PlayerShipAccessDialog[\s\S]*shipId=\{homeShipAccessId\}/);
+  assert.match(hangar, /<PlayerShipAccessDialog[\s\S]*shipId=\{lockedPlayerShipId\}/);
+  assert.match(accessDialog, /shipId === 'eth'[\s\S]*?'eth-ship'/);
+  assert.match(accessDialog, /shipId === 'btc'[\s\S]*?'btc-ship'/);
+  assert.match(accessDialog, /Hold 100 BIO/);
+  assert.match(accessDialog, /0\.001 ETH/);
+  assert.match(accessDialog, /0\.00008 cbBTC/);
+  assert.match(accessDialog, /onPurchasePlayerShip\(purchaseSkuId\)/);
+  assert.match(accessDialog, /onRefreshPlayerShipAccess/);
+  assert.match(accessDialog, /const previousFocus = document\.activeElement instanceof HTMLElement/);
+  assert.match(accessDialog, /dialogRef\.current\?\.focus\(\)/);
+  assert.match(accessDialog, /return \(\) => previousFocus\?\.focus\(\)/);
+  assert.match(accessDialog, /event\.key !== 'Tab'/);
+  assert.match(accessDialog, /dialog\.querySelectorAll<HTMLElement>/);
+  assert.match(accessDialog, /tabIndex=\{-1\}/);
   assert.match(carousel, /onClick=\{\(\) => \{[\s\S]*suppressTapRef\.current[\s\S]*onActivateFocusedShip\(\)/);
   assert.doesNotMatch(startScreen, /disabled=\{Boolean\(walletAddress\) && focusedShipLocked\}/);
   assert.doesNotMatch(startScreen, /hangarLocked|data-lock-nudged|sci-dashboard-nav-lock/);

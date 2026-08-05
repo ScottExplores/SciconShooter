@@ -2968,8 +2968,8 @@
   }
 
   .sci-home-command-icon__art--boss {
-    width: 96%;
-    height: 96%;
+    width: 118%;
+    height: 118%;
   }
 
   .sci-home-command-icon[data-attention='true']::before {
