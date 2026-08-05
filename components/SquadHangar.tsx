@@ -43,10 +43,14 @@ import {
   getShipAbilityDefinition,
   getShipAbilityUpgradeProfile
 } from '../services/shipAbilityService';
-import { PLAYER_SHIP_WEAPON_SPECS } from '../services/weaponOverdrive';
+import {
+  getPlayerWeaponPreviewFrames,
+  PLAYER_SHIP_WEAPON_PREVIEW_SPECS
+} from '../services/playerWeaponPreview';
 import { calculateSquadPowerRating } from '../services/squadPowerRating';
 import { FIRE_RATE_TIER_COUNT } from '../services/weaponTierProgression';
 import PixelActionButton from './PixelActionButton';
+import ShipWeaponPreviewDialog from './ShipWeaponPreviewDialog';
 import { preloadDecodedImageUrls } from '../services/browserImagePreload';
 
 type HangarPosition = 'main' | SquadSlotId;
@@ -282,6 +286,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
   const [mode, setMode] = useState<HangarMode>('catalog');
   const [selectedMiniId, setSelectedMiniId] = useState<MiniShipId | null>(null);
   const [showTokenExchange, setShowTokenExchange] = useState(false);
+  const [weaponPreviewShipId, setWeaponPreviewShipId] = useState<PlayerShipId | null>(null);
   const [upgradeFeedback, setUpgradeFeedback] = useState<{ target: string; label: string; nonce: number } | null>(null);
   const playerSelectionFrame = useAnimationFrame(
     PLAYER_SELECTION_FRAME_COUNT,
@@ -300,6 +305,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
       ...Object.values(MAIN_UPGRADE_SPRITE),
       // Preload every hull's signature-move icon, not just the fallback.
       ...PLAYER_SHIP_ORDER.map((id) => getShipAbilityDefinition(id).iconUrl),
+      ...PLAYER_SHIP_ORDER.flatMap((id) => getPlayerWeaponPreviewFrames(id)),
       ...Array.from(
         { length: MAIN_SHIP_ABILITY_MAX_LEVEL + 1 },
         (_, level) => getShipAbilityUpgradeProfile(level).projectileIconUrl
@@ -490,8 +496,11 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
                 setMode('upgrades');
                 return;
               }
-              onSelectMainShip(shipId);
+              setWeaponPreviewShipId(shipId);
             }}
+            aria-label={selected
+              ? `Open ${ship.name} upgrades`
+              : `Preview ${ship.name} primary weapon before equipping`}
             className={`relative aspect-[0.78] min-w-0 overflow-hidden border bg-slate-950/72 p-1.5 transition hover:border-cyan-200/70 disabled:cursor-not-allowed ${selected ? 'border-yellow-200/70' : 'border-cyan-200/22'} ${unlocked ? '' : 'grayscale'}`}
           >
             {selected ? <AnimatedSelector size="ship" color="gold" className="absolute inset-0 h-full w-full scale-[1.17]" /> : null}
@@ -552,7 +561,8 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
   };
 
   return (
-    <div className="relative mx-auto min-h-full w-full max-w-3xl overflow-hidden border border-cyan-300/20 bg-[#020817] text-white shadow-[0_0_32px_rgba(8,145,178,0.18)]">
+    <>
+      <div className="relative mx-auto min-h-full w-full max-w-3xl overflow-hidden border border-cyan-300/20 bg-[#020817] text-white shadow-[0_0_32px_rgba(8,145,178,0.18)]">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_25%,rgba(34,211,238,0.15),transparent_30%),radial-gradient(circle_at_12%_44%,rgba(16,185,129,0.08),transparent_22%),linear-gradient(rgba(103,232,249,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(103,232,249,0.025)_1px,transparent_1px)] bg-[size:auto,auto,28px_28px,28px_28px]" />
 
       <header className="relative z-10 border-b border-cyan-200/18 bg-slate-950/88 p-2">
@@ -775,16 +785,27 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
           ) : null}
           {/* Patterns belong to the selected hull, and Overdrive amplifies them
               without replacing that ship's primary-weapon identity. */}
-          <p className="sci-weapon-spec">
-            Weapon: {PLAYER_SHIP_WEAPON_SPECS[mainShipId] ?? PLAYER_SHIP_WEAPON_SPECS.researchhub}
-          </p>
+          <div className="sci-weapon-spec-row">
+            <p className="sci-weapon-spec">
+              Weapon: {PLAYER_SHIP_WEAPON_PREVIEW_SPECS[mainShipId]}
+            </p>
+            <PixelActionButton
+              type="button"
+              tone="cyan"
+              onClick={() => setWeaponPreviewShipId(mainShipId)}
+              aria-label={`Preview ${PLAYER_SHIPS[mainShipId].name} primary weapon`}
+              className="min-h-10 shrink-0 px-2 text-[0.58rem] font-black uppercase"
+            >
+              Preview fire
+            </PixelActionButton>
+          </div>
 
           {mode === 'catalog' ? (
             <>
               {activePosition === 'main' ? renderMainCatalog() : renderMiniCatalog()}
               <p className="mt-3 text-center text-[0.55rem] font-bold uppercase tracking-[0.1em] text-slate-500">
                 {activePosition === 'main'
-                  ? 'Tap the selected ship again to open upgrades'
+                  ? 'Tap a new ship to preview it · Tap the selected ship for upgrades'
                   : 'Tap the selected mini ship again to view details'}
               </p>
             </>
@@ -949,8 +970,16 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
             <p className="border border-cyan-200/20 bg-slate-950/60 p-4 text-center text-xs uppercase text-slate-400">Choose or purchase a mini ship first.</p>
           )}
         </section>
-      </main>
-    </div>
+        </main>
+      </div>
+      <ShipWeaponPreviewDialog
+        shipId={weaponPreviewShipId}
+        fireRateLevel={weaponPreviewShipId ? state.shipUpgrades[weaponPreviewShipId].fireRate : 0}
+        selected={weaponPreviewShipId === mainShipId}
+        onClose={() => setWeaponPreviewShipId(null)}
+        onSelect={onSelectMainShip}
+      />
+    </>
   );
 };
 

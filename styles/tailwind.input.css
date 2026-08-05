@@ -587,7 +587,7 @@
    A semantic class because the generated sheet is static and new arbitrary
    Tailwind values are not picked up at runtime. */
 .sci-weapon-spec {
-  margin: 0 0 0.75rem;
+  margin: 0;
   border: 1px solid rgb(165 243 252 / 0.14);
   background: rgb(103 232 249 / 0.05);
   padding: 0.4rem 0.6rem;
@@ -596,6 +596,206 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.sci-weapon-spec-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: 0.45rem;
+  margin: 0 0 0.75rem;
+}
+
+.sci-hangar-weapon-preview {
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 50% 76%, rgb(34 211 238 / 0.18), transparent 24%),
+    linear-gradient(180deg, rgb(2 6 23 / 0.52), rgb(2 8 23 / 0.96));
+}
+
+.sci-hangar-weapon-preview__stars {
+  position: absolute;
+  inset: 0;
+  opacity: 0.5;
+  background-image:
+    radial-gradient(circle, rgb(165 243 252 / 0.85) 0 1px, transparent 1.5px),
+    radial-gradient(circle, rgb(196 181 253 / 0.7) 0 1px, transparent 1.5px);
+  background-position: 9px 13px, 27px 41px;
+  background-size: 38px 38px, 54px 54px;
+  animation: sci-hangar-preview-stars 7s linear infinite;
+}
+
+.sci-hangar-weapon-preview__target {
+  position: absolute;
+  top: 0.9rem;
+  left: 50%;
+  width: 3.35rem;
+  height: 3.35rem;
+  border: 1px solid rgb(103 232 249 / 0.42);
+  border-radius: 999px;
+  transform: translateX(-50%);
+  box-shadow: 0 0 1.2rem rgb(34 211 238 / 0.2), inset 0 0 1rem rgb(34 211 238 / 0.12);
+  animation: sci-hangar-preview-target 1.18s ease-in-out infinite;
+}
+
+.sci-hangar-weapon-preview__target::before,
+.sci-hangar-weapon-preview__target::after,
+.sci-hangar-weapon-preview__target span::before,
+.sci-hangar-weapon-preview__target span::after {
+  content: '';
+  position: absolute;
+  background: rgb(103 232 249 / 0.66);
+}
+
+.sci-hangar-weapon-preview__target::before {
+  left: 50%;
+  top: -0.38rem;
+  width: 1px;
+  height: calc(100% + 0.76rem);
+}
+
+.sci-hangar-weapon-preview__target::after {
+  left: -0.38rem;
+  top: 50%;
+  width: calc(100% + 0.76rem);
+  height: 1px;
+}
+
+.sci-hangar-weapon-preview__target span::before {
+  inset: 0.72rem;
+  border: 1px solid rgb(250 204 21 / 0.5);
+  border-radius: 999px;
+  background: transparent;
+}
+
+.sci-hangar-weapon-preview__target span::after {
+  inset: 50% auto auto 50%;
+  width: 0.32rem;
+  height: 0.32rem;
+  border-radius: 999px;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0.65rem rgb(250 204 21 / 0.9);
+}
+
+.sci-hangar-weapon-preview__shot {
+  --shot-start-x: 0px;
+  --shot-travel-x: 0px;
+  --shot-static-x: 0px;
+  --shot-angle: 0deg;
+  --shot-delay: 0ms;
+  --shot-flight-ms: 316.667ms;
+  --shot-travel-y: -190px;
+  position: absolute;
+  z-index: 4;
+  left: calc(50% + var(--shot-start-x));
+  bottom: 4.55rem;
+  width: 1.45rem;
+  height: 2.15rem;
+  object-fit: contain;
+  opacity: 0;
+  filter: drop-shadow(0 0 0.45rem rgb(103 232 249 / 0.72));
+  image-rendering: pixelated;
+  will-change: transform, opacity;
+  animation: sci-hangar-shot-flight var(--shot-flight-ms) linear both;
+  animation-delay: var(--shot-delay);
+}
+
+.sci-hangar-weapon-preview__ship-aura {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  bottom: 0.8rem;
+  width: 9.6rem;
+  height: 5rem;
+  border-radius: 999px;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse, rgb(34 211 238 / 0.28), transparent 68%);
+  filter: blur(0.18rem);
+  animation: sci-hangar-preview-aura 1.4s ease-in-out infinite;
+}
+
+.sci-hangar-weapon-preview__ship {
+  position: absolute;
+  z-index: 5;
+  left: 50%;
+  bottom: 0.25rem;
+  width: 7.4rem;
+  height: 7.4rem;
+  object-fit: contain;
+  transform: translateX(-50%);
+  filter: drop-shadow(0 0 0.8rem rgb(34 211 238 / 0.58));
+  image-rendering: pixelated;
+}
+
+.sci-hangar-weapon-preview__deck {
+  position: absolute;
+  z-index: 1;
+  right: 11%;
+  bottom: 0.5rem;
+  left: 11%;
+  height: 1.45rem;
+  border: 1px solid rgb(103 232 249 / 0.28);
+  border-radius: 50%;
+  transform: perspective(5rem) rotateX(68deg);
+  box-shadow: 0 0 1rem rgb(34 211 238 / 0.18), inset 0 0 1rem rgb(34 211 238 / 0.12);
+}
+
+@keyframes sci-hangar-shot-flight {
+  0% {
+    opacity: 0;
+    transform: translate3d(-50%, 0.3rem, 0) rotate(var(--shot-angle)) scale(0.68);
+  }
+  8% { opacity: 1; }
+  76% { opacity: 1; }
+  100% {
+    opacity: 0;
+    transform: translate3d(calc(-50% + var(--shot-travel-x)), var(--shot-travel-y), 0) rotate(var(--shot-angle)) scale(1);
+  }
+}
+
+@keyframes sci-hangar-preview-target {
+  0%, 78%, 100% { filter: brightness(0.82); transform: translateX(-50%) scale(0.96); }
+  88% { filter: brightness(1.75); transform: translateX(-50%) scale(1.06); }
+}
+
+@keyframes sci-hangar-preview-stars {
+  from { background-position: 9px 13px, 27px 41px; }
+  to { background-position: 9px 67px, 27px 79px; }
+}
+
+@keyframes sci-hangar-preview-aura {
+  0%, 100% { opacity: 0.64; transform: translateX(-50%) scale(0.94); }
+  50% { opacity: 1; transform: translateX(-50%) scale(1.06); }
+}
+
+@media (max-width: 389px) {
+  .sci-weapon-spec-row { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sci-hangar-weapon-preview__stars,
+  .sci-hangar-weapon-preview__target,
+  .sci-hangar-weapon-preview__ship-aura {
+    animation: none;
+  }
+
+  .sci-hangar-weapon-preview__shot {
+    opacity: 1;
+    animation: none;
+    transform: translate3d(calc(-50% + var(--shot-static-x)), -5.5rem, 0) rotate(var(--shot-angle));
+  }
+}
+
+.sci-hangar-weapon-preview[data-reduced-motion='true'] .sci-hangar-weapon-preview__stars,
+.sci-hangar-weapon-preview[data-reduced-motion='true'] .sci-hangar-weapon-preview__target,
+.sci-hangar-weapon-preview[data-reduced-motion='true'] .sci-hangar-weapon-preview__ship-aura {
+  animation: none;
+}
+
+.sci-hangar-weapon-preview[data-reduced-motion='true'] .sci-hangar-weapon-preview__shot {
+  opacity: 1;
+  animation: none;
+  transform: translate3d(calc(-50% + var(--shot-static-x)), -5.5rem, 0) rotate(var(--shot-angle));
 }
 
 /* The Trophy Deck holds two unrelated things: the Weekly Run competition and
