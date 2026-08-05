@@ -66,6 +66,26 @@ test('the canonical game-over flow keeps all existing actions inside the new pre
   assert.doesNotMatch(app, /id="pilot-score-name"[\s\S]{0,500}autoFocus/);
 });
 
+test('Weekly Run results use compact, non-wrapping metrics instead of mission copy', () => {
+  const app = fs.readFileSync(path.join(root, 'App.tsx'), 'utf8');
+  const styles = fs.readFileSync(path.join(root, 'styles', 'tailwind.input.css'), 'utf8');
+  const weeklyStyles = styles.match(/\.sci-weekly-run-result \{[\s\S]*?\.sci-campaign-mode-strip \{/u)?.[0] || '';
+
+  assert.match(app, /<p className="sci-weekly-run-result__eyebrow">Weekly Run<\/p>/);
+  assert.match(app, /<span>Wave<\/span>/);
+  assert.match(app, /<span>Bosses<\/span>/);
+  assert.match(app, /<span>Score<\/span>/);
+  assert.match(app, /weeklyRunResultSummary \? null : missionResultBanner/);
+  assert.doesNotMatch(app, /<span>depth reached<\/span>/i);
+  assert.doesNotMatch(app, /<span>bosses down<\/span>/i);
+  assert.doesNotMatch(app, /<span>weekly points<\/span>/i);
+  assert.doesNotMatch(app, /weeklyRunResultSummary\.completed \? 'Gauntlet Cleared'/);
+  assert.match(weeklyStyles, /\.sci-weekly-run-result__grid > div \+ div \{[\s\S]*?border-left:/);
+  assert.match(weeklyStyles, /white-space: nowrap/);
+  assert.doesNotMatch(weeklyStyles, /font:\s*[^;]*\binherit\s*;/);
+  assert.doesNotMatch(weeklyStyles, /overflow-wrap:\s*anywhere/);
+});
+
 test('saved mission records open above the defeat layer and provide illustrated run actions', () => {
   const preview = fs.readFileSync(path.join(root, 'components', 'MissionRecordPreview.tsx'), 'utf8');
 

@@ -26,7 +26,9 @@ test('top-level run progress is presented as Mission without renaming compatibil
   assert.match(app, /Select mission/);
   assert.match(app, />\s*M\{wave\}\s*</);
   assert.doesNotMatch(app, />Stage<\/span>|Select stage|Jump to Stage \{stats\.wave\} boss/);
-  assert.doesNotMatch(app, />Wave<\/span>|Select wave|Jump to W\{stats\.wave\} boss/);
+  // Campaign progress is named Mission. Weekly Run is an endless wave mode and
+  // intentionally uses "Wave" in its compact defeat summary.
+  assert.doesNotMatch(app, />Wave<\/span><strong[^>]*>\{stats\.wave\}|Select wave|Jump to W\{stats\.wave\} boss/);
 
   assert.match(startScreen, /`Mission \$\{entry\.wave \?\? '-'\}`/);
   assert.match(startScreen, /Mission \{winner\.wave \|\| 1\}/);

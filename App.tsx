@@ -6628,8 +6628,7 @@ const App: React.FC = () => {
     return {
       sectorReached: visitedSectors.size > 0 ? Math.max(...visitedSectors) : 1,
       bossesCleared,
-      points: streak.score.totalPoints,
-      completed: streak.finalization.status === 'finalized'
+      points: streak.score.totalPoints
     };
   }, [isWeeklyCampaignRun, weeklySquadState.weeklyCampaignStreak]);
 
@@ -7269,26 +7268,24 @@ const App: React.FC = () => {
             <div className="sci-gameover-result-content relative z-10 grid gap-2 p-1 text-center">
               {weeklyRunResultSummary ? (
                 <div className="sci-weekly-run-result">
-                  <p className="sci-weekly-run-result__eyebrow">
-                    {weeklyRunResultSummary.completed ? 'Gauntlet Cleared' : 'Weekly Run Ended'}
-                  </p>
+                  <p className="sci-weekly-run-result__eyebrow">Weekly Run</p>
                   <div className="sci-weekly-run-result__grid">
                     <div>
                       <strong>{weeklyRunResultSummary.sectorReached}</strong>
-                      <span>depth reached</span>
+                      <span>Wave</span>
                     </div>
                     <div>
                       <strong>{weeklyRunResultSummary.bossesCleared}</strong>
-                      <span>bosses down</span>
+                      <span>Bosses</span>
                     </div>
                     <div>
                       <strong>{weeklyRunResultSummary.points.toLocaleString()}</strong>
-                      <span>weekly points</span>
+                      <span>Score</span>
                     </div>
                   </div>
                 </div>
               ) : null}
-              {missionResultBanner}
+              {weeklyRunResultSummary ? null : missionResultBanner}
 
               {showNameInput ? (
                 <>

@@ -181,6 +181,25 @@ export const finishRunSession = async (
       });
       return data.receipt as RunReceipt;
     } catch (error) {
+      if (session.runMode === 'weekly-streak') {
+        const statusCode = Number((error as { statusCode?: unknown })?.statusCode);
+        const retryable = !Number.isFinite(statusCode)
+          || statusCode >= 500
+          || statusCode === 408
+          || statusCode === 425
+          || statusCode === 429;
+        if (retryable) {
+          console.warn('Weekly Run verification was interrupted; keeping the signed run available for retry.', error);
+          throw Object.assign(
+            new Error('Verification was interrupted. Reconnect and submit again. No wallet is required.'),
+            {
+              cause: error,
+              ...(Number.isFinite(statusCode) ? { statusCode } : {})
+            }
+          );
+        }
+        throw error;
+      }
       console.warn('Server run finalization unavailable; keeping a local unverified record.', error);
     }
   }

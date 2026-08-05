@@ -215,7 +215,7 @@ export const saveScore = async (
 
   try {
     if (!options.receipt || options.receipt.integrity === 'local-unverified' || !options.receipt.receiptToken) {
-      throw new Error('This run is local-only and cannot be submitted to the global leaderboard.');
+      throw new Error('This run was not verified online and cannot enter the global leaderboard. A wallet is not required for verified scores.');
     }
     return await writeRemoteLeaderboardData(newEntry, options.receipt);
   } catch (error) {
