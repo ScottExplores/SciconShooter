@@ -17,12 +17,100 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const campaignPath = path.join(root, 'game-config', 'campaign.json');
 const AUTHORED_EVENT_MARKER = '-advanced-enemy-v1-';
 
+export const RETRACTION_FLEET_ROLE_UPDATES = Object.freeze({
+  'role-jet-scout': Object.freeze({
+    label: 'Redline Skirmisher',
+    spriteKey: 'SCICON_ENEMY_REDLINE_SKIRMISHER_FRAMES'
+  }),
+  'role-jet-interceptor': Object.freeze({
+    label: 'Crosscut Raider',
+    spriteKey: 'SCICON_ENEMY_CROSSCUT_RAIDER_FRAMES'
+  }),
+  'role-jet-heavy': Object.freeze({
+    label: 'Audit Bulwark',
+    spriteKey: 'SCICON_ENEMY_AUDIT_BULWARK_FRAMES'
+  })
+});
+
+const THEMED_PACK_ROLE_IDS = Object.freeze({
+  'role-quasar-lancer': Object.freeze(['role-quasar-lancer', 'role-jet-scout', 'role-jet-heavy']),
+  'role-null-bastion': Object.freeze(['role-null-bastion', 'role-jet-heavy', 'role-research-drone']),
+  'role-vector-reaver': Object.freeze(['role-vector-reaver', 'role-jet-interceptor', 'role-jet-scout']),
+  'role-rift-weaver': Object.freeze(['role-rift-weaver', 'role-vector-reaver', 'role-orbit-disc']),
+  'role-pulse-herald': Object.freeze(['role-pulse-herald', 'role-quasar-lancer', 'role-vector-reaver'])
+});
+
+const LIGHT_RETRACTION_ROLE_IDS = new Set(['role-jet-scout', 'role-jet-interceptor']);
+const EARLY_ESCORT_ROLE_IDS = Object.freeze(['role-research-drone', 'role-citation-swarm']);
+const DIVERSITY_ESCORT_ROLE_IDS = new Set([
+  'role-jet-scout',
+  'role-jet-interceptor',
+  'role-jet-heavy',
+  ...EARLY_ESCORT_ROLE_IDS,
+  'role-protocol-vanguard'
+]);
+const STORY_ROLE_EXCLUSIONS_BY_EVENT = Object.freeze({
+  // Journal Priority is deliberately held for Bastion Protocol even though
+  // this earlier Wave declares the broader Priority Diamond pack.
+  'stage-open-galaxy-wave-2-primary': Object.freeze(['role-journal-priority'])
+});
+const SURGICAL_PATTERN_BY_EVENT = Object.freeze({
+  'stage-citation-storm-wave-2-primary': 'spiral',
+  'stage-citation-storm-wave-6-primary': 'grid',
+  'stage-paywall-siege-wave-2-primary': 'pincer',
+  'stage-open-galaxy-wave-2-primary': 'diamond',
+  'stage-open-orbit-route-b-wave-2-event-1': 'spiral',
+  'stage-open-orbit-route-b-wave-6-event-1': 'grid'
+});
+const RETRACTION_DIVERSITY_LABEL = ' · Retraction mix';
+const RETIRED_SPRITE_KEY_REPLACEMENTS = Object.freeze({
+  PIXI_JET_SCOUT_FRAMES: 'SCICON_ENEMY_REDLINE_SKIRMISHER_FRAMES',
+  PIXI_JET_INTERCEPTOR_FRAMES: 'SCICON_ENEMY_CROSSCUT_RAIDER_FRAMES',
+  PIXI_JET_HEAVY_FRAMES: 'SCICON_ENEMY_AUDIT_BULWARK_FRAMES',
+  SCICON_ENEMY_QUASAR_LANCER_FRAMES: 'SCICON_ENEMY_QUASAR_LANCER_V2_FRAMES',
+  SCICON_ENEMY_VECTOR_REAVER_FRAMES: 'SCICON_ENEMY_VECTOR_REAVER_V2_FRAMES'
+});
+const DIVERSITY_PROFILES = Object.freeze([
+  Object.freeze({
+    patternId: 'pincer',
+    entryPathId: 'paired-flank',
+    movementId: 'lateral-sweep',
+    attackId: 'pincer-pass',
+    firingBehavior: 'priority',
+    returnId: 'reform'
+  }),
+  Object.freeze({
+    patternId: 'sine',
+    entryPathId: 'serpentine-weave',
+    movementId: 'snake-weave',
+    attackId: 'alternating-wings',
+    firingBehavior: 'staggered',
+    returnId: 'transform'
+  }),
+  Object.freeze({
+    patternId: 'grid',
+    entryPathId: 'formation-drop',
+    movementId: 'expand-collapse',
+    attackId: 'row-sequence',
+    firingBehavior: 'staggered',
+    returnId: 'reform'
+  }),
+  Object.freeze({
+    patternId: 'v',
+    entryPathId: 'loop-the-loop',
+    movementId: 'gentle-drift',
+    attackId: 'paired-dive',
+    firingBehavior: 'priority',
+    returnId: 'retreat'
+  })
+]);
+
 export const ADVANCED_ENEMY_DEFINITIONS = Object.freeze([
   Object.freeze({
     id: 'role-quasar-lancer',
     label: 'Quasar Lancer',
     enemyId: 'journal',
-    spriteKey: 'SCICON_ENEMY_QUASAR_LANCER_FRAMES',
+    spriteKey: 'SCICON_ENEMY_QUASAR_LANCER_V2_FRAMES',
     role: 'suppressor',
     threatCost: 7,
     introductionSector: 6,
@@ -34,7 +122,7 @@ export const ADVANCED_ENEMY_DEFINITIONS = Object.freeze([
     entryBehavior: 'lane',
     characteristic: 'artillery',
     packId: 'pack-quasar-lance',
-    synergyTags: ['ranged-pressure', 'lane-control'],
+    synergyTags: ['retraction-fleet', 'ranged-pressure', 'lane-control'],
     maximumSimultaneousCount: 6,
     performanceCost: 4,
     baseHealth: 12,
@@ -58,7 +146,7 @@ export const ADVANCED_ENEMY_DEFINITIONS = Object.freeze([
     entryBehavior: 'formation',
     characteristic: 'holder',
     packId: 'pack-null-bastion-phalanx',
-    synergyTags: ['armor', 'sustained-damage'],
+    synergyTags: ['retraction-fleet', 'armor', 'sustained-damage'],
     maximumSimultaneousCount: 8,
     performanceCost: 5,
     baseHealth: 20,
@@ -70,7 +158,7 @@ export const ADVANCED_ENEMY_DEFINITIONS = Object.freeze([
     id: 'role-vector-reaver',
     label: 'Vector Reaver',
     enemyId: 'swarm',
-    spriteKey: 'SCICON_ENEMY_VECTOR_REAVER_FRAMES',
+    spriteKey: 'SCICON_ENEMY_VECTOR_REAVER_V2_FRAMES',
     role: 'flanker',
     threatCost: 7,
     introductionSector: 8,
@@ -81,7 +169,7 @@ export const ADVANCED_ENEMY_DEFINITIONS = Object.freeze([
     entryBehavior: 'flank',
     characteristic: 'flanker',
     packId: 'pack-vector-reaver-scissors',
-    synergyTags: ['formation-pressure', 'ranged-pressure'],
+    synergyTags: ['retraction-fleet', 'formation-pressure', 'ranged-pressure'],
     maximumSimultaneousCount: 14,
     performanceCost: 3,
     baseHealth: 10,
@@ -105,7 +193,7 @@ export const ADVANCED_ENEMY_DEFINITIONS = Object.freeze([
     entryBehavior: 'flank',
     characteristic: 'flanker',
     packId: 'pack-rift-weaver-helix',
-    synergyTags: ['support', 'formation-pressure'],
+    synergyTags: ['retraction-fleet', 'support', 'formation-pressure'],
     maximumSimultaneousCount: 8,
     performanceCost: 4,
     baseHealth: 15,
@@ -130,7 +218,7 @@ export const ADVANCED_ENEMY_DEFINITIONS = Object.freeze([
     entryBehavior: 'formation',
     characteristic: 'commander',
     packId: 'pack-pulse-herald-orbit',
-    synergyTags: ['formation-pressure', 'priority'],
+    synergyTags: ['retraction-fleet', 'formation-pressure', 'priority'],
     maximumSimultaneousCount: 6,
     performanceCost: 5,
     baseHealth: 18,
@@ -265,15 +353,19 @@ const buildRole = (definition) => ({
   characteristic: definition.characteristic
 });
 
-const buildPack = (campaign, definition) => {
+const buildPack = (campaign, definition, roleById) => {
   const tuning = PACK_TUNING_BY_ROLE[definition.id];
+  const enemyRoleIds = [...THEMED_PACK_ROLE_IDS[definition.id]];
+  const meanThreatCost = enemyRoleIds.reduce((sum, roleId) => (
+    sum + Number(roleById.get(roleId)?.threatCost || definition.threatCost)
+  ), 0) / enemyRoleIds.length;
   return {
     id: definition.packId,
     label: tuning.label,
-    enemyRoleIds: [definition.id],
+    enemyRoleIds,
     // Weekly Run can grow these trains to its bounded 28-enemy ceiling.
     enemyCount: 28,
-    totalThreatCost: definition.threatCost * 28,
+    totalThreatCost: round(meanThreatCost * 28 + tuning.synergyAdjustment, 2),
     entryDirection: tuning.entryDirection,
     entryPath: tuning.entryPath,
     formationShape: tuning.formationShape,
@@ -322,14 +414,177 @@ const buildEnemySetting = (definition, sectorOrder) => ({
   } : {})
 });
 
+const buildRoleSetting = ({
+  roleId,
+  sectorOrder,
+  definitionById,
+  roleById,
+  settingTemplateByRoleId,
+  weight
+}) => {
+  const definition = definitionById.get(roleId);
+  if (definition) return { ...buildEnemySetting(definition, sectorOrder), weight };
+  const role = roleById.get(roleId);
+  const template = settingTemplateByRoleId.get(roleId);
+  if (!role || !template) {
+    throw new Error(`Could not resolve authored enemy setting for themed escort ${roleId}.`);
+  }
+  return {
+    ...structuredClone(template),
+    enemyId: role.enemyId,
+    spriteKey: role.spriteKey,
+    roleId: role.id,
+    weight,
+    damage: 1,
+    powerupDropChance: 0
+  };
+};
+
+const weightedThreatForEvent = (event, roleById) => {
+  if (event?.kind !== 'spawn' || !Array.isArray(event.enemies)) return 0;
+  return event.enemies.reduce((sum, enemy) => (
+    sum + Number(enemy.weight || 0) * Number(roleById.get(enemy.roleId)?.threatCost || 0)
+  ), 0) * Number(event.count || 0);
+};
+
 const isAdvancedEvent = (event) => (
   typeof event?.id === 'string' && event.id.includes(AUTHORED_EVENT_MARKER)
 );
 
+const rewriteRetiredSpriteKeys = (value) => {
+  if (Array.isArray(value)) {
+    for (let index = 0; index < value.length; index += 1) {
+      const entry = value[index];
+      if (typeof entry === 'string' && RETIRED_SPRITE_KEY_REPLACEMENTS[entry]) {
+        value[index] = RETIRED_SPRITE_KEY_REPLACEMENTS[entry];
+      } else {
+        rewriteRetiredSpriteKeys(entry);
+      }
+    }
+    return;
+  }
+  if (!value || typeof value !== 'object') return;
+  for (const [key, entry] of Object.entries(value)) {
+    if (typeof entry === 'string' && RETIRED_SPRITE_KEY_REPLACEMENTS[entry]) {
+      value[key] = RETIRED_SPRITE_KEY_REPLACEMENTS[entry];
+    } else {
+      rewriteRetiredSpriteKeys(entry);
+    }
+  }
+};
+
+const waveLightRetractionShare = (wave) => {
+  let total = 0;
+  let light = 0;
+  for (const event of wave.events ?? []) {
+    if (event.kind !== 'spawn') continue;
+    for (const enemy of event.enemies ?? []) {
+      const expected = Number(event.count || 0) * Number(enemy.weight || 0);
+      total += expected;
+      if (LIGHT_RETRACTION_ROLE_IDS.has(enemy.roleId)) light += expected;
+    }
+  }
+  return total > 0 ? light / total : 0;
+};
+
+const getRoleCompatiblePacks = (event, wave, packById) => {
+  const roleIds = new Set((event.enemies ?? []).map((enemy) => enemy.roleId));
+  return (wave.formationPackIds ?? [])
+    .map((packId) => packById.get(packId))
+    .filter((pack) => pack && [...roleIds].every((roleId) => pack.enemyRoleIds.includes(roleId)));
+};
+
+const normalizeWeights = (enemies) => {
+  const light = enemies.filter((enemy) => LIGHT_RETRACTION_ROLE_IDS.has(enemy.roleId));
+  const escorts = enemies.filter((enemy) => !LIGHT_RETRACTION_ROLE_IDS.has(enemy.roleId));
+  if (light.length === 0 || escorts.length === 0) return enemies;
+  const scaleGroup = (group, target) => {
+    const sum = group.reduce((total, enemy) => total + Math.max(0, Number(enemy.weight) || 0), 0);
+    const denominator = sum > 0 ? sum : group.length;
+    group.forEach((enemy, index) => {
+      const basis = sum > 0 ? Math.max(0, Number(enemy.weight) || 0) : 1;
+      enemy.weight = index === group.length - 1
+        ? round(target - group.slice(0, -1).reduce((total, entry) => total + entry.weight, 0), 6)
+        : round(target * basis / denominator, 6);
+    });
+  };
+  scaleGroup(light, 0.58);
+  scaleGroup(escorts, 0.42);
+  return enemies;
+};
+
+const diversifyLightRetractionWaves = ({
+  campaign,
+  roleById,
+  packById,
+  definitionById,
+  settingTemplateByRoleId
+}) => {
+  const targetWaves = campaign.levels.flatMap((level) => level.waves
+    .filter((wave) => (
+      waveLightRetractionShare(wave) > 0.5
+      || (wave.events ?? []).some((event) => event.label?.endsWith(RETRACTION_DIVERSITY_LABEL))
+    ))
+    .map((wave) => ({ level, wave })));
+
+  targetWaves.forEach(({ level, wave }, waveIndex) => {
+    const sectorOrder = Number(level.campaignProgression?.sectorOrder || 1);
+    (wave.events ?? []).filter((event) => event.kind === 'spawn').forEach((event, eventIndex) => {
+      if (!(event.enemies ?? []).some((enemy) => LIGHT_RETRACTION_ROLE_IDS.has(enemy.roleId))) return;
+      const storyExclusions = new Set(STORY_ROLE_EXCLUSIONS_BY_EVENT[event.id] ?? []);
+      event.enemies = event.enemies.filter((enemy) => !storyExclusions.has(enemy.roleId));
+      const existingRoleIds = new Set(event.enemies.map((enemy) => enemy.roleId));
+      const compatiblePacks = getRoleCompatiblePacks(event, wave, packById);
+      const shapeMatches = compatiblePacks.filter((pack) => pack.formationShape === event.patternId);
+      const compatiblePack = compatiblePacks.length === 1
+        ? compatiblePacks[0]
+        : shapeMatches.length === 1 ? shapeMatches[0] : null;
+      const candidates = compatiblePack
+        ? compatiblePack.enemyRoleIds.filter((roleId) => (
+            !existingRoleIds.has(roleId)
+            && !storyExclusions.has(roleId)
+            && DIVERSITY_ESCORT_ROLE_IDS.has(roleId)
+          ))
+        : event.patternId === 'single-random'
+          ? EARLY_ESCORT_ROLE_IDS.filter((roleId) => !existingRoleIds.has(roleId))
+          : [];
+      for (const roleId of candidates) {
+        if (existingRoleIds.size >= 3) break;
+        event.enemies.push(buildRoleSetting({
+          roleId,
+          sectorOrder,
+          definitionById,
+          roleById,
+          settingTemplateByRoleId,
+          weight: 1
+        }));
+        existingRoleIds.add(roleId);
+      }
+      normalizeWeights(event.enemies);
+      event.label = `${String(event.label || 'Retraction Fleet').replace(RETRACTION_DIVERSITY_LABEL, '')}${RETRACTION_DIVERSITY_LABEL}`;
+
+      const postMixCompatible = getRoleCompatiblePacks(event, wave, packById);
+      const surgicalPattern = SURGICAL_PATTERN_BY_EVENT[event.id];
+      if (surgicalPattern) {
+        event.patternId = surgicalPattern;
+      } else {
+        // Only six hand-audited events own bespoke choreography. Other fleet
+        // remixes vary their shape while inheriting the selected pack's safe
+        // movement contract instead of growing one-off behavior overrides.
+        delete event.formationBehavior;
+      }
+      if (!surgicalPattern && event.patternId !== 'single-random' && postMixCompatible.length === 1) {
+        const profile = DIVERSITY_PROFILES[(waveIndex + eventIndex + 1) % DIVERSITY_PROFILES.length];
+        event.patternId = profile.patternId;
+      }
+    });
+  });
+  return targetWaves.length;
+};
+
 const advancedThreatInEvents = (events, roleById) => events.reduce((total, event) => {
   if (!isAdvancedEvent(event) || event.kind !== 'spawn') return total;
-  const role = roleById.get(event.enemies?.[0]?.roleId);
-  return total + (role ? role.threatCost * Number(event.count || 0) : 0);
+  return total + weightedThreatForEvent(event, roleById);
 }, 0);
 
 const authorWaveTrain = ({
@@ -338,6 +593,8 @@ const authorWaveTrain = ({
   sectorOrder,
   packById,
   roleById,
+  definitionById,
+  settingTemplateByRoleId,
   trainKind
 }) => {
   const previousEvents = Array.isArray(wave.events) ? wave.events : [];
@@ -354,23 +611,34 @@ const authorWaveTrain = ({
   const firstStart = trainKind === 'introduction' ? baseLastStart + 1.45 : baseLastStart + 1.8;
   const startStride = 1.8;
   const baseCount = trainKind === 'introduction'
-    ? 8 + (sectorOrder - 6)
-    : 10 + (sectorOrder - 6);
+    ? 6 + Math.floor((sectorOrder - 6) / 2)
+    : 7 + (sectorOrder - 6);
   const spawnIntervalSeconds = round(Math.max(0.16, 0.21 - (sectorOrder - 6) * 0.01), 3);
-  const newEvents = definitions.map((definition, index) => ({
-    id: `${wave.id}${AUTHORED_EVENT_MARKER}${definition.id.replace(/^role-/, '')}-${index + 1}`,
-    kind: 'spawn',
-    label: `${definition.label} ${trainKind === 'introduction' ? 'arrival' : 'reinforcement train'}`,
-    startSeconds: round(firstStart + index * startStride, 2),
-    durationSeconds: 8,
-    delayAfterSeconds: 0,
-    blocksWaveClock: false,
-    count: Math.min(18, baseCount + index),
-    patternId: PACK_TUNING_BY_ROLE[definition.id].formationShape,
-    positionId: 'formation-top',
-    spawnIntervalSeconds,
-    enemies: [buildEnemySetting(definition, sectorOrder)]
-  }));
+  const newEvents = definitions.map((definition, index) => {
+    const packRoleIds = THEMED_PACK_ROLE_IDS[definition.id];
+    const weights = [0.5, 0.3, 0.2];
+    return {
+      id: `${wave.id}${AUTHORED_EVENT_MARKER}${definition.id.replace(/^role-/, '')}-${index + 1}`,
+      kind: 'spawn',
+      label: `${definition.label} ${trainKind === 'introduction' ? 'arrival' : 'fleet cohort'}`,
+      startSeconds: round(firstStart + index * startStride, 2),
+      durationSeconds: 8,
+      delayAfterSeconds: 0,
+      blocksWaveClock: false,
+      count: Math.min(12, baseCount + Math.min(index, 1)),
+      patternId: PACK_TUNING_BY_ROLE[definition.id].formationShape,
+      positionId: 'formation-top',
+      spawnIntervalSeconds,
+      enemies: packRoleIds.map((roleId, roleIndex) => buildRoleSetting({
+        roleId,
+        sectorOrder,
+        definitionById,
+        roleById,
+        settingTemplateByRoleId,
+        weight: weights[roleIndex]
+      }))
+    };
+  });
   wave.events.push(...newEvents);
   for (const definition of definitions) {
     if (!wave.formationPackIds.includes(definition.packId)) {
@@ -387,8 +655,8 @@ const authorWaveTrain = ({
     event.durationSeconds = round(Math.max(0.5, wave.durationSeconds - event.startSeconds), 2);
   }
 
-  const newThreat = definitions.reduce((total, definition, index) => (
-    total + definition.threatCost * Math.min(18, baseCount + index)
+  const newThreat = newEvents.reduce((total, event) => (
+    total + weightedThreatForEvent(event, roleById)
   ), 0);
   const baseBudget = Math.max(0, Number(wave.combatBudget || 0) - removedThreat);
   const declaredPackBudget = wave.formationPackIds.reduce((total, packId) => (
@@ -407,13 +675,73 @@ export const authorSciconAdvancedEnemies = (campaign) => {
     throw new Error('Advanced enemy authoring requires a complete Campaign config.');
   }
 
+  rewriteRetiredSpriteKeys(campaign);
+
   for (const definition of ADVANCED_ENEMY_DEFINITIONS) {
     upsertById(campaign.enemyRoles, buildRole(definition));
-    upsertById(campaign.formationPacks, buildPack(campaign, definition));
+  }
+
+  for (const [roleId, update] of Object.entries(RETRACTION_FLEET_ROLE_UPDATES)) {
+    const role = campaign.enemyRoles.find((candidate) => candidate.id === roleId);
+    if (!role) throw new Error(`Could not resolve Retraction Fleet role ${roleId}.`);
+    role.label = update.label;
+    role.spriteKey = update.spriteKey;
+    role.synergyTags = [...new Set(['retraction-fleet', ...(role.synergyTags ?? [])])];
   }
 
   const roleById = new Map(campaign.enemyRoles.map((role) => [role.id, role]));
+  const definitionById = new Map(ADVANCED_ENEMY_DEFINITIONS.map((definition) => [definition.id, definition]));
+  for (const definition of ADVANCED_ENEMY_DEFINITIONS) {
+    upsertById(campaign.formationPacks, buildPack(campaign, definition, roleById));
+  }
+
+  const lightPack = campaign.formationPacks.find((pack) => pack.id === 'pack-light-jet-pincer');
+  if (!lightPack) throw new Error('Could not resolve the early Retraction Fleet formation pack.');
+  lightPack.label = 'Retraction Scout Screen';
+  lightPack.enemyRoleIds = [
+    'role-jet-scout',
+    'role-jet-interceptor',
+    ...EARLY_ESCORT_ROLE_IDS
+  ];
+
   const packById = new Map(campaign.formationPacks.map((pack) => [pack.id, pack]));
+  for (const pack of campaign.formationPacks) {
+    for (const roleId of pack.enemyRoleIds) {
+      const role = roleById.get(roleId);
+      if (!role) continue;
+      role.compatibleFormationPackIds = [...new Set([
+        ...(role.compatibleFormationPackIds ?? []),
+        pack.id
+      ])];
+    }
+  }
+
+  for (const level of campaign.levels) {
+    for (const wave of level.waves ?? []) {
+      for (const event of wave.events ?? []) {
+        if (event.kind !== 'spawn') continue;
+        for (const enemy of event.enemies ?? []) {
+          const role = roleById.get(enemy.roleId);
+          if (role) enemy.spriteKey = role.spriteKey;
+        }
+      }
+    }
+  }
+
+  const settingTemplateByRoleId = new Map();
+  for (const level of campaign.levels) {
+    for (const wave of level.waves ?? []) {
+      for (const event of wave.events ?? []) {
+        if (event.kind !== 'spawn') continue;
+        for (const enemy of event.enemies ?? []) {
+          if (!settingTemplateByRoleId.has(enemy.roleId)) {
+            settingTemplateByRoleId.set(enemy.roleId, structuredClone(enemy));
+          }
+        }
+      }
+    }
+  }
+
   const levelById = new Map(campaign.levels.map((level) => [level.id, level]));
   const graphNodeById = new Map((campaign.campaignGraph?.nodes ?? []).map((node) => [node.nodeId, node]));
   let authoredEventCount = 0;
@@ -430,6 +758,8 @@ export const authorSciconAdvancedEnemies = (campaign) => {
       sectorOrder: sector.order,
       packById,
       roleById,
+      definitionById,
+      settingTemplateByRoleId,
       trainKind: 'introduction'
     });
   }
@@ -450,15 +780,26 @@ export const authorSciconAdvancedEnemies = (campaign) => {
         sectorOrder: sector.order,
         packById,
         roleById,
+        definitionById,
+        settingTemplateByRoleId,
         trainKind: kind
       });
     }
   }
 
+  const diversifiedWaveCount = diversifyLightRetractionWaves({
+    campaign,
+    roleById,
+    packById,
+    definitionById,
+    settingTemplateByRoleId
+  });
+
   return {
     roleCount: ADVANCED_ENEMY_DEFINITIONS.length,
     packCount: ADVANCED_ENEMY_DEFINITIONS.length,
-    authoredEventCount
+    authoredEventCount,
+    diversifiedWaveCount
   };
 };
 

@@ -98,10 +98,15 @@ test('long round masters do not hard-wrap and props stay inside their terrain fa
   assert.match(environment, /TERRAIN_PROP_ATLASES/);
 });
 
-test('ground sectors keep the legacy roster and never turn the river route into an asteroid belt', () => {
+test('ground sectors keep their authored roster and never turn the river route into an asteroid belt', () => {
   const campaign = JSON.parse(read('game-config/campaign.json'));
   const desertStage = findCampaignLevel(campaign, 'stage-paywall-siege');
   const riverStage = findCampaignLevel(campaign, 'stage-open-galaxy');
+  const earlyRetractionKeys = new Set([
+    'SCICON_ENEMY_REDLINE_SKIRMISHER_FRAMES',
+    'SCICON_ENEMY_CROSSCUT_RAIDER_FRAMES',
+    'SCICON_ENEMY_AUDIT_BULWARK_FRAMES'
+  ]);
 
   for (const stage of [desertStage, riverStage]) {
     const combatSpawns = stage.waves
@@ -109,7 +114,8 @@ test('ground sectors keep the legacy roster and never turn the river route into 
       .filter((event) => event.kind === 'spawn' && Array.isArray(event.enemies));
     assert.ok(combatSpawns.length > 0, `${stage.id} retains authored combat spawns`);
     assert.ok(combatSpawns.every((event) => event.enemies.every((enemy) => (
-      !enemy.spriteKey.startsWith('SCICON_ENEMY_') && enemy.spriteKey !== 'ASTEROID_BELT_FRAMES'
+      (!enemy.spriteKey.startsWith('SCICON_ENEMY_') || earlyRetractionKeys.has(enemy.spriteKey))
+      && enemy.spriteKey !== 'ASTEROID_BELT_FRAMES'
     ))));
   }
 
@@ -117,7 +123,7 @@ test('ground sectors keep the legacy roster and never turn the river route into 
   assert.equal(riverEvents.some((event) => event.kind === 'asteroid-belt'), false);
   assert.ok(riverEvents.some((event) => (
     event.kind === 'spawn'
-    && event.enemies?.some((enemy) => enemy.spriteKey === 'PIXI_JET_HEAVY_FRAMES')
+    && event.enemies?.some((enemy) => enemy.spriteKey === 'SCICON_ENEMY_AUDIT_BULWARK_FRAMES')
   )));
   assert.equal(riverEvents.some((event) => (
     event.kind === 'spawn'

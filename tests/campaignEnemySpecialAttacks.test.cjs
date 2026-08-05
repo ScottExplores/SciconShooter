@@ -56,6 +56,28 @@ test('authored specials own their fire scheduler and synchronize charge/fire art
   assert.match(gameLogicSource, /source\.isCharging = true;/);
   assert.match(gameLogicSource, /source\.campaignLastFireFrame = this\.frameCount;/);
   assert.match(rendererSource, /scicon-advanced-enemy-pack-v1/);
+  assert.match(rendererSource, /scicon-retraction-fleet-v2/);
   assert.match(rendererSource, /entity\.isCharging/);
   assert.match(rendererSource, /entity\.campaignLastFireFrame/);
+
+  const retractionStateBlock = rendererSource.slice(
+    rendererSource.indexOf("const isRetractionFleet = entity.spriteUrl?.includes('/scicon-retraction-fleet-v2/');"),
+    rendererSource.indexOf('if (entity.type === EntityType.ENEMY_INVADER')
+  );
+  assert.ok(retractionStateBlock.length > 0, 'Retraction Fleet texture-state block exists');
+  assert.match(
+    retractionStateBlock,
+    /campaignLastFireFrame <= 8\) return entity\.spriteFrames\[2\]/,
+    'recent fire state uses frame 3'
+  );
+  assert.match(
+    retractionStateBlock,
+    /entity\.isCharging\) return entity\.spriteFrames\[1\]/,
+    'charge state uses frame 2'
+  );
+  assert.match(
+    retractionStateBlock,
+    /isRetractionFleet\) return entity\.spriteFrames\[0\]/,
+    'idle Retraction Fleet enemies use the neutral frame'
+  );
 });

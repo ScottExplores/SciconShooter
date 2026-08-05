@@ -13,11 +13,11 @@ const authoringUrl = pathToFileURL(
 ).href;
 
 const EXPECTED = Object.freeze([
-  { roleId: 'role-quasar-lancer', packId: 'pack-quasar-lance', key: 'SCICON_ENEMY_QUASAR_LANCER_FRAMES', enemyId: 'journal', sector: 6, specialAttack: 'lane-laser', path: 'side-wall-entry' },
-  { roleId: 'role-null-bastion', packId: 'pack-null-bastion-phalanx', key: 'SCICON_ENEMY_NULL_BASTION_FRAMES', enemyId: 'brick', sector: 7, specialAttack: undefined, path: 'loop-the-loop' },
-  { roleId: 'role-vector-reaver', packId: 'pack-vector-reaver-scissors', key: 'SCICON_ENEMY_VECTOR_REAVER_FRAMES', enemyId: 'swarm', sector: 8, specialAttack: undefined, path: 'paired-flank' },
-  { roleId: 'role-rift-weaver', packId: 'pack-rift-weaver-helix', key: 'SCICON_ENEMY_RIFT_WEAVER_FRAMES', enemyId: 'drone', sector: 9, specialAttack: 'mine-fan', path: 'serpentine-weave' },
-  { roleId: 'role-pulse-herald', packId: 'pack-pulse-herald-orbit', key: 'SCICON_ENEMY_PULSE_HERALD_FRAMES', enemyId: 'journal', sector: 10, specialAttack: 'ring-burst', path: 'ring-assemble' }
+  { roleId: 'role-quasar-lancer', packId: 'pack-quasar-lance', key: 'SCICON_ENEMY_QUASAR_LANCER_V2_FRAMES', enemyId: 'journal', sector: 6, specialAttack: 'lane-laser', path: 'side-wall-entry', escorts: ['role-jet-scout', 'role-jet-heavy'] },
+  { roleId: 'role-null-bastion', packId: 'pack-null-bastion-phalanx', key: 'SCICON_ENEMY_NULL_BASTION_FRAMES', enemyId: 'brick', sector: 7, specialAttack: undefined, path: 'loop-the-loop', escorts: ['role-jet-heavy', 'role-research-drone'] },
+  { roleId: 'role-vector-reaver', packId: 'pack-vector-reaver-scissors', key: 'SCICON_ENEMY_VECTOR_REAVER_V2_FRAMES', enemyId: 'swarm', sector: 8, specialAttack: undefined, path: 'paired-flank', escorts: ['role-jet-interceptor', 'role-jet-scout'] },
+  { roleId: 'role-rift-weaver', packId: 'pack-rift-weaver-helix', key: 'SCICON_ENEMY_RIFT_WEAVER_FRAMES', enemyId: 'drone', sector: 9, specialAttack: 'mine-fan', path: 'serpentine-weave', escorts: ['role-vector-reaver', 'role-orbit-disc'] },
+  { roleId: 'role-pulse-herald', packId: 'pack-pulse-herald-orbit', key: 'SCICON_ENEMY_PULSE_HERALD_FRAMES', enemyId: 'journal', sector: 10, specialAttack: 'ring-burst', path: 'ring-assemble', escorts: ['role-quasar-lancer', 'role-vector-reaver'] }
 ]);
 const ADVANCED_ROLE_IDS = new Set(EXPECTED.map((entry) => entry.roleId));
 
@@ -43,13 +43,24 @@ const advancedSpawns = (sourceCampaign) => sourceCampaign.levels.flatMap((level)
       .map((enemy) => ({ level, wave, event, enemy }))))
 ));
 
+const authoredAdvancedEvents = (sourceCampaign) => sourceCampaign.levels.flatMap((level) => (
+  level.waves.flatMap((wave) => wave.events
+    .filter((event) => event.kind === 'spawn' && event.id.includes('-advanced-enemy-v1-'))
+    .map((event) => ({ level, wave, event, enemy: event.enemies[0] })))
+));
+
 test('advanced roster authoring is idempotent and keeps a valid Campaign contract', async () => {
   const { authorSciconAdvancedEnemies } = await import(authoringUrl);
   const authored = structuredClone(campaign);
   const first = authorSciconAdvancedEnemies(authored);
   const once = JSON.stringify(authored);
   const second = authorSciconAdvancedEnemies(authored);
-  assert.deepEqual(first, { roleCount: 5, packCount: 5, authoredEventCount: 29 });
+  assert.deepEqual(first, {
+    roleCount: 5,
+    packCount: 5,
+    authoredEventCount: 29,
+    diversifiedWaveCount: 26
+  });
   assert.deepEqual(second, first);
   assert.equal(JSON.stringify(authored), once);
   assert.deepEqual(authored, campaign, 'checked-in Campaign is the deterministic authoring result');
@@ -75,8 +86,8 @@ test('five generated hulls have unique sector-gated roles and formation packs', 
     assert.equal(role.introductionSector, expected.sector);
     assert.equal(role.introductionMission, 1);
     assert.equal(role.specialAttack, expected.specialAttack);
-    assert.deepEqual(role.compatibleFormationPackIds, [expected.packId]);
-    assert.deepEqual(pack.enemyRoleIds, [expected.roleId]);
+    assert.ok(role.compatibleFormationPackIds.includes(expected.packId));
+    assert.deepEqual(pack.enemyRoleIds, [expected.roleId, ...expected.escorts]);
     assert.equal(pack.minimumSector, expected.sector);
     assert.equal(pack.entryDirection, 'split');
     assert.equal(pack.entryPath, expected.path);
@@ -90,7 +101,7 @@ test('Campaign introductions and both route trains materialize every late hull w
   const roleById = new Map(campaign.enemyRoles.map((role) => [role.id, role]));
   const levelById = new Map(campaign.levels.map((level) => [level.id, level]));
   const graphNodeById = new Map(campaign.campaignGraph.nodes.map((node) => [node.nodeId, node]));
-  const authored = advancedSpawns(campaign);
+  const authored = authoredAdvancedEvents(campaign);
   assert.equal(authored.length, 29);
 
   for (const expected of EXPECTED) {
@@ -101,6 +112,7 @@ test('Campaign introductions and both route trains materialize every late hull w
     ));
     assert.ok(debut, `${expected.roleId} debuts in Sector ${expected.sector}`);
     assert.equal(debut.enemy.health >= roleById.get(expected.roleId).threatCost + 3, true);
+    assert.deepEqual(debut.event.enemies.map((enemy) => enemy.roleId), [expected.roleId, ...expected.escorts]);
   }
 
   const trainTotals = [];
@@ -112,7 +124,13 @@ test('Campaign introductions and both route trains materialize every late hull w
       const wave = level.waves.at(-2);
       const train = wave.events.filter((event) => event.id.includes('-advanced-enemy-v1-'));
       assert.equal(train.length, Math.min(3, sector.order - 5), `${level.id} stages its unlocked train`);
-      assert.ok(train.every((event) => event.count >= 10 + sector.order - 6));
+      assert.ok(train.every((event) => event.count >= 7 + sector.order - 6));
+      assert.ok(train.every((event) => event.count <= 12));
+      assert.ok(train.every((event) => event.enemies.length === 3));
+      assert.ok(train.every((event) => new Set(event.enemies.map((enemy) => enemy.spriteKey)).size === 3));
+      assert.ok(train.every((event) => Math.abs(
+        event.enemies.reduce((sum, enemy) => sum + enemy.weight, 0) - 1
+      ) < 0.0001));
       assert.ok(train.every((event) => event.patternId !== 'single-random'));
       assert.ok(train.every((event) => event.startSeconds > 2.2));
       trainTotals.push({ sector: sector.order, total: train.reduce((sum, event) => sum + event.count, 0) });

@@ -9,6 +9,7 @@ import { AnalyticsFoundation } from '../tools/AnalyticsFoundation';
 import { HubOverview } from '../tools/HubOverview';
 import { PlayerReportInbox } from '../tools/PlayerReportInbox';
 import { ProjectGuide } from '../tools/ProjectGuide';
+import { WaveFormationGallery } from '../tools/wave-gallery/WaveFormationGallery';
 import {
   AUTHORING_DESCRIPTORS,
   resolveHubRoute,
@@ -199,6 +200,9 @@ export function DeveloperHubApp({
       case 'report-inbox':
         content = <PlayerReportInbox />;
         break;
+      case 'wave-gallery':
+        content = <WaveFormationGallery />;
+        break;
       case 'project-guide':
         content = <ProjectGuide />;
         break;
@@ -214,6 +218,7 @@ export function DeveloperHubApp({
     || descriptor.host === 'overview'
     || descriptor.host === 'analytics-foundation'
     || descriptor.host === 'report-inbox'
+    || descriptor.host === 'wave-gallery'
     || descriptor.host === 'project-guide';
 
   return (

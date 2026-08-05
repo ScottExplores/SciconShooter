@@ -259,6 +259,31 @@ export const ASSETS = {
     "/game-art/generated/scicon-protocol-vanguard-v1/enemies/protocol-vanguard/frames/protocol-vanguard-03-fire.png",
     "/game-art/generated/scicon-protocol-vanguard-v1/enemies/protocol-vanguard/frames/protocol-vanguard-04-damage.png"
   ],
+  SCICON_ENEMY_REDLINE_SKIRMISHER_FRAMES: [
+    "/game-art/generated/scicon-retraction-fleet-v2/enemies/redline-skirmisher/frames/redline-skirmisher-01-neutral.png",
+    "/game-art/generated/scicon-retraction-fleet-v2/enemies/redline-skirmisher/frames/redline-skirmisher-02-charge.png",
+    "/game-art/generated/scicon-retraction-fleet-v2/enemies/redline-skirmisher/frames/redline-skirmisher-03-fire.png"
+  ],
+  SCICON_ENEMY_CROSSCUT_RAIDER_FRAMES: [
+    "/game-art/generated/scicon-retraction-fleet-v2/enemies/crosscut-raider/frames/crosscut-raider-01-neutral.png",
+    "/game-art/generated/scicon-retraction-fleet-v2/enemies/crosscut-raider/frames/crosscut-raider-02-charge.png",
+    "/game-art/generated/scicon-retraction-fleet-v2/enemies/crosscut-raider/frames/crosscut-raider-03-fire.png"
+  ],
+  SCICON_ENEMY_AUDIT_BULWARK_FRAMES: [
+    "/game-art/generated/scicon-retraction-fleet-v2/enemies/audit-bulwark/frames/audit-bulwark-01-neutral.png",
+    "/game-art/generated/scicon-retraction-fleet-v2/enemies/audit-bulwark/frames/audit-bulwark-02-charge.png",
+    "/game-art/generated/scicon-retraction-fleet-v2/enemies/audit-bulwark/frames/audit-bulwark-03-fire.png"
+  ],
+  SCICON_ENEMY_QUASAR_LANCER_V2_FRAMES: [
+    "/game-art/generated/scicon-retraction-fleet-v2/enemies/quasar-lancer-v2/frames/quasar-lancer-v2-01-neutral.png",
+    "/game-art/generated/scicon-retraction-fleet-v2/enemies/quasar-lancer-v2/frames/quasar-lancer-v2-02-charge.png",
+    "/game-art/generated/scicon-retraction-fleet-v2/enemies/quasar-lancer-v2/frames/quasar-lancer-v2-03-fire.png"
+  ],
+  SCICON_ENEMY_VECTOR_REAVER_V2_FRAMES: [
+    "/game-art/generated/scicon-retraction-fleet-v2/enemies/vector-reaver-v2/frames/vector-reaver-v2-01-neutral.png",
+    "/game-art/generated/scicon-retraction-fleet-v2/enemies/vector-reaver-v2/frames/vector-reaver-v2-02-charge.png",
+    "/game-art/generated/scicon-retraction-fleet-v2/enemies/vector-reaver-v2/frames/vector-reaver-v2-03-fire.png"
+  ],
   SCICON_ENEMY_QUASAR_LANCER_FRAMES: [
     "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/quasar-lancer/frames/quasar-lancer-01-neutral.png",
     "/game-art/generated/scicon-advanced-enemy-pack-v1/enemies/quasar-lancer/frames/quasar-lancer-02-charge.png",

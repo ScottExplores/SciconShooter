@@ -65,8 +65,13 @@ export const normalizeCampaignFormationAuthoring = (campaign) => {
     .filter(Boolean);
   const lightJetPack = {
     id: 'pack-light-jet-pincer',
-    label: 'Light Jet Pincer',
-    enemyRoleIds: ['role-jet-scout', 'role-jet-interceptor'],
+    label: 'Retraction Scout Screen',
+    enemyRoleIds: [
+      'role-jet-scout',
+      'role-jet-interceptor',
+      'role-research-drone',
+      'role-citation-swarm'
+    ],
     enemyCount: 24,
     totalThreatCost: 62,
     entryDirection: 'split',

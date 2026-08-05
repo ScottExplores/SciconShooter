@@ -546,7 +546,7 @@ test('journal-class spawns use their role-bound Squadron families', () => {
     'CAMPAIGN_ENEMY_CRESCENT_MINELAYER',
     'CAMPAIGN_ENEMY_PRISM_ARTILLERY',
     'CAMPAIGN_ENEMY_BULLET_RING_EMITTER',
-    'SCICON_ENEMY_QUASAR_LANCER_FRAMES',
+    'SCICON_ENEMY_QUASAR_LANCER_V2_FRAMES',
     'SCICON_ENEMY_PULSE_HERALD_FRAMES'
   ]);
   journalSettings.forEach((enemy) => assert.equal(allowedJournalSprites.has(enemy.spriteKey), true));

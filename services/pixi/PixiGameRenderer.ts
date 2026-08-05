@@ -958,9 +958,11 @@ export const PIXI_GAMEPLAY_STARTUP_TEXTURE_URLS = Object.freeze([
   ...ASSETS.ENEMY_SWARM_FRAMES,
   ...ASSETS.ENEMY_BRICK_FRAMES,
   ...ASSETS.ENEMY_JOURNAL_FRAMES,
-  ...ASSETS.PIXI_JET_SCOUT_FRAMES,
-  ...ASSETS.PIXI_JET_INTERCEPTOR_FRAMES,
-  ...ASSETS.PIXI_JET_HEAVY_FRAMES,
+  ...ASSETS.SCICON_ENEMY_REDLINE_SKIRMISHER_FRAMES,
+  ...ASSETS.SCICON_ENEMY_CROSSCUT_RAIDER_FRAMES,
+  ...ASSETS.SCICON_ENEMY_AUDIT_BULWARK_FRAMES,
+  ...ASSETS.SCICON_ENEMY_QUASAR_LANCER_V2_FRAMES,
+  ...ASSETS.SCICON_ENEMY_VECTOR_REAVER_V2_FRAMES,
   ...ASSETS.ASTEROID_BELT_FRAMES,
   ASSETS.SUPPLY_DROP_STANDARD,
   ASSETS.SUPPLY_DROP_ARMORED,
@@ -1168,12 +1170,19 @@ const getDefaultEntityTexture = (engine: GameEngine, entity: Entity) => {
     // Advanced enemy frames encode neutral / charge / fire states. Tie those
     // states to simulation timing before falling back to the subtle formation
     // motion loop so special attacks read clearly without visual desync.
+    const isRetractionFleet = entity.spriteUrl?.includes('/scicon-retraction-fleet-v2/');
     if (
       entity.spriteFrames.length === 3
-      && entity.spriteUrl?.includes('/scicon-advanced-enemy-pack-v1/')
+      && (
+        entity.spriteUrl?.includes('/scicon-advanced-enemy-pack-v1/')
+        || isRetractionFleet
+      )
     ) {
       if (engine.frameCount - entity.campaignLastFireFrame <= 8) return entity.spriteFrames[2];
       if (entity.isCharging) return entity.spriteFrames[1];
+      // Retraction Fleet frames are explicit combat states, so idle enemies
+      // stay neutral instead of borrowing the charge pose for ambient motion.
+      if (isRetractionFleet) return entity.spriteFrames[0];
       const motionFrame = getFormationMotionFrameIndex(engine, entity);
       return entity.spriteFrames[motionFrame === 2 ? 1 : motionFrame];
     }

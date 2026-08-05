@@ -8,6 +8,7 @@ export type HubToolId =
   | 'sandbox'
   | 'loadouts'
   | 'assets'
+  | 'gallery'
   | 'reports'
   | 'analytics'
   | 'reviews'
@@ -20,6 +21,7 @@ export type HubToolHost =
   | 'boss-sandbox'
   | 'combat-lab'
   | 'report-inbox'
+  | 'wave-gallery'
   | 'analytics-foundation'
   | 'legacy';
 
@@ -206,6 +208,22 @@ export const AUTHORING_DESCRIPTORS = [
     status: 'shared-surface',
     resourceKinds: ['asset'],
     previewSurface: 'sandbox',
+    navigation: true
+  },
+  {
+    id: 'gallery',
+    path: '/gallery',
+    aliases: ['/wave-gallery'],
+    label: 'Wave Gallery',
+    shortLabel: 'Gallery',
+    glyph: 'WG',
+    eyebrow: 'Inspect',
+    description: 'Browse every Campaign mission and wave as a simple read-only formation and enemy gallery.',
+    group: 'inspect',
+    host: 'wave-gallery',
+    status: 'live',
+    resourceKinds: ['wave', 'formation'],
+    previewSurface: 'none',
     navigation: true
   },
   {

@@ -233,6 +233,35 @@ const resolvesUniquelyToPack = (
   return shapeMatches.length === 1 && shapeMatches[0].id === target.id;
 };
 
+const GUARANTEED_DEBUT_PACK_IDS = new Set([
+  'pack-quasar-lance',
+  'pack-null-bastion-phalanx',
+  'pack-vector-reaver-scissors',
+  'pack-rift-weaver-helix',
+  'pack-pulse-herald-orbit'
+]);
+
+interface WeeklyFormationSelectionState {
+  debutedPackIds: Set<string>;
+  recentPackIds: Set<string>[];
+  recentShapeIds: Set<string>[];
+  packUseCounts: Map<string, number>;
+  shapeUseCounts: Map<string, number>;
+}
+
+const createWeeklyFormationSelectionState = (): WeeklyFormationSelectionState => ({
+  debutedPackIds: new Set<string>(),
+  recentPackIds: [],
+  recentShapeIds: [],
+  packUseCounts: new Map<string, number>(),
+  shapeUseCounts: new Map<string, number>()
+});
+
+const recentUsePenalty = (history: readonly Set<string>[], id: string) => history.reduce(
+  (penalty, entries, index) => penalty + (entries.has(id) ? (index === 0 ? 1000 : 260) : 0),
+  0
+);
+
 /**
  * A Wave declares every pack it uses, while each Spawn still has to resolve to
  * exactly one of those declarations. Avoiding subset/shape ambiguity here
@@ -242,19 +271,41 @@ const selectFormationPackTrain = (
   random: () => number,
   eligible: readonly FormationPackDefinition[],
   eventCount: number,
-  preferredMinimumSector?: number
+  currentSector: number,
+  state: WeeklyFormationSelectionState
 ) => {
   const declared: FormationPackDefinition[] = [];
   const randomized = shuffle(random, eligible);
-  // Each newly opened four-depth band leads with one formation from that
-  // band. This preserves weekly determinism while guaranteeing that late
-  // roster additions really appear instead of merely entering a large pool.
-  const candidates = preferredMinimumSector === undefined
-    ? randomized
-    : [
-        ...randomized.filter((pack) => pack.minimumSector === preferredMinimumSector),
-        ...randomized.filter((pack) => pack.minimumSector !== preferredMinimumSector)
-      ];
+  const randomizedOrder = new Map(randomized.map((pack, index) => [pack.id, index]));
+  // A late pack receives one guaranteed showcase when its four-depth debut
+  // band opens. After that it rejoins the normal pool; it is never force-fed
+  // into every wave of that band.
+  const requiredDebuts = randomized.filter((pack) => (
+    pack.minimumSector === currentSector
+    && GUARANTEED_DEBUT_PACK_IDS.has(pack.id)
+    && !state.debutedPackIds.has(pack.id)
+  ));
+  const ranked = [...randomized]
+    .filter((pack) => (
+      !requiredDebuts.some((debut) => debut.id === pack.id)
+      && !(
+        pack.minimumSector === currentSector
+        && GUARANTEED_DEBUT_PACK_IDS.has(pack.id)
+        && state.debutedPackIds.has(pack.id)
+      )
+    ))
+    .sort((left, right) => {
+      const score = (pack: FormationPackDefinition) => (
+        recentUsePenalty(state.recentPackIds, pack.id)
+        + recentUsePenalty(state.recentShapeIds, pack.formationShape) * 0.45
+        + (state.packUseCounts.get(pack.id) ?? 0) * 14
+        + (state.shapeUseCounts.get(pack.formationShape) ?? 0) * 2
+        + (pack.enemyRoleIds.length < 2 ? 70 : 0)
+      );
+      return score(left) - score(right)
+        || (randomizedOrder.get(left.id) ?? 0) - (randomizedOrder.get(right.id) ?? 0);
+    });
+  const candidates = [...requiredDebuts, ...ranked];
   for (const candidate of candidates) {
     const next = [...declared, candidate];
     if (!next.every((pack) => resolvesUniquelyToPack(pack, next))) continue;
@@ -262,10 +313,20 @@ const selectFormationPackTrain = (
     if (declared.length >= eventCount) break;
   }
   if (declared.length === 0) return { declared, train: [] as FormationPackDefinition[] };
-  return {
-    declared,
-    train: Array.from({ length: eventCount }, (_, index) => declared[index % declared.length])
-  };
+  const train = Array.from({ length: eventCount }, (_, index) => declared[index % declared.length]);
+  const usedPackIds = new Set(train.map((pack) => pack.id));
+  const usedShapeIds = new Set(train.map((pack) => pack.formationShape));
+  for (const pack of train) {
+    state.debutedPackIds.add(pack.id);
+    state.packUseCounts.set(pack.id, (state.packUseCounts.get(pack.id) ?? 0) + 1);
+    state.shapeUseCounts.set(
+      pack.formationShape,
+      (state.shapeUseCounts.get(pack.formationShape) ?? 0) + 1
+    );
+  }
+  state.recentPackIds = [usedPackIds, ...state.recentPackIds].slice(0, 2);
+  state.recentShapeIds = [usedShapeIds, ...state.recentShapeIds].slice(0, 2);
+  return { declared, train };
 };
 
 const BASE_ENEMY_HEALTH_BY_DURABILITY: Record<EnemyRoleDefinition['durabilityClass'], number> = {
@@ -391,6 +452,7 @@ const tuneAuthoredBossEvent = (
 const buildCombatWave = (
   campaign: GameCampaignConfig,
   random: () => number,
+  formationSelectionState: WeeklyFormationSelectionState,
   stage: WeeklyRunStagePlan,
   waveIndex: number,
   absoluteWaveNumber: number,
@@ -402,7 +464,8 @@ const buildCombatWave = (
     random,
     eligiblePacks,
     eventCount,
-    getWeeklyRunFormationSector(stage.index)
+    getWeeklyRunFormationSector(stage.index),
+    formationSelectionState
   );
   if (train.length === 0) {
     throw new Error(`Weekly Run depth ${stage.index + 1} has no eligible authored formation pack.`);
@@ -534,6 +597,7 @@ export const buildWeeklyRunCampaign = (
 ): GameCampaignConfig => {
   const stages = planWeeklyRunStages(weekKey, campaign, stageCount);
   const random = createRandom(hashSeed(`${weekKey}:waves`));
+  const formationSelectionState = createWeeklyFormationSelectionState();
   const templateLevel = campaign.levels[0];
   const templateWave = templateLevel?.waves[0];
   if (!templateLevel || !templateWave) {
@@ -552,6 +616,7 @@ export const buildWeeklyRunCampaign = (
       waves.push(buildCombatWave(
         campaign,
         random,
+        formationSelectionState,
         stage,
         waveIndex,
         absoluteWaveOffset + waveIndex + 1,

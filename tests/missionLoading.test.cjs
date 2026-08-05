@@ -326,13 +326,21 @@ test('mission loading strictly warms critical and selected-mission art without f
     'ENEMY_SWARM_FRAMES',
     'ENEMY_BRICK_FRAMES',
     'ENEMY_JOURNAL_FRAMES',
-    'PIXI_JET_SCOUT_FRAMES',
-    'PIXI_JET_INTERCEPTOR_FRAMES',
-    'PIXI_JET_HEAVY_FRAMES'
+    'SCICON_ENEMY_REDLINE_SKIRMISHER_FRAMES',
+    'SCICON_ENEMY_CROSSCUT_RAIDER_FRAMES',
+    'SCICON_ENEMY_AUDIT_BULWARK_FRAMES',
+    'SCICON_ENEMY_QUASAR_LANCER_V2_FRAMES',
+    'SCICON_ENEMY_VECTOR_REAVER_V2_FRAMES'
   ].forEach((family) => {
     assert.match(startupCatalog, new RegExp(`\\.\\.\\.ASSETS\\.${family}`));
   });
-  assert.doesNotMatch(startupCatalog, /SCICON_ENEMY_/);
+  [
+    'PIXI_JET_SCOUT_FRAMES',
+    'PIXI_JET_INTERCEPTOR_FRAMES',
+    'PIXI_JET_HEAVY_FRAMES'
+  ].forEach((retiredFamily) => {
+    assert.doesNotMatch(startupCatalog, new RegExp(`\\.\\.\\.ASSETS\\.${retiredFamily}`));
+  });
   assert.doesNotMatch(startupCatalog, /PLAYER_SHIP_STEERING_FRAME_URLS/);
   assert.doesNotMatch(startupCatalog, /PIXI_ENVIRONMENT_TEXTURE_URLS/);
   assert.doesNotMatch(startupCatalog, /PIXI_BOSS_(?:OPEN_ORBIT|CITATION|PAYWALL|OPEN_GALAXY|CROWNCLAW)_FRAMES/);

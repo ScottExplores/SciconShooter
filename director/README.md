@@ -29,6 +29,7 @@ authoring and testing surface. Stable routes are registered in
 | `/sandbox` | Combat Lab |
 | `/loadouts` | Combat Lab |
 | `/assets` | Combat Lab |
+| `/gallery` | Read-only Wave & Formation Gallery for every Campaign mission |
 | `/analytics` | Local playtest metrics, comparison, and export |
 | `/reviews` | Mission Builder review surface |
 | `/studio` | Read-only legacy migration reference |
@@ -36,6 +37,13 @@ authoring and testing surface. Stable routes are registered in
 The old `/level-editor` and `/combat-lab` URLs remain compatibility aliases for
 `/missions` and `/sandbox`. All routes retain the same loopback-only status and
 production exclusion boundary.
+
+The read-only **Wave & Formation Gallery** is at
+`http://127.0.0.1:5174/gallery`. Choose a sector, mission, and wave to see its
+actual enemy artwork, weighted roster, counts, formation layout, entry path,
+movement, attack, firing behavior, and special moves without opening or editing
+Campaign JSON. The gallery reads the tracked Campaign from disk and has no save
+or publish controls.
 
 The game-first **Mission Builder** is at `http://127.0.0.1:5174/missions`. Its center
 stage is the real `GameStage`, not a mock dashboard. Select missions and waves on the

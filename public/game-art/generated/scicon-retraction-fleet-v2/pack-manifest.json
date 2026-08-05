@@ -1,0 +1,160 @@
+{
+    "id":  "scicon-retraction-fleet-v2",
+    "version":  2,
+    "generated":  "2026-08-05",
+    "sourceMode":  "OpenAI built-in image generation with local chroma-key removal",
+    "productionFormat":  "Three-frame transparent PNG sprite sheets",
+    "style":  "Compact red/gunmetal Scicon pixel-art enemy faction",
+    "factionStory":  "The Retraction Fleet escalates from skirmishers and crosscut raiders into armored audit hulls and specialist laser aces.",
+    "frame":  {
+                  "width":  64,
+                  "height":  64,
+                  "colorMode":  "RGBA"
+              },
+    "frameCount":  3,
+    "frameOrder":  [
+                       "neutral",
+                       "charge",
+                       "fire"
+                   ],
+    "fixedRegistration":  true,
+    "hitboxInvariant":  "Runtime collision is defined by the assigned enemy chassis, not sprite alpha bounds.",
+    "overview":  "/game-art/generated/scicon-retraction-fleet-v2/scicon-retraction-fleet-v2-overview.png",
+    "enemies":  [
+                    {
+                        "id":  "redline-skirmisher",
+                        "name":  "Redline Skirmisher",
+                        "assetKey":  "SCICON_ENEMY_REDLINE_SKIRMISHER_FRAMES",
+                        "roleIds":  [
+                                        "role-jet-scout"
+                                    ],
+                        "faction":  "retraction-fleet",
+                        "source":  "tools/imagegen-sources/scicon-retraction-fleet-v2/01-redline-skirmisher-chroma.png",
+                        "states":  [
+                                       "neutral",
+                                       "charge",
+                                       "fire"
+                                   ],
+                        "frames":  [
+                                       "/game-art/generated/scicon-retraction-fleet-v2/enemies/redline-skirmisher/frames/redline-skirmisher-01-neutral.png",
+                                       "/game-art/generated/scicon-retraction-fleet-v2/enemies/redline-skirmisher/frames/redline-skirmisher-02-charge.png",
+                                       "/game-art/generated/scicon-retraction-fleet-v2/enemies/redline-skirmisher/frames/redline-skirmisher-03-fire.png"
+                                   ],
+                        "frameFileHashes":  {
+                                                "neutral":  "9b7617e8dfc53095c0d753be7f3ebb4e163d152de28f1a179b491b651db55dad",
+                                                "charge":  "3e0c8d0e5873b896b1ce08cee2e87522524e9f9b787813c9b6facb0672b18bdf",
+                                                "fire":  "9d5b8e60c84bd0b28ce416f2552baff25039b47895d1e038cfde0ad1168e1acd"
+                                            },
+                        "sheet":  "/game-art/generated/scicon-retraction-fleet-v2/enemies/redline-skirmisher/redline-skirmisher-sprite-sheet.png",
+                        "sheetFileHash":  "54a3958ad783cb70cbe7245c4ad9f4ee99bbfbf276c26c6b8e65e67b5b83caa5"
+                    },
+                    {
+                        "id":  "crosscut-raider",
+                        "name":  "Crosscut Raider",
+                        "assetKey":  "SCICON_ENEMY_CROSSCUT_RAIDER_FRAMES",
+                        "roleIds":  [
+                                        "role-jet-interceptor"
+                                    ],
+                        "faction":  "retraction-fleet",
+                        "source":  "tools/imagegen-sources/scicon-retraction-fleet-v2/02-crosscut-raider-chroma.png",
+                        "states":  [
+                                       "neutral",
+                                       "charge",
+                                       "fire"
+                                   ],
+                        "frames":  [
+                                       "/game-art/generated/scicon-retraction-fleet-v2/enemies/crosscut-raider/frames/crosscut-raider-01-neutral.png",
+                                       "/game-art/generated/scicon-retraction-fleet-v2/enemies/crosscut-raider/frames/crosscut-raider-02-charge.png",
+                                       "/game-art/generated/scicon-retraction-fleet-v2/enemies/crosscut-raider/frames/crosscut-raider-03-fire.png"
+                                   ],
+                        "frameFileHashes":  {
+                                                "neutral":  "bedcba9f23bba006e809fb5f39424ac8afe08f8e87a15df64d19c3c776289ebd",
+                                                "charge":  "2450e23be1d4ca839a9c99a7cbfd35903e4629093f426ca0ea264a2886f96684",
+                                                "fire":  "8fb2dfe776631ffc39f93bc64a5ca7114868f1d448384ecf1b15369c6d563a38"
+                                            },
+                        "sheet":  "/game-art/generated/scicon-retraction-fleet-v2/enemies/crosscut-raider/crosscut-raider-sprite-sheet.png",
+                        "sheetFileHash":  "aa4eeb5dea2a6d6a20f2173dfc77af09dbee3f35d2c4031029c6d1e7b589e16b"
+                    },
+                    {
+                        "id":  "audit-bulwark",
+                        "name":  "Audit Bulwark",
+                        "assetKey":  "SCICON_ENEMY_AUDIT_BULWARK_FRAMES",
+                        "roleIds":  [
+                                        "role-jet-heavy"
+                                    ],
+                        "faction":  "retraction-fleet",
+                        "source":  "tools/imagegen-sources/scicon-retraction-fleet-v2/03-audit-bulwark-chroma.png",
+                        "states":  [
+                                       "neutral",
+                                       "charge",
+                                       "fire"
+                                   ],
+                        "frames":  [
+                                       "/game-art/generated/scicon-retraction-fleet-v2/enemies/audit-bulwark/frames/audit-bulwark-01-neutral.png",
+                                       "/game-art/generated/scicon-retraction-fleet-v2/enemies/audit-bulwark/frames/audit-bulwark-02-charge.png",
+                                       "/game-art/generated/scicon-retraction-fleet-v2/enemies/audit-bulwark/frames/audit-bulwark-03-fire.png"
+                                   ],
+                        "frameFileHashes":  {
+                                                "neutral":  "1951710228813279bb7980b7779cf1818edc108ae60d528ae9e7cfd096fd1e44",
+                                                "charge":  "27dd94a6322073b8d6b461312dcc0da6d79d42dfc590ddaf2e6258ec09f4b883",
+                                                "fire":  "8b2382b8e15ee5ca4f2a4ee8cd344ccfa68456b2d0de3fef1c39bedef896ed63"
+                                            },
+                        "sheet":  "/game-art/generated/scicon-retraction-fleet-v2/enemies/audit-bulwark/audit-bulwark-sprite-sheet.png",
+                        "sheetFileHash":  "6e89cd982a3fc31a2902a6ffc666517164ca52c0013efdefe424ba3d17243d9e"
+                    },
+                    {
+                        "id":  "quasar-lancer-v2",
+                        "name":  "Quasar Lancer",
+                        "assetKey":  "SCICON_ENEMY_QUASAR_LANCER_V2_FRAMES",
+                        "roleIds":  [
+                                        "role-quasar-lancer"
+                                    ],
+                        "faction":  "retraction-fleet",
+                        "source":  "tools/imagegen-sources/scicon-retraction-fleet-v2/04-quasar-lancer-v2-chroma.png",
+                        "states":  [
+                                       "neutral",
+                                       "charge",
+                                       "fire"
+                                   ],
+                        "frames":  [
+                                       "/game-art/generated/scicon-retraction-fleet-v2/enemies/quasar-lancer-v2/frames/quasar-lancer-v2-01-neutral.png",
+                                       "/game-art/generated/scicon-retraction-fleet-v2/enemies/quasar-lancer-v2/frames/quasar-lancer-v2-02-charge.png",
+                                       "/game-art/generated/scicon-retraction-fleet-v2/enemies/quasar-lancer-v2/frames/quasar-lancer-v2-03-fire.png"
+                                   ],
+                        "frameFileHashes":  {
+                                                "neutral":  "5182dc4e7d6634f2cd1e3c98e2eb9f08c0cc2acc32aca764b0df769ac4bbe1fd",
+                                                "charge":  "b4e1f095f1d39f33b6ddaa57937da0a1bb153f2c42d976bc4a32a58a4f81138d",
+                                                "fire":  "24a45c64990b69920f57adb8e69a69c4849158b5f9b2308f7b3232cd2ed27512"
+                                            },
+                        "sheet":  "/game-art/generated/scicon-retraction-fleet-v2/enemies/quasar-lancer-v2/quasar-lancer-v2-sprite-sheet.png",
+                        "sheetFileHash":  "c41d61dc2c2af7c24a0cdf5997e87f56d24d4b548df4431fb7ba07a5816b8f2a"
+                    },
+                    {
+                        "id":  "vector-reaver-v2",
+                        "name":  "Vector Reaver",
+                        "assetKey":  "SCICON_ENEMY_VECTOR_REAVER_V2_FRAMES",
+                        "roleIds":  [
+                                        "role-vector-reaver"
+                                    ],
+                        "faction":  "retraction-fleet",
+                        "source":  "tools/imagegen-sources/scicon-retraction-fleet-v2/05-vector-reaver-v2-chroma.png",
+                        "states":  [
+                                       "neutral",
+                                       "charge",
+                                       "fire"
+                                   ],
+                        "frames":  [
+                                       "/game-art/generated/scicon-retraction-fleet-v2/enemies/vector-reaver-v2/frames/vector-reaver-v2-01-neutral.png",
+                                       "/game-art/generated/scicon-retraction-fleet-v2/enemies/vector-reaver-v2/frames/vector-reaver-v2-02-charge.png",
+                                       "/game-art/generated/scicon-retraction-fleet-v2/enemies/vector-reaver-v2/frames/vector-reaver-v2-03-fire.png"
+                                   ],
+                        "frameFileHashes":  {
+                                                "neutral":  "5ffe9e571b3be98fd4471d14d11d0b551bd5fb4916593119ffb5d3c4cbdf0453",
+                                                "charge":  "ec8c8673b743d0c856b8dbda4d54f2e448e3500eff949ccbc7898210e9e127d1",
+                                                "fire":  "3fa08a08ab32044a870090fe5f189ec9ca1ea080a86c79cf798dae6826164904"
+                                            },
+                        "sheet":  "/game-art/generated/scicon-retraction-fleet-v2/enemies/vector-reaver-v2/vector-reaver-v2-sprite-sheet.png",
+                        "sheetFileHash":  "5c227a7b0d10bd166dafc3249c956be1c25de1f079a795600fba9271abcefce0"
+                    }
+                ]
+}
