@@ -89,6 +89,9 @@ function Convert-AssetSlugToLabel([string]$Slug) {
 
 function Get-ProjectBossGroup([string]$RelativePath) {
   $normalized = $RelativePath.ToLowerInvariant().Replace('\', '/')
+  if ($normalized -match '^generated/mini-boss-lab-v2/([^/]+)/') {
+    return Convert-AssetSlugToLabel $Matches[1]
+  }
   if ($normalized -match '(^|/)bosses/frames/([^/]+)$') {
     return Convert-AssetSlugToLabel ([System.IO.Path]::GetFileNameWithoutExtension($Matches[2]))
   }
@@ -128,6 +131,7 @@ function Get-PrototypeBossGroup([string]$RelativePath) {
 
 function Get-ProjectCategory([string]$RelativePath) {
   $normalized = $RelativePath.ToLowerInvariant().Replace('\', '/')
+  if ($normalized -match '^generated/mini-boss-lab-v2/') { return 'Scicon - Elite Enemies' }
   if ($normalized -match '(^|/)animations/' -or $normalized.EndsWith('.gif')) { return 'Scicon - Animations' }
   if ($normalized -match '(^|/)(bosses|boss-weapons?)/') { return 'Scicon - Bosses & Mini-Bosses' }
   if ($normalized -match '(^|/)enemies/') { return 'Scicon - Enemies' }
@@ -196,6 +200,7 @@ function Test-SpriteSheetAsset([string]$RelativePath) {
 function Get-SimpleSemanticCategory([string]$RelativePath) {
   $normalized = $RelativePath.ToLowerInvariant().Replace('\', '/')
 
+  if ($normalized -match '^generated/mini-boss-lab-v2/') { return 'Elite Enemies' }
   if ($normalized -match 'scicon-simple-arcade-kit-v1/(?:projectiles|effects)/') { return 'Props & Effects' }
   if ($normalized -match 'scicon-player-weapon-fx' -or $normalized -match 'biohazard-bomb') {
     return $(if ($normalized -match 'biohazard-bomb') { 'UI & Menus' } else { 'Props & Effects' })
@@ -255,6 +260,11 @@ function Get-ProjectRuntimeGalleryCategories([string]$RelativePath, [string]$Ext
   if ($normalized -match '^pixi/effects/explosion/frame-[1-7]\.png$' -and
       -not $categories.Contains('Test Bosses & Prototypes')) {
     $categories.Add('Test Bosses & Prototypes')
+  }
+
+  if ($normalized -match '^generated/mini-boss-lab-v2/' -and
+      -not $categories.Contains('Elite Enemies')) {
+    $categories.Add('Elite Enemies')
   }
 
   return [string[]]$categories.ToArray()
@@ -406,6 +416,10 @@ function Get-AssetUsageIndex([string]$SourceRoot, [string]$ArtRoot) {
       Location = 'constants.ts:203'
     },
     [pscustomobject]@{
+      Pattern = '^generated/mini-boss-lab-v2/[^/]+/.+\.png$'
+      Location = 'services/gameplay/mini-bosses/MiniBossEncounterRegistry.ts'
+    },
+    [pscustomobject]@{
       Pattern = '^pixi/bosses/paywall-decimator/rays/frame-\d+\.png$'
       Location = 'constants.ts:271'
     },
@@ -461,6 +475,7 @@ $assetUsageIndex = Get-AssetUsageIndex $projectRoot $ProjectArtRoot
 $categoryOrder = @(
   'Scicon - Animations',
   'Scicon - Bosses & Mini-Bosses',
+  'Scicon - Elite Enemies',
   'Scicon - Test Bosses & Prototypes',
   'Scicon - Source Art',
   'Scicon - App & Product Art',
@@ -498,6 +513,7 @@ $simpleCategoryOrder = @(
   'Simple Arcade Kit',
   'Ships',
   'Bosses',
+  'Elite Enemies',
   'Test Bosses & Prototypes',
   'Enemies',
   'UI & Menus',
@@ -985,7 +1001,7 @@ const assetUrl = value => {
 };
 const humanBytes = value => value < 1024 ? `${value} B` : `${(value / 1024).toFixed(1)} KB`;
 const transparentPixel = 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
-const simpleCategoryOrder = ['All GIFs', 'Sprite Sheets', 'Simple Arcade Kit', 'Ships', 'Bosses', 'Test Bosses & Prototypes', 'Enemies', 'UI & Menus', 'Backgrounds', 'Props & Effects', 'Items & Power-Ups', 'Characters', 'Source Art', 'App & Product Art', 'Marketing', 'Documentation & References', 'Design Concepts', 'Archived & Superseded', 'Other'];
+const simpleCategoryOrder = ['All GIFs', 'Sprite Sheets', 'Simple Arcade Kit', 'Ships', 'Bosses', 'Elite Enemies', 'Test Bosses & Prototypes', 'Enemies', 'UI & Menus', 'Backgrounds', 'Props & Effects', 'Items & Power-Ups', 'Characters', 'Source Art', 'App & Product Art', 'Marketing', 'Documentation & References', 'Design Concepts', 'Archived & Superseded', 'Other'];
 async function copyItemPath(item, button) {
   const value = item.absolutePath;
   const original = button.textContent;
@@ -1211,7 +1227,7 @@ function render() {
     const section = document.createElement('section');
     const heading = document.createElement('h2');
     heading.textContent = `${group} (${items.length})`;
-    const organizeByBoss = activeLibrary === 'space' && (group === 'Bosses' || group === 'Test Bosses & Prototypes');
+    const organizeByBoss = activeLibrary === 'space' && (group === 'Bosses' || group === 'Elite Enemies' || group === 'Test Bosses & Prototypes');
     const subgroupContainer = document.createElement('div');
     subgroupContainer.className = 'asset-subgroups';
     const grid = document.createElement('div');

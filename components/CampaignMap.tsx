@@ -824,6 +824,7 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
   );
   const selectedState = selectedMission ? getDisplayedMissionState(selectedMission) : null;
   const selectedMissionRole = selectedMission ? getCampaignMissionRole(selectedMission) : null;
+  const selectedEncounter = selectedMission?.encounter ?? null;
   const selectedSector = selectedMission ? getCampaignSectorPreset(selectedMission) : null;
   const selectedPowerGuide = selectedMission ? getCampaignPowerGuide(selectedMission) : null;
   const selectedMasterySetBonus = selectedMission
@@ -939,10 +940,9 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
 
   const selectedLockedBossSilhouette = Boolean(
     selectedMission
-    && !selectedState?.completed
-    && getCampaignMissionRole(selectedMission) === 'major-boss'
-    && selectedMission.bossId
-    && selectedMission.bossPreview?.previewUrl
+    && !selectedState?.unlocked
+    && !previewLocked
+    && (selectedMission.encounter?.previewUrl || selectedMission.bossPreview?.previewUrl)
   );
 
   useEffect(() => {
@@ -1316,15 +1316,17 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
                   const nodeState = getDisplayedMissionState(mission);
                   const missionRole = getCampaignMissionRole(mission);
                   const missionDisplayLabel = getCampaignMissionDisplayLabel(mission);
+                  const encounter = mission.encounter;
                   const selected = !selectedBranch && selectedMission?.id === mission.id;
                   const mapCurrent = mission.id === mapCurrentMissionId;
                   const newNode = nodeState.new || newMissionIds.includes(mission.id);
                   const bossPreviewUrl = mission.bossPreview?.previewUrl ?? null;
+                  const encounterPreviewUrl = encounter?.previewUrl ?? bossPreviewUrl;
+                  const encounterRevealed = nodeState.unlocked || previewLocked;
                   const showLockedBossSilhouette = Boolean(
-                    !nodeState.completed
-                    && missionRole === 'major-boss'
-                    && mission.bossId
-                    && bossPreviewUrl
+                    !encounterRevealed
+                    && encounter
+                    && encounterPreviewUrl
                   );
                   const stateName = !nodeState.unlocked
                     ? 'locked'
@@ -1348,9 +1350,10 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
                         else nodeRefs.current.delete(mission.id);
                       }}
                       type="button"
-                      className={`campaign-map-node campaign-map-node--${stateName} campaign-map-node--role-${missionRole} ${nodeState.completed ? 'is-completed' : ''} ${nodeState.unlocked ? 'is-unlocked' : 'is-locked'} ${missionRole === 'major-boss' ? 'campaign-map-node--boss' : ''} ${showLockedBossSilhouette ? 'has-locked-boss-silhouette' : ''} ${selected ? 'is-selected' : ''} ${mapCurrent ? 'is-map-current' : ''} ${newNode ? 'is-new' : ''}`}
+                      className={`campaign-map-node campaign-map-node--${stateName} campaign-map-node--role-${missionRole} ${nodeState.completed ? 'is-completed' : ''} ${nodeState.unlocked ? 'is-unlocked' : 'is-locked'} ${encounter?.encounterClass === 'boss' ? 'campaign-map-node--boss' : ''} ${encounter?.encounterClass === 'elite-enemy' ? 'campaign-map-node--elite' : ''} ${showLockedBossSilhouette ? 'has-locked-boss-silhouette' : ''} ${selected ? 'is-selected' : ''} ${mapCurrent ? 'is-map-current' : ''} ${newNode ? 'is-new' : ''}`}
                       data-onboarding-target={nodeState.current ? 'campaign-mission' : undefined}
                       data-mission-role={missionRole}
+                      data-encounter-class={encounter?.encounterClass}
                       data-map-current={mapCurrent ? 'true' : undefined}
                       style={{
                         '--campaign-node-x': `${mission.mapPosition.x * 100}%`,
@@ -1364,13 +1367,13 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
                       aria-current={mapCurrent ? 'step' : undefined}
                       aria-pressed={selected}
                       tabIndex={selected ? 0 : -1}
-                      aria-label={`Mission ${missionDisplayLabel}: ${!nodeState.unlocked && !previewLocked ? 'Encrypted Sector' : mission.name}. ${stateLabel}. ${nodeState.stars} of 3 stars.${newNode ? ' New.' : ''}`}
+                      aria-label={`Mission ${missionDisplayLabel}: ${!encounterRevealed ? 'Encrypted Sector' : mission.name}. ${encounter ? `${encounter.encounterClass === 'boss' ? 'Boss' : 'Elite enemy'}${encounterRevealed ? `: ${encounter.name}` : ''}. ` : ''}${stateLabel}. ${nodeState.stars} of 3 stars.${newNode ? ' New.' : ''}`}
                     >
                       <span className="campaign-map-node-ring" aria-hidden="true" />
                       <span className="campaign-map-node-core">
-                        {missionRole === 'major-boss' && bossPreviewUrl ? (
+                        {encounterPreviewUrl ? (
                           <img
-                            src={bossPreviewUrl}
+                            src={encounterPreviewUrl}
                             className={showLockedBossSilhouette ? 'campaign-map-node-boss-silhouette' : undefined}
                             alt=""
                             draggable={false}
@@ -1387,7 +1390,11 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
                         <span className="campaign-map-node-number">{missionDisplayLabel}</span>
                       ) : null}
                       {nodeState.completed ? <span className="campaign-map-node-cleared" aria-hidden="true">&#10003;</span> : null}
-                      <span className="campaign-map-node-role" aria-hidden="true">{CAMPAIGN_MISSION_ROLE_LABELS[missionRole]}</span>
+                      <span className="campaign-map-node-role" aria-hidden="true">
+                        {encounter
+                          ? `${encounter.encounterClass === 'boss' ? 'BOSS' : 'ELITE ENEMY'} · ${encounterRevealed ? encounter.name : 'ENCRYPTED'}`
+                          : CAMPAIGN_MISSION_ROLE_LABELS[missionRole]}
+                      </span>
                       {newNode ? <span className="campaign-map-node-new">New</span> : null}
                       {mapCurrent ? (
                         <img
@@ -1580,7 +1587,9 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
                 aria-labelledby="campaign-map-selection-title"
               >
                 <p className="campaign-map-sr-only" role="status">
-                  Mission {selectedMissionDisplayLabel}, {selectedRevealed ? selectedMission.name : 'Encrypted Sector'}. {selectedMapCurrent
+                  Mission {selectedMissionDisplayLabel}, {selectedRevealed ? selectedMission.name : 'Encrypted Sector'}. {selectedRevealed && selectedEncounter
+                    ? `${selectedEncounter.encounterClass === 'boss' ? 'Boss' : 'Elite enemy'}: ${selectedEncounter.name}. `
+                    : ''}{selectedMapCurrent
                     ? 'Current Mission.'
                     : selectedState.completed
                       ? 'Completed.'
@@ -1603,11 +1612,11 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
                 </div>
                 <div className={`campaign-map-selection-grid campaign-map-selection-grid--${selectedMissionRole}`}>
                   <div
-                    className={`campaign-map-selection-art ${selectedMissionRole !== 'major-boss' ? 'campaign-map-selection-art--celestial' : ''} ${selectedLockedBossSilhouette ? 'is-locked-boss-silhouette' : ''}`}
+                    className={`campaign-map-selection-art ${!selectedEncounter ? 'campaign-map-selection-art--celestial' : ''} ${selectedLockedBossSilhouette ? 'is-locked-boss-silhouette' : ''}`}
                     style={{ '--campaign-node-tint': selectedMission.tint } as React.CSSProperties}
                   >
-                    {selectedMissionRole === 'major-boss' && selectedMission.bossPreview?.previewUrl ? (
-                      <img src={selectedMission.bossPreview.previewUrl} alt="" />
+                    {selectedEncounter?.previewUrl ? (
+                      <img src={selectedEncounter.previewUrl} alt="" />
                     ) : (
                       <CampaignMapCelestial
                         role={selectedMissionRole ?? 'introduction'}
@@ -1620,8 +1629,13 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
                   <div className="campaign-map-selection-copy">
                     <div className="campaign-map-selection-title">
                       <h2 id="campaign-map-selection-title">{selectedRevealed ? selectedMission.name : selectedLockedBossSilhouette ? 'Encrypted Command Target' : 'Encrypted Mission'}</h2>
-                      {selectedRevealed && selectedMission.bossEventId && selectedState.completed ? (
-                        <span className="campaign-map-boss-tag">{selectedMission.bossName ?? 'Boss encounter'}</span>
+                      {selectedRevealed && selectedEncounter ? (
+                        <span
+                          className="campaign-map-boss-tag"
+                          data-encounter-class={selectedEncounter.encounterClass}
+                        >
+                          {selectedEncounter.encounterClass === 'boss' ? 'BOSS' : 'ELITE ENEMY'} · {selectedEncounter.name}
+                        </span>
                       ) : null}
                       {selectedRevealed ? (
                         <span className="campaign-map-selection-stars" aria-label={`${selectedState.stars} of 3 stars earned`}>

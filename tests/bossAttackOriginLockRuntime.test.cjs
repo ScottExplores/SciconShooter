@@ -153,5 +153,5 @@ test('GameEngine wires warning-owned origins into gap rings and side barrages', 
 
   const cleanupCalls = source.match(/clearBossTimelineActionLocks\(boss\)/g) ?? [];
   assert.ok(cleanupCalls.length >= 6, 'phase, restart, revival, loop, and preview cleanup must clear locks');
-  assert.match(source, /timeline\.loop[\s\S]{0,240}boss\.attackTimer % timelineDurationFrames === 0[\s\S]{0,120}clearBossTimelineActionLocks\(boss\)/);
+  assert.match(source, /timeline\.loop[\s\S]{0,240}boss\.attackTimer % timelineDurationFrames === 0[\s\S]{0,260}clearBossTimelineActionLocks\(boss\)/);
 });

@@ -122,6 +122,25 @@ test('Wave Gallery summary uses the live formation geometry and campaign role me
   )));
 });
 
+test('Wave Gallery labels boss, elite-enemy, and elite-unit encounters distinctly', () => {
+  const bossEvent = campaign.levels
+    .flatMap((mission) => mission.waves)
+    .flatMap((wave) => wave.events)
+    .find((event) => event.kind === 'boss' && event.bossId === 'gatekeeper-prime');
+  const eliteMission = campaign.levels.find((mission) => mission.order === 8);
+  const eliteEvent = eliteMission?.waves
+    .flatMap((wave) => wave.events)
+    .find((event) => event.kind === 'boss');
+
+  assert.ok(bossEvent);
+  assert.ok(eliteEvent);
+  assert.equal(model.describeSupportEvent(bossEvent).kindLabel, 'BOSS');
+  assert.equal(model.describeSupportEvent(bossEvent).encounterClass, 'boss');
+  assert.equal(model.describeSupportEvent(eliteEvent).kindLabel, 'ELITE ENEMY');
+  assert.equal(model.describeSupportEvent(eliteEvent).encounterClass, 'elite-enemy');
+  assert.equal(model.getMissionEncounterSummary(eliteMission).kindLabel, 'ELITE ENEMY');
+});
+
 test('Wave Gallery surface is explicitly read-only and loads the disk campaign', async () => {
   const source = await readFile(
     path.join(directorRoot, 'src', 'tools', 'wave-gallery', 'WaveFormationGallery.tsx'),
@@ -129,6 +148,8 @@ test('Wave Gallery surface is explicitly read-only and loads the disk campaign',
   );
 
   assert.match(source, /fetchGameCampaign<GameCampaignConfig>/);
+  assert.match(source, /ELITE UNIT/);
+  assert.match(source, /description\.kindLabel/);
   assert.match(source, /Read only · no save or publish controls/);
   assert.doesNotMatch(source, /applyGameCampaign|updateWorkspaceResource|saveDraft|publishConfig/);
 });

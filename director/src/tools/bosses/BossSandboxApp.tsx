@@ -1,4 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent
+} from 'react';
 import {
   GameEditorCanvas
 } from '@game/components/GameEditorCanvas';
@@ -15,6 +24,7 @@ import {
   type MiniShipId,
   type SquadSlotId
 } from '@game/services/squadProgression';
+import { getWeeklyBoundaryMeta } from '@game/shared/weeklyCompetitionBoundary.browser';
 import {
   DEFAULT_PREVIEW_BOSS_REFERENCE_COMPARISON,
   DEFAULT_PREVIEW_DEBUG_OVERLAYS,
@@ -32,11 +42,16 @@ import {
   BOSS_SANDBOX_VERSION,
   BOSS_SANDBOX_CATEGORIES,
   BOSS_SANDBOX_HOST_MODES,
+  BOSS_SANDBOX_RAIL_MAX_WIDTH,
+  BOSS_SANDBOX_RAIL_MIN_WIDTH,
   BOSS_SANDBOX_VIEWPORTS,
   DEFAULT_BOSS_SANDBOX_CATEGORY_ID,
   buildBossSandboxGroups,
   buildBossSandboxPreview,
+  buildBossSandboxWeeklyLineup,
+  clampBossSandboxRailWidth,
   createSandboxOnlyBossArtwork,
+  fitBossSandboxRailWidths,
   filterBossSandboxGroups,
   getBossSandboxEventId,
   getBossSandboxAttacks,
@@ -47,9 +62,11 @@ import {
   getSandboxBossArtworkRegistration,
   getBossSandboxPhases,
   isSandboxBossPrototypePreview,
+  normalizeBossSandboxRailWidths,
   resolveBossSandboxFitScale,
   type BossSandboxCategory,
   type BossSandboxHostMode,
+  type BossSandboxRailWidths,
   type BossSandboxChoice
 } from './bossSandboxModel';
 import {
@@ -76,6 +93,13 @@ import {
 import './boss-sandbox.css';
 
 const PREVIEW_SEED = 'scicon-simple-boss-sandbox';
+const BOSS_SANDBOX_RAIL_STORAGE_KEY = 'scicon:boss-sandbox:rail-widths:v1';
+type BossSandboxRailSide = 'left' | 'right';
+interface BossSandboxRailResizeSession {
+  readonly side: BossSandboxRailSide;
+  readonly startX: number;
+  readonly startWidth: number;
+}
 type PreviewArtworkStatus = 'not-needed' | 'checking' | 'ready' | 'unavailable';
 type PreviewCanvasStatus = 'loading' | 'ready' | 'error';
 type PreviewCommandInput = PreviewCommand extends infer Command
@@ -87,6 +111,16 @@ type PreviewCommandInput = PreviewCommand extends infer Command
 interface BossSandboxWorkspaceProps {
   initialState: GameCampaignDiskState<GameCampaignConfig>;
 }
+
+const readBossSandboxRailWidths = (): BossSandboxRailWidths => {
+  if (typeof window === 'undefined') return normalizeBossSandboxRailWidths(null);
+  try {
+    const stored = window.localStorage.getItem(BOSS_SANDBOX_RAIL_STORAGE_KEY);
+    return normalizeBossSandboxRailWidths(stored ? JSON.parse(stored) : null);
+  } catch {
+    return normalizeBossSandboxRailWidths(null);
+  }
+};
 
 const getBossChoiceArtworkUrl = (
   campaign: GameCampaignConfig,
@@ -177,6 +211,14 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
     () => buildBossSandboxGroups(initialState.campaign),
     [initialState.campaign]
   );
+  const weeklyWeekKey = useMemo(
+    () => getWeeklyBoundaryMeta(new Date()).weekKey,
+    []
+  );
+  const weeklyLineup = useMemo(
+    () => buildBossSandboxWeeklyLineup(initialState.campaign, weeklyWeekKey),
+    [initialState.campaign, weeklyWeekKey]
+  );
   const [categoryId, setCategoryId] = useState<BossSandboxCategory['id']>(
     DEFAULT_BOSS_SANDBOX_CATEGORY_ID
   );
@@ -242,8 +284,31 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
       DEFAULT_FRONTIER_CROWNCLAW_ATTACK_TUNING
     );
   const [notice, setNotice] = useState('Ready');
+  const [railWidths, setRailWidths] = useState<BossSandboxRailWidths>(
+    readBossSandboxRailWidths
+  );
+  const [workspaceWidth, setWorkspaceWidth] = useState(() => (
+    typeof window === 'undefined' ? 0 : window.innerWidth
+  ));
   const commandNonce = useRef(0);
+  const sandboxRef = useRef<HTMLDivElement>(null);
   const previewHostRef = useRef<HTMLDivElement>(null);
+  const railResizeSession = useRef<BossSandboxRailResizeSession | null>(null);
+
+  const sandboxStyle = useMemo(() => ({
+    '--bs-left-rail-width': `${railWidths.left}px`,
+    '--bs-right-rail-width': `${railWidths.right}px`
+  } as CSSProperties), [railWidths.left, railWidths.right]);
+  const leftRailMaximum = clampBossSandboxRailWidth({
+    requestedWidth: BOSS_SANDBOX_RAIL_MAX_WIDTH,
+    otherRailWidth: railWidths.right,
+    workspaceWidth
+  });
+  const rightRailMaximum = clampBossSandboxRailWidth({
+    requestedWidth: BOSS_SANDBOX_RAIL_MAX_WIDTH,
+    otherRailWidth: railWidths.left,
+    workspaceWidth
+  });
 
   const selectedChoice = choices.find((choice) => choice.id === selectedChoiceId)
     ?? firstChoice;
@@ -404,6 +469,116 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
     return () => observer.disconnect();
   }, []);
 
+  useEffect(() => {
+    const workspace = sandboxRef.current;
+    if (!workspace) return undefined;
+    const measure = () => {
+      const width = workspace.clientWidth;
+      if (width <= 0) return;
+      setWorkspaceWidth(width);
+      if (width > 861) {
+        setRailWidths((current) => fitBossSandboxRailWidths(current, width));
+      }
+    };
+    measure();
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', measure);
+      return () => window.removeEventListener('resize', measure);
+    }
+    const observer = new ResizeObserver(measure);
+    observer.observe(workspace);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (workspaceWidth <= 0) return;
+    try {
+      window.localStorage.setItem(
+        BOSS_SANDBOX_RAIL_STORAGE_KEY,
+        JSON.stringify(railWidths)
+      );
+    } catch {
+      // Local preferences are optional; the validated in-memory widths remain usable.
+    }
+  }, [railWidths, workspaceWidth]);
+
+  const resizeRail = useCallback((
+    side: BossSandboxRailSide,
+    requestedWidth: number
+  ) => {
+    const measuredWorkspaceWidth = sandboxRef.current?.clientWidth ?? workspaceWidth;
+    setRailWidths((current) => {
+      const nextWidth = clampBossSandboxRailWidth({
+        requestedWidth,
+        otherRailWidth: side === 'left' ? current.right : current.left,
+        workspaceWidth: measuredWorkspaceWidth
+      });
+      if (current[side] === nextWidth) return current;
+      return side === 'left'
+        ? { ...current, left: nextWidth }
+        : { ...current, right: nextWidth };
+    });
+  }, [workspaceWidth]);
+
+  useEffect(() => {
+    const handlePointerMove = (event: PointerEvent) => {
+      const session = railResizeSession.current;
+      if (!session) return;
+      const delta = event.clientX - session.startX;
+      resizeRail(
+        session.side,
+        session.startWidth + (session.side === 'left' ? delta : -delta)
+      );
+    };
+    const finishPointerResize = () => {
+      if (!railResizeSession.current) return;
+      railResizeSession.current = null;
+      setNotice('Panel widths saved for this browser');
+    };
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', finishPointerResize);
+    window.addEventListener('pointercancel', finishPointerResize);
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', finishPointerResize);
+      window.removeEventListener('pointercancel', finishPointerResize);
+    };
+  }, [resizeRail]);
+
+  const beginRailResize = useCallback((
+    side: BossSandboxRailSide,
+    event: ReactPointerEvent<HTMLDivElement>
+  ) => {
+    if (window.matchMedia('(max-width: 861px)').matches) return;
+    railResizeSession.current = {
+      side,
+      startX: event.clientX,
+      startWidth: railWidths[side]
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    event.preventDefault();
+  }, [railWidths]);
+
+  const handleRailResizeKeyDown = useCallback((
+    side: BossSandboxRailSide,
+    event: ReactKeyboardEvent<HTMLDivElement>
+  ) => {
+    const step = event.shiftKey ? 24 : 12;
+    let nextWidth: number | null = null;
+    if (event.key === 'Home') nextWidth = BOSS_SANDBOX_RAIL_MIN_WIDTH;
+    if (event.key === 'End') nextWidth = BOSS_SANDBOX_RAIL_MAX_WIDTH;
+    if (event.key === 'ArrowLeft') {
+      nextWidth = railWidths[side] + (side === 'right' ? step : -step);
+    }
+    if (event.key === 'ArrowRight') {
+      nextWidth = railWidths[side] + (side === 'left' ? step : -step);
+    }
+    if (nextWidth === null) return;
+    event.preventDefault();
+    resizeRail(side, nextWidth);
+    setNotice('Panel width saved for this browser');
+  }, [railWidths, resizeRail]);
+
   const sendCommand = useCallback((command: PreviewCommandInput) => {
     commandNonce.current += 1;
     setPreviewCommand({
@@ -501,6 +676,13 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
     if (!eventId) return;
     sendCommand({ type: 'set-boss-health', eventId, healthRatio });
     setNotice(`Boss health set to ${Math.round(healthRatio * 100)}%`);
+  }, [eventId, sendCommand]);
+
+  const clearBossHazards = useCallback(() => {
+    if (!eventId) return;
+    sendCommand({ type: 'clear-boss-hazards', eventId });
+    setAttackLoopEnabled(false);
+    setNotice('Boss hazards cleared without restarting the fight');
   }, [eventId, sendCommand]);
 
   const toggleMiniBossSignatureLoop = useCallback(() => {
@@ -734,7 +916,11 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
   }
 
   return (
-    <div className="boss-sandbox">
+    <div
+      className="boss-sandbox"
+      ref={sandboxRef}
+      style={sandboxStyle}
+    >
       <header className="boss-sandbox__header">
         <div>
           <span aria-hidden="true">BS</span>
@@ -751,7 +937,7 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
       </header>
 
       <main className="boss-sandbox__main">
-        <aside className="boss-sandbox__picker">
+        <aside className="boss-sandbox__picker" id="boss-sandbox-picker">
           <div>
             <nav className="boss-sandbox__categories" aria-label="Encounter categories">
               {BOSS_SANDBOX_CATEGORIES.map((category) => (
@@ -793,7 +979,7 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
                     key={choice.id}
                     aria-label={`Test ${choice.bossLabel}`}
                     aria-pressed={choice.id === selectedChoice.id}
-                    title={`${choice.bossLabel} · ${choice.missionLabel}`}
+                    title={`${choice.encounterClass === 'full-boss' ? 'BOSS' : 'ELITE ENEMY'} · ${choice.bossLabel} · ${choice.missionLabel}`}
                     onClick={() => selectBoss(choice.id)}
                   >
                     <span className="boss-sandbox__choice-art">
@@ -809,6 +995,12 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
                           }}
                         />
                       ) : null}
+                      <span
+                        className="boss-sandbox__choice-class"
+                        data-encounter-class={choice.encounterClass}
+                      >
+                        {choice.encounterClass === 'full-boss' ? 'BOSS' : 'ELITE'}
+                      </span>
                     </span>
                     <span>{choice.bossLabel}</span>
                   </button>
@@ -817,6 +1009,26 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
             </nav>
           </div>
 
+          <details className="boss-sandbox__weekly-lineup" open>
+            <summary>
+              <span>Weekly lineup</span>
+              <small>{weeklyWeekKey}</small>
+            </summary>
+            <ol aria-label={`Weekly Run encounter order for ${weeklyWeekKey}`}>
+              {weeklyLineup.map((encounter) => (
+                <li
+                  key={`${encounter.stageNumber}:${encounter.bossId}`}
+                  data-kind={encounter.kind}
+                  title={`${encounter.missionLabel} · ${encounter.waveCount} waves`}
+                >
+                  <span>{encounter.stageNumber}</span>
+                  <strong>{encounter.kind === 'boss' ? 'BOSS' : 'ELITE'}</strong>
+                  <span>{encounter.label}</span>
+                </li>
+              ))}
+            </ol>
+          </details>
+
           <section aria-live="polite">
             <div className="boss-sandbox__selected-art">
               <span aria-hidden="true">{getBossInitials(selectedChoice.bossLabel)}</span>
@@ -824,7 +1036,7 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
                 <img
                   key={selectedChoice.id}
                   src={selectedChoiceArtworkUrl}
-                  alt={`${selectedChoice.bossLabel} boss artwork`}
+                  alt={`${selectedChoice.bossLabel} ${selectedChoice.encounterClass === 'full-boss' ? 'boss' : 'elite enemy'} artwork`}
                   decoding="async"
                   onError={(event) => {
                     event.currentTarget.style.display = 'none';
@@ -832,12 +1044,15 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
                 />
               ) : null}
             </div>
-            <span data-source={selectedChoice.source}>
-              {selectedChoice.miniBoss
-                ? 'CAMPAIGN MINI-BOSS'
+            <span
+              data-source={selectedChoice.source}
+              data-encounter-class={selectedChoice.encounterClass}
+            >
+              {selectedChoice.encounterClass === 'mini-boss'
+                ? 'ELITE ENEMY'
                 : selectedChoice.source === 'campaign'
-                ? 'MAIN GAME'
-                : 'TEST ONLY'}
+                ? 'CAMPAIGN BOSS'
+                : 'TEST BOSS'}
             </span>
             <h1>{selectedChoice.bossLabel}</h1>
             <p>{selectedChoice.missionLabel}</p>
@@ -1022,22 +1237,30 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
                 /{previewSnapshot.boss.activeAttack.beatCount}
               </small>
             ) : null}
+            {previewSnapshot?.boss?.bossId === 'singularity-crab' ? (
+              <small className="boss-sandbox__mechanics-status" aria-live="polite">
+                Phase {previewSnapshot.boss.phaseIndex + 1}
+                {' | wells '}{previewSnapshot.boss.activeWells}
+                {' | hazards '}{previewSnapshot.boss.hazardCount}
+                {' | cooldown '}{previewSnapshot.boss.cooldownFrames}f
+              </small>
+            ) : null}
             <div>
-              {attacks.map((attack, index) => (
+              {attacks.map((attack) => (
                 <button
                   type="button"
                   key={attack.id}
-                  aria-label={`Attack ${index + 1}: ${attack.sourceLabel}`}
+                  aria-label={`Attack ${attack.attackNumber}: ${attack.sourceLabel}`}
                   aria-pressed={performingAttackId === attack.id}
                   className={performingAttackId === attack.id ? 'is-performing' : ''}
                   title={attack.sourceLabel}
                   onClick={() => triggerAttack(
                     attack.id,
                     attack.phaseId,
-                    index + 1
+                    attack.attackNumber
                   )}
                 >
-                  Attack {index + 1}
+                  Attack {attack.attackNumber}
                 </button>
               ))}
             </div>
@@ -1064,6 +1287,9 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
                 onClick={toggleSelectedAttackLoop}
               >
                 {attackLoopEnabled ? 'Loop on' : 'Loop off'}
+              </button>
+              <button type="button" onClick={clearBossHazards}>
+                Clear hazards
               </button>
             </div>
           </nav>
@@ -1126,6 +1352,21 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
             No campaign writes
           </footer>
         </aside>
+
+        <div
+          className="boss-sandbox__rail-resizer boss-sandbox__rail-resizer--left"
+          role="separator"
+          aria-label="Resize boss controls"
+          aria-controls="boss-sandbox-picker"
+          aria-orientation="vertical"
+          aria-valuemin={BOSS_SANDBOX_RAIL_MIN_WIDTH}
+          aria-valuemax={leftRailMaximum}
+          aria-valuenow={railWidths.left}
+          aria-valuetext={`${railWidths.left} pixels wide`}
+          tabIndex={0}
+          onPointerDown={(event) => beginRailResize('left', event)}
+          onKeyDown={(event) => handleRailResizeKeyDown('left', event)}
+        />
 
         <section className="boss-sandbox__play" aria-label="Live mobile boss preview">
           <div
@@ -1193,7 +1434,26 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
           </div>
         </section>
 
-        <aside className="boss-sandbox__loadout" aria-label="Ship and loadout controls">
+        <div
+          className="boss-sandbox__rail-resizer boss-sandbox__rail-resizer--right"
+          role="separator"
+          aria-label="Resize ship and loadout controls"
+          aria-controls="boss-sandbox-loadout"
+          aria-orientation="vertical"
+          aria-valuemin={BOSS_SANDBOX_RAIL_MIN_WIDTH}
+          aria-valuemax={rightRailMaximum}
+          aria-valuenow={railWidths.right}
+          aria-valuetext={`${railWidths.right} pixels wide`}
+          tabIndex={0}
+          onPointerDown={(event) => beginRailResize('right', event)}
+          onKeyDown={(event) => handleRailResizeKeyDown('right', event)}
+        />
+
+        <aside
+          className="boss-sandbox__loadout"
+          id="boss-sandbox-loadout"
+          aria-label="Ship and loadout controls"
+        >
           <section className="boss-sandbox__ship-tuning" aria-label="Ship loadout">
               <span>Ship loadout</span>
               <div className="boss-sandbox__main-ships" aria-label="Main ship">

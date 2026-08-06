@@ -69,6 +69,21 @@ test('Combat Lab exposes direct Mission, Wave, sequence, and checkpoint controls
   assert.match(behaviorFields, /Return \/ exit/);
 });
 
+test('Mission Builder and Combat Lab distinguish bosses, elite enemies, and elite units', async () => {
+  const [editor, app] = await Promise.all([
+    readDirectorSource('editor', 'EditorInspector.tsx'),
+    readDirectorSource('combat-lab', 'CombatLabApp.tsx')
+  ]);
+
+  assert.match(editor, /getBossEncounterClass/);
+  assert.match(editor, /'BOSS' : 'ELITE ENEMY'/);
+  assert.match(editor, /label: 'ELITE UNIT'/);
+  assert.doesNotMatch(editor, /label="Boss type"/);
+  assert.match(app, /'BOSS' : 'ELITE ENEMY'/);
+  assert.match(app, /ELITE UNIT/);
+  assert.doesNotMatch(app, /Mini-boss/);
+});
+
 test('Director review and preview accessibility copy uses Mission terminology', async () => {
   const [reviewBoard, levelPreview] = await Promise.all([
     readDirectorSource('review', 'ReviewBoard.tsx'),

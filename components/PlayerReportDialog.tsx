@@ -4,6 +4,7 @@ import {
   type PlayerReportCategory,
   type PlayerReportKind
 } from '../services/playerReportService';
+import { DONATION_CONFIG } from '../constants';
 
 interface PlayerReportDialogProps {
   kind: PlayerReportKind | null;
@@ -137,6 +138,10 @@ const PlayerReportDialog: React.FC<PlayerReportDialogProps> = ({ kind, onClose }
     (option.kinds as readonly string[]).includes(kind)
   ));
   const hasReceipt = draft.status === 'sent' || draft.status === 'queued';
+  const supportSubject = draft.reportId
+    ? `Scicon Shooter support - ${draft.reportId}`
+    : 'Scicon Shooter support';
+  const supportMailto = `mailto:${DONATION_CONFIG.SUPPORT_EMAIL}?subject=${encodeURIComponent(supportSubject)}`;
 
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center p-3 sm:p-5">
@@ -204,6 +209,13 @@ const PlayerReportDialog: React.FC<PlayerReportDialogProps> = ({ kind, onClose }
             <code className="mt-1 block select-all break-all rounded-[6px] border border-cyan-300/20 bg-slate-900 px-3 py-2 text-xs text-cyan-50">
               {draft.reportId}
             </code>
+            <p className="mx-auto mt-4 max-w-sm text-xs leading-relaxed text-slate-300">
+              For follow-up, email{' '}
+              <a className="font-bold text-cyan-200 underline decoration-cyan-400/50 underline-offset-2" href={supportMailto}>
+                {DONATION_CONFIG.SUPPORT_EMAIL}
+              </a>{' '}
+              with this Report ID. For wallet or transaction issues, include the public transaction hash. Never send a recovery phrase or private key.
+            </p>
             <div className="mt-5 grid grid-cols-2 gap-3">
               <button type="button" onClick={resetDraft} className="min-h-11 rounded-[6px] border border-cyan-300/35 bg-cyan-400/10 px-3 py-2 text-sm font-black text-cyan-100 transition hover:bg-cyan-300/20">
                 Send another
@@ -274,6 +286,14 @@ const PlayerReportDialog: React.FC<PlayerReportDialogProps> = ({ kind, onClose }
                 Adds the game version, screen, mission/wave, device size, connection state, and recent technical events. It never includes recovery phrases or wallet keys.
               </span>
             </label>
+
+            <p className="rounded-[6px] border border-cyan-300/18 bg-slate-900/70 p-3 text-xs leading-relaxed text-slate-300">
+              Need direct support? Submit this report first so we can trace the issue, then email{' '}
+              <a className="font-bold text-cyan-200 underline decoration-cyan-400/50 underline-offset-2" href={supportMailto}>
+                {DONATION_CONFIG.SUPPORT_EMAIL}
+              </a>{' '}
+              with the Report ID. For wallet or transaction issues, include the public transaction hash.
+            </p>
 
             <div className="min-h-5" role="status" aria-live="polite">
               {draft.status === 'error' ? (

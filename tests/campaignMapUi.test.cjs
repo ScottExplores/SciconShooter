@@ -13,8 +13,13 @@ const startScreenSource = read('components/StartScreen.tsx');
 const homeStyles = read('styles/tailwind.input.css');
 const campaign = JSON.parse(read('game-config/campaign.json'));
 
-test('Campaign Map reveals the configured boss without restoring the removed environment briefing', () => {
-  assert.match(mapSource, /selectedMission\.bossName \?\? 'Boss encounter'/);
+test('Campaign Map labels configured bosses and elite enemies without restoring the removed environment briefing', () => {
+  assert.match(mapSource, /selectedEncounter\.encounterClass === 'boss' \? 'BOSS' : 'ELITE ENEMY'/);
+  assert.match(mapSource, /data-encounter-class=\{encounter\?\.encounterClass\}/);
+  assert.match(mapSource, /data-encounter-class=\{selectedEncounter\.encounterClass\}/);
+  assert.match(mapSource, /selectedEncounter\.name/);
+  assert.match(mapStyles, /\.campaign-map-node--elite \.campaign-map-node-core img[\s\S]*?transform: none/);
+  assert.match(mapStyles, /\.campaign-map-boss-tag\[data-encounter-class='elite-enemy'\]/);
   assert.doesNotMatch(mapSource, /Environment \/ \{formatTheme\(selectedMission\.backgroundId\)\}/);
 });
 
@@ -122,15 +127,16 @@ test('each mastery objective identifies its payout as Tokens with the compact to
   assert.match(mapStyles, /\.campaign-map-objectives em img[\s\S]*?width: 0\.78rem;[\s\S]*?image-rendering: pixelated/);
 });
 
-test('locked boss nodes use their canonical preview only as a silhouette and never substitute another boss', () => {
+test('locked boss and elite nodes preserve encounter class while encrypting their identity', () => {
   assert.match(mapSource, /const bossPreviewUrl = mission\.bossPreview\?\.previewUrl \?\? null/);
-  assert.match(mapSource, /missionRole === 'major-boss'[\s\S]*?mission\.bossId[\s\S]*?bossPreviewUrl/);
-  assert.match(mapSource, /!nodeState\.completed[\s\S]*?missionRole === 'major-boss'/);
-  assert.match(mapSource, /!selectedState\?\.completed[\s\S]*?getCampaignMissionRole\(selectedMission\) === 'major-boss'/);
+  assert.match(mapSource, /const encounterRevealed = nodeState\.unlocked \|\| previewLocked/);
+  assert.match(mapSource, /!encounterRevealed[\s\S]*?&& encounter[\s\S]*?&& encounterPreviewUrl/);
+  assert.match(mapSource, /!selectedState\?\.unlocked[\s\S]*?&& !previewLocked/);
   assert.match(mapSource, /className=\{showLockedBossSilhouette \? 'campaign-map-node-boss-silhouette'/);
-  assert.match(mapSource, /src=\{selectedMission\.bossPreview\.previewUrl\}/);
+  assert.match(mapSource, /src=\{selectedEncounter\.previewUrl\}/);
   assert.match(mapSource, /selectedLockedBossSilhouette/);
-  assert.match(mapSource, /selectedMission\.bossEventId && selectedState\.completed/);
+  assert.match(mapSource, /selectedRevealed && selectedEncounter/);
+  assert.match(mapSource, /encounterRevealed \? encounter\.name : 'ENCRYPTED'/);
   assert.doesNotMatch(mapSource, /final-boss-sentinel/);
   assert.doesNotMatch(mapSource, /bosses\/.*\?\?/);
 });

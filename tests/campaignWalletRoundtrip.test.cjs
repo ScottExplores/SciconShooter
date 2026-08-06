@@ -69,7 +69,9 @@ const compileCampaignProgression = () => {
       : request === './campaignBranchProgression'
         ? branchModule.exports
         : request === '../game-config/catalog'
-          ? { isMajorBossId: () => false }
+          ? { isMajorBossId: () => false, getBossEncounterClass: () => null }
+          : request === './gameplay/mini-bosses'
+            ? { getMiniBossEncounterDefinition: () => undefined }
           : request === '../game-config/campaign-migration-v22.json'
             ? require('../game-config/campaign-migration-v22.json')
         : require(request),

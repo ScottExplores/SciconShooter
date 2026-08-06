@@ -62,6 +62,7 @@ const expectedSimpleCategories = [
   "Simple Arcade Kit",
   "Ships",
   "Bosses",
+  "Elite Enemies",
   "Test Bosses & Prototypes",
   "Enemies",
   "UI & Menus",
@@ -93,6 +94,21 @@ if (!bossAnimation?.simpleCategories.includes("Bosses")) throw new Error("Boss G
 const bossAtlas = assets.find((item) => item.path.includes("scicon-stage20-expansion-v1") && item.name === "source-atlas.png");
 if (!bossAtlas?.simpleCategories.includes("Bosses") || !bossAtlas.simpleCategories.includes("Sprite Sheets")) {
   throw new Error("Boss atlases are not cross-categorized as Bosses and Sprite Sheets");
+}
+const eliteEncounterAssets = assets.filter((item) => item.absolutePath.includes(`${path.sep}mini-boss-lab-v2${path.sep}`));
+if (!eliteEncounterAssets.length) throw new Error("Elite encounter runtime art is missing from the Sprite Gallery");
+if (eliteEncounterAssets.some((item) => (
+  item.category !== "Scicon - Elite Enemies" ||
+  !item.simpleCategories.includes("Elite Enemies") ||
+  !item.bossGroup
+))) {
+  throw new Error("Elite encounter art is not clearly categorized or grouped in the Sprite Gallery");
+}
+if (eliteEncounterAssets.some((item) => (
+  !item.inGame ||
+  !item.usageLocations.some((value) => value.startsWith("services/gameplay/mini-bosses/MiniBossEncounterRegistry.ts"))
+))) {
+  throw new Error("Elite encounter runtime art is not marked as in-game through the shared registry");
 }
 const maxShotFrame = assets.find((item) => item.name === "max-shot-aura-01.png");
 if (!maxShotFrame?.simpleCategories.includes("Items & Power-Ups")) throw new Error("Generated power-up frames are miscategorized");

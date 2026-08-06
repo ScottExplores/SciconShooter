@@ -208,6 +208,60 @@ export const BOSS_TIMELINE_PRIMITIVES: Readonly<Record<
       'sweepPasses'
     ]
   ),
+  'singularity-gravity-well-genesis': primitive(
+    'singularity-gravity-well-genesis',
+    'Gravity Well Genesis',
+    'attack',
+    'Launch visible gravity seeds from the live core into bounded, staged miniature black holes.',
+    true,
+    false,
+    ['projectileCount', 'sequence', 'motionCue', 'rotationDirection']
+  ),
+  'singularity-event-horizon-gaze': primitive(
+    'singularity-event-horizon-gaze',
+    'Event Horizon Gaze',
+    'laser',
+    'Track, lock, and then fire one bounded core beam or an authored two-beam safe-lane variant.',
+    true,
+    false,
+    ['sequence', 'motionCue', 'rotationDirection']
+  ),
+  'singularity-tidal-claw-pincer': primitive(
+    'singularity-tidal-claw-pincer',
+    'Tidal Claw Pincer',
+    'attack',
+    'Pose both lower claws through a warned pincer route whose collision follows the visible tips.',
+    true,
+    false,
+    ['sequence', 'motionCue']
+  ),
+  'singularity-orbital-pylon-barrage': primitive(
+    'singularity-orbital-pylon-barrage',
+    'Orbital Pylon Barrage',
+    'attack',
+    'Activate four visible pylons in a deterministic socket-owned firing sequence.',
+    true,
+    false,
+    ['projectileCount', 'sequence', 'motionCue', 'shotIntervalFrames', 'projectileSpeedScale']
+  ),
+  'singularity-pulse': primitive(
+    'singularity-pulse',
+    'Singularity Pulse',
+    'attack',
+    'Emit a bounded multi-burst gravity-ring sentence whose two mobile-safe gaps shift deterministically between bursts.',
+    true,
+    false,
+    ['projectileCount', 'sequence', 'motionCue', 'rotationDirection']
+  ),
+  'singularity-gravity-collapse': primitive(
+    'singularity-gravity-collapse',
+    'Gravity Collapse',
+    'attack',
+    'Create and sequentially implode three warned wells with only one damaging collapse at a time.',
+    true,
+    false,
+    ['projectileCount', 'sequence', 'motionCue', 'rotationDirection']
+  ),
   'chainclaw-harpoon': primitive(
     'chainclaw-harpoon',
     'Chainclaw harpoon',
@@ -245,7 +299,7 @@ export const BOSS_TIMELINE_PRIMITIVES: Readonly<Record<
   'pod-volley': primitive('pod-volley', 'Pod volley', 'attack', 'Launch a slow, readable fan of large animated sprite pods.', true, true, ['projectileCount', 'sequence']),
   'weave-wall': primitive('weave-wall', 'Weave wall', 'attack', 'Send deterministic projectile rows around a shifting two-lane safe channel.', true, true, ['projectileCount', 'sequence']),
   'summon-formation': primitive('summon-formation', 'Summon formation', 'summon', 'Spawn a bounded enemy reinforcement group.', true, false, ['summonCount', 'enemyId', 'formationPatternId']),
-  'set-shield': primitive('set-shield', 'Set shield ring', 'defense', 'Enable, replace, or clear the boss shield ring.', false, false, ['shieldCount', 'enabled']),
+  'set-shield': primitive('set-shield', 'Legacy shield marker', 'defense', 'Retained for schema-v1 compatibility; the obsolete generic escort shield has no runtime effect.', false, false, ['shieldCount', 'enabled']),
   'set-weak-point': primitive('set-weak-point', 'Set weak point', 'defense', 'Enable or disable a registered boss component weak point.', false, false, ['componentId', 'enabled']),
   'set-movement': primitive('set-movement', 'Set movement', 'movement', 'Change movement pattern and phase speed multiplier.', false, false, ['movementPatternId', 'speedMultiplier']),
   'follow-path': primitive('follow-path', 'Follow path', 'movement', 'Traverse one allowlisted normalized movement path for the clip duration.', false, false, ['movementPathId']),

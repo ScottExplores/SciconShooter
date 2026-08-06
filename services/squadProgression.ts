@@ -246,7 +246,7 @@ export interface PermanentLifetimeStats {
   /**
    * The six stats above are all arcade-run metrics, so every achievement was
    * scored on the arcade loop. These track the systems the game actually grew:
-   * the Campaign graph, the Weekly Run gauntlet, Elite Bosses, and the Hangar.
+   * the Campaign graph, the Weekly Run gauntlet, Elite Enemies, and the Hangar.
    */
   campaignMissionsCleared: number;
   campaignMissionsMastered: number;

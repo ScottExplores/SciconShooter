@@ -9,6 +9,7 @@ import {
   buildWaveGallerySummary,
   describeSupportEvent,
   getMissionBackgroundPaths,
+  getMissionEncounterSummary,
   type SpawnEventGallerySummary,
   type SupportWaveEvent,
   type WaveGallerySector
@@ -89,12 +90,16 @@ function EnemyRoster({ summary }: { summary: SpawnEventGallerySummary }) {
             <b title={`${Math.round(allocation.weightPercent)}% spawn weight`}>≈{formatNumber(allocation.expectedCount)}</b>
           </span>
           <div>
-            <strong>{allocation.label}</strong>
+            <strong>
+              {allocation.enemy.rank === 'elite'
+                ? `ELITE UNIT · ${allocation.label}`
+                : allocation.label}
+            </strong>
             <small>{allocation.assetLabel}</small>
             <span>
               {allocation.role?.durabilityClass ?? allocation.enemy.rank ?? 'standard'}
               {' · '}{formatNumber(allocation.enemy.health)} HP
-              {allocation.enemy.rank === 'elite' ? ' · elite meter' : ''}
+              {allocation.enemy.rank === 'elite' ? ' · dedicated elite meter' : ''}
             </span>
           </div>
           <dl>
@@ -144,12 +149,15 @@ function SpawnEventCard({
 function SupportEventCard({ event }: { event: SupportWaveEvent }) {
   const description = describeSupportEvent(event);
   return (
-    <article className="wfg-support-card">
+    <article
+      className="wfg-support-card"
+      data-encounter-class={description.encounterClass ?? undefined}
+    >
       <span className="wfg-support-card__art">
         {description.assetPath ? <img src={description.assetPath} alt="" draggable={false} /> : <b>{event.kind.slice(0, 2).toUpperCase()}</b>}
       </span>
       <div>
-        <small>{event.kind.replaceAll('-', ' ')} at {formatNumber(event.startSeconds)}s</small>
+        <small>{description.kindLabel} · {formatNumber(event.startSeconds)}s</small>
         <strong>{event.label || description.heading}</strong>
         <span>{description.heading} · {description.detail}</span>
       </div>
@@ -187,11 +195,16 @@ function SelectionControls({
       <label className="wfg-controls__mission">
         <span>Mission</span>
         <select value={selectedMission.id} onChange={(event) => onMissionChange(event.target.value)}>
-          {selectedSector.missions.map((mission) => (
-            <option value={mission.id} key={mission.id}>
-              M{getMissionNumber(mission)} · {mission.name}{selectedSector.primaryMissionIds.includes(mission.id) ? '' : ' · ALT ROUTE'}
-            </option>
-          ))}
+          {selectedSector.missions.map((mission) => {
+            const encounter = getMissionEncounterSummary(mission);
+            return (
+              <option value={mission.id} key={mission.id}>
+                M{getMissionNumber(mission)} · {mission.name}
+                {encounter ? ` · ${encounter.kindLabel} · ${encounter.name}` : ''}
+                {selectedSector.primaryMissionIds.includes(mission.id) ? '' : ' · ALT ROUTE'}
+              </option>
+            );
+          })}
         </select>
       </label>
       <div className="wfg-controls__step">

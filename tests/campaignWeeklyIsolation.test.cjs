@@ -77,7 +77,8 @@ const compileService = (name, requires = {}) => {
 const branchProgression = compileService('campaignBranchProgression.ts');
 const campaignGraph = compileService('campaignGraph.ts');
 const campaignProgression = compileService('campaignProgression.ts', {
-  '../game-config/catalog': { isMajorBossId: () => false },
+  '../game-config/catalog': { isMajorBossId: () => false, getBossEncounterClass: () => null },
+  './gameplay/mini-bosses': { getMiniBossEncounterDefinition: () => undefined },
   '../services/campaignGraph.ts': campaignGraph,
   './campaignGraph': campaignGraph,
   './campaignBranchProgression': branchProgression,

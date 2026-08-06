@@ -116,7 +116,6 @@ interface StartScreenProps {
   onOpenBaseAppReferral: () => void;
   onOpenFund: () => void;
   onOpenProposal: (url: string) => void;
-  onOpenXProfile: () => void;
   onOpenTreasurySend: () => void;
   onOpenSwap: () => void;
   onOpenRscInBase: () => void;
@@ -216,7 +215,7 @@ const CampaignTrophyPanel = ({ state }: { state: PermanentSquadState }) => {
     { label: 'Missions cleared', value: Math.min(completed, authoredMissionTotal), total: authoredMissionTotal, hint: 'First clears across the Campaign graph' },
     { label: 'Missions mastered', value: Math.min(stats.campaignMissionsMastered, authoredMissionTotal), total: authoredMissionTotal, hint: 'Every objective met' },
     { label: 'Stars earned', value: Math.min(totalStars, authoredStarTotal), total: authoredStarTotal, hint: 'Three per Mission at full mastery' },
-    { label: 'Elite Bosses beaten', value: eliteCheckpointsCompleted, total: eliteCheckpointMissionIds.length, hint: 'Unique elite-checkpoint Missions cleared' },
+    { label: 'Elite encounters cleared', value: eliteCheckpointsCompleted, total: eliteCheckpointMissionIds.length, hint: 'Unique elite-checkpoint Missions cleared' },
     { label: 'Bosses archived', value: Math.min(bossArchiveUnlocked, BOSS_ARCHIVE_CATALOG.length), total: BOSS_ARCHIVE_CATALOG.length, hint: 'Unlocked for replay' },
     { label: 'Hangar upgrades', value: Math.min(stats.hangarUpgradesPurchased, authoredHangarUpgradeTotal), total: authoredHangarUpgradeTotal, hint: 'Permanent main-hull upgrades purchased' }
   ];
@@ -762,7 +761,6 @@ const StartScreen: React.FC<StartScreenProps> = ({
   onOpenBaseAppReferral,
   onOpenFund,
   onOpenProposal,
-  onOpenXProfile,
   onOpenTreasurySend,
   onOpenSwap,
   onOpenRscInBase,
@@ -838,6 +836,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const [showTreasury, setShowTreasury] = useState(false);
   const [showRscAcquire, setShowRscAcquire] = useState(false);
   const [showReferral, setShowReferral] = useState(false);
+  const [moreAudioExpanded, setMoreAudioExpanded] = useState(false);
   const [referralCopyStatus, setReferralCopyStatus] = useState<Record<'researchhub' | 'base', 'idle' | 'copied' | 'error'>>({
     researchhub: 'idle',
     base: 'idle'
@@ -2211,20 +2210,34 @@ const StartScreen: React.FC<StartScreenProps> = ({
         </header>
 
         <section className="sci-pause-settings sci-more-audio-settings" aria-label="Audio settings">
-          <div className="sci-pause-settings__title">
+          <button
+            type="button"
+            className="sci-pause-settings__title sci-more-audio-settings__toggle"
+            aria-expanded={moreAudioExpanded}
+            aria-controls="sci-more-audio-controls"
+            onClick={() => setMoreAudioExpanded((expanded) => !expanded)}
+          >
             <span>Audio Settings</span>
-          </div>
-          <AudioSettingsControls
-            idPrefix="sci-more"
-            audioMuted={audioMuted}
-            sfxVolumeLevel={sfxVolumeLevel}
-            musicVolumeLevel={musicVolumeLevel}
-            matchMusicTrackId={matchMusicTrackId}
-            onToggleAudio={onToggleAudio}
-            onSfxVolumeChange={onSfxVolumeChange}
-            onMusicVolumeChange={onMusicVolumeChange}
-            onMatchMusicTrackChange={onMatchMusicTrackChange}
-          />
+            <span className="sci-more-audio-settings__state" aria-hidden="true">
+              <span>{moreAudioExpanded ? 'Close' : 'Open'}</span>
+              <span className="sci-more-audio-settings__chevron">⌄</span>
+            </span>
+          </button>
+          {moreAudioExpanded ? (
+            <div id="sci-more-audio-controls" className="sci-more-audio-settings__body">
+              <AudioSettingsControls
+                idPrefix="sci-more"
+                audioMuted={audioMuted}
+                sfxVolumeLevel={sfxVolumeLevel}
+                musicVolumeLevel={musicVolumeLevel}
+                matchMusicTrackId={matchMusicTrackId}
+                onToggleAudio={onToggleAudio}
+                onSfxVolumeChange={onSfxVolumeChange}
+                onMusicVolumeChange={onMusicVolumeChange}
+                onMatchMusicTrackChange={onMatchMusicTrackChange}
+              />
+            </div>
+          ) : null}
         </section>
 
         <div className="sci-more-menu__grid" aria-label="Scicon Shooter menu">
@@ -2272,9 +2285,9 @@ const StartScreen: React.FC<StartScreenProps> = ({
             onClick={() => setPlayerReportKind('bug')}
           />
           <MoreMenuTile
-            label="Updates"
+            label="Social"
             icon={`${COMMUNICATION_ICON_ROOT}/notifications.png`}
-            onClick={onOpenXProfile}
+            href={DONATION_CONFIG.X_PROFILE_URL}
           />
           {onRestartOnboarding ? (
             <MoreMenuTile

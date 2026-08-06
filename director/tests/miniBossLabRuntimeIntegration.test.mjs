@@ -175,11 +175,21 @@ test('all eight Mini-Boss Lab prototype events resolve and spawn the registered 
     assert.equal(snapshot.eventId, preview.eventId);
     assert.equal(snapshot.encounterId, encounterId);
     assert.equal(snapshot.compactHealthBars, true);
-    assert.deepEqual(
-      snapshot.members.map((member) => member.id),
-      createMiniBossMemberInstances(definition).map((member) => member.id)
-    );
+    const instances = createMiniBossMemberInstances(definition);
+    assert.deepEqual(snapshot.members.map((member) => member.id), instances.map((member) => member.id));
     assert.ok(snapshot.members.every((member) => member.alive));
+    const runtimeState = getLiveMiniBossState(engine, preview.eventId);
+    for (const instance of instances) {
+      const entity = engine.entities.find((candidate) => candidate.id === runtimeState.memberEntityIds.get(instance.id));
+      assert.ok(entity, `${instance.id} must own a simulation entity`);
+      assert.equal(entity.miniBossLabCollisionRadiusPixels, instance.collisionRadiusPixels);
+      const collisionBox = engine.getCollisionBox(entity);
+      assert.deepEqual(
+        [collisionBox.width, collisionBox.height],
+        [instance.collisionRadiusPixels * 2, instance.collisionRadiusPixels * 2],
+        `${instance.id} must use its authored circular footprint instead of its padded art canvas`
+      );
+    }
   }
 });
 
@@ -485,12 +495,27 @@ test('Fracture core loss retires only its owned satellites and enters the solo f
   )));
   assert.ok(coreEntities.every(Boolean));
   assert.ok(satelliteEntities.every(Boolean));
-  const fractureBodyUrl = definition.assets.find((asset) => asset.id === 'fracture-core-body')?.url;
-  assert.match(fractureBodyUrl ?? '', /mini-boss-lab-v2\/fracture-engine-elite\/fracture-engine-elite-neutral\.png$/);
+  const fractureBodyFrames = definition.assets.find((asset) => asset.id === 'fracture-core-body')?.frames;
+  assert.equal(fractureBodyFrames?.length, 7);
+  assert.match(fractureBodyFrames?.[0] ?? '', /mini-boss-lab-v2\/fracture-engine-elite\/fracture-engine-elite-neutral\.png$/);
   assert.equal(
     coreEntities[0].spriteUrl,
-    fractureBodyUrl,
+    fractureBodyFrames?.[3],
     'the engine must publish Fracture’s exact generated body art for collision parity'
+  );
+
+  engine.update();
+  const fractureProjectile = engine.entities.find((entity) => (
+    entity.sourceEventId === preview.eventId
+    && entity.type === 'PROJECTILE'
+    && !entity.isPlayerShot
+    && !entity.isBeam
+  ));
+  assert.ok(fractureProjectile, 'Fracture must emit its registered animated shard');
+  assert.deepEqual(
+    [fractureProjectile.width, fractureProjectile.height],
+    [18, 36],
+    'the shard gameplay footprint must remain readable and match the generated art'
   );
 
   assert.equal(engine.destroyPreviewMiniBossUnit(preview.eventId), true);
@@ -546,33 +571,27 @@ test('Railspine warning and live beam slots track forced wall geometry continuou
     entity.sourceEventId === warningHarness.preview.eventId
     && entity.miniBossLabRole === 'primary'
   ));
-  const warningBrace = warningHarness.engine.entities.find((entity) => (
+  const warningBeam = warningHarness.engine.entities.find((entity) => (
     entity.sourceEventId === warningHarness.preview.eventId
-    && entity.sourceItemId?.includes(':rail-warning-brace:')
+    && entity.isBeam
+    && entity.isTelegraph
   ));
   assert.ok(warningWall);
-  assert.ok(warningBrace, 'Railspine must show an emitter-local edge brace while charging');
-  assert.equal(warningBrace.isTelegraph, true);
+  assert.ok(warningBeam, 'Railspine must preview the exact rail lane while charging');
   assert.equal(
     warningHarness.engine.entities.some((entity) => (
       entity.sourceEventId === warningHarness.preview.eventId
-      && entity.isBeam
       && entity.isTelegraph
+      && !entity.isBeam
     )),
     false,
-    'Railspine warning must never reveal a future full-arena targeting line'
+    'Railspine must not layer the generic web/ring telegraph over its authored charge pose'
   );
-  const warningBraceId = warningBrace.id;
+  const warningBeamId = warningBeam.id;
   warningHarness.engine.update();
-  const refreshedBrace = warningHarness.engine.entities.find((entity) => entity.id === warningBraceId);
-  assert.ok(refreshedBrace);
-  assert.ok(
-    Math.abs(
-      (refreshedBrace.x + refreshedBrace.width / 2)
-      - (warningWall.x + warningWall.width / 2)
-    ) < 0.001,
-    'the local warning brace must follow the live wall emitter'
-  );
+  const refreshedWarningBeam = warningHarness.engine.entities.find((entity) => entity.id === warningBeamId);
+  assert.ok(refreshedWarningBeam);
+  assert.equal(refreshedWarningBeam.isTelegraph, true);
 
   const { engine, preview } = createHarness('railspine-wallcrawler');
   assert.equal(engine.setPreviewMiniBossWallSide(preview.eventId, 'right'), true);

@@ -1,10 +1,15 @@
 import type { AssetKey, BossEvent, GameCampaignConfig } from '@game/game-config/types';
+import { getBossEncounterClass } from '@game/game-config/catalog';
 import { isDamagingBossTimelinePrimitive } from '@game/game-config/bossTimeline';
 import { validateGameCampaign } from '@game/game-config/validate';
 import {
   getGeneratedBossPreviewAttacks,
   resolveGeneratedBossArchetype
 } from '@game/services/generatedBossArchetypes';
+import {
+  WEEKLY_RUN_INITIAL_STAGE_COUNT,
+  planWeeklyRunStages
+} from '@game/services/weeklyRunGenerator';
 import type {
   ArticulatedPincerPartId,
   PreviewBossArtwork,
@@ -66,6 +71,90 @@ import prismMothAtlasSource from '../../../../director-data/prototype-assets/pri
 import prismMothRigSource from '../../../../director-data/prototype-assets/prism-moth-broodkeeper/prism-moth-broodkeeper.rig.json';
 
 export const BOSS_SANDBOX_VERSION = 'V 0.31' as const;
+
+export const BOSS_SANDBOX_RAIL_MIN_WIDTH = 236;
+export const BOSS_SANDBOX_RAIL_MAX_WIDTH = 420;
+export const BOSS_SANDBOX_GAME_VIEWPORT_WIDTH = 390;
+
+export interface BossSandboxRailWidths {
+  readonly left: number;
+  readonly right: number;
+}
+
+export const normalizeBossSandboxRailWidths = (
+  value: unknown
+): BossSandboxRailWidths => {
+  const candidate = value && typeof value === 'object'
+    ? value as Partial<Record<keyof BossSandboxRailWidths, unknown>>
+    : {};
+  const normalizeWidth = (width: unknown) => {
+    const numeric = typeof width === 'number' ? width : Number.NaN;
+    return Number.isFinite(numeric)
+      ? Math.round(Math.min(
+          BOSS_SANDBOX_RAIL_MAX_WIDTH,
+          Math.max(BOSS_SANDBOX_RAIL_MIN_WIDTH, numeric)
+        ))
+      : BOSS_SANDBOX_RAIL_MIN_WIDTH;
+  };
+  return Object.freeze({
+    left: normalizeWidth(candidate.left),
+    right: normalizeWidth(candidate.right)
+  });
+};
+
+export const clampBossSandboxRailWidth = ({
+  requestedWidth,
+  otherRailWidth,
+  workspaceWidth
+}: {
+  requestedWidth: number;
+  otherRailWidth: number;
+  workspaceWidth: number;
+}): number => {
+  const availableMaximum = Math.max(
+    BOSS_SANDBOX_RAIL_MIN_WIDTH,
+    Math.floor(workspaceWidth - otherRailWidth - BOSS_SANDBOX_GAME_VIEWPORT_WIDTH)
+  );
+  return Math.round(Math.min(
+    BOSS_SANDBOX_RAIL_MAX_WIDTH,
+    availableMaximum,
+    Math.max(BOSS_SANDBOX_RAIL_MIN_WIDTH, requestedWidth)
+  ));
+};
+
+export const fitBossSandboxRailWidths = (
+  value: unknown,
+  workspaceWidth: number
+): BossSandboxRailWidths => {
+  const normalized = normalizeBossSandboxRailWidths(value);
+  const availableRailWidth = Math.max(
+    BOSS_SANDBOX_RAIL_MIN_WIDTH * 2,
+    Math.floor(workspaceWidth - BOSS_SANDBOX_GAME_VIEWPORT_WIDTH)
+  );
+  let left = normalized.left;
+  let right = normalized.right;
+  let overflow = Math.max(0, left + right - availableRailWidth);
+  if (overflow > 0) {
+    const leftReduction = Math.min(
+      left - BOSS_SANDBOX_RAIL_MIN_WIDTH,
+      Math.ceil(overflow / 2)
+    );
+    left -= leftReduction;
+    overflow -= leftReduction;
+  }
+  if (overflow > 0) {
+    const rightReduction = Math.min(
+      right - BOSS_SANDBOX_RAIL_MIN_WIDTH,
+      overflow
+    );
+    right -= rightReduction;
+    overflow -= rightReduction;
+  }
+  if (overflow > 0) {
+    left = Math.max(BOSS_SANDBOX_RAIL_MIN_WIDTH, left - overflow);
+  }
+  return Object.freeze({ left, right });
+};
 
 export const getBossSandboxPerformingAttackId = (
   activeAttack: PreviewBossAttackSnapshot | null | undefined
@@ -2012,10 +2101,10 @@ export interface BossSandboxCategory {
 }
 
 export const BOSS_SANDBOX_CATEGORIES: readonly BossSandboxCategory[] = Object.freeze([
-  Object.freeze({ id: 'full-bosses', label: 'Full Bosses', selectorLabel: 'Boss to Test' }),
-  Object.freeze({ id: 'mini-bosses', label: 'Mini Bosses', selectorLabel: 'Mini Boss to Test' }),
+  Object.freeze({ id: 'full-bosses', label: 'Bosses', selectorLabel: 'Boss to Test' }),
+  Object.freeze({ id: 'mini-bosses', label: 'Elite Enemies', selectorLabel: 'Elite Enemy to Test' }),
   Object.freeze({ id: 'test-bosses', label: 'Test Bosses', selectorLabel: 'Test Boss to Test' }),
-  Object.freeze({ id: 'elite-enemies', label: 'Elite Enemies', selectorLabel: 'Elite to Test' }),
+  Object.freeze({ id: 'elite-enemies', label: 'Solo Elites', selectorLabel: 'Solo Elite to Test' }),
   Object.freeze({ id: 'paired-encounters', label: 'Paired Encounters', selectorLabel: 'Encounter to Test' }),
   Object.freeze({ id: 'guardian-formations', label: 'Guardian Formations', selectorLabel: 'Formation to Test' }),
   Object.freeze({ id: 'wall-encounters', label: 'Wall Encounters', selectorLabel: 'Encounter to Test' }),
@@ -2116,9 +2205,65 @@ export interface BossSandboxGroup {
   readonly choices: readonly BossSandboxChoice[];
 }
 
+export interface BossSandboxWeeklyLineupItem {
+  readonly stageNumber: number;
+  readonly kind: 'boss' | 'elite-enemy';
+  readonly bossId: string;
+  readonly label: string;
+  readonly missionLabel: string;
+  readonly waveCount: number;
+}
+
+/**
+ * Read-only projection of the same deterministic plan consumed by Weekly Run.
+ * Keeping this in the Sandbox model prevents the UI from inventing a second
+ * shuffle or drifting from the live weekly encounter order.
+ */
+export const buildBossSandboxWeeklyLineup = (
+  campaign: GameCampaignConfig,
+  weekKey: string,
+  stageCount = WEEKLY_RUN_INITIAL_STAGE_COUNT
+): readonly BossSandboxWeeklyLineupItem[] => {
+  const authoredByBossId = new Map<string, {
+    event: BossEvent;
+    missionLabel: string;
+  }>();
+  [...campaign.levels]
+    .sort((left, right) => left.order - right.order)
+    .forEach((level) => {
+      [...level.waves]
+        .sort((left, right) => left.order - right.order)
+        .forEach((wave) => {
+          wave.events.forEach((event) => {
+            if (event.kind !== 'boss' || authoredByBossId.has(event.bossId)) return;
+            authoredByBossId.set(event.bossId, {
+              event,
+              missionLabel: level.name
+            });
+          });
+        });
+    });
+
+  return Object.freeze(planWeeklyRunStages(weekKey, campaign, stageCount)
+    .flatMap((stage): BossSandboxWeeklyLineupItem[] => {
+      if (!stage.bossId || stage.kind === 'combat') return [];
+      const authored = authoredByBossId.get(stage.bossId);
+      return [Object.freeze({
+        stageNumber: stage.index + 1,
+        kind: stage.kind === 'major' ? 'boss' : 'elite-enemy',
+        bossId: stage.bossId,
+        label: authored?.event.label ?? stage.bossId,
+        missionLabel: authored?.missionLabel ?? 'Weekly Run',
+        waveCount: stage.waveCount
+      })];
+    }));
+};
+
 export interface BossSandboxAttack {
   readonly id: string;
   readonly phaseId: string;
+  /** Stable position in the boss's full attack roster, even in phase-subset views. */
+  readonly attackNumber: number;
   /** Diagnostic source name; the player-facing controls remain Attack 1, 2, etc. */
   readonly sourceLabel: string;
   readonly source: 'timeline' | 'generated-runtime' | 'configured-weapon';
@@ -2132,12 +2277,18 @@ const prototypeChoiceId = (prototypeId: SandboxBossPrototypeId) => (
   `boss-sandbox:test:${prototypeId}`
 );
 
+const getMiniBossPrimaryArtworkUrl = (encounterId: string): string | undefined => {
+  const primaryBody = getMiniBossEncounterDefinition(encounterId)
+    ?.assets.find((asset) => asset.usage === 'primary-body');
+  return primaryBody?.url ?? primaryBody?.frames?.[0];
+};
+
 export const getBossSandboxChoiceOptionLabel = (
   choice: BossSandboxChoice
 ): string => (
   choice.source === 'campaign' && choice.missionOrder !== undefined
-    ? `M${String(choice.missionOrder).padStart(2, '0')} · ${choice.bossLabel}`
-    : choice.bossLabel
+    ? `M${String(choice.missionOrder).padStart(2, '0')} · ${choice.encounterClass === 'full-boss' ? 'BOSS' : 'ELITE'} · ${choice.bossLabel}`
+    : `${choice.encounterClass === 'full-boss' ? 'BOSS' : 'ELITE'} · ${choice.bossLabel}`
 );
 
 export const buildBossSandboxGroups = (
@@ -2158,25 +2309,45 @@ export const buildBossSandboxGroups = (
           left.event.startSeconds - right.event.startSeconds
           || left.eventIndex - right.eventIndex
         ))
-        .flatMap(({ event }): BossSandboxChoice[] => (
-          event.kind === 'boss'
-            ? [{
-                id: productionChoiceId(level.id, wave.id, event.id),
-                source: 'campaign',
-                encounterClass: 'full-boss',
-                categories: ['full-bosses', 'all-encounters'],
-                missionId: level.id,
-                missionLabel: level.name,
-                bossLabel: event.label,
-                waveLabel: wave.name,
-                missionOrder: level.order,
-                waveOrder: wave.order,
-                levelId: level.id,
-                waveId: wave.id,
-                eventId: event.id
-              }]
-            : []
-        ))));
+        .flatMap(({ event }): BossSandboxChoice[] => {
+          if (event.kind !== 'boss') return [];
+          const catalogClass = getBossEncounterClass(event.bossId);
+          if (!catalogClass) return [];
+          const encounterClass = catalogClass === 'boss' ? 'full-boss' : 'mini-boss';
+          const matchingPrototype = encounterClass === 'mini-boss'
+            ? SANDBOX_BOSS_PROTOTYPES.find((prototype) => prototype.id === event.bossId)
+            : undefined;
+          const miniBoss = matchingPrototype?.miniBoss;
+          const categories: SandboxEncounterCategoryId[] = encounterClass === 'full-boss'
+            ? ['full-bosses', 'all-encounters']
+            : [...new Set<SandboxEncounterCategoryId>([
+                'mini-bosses',
+                ...(miniBoss?.categories ?? []),
+                'all-encounters'
+              ])];
+          return [{
+            id: productionChoiceId(level.id, wave.id, event.id),
+            source: 'campaign',
+            encounterClass,
+            categories,
+            missionId: level.id,
+            missionLabel: level.name,
+            bossLabel: event.label,
+            waveLabel: wave.name,
+            missionOrder: level.order,
+            waveOrder: wave.order,
+            levelId: level.id,
+            waveId: wave.id,
+            eventId: event.id,
+            ...(miniBoss
+              ? {
+                  miniBoss,
+                  artworkAssetId: miniBoss.assetIds[0],
+                  artworkUrl: getMiniBossPrimaryArtworkUrl(miniBoss.encounterId)
+                }
+              : {})
+          }];
+        })));
 
   const prototypeChoices = SANDBOX_BOSS_PROTOTYPES.map(
     (prototype): BossSandboxChoice => ({
@@ -2191,7 +2362,7 @@ export const buildBossSandboxGroups = (
         : BOSS_SANDBOX_GROUP_IDS.test,
       missionLabel: 'TEST BOSSES · Never ships',
       ...(prototype.miniBoss
-        ? { missionLabel: 'MINI-BOSS LAB | Campaign preview' }
+        ? { missionLabel: 'ELITE ENEMY LAB | Campaign preview' }
         : {}),
       bossLabel: prototype.label,
       waveLabel: 'Isolated boss fight',
@@ -2200,9 +2371,7 @@ export const buildBossSandboxGroups = (
         ? {
             miniBoss: prototype.miniBoss,
             artworkAssetId: prototype.miniBoss.assetIds[0],
-            artworkUrl: getMiniBossEncounterDefinition(prototype.miniBoss.encounterId)
-              ?.assets.find((asset) => asset.usage === 'primary-body')
-              ?.url
+            artworkUrl: getMiniBossPrimaryArtworkUrl(prototype.miniBoss.encounterId)
           }
         : {})
     })
@@ -2225,7 +2394,7 @@ export const buildBossSandboxGroups = (
     },
     {
       id: BOSS_SANDBOX_GROUP_IDS.miniBosses,
-      label: 'MINI-BOSS LAB · Campaign roster',
+      label: 'ELITE ENEMIES · Campaign roster',
       source: 'test',
       choices: miniBossChoices
     }
@@ -2367,10 +2536,12 @@ export const getBossSandboxAttacks = (
         ? String(requestedPhaseId)
         : event.phases[0].id;
       return event.timeline.attacks
-        .filter((attack) => attack.variants.some((variant) => variant.phaseId === phaseId))
-        .map((attack) => Object.freeze({
+        .map((attack, index) => ({ attack, attackNumber: index + 1 }))
+        .filter(({ attack }) => attack.variants.some((variant) => variant.phaseId === phaseId))
+        .map(({ attack, attackNumber }) => Object.freeze({
           id: attack.id,
           phaseId,
+          attackNumber,
           sourceLabel: attack.label,
           source: 'timeline' as const
         }));
@@ -2392,9 +2563,10 @@ export const getBossSandboxAttacks = (
           || left.clip.startSeconds - right.clip.startSeconds
           || left.sourceIndex - right.sourceIndex;
       })
-      .map(({ clip }) => Object.freeze({
+      .map(({ clip }, index) => Object.freeze({
         id: clip.id,
         phaseId: clip.phaseId ?? event.phases[0].id,
+        attackNumber: index + 1,
         sourceLabel: clip.label,
         source: 'timeline' as const
       }));
@@ -2402,21 +2574,23 @@ export const getBossSandboxAttacks = (
 
   const archetype = resolveGeneratedBossArchetype(event.spriteKey);
   if (archetype) {
-    return getGeneratedBossPreviewAttacks(archetype).map((attack) => Object.freeze({
+    return getGeneratedBossPreviewAttacks(archetype).map((attack, index) => Object.freeze({
       id: attack.id,
       phaseId: event.phases[attack.phase - 1]?.id ?? event.phases[0].id,
+      attackNumber: index + 1,
       sourceLabel: attack.fireTechnique,
       source: 'generated-runtime' as const
     }));
   }
 
-  return event.weapons.map((weapon) => {
+  return event.weapons.map((weapon, index) => {
     const phase = event.phases.find((candidate) => (
       candidate.weaponSettingIds.includes(weapon.id)
     )) ?? event.phases[0];
     return Object.freeze({
       id: weapon.id,
       phaseId: phase.id,
+      attackNumber: index + 1,
       sourceLabel: weapon.weaponId,
       source: 'configured-weapon' as const
     });

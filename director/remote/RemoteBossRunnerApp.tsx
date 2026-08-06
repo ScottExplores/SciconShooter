@@ -33,18 +33,24 @@ import {
 } from '../../services/squadProgression';
 import '../src/combat-lab/sandboxBossPrototypes';
 import {
+  BOSS_SANDBOX_CATEGORIES,
   BOSS_SANDBOX_VERSION,
   BOSS_SANDBOX_VIEWPORTS,
+  DEFAULT_BOSS_SANDBOX_CATEGORY_ID,
   buildBossSandboxGroups,
   buildBossSandboxPreview,
   createSandboxOnlyBossArtwork,
+  filterBossSandboxGroups,
+  getBossSandboxChoiceOptionLabel,
   getDefaultBossSandboxChoice,
   getBossSandboxAttacks,
   getBossSandboxEventId,
   getBossSandboxPerformingAttackId,
   getBossSandboxPhases,
+  getBossSandboxSelectorLabel,
   getSandboxBossArtworkRegistration,
   isSandboxBossPrototypePreview,
+  type BossSandboxCategory,
   type BossSandboxChoice
 } from '../src/tools/bosses/bossSandboxModel';
 import {
@@ -260,9 +266,20 @@ function CompanionControl({
 }
 
 export default function RemoteBossRunnerApp() {
-  const groups = useMemo(
+  const allGroups = useMemo(
     () => buildBossSandboxGroups(STATIC_CAMPAIGN),
     []
+  );
+  const allChoices = useMemo(
+    () => allGroups.flatMap((group) => group.choices),
+    [allGroups]
+  );
+  const [categoryId, setCategoryId] = useState<BossSandboxCategory['id']>(
+    DEFAULT_BOSS_SANDBOX_CATEGORY_ID
+  );
+  const groups = useMemo(
+    () => filterBossSandboxGroups(allGroups, categoryId),
+    [allGroups, categoryId]
   );
   const choices = useMemo(
     () => groups.flatMap((group) => group.choices),
@@ -270,9 +287,9 @@ export default function RemoteBossRunnerApp() {
   );
   const choiceThumbnailUrls = useMemo(
     () => new Map(
-      choices.map((choice) => [choice.id, resolveBossChoiceThumbnailUrl(choice)])
+      allChoices.map((choice) => [choice.id, resolveBossChoiceThumbnailUrl(choice)])
     ),
-    [choices]
+    [allChoices]
   );
   const bossPickerSections = groups;
   const firstChoice = getDefaultBossSandboxChoice(choices);
@@ -332,7 +349,7 @@ export default function RemoteBossRunnerApp() {
     };
   }, []);
 
-  const selectedChoice = choices.find((choice) => choice.id === selectedChoiceId)
+  const selectedChoice = allChoices.find((choice) => choice.id === selectedChoiceId)
     ?? firstChoice;
   const selectedThumbnailUrl = selectedChoice
     ? choiceThumbnailUrls.get(selectedChoice.id)
@@ -359,12 +376,12 @@ export default function RemoteBossRunnerApp() {
   );
   const eventId = preview ? getBossSandboxEventId(preview) : null;
   const campaignBossCount = useMemo(
-    () => choices.filter((choice) => choice.source === 'campaign').length,
-    [choices]
+    () => allChoices.filter((choice) => choice.source === 'campaign').length,
+    [allChoices]
   );
   const testBossCount = useMemo(
-    () => choices.filter((choice) => choice.source === 'test').length,
-    [choices]
+    () => allChoices.filter((choice) => choice.source === 'test').length,
+    [allChoices]
   );
 
   useEffect(() => {
@@ -426,7 +443,7 @@ export default function RemoteBossRunnerApp() {
 
   const selectBoss = useCallback((choiceId: string) => {
     if (choiceId === selectedChoiceId) return;
-    const choice = choices.find((candidate) => candidate.id === choiceId);
+    const choice = allChoices.find((candidate) => candidate.id === choiceId);
     setSelectedChoiceId(choiceId);
     setSelectedPhaseId(null);
     setPreviewSnapshot(null);
@@ -440,7 +457,17 @@ export default function RemoteBossRunnerApp() {
         : 'not-needed'
     );
     setNotice('Boss loaded. Resume when ready.');
-  }, [choices, selectedChoiceId]);
+  }, [allChoices, selectedChoiceId]);
+
+  const selectCategory = useCallback((nextCategoryId: BossSandboxCategory['id']) => {
+    const nextChoices = filterBossSandboxGroups(allGroups, nextCategoryId)
+      .flatMap((group) => group.choices);
+    setCategoryId(nextCategoryId);
+    if (!nextChoices.some((choice) => choice.id === selectedChoiceId)) {
+      const nextChoice = getDefaultBossSandboxChoice(nextChoices);
+      if (nextChoice) selectBoss(nextChoice.id);
+    }
+  }, [allGroups, selectBoss, selectedChoiceId]);
 
   const updateCompanion = useCallback((
     slot: SquadSlotId,
@@ -702,9 +729,43 @@ export default function RemoteBossRunnerApp() {
                   <div className="remote-runner__section-title">
                     <span>Fight library</span>
                     <small>
-                      {campaignBossCount} main · {testBossCount} test
+                      {campaignBossCount} campaign · {testBossCount} test
                     </small>
                   </div>
+                  <nav
+                    className="remote-runner__categories"
+                    aria-label="Encounter categories"
+                  >
+                    {BOSS_SANDBOX_CATEGORIES.map((category) => (
+                      <button
+                        type="button"
+                        key={category.id}
+                        aria-pressed={categoryId === category.id}
+                        className={categoryId === category.id ? 'is-active' : ''}
+                        onClick={() => selectCategory(category.id)}
+                      >
+                        {category.label}
+                      </button>
+                    ))}
+                  </nav>
+                  <label className="remote-runner__boss-select">
+                    <span>{getBossSandboxSelectorLabel(categoryId)}</span>
+                    <select
+                      aria-label={getBossSandboxSelectorLabel(categoryId)}
+                      value={selectedChoice.id}
+                      onChange={(event) => selectBoss(event.target.value)}
+                    >
+                      {bossPickerSections.map((section) => (
+                        <optgroup label={section.label} key={section.id}>
+                          {section.choices.map((choice) => (
+                            <option value={choice.id} key={choice.id}>
+                              {getBossSandboxChoiceOptionLabel(choice)}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </select>
+                  </label>
                   <article className="remote-runner__boss-card">
                     <BossArtwork
                       choice={selectedChoice}
@@ -712,14 +773,33 @@ export default function RemoteBossRunnerApp() {
                       selected
                     />
                     <div className="remote-runner__boss-card-copy">
-                      <span data-source={selectedChoice.source}>
-                        {selectedChoice.source === 'campaign'
-                          ? 'MAIN GAME'
-                          : 'TEST ONLY'}
+                      <span
+                        data-source={selectedChoice.source}
+                        data-encounter-class={selectedChoice.encounterClass}
+                      >
+                        {selectedChoice.encounterClass === 'mini-boss'
+                          ? 'ELITE ENEMY'
+                          : selectedChoice.source === 'campaign'
+                            ? 'CAMPAIGN BOSS'
+                            : 'TEST BOSS'}
                       </span>
                       <h2>{selectedChoice.bossLabel}</h2>
                       <p>{selectedChoice.missionLabel}</p>
                       <small>{selectedChoice.waveLabel}</small>
+                      <div
+                        className="remote-runner__category-tags"
+                        aria-label="Selected encounter categories"
+                      >
+                        {selectedChoice.categories
+                          .filter((encounterCategoryId) => encounterCategoryId !== 'all-encounters')
+                          .map((encounterCategoryId) => (
+                            <span key={encounterCategoryId}>
+                              {BOSS_SANDBOX_CATEGORIES.find((category) => (
+                                category.id === encounterCategoryId
+                              ))?.label}
+                            </span>
+                          ))}
+                      </div>
                       {artworkRegistration ? (
                         <em data-status={artworkStatus}>
                           {artworkStatus === 'ready'
@@ -750,7 +830,7 @@ export default function RemoteBossRunnerApp() {
                                 ? 'is-active'
                                 : ''}
                               aria-pressed={choice.id === selectedChoice.id}
-                              aria-label={`Choose ${choice.bossLabel}, ${choice.missionLabel}`}
+                              aria-label={`Choose ${getBossSandboxChoiceOptionLabel(choice)}, ${choice.missionLabel}`}
                               onClick={() => selectBoss(choice.id)}
                             >
                               <BossArtwork
@@ -760,9 +840,9 @@ export default function RemoteBossRunnerApp() {
                               <span className="remote-runner__boss-option-copy">
                                 <strong>{choice.bossLabel}</strong>
                                 <small>
-                                  {choice.source === 'campaign'
-                                    ? choice.missionLabel
-                                    : 'Test mission'}
+                                  {choice.source === 'campaign' && choice.missionOrder !== undefined
+                                    ? `M${String(choice.missionOrder).padStart(2, '0')} · ${choice.encounterClass === 'full-boss' ? 'BOSS' : 'ELITE'}`
+                                    : `${choice.encounterClass === 'full-boss' ? 'TEST BOSS' : 'ELITE ENEMY'} · ${choice.missionLabel}`}
                                 </small>
                               </span>
                             </button>
@@ -866,21 +946,21 @@ export default function RemoteBossRunnerApp() {
                   <div className="remote-runner__attacks">
                     <strong>Start an attack</strong>
                     <div>
-                      {attacks.map((attack, index) => (
+                      {attacks.map((attack) => (
                         <button
                           type="button"
                           key={attack.id}
-                          aria-label={`Attack ${index + 1}: ${attack.sourceLabel}`}
+                          aria-label={`Attack ${attack.attackNumber}: ${attack.sourceLabel}`}
                           aria-pressed={performingAttackId === attack.id}
                           className={performingAttackId === attack.id ? 'is-performing' : ''}
                           title={attack.sourceLabel}
                           onClick={() => triggerAttack(
                             attack.id,
                             attack.phaseId,
-                            index + 1
+                            attack.attackNumber
                           )}
                         >
-                          Attack {index + 1}
+                          Attack {attack.attackNumber}
                         </button>
                       ))}
                     </div>

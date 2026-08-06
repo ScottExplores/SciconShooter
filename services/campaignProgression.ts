@@ -10,13 +10,18 @@ import type {
   LevelDefinition,
   WaveDefinition
 } from '../game-config/types';
-import { isMajorBossId } from '../game-config/catalog';
+import {
+  getBossEncounterClass,
+  isMajorBossId,
+  type BossEncounterClass
+} from '../game-config/catalog';
 import {
   DEFAULT_GAME_CAMPAIGN,
   flattenLevels,
   getBackground,
   getPrimaryAssetPath
 } from './levelConfig';
+import { getMiniBossEncounterDefinition } from './gameplay/mini-bosses';
 import {
   createCampaignBranchProgress,
   getCampaignBranchDefinitions,
@@ -48,6 +53,15 @@ export type CampaignStarObjectiveKind = CampaignMasteryObjectiveKind;
 export type CampaignStarObjective = CampaignMasteryObjectiveDefinition;
 export type CampaignRewardDefinition = CampaignMissionRewardDefinition;
 
+export interface CampaignEncounterPreview {
+  eventId: string;
+  bossId: BossId;
+  name: string;
+  assetKey: string;
+  previewUrl: string;
+  encounterClass: BossEncounterClass;
+}
+
 export interface CampaignMissionDefinition {
   id: string;
   number: number;
@@ -68,6 +82,8 @@ export interface CampaignMissionDefinition {
     assetKey: string;
     previewUrl: string;
   } | null;
+  /** Every authored boss-shaped encounter, including elite enemies. */
+  encounter: CampaignEncounterPreview | null;
   nextMissionId: string | null;
   reward: CampaignRewardDefinition;
   starObjectives: CampaignStarObjective[];
@@ -442,6 +458,25 @@ const hasBoss = (level: LevelDefinition) => level.waves
     event.kind === 'boss' && isMajorBossId(event.bossId)
   ));
 
+const getMissionEncounter = (level: LevelDefinition) => level.waves
+  .flatMap((wave) => wave.events)
+  .find((event): event is BossEvent => (
+    event.kind === 'boss' && getBossEncounterClass(event.bossId) !== null
+  ));
+
+const getMissionEncounterPreviewUrl = (
+  encounter: BossEvent,
+  encounterClass: BossEncounterClass
+) => {
+  if (encounterClass === 'elite-enemy') {
+    const primaryBody = getMiniBossEncounterDefinition(encounter.bossId)
+      ?.assets.find((asset) => asset.usage === 'primary-body');
+    const runtimeUrl = primaryBody?.url ?? primaryBody?.frames?.[0];
+    if (runtimeUrl) return runtimeUrl;
+  }
+  return getPrimaryAssetPath(encounter.spriteKey);
+};
+
 const getMissionStarObjectives = (
   level: LevelDefinition,
   number: number,
@@ -496,6 +531,10 @@ export const buildCampaignMissionDefinitions = (
   return levels.map((level, index) => {
     const waves = [...level.waves].sort((left, right) => left.order - right.order);
     const boss = hasBoss(level);
+    const encounter = getMissionEncounter(level);
+    const encounterClass = encounter
+      ? getBossEncounterClass(encounter.bossId)
+      : null;
     const number = index + 1;
     const xPattern = [0.5, 0.27, 0.7, 0.38, 0.62];
     const authored = level.campaignProgression;
@@ -525,6 +564,10 @@ export const buildCampaignMissionDefinitions = (
             ? 'boss-preparation'
             : 'formation-remix';
     const previewUrl = getPrimaryAssetPath(boss?.spriteKey ?? level.scorecard.encounterAssetKey);
+    const encounterPreviewUrl = encounter
+      && encounterClass
+      ? getMissionEncounterPreviewUrl(encounter, encounterClass)
+      : previewUrl;
     return {
       id: level.id,
       number,
@@ -544,6 +587,14 @@ export const buildCampaignMissionDefinitions = (
         name: boss.label,
         assetKey: boss.spriteKey,
         previewUrl
+      } : null,
+      encounter: encounter && encounterClass ? {
+        eventId: encounter.id,
+        bossId: encounter.bossId,
+        name: encounter.label,
+        assetKey: encounter.spriteKey,
+        previewUrl: encounterPreviewUrl,
+        encounterClass
       } : null,
       nextMissionId,
       reward: authored ? { ...authored.reward } : fallbackReward,

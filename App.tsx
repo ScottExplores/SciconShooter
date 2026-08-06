@@ -7275,7 +7275,6 @@ const App: React.FC = () => {
           onOpenBaseAppReferral={openBaseAppInvite}
           onOpenFund={openResearchHubFund}
           onOpenProposal={openResearchHubProposal}
-          onOpenXProfile={() => openExternalUrl(DONATION_CONFIG.X_PROFILE_URL)}
           onOpenTreasurySend={openTreasurySend}
           onOpenSwap={openRscSwap}
           onOpenRscInBase={openRscInBase}
@@ -7375,7 +7374,6 @@ const App: React.FC = () => {
             onOpenBaseAppReferral={openBaseAppInvite}
             onOpenFund={openResearchHubFund}
             onOpenProposal={openResearchHubProposal}
-            onOpenXProfile={() => openExternalUrl(DONATION_CONFIG.X_PROFILE_URL)}
             onOpenTreasurySend={openTreasurySend}
             onOpenSwap={openRscSwap}
             onOpenRscInBase={openRscInBase}

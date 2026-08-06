@@ -4200,9 +4200,7 @@ export class PixiGameRenderer {
     const rightAlive = !rightComponent?.destroyed;
     const coreExposed = Boolean(helmet?.exposed || helmet?.destroyed);
     const healthRatio = entity.hp / Math.max(1, entity.maxHp);
-    const shieldActive = engine.entities.some((candidate) => (
-      !candidate.markedForDeletion && candidate.shieldHostId === entity.id
-    ));
+    const shieldActive = false;
     const action: ArticulatedPincerActionPresentation | undefined =
       this.getPreviewBossActionPresentation(entity);
     const pose = sampleArticulatedPincerPose({

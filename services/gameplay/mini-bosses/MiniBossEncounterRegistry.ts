@@ -11,22 +11,14 @@ import type {
 import { MINI_BOSS_LAB_ENCOUNTER_IDS } from './types.ts';
 
 const STAGE_20_ENEMY_ROOT = '/game-art/generated/scicon-stage20-expansion-v1/enemies/frames';
-const ARCADE_PROJECTILE_ROOT = '/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles';
 const WARNING_EFFECT_ROOT = '/game-art/generated/ui/animations/boss-alert-banners-v1/effects';
 const EXPLOSION_ROOT = '/game-art/pixi/effects/explosion';
 const MINI_BOSS_LAB_V2_ROOT = '/game-art/generated/mini-boss-lab-v2';
 
 const stage20Enemy = (name: string) => `${STAGE_20_ENEMY_ROOT}/${name}.png`;
-const miniBossLabV2Body = (encounterId: MiniBossEncounterId) => (
-  `${MINI_BOSS_LAB_V2_ROOT}/${encounterId}/${encounterId}-neutral.png`
+const miniBossLabV2Frame = (encounterId: MiniBossEncounterId, fileName: string) => (
+  `${MINI_BOSS_LAB_V2_ROOT}/${encounterId}/${fileName}`
 );
-const projectileFrames = (shape: string, color: string) => Object.freeze(
-  Array.from(
-    { length: 4 },
-    (_, index) => `${ARCADE_PROJECTILE_ROOT}/${shape}/${color}/frames/projectile-${shape}-${color}-0${index + 1}.png`
-  )
-);
-
 const explosionFrames = Object.freeze(
   Array.from({ length: 7 }, (_, index) => `${EXPLOSION_ROOT}/frame-${index + 1}.png`)
 );
@@ -39,24 +31,38 @@ const asset = (
   id,
   usage,
   status: 'approved-existing',
-  galleryCategory: 'Mini Bosses',
+  galleryCategory: 'Elite Enemies',
   provenance: 'existing-runtime-art',
   ...source
 });
 
-const generatedBodyAsset = (
+const generatedAnimatedBodyAsset = (
   id: string,
-  encounterId: MiniBossEncounterId
+  encounterId: MiniBossEncounterId,
+  frames: readonly string[]
 ): MiniBossAssetBinding => Object.freeze({
   id,
   usage: 'primary-body',
   status: 'approved-generated',
-  galleryCategory: 'Mini Bosses',
+  galleryCategory: 'Elite Enemies',
   provenance: 'generated-mini-boss-lab-v2',
-  url: miniBossLabV2Body(encounterId)
+  frames: Object.freeze(frames.map((fileName) => miniBossLabV2Frame(encounterId, fileName)))
+});
+const generatedProjectileAsset = (
+  id: string,
+  encounterId: MiniBossEncounterId,
+  frames: readonly string[],
+  dimensions: Readonly<{ widthPixels: number; heightPixels: number }>
+): MiniBossAssetBinding => Object.freeze({
+  id,
+  usage: 'projectile',
+  status: 'approved-generated',
+  galleryCategory: 'Elite Enemies',
+  provenance: 'generated-mini-boss-lab-v2',
+  frames: Object.freeze(frames.map((fileName) => miniBossLabV2Frame(encounterId, fileName))),
+  ...dimensions
 });
 const linkedAsset = (id: string, url: string) => asset(id, 'linked-unit', { url });
-const projectileAsset = (id: string, frames: readonly string[]) => asset(id, 'projectile', { frames });
 const telegraphAsset = (id: string, file: string) => asset(id, 'telegraph', {
   url: `${WARNING_EFFECT_ROOT}/${file}.png`
 });
@@ -164,9 +170,22 @@ const FRACTURE_ENGINE_ELITE = Object.freeze({
     })
   ]),
   assets: Object.freeze([
-    generatedBodyAsset('fracture-core-body', 'fracture-engine-elite'),
+    generatedAnimatedBodyAsset('fracture-core-body', 'fracture-engine-elite', [
+      'fracture-engine-elite-neutral.png',
+      'fracture-engine-elite-idle.png',
+      'fracture-engine-elite-charge.png',
+      'fracture-engine-elite-attack.png',
+      'fracture-engine-elite-attack-b.png',
+      'fracture-engine-elite-damage.png',
+      'fracture-engine-elite-critical.png'
+    ]),
     linkedAsset('fracture-satellite-body', stage20Enemy('orbit-disc')),
-    projectileAsset('fracture-shard', projectileFrames('prism-shard', 'violet')),
+    generatedProjectileAsset('fracture-shard', 'fracture-engine-elite', [
+      'fracture-shard-01.png',
+      'fracture-shard-02.png',
+      'fracture-shard-03.png',
+      'fracture-shard-04.png'
+    ], { widthPixels: 18, heightPixels: 36 }),
     telegraphAsset('fracture-warning', 'warning-ring-violet'),
     sharedDeath
   ]),
@@ -266,9 +285,19 @@ const AEGIS_BROOD_CORE = Object.freeze({
     })
   ]),
   assets: Object.freeze([
-    generatedBodyAsset('aegis-core-body', 'aegis-brood-core'),
+    generatedAnimatedBodyAsset('aegis-core-body', 'aegis-brood-core', [
+      'aegis-brood-core-neutral.png',
+      'aegis-brood-core-idle.png',
+      'aegis-brood-core-charge.png',
+      'aegis-brood-core-attack-a.png',
+      'aegis-brood-core-attack-b.png',
+      'aegis-brood-core-damage.png',
+      'aegis-brood-core-critical.png'
+    ]),
     linkedAsset('aegis-guardian-body', stage20Enemy('ring-sentinel')),
-    projectileAsset('aegis-pulse', projectileFrames('ring-bomb', 'cyan')),
+    generatedProjectileAsset('aegis-pulse', 'aegis-brood-core', [
+      'aegis-pulse-01.png', 'aegis-pulse-02.png', 'aegis-pulse-03.png', 'aegis-pulse-04.png'
+    ], { widthPixels: 30, heightPixels: 34 }),
     telegraphAsset('aegis-warning', 'warning-ring-amber'),
     sharedDeath
   ]),
@@ -334,9 +363,19 @@ const RAILSPINE_WALLCRAWLER = Object.freeze({
     })
   ]),
   assets: Object.freeze([
-    generatedBodyAsset('railspine-body-left', 'railspine-wallcrawler'),
+    generatedAnimatedBodyAsset('railspine-body-left', 'railspine-wallcrawler', [
+      'railspine-wallcrawler-neutral.png',
+      'railspine-wallcrawler-idle.png',
+      'railspine-wallcrawler-charge.png',
+      'railspine-wallcrawler-attack-a.png',
+      'railspine-wallcrawler-attack-b.png',
+      'railspine-wallcrawler-damage.png',
+      'railspine-wallcrawler-critical.png'
+    ]),
     linkedAsset('railspine-body-right', stage20Enemy('wall-sniper-right')),
-    projectileAsset('railspine-needle', projectileFrames('needle-bolt', 'red')),
+    generatedProjectileAsset('railspine-needle', 'railspine-wallcrawler', [
+      'railspine-needle-01.png', 'railspine-needle-02.png', 'railspine-needle-03.png', 'railspine-needle-04.png'
+    ], { widthPixels: 14, heightPixels: 36 }),
     telegraphAsset('railspine-scan', 'rail-scan-red'),
     sharedDeath
   ]),
@@ -384,9 +423,19 @@ const MAW_CARRIER = Object.freeze({
     member({ id: 'maw-body', label: 'Maw Carrier', count: 1, roles: ['primary'], maxHealth: 1700, collisionRadiusPixels: 68, widthPixels: 180, heightPixels: 180, assetId: 'maw-body-art', damageable: true })
   ]),
   assets: Object.freeze([
-    generatedBodyAsset('maw-body-art', 'maw-carrier'),
+    generatedAnimatedBodyAsset('maw-body-art', 'maw-carrier', [
+      'maw-carrier-neutral.png',
+      'maw-carrier-idle.png',
+      'maw-carrier-charge.png',
+      'maw-carrier-attack-a.png',
+      'maw-carrier-attack-b.png',
+      'maw-carrier-damage.png',
+      'maw-carrier-critical.png'
+    ]),
     linkedAsset('maw-spawn-art', stage20Enemy('crescent-minelayer')),
-    projectileAsset('maw-seed', projectileFrames('plasma-seed', 'lime')),
+    generatedProjectileAsset('maw-seed', 'maw-carrier', [
+      'maw-seed-01.png', 'maw-seed-02.png', 'maw-seed-03.png', 'maw-seed-04.png'
+    ], { widthPixels: 25, heightPixels: 32 }),
     telegraphAsset('maw-warning', 'warning-ring-amber'),
     sharedDeath
   ]),
@@ -434,8 +483,18 @@ const TWIN_MERIDIAN_SENTINELS = Object.freeze({
     member({ id: 'meridian-sentinel', label: 'Meridian Sentinel', count: 2, roles: ['leader', 'partner'], maxHealth: 820, collisionRadiusPixels: 50, widthPixels: 160, heightPixels: 160, assetId: 'meridian-sentinel-body', damageable: true })
   ]),
   assets: Object.freeze([
-    generatedBodyAsset('meridian-sentinel-body', 'twin-meridian-sentinels'),
-    projectileAsset('meridian-bolt', projectileFrames('needle-bolt', 'cyan')),
+    generatedAnimatedBodyAsset('meridian-sentinel-body', 'twin-meridian-sentinels', [
+      'twin-meridian-sentinels-neutral.png',
+      'twin-meridian-sentinels-idle.png',
+      'twin-meridian-sentinels-charge.png',
+      'twin-meridian-sentinels-attack-a.png',
+      'twin-meridian-sentinels-attack-b.png',
+      'twin-meridian-sentinels-damage.png',
+      'twin-meridian-sentinels-critical.png'
+    ]),
+    generatedProjectileAsset('meridian-bolt', 'twin-meridian-sentinels', [
+      'meridian-bolt-01.png', 'meridian-bolt-02.png', 'meridian-bolt-03.png', 'meridian-bolt-04.png'
+    ], { widthPixels: 16, heightPixels: 36 }),
     telegraphAsset('meridian-scan', 'rail-scan-cyan'),
     sharedDeath
   ]),
@@ -483,8 +542,18 @@ const PRISM_BLOOM = Object.freeze({
     member({ id: 'prism-core', label: 'Prism Bloom', count: 1, roles: ['primary'], maxHealth: 1450, collisionRadiusPixels: 62, widthPixels: 168, heightPixels: 168, assetId: 'prism-core-body', damageable: true })
   ]),
   assets: Object.freeze([
-    generatedBodyAsset('prism-core-body', 'prism-bloom'),
-    projectileAsset('prism-petal', projectileFrames('prism-shard', 'cyan')),
+    generatedAnimatedBodyAsset('prism-core-body', 'prism-bloom', [
+      'prism-bloom-neutral.png',
+      'prism-bloom-idle.png',
+      'prism-bloom-charge.png',
+      'prism-bloom-attack-a.png',
+      'prism-bloom-attack-b.png',
+      'prism-bloom-damage.png',
+      'prism-bloom-critical.png'
+    ]),
+    generatedProjectileAsset('prism-petal', 'prism-bloom', [
+      'prism-petal-01.png', 'prism-petal-02.png', 'prism-petal-03.png', 'prism-petal-04.png'
+    ], { widthPixels: 18, heightPixels: 34 }),
     telegraphAsset('prism-warning', 'warning-ring-violet'),
     sharedDeath
   ]),
@@ -533,9 +602,19 @@ const AEGIS_CONVOY_CAPTAIN = Object.freeze({
     member({ id: 'convoy-escort', label: 'Aegis Escort', count: 4, roles: ['escort', 'escort', 'escort', 'escort'], maxHealth: 180, collisionRadiusPixels: 16, widthPixels: 36, heightPixels: 36, assetId: 'convoy-escort-body', damageable: true })
   ]),
   assets: Object.freeze([
-    generatedBodyAsset('convoy-captain-body', 'aegis-convoy-captain'),
+    generatedAnimatedBodyAsset('convoy-captain-body', 'aegis-convoy-captain', [
+      'aegis-convoy-captain-neutral.png',
+      'aegis-convoy-captain-idle.png',
+      'aegis-convoy-captain-charge.png',
+      'aegis-convoy-captain-attack-a.png',
+      'aegis-convoy-captain-attack-b.png',
+      'aegis-convoy-captain-damage.png',
+      'aegis-convoy-captain-critical.png'
+    ]),
     linkedAsset('convoy-escort-body', stage20Enemy('orbit-disc')),
-    projectileAsset('convoy-command-bolt', projectileFrames('needle-bolt', 'gold')),
+    generatedProjectileAsset('convoy-command-bolt', 'aegis-convoy-captain', [
+      'convoy-command-bolt-01.png', 'convoy-command-bolt-02.png', 'convoy-command-bolt-03.png', 'convoy-command-bolt-04.png'
+    ], { widthPixels: 14, heightPixels: 36 }),
     telegraphAsset('convoy-warning', 'warning-ring-amber'),
     sharedDeath
   ]),
@@ -583,9 +662,19 @@ const GRIDLINE_SENTRIES = Object.freeze({
     member({ id: 'gridline-sentry', label: 'Gridline Sentry', count: 2, roles: ['sentry-west', 'sentry-north'], maxHealth: 430, collisionRadiusPixels: 44, widthPixels: 112, heightPixels: 112, assetId: 'gridline-sentry-body', damageable: true })
   ]),
   assets: Object.freeze([
-    generatedBodyAsset('gridline-sentry-body', 'gridline-sentries'),
+    generatedAnimatedBodyAsset('gridline-sentry-body', 'gridline-sentries', [
+      'gridline-sentries-neutral.png',
+      'gridline-sentries-idle.png',
+      'gridline-sentries-charge.png',
+      'gridline-sentries-attack-a.png',
+      'gridline-sentries-attack-b.png',
+      'gridline-sentries-damage.png',
+      'gridline-sentries-critical.png'
+    ]),
     linkedAsset('gridline-sentry-mirror', stage20Enemy('wall-sniper-right')),
-    projectileAsset('gridline-bolt', projectileFrames('needle-bolt', 'cyan')),
+    generatedProjectileAsset('gridline-bolt', 'gridline-sentries', [
+      'gridline-bolt-01.png', 'gridline-bolt-02.png', 'gridline-bolt-03.png', 'gridline-bolt-04.png'
+    ], { widthPixels: 14, heightPixels: 36 }),
     telegraphAsset('gridline-scan', 'rail-scan-cyan'),
     sharedDeath
   ]),

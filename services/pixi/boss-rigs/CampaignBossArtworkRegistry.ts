@@ -14,6 +14,12 @@ import {
 import { sampleHeliosModularPose } from './HeliosModularPose';
 import { sampleNullwakeModularPose } from './NullwakeModularPose';
 import { samplePrismMothSandboxPose } from './PrismMothModularPose';
+import {
+  SINGULARITY_COMMANDER_ARTWORK_PACKAGE
+} from './SingularityCommanderArtwork';
+import {
+  sampleSingularityCommanderModularPose
+} from './SingularityCommanderModularPose';
 import type {
   PreviewBossArtwork,
   PreviewBossModularPoseSampler
@@ -23,7 +29,8 @@ type CampaignBossPoseKey =
   | 'frontier-crownclaw'
   | 'helios-clawcarrier'
   | 'nullwake-revenant'
-  | 'prism-moth';
+  | 'prism-moth'
+  | 'singularity-reach-commander';
 
 type CompiledCampaignBossArtwork = Omit<
   PreviewBossArtwork,
@@ -47,6 +54,10 @@ type CompiledCampaignBossArtworkRegistry = Readonly<{
 }>;
 
 const registry = registryJson as CompiledCampaignBossArtworkRegistry;
+const packages: Readonly<Record<string, CompiledCampaignBossArtworkPackage>> = Object.freeze({
+  ...registry.packages,
+  [SINGULARITY_COMMANDER_ARTWORK_PACKAGE.bossId]: SINGULARITY_COMMANDER_ARTWORK_PACKAGE
+});
 const registrationByBossId = new Map<
   string,
   ReturnType<typeof registerModularBossRig>
@@ -58,7 +69,8 @@ const poseSamplers: Readonly<
   'frontier-crownclaw': sampleFrontierCrownclawSandboxPose,
   'helios-clawcarrier': (input) => sampleHeliosModularPose(input).partOverrides,
   'nullwake-revenant': (input) => sampleNullwakeModularPose(input).partOverrides,
-  'prism-moth': samplePrismMothSandboxPose
+  'prism-moth': samplePrismMothSandboxPose,
+  'singularity-reach-commander': sampleSingularityCommanderModularPose
 });
 
 const findBossEvent = (
@@ -85,7 +97,7 @@ const findBossEvent = (
 export const getCampaignBossArtworkPackage = (
   bossId: string | undefined
 ): CompiledCampaignBossArtworkPackage | undefined => (
-  bossId ? registry.packages[bossId] : undefined
+  bossId ? packages[bossId] : undefined
 );
 
 export const resolveCampaignBossArtwork = (
@@ -128,6 +140,5 @@ export const resolveCampaignBossArtwork = (
 };
 
 export const CAMPAIGN_BOSS_ARTWORK_PACKAGE_IDS = Object.freeze(
-  Object.keys(registry.packages)
+  Object.keys(packages)
 );
-

@@ -5,7 +5,7 @@ import {
   type GameEditorSnapshot
 } from '@game/components/GameEditorCanvas';
 import { GAME_CONFIG } from '@game/constants';
-import { isMajorBossId } from '@game/game-config/catalog';
+import { getBossEncounterClass } from '@game/game-config/catalog';
 import type { GameCampaignConfig, SpawnEvent, WaveDefinition, WaveEvent } from '@game/game-config/types';
 import { validateGameCampaign } from '@game/game-config/validate';
 import type { GameEngineDebugSnapshot, GameRuntimeState } from '@game/services/gameLogic';
@@ -415,7 +415,7 @@ function Workspace({ initialState }: { initialState: GameCampaignDiskState<GameC
           id: `${wave.id}:${event.id}`,
           waveId: wave.id,
           eventId: event.id,
-          label: `Wave ${wave.order} · ${isMajorBossId(event.bossId) ? 'Boss' : 'Mini-boss'} · ${event.label}`
+          label: `Wave ${wave.order} · ${getBossEncounterClass(event.bossId) === 'boss' ? 'BOSS' : 'ELITE ENEMY'} · ${event.label}`
         }];
       }
       if (event.kind === 'spawn' && event.enemies.some((enemy) => enemy.rank === 'elite')) {
@@ -423,7 +423,7 @@ function Workspace({ initialState }: { initialState: GameCampaignDiskState<GameC
           id: `${wave.id}:${event.id}`,
           waveId: wave.id,
           eventId: event.id,
-          label: `Wave ${wave.order} · Elite · ${event.label}`
+          label: `Wave ${wave.order} · ELITE UNIT · ${event.label}`
         }];
       }
       return [];
@@ -1376,7 +1376,7 @@ function Workspace({ initialState }: { initialState: GameCampaignDiskState<GameC
               <label>
                 <span>Jump to checkpoint</span>
                 <select value="" disabled={checkpointOptions.length === 0} onChange={(input) => jumpToCheckpoint(input.target.value)}>
-                  <option value="">{checkpointOptions.length ? 'Elite, mini-boss, or boss…' : 'No checkpoints in this Mission'}</option>
+                  <option value="">{checkpointOptions.length ? 'Elite unit, elite enemy, or boss…' : 'No checkpoints in this Mission'}</option>
                   {checkpointOptions.map((checkpoint) => <option value={checkpoint.id} key={checkpoint.id}>{checkpoint.label}</option>)}
                 </select>
               </label>

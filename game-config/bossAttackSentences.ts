@@ -1,6 +1,7 @@
 import { BOSS_TIMELINE_PRIMITIVES, isDamagingBossTimelinePrimitive } from './bossTimeline';
 import type {
   BossAttackSafeRouteRule,
+  BossAttackAvailability,
   BossAttackSentence,
   BossAttackSentenceVariant,
   BossAttackSentenceRole,
@@ -62,12 +63,20 @@ export interface BossAttackPhaseBlueprint {
 export interface BossAttackTimelineBlueprint {
   readonly durationSeconds: number;
   readonly loop?: boolean;
+  /** Omit to preserve the original fixed four-attack, every-phase contract. */
+  readonly attackAvailability?: BossAttackAvailability;
+  /** Required by phase-subset rosters so later unlocks do not reorder Sandbox controls. */
+  readonly attackOrder?: readonly string[];
   readonly phases: readonly BossAttackPhaseBlueprint[];
 }
 
 const SAFE_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const HEX_COLOR = /^#[0-9a-f]{6}$/i;
 const ATTACK_ROLES = new Set<BossAttackSentenceRole>(['core', 'signature']);
+const ATTACK_AVAILABILITY = new Set<BossAttackAvailability>(['every-phase', 'phase-subset']);
+const PHASE_SUBSET_MINIMUM_GLOBAL_ATTACKS = 4;
+const PHASE_SUBSET_MAXIMUM_GLOBAL_ATTACKS = 6;
+const PHASE_SUBSET_MINIMUM_ATTACKS_PER_PHASE = 3;
 const ATTACK_SKILL_TESTS = new Set<BossAttackSkillTest>([
   'rhythm-dodge',
   'lane-routing',
@@ -324,6 +333,11 @@ export const compileBossAttackTimeline = (
   if (!Array.isArray(blueprint.phases) || blueprint.phases.length === 0) {
     throw new Error('Boss attack timeline requires at least one phase.');
   }
+  const attackAvailability = blueprint.attackAvailability ?? 'every-phase';
+  if (!ATTACK_AVAILABILITY.has(attackAvailability)) {
+    throw new Error(`Boss attack timeline uses unsupported attack availability ${String(attackAvailability)}.`);
+  }
+  const usesPhaseSubsets = attackAvailability === 'phase-subset';
   const phaseIds = new Set<string>();
   blueprint.phases.forEach((phase) => {
     const attacks: readonly BossAttackSentenceBlueprint[] = phase.attacks;
@@ -333,15 +347,29 @@ export const compileBossAttackTimeline = (
       throw new Error(`Boss attack timeline has duplicate phase ${phase.phaseId}.`);
     }
     phaseIds.add(phase.phaseId);
-    if (!Array.isArray(attacks) || attacks.length !== 4) {
-      throw new Error(`${phase.phaseId} must define exactly three core attacks and one signature attack.`);
+    if (!Array.isArray(attacks)) {
+      throw new Error(`${phase.phaseId} attacks must be an array.`);
     }
-    const roleCounts = attacks.reduce((counts, attack) => ({
-      core: counts.core + (attack.role === 'core' ? 1 : 0),
-      signature: counts.signature + (attack.role === 'signature' ? 1 : 0)
-    }), { core: 0, signature: 0 });
-    if (roleCounts.core !== 3 || roleCounts.signature !== 1) {
-      throw new Error(`${phase.phaseId} must define exactly three core attacks and one signature attack.`);
+    if (usesPhaseSubsets) {
+      if (
+        attacks.length < PHASE_SUBSET_MINIMUM_ATTACKS_PER_PHASE
+        || attacks.length > PHASE_SUBSET_MAXIMUM_GLOBAL_ATTACKS
+      ) {
+        throw new Error(
+          `${phase.phaseId} must make between ${PHASE_SUBSET_MINIMUM_ATTACKS_PER_PHASE} and ${PHASE_SUBSET_MAXIMUM_GLOBAL_ATTACKS} attacks available.`
+        );
+      }
+    } else {
+      if (attacks.length !== 4) {
+        throw new Error(`${phase.phaseId} must define exactly three core attacks and one signature attack.`);
+      }
+      const roleCounts = attacks.reduce((counts, attack) => ({
+        core: counts.core + (attack.role === 'core' ? 1 : 0),
+        signature: counts.signature + (attack.role === 'signature' ? 1 : 0)
+      }), { core: 0, signature: 0 });
+      if (roleCounts.core !== 3 || roleCounts.signature !== 1) {
+        throw new Error(`${phase.phaseId} must define exactly three core attacks and one signature attack.`);
+      }
     }
     const attackIds = new Set<string>();
     attacks.forEach((attack) => {
@@ -415,23 +443,58 @@ export const compileBossAttackTimeline = (
     }
     existing.variants.push({ ...variant, beatClipIds: [...variant.beatClipIds] });
   });
-  const attacks = [...attacksById.values()];
+  let attacks = [...attacksById.values()];
+  if (usesPhaseSubsets) {
+    if (!Array.isArray(blueprint.attackOrder)) {
+      throw new Error('Phase-subset attack timelines require one stable global attack order.');
+    }
+    const orderedIds = new Set<string>();
+    blueprint.attackOrder.forEach((attackId) => {
+      safeId(attackId, 'Global boss attack order ID');
+      if (orderedIds.has(attackId)) {
+        throw new Error(`Global boss attack order repeats ${attackId}.`);
+      }
+      orderedIds.add(attackId);
+    });
+    if (
+      orderedIds.size !== attacksById.size
+      || [...attacksById.keys()].some((attackId) => !orderedIds.has(attackId))
+    ) {
+      throw new Error('Global boss attack order must reference every compiled attack exactly once.');
+    }
+    attacks = blueprint.attackOrder.map((attackId) => attacksById.get(attackId)!);
+  } else if (blueprint.attackOrder !== undefined) {
+    throw new Error('Global boss attack order is only supported by phase-subset timelines.');
+  }
   const roleCounts = attacks.reduce((counts, attack) => ({
     core: counts.core + (attack.role === 'core' ? 1 : 0),
     signature: counts.signature + (attack.role === 'signature' ? 1 : 0)
   }), { core: 0, signature: 0 });
-  if (attacks.length !== 4 || roleCounts.core !== 3 || roleCounts.signature !== 1) {
+  if (usesPhaseSubsets) {
+    if (
+      attacks.length < PHASE_SUBSET_MINIMUM_GLOBAL_ATTACKS
+      || attacks.length > PHASE_SUBSET_MAXIMUM_GLOBAL_ATTACKS
+      || roleCounts.core < 3
+      || roleCounts.signature !== 1
+    ) {
+      throw new Error(
+        'Phase-subset timelines require between four and six global attacks, at least three core attacks, and exactly one signature attack.'
+      );
+    }
+  } else if (attacks.length !== 4 || roleCounts.core !== 3 || roleCounts.signature !== 1) {
     throw new Error('Every phase must remix the same three core attacks and one signature attack.');
   }
-  attacks.forEach((attack) => {
-    const variantPhaseIds = new Set(attack.variants.map((variant) => variant.phaseId));
-    if (
-      variantPhaseIds.size !== phaseIds.size
-      || [...phaseIds].some((phaseId) => !variantPhaseIds.has(phaseId))
-    ) {
-      throw new Error(`${attack.id} must define exactly one variant for every boss phase.`);
-    }
-  });
+  if (!usesPhaseSubsets) {
+    attacks.forEach((attack) => {
+      const variantPhaseIds = new Set(attack.variants.map((variant) => variant.phaseId));
+      if (
+        variantPhaseIds.size !== phaseIds.size
+        || [...phaseIds].some((phaseId) => !variantPhaseIds.has(phaseId))
+      ) {
+        throw new Error(`${attack.id} must define exactly one variant for every boss phase.`);
+      }
+    });
+  }
   const clips = [
     ...phaseCues,
     ...compiled.flatMap((entry) => entry.clips)
@@ -443,6 +506,7 @@ export const compileBossAttackTimeline = (
     durationSeconds,
     loop: blueprint.loop !== false,
     clips,
+    ...(usesPhaseSubsets ? { attackAvailability } : {}),
     attacks
   };
 };

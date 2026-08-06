@@ -117,25 +117,34 @@ const compileService = (name, requires = {}) => {
 
 const branchProgression = compileService('campaignBranchProgression.ts');
 const campaignGraph = compileService('campaignGraph.ts');
+const TEST_MAJOR_BOSS_IDS = [
+  'gatekeeper',
+  'gatekeeper-prime',
+  'paywall-decimator',
+  'helios-clawcarrier',
+  'eclipse-engine',
+  'helix-leviathan',
+  'research-tribunal',
+  'prism-moth',
+  'rail-serpent',
+  'singularity-crab',
+  'orbit-gyroscope',
+  'hammerhead-siege',
+  'frontier-crownclaw',
+  'nullwake-revenant'
+];
 
 const progression = compileService('campaignProgression.ts', {
   '../game-config/catalog': {
-    isMajorBossId: (bossId) => [
-      'gatekeeper',
-      'gatekeeper-prime',
-      'paywall-decimator',
-      'helios-clawcarrier',
-      'eclipse-engine',
-      'helix-leviathan',
-      'research-tribunal',
-      'prism-moth',
-      'rail-serpent',
-      'singularity-crab',
-      'orbit-gyroscope',
-      'hammerhead-siege',
-      'frontier-crownclaw',
-      'nullwake-revenant'
-    ].includes(bossId)
+    isMajorBossId: (bossId) => TEST_MAJOR_BOSS_IDS.includes(bossId),
+    getBossEncounterClass: (bossId) => TEST_MAJOR_BOSS_IDS.includes(bossId)
+      ? 'boss'
+      : bossId === 'test-elite' ? 'elite-enemy' : null
+  },
+  './gameplay/mini-bosses': {
+    getMiniBossEncounterDefinition: (bossId) => bossId === 'test-elite'
+      ? { assets: [{ usage: 'primary-body', frames: ['/test-art/test-elite-runtime.png'] }] }
+      : undefined
   },
   '../services/campaignGraph.ts': campaignGraph,
   '../shared/weeklyRunPlan.browser': require('../shared/weeklyRunPlan.js'),
@@ -289,6 +298,27 @@ test('Mission definitions prefer authored Campaign metadata and preserve compati
   });
   assert.deepEqual(fallbackMission.mapPosition, { x: 0.5, y: 0 });
   assert.equal(fallbackMission.nextMissionId, 'mission-2');
+  assert.equal(fallbackMission.encounter, null);
+  assert.equal(progression.buildCampaignMissionDefinitions(TEST_CAMPAIGN)[1].encounter.encounterClass, 'boss');
+
+  const eliteCampaign = structuredClone(TEST_CAMPAIGN);
+  eliteCampaign.levels[0].waves[1].events.push({
+    id: 'test-elite-event',
+    kind: 'boss',
+    bossId: 'test-elite',
+    label: 'Test Elite',
+    spriteKey: 'ELITE_ART'
+  });
+  const eliteMission = progression.buildCampaignMissionDefinitions(eliteCampaign)[0];
+  assert.equal(eliteMission.bossEventId, null, 'elite enemies must not become major bosses');
+  assert.deepEqual(eliteMission.encounter, {
+    eventId: 'test-elite-event',
+    bossId: 'test-elite',
+    name: 'Test Elite',
+    assetKey: 'ELITE_ART',
+    previewUrl: '/test-art/test-elite-runtime.png',
+    encounterClass: 'elite-enemy'
+  });
 
   const authoredCampaign = structuredClone(TEST_CAMPAIGN);
   authoredCampaign.levels[0].campaignProgression = {

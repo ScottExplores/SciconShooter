@@ -570,7 +570,7 @@ const buildBossWave = (
   return {
     ...template,
     id: `weekly-run-stage-${stage.index}-boss`,
-    name: `Wave ${absoluteWaveNumber} - ${stage.kind === 'major' ? 'Major Boss' : 'Elite Boss'}`,
+    name: `Wave ${absoluteWaveNumber} - ${stage.kind === 'major' ? 'Major Boss' : 'Elite Enemy'}`,
     order: waveIndex + 1,
     // The validator distinguishes canonical major bosses from minibosses.
     completionRule: stage.kind === 'major' ? 'boss-defeat' : 'clear-after-duration',
@@ -640,7 +640,7 @@ export const buildWeeklyRunCampaign = (
       name: `Depth ${stage.index + 1}`,
       description: stage.kind === 'major'
         ? 'A major boss holds this depth.'
-        : 'An elite boss is inbound.',
+        : 'An elite enemy is inbound.',
       order: stage.index,
       backgroundId: backgrounds[stage.index % backgrounds.length] ?? templateLevel.backgroundId,
       musicId: musicIds[stage.index % musicIds.length] ?? templateLevel.musicId,

@@ -288,7 +288,6 @@ const buildMechanicTags = (event: BossEvent): readonly string[] => {
   const movementTag = MOVEMENT_TAGS[event.movementPatternId];
   if (movementTag) tags.push(movementTag);
   if (event.phases.length >= 3) tags.push(`${event.phases.length} Phases`);
-  if (event.shieldCount > 0) tags.push('Orbit Shields');
   if (tags.length === 0) tags.push('Combat Pattern');
   return Object.freeze(Array.from(new Set(tags)).slice(0, 4));
 };

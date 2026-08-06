@@ -383,6 +383,12 @@ const BOSS_TIMELINE_MOTION_CUES = new Set([
   'prism-swoop',
   'prism-kaleidoscope',
   'prism-metamorphosis',
+  'singularity-well-genesis',
+  'singularity-event-horizon-gaze',
+  'singularity-tidal-pincer',
+  'singularity-pylon-barrage',
+  'singularity-pulse',
+  'singularity-gravity-collapse',
   'frontier-chainclaw-harpoon',
   'frontier-crown-cross-link',
   'frontier-reactor-charge',
@@ -398,6 +404,7 @@ const BOSS_TIMELINE_ROTATION_DIRECTIONS = new Set([
   'seeded-random'
 ]);
 const BOSS_ATTACK_SENTENCE_ROLES = new Set(['core', 'signature']);
+const BOSS_ATTACK_AVAILABILITY = new Set(['every-phase', 'phase-subset']);
 const BOSS_ATTACK_SKILL_TESTS = new Set([
   'rhythm-dodge',
   'lane-routing',
@@ -490,6 +497,30 @@ const BOSS_TIMELINE_PRIMITIVES = new Map([
     damaging: true,
     supportsRepeat: true,
     parameterKeys: ['projectileCount', 'sequence', 'motionCue', 'pulseIntervalSeconds', 'shotIntervalFrames', 'projectileSpeedScale', 'channelWidthPixels', 'sweepRangeRatio', 'sweepPasses']
+  }],
+  ['singularity-gravity-well-genesis', {
+    track: 'attack', damaging: true, supportsRepeat: false,
+    parameterKeys: ['projectileCount', 'sequence', 'motionCue', 'rotationDirection']
+  }],
+  ['singularity-event-horizon-gaze', {
+    track: 'laser', damaging: true, supportsRepeat: false,
+    parameterKeys: ['sequence', 'motionCue', 'rotationDirection']
+  }],
+  ['singularity-tidal-claw-pincer', {
+    track: 'attack', damaging: true, supportsRepeat: false,
+    parameterKeys: ['sequence', 'motionCue']
+  }],
+  ['singularity-orbital-pylon-barrage', {
+    track: 'attack', damaging: true, supportsRepeat: false,
+    parameterKeys: ['projectileCount', 'sequence', 'motionCue', 'shotIntervalFrames', 'projectileSpeedScale']
+  }],
+  ['singularity-pulse', {
+    track: 'attack', damaging: true, supportsRepeat: false,
+    parameterKeys: ['projectileCount', 'sequence', 'motionCue', 'rotationDirection']
+  }],
+  ['singularity-gravity-collapse', {
+    track: 'attack', damaging: true, supportsRepeat: false,
+    parameterKeys: ['projectileCount', 'sequence', 'motionCue', 'rotationDirection']
   }],
   ['chainclaw-harpoon', {
     track: 'attack',
@@ -1954,9 +1985,17 @@ const validateBossTimeline = (
 ) => {
   if (timeline === undefined) return;
   if (!requireObject(timeline, location, errors)) return;
-  allowedKeys(timeline, ['durationSeconds', 'loop', 'clips', 'attacks'], location, errors);
+  allowedKeys(timeline, ['durationSeconds', 'loop', 'clips', 'attackAvailability', 'attacks'], location, errors);
   requireNumber(timeline.durationSeconds, `${location}/durationSeconds`, errors, { minimum: 0.1, maximum: 180 });
   if (typeof timeline.loop !== 'boolean') errors.push(`${location}/loop must be a boolean`);
+  const attackAvailability = timeline.attackAvailability ?? 'every-phase';
+  requireEnum(
+    attackAvailability,
+    BOSS_ATTACK_AVAILABILITY,
+    `${location}/attackAvailability`,
+    errors
+  );
+  const usesPhaseSubsets = attackAvailability === 'phase-subset';
   if (!Array.isArray(timeline.clips)) {
     errors.push(`${location}/clips must be an array`);
     return;
@@ -2349,14 +2388,23 @@ const validateBossTimeline = (
     if (!Array.isArray(timeline.attacks) || timeline.attacks.length === 0) {
       errors.push(`${attacksLocation} must be a non-empty array`);
     } else {
-      if (timeline.attacks.length !== 4) {
-        errors.push(`${attacksLocation} must contain exactly three core attacks and one signature attack`);
+      if (
+        usesPhaseSubsets
+          ? timeline.attacks.length < 4 || timeline.attacks.length > 6
+          : timeline.attacks.length !== 4
+      ) {
+        errors.push(
+          usesPhaseSubsets
+            ? `${attacksLocation} must contain between four and six global attacks`
+            : `${attacksLocation} must contain exactly three core attacks and one signature attack`
+        );
       }
       const attackIds = new Set();
       const usedBeatReferences = new Set();
       const usedRecoveryReferences = new Set();
       let coreAttackCount = 0;
       let signatureAttackCount = 0;
+      const attacksPerPhase = new Map([...phaseIds].map((phaseId) => [phaseId, 0]));
       const windowsByPhase = new Map();
       timeline.attacks.forEach((attack, attackIndex) => {
         const attackLocation = `${attacksLocation}/${attackIndex}`;
@@ -2502,15 +2550,35 @@ const validateBossTimeline = (
             windowsByPhase.set(phaseId, phaseWindows);
           }
         });
-        if (
+        if (usesPhaseSubsets) {
+          variantPhases.forEach((phaseId) => {
+            if (!phaseIds.has(phaseId)) return;
+            attacksPerPhase.set(phaseId, (attacksPerPhase.get(phaseId) ?? 0) + 1);
+          });
+        } else if (
           variantPhases.size !== phaseIds.size
           || [...phaseIds].some((phaseId) => !variantPhases.has(phaseId))
         ) {
           errors.push(`${attackLocation}/variants must contain exactly one variant for every boss phase`);
         }
       });
-      if (coreAttackCount !== 3 || signatureAttackCount !== 1) {
-        errors.push(`${attacksLocation} must contain exactly three core attacks and one signature attack`);
+      if (
+        usesPhaseSubsets
+          ? coreAttackCount < 3 || signatureAttackCount !== 1
+          : coreAttackCount !== 3 || signatureAttackCount !== 1
+      ) {
+        errors.push(
+          usesPhaseSubsets
+            ? `${attacksLocation} must contain at least three core attacks and exactly one signature attack`
+            : `${attacksLocation} must contain exactly three core attacks and one signature attack`
+        );
+      }
+      if (usesPhaseSubsets) {
+        attacksPerPhase.forEach((attackCount, phaseId) => {
+          if (attackCount < 3) {
+            errors.push(`${attacksLocation} must make at least three global attacks available in boss phase ${phaseId}`);
+          }
+        });
       }
       timeline.clips.forEach((clip, clipIndex) => {
         if (!isPlainObject(clip) || clip.trigger !== 'time') return;
@@ -2564,7 +2632,13 @@ const validateBossTimeline = (
       'helix-volley': 24,
       'side-barrage': 8,
       'pod-volley': 6,
-      'weave-wall': 24
+      'weave-wall': 24,
+      'singularity-gravity-well-genesis': 24,
+      'singularity-event-horizon-gaze': 2,
+      'singularity-tidal-claw-pincer': 2,
+      'singularity-orbital-pylon-barrage': 16,
+      'singularity-pulse': 24,
+      'singularity-gravity-collapse': 24
     };
     return isFiniteNumber(parameters.projectileCount)
       ? parameters.projectileCount

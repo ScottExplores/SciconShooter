@@ -6,12 +6,19 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const startScreenSource = fs.readFileSync(path.join(root, 'components', 'StartScreen.tsx'), 'utf8');
 const dialogSource = fs.readFileSync(path.join(root, 'components', 'PlayerReportDialog.tsx'), 'utf8');
+const constantsSource = fs.readFileSync(path.join(root, 'constants.ts'), 'utf8');
 
 test('More menu offers separate feedback and bug-report actions through one durable dialog', () => {
   assert.match(startScreenSource, /label="Feedback"[\s\S]*?setPlayerReportKind\('feedback'\)/);
   assert.match(startScreenSource, /label="Report a Bug"[\s\S]*?support\.png[\s\S]*?setPlayerReportKind\('bug'\)/);
   assert.match(startScreenSource, /<PlayerReportDialog[\s\S]*?kind=\{playerReportKind\}[\s\S]*?setPlayerReportKind\(null\)/);
   assert.doesNotMatch(startScreenSource, /mailto:/);
+});
+
+test('More menu Social action opens the official Scicon Shooter X account', () => {
+  assert.match(startScreenSource, /label="Social"[\s\S]*?href=\{DONATION_CONFIG\.X_PROFILE_URL\}/);
+  assert.doesNotMatch(startScreenSource, /label="Updates"/);
+  assert.match(constantsSource, /X_PROFILE_URL:\s*"https:\/\/x\.com\/SciconShooter"/);
 });
 
 test('player report dialog exposes labeled fields and the approved report categories', () => {
@@ -56,6 +63,14 @@ test('successful and queued submissions show a stable report receipt', () => {
   assert.match(dialogSource, /Report ID/);
   assert.match(dialogSource, /\{draft\.reportId\}/);
   assert.match(dialogSource, /Send another/);
+});
+
+test('support escalation uses the dedicated Scicon account and email without requesting wallet secrets', () => {
+  assert.match(constantsSource, /X_PROFILE_URL:\s*"https:\/\/x\.com\/SciconShooter"/);
+  assert.match(constantsSource, /SUPPORT_EMAIL:\s*"Sciconshooter@gmail\.com"/);
+  assert.match(dialogSource, /mailto:\$\{DONATION_CONFIG\.SUPPORT_EMAIL\}/);
+  assert.match(dialogSource, /public transaction hash/);
+  assert.match(dialogSource, /Never send a recovery phrase or private key/);
 });
 
 test('report dialog is keyboard accessible, restores focus, and fits the mobile viewport', () => {

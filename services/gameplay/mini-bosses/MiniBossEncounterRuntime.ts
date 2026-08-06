@@ -386,21 +386,22 @@ const resolveAnimationState = ({
   alive,
   healthRatio,
   entranceProgress,
-  attacking,
+  attackBeat,
   hit
 }: {
   alive: boolean;
   healthRatio: number;
   entranceProgress: number;
-  attacking: boolean;
+  attackBeat: AttackWindow['beat'];
   hit: boolean;
 }): MiniBossAnimationState => {
   if (!alive) return 'death';
   if (hit) return 'hit';
   if (healthRatio <= 0.15) return 'critical';
-  if (healthRatio <= 0.5) return 'damage';
   if (entranceProgress < 1) return 'entrance';
-  if (attacking) return 'attack';
+  if (attackBeat === 'warning') return 'charge';
+  if (attackBeat === 'action') return 'attack';
+  if (healthRatio <= 0.5) return 'damage';
   return 'idle';
 };
 
@@ -834,8 +835,6 @@ export const sampleMiniBossEncounter = (
   );
   const guardedMemberIds = new Set(guard.guardedMemberIds);
   const hitMemberIds = new Set(context.hitMemberIds ?? []);
-  const attacking = !defeated && entranceProgress >= 1 && attackWindow.beat !== 'recovery';
-
   const members = runtimeMembers.map((memberState) => {
     const pose = resolveMemberPose(
       definition,
@@ -863,7 +862,7 @@ export const sampleMiniBossEncounter = (
         alive: memberState.alive,
         healthRatio: memberState.healthRatio,
         entranceProgress,
-        attacking,
+        attackBeat: attackWindow.beat,
         hit: hitMemberIds.has(memberState.instance.id)
       }),
       damageable: memberState.instance.damageable && !guardedMemberIds.has(memberState.instance.id)
@@ -939,10 +938,29 @@ export const resolveMiniBossMemberAssetUrl = (
   if (binding.url) return binding.url;
   const frames = binding.frames ?? [];
   if (frames.length === 0) return undefined;
+  if (frames.length >= 7) {
+    if (memberState.animationState === 'critical' || memberState.healthRatio <= 0.15) return frames[6];
+    if (memberState.animationState === 'damage' || memberState.animationState === 'hit') return frames[5];
+    if (memberState.animationState === 'attack') return frames[3 + Math.floor(Math.max(0, frame) / 4) % 2];
+    if (memberState.animationState === 'charge') return frames[2];
+    if (memberState.healthRatio <= 0.5) return frames[5];
+    if (memberState.animationState === 'idle') return frames[Math.floor(Math.max(0, frame) / 24) % 2];
+    return frames[0];
+  }
+  if (frames.length >= 6) {
+    if (memberState.animationState === 'critical' || memberState.healthRatio <= 0.15) return frames[5];
+    if (memberState.animationState === 'damage' || memberState.animationState === 'hit') return frames[4];
+    if (memberState.animationState === 'attack') return frames[3];
+    if (memberState.animationState === 'charge') return frames[2];
+    if (memberState.healthRatio <= 0.5) return frames[4];
+    if (memberState.animationState === 'idle') return frames[Math.floor(frame / 24) % 2];
+    return frames[0];
+  }
   if (frames.length >= 5) {
     if (memberState.animationState === 'critical' || memberState.healthRatio <= 0.15) return frames[4];
-    if (memberState.animationState === 'damage' || memberState.animationState === 'hit' || memberState.healthRatio <= 0.5) return frames[3];
-    if (memberState.animationState === 'attack') return frames[2];
+    if (memberState.animationState === 'damage' || memberState.animationState === 'hit') return frames[3];
+    if (memberState.animationState === 'attack' || memberState.animationState === 'charge') return frames[2];
+    if (memberState.healthRatio <= 0.5) return frames[3];
     if (memberState.animationState === 'idle') return frames[Math.floor(frame / 24) % 2];
     return frames[0];
   }

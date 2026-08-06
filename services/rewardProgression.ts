@@ -146,7 +146,7 @@ export const ACHIEVEMENT_DEFINITIONS: readonly AchievementDefinition[] = [
   },
   // Every achievement above scores the arcade loop. These cover the systems the
   // game actually grew into: a 50-Mission Campaign graph, the Weekly Run
-  // gauntlet, the ten Elite Bosses, and the Hangar.
+  // gauntlet, the ten Elite Enemies, and the Hangar.
   {
     id: 'campaign-cartographer',
     title: 'Campaign Cartographer',
@@ -166,7 +166,7 @@ export const ACHIEVEMENT_DEFINITIONS: readonly AchievementDefinition[] = [
   {
     id: 'elite-hunter',
     title: 'Elite Hunter',
-    description: 'Defeat {target} Elite Bosses',
+    description: 'Defeat {target} Elite Enemies',
     metric: 'eliteBossesDefeated',
     targets: [5, 15, 40, 80, 150],
     rewards: [85, 135, 180, 245, 305]
