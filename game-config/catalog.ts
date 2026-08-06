@@ -540,11 +540,26 @@ export const BOSS_CATALOG: Record<BossId, BossCatalogEntry> = {
   }
 };
 
+/** Player-facing encounter class shared by Campaign, Director, and gallery UI. */
+export type BossEncounterClass = 'boss' | 'elite-enemy';
+
+export const getBossEncounterClass = (id: unknown): BossEncounterClass | null => {
+  if (
+    typeof id !== 'string'
+    || !Object.prototype.hasOwnProperty.call(BOSS_CATALOG, id)
+  ) return null;
+  return BOSS_CATALOG[id as BossId].entityType === 'BOSS'
+    ? 'boss'
+    : 'elite-enemy';
+};
+
 /** Canonical classification shared by validation, runtime, Map, and Archive. */
 export const isMajorBossId = (id: unknown): id is BossId => (
-  typeof id === 'string'
-  && Object.prototype.hasOwnProperty.call(BOSS_CATALOG, id)
-  && BOSS_CATALOG[id as BossId].entityType === 'BOSS'
+  getBossEncounterClass(id) === 'boss'
+);
+
+export const isEliteEncounterId = (id: unknown): id is BossId => (
+  getBossEncounterClass(id) === 'elite-enemy'
 );
 
 export const POWERUP_CATALOG: Record<PowerupId, PowerupCatalogEntry> = {

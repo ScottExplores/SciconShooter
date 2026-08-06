@@ -178,6 +178,12 @@ export const validateMiniBossEncounterDefinition = (
     if (paths.length === 0 || paths.some((path) => !path.startsWith('/game-art/'))) {
       diagnostics.push(error('asset.invalid-path', `${binding.id} must use a role-bound /game-art/ path.`));
     }
+    if (
+      (binding.widthPixels !== undefined || binding.heightPixels !== undefined)
+      && (!isPositiveFinite(binding.widthPixels ?? 0) || !isPositiveFinite(binding.heightPixels ?? 0))
+    ) {
+      diagnostics.push(error('asset.invalid-gameplay-size', `${binding.id} needs positive gameplay width and height.`));
+    }
   });
 
   let initialEntityCount = 0;

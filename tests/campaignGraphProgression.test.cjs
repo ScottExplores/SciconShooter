@@ -164,7 +164,8 @@ const compileService = (name, requires = {}) => {
 
 const branchProgression = compileService('campaignBranchProgression.ts');
 const progression = compileService('campaignProgression.ts', {
-  '../game-config/catalog': { isMajorBossId: () => false },
+  '../game-config/catalog': { isMajorBossId: () => false, getBossEncounterClass: () => null },
+  './gameplay/mini-bosses': { getMiniBossEncounterDefinition: () => undefined },
   './campaignBranchProgression': branchProgression,
   './levelConfig': {
     DEFAULT_GAME_CAMPAIGN: TEST_CAMPAIGN,

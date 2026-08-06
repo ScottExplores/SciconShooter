@@ -32,6 +32,7 @@ import {
   BOSS_CATALOG,
   ENEMY_CATALOG,
   getAssetKeysForRole,
+  getBossEncounterClass,
   isMajorBossId,
   SPAWN_PATTERN_CATALOG
 } from '../../../game-config/catalog';
@@ -72,7 +73,7 @@ const ENEMIES: Array<{ id: EnemyId; label: string; spriteKey: AssetKey }> = Obje
 
 const BOSSES: Array<{ id: BossId; label: string; spriteKey: AssetKey; movement: MovementPatternId }> = Object.values(BOSS_CATALOG).map((boss) => ({
   id: boss.id,
-  label: boss.label,
+  label: `${getBossEncounterClass(boss.id) === 'boss' ? 'BOSS' : 'ELITE ENEMY'} · ${boss.label}`,
   spriteKey: boss.defaultSpriteKey,
   movement: boss.defaultMovementPatternId
 }));
@@ -117,7 +118,7 @@ const MOVEMENTS: Array<{ value: MovementPatternId; label: string }> = [
 
 const ENEMY_RANKS: Array<{ value: EnemyRank; label: string }> = [
   { value: 'standard', label: 'Standard enemy' },
-  { value: 'elite', label: 'Elite enemy' }
+  { value: 'elite', label: 'ELITE UNIT' }
 ];
 
 const ENEMY_ATTACKS: Array<{ value: EnemyAttackPatternId; label: string }> = [
@@ -450,7 +451,7 @@ function WaveSettings({
             </div>
             {enemy.rank === 'elite' ? (
               <>
-                <SelectField label="Elite attack" value={enemy.attackPatternId ?? 'aimed-burst'} options={ENEMY_ATTACKS} onChange={(attackPatternId) => updateEnemy({ attackPatternId })} />
+                <SelectField label="Elite unit attack" value={enemy.attackPatternId ?? 'aimed-burst'} options={ENEMY_ATTACKS} onChange={(attackPatternId) => updateEnemy({ attackPatternId })} />
                 <div className="le-field-row">
                   <NumberField label="Attack interval" value={enemy.attackIntervalSeconds ?? 1.5} onChange={(attackIntervalSeconds) => updateEnemy({ attackIntervalSeconds })} min={0.3} max={10} step={0.05} unit="s" />
                   <NumberField label="Projectile speed" value={enemy.projectileSpeed ?? 4.8} onChange={(projectileSpeed) => updateEnemy({ projectileSpeed })} min={0.5} max={20} step={0.1} />
@@ -534,6 +535,8 @@ function BossSettings({
 }: Pick<EditorInspectorProps, 'wave' | 'selectedEventId' | 'onSelectEvent' | 'onUpdateEvent' | 'onAddEvent' | 'onDeleteEvent'>) {
   const bosses = wave.events.filter((item): item is BossEvent => item.kind === 'boss');
   const boss = bosses.find((item) => item.id === selectedEventId) ?? bosses.at(-1);
+  const bossEncounterClass = boss ? getBossEncounterClass(boss.bossId) : null;
+  const bossClassLabel = bossEncounterClass === 'boss' ? 'BOSS' : 'ELITE ENEMY';
   const [weaponIndex, setWeaponIndex] = useState(0);
   const weapon = boss?.weapons[Math.min(weaponIndex, Math.max(0, boss.weapons.length - 1))];
 
@@ -607,17 +610,17 @@ function BossSettings({
 
   return (
     <>
-      <div className="le-inspector-title"><p>Boss renderer</p><h2>{boss?.label ?? 'No boss selected'}</h2></div>
+      <div className="le-inspector-title"><p>{boss ? bossClassLabel : 'Encounter renderer'}</p><h2>{boss?.label ?? 'No encounter selected'}</h2></div>
       <div className="le-event-select">
         <select value={boss?.id ?? ''} aria-label="Boss encounter" onChange={(event) => onSelectEvent(event.target.value)}>
-          {bosses.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+          {bosses.map((item) => <option key={item.id} value={item.id}>{getBossEncounterClass(item.bossId) === 'boss' ? 'BOSS' : 'ELITE ENEMY'} · {item.label}</option>)}
         </select>
         <button className="le-icon-button" type="button" title="Add boss encounter" aria-label="Add boss encounter" onClick={() => onAddEvent('boss')}><EditorIcon name="add" /></button>
       </div>
       {boss ? (
         <>
           <EventTiming event={boss} onChange={onUpdateEvent} />
-          <SelectField label="Boss type" value={boss.bossId} options={BOSSES.map((item) => ({ value: item.id, label: item.label }))} onChange={(bossId) => {
+          <SelectField label={`${bossClassLabel} encounter`} value={boss.bossId} options={BOSSES.map((item) => ({ value: item.id, label: item.label }))} onChange={(bossId) => {
             const selected = BOSSES.find((item) => item.id === bossId)!;
             updateBoss({
               bossId,
@@ -631,7 +634,7 @@ function BossSettings({
             <SelectField label="Boss rig" value={boss.rigId ?? 'open-orbit'} options={BOSS_RIGS} onChange={(rigId) => updateBoss({ rigId })} />
           ) : null}
           <AssetSelectField
-            label="Boss sprite"
+            label={`${bossClassLabel} sprite`}
             value={boss.spriteKey}
             options={BOSS_SPRITES}
             assetRole="boss"
@@ -642,7 +645,7 @@ function BossSettings({
           <SelectField label="Movement pattern" value={boss.movementPatternId} options={MOVEMENTS} onChange={(movementPatternId) => updateBoss({ movementPatternId })} />
           <SelectField label="Spawn position" value={boss.positionId} options={POSITIONS} onChange={(positionId) => updateBoss({ positionId })} />
           {boss.bossId === 'bottleneck-drone' ? (
-            <NumberField label="Boss count" value={boss.count ?? 1} onChange={(count) => updateBoss({ count: Math.round(count) })} min={1} max={4} step={1} />
+            <NumberField label="Elite enemy count" value={boss.count ?? 1} onChange={(count) => updateBoss({ count: Math.round(count) })} min={1} max={4} step={1} />
           ) : null}
           <div className="le-field-row">
             <NumberField label="Spawn warning" value={boss.warningSeconds} onChange={(warningSeconds) => updateBoss({ warningSeconds })} min={0} max={30} step={0.25} unit="s" />
@@ -657,7 +660,7 @@ function BossSettings({
             <NumberField label="Drop chance" value={boss.powerupDropChance * 100} onChange={(value) => updateBoss({ powerupDropChance: value / 100 })} min={0} max={100} step={1} unit="%" />
           </div>
           <NumberField label="Orbiting shields" value={boss.shieldCount} onChange={(shieldCount) => updateBoss({ shieldCount: Math.round(shieldCount) })} min={0} max={12} step={1} />
-          <NumberField label="Boss visual size" value={boss.sizeMultiplier ?? 1} onChange={(sizeMultiplier) => updateBoss({ sizeMultiplier })} min={0.5} max={1.5} step={0.05} unit="×" />
+          <NumberField label={`${bossClassLabel} visual size`} value={boss.sizeMultiplier ?? 1} onChange={(sizeMultiplier) => updateBoss({ sizeMultiplier })} min={0.5} max={1.5} step={0.05} unit="×" />
 
           <fieldset className="le-fieldset">
             <legend>Weapons</legend>

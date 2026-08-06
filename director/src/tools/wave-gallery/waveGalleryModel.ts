@@ -2,8 +2,10 @@ import {
   ASSET_CATALOG,
   BACKGROUND_CATALOG,
   BOSS_CATALOG,
+  getBossEncounterClass,
   SPAWN_PATTERN_CATALOG
 } from '@game/game-config/catalog';
+import type { BossEncounterClass } from '@game/game-config/catalog';
 import type {
   EnemyRoleDefinition,
   FormationPackDefinition,
@@ -69,6 +71,14 @@ export interface WaveGallerySummary {
 }
 
 export type SupportWaveEvent = Exclude<WaveEvent, SpawnEvent>;
+
+export interface SupportEventGalleryDescription {
+  heading: string;
+  detail: string;
+  assetPath: string;
+  kindLabel: string;
+  encounterClass: BossEncounterClass | null;
+}
 
 const titleCase = (value: string) => value
   .split('-')
@@ -275,34 +285,65 @@ export const getMissionBackgroundPaths = (mission: LevelDefinition) => {
     .slice(0, 4) ?? [];
 };
 
-export const describeSupportEvent = (event: SupportWaveEvent) => {
+export const getMissionEncounterSummary = (mission: LevelDefinition) => {
+  const event = mission.waves
+    .flatMap((wave) => wave.events)
+    .find((candidate) => candidate.kind === 'boss');
+  if (!event || event.kind !== 'boss') return null;
+  const encounterClass = getBossEncounterClass(event.bossId);
+  if (!encounterClass) return null;
+  return {
+    encounterClass,
+    kindLabel: encounterClass === 'boss' ? 'BOSS' : 'ELITE ENEMY',
+    name: BOSS_CATALOG[event.bossId]?.label ?? event.label
+  } as const;
+};
+
+export const describeSupportEvent = (
+  event: SupportWaveEvent
+): SupportEventGalleryDescription => {
   if (event.kind === 'boss') {
+    const encounterClass = getBossEncounterClass(event.bossId);
     return {
       heading: BOSS_CATALOG[event.bossId]?.label ?? titleCase(event.bossId),
       detail: `${event.health.toLocaleString()} HP · ${event.weapons.length} weapon${event.weapons.length === 1 ? '' : 's'}`,
-      assetPath: ASSET_CATALOG[event.spriteKey]?.paths[0] ?? ''
+      assetPath: ASSET_CATALOG[event.spriteKey]?.paths[0] ?? '',
+      kindLabel: encounterClass === 'boss' ? 'BOSS' : 'ELITE ENEMY',
+      encounterClass
     };
   }
   if (event.kind === 'asteroid-belt') {
     return {
       heading: 'Asteroid belt',
       detail: `${event.count} hazards · ${SPAWN_PATTERN_CATALOG[event.patternId]?.label ?? titleCase(event.patternId)}`,
-      assetPath: ASSET_CATALOG[event.spriteKey]?.paths[0] ?? ''
+      assetPath: ASSET_CATALOG[event.spriteKey]?.paths[0] ?? '',
+      kindLabel: 'HAZARD',
+      encounterClass: null
     };
   }
   if (event.kind === 'supply-drop') {
     return {
       heading: 'Supply drop',
       detail: `${titleCase(event.presentKind)} · ${event.coinDropValue} coins`,
-      assetPath: ASSET_CATALOG[event.spriteKey]?.paths[0] ?? ''
+      assetPath: ASSET_CATALOG[event.spriteKey]?.paths[0] ?? '',
+      kindLabel: 'SUPPLY DROP',
+      encounterClass: null
     };
   }
   if (event.kind === 'powerup') {
-    return { heading: 'Power-up signal', detail: event.powerupIds.map(titleCase).join(' · '), assetPath: '' };
+    return {
+      heading: 'Power-up signal',
+      detail: event.powerupIds.map(titleCase).join(' · '),
+      assetPath: '',
+      kindLabel: 'POWER-UP',
+      encounterClass: null
+    };
   }
   return {
     heading: 'Recovery window',
     detail: `${event.coinCount} coins${event.powerupIds.length ? ` · ${event.powerupIds.map(titleCase).join(' · ')}` : ''}`,
-    assetPath: ''
+    assetPath: '',
+    kindLabel: 'RECOVERY',
+    encounterClass: null
   };
 };

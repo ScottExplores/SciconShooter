@@ -73,7 +73,7 @@ test('the Trophy Deck separates Weekly Funding from Campaign progression', () =>
     'Missions cleared',
     'Missions mastered',
     'Stars earned',
-    'Elite Bosses beaten',
+    'Elite encounters cleared',
     'Hangar upgrades'
   ]) {
     assert.ok(panel[0].includes(label), `Campaign trophies should show "${label}"`);

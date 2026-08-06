@@ -68,7 +68,7 @@
 }
 
 .campaign-map-close small {
-  font: 900 0.42rem/1 ui-monospace, monospace;
+  font: 900 0.48rem/1 ui-monospace, monospace;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -261,6 +261,10 @@
 
 .campaign-map-node--boss {
   --campaign-node-size: 90px;
+}
+
+.campaign-map-node--elite {
+  --campaign-node-size: 78px;
 }
 
 .campaign-map-node-ring,
@@ -488,6 +492,33 @@
   border: 0;
   background: transparent;
   box-shadow: none;
+}
+
+.campaign-map-node.campaign-map-node--elite .campaign-map-node-ring {
+  inset: 0;
+  border: 2px solid #fbbf24;
+  box-shadow: 0 0 5px rgba(34, 211, 238, 0.72), 0 0 13px rgba(245, 158, 11, 0.42);
+}
+
+.campaign-map-node.campaign-map-node--elite:focus-visible .campaign-map-node-ring {
+  border-color: #fef08a;
+  box-shadow: 0 0 5px rgba(250, 204, 21, 0.9), 0 0 14px rgba(250, 204, 21, 0.52);
+}
+
+.campaign-map-node--elite .campaign-map-node-core,
+.campaign-map-node.campaign-map-node--elite.is-selected .campaign-map-node-core {
+  inset: 6px;
+  overflow: hidden;
+  border: 1px solid rgba(103, 232, 249, 0.72);
+  border-radius: 50%;
+  background: rgba(3, 15, 35, 0.94);
+  box-shadow: inset 0 0 10px rgba(34, 211, 238, 0.18);
+}
+
+.campaign-map-node--elite .campaign-map-node-core img {
+  width: 88%;
+  height: 88%;
+  transform: none;
 }
 
 .campaign-map-celestial {
@@ -1023,6 +1054,12 @@
   text-transform: uppercase;
   border: 1px solid rgba(251, 113, 133, 0.6);
   background: rgba(159, 18, 57, 0.32);
+}
+
+.campaign-map-boss-tag[data-encounter-class='elite-enemy'] {
+  color: #a5f3fc;
+  border-color: rgba(251, 191, 36, 0.72);
+  background: rgba(8, 145, 178, 0.18);
 }
 
 .campaign-map-records {
@@ -1676,6 +1713,12 @@
   border-color: rgba(245, 158, 11, 0.6);
 }
 
+.campaign-map-node--elite .campaign-map-node-role {
+  color: #a5f3fc;
+  border-color: rgba(251, 191, 36, 0.68);
+  background: rgba(8, 47, 73, 0.94);
+}
+
 .campaign-map-node--role-boss-preparation .campaign-map-node-ring {
   border-color: #fb7185;
   border-style: double;
@@ -1685,6 +1728,14 @@
   color: #fecdd3;
   background: rgba(76, 5, 25, 0.9);
   border-color: rgba(251, 113, 133, 0.7);
+}
+
+/* Encounter class outranks the mission-role decoration. An elite placed in a
+ * preparation slot must still read as an elite at a glance. */
+.campaign-map-node.campaign-map-node--elite .campaign-map-node-ring {
+  inset: 0;
+  border: 2px solid #fbbf24;
+  box-shadow: 0 0 5px rgba(34, 211, 238, 0.72), 0 0 13px rgba(245, 158, 11, 0.42);
 }
 
 .campaign-map-node.has-locked-boss-silhouette {
@@ -1890,7 +1941,7 @@
 
   .campaign-map-node-role {
     max-width: 4.75rem;
-    font-size: 0.39rem;
+    font-size: 0.44rem;
   }
 
   .campaign-map-sector > span,

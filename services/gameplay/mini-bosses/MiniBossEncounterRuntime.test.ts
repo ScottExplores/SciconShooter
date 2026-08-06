@@ -349,33 +349,117 @@ test('expected duration is tuning metadata and never despawns a living encounter
   }
 });
 
-test('generated primary art preserves one readable identity across runtime animation states', () => {
+test('Fracture Engine uses registered warning, alternating attack, damage, and critical sprite states', () => {
   const definition = getMiniBossEncounterDefinition('fracture-engine-elite')!;
-  const member = sampleMiniBossEncounter(definition, { frame: actionStartFrame(definition.id) }).members
+  const entranceFrames = Math.round(definition.entranceSeconds * DEFAULT_FPS);
+  const warningMember = sampleMiniBossEncounter(definition, { frame: entranceFrames + 1 }).members
     .find((candidate) => candidate.archetypeId === 'fracture-core')!;
-  const attackUrl = resolveMiniBossMemberAssetUrl(definition, member, 0)!;
-  assert.match(attackUrl, /mini-boss-lab-v2\/fracture-engine-elite\/fracture-engine-elite-neutral\.png$/);
-  assert.equal(
-    resolveMiniBossMemberAssetUrl(definition, { ...member, animationState: 'damage', healthRatio: 0.4 }, 0),
-    attackUrl
+  const attackMember = sampleMiniBossEncounter(definition, { frame: actionStartFrame(definition.id) }).members
+    .find((candidate) => candidate.archetypeId === 'fracture-core')!;
+  const coreInstance = createMiniBossMemberInstances(definition)
+    .find((candidate) => candidate.archetypeId === 'fracture-core')!;
+  const lowHealthAttackMember = sampleMiniBossEncounter(definition, {
+    frame: actionStartFrame(definition.id),
+    members: [{ id: coreInstance.id, health: coreInstance.maxHealth * 0.25 }]
+  }).members.find((candidate) => candidate.id === coreInstance.id)!;
+  assert.equal(warningMember.animationState, 'charge');
+  assert.equal(attackMember.animationState, 'attack');
+  assert.equal(lowHealthAttackMember.animationState, 'attack');
+  assert.match(
+    resolveMiniBossMemberAssetUrl(definition, warningMember, 0)!,
+    /mini-boss-lab-v2\/fracture-engine-elite\/fracture-engine-elite-charge\.png$/
   );
-  assert.equal(
-    resolveMiniBossMemberAssetUrl(definition, { ...member, animationState: 'critical', healthRatio: 0.1 }, 0),
-    attackUrl
+  assert.match(
+    resolveMiniBossMemberAssetUrl(definition, attackMember, 0)!,
+    /mini-boss-lab-v2\/fracture-engine-elite\/fracture-engine-elite-attack\.png$/
+  );
+  assert.match(
+    resolveMiniBossMemberAssetUrl(definition, attackMember, 4)!,
+    /mini-boss-lab-v2\/fracture-engine-elite\/fracture-engine-elite-attack-b\.png$/
+  );
+  assert.match(
+    resolveMiniBossMemberAssetUrl(definition, lowHealthAttackMember, 0)!,
+    /mini-boss-lab-v2\/fracture-engine-elite\/fracture-engine-elite-attack\.png$/
+  );
+  assert.match(
+    resolveMiniBossMemberAssetUrl(definition, { ...attackMember, animationState: 'damage', healthRatio: 0.4 }, 0)!,
+    /mini-boss-lab-v2\/fracture-engine-elite\/fracture-engine-elite-damage\.png$/
+  );
+  assert.match(
+    resolveMiniBossMemberAssetUrl(definition, { ...attackMember, animationState: 'critical', healthRatio: 0.1 }, 0)!,
+    /mini-boss-lab-v2\/fracture-engine-elite\/fracture-engine-elite-critical\.png$/
+  );
+  const projectile = definition.assets.find((asset) => asset.id === 'fracture-shard')!;
+  assert.equal(projectile.frames?.length, 4);
+  assert.deepEqual([projectile.widthPixels, projectile.heightPixels], [18, 36]);
+  assert.ok(projectile.frames?.every((frame) => frame.includes('/fracture-engine-elite/fracture-shard-')));
+});
+
+test('every elite encounter owns seven readable body states and a sized generated projectile animation', () => {
+  for (const definition of MINI_BOSS_ENCOUNTER_DEFINITIONS) {
+    const body = definition.assets.find((binding) => binding.usage === 'primary-body');
+    assert.equal(body?.provenance, 'generated-mini-boss-lab-v2', `${definition.id} body provenance`);
+    assert.equal(body?.frames?.length, 7, `${definition.id} body animation state count`);
+    const projectile = definition.assets.find((binding) => binding.id === definition.signature.projectileAssetId);
+    assert.equal(projectile?.provenance, 'generated-mini-boss-lab-v2', `${definition.id} projectile provenance`);
+    assert.equal(projectile?.frames?.length, 4, `${definition.id} projectile frame count`);
+    assert.ok((projectile?.widthPixels ?? 0) >= 14, `${definition.id} projectile width remains readable`);
+    assert.ok((projectile?.heightPixels ?? 0) >= 32, `${definition.id} projectile height remains readable`);
+  }
+});
+
+test('Maw Carrier closes and opens its jaw through charge and alternating attack art', () => {
+  const definition = getMiniBossEncounterDefinition('maw-carrier')!;
+  const member = sampleMiniBossEncounter(definition, { frame: actionStartFrame(definition.id) }).members[0];
+  assert.match(
+    resolveMiniBossMemberAssetUrl(definition, { ...member, animationState: 'charge' }, 0)!,
+    /maw-carrier\/maw-carrier-charge\.png$/
+  );
+  assert.match(
+    resolveMiniBossMemberAssetUrl(definition, { ...member, animationState: 'attack' }, 0)!,
+    /maw-carrier\/maw-carrier-attack-a\.png$/
+  );
+  assert.match(
+    resolveMiniBossMemberAssetUrl(definition, { ...member, animationState: 'attack' }, 4)!,
+    /maw-carrier\/maw-carrier-attack-b\.png$/
   );
 });
 
-test('asset inventory is explicit, approved, and points only at existing runtime art URLs', () => {
+test('seven-frame animation support preserves the legacy five-frame resolver contract', () => {
+  const definition = getMiniBossEncounterDefinition('fracture-engine-elite')!;
+  const legacyFrames = Object.freeze([
+    '/legacy/idle-a.png',
+    '/legacy/idle-b.png',
+    '/legacy/attack.png',
+    '/legacy/damage.png',
+    '/legacy/critical.png'
+  ]);
+  const legacyDefinition = {
+    ...definition,
+    assets: definition.assets.map((binding) => (
+      binding.id === 'fracture-core-body'
+        ? Object.freeze({ ...binding, frames: legacyFrames })
+        : binding
+    ))
+  };
+  const member = sampleMiniBossEncounter(definition, { frame: actionStartFrame(definition.id) }).members
+    .find((candidate) => candidate.archetypeId === 'fracture-core')!;
+  assert.equal(resolveMiniBossMemberAssetUrl(legacyDefinition, { ...member, animationState: 'charge' }), legacyFrames[2]);
+  assert.equal(resolveMiniBossMemberAssetUrl(legacyDefinition, { ...member, animationState: 'attack' }), legacyFrames[2]);
+  assert.equal(resolveMiniBossMemberAssetUrl(legacyDefinition, { ...member, animationState: 'damage' }), legacyFrames[3]);
+  assert.equal(resolveMiniBossMemberAssetUrl(legacyDefinition, { ...member, animationState: 'critical' }), legacyFrames[4]);
+});
+
+test('asset inventory is explicit, approved, and points only at registered runtime art URLs', () => {
   assert.equal(
     MINI_BOSS_LAB_ASSET_INVENTORY.length,
     MINI_BOSS_ENCOUNTER_DEFINITIONS.reduce((total, definition) => total + definition.assets.length, 0)
   );
   assert.ok(MINI_BOSS_LAB_ASSET_INVENTORY.length >= 32);
   for (const item of MINI_BOSS_LAB_ASSET_INVENTORY) {
-    assert.equal(item.galleryCategory, 'Mini Bosses');
-    if (item.usage === 'primary-body') {
+    assert.equal(item.galleryCategory, 'Elite Enemies');
+    if (item.provenance === 'generated-mini-boss-lab-v2') {
       assert.equal(item.status, 'approved-generated');
-      assert.equal(item.provenance, 'generated-mini-boss-lab-v2');
     } else {
       assert.equal(item.status, 'approved-existing');
       assert.equal(item.provenance, 'existing-runtime-art');

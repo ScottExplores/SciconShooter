@@ -835,6 +835,8 @@ export class Entity {
   miniBossLabDamageable: boolean = true;
   miniBossLabShowHealthBar: boolean = true;
   miniBossLabHealthBarWidth?: number;
+  /** Authored circular gameplay footprint for a Mini-Boss Lab member. */
+  miniBossLabCollisionRadiusPixels?: number;
   miniBossLabPresentationScale: number = 1;
   miniBossLabDeathStartedFrame: number = -1;
   miniBossLabWallSide?: 'left' | 'right';
@@ -2224,7 +2226,8 @@ interface MiniBossLabPendingProjectile {
   readonly originY: number;
   readonly angleRadians: number;
   readonly speed: number;
-  readonly size: number;
+  readonly width: number;
+  readonly height: number;
   readonly damage: number;
   readonly color: string;
   readonly frames: readonly string[];
@@ -6018,7 +6021,7 @@ export class GameEngine {
   }
 
   /**
-   * The display name of the Elite Boss currently being warned about, or null
+   * The display name of the Elite Enemy currently being warned about, or null
    * when the pending encounter is a hazard, a supply drop, or a major boss --
    * those keep their own banners.
    */
@@ -10462,6 +10465,7 @@ export class GameEngine {
       entity.miniBossLabDamageable = instance.damageable;
       entity.miniBossLabShowHealthBar = this.shouldShowMiniBossLabHealthBar(definition, instance);
       entity.miniBossLabHealthBarWidth = definition.compactHealth.widthPixels;
+      entity.miniBossLabCollisionRadiusPixels = instance.collisionRadiusPixels;
       entity.miniBossLabVisualState = 'entrance';
       entity.spriteUrl = resolveMiniBossMemberAssetUrl(definition, {
         assetId: instance.assetId,
@@ -10811,11 +10815,11 @@ export class GameEngine {
       if (!owner) continue;
       const projectile = this.createEntity(
         EntityType.PROJECTILE,
-        pending.originX - pending.size / 2,
-        pending.originY - pending.size / 2
+        pending.originX - pending.width / 2,
+        pending.originY - pending.height / 2
       );
-      projectile.width = pending.size;
-      projectile.height = pending.size;
+      projectile.width = pending.width;
+      projectile.height = pending.height;
       projectile.vx = Math.cos(pending.angleRadians) * pending.speed;
       projectile.vy = Math.sin(pending.angleRadians) * pending.speed;
       projectile.damage = pending.damage;
@@ -10931,6 +10935,8 @@ export class GameEngine {
       ? definition.assets.find((candidate) => candidate.id === command.projectileAssetId)
       : undefined;
     const frames = binding?.frames ?? [];
+    const projectileWidth = Math.max(8, binding?.widthPixels ?? (command.kind === 'ring-with-gap' ? 24 : 20));
+    const projectileHeight = Math.max(8, binding?.heightPixels ?? (command.kind === 'ring-with-gap' ? 24 : 26));
     const color = this.getMiniBossLabHazardColor(command);
     const targetAngle = command.angleRadians
       ?? Math.atan2(command.target.y - command.origin.y, command.target.x - command.origin.x);
@@ -10962,7 +10968,8 @@ export class GameEngine {
         originY: command.origin.y,
         angleRadians: angle,
         speed,
-        size: radial ? 18 : 19,
+        width: projectileWidth,
+        height: projectileHeight,
         damage: Math.max(1, Number(owner.projectileDamage) || 1),
         color,
         frames,
@@ -10987,59 +10994,11 @@ export class GameEngine {
       : undefined;
     if (!owner || owner.markedForDeletion || owner.hp <= 0) return;
     if (command.warning) {
-      const attack = command.attackId === definition.signature.id
-        ? definition.signature
-        : definition.support;
-      const telegraphAsset = attack.telegraphAssetId
-        ? definition.assets.find((asset) => asset.id === attack.telegraphAssetId)
-        : undefined;
-      const railWarningSlotId = `${state.encounterId}:rail-warning-brace:${command.sourceMemberId ?? owner.id}`;
-      const existingRailWarning = command.kind === 'rail-sweep'
-        ? this.entities.find((entity) => (
-            !entity.markedForDeletion
-            && entity.sourceEventId === state.eventId
-            && entity.sourceItemId === railWarningSlotId
-          )) as VisualEffect | undefined
-        : undefined;
-      if (
-        (firstEmission || existingRailWarning)
-        && (existingRailWarning || this.liveEffectCount < this.getEffectCap())
-      ) {
-        const warningLife = command.kind === 'rail-sweep'
-          ? 2
-          : Math.max(18, Math.round(attack.telegraphSeconds * GAME_CONFIG.FPS));
-        const warningSize = command.kind === 'rail-sweep'
-          ? Math.max(46, Math.max(owner.width, owner.height) * 0.82)
-          : Math.max(64, Math.max(owner.width, owner.height) * 1.18);
-        const warningCenterX = owner.x + owner.width / 2;
-        const warningCenterY = owner.y + owner.height / 2;
-        const warning = existingRailWarning ?? new VisualEffect(
-          warningCenterX - warningSize / 2,
-          warningCenterY - warningSize / 2,
-          telegraphAsset?.url ? 'sprite' : 'ring',
-          '',
-          this.getMiniBossLabHazardColor(command)
-        );
-        warning.x = warningCenterX - warningSize / 2;
-        warning.y = warningCenterY - warningSize / 2;
-        warning.width = warningSize;
-        warning.height = warningSize;
-        warning.isTelegraph = true;
-        if (telegraphAsset?.url) {
-          warning.spriteFrames = [telegraphAsset.url];
-          loadImage(telegraphAsset.url);
-        }
-        warning.life = warningLife;
-        warning.maxLife = warning.life;
-        warning.bossOwnerId = owner.id;
-        warning.sourceEventId = state.eventId;
-        if (command.kind === 'rail-sweep') warning.sourceItemId = railWarningSlotId;
-        if (!existingRailWarning) {
-          this.entities.push(warning);
-          this.liveEffectCount++;
-        }
-      }
-      if (command.kind === 'beam' || command.kind === 'grid-boundary') {
+      // The elite's registered charge pose is the anatomy-linked warning.
+      // Spatial attacks still draw the exact beam/lane they will occupy, but
+      // projectile attacks no longer add the old generic web/ring over every
+      // body regardless of its character or firing anatomy.
+      if (command.kind === 'beam' || command.kind === 'rail-sweep' || command.kind === 'grid-boundary') {
         this.spawnMiniBossLabBeam(state, definition, command, owner);
       }
       owner.isCharging = true;
@@ -11842,6 +11801,14 @@ export class GameEngine {
     x: number,
     y: number
   ) {
+    if (boss.miniBossLabEncounterId && boss.miniBossLabCollisionRadiusPixels) {
+      const offsetBox = {
+        ...box,
+        x: box.x - (x - boss.x),
+        y: box.y - (y - boss.y)
+      };
+      return this.miniBossLabCircleIntersectsBox(boss, offsetBox);
+    }
     const mask = this.getBossCollisionMask(boss);
     if (!mask) {
       const collisionBox = this.getCollisionBox(boss);
@@ -19228,6 +19195,22 @@ export class GameEngine {
         insetY = entity.height * 0.1;
         break;
       case EntityType.MINI_BOSS:
+        if (entity.miniBossLabCollisionRadiusPixels) {
+          const radius = Math.min(
+            entity.miniBossLabCollisionRadiusPixels,
+            entity.width / 2,
+            entity.height / 2
+          );
+          return {
+            x: entity.x + entity.width / 2 - radius,
+            y: entity.y + entity.height / 2 - radius,
+            width: Math.max(4, radius * 2),
+            height: Math.max(4, radius * 2)
+          };
+        }
+        insetX = entity.width * 0.08;
+        insetY = entity.height * 0.08;
+        break;
       case EntityType.BOSS:
         insetX = entity.width * 0.08;
         insetY = entity.height * 0.08;
@@ -19247,6 +19230,18 @@ export class GameEngine {
 
   boxesIntersect(a: CollisionBox, b: CollisionBox) {
     return !(b.x > a.x + a.width || b.x + b.width < a.x || b.y > a.y + a.height || b.y + b.height < a.y);
+  }
+
+  private miniBossLabCircleIntersectsBox(entity: Entity, box: CollisionBox) {
+    const radius = entity.miniBossLabCollisionRadiusPixels;
+    if (!radius) return this.boxesIntersect(this.getCollisionBox(entity), box);
+    const centerX = entity.x + entity.width / 2;
+    const centerY = entity.y + entity.height / 2;
+    const closestX = clamp(centerX, box.x, box.x + box.width);
+    const closestY = clamp(centerY, box.y, box.y + box.height);
+    const deltaX = centerX - closestX;
+    const deltaY = centerY - closestY;
+    return deltaX * deltaX + deltaY * deltaY <= radius * radius;
   }
 
   resolvePlayerRamCollision(enemy: Entity, protectedFromDamage: boolean) {
@@ -19382,7 +19377,7 @@ export class GameEngine {
       ) {
         return this.bossMeleeClawsIntersectBox(entity, playerBox);
       }
-      if (isBossLike && this.getBossCollisionMask(entity)) {
+      if (isBossLike && (entity.miniBossLabCollisionRadiusPixels || this.getBossCollisionMask(entity))) {
         return this.bossSilhouetteIntersectsBox(entity, playerBox);
       }
       if (
@@ -19925,12 +19920,12 @@ export class GameEngine {
       wall: 'PAYWALL FORMATION',
       asteroid: 'ASTEROID BELT'
     };
-    // All ten authored Elite Bosses used to announce themselves with the same
+    // All ten authored Elite Enemies used to announce themselves with the same
     // hardcoded 'BOTTLENECK SURGE', so the encounter the player was about to
     // fight had no identity. Name it when the Campaign authored one.
     const eliteName = this.getPendingEliteBossName();
     const label = eliteName ?? labels[this.pendingBossType as Exclude<BossWarningType, 'gatekeeper'>];
-    const heading = eliteName ? 'ELITE BOSS' : 'WARNING';
+    const heading = eliteName ? 'ELITE ENEMY' : 'WARNING';
     const panelWidth = Math.min(this.width - 42, 360);
     const panelHeight = 74;
     const x = (this.width - panelWidth) / 2;

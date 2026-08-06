@@ -101,7 +101,7 @@ test('focused Boss Sandbox uses the canonical preview and only essential control
   assert.doesNotMatch(source, /REMOVED \/ LEGACY|source === 'legacy'/);
   assert.match(source, /aria-label="Boss artwork choices"/);
   assert.match(source, /choiceArtworkUrls/);
-  assert.match(source, /alt=\{`\$\{selectedChoice\.bossLabel\} boss artwork`\}/);
+  assert.match(source, /selectedChoice\.encounterClass === 'full-boss' \? 'boss' : 'elite enemy'/);
   assert.match(source, /loading="lazy"/);
   assert.match(source, /tell Codex what to change/i);
   assert.match(source, /previewViewport=\{previewViewport\}/);
@@ -143,11 +143,20 @@ test('focused Boss Sandbox uses the canonical preview and only essential control
   assert.doesNotMatch(source, /extraLife|Extra Life|heart upgrade/i);
   assert.match(styles, /\.boss-sandbox__ship-tuning/);
   assert.match(styles, /\.boss-sandbox__artwork-strip/);
+  assert.match(source, /className="boss-sandbox__choice-class"/);
+  assert.match(styles, /\.boss-sandbox__choice-class\[data-encounter-class='mini-boss'\]/);
+  assert.match(styles, /section > span\[data-encounter-class='full-boss'\]/);
+  assert.match(styles, /section > span\[data-encounter-class='mini-boss'\]/);
   assert.match(styles, /image-rendering: pixelated/);
   assert.match(styles, /min-height: 42px/);
   assert.doesNotMatch(
     source,
-    /\b(?:saveGameCampaign|saveGameCampaignWorkspace|localStorage|Export JSON|Review draft|Apply to game)\b/
+    /\b(?:saveGameCampaign|saveGameCampaignWorkspace|Export JSON|Review draft|Apply to game)\b/
+  );
+  assert.equal(
+    (source.match(/window\.localStorage\.(?:getItem|setItem)/g) ?? []).length,
+    2,
+    'local storage is limited to the recoverable rail-width preference'
   );
   assert.doesNotMatch(source, /<textarea|Make change/);
 });
@@ -210,11 +219,9 @@ test('desktop Boss Sandbox gives the permanent mobile game the full-height cente
   const mainStart = source.indexOf('<main className="boss-sandbox__main">');
   const mainEnd = source.indexOf('</main>', mainStart);
   const main = source.slice(mainStart, mainEnd);
-  const pickerIndex = main.indexOf('<aside className="boss-sandbox__picker">');
+  const pickerIndex = main.indexOf('className="boss-sandbox__picker"');
   const playIndex = main.indexOf('<section className="boss-sandbox__play"');
-  const loadoutIndex = main.indexOf(
-    '<aside className="boss-sandbox__loadout" aria-label="Ship and loadout controls">'
-  );
+  const loadoutIndex = main.indexOf('className="boss-sandbox__loadout"');
 
   assert.ok(pickerIndex >= 0, 'boss controls need a left rail');
   assert.ok(playIndex > pickerIndex, 'the canonical game belongs after the boss rail');
@@ -237,7 +244,7 @@ test('desktop Boss Sandbox gives the permanent mobile game the full-height cente
 
   assert.match(
     styles,
-    /\.boss-sandbox__main\s*\{[\s\S]*?height:\s*100dvh;[\s\S]*?grid-template-columns:\s*minmax\(210px, 236px\)\s*minmax\(0, 1fr\)\s*minmax\(210px, 236px\);/
+    /\.boss-sandbox__main\s*\{[\s\S]*?height:\s*100dvh;[\s\S]*?grid-template-columns:\s*var\(--bs-left-rail-width\)\s*minmax\(390px, 1fr\)\s*var\(--bs-right-rail-width\);/
   );
   assert.match(
     styles,
@@ -249,7 +256,7 @@ test('desktop Boss Sandbox gives the permanent mobile game the full-height cente
   );
   assert.match(
     styles,
-    /\.boss-sandbox__header\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?grid-template-columns:\s*minmax\(210px, 236px\)\s*minmax\(0, 1fr\)\s*minmax\(210px, 236px\);[\s\S]*?pointer-events:\s*none;/
+    /\.boss-sandbox__header\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?grid-template-columns:\s*var\(--bs-left-rail-width\)\s*minmax\(390px, 1fr\)\s*var\(--bs-right-rail-width\);[\s\S]*?pointer-events:\s*none;/
   );
   assert.match(
     styles,
@@ -268,7 +275,7 @@ test('desktop Boss Sandbox gives the permanent mobile game the full-height cente
     /\.boss-sandbox__main-ships\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/
   );
 
-  const compactStyles = styles.slice(styles.indexOf('@media (max-width: 820px)'));
+  const compactStyles = styles.slice(styles.indexOf('@media (max-width: 861px)'));
   assert.match(
     compactStyles,
     /\.boss-sandbox__main\s*\{[\s\S]*?grid-template-columns:\s*1fr;/
@@ -277,6 +284,38 @@ test('desktop Boss Sandbox gives the permanent mobile game the full-height cente
     compactStyles,
     /\.boss-sandbox__play\s*\{[\s\S]*?height:\s*100dvh;[\s\S]*?min-height:\s*640px;[\s\S]*?padding:\s*0;/
   );
+});
+
+test('Boss Sandbox exposes the canonical weekly lineup and accessible saved rail resizing', () => {
+  assert.match(source, /getWeeklyBoundaryMeta\(new Date\(\)\)\.weekKey/);
+  assert.match(source, /buildBossSandboxWeeklyLineup\(initialState\.campaign, weeklyWeekKey\)/);
+  assert.match(source, /className="boss-sandbox__weekly-lineup" open/);
+  assert.match(source, /Weekly lineup/);
+  assert.match(source, /encounter\.kind === 'boss' \? 'BOSS' : 'ELITE'/);
+  assert.match(source, /BOSS_SANDBOX_RAIL_STORAGE_KEY/);
+  assert.match(source, /window\.localStorage\.setItem/);
+  assert.match(source, /normalizeBossSandboxRailWidths/);
+
+  assert.equal((source.match(/role="separator"/g) ?? []).length, 2);
+  assert.match(source, /aria-label="Resize boss controls"/);
+  assert.match(source, /aria-label="Resize ship and loadout controls"/);
+  assert.match(source, /aria-orientation="vertical"/);
+  assert.match(source, /onPointerDown=\{\(event\) => beginRailResize\('left', event\)\}/);
+  assert.match(source, /onPointerDown=\{\(event\) => beginRailResize\('right', event\)\}/);
+  assert.match(source, /onKeyDown=\{\(event\) => handleRailResizeKeyDown\('left', event\)\}/);
+  assert.match(source, /event\.key === 'Home'/);
+  assert.match(source, /event\.key === 'End'/);
+  assert.match(source, /event\.key === 'ArrowLeft'/);
+  assert.match(source, /event\.key === 'ArrowRight'/);
+
+  assert.match(styles, /--bs-left-rail-width:\s*236px/);
+  assert.match(styles, /--bs-right-rail-width:\s*236px/);
+  assert.match(styles, /\.boss-sandbox__rail-resizer\s*\{[\s\S]*?cursor:\s*col-resize;[\s\S]*?touch-action:\s*none;/);
+  assert.match(styles, /\.boss-sandbox__weekly-lineup li\[data-kind='boss'\]/);
+  assert.match(styles, /@container boss-picker \(min-width: 300px\)/);
+  assert.match(styles, /@container ship-loadout \(min-width: 300px\)/);
+  const compactStyles = styles.slice(styles.indexOf('@media (max-width: 861px)'));
+  assert.match(compactStyles, /\.boss-sandbox__rail-resizer\s*\{[\s\S]*?display:\s*none;/);
 });
 
 test('Boss Sandbox ship and support-ship controls hot-swap without loading or restarting', () => {

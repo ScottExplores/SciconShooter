@@ -216,7 +216,7 @@ const CampaignTrophyPanel = ({ state }: { state: PermanentSquadState }) => {
     { label: 'Missions cleared', value: Math.min(completed, authoredMissionTotal), total: authoredMissionTotal, hint: 'First clears across the Campaign graph' },
     { label: 'Missions mastered', value: Math.min(stats.campaignMissionsMastered, authoredMissionTotal), total: authoredMissionTotal, hint: 'Every objective met' },
     { label: 'Stars earned', value: Math.min(totalStars, authoredStarTotal), total: authoredStarTotal, hint: 'Three per Mission at full mastery' },
-    { label: 'Elite Bosses beaten', value: eliteCheckpointsCompleted, total: eliteCheckpointMissionIds.length, hint: 'Unique elite-checkpoint Missions cleared' },
+    { label: 'Elite encounters cleared', value: eliteCheckpointsCompleted, total: eliteCheckpointMissionIds.length, hint: 'Unique elite-checkpoint Missions cleared' },
     { label: 'Bosses archived', value: Math.min(bossArchiveUnlocked, BOSS_ARCHIVE_CATALOG.length), total: BOSS_ARCHIVE_CATALOG.length, hint: 'Unlocked for replay' },
     { label: 'Hangar upgrades', value: Math.min(stats.hangarUpgradesPurchased, authoredHangarUpgradeTotal), total: authoredHangarUpgradeTotal, hint: 'Permanent main-hull upgrades purchased' }
   ];

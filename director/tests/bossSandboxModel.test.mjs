@@ -137,6 +137,7 @@ after(async () => vite.close());
 
 const model = await vite.ssrLoadModule('/director/src/tools/bosses/bossSandboxModel.ts');
 const timelineRegistry = await vite.ssrLoadModule('/game-config/bossTimeline.ts');
+const weeklyRun = await vite.ssrLoadModule('/services/weeklyRunGenerator.ts');
 const artworkAssets = await vite.ssrLoadModule(
   '/director/src/tools/bosses/bossSandboxArtworkAssets.ts'
 );
@@ -169,6 +170,62 @@ test('performing attack selector follows runtime stages and clears for recovery'
   );
   assert.equal(model.getBossSandboxPerformingAttackId(null), null);
   assert.equal(model.getBossSandboxPerformingAttackId(undefined), null);
+});
+
+test('weekly lineup is the canonical deterministic Weekly Run encounter order', () => {
+  const weekKey = '2026-08-02';
+  const stageCount = 12;
+  const plan = weeklyRun.planWeeklyRunStages(weekKey, campaign, stageCount);
+  const lineup = model.buildBossSandboxWeeklyLineup(campaign, weekKey, stageCount);
+
+  assert.deepEqual(
+    lineup.map((encounter) => ({
+      stageNumber: encounter.stageNumber,
+      bossId: encounter.bossId,
+      kind: encounter.kind,
+      waveCount: encounter.waveCount
+    })),
+    plan.filter((stage) => stage.bossId).map((stage) => ({
+      stageNumber: stage.index + 1,
+      bossId: stage.bossId,
+      kind: stage.kind === 'major' ? 'boss' : 'elite-enemy',
+      waveCount: stage.waveCount
+    }))
+  );
+  assert.ok(lineup.some((encounter) => encounter.kind === 'boss'));
+  assert.ok(lineup.some((encounter) => encounter.kind === 'elite-enemy'));
+  assert.ok(lineup.every((encounter) => encounter.label.length > 0));
+  assert.deepEqual(
+    model.buildBossSandboxWeeklyLineup(campaign, weekKey, stageCount),
+    lineup
+  );
+  assert.deepEqual(campaign, sourceSnapshot);
+});
+
+test('rail width recovery and clamping always reserve the mobile game viewport', () => {
+  assert.deepEqual(
+    model.normalizeBossSandboxRailWidths(null),
+    { left: model.BOSS_SANDBOX_RAIL_MIN_WIDTH, right: model.BOSS_SANDBOX_RAIL_MIN_WIDTH }
+  );
+  assert.deepEqual(
+    model.normalizeBossSandboxRailWidths({ left: 999, right: 'bad' }),
+    { left: model.BOSS_SANDBOX_RAIL_MAX_WIDTH, right: model.BOSS_SANDBOX_RAIL_MIN_WIDTH }
+  );
+  assert.equal(
+    model.clampBossSandboxRailWidth({
+      requestedWidth: 500,
+      otherRailWidth: model.BOSS_SANDBOX_RAIL_MIN_WIDTH,
+      workspaceWidth: 1000
+    }),
+    374
+  );
+
+  const fitted = model.fitBossSandboxRailWidths({ left: 420, right: 420 }, 900);
+  assert.ok(fitted.left >= model.BOSS_SANDBOX_RAIL_MIN_WIDTH);
+  assert.ok(fitted.right >= model.BOSS_SANDBOX_RAIL_MIN_WIDTH);
+  assert.ok(
+    fitted.left + fitted.right + model.BOSS_SANDBOX_GAME_VIEWPORT_WIDTH <= 900
+  );
 });
 
 test('Boss Sandbox integrity assets include every supplemental modular atlas once', () => {
@@ -243,7 +300,7 @@ test('Boss Sandbox groups main-game and every non-campaign prototype without los
   assert.equal(miniBossGroup.source, 'test');
   assert.equal(testGroup.choices.length, 15);
   assert.equal(miniBossGroup.choices.length, 8);
-  assert.equal(miniBossGroup.label, 'MINI-BOSS LAB · Campaign roster');
+  assert.equal(miniBossGroup.label, 'ELITE ENEMIES · Campaign roster');
   artworkFixtures.forEach(({ prototypeId }) => {
     assert.ok(prototypeChoices.some((choice) => choice.prototypeId === prototypeId));
   });
@@ -262,8 +319,22 @@ test('Boss Sandbox groups main-game and every non-campaign prototype without los
   );
   assert.ok(campaignChoices.every((choice) => (
     model.getBossSandboxChoiceOptionLabel(choice)
-      .startsWith(`M${String(choice.missionOrder).padStart(2, '0')} · `)
+      .startsWith(`M${String(choice.missionOrder).padStart(2, '0')} · ${choice.encounterClass === 'full-boss' ? 'BOSS' : 'ELITE'} · `)
   )));
+  assert.equal(
+    campaignChoices.find((choice) => choice.missionOrder === 3)?.encounterClass,
+    'mini-boss'
+  );
+  assert.equal(
+    campaignChoices.find((choice) => choice.missionOrder === 5)?.encounterClass,
+    'full-boss'
+  );
+  const fractureCampaignChoice = campaignChoices.find((choice) => choice.missionOrder === 8);
+  assert.equal(fractureCampaignChoice?.miniBoss?.encounterId, 'fracture-engine-elite');
+  assert.match(
+    fractureCampaignChoice?.artworkUrl ?? '',
+    /mini-boss-lab-v2\/fracture-engine-elite\/.*\.png$/
+  );
   assert.equal(
     new Set(groups.flatMap((group) => group.choices.map((choice) => choice.id))).size,
     configuredBossCount + prototypeChoices.length
@@ -309,15 +380,15 @@ test('Boss Sandbox defaults to MAIN GAME and preserves the milestone campaign bo
   assert.deepEqual(actualRoster, expectedRoster);
 });
 
-test('Mini-Boss Lab categories filter eight Campaign-assigned Sandbox-previewable encounters', () => {
+test('Boss Sandbox clearly separates bosses from elite enemies across Campaign and test encounters', () => {
   const groups = model.buildBossSandboxGroups(campaign);
   assert.deepEqual(
     model.BOSS_SANDBOX_CATEGORIES.map((category) => category.label),
     [
-      'Full Bosses',
-      'Mini Bosses',
-      'Test Bosses',
+      'Bosses',
       'Elite Enemies',
+      'Test Bosses',
+      'Solo Elites',
       'Paired Encounters',
       'Guardian Formations',
       'Wall Encounters',
@@ -326,8 +397,8 @@ test('Mini-Boss Lab categories filter eight Campaign-assigned Sandbox-previewabl
   );
   assert.equal(model.getBossSandboxSelectorLabel('full-bosses'), 'Boss to Test');
   assert.equal(model.getBossSandboxSelectorLabel('test-bosses'), 'Test Boss to Test');
-  assert.equal(model.getBossSandboxSelectorLabel('mini-bosses'), 'Mini Boss to Test');
-  assert.equal(model.getBossSandboxSelectorLabel('elite-enemies'), 'Elite to Test');
+  assert.equal(model.getBossSandboxSelectorLabel('mini-bosses'), 'Elite Enemy to Test');
+  assert.equal(model.getBossSandboxSelectorLabel('elite-enemies'), 'Solo Elite to Test');
   assert.equal(model.getBossSandboxSelectorLabel('guardian-formations'), 'Formation to Test');
 
   const testBossChoices = model.filterBossSandboxGroups(groups, 'test-bosses')
@@ -355,17 +426,19 @@ test('Mini-Boss Lab categories filter eight Campaign-assigned Sandbox-previewabl
 
   const miniBossChoices = model.filterBossSandboxGroups(groups, 'mini-bosses')
     .flatMap((group) => group.choices);
-  assert.equal(miniBossChoices.length, 8);
-  assert.ok(miniBossChoices.every((choice) => choice.source === 'test'));
   assert.ok(miniBossChoices.every((choice) => choice.encounterClass === 'mini-boss'));
-  assert.ok(miniBossChoices.every((choice) => choice.miniBoss?.sandboxReady === true));
-  assert.ok(miniBossChoices.every((choice) => choice.miniBoss?.campaignAssigned === true));
-  assert.ok(miniBossChoices.every((choice) => choice.artworkAssetId));
+  const campaignEliteChoices = miniBossChoices.filter((choice) => choice.source === 'campaign');
+  const testEliteChoices = miniBossChoices.filter((choice) => choice.source === 'test');
+  assert.ok(campaignEliteChoices.length > 0);
+  assert.equal(testEliteChoices.length, 8);
+  assert.ok(testEliteChoices.every((choice) => choice.miniBoss?.sandboxReady === true));
+  assert.ok(testEliteChoices.every((choice) => choice.miniBoss?.campaignAssigned === true));
+  assert.ok(testEliteChoices.every((choice) => choice.artworkAssetId));
 
   const pairIds = model.filterBossSandboxGroups(groups, 'paired-encounters')
     .flatMap((group) => group.choices)
     .map((choice) => choice.miniBoss?.encounterId);
-  assert.deepEqual(pairIds, [
+  assert.deepEqual([...new Set(pairIds)], [
     'fracture-engine-elite',
     'twin-meridian-sentinels',
     'gridline-sentries'

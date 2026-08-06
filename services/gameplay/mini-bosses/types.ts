@@ -54,10 +54,13 @@ export interface MiniBossAssetBinding {
   readonly id: string;
   readonly usage: MiniBossAssetUsage;
   readonly status: 'approved-existing' | 'approved-generated';
-  readonly galleryCategory: 'Mini Bosses';
+  readonly galleryCategory: 'Elite Enemies';
   readonly provenance: 'existing-runtime-art' | 'generated-mini-boss-lab-v2';
   readonly url?: string;
   readonly frames?: readonly string[];
+  /** Authored gameplay size for animated hazards; independent from source-canvas padding. */
+  readonly widthPixels?: number;
+  readonly heightPixels?: number;
 }
 
 export interface MiniBossMemberArchetype {
@@ -244,6 +247,7 @@ export interface MiniBossEncounterSampleContext {
 export type MiniBossAnimationState =
   | 'entrance'
   | 'idle'
+  | 'charge'
   | 'attack'
   | 'hit'
   | 'damage'
