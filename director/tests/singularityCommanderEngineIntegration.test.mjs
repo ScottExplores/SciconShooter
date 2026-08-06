@@ -138,7 +138,7 @@ const ATTACK_PHASES = Object.freeze({
   'event-horizon-gaze': 'gravitational-calibration',
   'tidal-claw-pincer': 'spatial-compression',
   'orbital-pylon-barrage': 'gravitational-calibration',
-  'singularity-pulse': 'spatial-compression',
+  'singularity-pulse': 'gravitational-calibration',
   'gravity-collapse': 'event-horizon-instability'
 });
 
@@ -153,7 +153,7 @@ const EXPECTED_ATTACK_ART = Object.freeze({
 
 const runIsolatedAttack = (attackId, options = {}) => {
   const engine = createEngine(`singularity-engine-${attackId}`);
-  const phaseId = ATTACK_PHASES[attackId];
+  const phaseId = options.phaseId ?? ATTACK_PHASES[attackId];
   assert.equal(
     engine.triggerAuthoredBossAttack(attackId, event.id, phaseId),
     true,
@@ -170,12 +170,21 @@ const runIsolatedAttack = (attackId, options = {}) => {
   assert.ok(attackWindow, `${attackId} must resolve an authored timeline window`);
 
   const visualKinds = new Set();
+  const pulseBurstIndexes = new Set();
+  const pulseProjectileVariants = new Set();
+  const visualSizes = new Map();
   const artifactKinds = new Set();
   const ownedEntityIds = new Set();
   const activeStages = new Set();
   const snapshotSamples = [];
   const nonDamagingFrameByEntityId = new Map();
   const firstDamagingFrameByEntityId = new Map();
+  const expectedPulseBurstCount = phaseId === 'gravitational-calibration'
+    ? 3
+    : phaseId === 'spatial-compression'
+      ? 6
+      : 9;
+  let completedPulseFrame = null;
   let sawTargetAttack = false;
 
   for (let frame = 0; frame < (options.maximumFrames ?? 900); frame += 1) {
@@ -191,7 +200,16 @@ const runIsolatedAttack = (attackId, options = {}) => {
     for (const entity of engine.entities) {
       if (entity.markedForDeletion || entity.bossOwnerId !== boss.id) continue;
       ownedEntityIds.add(entity.id);
-      if (entity.projectileVisualKind) visualKinds.add(entity.projectileVisualKind);
+      if (entity.projectileVisualKind) {
+        visualKinds.add(entity.projectileVisualKind);
+        const sizes = visualSizes.get(entity.projectileVisualKind) ?? new Set();
+        sizes.add(`${entity.width}x${entity.height}`);
+        visualSizes.set(entity.projectileVisualKind, sizes);
+      }
+      if (entity.projectileVisualKind === 'boss-singularity-pulse') {
+        pulseBurstIndexes.add(Math.floor(entity.variant / 100));
+        pulseProjectileVariants.add(entity.variant);
+      }
       if (entity.singularityArtifactKind) artifactKinds.add(entity.singularityArtifactKind);
       if (entity.singularityArtifactKind === 'beam' || entity.singularityArtifactKind === 'well') {
         if (!entity.singularityDamageActive) {
@@ -207,7 +225,14 @@ const runIsolatedAttack = (attackId, options = {}) => {
         }
       }
     }
-    if (boss.attackTimer > attackWindow.endFrame + 1) break;
+    if (attackId === 'singularity-pulse') {
+      if (pulseBurstIndexes.size >= expectedPulseBurstCount && completedPulseFrame === null) {
+        completedPulseFrame = frame;
+      }
+      if (completedPulseFrame !== null && frame >= completedPulseFrame + 30) break;
+    } else if (boss.attackTimer > attackWindow.endFrame + 1) {
+      break;
+    }
   }
 
   assert.equal(sawTargetAttack, true, `${attackId} must enter its authored timeline window`);
@@ -215,6 +240,9 @@ const runIsolatedAttack = (attackId, options = {}) => {
     engine,
     boss,
     visualKinds,
+    pulseBurstIndexes,
+    pulseProjectileVariants,
+    visualSizes,
     artifactKinds,
     ownedEntityIds,
     activeStages,
@@ -269,12 +297,13 @@ test('Event Horizon beams and both well attacks exist harmlessly before becoming
   }
 });
 
-test('phase jumps expose exactly the authored 3/5/6 attack rosters', () => {
+test('phase jumps expose exactly the authored 4/5/6 attack rosters', () => {
   const expectedByPhase = new Map([
     ['gravitational-calibration', [
       'gravity-well-genesis',
       'event-horizon-gaze',
-      'orbital-pylon-barrage'
+      'orbital-pylon-barrage',
+      'singularity-pulse'
     ]],
     ['spatial-compression', [
       'gravity-well-genesis',
@@ -298,6 +327,68 @@ test('phase jumps expose exactly the authored 3/5/6 attack rosters', () => {
       );
     }
   }
+});
+
+test('Singularity Pulse executes exactly 3/6/9 complete scheduled bursts by phase', () => {
+  const expectedByPhase = new Map([
+    ['gravitational-calibration', 3],
+    ['spatial-compression', 6],
+    ['event-horizon-instability', 9]
+  ]);
+  for (const [phaseId, expectedBurstCount] of expectedByPhase) {
+    const result = runIsolatedAttack('singularity-pulse', { phaseId });
+    assert.deepEqual(
+      [...result.pulseBurstIndexes].sort((left, right) => left - right),
+      Array.from({ length: expectedBurstCount }, (_, index) => index),
+      `${phaseId} must emit every pulse burst without cap starvation`
+    );
+    const projectileCountsByBurst = [...result.pulseProjectileVariants].reduce((counts, variant) => {
+      const burstIndex = Math.floor(variant / 100);
+      counts.set(burstIndex, (counts.get(burstIndex) ?? 0) + 1);
+      return counts;
+    }, new Map());
+    assert.equal(projectileCountsByBurst.size, expectedBurstCount);
+    assert.ok(
+      [...projectileCountsByBurst.values()].every((count) => count >= 10),
+      `${phaseId} must preserve a complete readable ring around both authored gaps`
+    );
+  }
+});
+
+test('Attack 4 keeps its fair mobile collision size while production art renders larger', () => {
+  const result = runIsolatedAttack('orbital-pylon-barrage');
+  assert.deepEqual(
+    [...(result.visualSizes.get('boss-singularity-bolt') ?? [])],
+    ['20x20']
+  );
+  assert.ok(artwork.projectileAnimations['boss-singularity-bolt'].minimumVisualHeight >= 42);
+});
+
+test('lingering pulse sprites cannot starve the ordinary shard and bolt budget', () => {
+  const engine = createEngine('singularity-projectile-budget-buckets');
+  const boss = engine.bossRef;
+  assert.ok(boss);
+  const origin = { x: boss.x + boss.width / 2, y: boss.y + boss.height / 2 };
+  for (let index = 0; index < 30; index += 1) {
+    assert.ok(engine.spawnSingularityProjectile(
+      boss,
+      origin,
+      index * 0.1,
+      1,
+      18,
+      'boss-singularity-pulse',
+      index
+    ));
+  }
+  assert.ok(engine.spawnSingularityProjectile(
+    boss,
+    origin,
+    0,
+    1,
+    20,
+    'boss-singularity-bolt',
+    0
+  ));
 });
 
 test('clear-boss-hazards removes Singularity-owned hazards and resets telemetry', () => {

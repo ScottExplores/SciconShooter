@@ -44,6 +44,9 @@ const registryModule = await vite.ssrLoadModule(
 const projectileModule = await vite.ssrLoadModule(
   '/services/gameplay/bosses/BossProjectilePresentationRuntime.ts'
 );
+const sandboxModel = await vite.ssrLoadModule(
+  '/director/src/tools/bosses/bossSandboxModel.ts'
+);
 
 const packageDefinition = artworkModule.SINGULARITY_COMMANDER_ARTWORK_PACKAGE;
 const manifest = artworkModule.SINGULARITY_COMMANDER_RIG_MANIFEST;
@@ -111,6 +114,20 @@ test('Singularity Commander registers one connected modular hierarchy and every 
   );
   assert.equal(registration.atlases.length, 5);
   assert.equal(Object.keys(registration.frameById).length, 56);
+  assert.deepEqual(plain(registration.frameById['rig.core-neutral']), {
+    x: 278,
+    y: 62,
+    width: 100,
+    height: 102
+  });
+  assert.equal(registration.partById.core.frameId, 'rig.core-neutral');
+  assert.equal(registration.partById['claw.port'].transform.scaleX, 0.55);
+  assert.equal(registration.partById['claw.starboard'].transform.scaleX, 0.55);
+  assert.ok(
+    Math.abs(registration.partById['pylon.port.mount'].transform.x)
+      < Math.abs(registration.partById['claw.port.mount'].transform.x),
+    'rear pylons must remain visible inside the smaller foreground claws'
+  );
 
   const resolved = hierarchyModule.resolveModularBossRigHierarchy(
     registration,
@@ -142,7 +159,7 @@ test('pose sampling is deterministic and gives entrance, idle, phases, damage, a
   assert.notEqual(entrance['claw.port.mount'].xOffset, idle['claw.port.mount'].xOffset);
 
   const critical = samplePose({ ...basePose, healthRatio: 0.22, phaseIndex: 3, damageStage: 4 });
-  assert.equal(critical.core.frameId, 'core.damage.unstable');
+  assert.equal(critical.core.frameId, 'rig.core-neutral');
   assert.equal(critical['effect.damage.sparks'].visible, true);
   assert.equal(critical['effect.damage.wisps'].visible, true);
   assert.equal(critical['effect.damage.debris'].visible, true);
@@ -152,13 +169,20 @@ test('pose sampling is deterministic and gives entrance, idle, phases, damage, a
     action: { primitiveId: 'singularity-gravity-well-genesis', stage: 'telegraph', progress: 0.8, sequence: 0 }
   });
   assert.equal(well['effect.gravity-seed'].visible, true);
-  assert.equal(well.core.frameId, 'core.charge.full');
+  assert.equal(well.core.frameId, 'rig.core-neutral');
+
+  const firingWell = samplePose({
+    ...basePose,
+    action: { primitiveId: 'singularity-gravity-well-genesis', stage: 'fire', progress: 0.4, sequence: 0 }
+  });
+  assert.equal(firingWell['effect.gravity-seed'].visible, true);
+  assert.equal(firingWell['effect.gravity-seed'].frameId, 'well.grow');
 
   const beam = samplePose({
     ...basePose,
     action: { primitiveId: 'singularity-event-horizon-gaze', stage: 'fire', progress: 0.4, sequence: 1 }
   });
-  assert.equal(beam.core.frameId, 'core.beam.fire');
+  assert.equal(beam.core.frameId, 'rig.core-neutral');
   assert.equal(beam['effect.beam'].visible, true);
 
   const pincer = samplePose({
@@ -169,6 +193,15 @@ test('pose sampling is deterministic and gives entrance, idle, phases, damage, a
   assert.equal(pincer['effect.claw.port'].visible, true);
   assert.equal(pincer['effect.claw.starboard'].visible, true);
   assert.ok(pincer['claw.port.mount'].xOffset > idle['claw.port.mount'].xOffset);
+
+  const recoveringPincer = samplePose({
+    ...basePose,
+    phaseIndex: 2,
+    action: { primitiveId: 'singularity-tidal-claw-pincer', stage: 'recovery', progress: 0.35, sequence: 2 }
+  });
+  assert.equal(recoveringPincer['effect.claw.port'].visible, true);
+  assert.equal(recoveringPincer['effect.claw.port'].frameId, 'claw.impact');
+  assert.equal(recoveringPincer['effect.claw.starboard'].frameId, 'claw.impact');
 
   const pylon = samplePose({
     ...basePose,
@@ -183,7 +216,7 @@ test('pose sampling is deterministic and gives entrance, idle, phases, damage, a
     phaseIndex: 3,
     action: { primitiveId: 'singularity-gravity-collapse', stage: 'fire', progress: 0.72, sequence: 4 }
   });
-  assert.equal(collapse.core.frameId, 'core.damage.unstable');
+  assert.equal(collapse.core.frameId, 'rig.core-neutral');
   assert.equal(collapse['effect.phase-distortion'].visible, true);
 });
 
@@ -241,6 +274,8 @@ test('all eight Singularity semantic projectile roles resolve validated atlas an
       assert.ok(registration.atlasByFrameId[frameId], `${frameId} must resolve an owning atlas`);
     }
   }
+  assert.ok(animations['boss-singularity-bolt'].minimumVisualHeight >= 42);
+  assert.equal(animations['boss-singularity-bolt'].entityHeightScale, 2);
 });
 
 test('M35 resolves the production-owned Singularity package through the canonical registry', () => {
@@ -263,4 +298,54 @@ test('M35 resolves the production-owned Singularity package through the canonica
     Object.keys(packageDefinition.artwork.projectileAnimations)
   );
   assert.ok(registryModule.CAMPAIGN_BOSS_ARTWORK_PACKAGE_IDS.includes('singularity-crab'));
+});
+
+test('M35 Campaign and its Boss Sandbox choice use one identical boss definition and artwork package', () => {
+  const level = campaign.levels.find((candidate) => candidate.order === 35);
+  assert.ok(level);
+  const choice = sandboxModel.buildBossSandboxGroups(campaign)
+    .flatMap((group) => group.choices)
+    .find((candidate) => candidate.source === 'campaign' && candidate.missionOrder === 35);
+  assert.ok(choice);
+  const preview = sandboxModel.buildBossSandboxPreview(campaign, choice);
+  const campaignEvent = level.waves
+    .flatMap((candidate) => candidate.events)
+    .find((candidate) => candidate.id === choice.eventId);
+  const previewEvent = preview.previewWave.events
+    .find((candidate) => candidate.id === choice.eventId);
+  assert.ok(campaignEvent);
+  assert.ok(previewEvent);
+  assert.deepEqual(plain({
+    bossId: previewEvent.bossId,
+    health: previewEvent.health,
+    phases: previewEvent.phases,
+    weapons: previewEvent.weapons,
+    timeline: previewEvent.timeline
+  }), plain({
+    bossId: campaignEvent.bossId,
+    health: campaignEvent.health,
+    phases: campaignEvent.phases,
+    weapons: campaignEvent.weapons,
+    timeline: campaignEvent.timeline
+  }));
+
+  const campaignArtwork = registryModule.resolveCampaignBossArtwork(
+    campaign,
+    level.id,
+    choice.waveId
+  );
+  const sandboxArtwork = registryModule.resolveCampaignBossArtwork(
+    preview.campaign,
+    preview.levelId,
+    preview.waveId
+  );
+  assert.ok(campaignArtwork);
+  assert.ok(sandboxArtwork);
+  assert.equal(sandboxArtwork.url, campaignArtwork.url);
+  assert.equal(sandboxArtwork.contentHash, campaignArtwork.contentHash);
+  assert.equal(sandboxArtwork.modularRig.manifest, campaignArtwork.modularRig.manifest);
+  assert.deepEqual(
+    Object.keys(sandboxArtwork.projectileAnimations),
+    Object.keys(campaignArtwork.projectileAnimations)
+  );
 });

@@ -38,7 +38,8 @@ const PHASES = [
     availableAttackIds: [
       'gravity-well-genesis',
       'event-horizon-gaze',
-      'orbital-pylon-barrage'
+      'orbital-pylon-barrage',
+      'singularity-pulse'
     ]
   },
   {
@@ -170,19 +171,21 @@ const ATTACKS = [
     label: 'Singularity Pulse',
     role: 'core',
     skillTest: 'gap-tracking',
-    recognitionCue: 'The core expands into a bright gravity ring with two opposing dark notches.',
-    solution: 'Enter either warned notch and rotate with its opening while the pulse expands.',
+    recognitionCue: 'The core expands into repeated gravity rings whose two opposing dark notches shift between bursts.',
+    solution: 'Enter a warned notch, then zigzag with each offset opening instead of holding one stationary lane.',
     safeRouteRule: 'rotating-gap',
     sourceSocketRoles: ['core'],
     primitiveId: 'singularity-pulse',
     telegraphStyle: 'ring',
-    phaseStartSeconds: [null, 32, 28],
-    offsets: [0, 2.4],
+    phaseStartSeconds: [35, 32, 28],
+    offsets: [0, 1.5],
+    offsetsByPhase: [[0, 1.5], [0, 3.75], [0, 6]],
     leadSeconds: 0.9,
     actionDurationSeconds: 0.45,
     recoverySeconds: 1.1,
+    recoverySecondsByPhase: [1.1, 1.1, 0.6],
     parameters: (phaseIndex, beatIndex) => ({
-      projectileCount: phaseIndex === 1 ? 20 : 24,
+      projectileCount: 14,
       sequence: phaseIndex * 2 + beatIndex,
       motionCue: 'singularity-pulse',
       rotationDirection: beatIndex % 2 === 0 ? 'clockwise' : 'counterclockwise'
@@ -199,7 +202,7 @@ const ATTACKS = [
     sourceSocketRoles: ['core', 'port', 'starboard'],
     primitiveId: 'singularity-gravity-collapse',
     telegraphStyle: 'ring',
-    phaseStartSeconds: [null, null, 35],
+    phaseStartSeconds: [null, null, 36],
     offsets: [0, 1.9, 3.8, 5.7],
     leadSeconds: 1.1,
     actionDurationSeconds: 0.55,
@@ -214,7 +217,7 @@ const ATTACKS = [
 ];
 
 const createSingularityTimelineBlueprint = () => ({
-  durationSeconds: 44,
+  durationSeconds: 45,
   loop: true,
   attackAvailability: 'phase-subset',
   attackOrder: ATTACKS.map((attack) => attack.id),
@@ -235,9 +238,11 @@ const createSingularityTimelineBlueprint = () => ({
         safeRouteRule: attack.safeRouteRule,
         sourceSocketRoles: attack.sourceSocketRoles,
         startSeconds: attack.phaseStartSeconds[phaseIndex],
-        recoverySeconds: attack.recoverySeconds,
+        recoverySeconds: attack.recoverySecondsByPhase?.[phaseIndex]
+          ?? attack.recoverySeconds,
         color: phase.color,
-        beats: attack.offsets.map((offsetSeconds, beatIndex) => ({
+        beats: (attack.offsetsByPhase?.[phaseIndex] ?? attack.offsets)
+          .map((offsetSeconds, beatIndex) => ({
           id: `beat-${beatIndex + 1}`,
           label: `${attack.label} beat ${beatIndex + 1}`,
           primitiveId: attack.primitiveId,
@@ -246,7 +251,7 @@ const createSingularityTimelineBlueprint = () => ({
           actionDurationSeconds: attack.actionDurationSeconds,
           telegraphStyle: attack.telegraphStyle,
           parameters: attack.parameters(phaseIndex, beatIndex)
-        }))
+          }))
       }))
   }))
 });
@@ -283,7 +288,7 @@ test('Mission 35 owns the exact three-phase Singularity Reach Commander campaign
   );
 });
 
-test('Mission 35 compiles the stable six-attack roster with exact 3/5/6 phase availability', () => {
+test('Mission 35 compiles the stable six-attack roster with exact 4/5/6 phase availability', () => {
   const expectedTimeline = compileBossAttackTimeline(createSingularityTimelineBlueprint());
   assert.deepEqual(
     mission35Boss.timeline,
@@ -304,7 +309,7 @@ test('Mission 35 compiles the stable six-attack roster with exact 3/5/6 phase av
   assert.deepEqual(
     PHASES.map((phase) => mission35Boss.timeline.attacks
       .filter((attack) => attack.variants.some((variant) => variant.phaseId === phase.id)).length),
-    [3, 5, 6]
+    [4, 5, 6]
   );
   assert.equal(mission35Boss.timeline.attacks.filter((attack) => attack.role === 'signature').length, 1);
   assert.equal(

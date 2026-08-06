@@ -510,6 +510,7 @@ test('all boss choices expose numbered controls, grouping authored sentences and
     );
     for (const attack of attacks) {
       assert.ok(phaseIds.has(attack.phaseId), `${choice.id}/${attack.id} needs a valid phase`);
+      assert.ok(attack.attackNumber >= 1, `${choice.id}/${attack.id} needs a stable attack number`);
       assert.ok(attack.sourceLabel.trim().length > 0, `${choice.id}/${attack.id} needs diagnostics`);
     }
 
@@ -525,6 +526,13 @@ test('all boss choices expose numbered controls, grouping authored sentences and
               phaseAttacks.map((attack) => attack.id),
               expectedAttackIds,
               `${choice.id}/${phase.id} must expose its authored phase attack subset`
+            );
+            assert.deepEqual(
+              phaseAttacks.map((attack) => attack.attackNumber),
+              phaseAttacks.map((attack) => (
+                event.timeline.attacks.findIndex((candidate) => candidate.id === attack.id) + 1
+              )),
+              `${choice.id}/${phase.id} must preserve stable global attack numbers`
             );
             assert.ok(
               phaseAttacks.every((attack) => attack.phaseId === phase.id),

@@ -147,6 +147,7 @@ import {
   resolveSingularityPhase,
   resolveSingularityPincerPlan,
   resolveSingularityPulsePlan,
+  resolveSingularityStageDurations,
   sampleSingularityAnchorMovement,
   sampleSingularityBeam,
   sampleSingularityDefeat,
@@ -642,7 +643,7 @@ type BossSingularityRuntimeState = {
   pincerTargetY: number;
   lastPylonShotIndex: number;
   lastWellEmissionIndexes: number[];
-  pulseSpawned: boolean;
+  lastPulseBurstIndex: number;
   collapseBurstIndexes: number[];
   wells?: readonly SingularityWellPlan[];
   beamPlan?: SingularityBeamPlan;
@@ -15033,7 +15034,7 @@ export class GameEngine {
       pincerTargetY: clamp(playerCenter.y, this.height * 0.45, this.height * 0.76),
       lastPylonShotIndex: -1,
       lastWellEmissionIndexes: [],
-      pulseSpawned: false,
+      lastPulseBurstIndex: -1,
       collapseBurstIndexes: []
     };
     if (actionId === 'gravity-well-genesis') {
@@ -15043,7 +15044,13 @@ export class GameEngine {
         executionIndex: sequence,
         arenaWidth: this.width,
         arenaHeight: this.height,
-        playerCenter
+        playerCenter,
+        bossBounds: {
+          x: boss.x,
+          y: boss.y,
+          width: boss.width,
+          height: boss.height
+        }
       });
     } else if (actionId === 'event-horizon-gaze') {
       const resolved = resolveSingularityBeamPlan({
@@ -15093,7 +15100,13 @@ export class GameEngine {
         executionIndex: sequence,
         arenaWidth: this.width,
         arenaHeight: this.height,
-        playerCenter
+        playerCenter,
+        bossBounds: {
+          x: boss.x,
+          y: boss.y,
+          width: boss.width,
+          height: boss.height
+        }
       });
     }
     return state;
@@ -15112,7 +15125,7 @@ export class GameEngine {
       state
       && state.attackId === context.attackId
       && state.actionClipId !== linkedAction.id
-      && (actionId === 'event-horizon-gaze' || actionId === 'singularity-pulse')
+      && actionId === 'event-horizon-gaze'
     );
     if (
       !state
@@ -15168,23 +15181,48 @@ export class GameEngine {
       state.fireStartFrame = boss.attackTimer;
       state.actionClipId = cue.clip.id;
       state.executionIndex = cue.executionIndex;
-      state.actionEndFrame = Math.max(state.actionEndFrame, context.actionEndFrame);
       boss.isCharging = false;
       this.playSound('boss_shoot', actionId === 'gravity-collapse' ? 1.12 : 0.82, {
         pitchJitter: 0.025,
         pitchOffset: actionId === 'event-horizon-gaze' ? -0.12 : -0.04
       });
     }
+    const authoredRuntimeEndFrame = actionId === 'singularity-pulse'
+      ? state.fireStartFrame
+        + resolveSingularityStageDurations(actionId, state.phaseIndex).fireFrames
+      : context.actionEndFrame;
+    state.actionEndFrame = Math.max(
+      state.actionEndFrame,
+      context.actionEndFrame,
+      authoredRuntimeEndFrame
+    );
+    if (
+      actionId === 'singularity-pulse'
+      && boss.bossActionPresentation?.primitiveId === 'singularity-pulse'
+    ) {
+      // Attack 5 is one continuous multi-burst sentence. Keep the Sandbox
+      // highlight and production rig pose alive through its final scheduled
+      // ring, including when the second authored beat refreshes presentation.
+      boss.bossActionPresentation.startFrame = state.fireStartFrame;
+      boss.bossActionPresentation.endFrame = Math.max(
+        boss.bossActionPresentation.endFrame,
+        authoredRuntimeEndFrame
+      );
+    }
     return true;
   }
 
-  private getActiveSingularityProjectileCount(boss: Entity) {
+  private getActiveSingularityProjectileCount(
+    boss: Entity,
+    bucket: 'ordinary' | 'pulse'
+  ) {
     return this.entities.reduce((count, entity) => count + Number(
       !entity.markedForDeletion
       && entity.bossOwnerId === boss.id
       && entity.type === EntityType.PROJECTILE
       && !entity.isTelegraph
       && !entity.singularityArtifactKind
+      && (entity.projectileVisualKind === 'boss-singularity-pulse') === (bucket === 'pulse')
     ), 0);
   }
 
@@ -15200,9 +15238,13 @@ export class GameEngine {
       | 'boss-singularity-pulse',
     variant: number
   ) {
+    const pulseProjectile = visualKind === 'boss-singularity-pulse';
+    const projectileLimit = pulseProjectile
+      ? SINGULARITY_RUNTIME_LIMITS.maximumPulseProjectiles
+      : SINGULARITY_RUNTIME_LIMITS.maximumOwnedProjectiles;
     if (
-      this.getActiveSingularityProjectileCount(boss)
-      >= SINGULARITY_RUNTIME_LIMITS.maximumOwnedProjectiles
+      this.getActiveSingularityProjectileCount(boss, pulseProjectile ? 'pulse' : 'ordinary')
+      >= projectileLimit
     ) {
       return null;
     }
@@ -15615,11 +15657,20 @@ export class GameEngine {
   private updateSingularityPulse(boss: Entity, state: BossSingularityRuntimeState) {
     const plan = state.pulsePlan;
     if (!plan || state.fireStartFrame < 0) return;
-    if (!state.pulseSpawned) {
+    const elapsedFrames = Math.max(0, boss.attackTimer - state.fireStartFrame);
+    const dueBurstIndex = Math.min(
+      plan.burstCount - 1,
+      Math.floor(elapsedFrames / plan.burstIntervalFrames)
+    );
+    while (state.lastPulseBurstIndex < dueBurstIndex) {
+      const burstIndex = state.lastPulseBurstIndex + 1;
       const core = this.getSingularityCoreOrigin(boss);
-      for (let index = 0; index < plan.projectileCount; index += 1) {
-        const angle = Math.PI * 2 * index / plan.projectileCount;
-        const insideGap = plan.gapAnglesRadians.some((gapAngle) => {
+      const gapAngles = plan.gapAnglesByBurst[burstIndex];
+      for (let index = 0; index < plan.projectileCountPerBurst; index += 1) {
+        // Rotate the complete sprite ring with its safe notches so every burst
+        // visibly asks for the same bounded lateral correction as the route.
+        const angle = gapAngles[0] + Math.PI * 2 * index / plan.projectileCountPerBurst;
+        const insideGap = gapAngles.some((gapAngle) => {
           const delta = Math.abs(Math.atan2(
             Math.sin(angle - gapAngle),
             Math.cos(angle - gapAngle)
@@ -15634,14 +15685,17 @@ export class GameEngine {
           3.1 + state.phaseIndex * 0.28,
           this.mobileProfile ? 18 : 21,
           'boss-singularity-pulse',
-          index
+          burstIndex * 100 + index
         );
       }
-      state.pulseSpawned = true;
+      state.lastPulseBurstIndex = burstIndex;
       this.spawnRingEffect(core.x, core.y, '#ef4444');
-      this.addShake(this.mobileProfile ? 1.25 : 1.8);
+      this.addShake(this.mobileProfile ? 0.85 : 1.15);
+      this.playSound('boss_shoot', 0.5, {
+        pitchJitter: 0.02,
+        pitchOffset: -0.12 + burstIndex * 0.015
+      });
     }
-    const elapsedFrames = Math.max(0, boss.attackTimer - state.fireStartFrame);
     if (elapsedFrames < plan.expansionFrames) {
       this.applySingularityGravity(
         this.getSingularityCoreOrigin(boss),

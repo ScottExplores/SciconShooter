@@ -30,7 +30,12 @@ test('Singularity exposes six stable identities across its phase-gated puzzle vo
   ]);
   assert.deepEqual(
     runtime.getSingularityAvailableActions('gravitational-calibration'),
-    ['gravity-well-genesis', 'event-horizon-gaze', 'orbital-pylon-barrage']
+    [
+      'gravity-well-genesis',
+      'event-horizon-gaze',
+      'orbital-pylon-barrage',
+      'singularity-pulse'
+    ]
   );
   assert.equal(
     runtime.getSingularityAvailableActions('spatial-compression').includes('gravity-collapse'),
@@ -109,19 +114,24 @@ test('authored hover remains bounded and never mirrors the player', () => {
   assert.ok(samples.every((sample) => sample.instabilityEnergy >= 0.1));
 });
 
-test('gravity wells use a visible lifecycle and stay out of the phone spawn-protection zone', () => {
+test('gravity wells use a visible lifecycle and clear both the boss and phone spawn-protection zone', () => {
   const playerCenter = { x: 195, y: 760 };
+  const bossBounds = { x: 70, y: 66, width: 250, height: 235 };
   const plans = runtime.buildSingularityGravityWellPlan({
     seedKey: 'singularity-wells-proof',
     phaseIndex: 3,
     executionIndex: 2,
     arenaWidth: 390,
     arenaHeight: 844,
-    playerCenter
+    playerCenter,
+    bossBounds
   });
   assert.equal(plans.length, 3);
   assert.ok(plans.every((well) => well.y < 844 * 0.72));
   assert.ok(plans.every((well) => Math.hypot(well.x - playerCenter.x, well.y - playerCenter.y) >= 72));
+  assert.ok(plans.every((well) => (
+    well.y - well.radiusPixels * 1.35 >= bossBounds.y + bossBounds.height + 12
+  )));
 
   const plan = plans[0];
   const seed = runtime.sampleSingularityWellLifecycle(plan, plan.seedDelayFrames);
@@ -142,6 +152,41 @@ test('gravity wells use a visible lifecycle and stay out of the phone spawn-prot
   assert.equal(active.stage, 'active');
   assert.equal(active.damageActive, true);
   assert.equal(expired.shouldCleanup, true);
+});
+
+test('every seeded Attack 1 and Attack 6 layout keeps its full visual radius below the boss', () => {
+  const bossBounds = { x: 70, y: 66, width: 250, height: 235 };
+  for (const phaseIndex of [1, 2, 3]) {
+    for (let executionIndex = 0; executionIndex < 24; executionIndex += 1) {
+      const wells = runtime.buildSingularityGravityWellPlan({
+        seedKey: 'singularity-all-well-branches',
+        phaseIndex,
+        executionIndex,
+        arenaWidth: 390,
+        arenaHeight: 844,
+        playerCenter: { x: 195, y: 760 },
+        bossBounds
+      });
+      for (const well of wells) {
+        const visualRadius = well.radiusPixels * 1.35;
+        assert.ok(well.y - visualRadius >= bossBounds.y + bossBounds.height + 12);
+        assert.ok(well.y + visualRadius <= 844 * 0.72);
+      }
+    }
+  }
+  for (let executionIndex = 0; executionIndex < 24; executionIndex += 1) {
+    const collapse = runtime.buildSingularityCollapsePlan({
+      seedKey: 'singularity-all-collapse-branches',
+      executionIndex,
+      arenaWidth: 390,
+      arenaHeight: 844,
+      playerCenter: { x: 195, y: 760 },
+      bossBounds
+    });
+    assert.ok(collapse.wells.every((well) => (
+      well.y - well.radiusPixels * 1.35 >= bossBounds.y + bossBounds.height + 12
+    )));
+  }
 });
 
 test('Event Horizon Gaze tracks, locks for at least 24 frames, and only then damages', () => {
@@ -215,24 +260,78 @@ test('pylon shots remain socket-owned, sequential, and under the projectile budg
   }
 });
 
-test('pulse exposes two deterministic gaps and uses a capped gravity influence', () => {
-  const first = runtime.resolveSingularityPulsePlan({
-    phaseIndex: 3,
-    seedKey: 'singularity-pulse-proof',
-    executionIndex: 8,
-    arenaWidth: 390
-  });
-  const repeated = runtime.resolveSingularityPulsePlan({
-    phaseIndex: 3,
-    seedKey: 'singularity-pulse-proof',
-    executionIndex: 8,
-    arenaWidth: 390
-  });
-  assert.deepEqual(first, repeated);
-  assert.equal(first.gapAnglesRadians.length, 2);
-  assert.ok(first.minimumGapPixels >= 56);
-  assert.ok(first.projectileCount <= 24);
-  assert.ok(first.pullStrength <= 0.11);
+test('pulse deterministically emits exact 3/6/9 zigzag bursts with two readable gaps', () => {
+  for (const [phaseIndex, expectedBurstCount] of [[1, 3], [2, 6], [3, 9]]) {
+    const request = {
+      phaseIndex,
+      seedKey: 'singularity-pulse-proof',
+      executionIndex: 8,
+      arenaWidth: 390
+    };
+    const first = runtime.resolveSingularityPulsePlan(request);
+    const repeated = runtime.resolveSingularityPulsePlan(request);
+    assert.deepEqual(first, repeated);
+    assert.equal(first.burstCount, expectedBurstCount);
+    assert.equal(first.gapAnglesByBurst.length, expectedBurstCount);
+    assert.ok(first.gapAnglesByBurst.every((gaps) => gaps.length === 2));
+    assert.ok(first.minimumGapPixels >= 56);
+    assert.ok(first.projectileCountPerBurst <= 14);
+    assert.ok(first.pullStrength <= 0.11);
+    const angularDistance = (left, right) => Math.abs(Math.atan2(
+      Math.sin(left - right),
+      Math.cos(left - right)
+    ));
+    const maximumRouteRadiusPixels = 640;
+    const basePlayerTravelPixels = 2.5 * first.burstIntervalFrames;
+    let reachableAngles = [...first.gapAnglesByBurst[0]];
+    for (const gaps of first.gapAnglesByBurst.slice(1)) {
+      assert.ok(
+        gaps.some((angle) => reachableAngles.some((previous) => (
+          angularDistance(angle, previous) * maximumRouteRadiusPixels
+          <= basePlayerTravelPixels
+        ))),
+        'every pulse correction must stay reachable at base ship speed'
+      );
+      reachableAngles = gaps.filter((angle) => reachableAngles.some((previous) => (
+        angularDistance(angle, previous) * maximumRouteRadiusPixels
+        <= basePlayerTravelPixels
+      )));
+      assert.ok(reachableAngles.length > 0);
+    }
+    const consecutiveOffsets = first.gapAnglesByBurst.slice(1).map((gaps, index) => (
+      Math.atan2(
+        Math.sin(gaps[0] - first.gapAnglesByBurst[index][0]),
+        Math.cos(gaps[0] - first.gapAnglesByBurst[index][0])
+      )
+    ));
+    assert.ok(consecutiveOffsets.every((offset) => Math.abs(offset) >= 0.02));
+    assert.ok(
+      consecutiveOffsets.some((offset, index) => index > 0 && Math.sign(offset) !== Math.sign(consecutiveOffsets[index - 1])),
+      'the safe opening must make a bounded zigzag rather than remain stationary'
+    );
+    const stationarySafeAngles = Array.from({ length: 720 }, (_, index) => (
+      index * Math.PI * 2 / 720
+    )).filter((angle) => first.gapAnglesByBurst.every((gaps) => gaps.some((gapAngle) => {
+      const delta = Math.abs(Math.atan2(
+        Math.sin(angle - gapAngle),
+        Math.cos(angle - gapAngle)
+      ));
+      return delta < first.gapHalfWidthRadians;
+    })));
+    if (phaseIndex === 3) {
+      assert.equal(
+        stationarySafeAngles.length,
+        0,
+        'the full final-phase sentence must eventually leave every fixed angular lane'
+      );
+    }
+    const stageDurations = runtime.resolveSingularityStageDurations('singularity-pulse', phaseIndex);
+    assert.ok(
+      stageDurations.fireFrames
+      >= (first.burstCount - 1) * first.burstIntervalFrames + 1,
+      'the authored fire stage must include the final scheduled pulse burst'
+    );
+  }
 });
 
 test('Gravity Collapse activates three wells but never damages through two implosions at once', () => {
@@ -241,9 +340,11 @@ test('Gravity Collapse activates three wells but never damages through two implo
     executionIndex: 1,
     arenaWidth: 390,
     arenaHeight: 844,
-    playerCenter: { x: 195, y: 760 }
+    playerCenter: { x: 195, y: 760 },
+    bossBounds: { x: 70, y: 66, width: 250, height: 235 }
   });
   assert.equal(plan.wells.length, 3);
+  assert.ok(plan.wells.every((well) => well.y - well.radiusPixels * 1.35 >= 313));
   assert.ok(plan.recoveryFrames >= 90);
   for (let frame = 0; frame <= plan.totalFrames; frame += 1) {
     const damaging = plan.beats.filter((beat) => (

@@ -248,7 +248,7 @@ export const BOSS_TIMELINE_PRIMITIVES: Readonly<Record<
     'singularity-pulse',
     'Singularity Pulse',
     'attack',
-    'Emit one expanding gravity ring with two deterministic mobile-safe gaps and bounded pull.',
+    'Emit a bounded multi-burst gravity-ring sentence whose two mobile-safe gaps shift deterministically between bursts.',
     true,
     false,
     ['projectileCount', 'sequence', 'motionCue', 'rotationDirection']

@@ -1246,21 +1246,21 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
               </small>
             ) : null}
             <div>
-              {attacks.map((attack, index) => (
+              {attacks.map((attack) => (
                 <button
                   type="button"
                   key={attack.id}
-                  aria-label={`Attack ${index + 1}: ${attack.sourceLabel}`}
+                  aria-label={`Attack ${attack.attackNumber}: ${attack.sourceLabel}`}
                   aria-pressed={performingAttackId === attack.id}
                   className={performingAttackId === attack.id ? 'is-performing' : ''}
                   title={attack.sourceLabel}
                   onClick={() => triggerAttack(
                     attack.id,
                     attack.phaseId,
-                    index + 1
+                    attack.attackNumber
                   )}
                 >
-                  Attack {index + 1}
+                  Attack {attack.attackNumber}
                 </button>
               ))}
             </div>

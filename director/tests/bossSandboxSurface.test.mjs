@@ -337,10 +337,10 @@ test('local and remote Boss Sandbox attack buttons follow the live runtime attac
   assert.match(source, /getBossSandboxAttacks/);
   assert.match(source, /type: 'trigger-boss-attack'/);
   assert.match(source, /<nav className="boss-sandbox__attacks" aria-label="Boss attacks">/);
-  assert.match(source, /\{attacks\.map\(\(attack, index\) => \(/);
+  assert.match(source, /\{attacks\.map\(\(attack\) => \(/);
   assert.match(
     source,
-    /aria-label=\{`Attack \$\{index \+ 1\}: \$\{attack\.sourceLabel\}`\}/
+    /aria-label=\{`Attack \$\{attack\.attackNumber\}: \$\{attack\.sourceLabel\}`\}/
   );
   for (const previewSource of [source, remoteSource]) {
     assert.match(
@@ -355,7 +355,7 @@ test('local and remote Boss Sandbox attack buttons follow the live runtime attac
   }
   assert.match(
     source,
-    /triggerAttack\([\s\S]*attack\.id,[\s\S]*attack\.phaseId,[\s\S]*index \+ 1/
+    /triggerAttack\([\s\S]*attack\.id,[\s\S]*attack\.phaseId,[\s\S]*attack\.attackNumber/
   );
   const remoteTriggerStart = remoteSource.indexOf('  const triggerAttack = useCallback');
   const remoteTriggerEnd = remoteSource.indexOf(
@@ -374,7 +374,7 @@ test('local and remote Boss Sandbox attack buttons follow the live runtime attac
     remoteSource,
     /getBossSandboxAttacks\(preview, selectedPhaseId\)/
   );
-  assert.match(source, /Attack \{index \+ 1\}/);
+  assert.match(source, /Attack \{attack\.attackNumber\}/);
   assert.match(source, /const replaySelectedAttack = useCallback/);
   assert.match(source, /const toggleSelectedAttackLoop = useCallback/);
   assert.match(source, /Restarted selected attack from its first warning/);

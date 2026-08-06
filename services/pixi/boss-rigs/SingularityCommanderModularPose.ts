@@ -80,60 +80,6 @@ const sampleActionEnergy = (stage: string, progress: number) => {
   return 0;
 };
 
-const CORE_FRAME_CENTERS_X: Readonly<Record<string, number>> = Object.freeze({
-  'core.idle.dark': 73,
-  'core.idle.pulse': 65,
-  'core.charge.begin': 67,
-  'core.charge.full': 49.5,
-  'core.beam.fire': 73,
-  'core.pulse.fire': 64,
-  'core.damage.unstable': 67,
-  'core.shutdown': 49
-});
-
-const resolveCoreFrame = ({
-  primitiveId,
-  stage,
-  progress,
-  frame,
-  critical
-}: Readonly<{
-  primitiveId: string;
-  stage: string;
-  progress: number;
-  frame: number;
-  critical: boolean;
-}>) => {
-  if (primitiveId === SINGULARITY_PRIMITIVE_IDS['gravity-collapse']) {
-    return stage === 'recovery' || stage === 'complete'
-      ? 'core.shutdown'
-      : progress > 0.55 || stage === 'fire'
-        ? 'core.damage.unstable'
-        : 'core.charge.full';
-  }
-  if (primitiveId === SINGULARITY_PRIMITIVE_IDS['event-horizon-gaze']) {
-    if (stage === 'fire') return 'core.beam.fire';
-    if (stage === 'recovery' || stage === 'cooldown') return 'core.idle.dark';
-    return progress > 0.5 ? 'core.charge.full' : 'core.charge.begin';
-  }
-  if (primitiveId === SINGULARITY_PRIMITIVE_IDS['singularity-pulse']) {
-    return stage === 'fire'
-      ? 'core.pulse.fire'
-      : progress > 0.48
-        ? 'core.charge.full'
-        : 'core.charge.begin';
-  }
-  if (primitiveId === SINGULARITY_PRIMITIVE_IDS['gravity-well-genesis']) {
-    return stage === 'fire'
-      ? 'core.pulse.fire'
-      : progress > 0.5
-        ? 'core.charge.full'
-        : 'core.charge.begin';
-  }
-  if (critical) return 'core.damage.unstable';
-  return Math.floor(frame / 12) % 2 === 0 ? 'core.idle.dark' : 'core.idle.pulse';
-};
-
 /**
  * Verifies the fixed anatomy needed by the gravity runtime. This stays pure so
  * production and focused tests can prove that every damaging origin remains
@@ -224,8 +170,8 @@ export const sampleSingularityCommanderModularPose = (
   const pressure = 1 - healthRatio;
   const critical = phaseIndex >= 3 || healthRatio <= 0.35 || damageStage >= 4;
   const reducedScale = input.reducedMotion ? 0.28 : 1;
-  const hover = Math.sin(frame * 0.035) * 2.4 * reducedScale;
-  const drift = Math.sin(frame * 0.016 + 0.72) * 2 * reducedScale;
+  const hover = Math.sin(frame * 0.035) * 3.2 * reducedScale;
+  const drift = Math.sin(frame * 0.016 + 0.72) * 2.4 * reducedScale;
   const breathing = Math.sin(frame * 0.047 + 0.18) * reducedScale;
   const instability = critical
     ? Math.sin(frame * 0.129 + 0.7) * (1.4 + pressure * 1.8) * reducedScale
@@ -256,15 +202,13 @@ export const sampleSingularityCommanderModularPose = (
     : 0;
   const coreBloom = isWell || isBeam || isPulse || isCollapse ? actionEnergy : 0;
   const collapseStrain = isCollapse ? actionEnergy : 0;
-  const coreFrameId = resolveCoreFrame({
-    primitiveId,
-    stage,
-    progress,
-    frame,
-    critical
-  });
-  const coreCenterCorrection = 64 - (CORE_FRAME_CENTERS_X[coreFrameId] ?? 64);
-  const showGravitySeed = isWell && (stage === 'preparation' || stage === 'telegraph' || stage === 'warning');
+  const corePulse = 1 + Math.sin(frame * 0.08) * 0.035 * reducedScale;
+  const showGravitySeed = isWell && (
+    stage === 'preparation'
+    || stage === 'telegraph'
+    || stage === 'warning'
+    || stage === 'fire'
+  );
   const showBeam = isBeam && stage === 'fire';
   const showClawEffects = isPincer && actionEnergy > 0.08;
   const showPylonEffects = isPylon && actionEnergy > 0.08;
@@ -288,44 +232,48 @@ export const sampleSingularityCommanderModularPose = (
     }),
     'pylon.port.mount': freezeOverride({
       xOffset: -phaseSpread + entranceFold * 22 - collapseStrain * 11,
-      yOffset: breathing * 1.2 + entranceFold * 20 - pylonRecoil * 4,
-      rotationOffset: entranceFold * 0.35 - phaseSpread * 0.004 - pylonAim * 0.13 - collapseStrain * 0.08
+      yOffset: breathing * 2.4 + entranceFold * 20 - pylonRecoil * 4,
+      rotationOffset: breathing * 0.025 + entranceFold * 0.35 - phaseSpread * 0.004 - pylonAim * 0.13 - collapseStrain * 0.08
     }),
     'pylon.port': freezeOverride({}),
     'pylon.starboard.mount': freezeOverride({
       xOffset: phaseSpread - entranceFold * 22 + collapseStrain * 11,
-      yOffset: -breathing * 1.2 + entranceFold * 20 - pylonRecoil * 4,
-      rotationOffset: -entranceFold * 0.35 + phaseSpread * 0.004 + pylonAim * 0.13 + collapseStrain * 0.08
+      yOffset: -breathing * 2.4 + entranceFold * 20 - pylonRecoil * 4,
+      rotationOffset: -breathing * 0.025 - entranceFold * 0.35 + phaseSpread * 0.004 + pylonAim * 0.13 + collapseStrain * 0.08
     }),
     'pylon.starboard': freezeOverride({}),
     'claw.port.mount': freezeOverride({
       xOffset: -phaseSpread * 0.7 + entranceFold * 27 + pincerClose * 31 - collapseStrain * 14,
-      yOffset: -breathing * 1.5 - entranceFold * 15 + pincerClose * 13,
-      rotationOffset: entranceFold * 0.5 + pincerClose * 0.52 - collapseStrain * 0.12
+      yOffset: -breathing * 1.4 - entranceFold * 15 + pincerClose * 13,
+      rotationOffset: breathing * 0.018 + entranceFold * 0.5 + pincerClose * 0.52 - collapseStrain * 0.12
     }),
     'claw.port': freezeOverride({}),
     'claw.starboard.mount': freezeOverride({
       xOffset: phaseSpread * 0.7 - entranceFold * 27 - pincerClose * 31 + collapseStrain * 14,
-      yOffset: breathing * 1.5 - entranceFold * 15 + pincerClose * 13,
-      rotationOffset: -entranceFold * 0.5 - pincerClose * 0.52 + collapseStrain * 0.12
+      yOffset: breathing * 1.4 - entranceFold * 15 + pincerClose * 13,
+      rotationOffset: -breathing * 0.018 - entranceFold * 0.5 - pincerClose * 0.52 + collapseStrain * 0.12
     }),
     'claw.starboard': freezeOverride({}),
     body: freezeOverride({
       yOffset: -breathing * 0.8,
       rotationOffset: instability * 0.003,
-      scaleXMultiplier: 1 + coreBloom * 0.018,
-      scaleYMultiplier: 1 + coreBloom * 0.012
+      scaleXMultiplier: 1 + breathing * 0.006 + coreBloom * 0.018,
+      scaleYMultiplier: 1 - breathing * 0.006 + coreBloom * 0.012
     }),
     core: freezeOverride({
-      frameId: coreFrameId,
-      xOffset: coreCenterCorrection,
+      frameId: 'rig.core-neutral',
+      xOffset: 0,
       yOffset: breathing * 0.7,
-      rotationOffset: frame * (critical ? -0.008 : 0.005),
-      scaleXMultiplier: 1 + coreBloom * 0.11,
-      scaleYMultiplier: 1 + coreBloom * 0.11
+      rotationOffset: frame * (critical ? -0.007 : 0.004),
+      scaleXMultiplier: corePulse * (1 + coreBloom * 0.12),
+      scaleYMultiplier: corePulse * (1 + coreBloom * 0.12)
     }),
     'effect.gravity-seed': freezeOverride({
-      frameId: progress > 0.55 ? 'well.warning' : 'well.seed',
+      frameId: stage === 'fire'
+        ? 'well.grow'
+        : progress > 0.55
+          ? 'well.warning'
+          : 'well.seed',
       visible: showGravitySeed,
       alpha: showGravitySeed ? 0.72 + actionEnergy * 0.28 : 0,
       scaleXMultiplier: 0.9 + actionEnergy * 0.72,
@@ -340,7 +288,15 @@ export const sampleSingularityCommanderModularPose = (
       scaleYMultiplier: 1 + progress * 0.54
     }),
     'effect.claw.port': freezeOverride({
-      frameId: stage === 'fire' ? 'claw.slash' : 'claw.charge',
+      frameId: stage === 'fire'
+        ? progress > 0.78
+          ? 'claw.impact'
+          : progress > 0.42
+            ? 'claw.compression'
+            : 'claw.slash'
+        : stage === 'recovery' || stage === 'cooldown'
+          ? 'claw.impact'
+          : 'claw.charge',
       visible: showClawEffects,
       alpha: showClawEffects ? 0.84 + actionEnergy * 0.16 : 0,
       rotationOffset: -0.38,
@@ -348,7 +304,15 @@ export const sampleSingularityCommanderModularPose = (
       scaleYMultiplier: 1
     }),
     'effect.claw.starboard': freezeOverride({
-      frameId: stage === 'fire' ? 'claw.slash' : 'claw.charge',
+      frameId: stage === 'fire'
+        ? progress > 0.78
+          ? 'claw.impact'
+          : progress > 0.42
+            ? 'claw.compression'
+            : 'claw.slash'
+        : stage === 'recovery' || stage === 'cooldown'
+          ? 'claw.impact'
+          : 'claw.charge',
       visible: showClawEffects,
       alpha: showClawEffects ? 0.84 + actionEnergy * 0.16 : 0,
       rotationOffset: 0.38,
@@ -356,14 +320,22 @@ export const sampleSingularityCommanderModularPose = (
       scaleYMultiplier: 1
     }),
     'effect.pylon.port': freezeOverride({
-      frameId: stage === 'fire' ? 'pylon.muzzle' : 'pylon.charge',
+      frameId: stage === 'fire'
+        ? pylonRecoil > 0.5 ? 'pylon.recoil' : 'pylon.muzzle'
+        : stage === 'recovery' || stage === 'cooldown'
+          ? 'pylon.cooling'
+          : 'pylon.charge',
       visible: showPylonEffects,
       alpha: showPylonEffects ? 1 : 0,
       scaleXMultiplier: 1,
       scaleYMultiplier: 1
     }),
     'effect.pylon.starboard': freezeOverride({
-      frameId: stage === 'fire' ? 'pylon.muzzle' : 'pylon.charge',
+      frameId: stage === 'fire'
+        ? pylonRecoil > 0.5 ? 'pylon.recoil' : 'pylon.muzzle'
+        : stage === 'recovery' || stage === 'cooldown'
+          ? 'pylon.cooling'
+          : 'pylon.charge',
       visible: showPylonEffects,
       alpha: showPylonEffects ? 1 : 0,
       scaleXMultiplier: 1,

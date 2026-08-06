@@ -32247,7 +32247,7 @@
                 }
               ],
               "timeline": {
-                "durationSeconds": 44,
+                "durationSeconds": 45,
                 "loop": true,
                 "clips": [
                   {
@@ -32554,6 +32554,83 @@
                     "trigger": "time",
                     "startSeconds": 31.75,
                     "durationSeconds": 0.9,
+                    "phaseId": "gravitational-calibration",
+                    "parameters": {
+                      "color": "#f97316"
+                    }
+                  },
+                  {
+                    "id": "gravitational-calibration-singularity-pulse-beat-1-warning",
+                    "label": "Singularity Pulse beat 1 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 35,
+                    "durationSeconds": 0.9,
+                    "phaseId": "gravitational-calibration",
+                    "parameters": {
+                      "warningSeconds": 0.9,
+                      "telegraphStyle": "ring",
+                      "color": "#f97316"
+                    }
+                  },
+                  {
+                    "id": "gravitational-calibration-singularity-pulse-beat-1",
+                    "label": "Singularity Pulse beat 1",
+                    "track": "attack",
+                    "primitiveId": "singularity-pulse",
+                    "trigger": "time",
+                    "startSeconds": 35.9,
+                    "durationSeconds": 0.45,
+                    "phaseId": "gravitational-calibration",
+                    "telegraphClipId": "gravitational-calibration-singularity-pulse-beat-1-warning",
+                    "parameters": {
+                      "projectileCount": 14,
+                      "sequence": 0,
+                      "motionCue": "singularity-pulse",
+                      "rotationDirection": "clockwise"
+                    }
+                  },
+                  {
+                    "id": "gravitational-calibration-singularity-pulse-beat-2-warning",
+                    "label": "Singularity Pulse beat 2 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 36.5,
+                    "durationSeconds": 0.9,
+                    "phaseId": "gravitational-calibration",
+                    "parameters": {
+                      "warningSeconds": 0.9,
+                      "telegraphStyle": "ring",
+                      "color": "#f97316"
+                    }
+                  },
+                  {
+                    "id": "gravitational-calibration-singularity-pulse-beat-2",
+                    "label": "Singularity Pulse beat 2",
+                    "track": "attack",
+                    "primitiveId": "singularity-pulse",
+                    "trigger": "time",
+                    "startSeconds": 37.4,
+                    "durationSeconds": 0.45,
+                    "phaseId": "gravitational-calibration",
+                    "telegraphClipId": "gravitational-calibration-singularity-pulse-beat-2-warning",
+                    "parameters": {
+                      "projectileCount": 14,
+                      "sequence": 1,
+                      "motionCue": "singularity-pulse",
+                      "rotationDirection": "counterclockwise"
+                    }
+                  },
+                  {
+                    "id": "gravitational-calibration-singularity-pulse-recovery",
+                    "label": "Singularity Pulse recovery",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "time",
+                    "startSeconds": 37.85,
+                    "durationSeconds": 1.1,
                     "phaseId": "gravitational-calibration",
                     "parameters": {
                       "color": "#f97316"
@@ -32889,7 +32966,7 @@
                     "phaseId": "spatial-compression",
                     "telegraphClipId": "spatial-compression-singularity-pulse-beat-1-warning",
                     "parameters": {
-                      "projectileCount": 20,
+                      "projectileCount": 14,
                       "sequence": 2,
                       "motionCue": "singularity-pulse",
                       "rotationDirection": "clockwise"
@@ -32901,7 +32978,7 @@
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 34.4,
+                    "startSeconds": 35.75,
                     "durationSeconds": 0.9,
                     "phaseId": "spatial-compression",
                     "parameters": {
@@ -32916,12 +32993,12 @@
                     "track": "attack",
                     "primitiveId": "singularity-pulse",
                     "trigger": "time",
-                    "startSeconds": 35.3,
+                    "startSeconds": 36.65,
                     "durationSeconds": 0.45,
                     "phaseId": "spatial-compression",
                     "telegraphClipId": "spatial-compression-singularity-pulse-beat-2-warning",
                     "parameters": {
-                      "projectileCount": 20,
+                      "projectileCount": 14,
                       "sequence": 3,
                       "motionCue": "singularity-pulse",
                       "rotationDirection": "counterclockwise"
@@ -32933,7 +33010,7 @@
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 35.75,
+                    "startSeconds": 37.1,
                     "durationSeconds": 1.1,
                     "phaseId": "spatial-compression",
                     "parameters": {
@@ -33270,7 +33347,7 @@
                     "phaseId": "event-horizon-instability",
                     "telegraphClipId": "event-horizon-instability-singularity-pulse-beat-1-warning",
                     "parameters": {
-                      "projectileCount": 24,
+                      "projectileCount": 14,
                       "sequence": 4,
                       "motionCue": "singularity-pulse",
                       "rotationDirection": "clockwise"
@@ -33282,7 +33359,7 @@
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 30.4,
+                    "startSeconds": 34,
                     "durationSeconds": 0.9,
                     "phaseId": "event-horizon-instability",
                     "parameters": {
@@ -33297,12 +33374,12 @@
                     "track": "attack",
                     "primitiveId": "singularity-pulse",
                     "trigger": "time",
-                    "startSeconds": 31.299999999999997,
+                    "startSeconds": 34.9,
                     "durationSeconds": 0.45,
                     "phaseId": "event-horizon-instability",
                     "telegraphClipId": "event-horizon-instability-singularity-pulse-beat-2-warning",
                     "parameters": {
-                      "projectileCount": 24,
+                      "projectileCount": 14,
                       "sequence": 5,
                       "motionCue": "singularity-pulse",
                       "rotationDirection": "counterclockwise"
@@ -33314,8 +33391,8 @@
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 31.749999999999996,
-                    "durationSeconds": 1.1,
+                    "startSeconds": 35.35,
+                    "durationSeconds": 0.6,
                     "phaseId": "event-horizon-instability",
                     "parameters": {
                       "color": "#e11d48"
@@ -33327,7 +33404,7 @@
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 35,
+                    "startSeconds": 36,
                     "durationSeconds": 1.1,
                     "phaseId": "event-horizon-instability",
                     "parameters": {
@@ -33342,7 +33419,7 @@
                     "track": "attack",
                     "primitiveId": "singularity-gravity-collapse",
                     "trigger": "time",
-                    "startSeconds": 36.1,
+                    "startSeconds": 37.1,
                     "durationSeconds": 0.55,
                     "phaseId": "event-horizon-instability",
                     "telegraphClipId": "event-horizon-instability-gravity-collapse-beat-1-warning",
@@ -33359,7 +33436,7 @@
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 36.9,
+                    "startSeconds": 37.9,
                     "durationSeconds": 1.1,
                     "phaseId": "event-horizon-instability",
                     "parameters": {
@@ -33374,7 +33451,7 @@
                     "track": "attack",
                     "primitiveId": "singularity-gravity-collapse",
                     "trigger": "time",
-                    "startSeconds": 38,
+                    "startSeconds": 39,
                     "durationSeconds": 0.55,
                     "phaseId": "event-horizon-instability",
                     "telegraphClipId": "event-horizon-instability-gravity-collapse-beat-2-warning",
@@ -33391,7 +33468,7 @@
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 38.8,
+                    "startSeconds": 39.8,
                     "durationSeconds": 1.1,
                     "phaseId": "event-horizon-instability",
                     "parameters": {
@@ -33406,7 +33483,7 @@
                     "track": "attack",
                     "primitiveId": "singularity-gravity-collapse",
                     "trigger": "time",
-                    "startSeconds": 39.9,
+                    "startSeconds": 40.9,
                     "durationSeconds": 0.55,
                     "phaseId": "event-horizon-instability",
                     "telegraphClipId": "event-horizon-instability-gravity-collapse-beat-3-warning",
@@ -33423,7 +33500,7 @@
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 40.7,
+                    "startSeconds": 41.7,
                     "durationSeconds": 1.1,
                     "phaseId": "event-horizon-instability",
                     "parameters": {
@@ -33438,7 +33515,7 @@
                     "track": "attack",
                     "primitiveId": "singularity-gravity-collapse",
                     "trigger": "time",
-                    "startSeconds": 41.800000000000004,
+                    "startSeconds": 42.800000000000004,
                     "durationSeconds": 0.55,
                     "phaseId": "event-horizon-instability",
                     "telegraphClipId": "event-horizon-instability-gravity-collapse-beat-4-warning",
@@ -33455,7 +33532,7 @@
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 42.35,
+                    "startSeconds": 43.35,
                     "durationSeconds": 1.3,
                     "phaseId": "event-horizon-instability",
                     "parameters": {
@@ -33616,13 +33693,21 @@
                     "label": "Singularity Pulse",
                     "role": "core",
                     "skillTest": "gap-tracking",
-                    "recognitionCue": "The core expands into a bright gravity ring with two opposing dark notches.",
-                    "solution": "Enter either warned notch and rotate with its opening while the pulse expands.",
+                    "recognitionCue": "The core expands into repeated gravity rings whose two opposing dark notches shift between bursts.",
+                    "solution": "Enter a warned notch, then zigzag with each offset opening instead of holding one stationary lane.",
                     "safeRouteRule": "rotating-gap",
                     "sourceSocketRoles": [
                       "core"
                     ],
                     "variants": [
+                      {
+                        "phaseId": "gravitational-calibration",
+                        "beatClipIds": [
+                          "gravitational-calibration-singularity-pulse-beat-1",
+                          "gravitational-calibration-singularity-pulse-beat-2"
+                        ],
+                        "recoveryClipId": "gravitational-calibration-singularity-pulse-recovery"
+                      },
                       {
                         "phaseId": "spatial-compression",
                         "beatClipIds": [

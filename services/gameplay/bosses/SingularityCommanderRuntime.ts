@@ -75,7 +75,8 @@ export const SINGULARITY_PHASE_ACTIONS: Readonly<Record<
   'gravitational-calibration': Object.freeze([
     'gravity-well-genesis',
     'event-horizon-gaze',
-    'orbital-pylon-barrage'
+    'orbital-pylon-barrage',
+    'singularity-pulse'
   ] as const),
   'spatial-compression': Object.freeze([
     'gravity-well-genesis',
@@ -90,6 +91,7 @@ export const SINGULARITY_PHASE_ACTIONS: Readonly<Record<
 export const SINGULARITY_RUNTIME_LIMITS = Object.freeze({
   maximumActiveWells: 3,
   maximumOwnedProjectiles: 24,
+  maximumPulseProjectiles: 112,
   maximumActiveBeams: 2,
   minimumBeamLockFrames: 24,
   minimumWellPlayerDistancePixels: 72,
@@ -237,8 +239,10 @@ export interface SingularityPylonShot {
 }
 
 export interface SingularityPulsePlan {
-  readonly projectileCount: number;
-  readonly gapAnglesRadians: readonly [number, number];
+  readonly burstCount: number;
+  readonly burstIntervalFrames: number;
+  readonly projectileCountPerBurst: number;
+  readonly gapAnglesByBurst: readonly (readonly [number, number])[];
   readonly gapHalfWidthRadians: number;
   readonly minimumGapPixels: number;
   readonly expansionFrames: number;
@@ -378,9 +382,23 @@ const FIRE_FRAMES: Readonly<Record<SingularityActionId, number>> = Object.freeze
   'event-horizon-gaze': 108,
   'tidal-claw-pincer': 132,
   'orbital-pylon-barrage': 156,
-  'singularity-pulse': 126,
+  'singularity-pulse': 204,
   'gravity-collapse': 330
 });
+
+const SINGULARITY_PULSE_BURSTS_BY_PHASE = Object.freeze({
+  1: 3,
+  2: 6,
+  3: 9
+} satisfies Readonly<Record<SingularityPhaseIndex, number>>);
+const SINGULARITY_PULSE_BURST_INTERVAL_FRAMES = 45;
+const SINGULARITY_PULSE_TAIL_FRAMES = 18;
+
+const getSingularityPulseFireFrames = (phaseIndex: SingularityPhaseIndex) => (
+  (SINGULARITY_PULSE_BURSTS_BY_PHASE[phaseIndex] - 1)
+  * SINGULARITY_PULSE_BURST_INTERVAL_FRAMES
+  + SINGULARITY_PULSE_TAIL_FRAMES
+);
 
 export const resolveSingularityStageDurations = (
   actionId: SingularityActionId,
@@ -390,7 +408,9 @@ export const resolveSingularityStageDurations = (
   return Object.freeze({
     preparationFrames: actionId === 'gravity-collapse' ? 54 : 30,
     telegraphFrames: phase.warningFrames,
-    fireFrames: FIRE_FRAMES[actionId],
+    fireFrames: actionId === 'singularity-pulse'
+      ? getSingularityPulseFireFrames(phaseIndex)
+      : FIRE_FRAMES[actionId],
     recoveryFrames: actionId === 'gravity-collapse'
       ? Math.max(90, phase.recoveryFrames)
       : phase.recoveryFrames
@@ -492,11 +512,18 @@ export const sampleSingularityAnchorMovement = ({
 };
 
 const WELL_LAYOUTS = Object.freeze([
-  Object.freeze([[0.22, 0.34], [0.72, 0.52], [0.43, 0.27]]),
-  Object.freeze([[0.76, 0.32], [0.25, 0.54], [0.57, 0.42]]),
-  Object.freeze([[0.3, 0.28], [0.68, 0.29], [0.5, 0.56]]),
-  Object.freeze([[0.2, 0.5], [0.78, 0.5], [0.5, 0.3]])
+  Object.freeze([[0.22, 0.08], [0.72, 0.68], [0.43, 0.36]]),
+  Object.freeze([[0.76, 0.16], [0.25, 0.78], [0.57, 0.48]]),
+  Object.freeze([[0.3, 0.28], [0.68, 0.12], [0.5, 0.86]]),
+  Object.freeze([[0.2, 0.7], [0.78, 0.64], [0.5, 0.2]])
 ] as const);
+
+export interface SingularityBounds {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
 
 const distance = (left: SingularityPoint, right: SingularityPoint) => Math.hypot(
   left.x - right.x,
@@ -509,7 +536,8 @@ export const buildSingularityGravityWellPlan = ({
   executionIndex = 0,
   arenaWidth,
   arenaHeight,
-  playerCenter
+  playerCenter,
+  bossBounds
 }: {
   seedKey: string;
   phaseIndex: SingularityPhaseIndex;
@@ -517,6 +545,7 @@ export const buildSingularityGravityWellPlan = ({
   arenaWidth: number;
   arenaHeight: number;
   playerCenter?: SingularityPoint;
+  bossBounds?: SingularityBounds;
 }): readonly SingularityWellPlan[] => {
   const width = Math.max(160, finiteOr(arenaWidth, 390));
   const height = Math.max(320, finiteOr(arenaHeight, 844));
@@ -530,9 +559,19 @@ export const buildSingularityGravityWellPlan = ({
   const layout = WELL_LAYOUTS[branch];
   const protectedY = height * SINGULARITY_RUNTIME_LIMITS.playerProtectionTopRatio;
   const minimumDistance = SINGULARITY_RUNTIME_LIMITS.minimumWellPlayerDistancePixels;
+  const radiusPixels = phaseIndex === 1 ? 34 : phaseIndex === 2 ? 39 : 44;
+  const maximumVisualRadius = radiusPixels * 1.35;
+  const bossClearanceY = bossBounds
+    ? bossBounds.y + bossBounds.height + maximumVisualRadius + 12
+    : 132;
+  const minimumCenterY = Math.max(132, bossClearanceY);
+  const maximumCenterY = Math.max(
+    minimumCenterY,
+    protectedY - maximumVisualRadius
+  );
   const plans = layout.slice(0, count).map(([ratioX, ratioY], index) => {
     let x = clamp(width * ratioX, 36, width - 36);
-    const y = clamp(height * ratioY, 132, protectedY - 44);
+    const y = minimumCenterY + (maximumCenterY - minimumCenterY) * ratioY;
     if (playerCenter && distance({ x, y }, playerCenter) < minimumDistance) {
       const moveRight = x <= playerCenter.x;
       x = clamp(
@@ -554,7 +593,7 @@ export const buildSingularityGravityWellPlan = ({
       collapseWarningFrames: 30,
       implosionFrames: 24,
       projectileCount: phaseIndex === 1 ? 5 : phaseIndex === 2 ? 6 : 7,
-      radiusPixels: phaseIndex === 1 ? 34 : phaseIndex === 2 ? 39 : 44
+      radiusPixels
     });
   });
   return Object.freeze(plans);
@@ -862,12 +901,26 @@ export const resolveSingularityPulsePlan = ({
     Math.min(88, Math.max(180, arenaWidth) * 0.18)
   );
   const referenceRadius = Math.max(120, Math.max(180, arenaWidth) * 0.42);
+  const burstCount = SINGULARITY_PULSE_BURSTS_BY_PHASE[phaseIndex];
+  const direction = branch % 2 === 0 ? 1 : -1;
+  const driftPerBurst = phaseIndex === 1 ? 0.04 : phaseIndex === 2 ? 0.075 : 0.07;
+  const zigzagAmplitude = 0.05;
+  const gapAnglesByBurst = Array.from({ length: burstCount }, (_, burstIndex) => {
+    if (burstIndex === 0) {
+      return Object.freeze([primary, primary + Math.PI] as const);
+    }
+    const zigzag = burstIndex % 2 === 1 ? zigzagAmplitude : -zigzagAmplitude;
+    const angle = primary + direction * (burstIndex * driftPerBurst + zigzag);
+    return Object.freeze([angle, angle + Math.PI] as const);
+  });
   return Object.freeze({
-    projectileCount: phaseIndex === 2 ? 20 : 24,
-    gapAnglesRadians: Object.freeze([primary, primary + Math.PI] as const),
+    burstCount,
+    burstIntervalFrames: SINGULARITY_PULSE_BURST_INTERVAL_FRAMES,
+    projectileCountPerBurst: 14,
+    gapAnglesByBurst: Object.freeze(gapAnglesByBurst),
     gapHalfWidthRadians: clamp(minimumGapPixels / referenceRadius / 2, 0.24, 0.42),
     minimumGapPixels,
-    expansionFrames: phaseIndex === 3 ? 96 : 114,
+    expansionFrames: getSingularityPulseFireFrames(phaseIndex),
     pullStrength: phaseIndex === 3 ? 0.11 : 0.075
   });
 };
@@ -877,13 +930,15 @@ export const buildSingularityCollapsePlan = ({
   executionIndex = 0,
   arenaWidth,
   arenaHeight,
-  playerCenter
+  playerCenter,
+  bossBounds
 }: {
   seedKey: string;
   executionIndex?: number;
   arenaWidth: number;
   arenaHeight: number;
   playerCenter?: SingularityPoint;
+  bossBounds?: SingularityBounds;
 }): SingularityCollapsePlan => {
   const wells = buildSingularityGravityWellPlan({
     seedKey,
@@ -891,7 +946,8 @@ export const buildSingularityCollapsePlan = ({
     executionIndex,
     arenaWidth,
     arenaHeight,
-    playerCenter
+    playerCenter,
+    bossBounds
   }).map((well) => Object.freeze({
     ...well,
     activeFrames: 54,

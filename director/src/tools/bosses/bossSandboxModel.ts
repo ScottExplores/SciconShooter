@@ -2262,6 +2262,8 @@ export const buildBossSandboxWeeklyLineup = (
 export interface BossSandboxAttack {
   readonly id: string;
   readonly phaseId: string;
+  /** Stable position in the boss's full attack roster, even in phase-subset views. */
+  readonly attackNumber: number;
   /** Diagnostic source name; the player-facing controls remain Attack 1, 2, etc. */
   readonly sourceLabel: string;
   readonly source: 'timeline' | 'generated-runtime' | 'configured-weapon';
@@ -2534,10 +2536,12 @@ export const getBossSandboxAttacks = (
         ? String(requestedPhaseId)
         : event.phases[0].id;
       return event.timeline.attacks
-        .filter((attack) => attack.variants.some((variant) => variant.phaseId === phaseId))
-        .map((attack) => Object.freeze({
+        .map((attack, index) => ({ attack, attackNumber: index + 1 }))
+        .filter(({ attack }) => attack.variants.some((variant) => variant.phaseId === phaseId))
+        .map(({ attack, attackNumber }) => Object.freeze({
           id: attack.id,
           phaseId,
+          attackNumber,
           sourceLabel: attack.label,
           source: 'timeline' as const
         }));
@@ -2559,9 +2563,10 @@ export const getBossSandboxAttacks = (
           || left.clip.startSeconds - right.clip.startSeconds
           || left.sourceIndex - right.sourceIndex;
       })
-      .map(({ clip }) => Object.freeze({
+      .map(({ clip }, index) => Object.freeze({
         id: clip.id,
         phaseId: clip.phaseId ?? event.phases[0].id,
+        attackNumber: index + 1,
         sourceLabel: clip.label,
         source: 'timeline' as const
       }));
@@ -2569,21 +2574,23 @@ export const getBossSandboxAttacks = (
 
   const archetype = resolveGeneratedBossArchetype(event.spriteKey);
   if (archetype) {
-    return getGeneratedBossPreviewAttacks(archetype).map((attack) => Object.freeze({
+    return getGeneratedBossPreviewAttacks(archetype).map((attack, index) => Object.freeze({
       id: attack.id,
       phaseId: event.phases[attack.phase - 1]?.id ?? event.phases[0].id,
+      attackNumber: index + 1,
       sourceLabel: attack.fireTechnique,
       source: 'generated-runtime' as const
     }));
   }
 
-  return event.weapons.map((weapon) => {
+  return event.weapons.map((weapon, index) => {
     const phase = event.phases.find((candidate) => (
       candidate.weaponSettingIds.includes(weapon.id)
     )) ?? event.phases[0];
     return Object.freeze({
       id: weapon.id,
       phaseId: phase.id,
+      attackNumber: index + 1,
       sourceLabel: weapon.weaponId,
       source: 'configured-weapon' as const
     });
