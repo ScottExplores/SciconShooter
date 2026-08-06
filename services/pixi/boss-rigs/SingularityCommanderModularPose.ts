@@ -74,6 +74,7 @@ const freezeOverride = (
 
 const sampleActionEnergy = (stage: string, progress: number) => {
   if (stage === 'preparation') return smoothstep(progress) * 0.62;
+  if (stage === 'transition') return 0.18 + smoothstep(progress) * 0.44;
   if (stage === 'telegraph' || stage === 'warning') return 0.62 + smoothstep(progress) * 0.38;
   if (stage === 'fire') return 1;
   if (stage === 'recovery' || stage === 'cooldown') return 1 - smoothstep(progress);
@@ -205,6 +206,7 @@ export const sampleSingularityCommanderModularPose = (
   const corePulse = 1 + Math.sin(frame * 0.08) * 0.035 * reducedScale;
   const showGravitySeed = isWell && (
     stage === 'preparation'
+    || stage === 'transition'
     || stage === 'telegraph'
     || stage === 'warning'
     || stage === 'fire'

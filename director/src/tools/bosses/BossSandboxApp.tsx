@@ -34,6 +34,7 @@ import {
   type PreviewDebugOverlayState,
   type PreviewSnapshot
 } from '@game/services/gameplay/previewSession';
+import { resolveCampaignBossArtwork } from '@game/services/pixi/boss-rigs/CampaignBossArtworkRegistry';
 import {
   fetchGameCampaign,
   type GameCampaignDiskState
@@ -418,14 +419,30 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
     return () => controller.abort();
   }, [artworkRegistration]);
 
-  const previewBossArtwork = useMemo(() => (
-    preview
-    && isSandboxBossPrototypePreview(preview)
-    && artworkRegistration
-    && previewArtworkStatus === 'ready'
-      ? createSandboxOnlyBossArtwork(preview)
-      : undefined
-  ), [artworkRegistration, preview, previewArtworkStatus]);
+  const previewBossArtwork = useMemo(() => {
+    if (!preview) return undefined;
+    if (
+      isSandboxBossPrototypePreview(preview)
+      && artworkRegistration
+      && previewArtworkStatus === 'ready'
+    ) {
+      return createSandboxOnlyBossArtwork(preview);
+    }
+    if (selectedChoice?.source === 'campaign') {
+      return resolveCampaignBossArtwork(
+        initialState.campaign,
+        selectedChoice.levelId,
+        selectedChoice.waveId
+      );
+    }
+    return undefined;
+  }, [
+    artworkRegistration,
+    initialState.campaign,
+    preview,
+    previewArtworkStatus,
+    selectedChoice
+  ]);
   const previewViewport = BOSS_SANDBOX_VIEWPORTS.mobile;
   const previewScale = resolveBossSandboxFitScale(
     previewHostSize,
@@ -1240,9 +1257,13 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
             {previewSnapshot?.boss?.bossId === 'singularity-crab' ? (
               <small className="boss-sandbox__mechanics-status" aria-live="polite">
                 Phase {previewSnapshot.boss.phaseIndex + 1}
+                {' | state '}{previewSnapshot.boss.state}
+                {' | current '}{previewSnapshot.boss.activeAttack?.label ?? 'none'}
+                {' | next '}{previewSnapshot.boss.nextAttack?.label ?? 'none'}
                 {' | wells '}{previewSnapshot.boss.activeWells}
                 {' | hazards '}{previewSnapshot.boss.hazardCount}
-                {' | cooldown '}{previewSnapshot.boss.cooldownFrames}f
+                {' | recovery '}{previewSnapshot.boss.recoveryFrames}f
+                {' | transition '}{previewSnapshot.boss.transitionFrames}f
               </small>
             ) : null}
             <div>

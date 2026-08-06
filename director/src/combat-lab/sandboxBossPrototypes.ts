@@ -3835,6 +3835,7 @@ const definitions = deepFreeze([
     ],
     boss: gatekeeperBoss({
       id: 'sandbox-aurora-storm-engine',
+      bossId: 'orbit-gyroscope',
       label: 'Aurora Oculus',
       // The Sandbox swaps this catalog-backed placeholder for the ignored
       // rotating-emitter atlas after the canonical preview is constructed.
@@ -4046,8 +4047,10 @@ const definitions = deepFreeze([
     ],
     boss: gatekeeperBoss({
       id: 'sandbox-gloamforge-mantis',
+      bossId: 'hammerhead-siege',
       label: 'Gloamforge Mantis',
       rigId: 'paywall-siege',
+      componentMode: 'hull-only',
       spriteKey: 'CAMPAIGN_BOSS_SINGULARITY_CRAB',
       health: 5_600,
       shieldCount: 0,

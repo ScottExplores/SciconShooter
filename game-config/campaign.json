@@ -37679,83 +37679,516 @@
             {
               "id": "stage-gyroscope-array-commander-major-boss",
               "kind": "boss",
-              "label": "GYROSCOPE ARRAY COMMANDER",
+              "label": "Aurora Oculus",
               "startSeconds": 0,
               "durationSeconds": 60,
               "delayAfterSeconds": 0,
               "blocksWaveClock": true,
               "bossId": "orbit-gyroscope",
-              "rigId": "crown-claw",
+              "rigId": "paywall-siege",
+              "componentMode": "hull-only",
               "spriteKey": "CAMPAIGN_BOSS_ORBIT_GYROSCOPE",
-              "spriteStyle": {
-                "hueRotateDegrees": 145,
-                "saturation": 1.16,
-                "brightness": 1.04,
-                "glowColor": "#67e8f9",
-                "glowBlur": 8
-              },
               "positionId": "center-top",
               "movementPatternId": "arena-roam",
-              "warningSeconds": 1.5,
+              "warningSeconds": 1.2,
               "health": 2900,
-              "speed": 2.3,
+              "speed": 0.55,
               "damage": 1,
               "scoreReward": 29010,
               "powerupDropChance": 1,
-              "shieldCount": 3,
-              "sizeMultiplier": 1.14,
+              "shieldCount": 0,
+              "sizeMultiplier": 2.35,
               "weapons": [
                 {
-                  "id": "terminus-ascendant-radial-burst",
+                  "id": "sandbox-aurora-storm-engine-burst",
                   "weaponId": "burst-volley",
-                  "attackIntervalSeconds": 1.4,
+                  "attackIntervalSeconds": 30,
                   "damage": 1,
-                  "projectileSpeed": 6.2,
-                  "burstCount": 2
+                  "projectileSpeed": 5.8,
+                  "burstCount": 4
                 },
                 {
-                  "id": "terminus-ascendant-charged-lanes",
+                  "id": "sandbox-aurora-storm-engine-beam",
                   "weaponId": "lane-beam",
-                  "attackIntervalSeconds": 1.4,
+                  "attackIntervalSeconds": 30,
                   "damage": 1,
-                  "projectileSpeed": 0,
-                  "burstCount": 2
+                  "projectileSpeed": 5,
+                  "burstCount": 1
                 }
               ],
               "phases": [
                 {
-                  "id": "terminus-ascendant-phase-control",
-                  "label": "Arena control",
+                  "id": "sandbox-storm-engine-reference-study",
+                  "label": "Survey orbit",
                   "triggerHealthRatio": 1,
                   "movementPatternId": "arena-roam",
-                  "speedMultiplier": 0.68,
+                  "speedMultiplier": 0.95,
                   "weaponSettingIds": [
-                    "terminus-ascendant-radial-burst"
+                    "sandbox-aurora-storm-engine-burst",
+                    "sandbox-aurora-storm-engine-beam"
                   ]
                 },
                 {
-                  "id": "terminus-ascendant-phase-crossfire",
-                  "label": "Charged crossfire",
-                  "triggerHealthRatio": 0.46,
-                  "movementPatternId": "arena-roam",
-                  "speedMultiplier": 0.76,
+                  "id": "sandbox-storm-engine-reverse-overdrive",
+                  "label": "Reverse overdrive",
+                  "triggerHealthRatio": 0.32,
+                  "movementPatternId": "sine-drift",
+                  "speedMultiplier": 1.05,
                   "weaponSettingIds": [
-                    "terminus-ascendant-radial-burst",
-                    "terminus-ascendant-charged-lanes"
-                  ]
-                },
-                {
-                  "id": "terminus-ascendant-phase-collapse",
-                  "label": "Collapse pattern",
-                  "triggerHealthRatio": 0.15,
-                  "movementPatternId": "arena-roam",
-                  "speedMultiplier": 0.86,
-                  "weaponSettingIds": [
-                    "terminus-ascendant-radial-burst",
-                    "terminus-ascendant-charged-lanes"
+                    "sandbox-aurora-storm-engine-burst",
+                    "sandbox-aurora-storm-engine-beam"
                   ]
                 }
-              ]
+              ],
+              "timeline": {
+                "durationSeconds": 36,
+                "loop": true,
+                "clips": [
+                  {
+                    "id": "sandbox-storm-engine-study-fx",
+                    "label": "Effect cue",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "phase-enter",
+                    "startSeconds": 0,
+                    "durationSeconds": 0.2,
+                    "phaseId": "sandbox-storm-engine-reference-study",
+                    "parameters": {
+                      "color": "#67e8f9"
+                    }
+                  },
+                  {
+                    "id": "sandbox-storm-engine-study-rotor-forward-warning",
+                    "label": "Rotor hazard sentence warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 0.8,
+                    "durationSeconds": 0.6,
+                    "phaseId": "sandbox-storm-engine-reference-study",
+                    "parameters": {
+                      "warningSeconds": 0.6,
+                      "telegraphStyle": "ring",
+                      "color": "#ff3bd4"
+                    }
+                  },
+                  {
+                    "id": "sandbox-storm-engine-study-rotor-forward",
+                    "label": "Rotor hazard sentence",
+                    "track": "attack",
+                    "primitiveId": "rotor-hazard-sentence",
+                    "trigger": "time",
+                    "startSeconds": 1.4,
+                    "durationSeconds": 5.4,
+                    "phaseId": "sandbox-storm-engine-reference-study",
+                    "parameters": {
+                      "projectileCount": 6,
+                      "sequence": 0,
+                      "pulseIntervalSeconds": 0.9,
+                      "motionCue": "rotor-volley"
+                    },
+                    "telegraphClipId": "sandbox-storm-engine-study-rotor-forward-warning"
+                  },
+                  {
+                    "id": "sandbox-storm-engine-study-prism-pulses-a-warning",
+                    "label": "Gap ring warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 8.2,
+                    "durationSeconds": 0.8,
+                    "phaseId": "sandbox-storm-engine-reference-study",
+                    "parameters": {
+                      "warningSeconds": 0.8,
+                      "telegraphStyle": "ring",
+                      "color": "#67e8f9"
+                    },
+                    "repeat": {
+                      "count": 3,
+                      "intervalSeconds": 0.85
+                    }
+                  },
+                  {
+                    "id": "sandbox-storm-engine-study-prism-pulses-a",
+                    "label": "Gap ring",
+                    "track": "attack",
+                    "primitiveId": "gap-ring",
+                    "trigger": "time",
+                    "startSeconds": 9,
+                    "durationSeconds": 0.25,
+                    "phaseId": "sandbox-storm-engine-reference-study",
+                    "parameters": {
+                      "projectileCount": 14,
+                      "sequence": 0
+                    },
+                    "telegraphClipId": "sandbox-storm-engine-study-prism-pulses-a-warning",
+                    "repeat": {
+                      "count": 3,
+                      "intervalSeconds": 0.85
+                    }
+                  },
+                  {
+                    "id": "sandbox-storm-engine-study-radial-beam-a-warning",
+                    "label": "Radial beam array warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 12.5,
+                    "durationSeconds": 0.9,
+                    "phaseId": "sandbox-storm-engine-reference-study",
+                    "parameters": {
+                      "warningSeconds": 0.9,
+                      "telegraphStyle": "spokes",
+                      "color": "#f43f5e"
+                    }
+                  },
+                  {
+                    "id": "sandbox-storm-engine-study-radial-beam-a",
+                    "label": "Radial beam array",
+                    "track": "laser",
+                    "primitiveId": "radial-beam-array",
+                    "trigger": "time",
+                    "startSeconds": 13.4,
+                    "durationSeconds": 2,
+                    "phaseId": "sandbox-storm-engine-reference-study",
+                    "parameters": {
+                      "sequence": 0,
+                      "motionCue": "radial-beam",
+                      "rotationDirection": "seeded-random"
+                    },
+                    "telegraphClipId": "sandbox-storm-engine-study-radial-beam-a-warning"
+                  },
+                  {
+                    "id": "sandbox-storm-engine-study-rotor-reverse-warning",
+                    "label": "Rotor hazard sentence warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 17.2,
+                    "durationSeconds": 0.6,
+                    "phaseId": "sandbox-storm-engine-reference-study",
+                    "parameters": {
+                      "warningSeconds": 0.6,
+                      "telegraphStyle": "ring",
+                      "color": "#facc15"
+                    }
+                  },
+                  {
+                    "id": "sandbox-storm-engine-study-rotor-reverse",
+                    "label": "Rotor hazard sentence",
+                    "track": "attack",
+                    "primitiveId": "rotor-hazard-sentence",
+                    "trigger": "time",
+                    "startSeconds": 17.8,
+                    "durationSeconds": 5.4,
+                    "phaseId": "sandbox-storm-engine-reference-study",
+                    "parameters": {
+                      "projectileCount": 6,
+                      "sequence": 1,
+                      "pulseIntervalSeconds": 0.85,
+                      "motionCue": "rotor-volley"
+                    },
+                    "telegraphClipId": "sandbox-storm-engine-study-rotor-reverse-warning"
+                  },
+                  {
+                    "id": "sandbox-storm-engine-study-prism-pulses-b-warning",
+                    "label": "Gap ring warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 24.7,
+                    "durationSeconds": 0.8,
+                    "phaseId": "sandbox-storm-engine-reference-study",
+                    "parameters": {
+                      "warningSeconds": 0.8,
+                      "telegraphStyle": "ring",
+                      "color": "#67e8f9"
+                    },
+                    "repeat": {
+                      "count": 3,
+                      "intervalSeconds": 0.8
+                    }
+                  },
+                  {
+                    "id": "sandbox-storm-engine-study-prism-pulses-b",
+                    "label": "Gap ring",
+                    "track": "attack",
+                    "primitiveId": "gap-ring",
+                    "trigger": "time",
+                    "startSeconds": 25.5,
+                    "durationSeconds": 0.25,
+                    "phaseId": "sandbox-storm-engine-reference-study",
+                    "parameters": {
+                      "projectileCount": 14,
+                      "sequence": 1
+                    },
+                    "telegraphClipId": "sandbox-storm-engine-study-prism-pulses-b-warning",
+                    "repeat": {
+                      "count": 3,
+                      "intervalSeconds": 0.8
+                    }
+                  },
+                  {
+                    "id": "sandbox-storm-engine-study-radial-beam-b-warning",
+                    "label": "Radial beam array warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 29.5,
+                    "durationSeconds": 0.9,
+                    "phaseId": "sandbox-storm-engine-reference-study",
+                    "parameters": {
+                      "warningSeconds": 0.9,
+                      "telegraphStyle": "spokes",
+                      "color": "#f43f5e"
+                    }
+                  },
+                  {
+                    "id": "sandbox-storm-engine-study-radial-beam-b",
+                    "label": "Radial beam array",
+                    "track": "laser",
+                    "primitiveId": "radial-beam-array",
+                    "trigger": "time",
+                    "startSeconds": 30.4,
+                    "durationSeconds": 2,
+                    "phaseId": "sandbox-storm-engine-reference-study",
+                    "parameters": {
+                      "sequence": 1,
+                      "motionCue": "radial-beam",
+                      "rotationDirection": "seeded-random"
+                    },
+                    "telegraphClipId": "sandbox-storm-engine-study-radial-beam-b-warning"
+                  },
+                  {
+                    "id": "sandbox-storm-engine-overdrive-fx",
+                    "label": "Effect cue",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "phase-enter",
+                    "startSeconds": 0,
+                    "durationSeconds": 0.2,
+                    "phaseId": "sandbox-storm-engine-reverse-overdrive",
+                    "parameters": {
+                      "color": "#ff3bd4"
+                    }
+                  },
+                  {
+                    "id": "sandbox-storm-engine-overdrive-camera",
+                    "label": "Camera cue",
+                    "track": "presentation",
+                    "primitiveId": "camera-cue",
+                    "trigger": "phase-enter",
+                    "startSeconds": 0,
+                    "durationSeconds": 0.2,
+                    "phaseId": "sandbox-storm-engine-reverse-overdrive",
+                    "parameters": {
+                      "strength": 2.2
+                    }
+                  },
+                  {
+                    "id": "sandbox-storm-engine-overdrive-rotor-forward-warning",
+                    "label": "Rotor hazard sentence warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 0.8,
+                    "durationSeconds": 0.6,
+                    "phaseId": "sandbox-storm-engine-reverse-overdrive",
+                    "parameters": {
+                      "warningSeconds": 0.6,
+                      "telegraphStyle": "ring",
+                      "color": "#facc15"
+                    }
+                  },
+                  {
+                    "id": "sandbox-storm-engine-overdrive-rotor-forward",
+                    "label": "Rotor hazard sentence",
+                    "track": "attack",
+                    "primitiveId": "rotor-hazard-sentence",
+                    "trigger": "time",
+                    "startSeconds": 1.4,
+                    "durationSeconds": 5.4,
+                    "phaseId": "sandbox-storm-engine-reverse-overdrive",
+                    "parameters": {
+                      "projectileCount": 6,
+                      "sequence": 2,
+                      "pulseIntervalSeconds": 0.75,
+                      "motionCue": "rotor-volley"
+                    },
+                    "telegraphClipId": "sandbox-storm-engine-overdrive-rotor-forward-warning"
+                  },
+                  {
+                    "id": "sandbox-storm-engine-overdrive-prism-pulses-a-warning",
+                    "label": "Gap ring warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 8.2,
+                    "durationSeconds": 0.8,
+                    "phaseId": "sandbox-storm-engine-reverse-overdrive",
+                    "parameters": {
+                      "warningSeconds": 0.8,
+                      "telegraphStyle": "ring",
+                      "color": "#ff3bd4"
+                    },
+                    "repeat": {
+                      "count": 3,
+                      "intervalSeconds": 0.75
+                    }
+                  },
+                  {
+                    "id": "sandbox-storm-engine-overdrive-prism-pulses-a",
+                    "label": "Gap ring",
+                    "track": "attack",
+                    "primitiveId": "gap-ring",
+                    "trigger": "time",
+                    "startSeconds": 9,
+                    "durationSeconds": 0.25,
+                    "phaseId": "sandbox-storm-engine-reverse-overdrive",
+                    "parameters": {
+                      "projectileCount": 16,
+                      "sequence": 2
+                    },
+                    "telegraphClipId": "sandbox-storm-engine-overdrive-prism-pulses-a-warning",
+                    "repeat": {
+                      "count": 3,
+                      "intervalSeconds": 0.75
+                    }
+                  },
+                  {
+                    "id": "sandbox-storm-engine-overdrive-radial-beam-a-warning",
+                    "label": "Radial beam array warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 12.5,
+                    "durationSeconds": 0.9,
+                    "phaseId": "sandbox-storm-engine-reverse-overdrive",
+                    "parameters": {
+                      "warningSeconds": 0.9,
+                      "telegraphStyle": "spokes",
+                      "color": "#facc15"
+                    }
+                  },
+                  {
+                    "id": "sandbox-storm-engine-overdrive-radial-beam-a",
+                    "label": "Radial beam array",
+                    "track": "laser",
+                    "primitiveId": "radial-beam-array",
+                    "trigger": "time",
+                    "startSeconds": 13.4,
+                    "durationSeconds": 2,
+                    "phaseId": "sandbox-storm-engine-reverse-overdrive",
+                    "parameters": {
+                      "sequence": 2,
+                      "motionCue": "radial-beam",
+                      "rotationDirection": "seeded-random"
+                    },
+                    "telegraphClipId": "sandbox-storm-engine-overdrive-radial-beam-a-warning"
+                  },
+                  {
+                    "id": "sandbox-storm-engine-overdrive-rotor-reverse-warning",
+                    "label": "Rotor hazard sentence warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 17.2,
+                    "durationSeconds": 0.6,
+                    "phaseId": "sandbox-storm-engine-reverse-overdrive",
+                    "parameters": {
+                      "warningSeconds": 0.6,
+                      "telegraphStyle": "ring",
+                      "color": "#67e8f9"
+                    }
+                  },
+                  {
+                    "id": "sandbox-storm-engine-overdrive-rotor-reverse",
+                    "label": "Rotor hazard sentence",
+                    "track": "attack",
+                    "primitiveId": "rotor-hazard-sentence",
+                    "trigger": "time",
+                    "startSeconds": 17.8,
+                    "durationSeconds": 5.4,
+                    "phaseId": "sandbox-storm-engine-reverse-overdrive",
+                    "parameters": {
+                      "projectileCount": 6,
+                      "sequence": 3,
+                      "pulseIntervalSeconds": 0.65,
+                      "motionCue": "rotor-volley"
+                    },
+                    "telegraphClipId": "sandbox-storm-engine-overdrive-rotor-reverse-warning"
+                  },
+                  {
+                    "id": "sandbox-storm-engine-overdrive-prism-pulses-b-warning",
+                    "label": "Gap ring warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 24.7,
+                    "durationSeconds": 0.8,
+                    "phaseId": "sandbox-storm-engine-reverse-overdrive",
+                    "parameters": {
+                      "warningSeconds": 0.8,
+                      "telegraphStyle": "ring",
+                      "color": "#ff3bd4"
+                    },
+                    "repeat": {
+                      "count": 3,
+                      "intervalSeconds": 0.7
+                    }
+                  },
+                  {
+                    "id": "sandbox-storm-engine-overdrive-prism-pulses-b",
+                    "label": "Gap ring",
+                    "track": "attack",
+                    "primitiveId": "gap-ring",
+                    "trigger": "time",
+                    "startSeconds": 25.5,
+                    "durationSeconds": 0.25,
+                    "phaseId": "sandbox-storm-engine-reverse-overdrive",
+                    "parameters": {
+                      "projectileCount": 16,
+                      "sequence": 3
+                    },
+                    "telegraphClipId": "sandbox-storm-engine-overdrive-prism-pulses-b-warning",
+                    "repeat": {
+                      "count": 3,
+                      "intervalSeconds": 0.7
+                    }
+                  },
+                  {
+                    "id": "sandbox-storm-engine-overdrive-radial-beam-b-warning",
+                    "label": "Radial beam array warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 29.5,
+                    "durationSeconds": 0.9,
+                    "phaseId": "sandbox-storm-engine-reverse-overdrive",
+                    "parameters": {
+                      "warningSeconds": 0.9,
+                      "telegraphStyle": "spokes",
+                      "color": "#facc15"
+                    }
+                  },
+                  {
+                    "id": "sandbox-storm-engine-overdrive-radial-beam-b",
+                    "label": "Radial beam array",
+                    "track": "laser",
+                    "primitiveId": "radial-beam-array",
+                    "trigger": "time",
+                    "startSeconds": 30.4,
+                    "durationSeconds": 2,
+                    "phaseId": "sandbox-storm-engine-reverse-overdrive",
+                    "parameters": {
+                      "sequence": 3,
+                      "motionCue": "radial-beam",
+                      "rotationDirection": "seeded-random"
+                    },
+                    "telegraphClipId": "sandbox-storm-engine-overdrive-radial-beam-b-warning"
+                  }
+                ]
+              }
             }
           ]
         }
@@ -41680,83 +42113,725 @@
             {
               "id": "stage-hammerhead-line-commander-major-boss",
               "kind": "boss",
-              "label": "HAMMERHEAD LINE COMMANDER",
+              "label": "Gloamforge Mantis",
               "startSeconds": 0,
               "durationSeconds": 60,
               "delayAfterSeconds": 0,
               "blocksWaveClock": true,
               "bossId": "hammerhead-siege",
-              "rigId": "crown-claw",
+              "rigId": "paywall-siege",
+              "componentMode": "hull-only",
               "spriteKey": "CAMPAIGN_BOSS_HAMMERHEAD_SIEGE",
-              "spriteStyle": {
-                "hueRotateDegrees": 145,
-                "saturation": 1.16,
-                "brightness": 1.04,
-                "glowColor": "#67e8f9",
-                "glowBlur": 8
-              },
               "positionId": "center-top",
-              "movementPatternId": "gatekeeper-cycle",
-              "warningSeconds": 1.5,
+              "movementPatternId": "arena-roam",
+              "warningSeconds": 1.2,
               "health": 3150,
-              "speed": 2.32,
+              "speed": 0.7,
               "damage": 1,
               "scoreReward": 33010,
               "powerupDropChance": 1,
-              "shieldCount": 3,
-              "sizeMultiplier": 1.14,
+              "shieldCount": 0,
+              "sizeMultiplier": 1.7,
               "weapons": [
                 {
-                  "id": "terminus-ascendant-radial-burst",
+                  "id": "sandbox-gloamforge-mantis-burst",
                   "weaponId": "burst-volley",
-                  "attackIntervalSeconds": 1.38,
+                  "attackIntervalSeconds": 30,
                   "damage": 1,
-                  "projectileSpeed": 5.6,
-                  "burstCount": 1
+                  "projectileSpeed": 5.8,
+                  "burstCount": 4
                 },
                 {
-                  "id": "terminus-ascendant-charged-lanes",
+                  "id": "sandbox-gloamforge-mantis-beam",
                   "weaponId": "lane-beam",
-                  "attackIntervalSeconds": 1.38,
+                  "attackIntervalSeconds": 30,
                   "damage": 1,
-                  "projectileSpeed": 0,
+                  "projectileSpeed": 5,
                   "burstCount": 1
                 }
               ],
               "phases": [
                 {
-                  "id": "terminus-ascendant-phase-control",
-                  "label": "Arena control",
+                  "id": "sandbox-gloamforge-crucible-measure",
+                  "label": "Crucible Measure",
                   "triggerHealthRatio": 1,
                   "movementPatternId": "arena-roam",
-                  "speedMultiplier": 0.7,
+                  "speedMultiplier": 0.8,
                   "weaponSettingIds": [
-                    "terminus-ascendant-radial-burst"
+                    "sandbox-gloamforge-mantis-burst",
+                    "sandbox-gloamforge-mantis-beam"
                   ]
                 },
                 {
-                  "id": "terminus-ascendant-phase-crossfire",
-                  "label": "Charged crossfire",
-                  "triggerHealthRatio": 0.46,
-                  "movementPatternId": "arena-roam",
-                  "speedMultiplier": 0.78,
+                  "id": "sandbox-gloamforge-cleaver-unfurl",
+                  "label": "Cleaver Unfurl",
+                  "triggerHealthRatio": 0.34,
+                  "movementPatternId": "sine-drift",
+                  "speedMultiplier": 0.8,
                   "weaponSettingIds": [
-                    "terminus-ascendant-radial-burst",
-                    "terminus-ascendant-charged-lanes"
-                  ]
-                },
-                {
-                  "id": "terminus-ascendant-phase-collapse",
-                  "label": "Collapse pattern",
-                  "triggerHealthRatio": 0.15,
-                  "movementPatternId": "arena-roam",
-                  "speedMultiplier": 0.88,
-                  "weaponSettingIds": [
-                    "terminus-ascendant-radial-burst",
-                    "terminus-ascendant-charged-lanes"
+                    "sandbox-gloamforge-mantis-burst",
+                    "sandbox-gloamforge-mantis-beam"
                   ]
                 }
-              ]
+              ],
+              "timeline": {
+                "durationSeconds": 90,
+                "loop": true,
+                "clips": [
+                  {
+                    "id": "sandbox-gloamforge-crucible-measure-identity",
+                    "label": "Effect cue",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "phase-enter",
+                    "startSeconds": 0,
+                    "durationSeconds": 0.2,
+                    "phaseId": "sandbox-gloamforge-crucible-measure",
+                    "parameters": {
+                      "color": "#f59e0b"
+                    }
+                  },
+                  {
+                    "id": "sandbox-gloamforge-crucible-measure-camera",
+                    "label": "Camera cue",
+                    "track": "presentation",
+                    "primitiveId": "camera-cue",
+                    "trigger": "phase-enter",
+                    "startSeconds": 0,
+                    "durationSeconds": 0.2,
+                    "phaseId": "sandbox-gloamforge-crucible-measure",
+                    "parameters": {
+                      "strength": 0.8
+                    }
+                  },
+                  {
+                    "id": "sandbox-gloamforge-measure-port-cannon-warning",
+                    "label": "Side barrage warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 2,
+                    "durationSeconds": 1.1,
+                    "phaseId": "sandbox-gloamforge-crucible-measure",
+                    "parameters": {
+                      "warningSeconds": 1.1,
+                      "telegraphStyle": "lane",
+                      "color": "#f59e0b"
+                    }
+                  },
+                  {
+                    "id": "sandbox-gloamforge-measure-port-cannon",
+                    "label": "Side barrage",
+                    "track": "attack",
+                    "primitiveId": "side-barrage",
+                    "trigger": "time",
+                    "startSeconds": 3.1,
+                    "durationSeconds": 1,
+                    "phaseId": "sandbox-gloamforge-crucible-measure",
+                    "parameters": {
+                      "projectileCount": 6,
+                      "side": "port",
+                      "motionCue": "heavy-cannon"
+                    },
+                    "telegraphClipId": "sandbox-gloamforge-measure-port-cannon-warning"
+                  },
+                  {
+                    "id": "sandbox-gloamforge-measure-port-cannon-recovery",
+                    "label": "Recovery window",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "time",
+                    "startSeconds": 4.1,
+                    "durationSeconds": 1.8,
+                    "phaseId": "sandbox-gloamforge-crucible-measure",
+                    "parameters": {
+                      "color": "#f59e0b"
+                    }
+                  },
+                  {
+                    "id": "sandbox-gloamforge-measure-starboard-cannon-warning",
+                    "label": "Side barrage warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 14,
+                    "durationSeconds": 1.1,
+                    "phaseId": "sandbox-gloamforge-crucible-measure",
+                    "parameters": {
+                      "warningSeconds": 1.1,
+                      "telegraphStyle": "lane",
+                      "color": "#f59e0b"
+                    }
+                  },
+                  {
+                    "id": "sandbox-gloamforge-measure-starboard-cannon",
+                    "label": "Side barrage",
+                    "track": "attack",
+                    "primitiveId": "side-barrage",
+                    "trigger": "time",
+                    "startSeconds": 15.1,
+                    "durationSeconds": 1,
+                    "phaseId": "sandbox-gloamforge-crucible-measure",
+                    "parameters": {
+                      "projectileCount": 6,
+                      "side": "starboard",
+                      "motionCue": "heavy-cannon"
+                    },
+                    "telegraphClipId": "sandbox-gloamforge-measure-starboard-cannon-warning"
+                  },
+                  {
+                    "id": "sandbox-gloamforge-measure-starboard-cannon-recovery",
+                    "label": "Recovery window",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "time",
+                    "startSeconds": 16.1,
+                    "durationSeconds": 1.8,
+                    "phaseId": "sandbox-gloamforge-crucible-measure",
+                    "parameters": {
+                      "color": "#f59e0b"
+                    }
+                  },
+                  {
+                    "id": "sandbox-gloamforge-measure-crucible-ring-warning",
+                    "label": "Gap ring warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 26,
+                    "durationSeconds": 1,
+                    "phaseId": "sandbox-gloamforge-crucible-measure",
+                    "parameters": {
+                      "warningSeconds": 1,
+                      "telegraphStyle": "ring",
+                      "color": "#f59e0b"
+                    }
+                  },
+                  {
+                    "id": "sandbox-gloamforge-measure-crucible-ring",
+                    "label": "Gap ring",
+                    "track": "attack",
+                    "primitiveId": "gap-ring",
+                    "trigger": "time",
+                    "startSeconds": 27,
+                    "durationSeconds": 0.8,
+                    "phaseId": "sandbox-gloamforge-crucible-measure",
+                    "parameters": {
+                      "projectileCount": 16,
+                      "sequence": 0
+                    },
+                    "telegraphClipId": "sandbox-gloamforge-measure-crucible-ring-warning"
+                  },
+                  {
+                    "id": "sandbox-gloamforge-measure-crucible-ring-recovery",
+                    "label": "Recovery window",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "time",
+                    "startSeconds": 27.8,
+                    "durationSeconds": 1.8,
+                    "phaseId": "sandbox-gloamforge-crucible-measure",
+                    "parameters": {
+                      "color": "#f59e0b"
+                    }
+                  },
+                  {
+                    "id": "sandbox-gloamforge-measure-slag-pods-warning",
+                    "label": "Pod volley warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 38,
+                    "durationSeconds": 1,
+                    "phaseId": "sandbox-gloamforge-crucible-measure",
+                    "parameters": {
+                      "warningSeconds": 1,
+                      "telegraphStyle": "warning",
+                      "color": "#f59e0b"
+                    }
+                  },
+                  {
+                    "id": "sandbox-gloamforge-measure-slag-pods",
+                    "label": "Pod volley",
+                    "track": "attack",
+                    "primitiveId": "pod-volley",
+                    "trigger": "time",
+                    "startSeconds": 39,
+                    "durationSeconds": 1.3,
+                    "phaseId": "sandbox-gloamforge-crucible-measure",
+                    "parameters": {
+                      "projectileCount": 7,
+                      "sequence": 0
+                    },
+                    "telegraphClipId": "sandbox-gloamforge-measure-slag-pods-warning"
+                  },
+                  {
+                    "id": "sandbox-gloamforge-measure-slag-pods-recovery",
+                    "label": "Recovery window",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "time",
+                    "startSeconds": 40.3,
+                    "durationSeconds": 1.8,
+                    "phaseId": "sandbox-gloamforge-crucible-measure",
+                    "parameters": {
+                      "color": "#f59e0b"
+                    }
+                  },
+                  {
+                    "id": "sandbox-gloamforge-measure-slag-wall-warning",
+                    "label": "Weave wall warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 50,
+                    "durationSeconds": 1.1,
+                    "phaseId": "sandbox-gloamforge-crucible-measure",
+                    "parameters": {
+                      "warningSeconds": 1.1,
+                      "telegraphStyle": "lane",
+                      "color": "#f59e0b"
+                    }
+                  },
+                  {
+                    "id": "sandbox-gloamforge-measure-slag-wall",
+                    "label": "Weave wall",
+                    "track": "attack",
+                    "primitiveId": "weave-wall",
+                    "trigger": "time",
+                    "startSeconds": 51.1,
+                    "durationSeconds": 1.4,
+                    "phaseId": "sandbox-gloamforge-crucible-measure",
+                    "parameters": {
+                      "projectileCount": 10,
+                      "sequence": 0
+                    },
+                    "telegraphClipId": "sandbox-gloamforge-measure-slag-wall-warning"
+                  },
+                  {
+                    "id": "sandbox-gloamforge-measure-slag-wall-recovery",
+                    "label": "Recovery window",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "time",
+                    "startSeconds": 52.5,
+                    "durationSeconds": 1.8,
+                    "phaseId": "sandbox-gloamforge-crucible-measure",
+                    "parameters": {
+                      "color": "#f59e0b"
+                    }
+                  },
+                  {
+                    "id": "sandbox-gloamforge-measure-port-return-warning",
+                    "label": "Side barrage warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 62,
+                    "durationSeconds": 1.1,
+                    "phaseId": "sandbox-gloamforge-crucible-measure",
+                    "parameters": {
+                      "warningSeconds": 1.1,
+                      "telegraphStyle": "lane",
+                      "color": "#f59e0b"
+                    }
+                  },
+                  {
+                    "id": "sandbox-gloamforge-measure-port-return",
+                    "label": "Side barrage",
+                    "track": "attack",
+                    "primitiveId": "side-barrage",
+                    "trigger": "time",
+                    "startSeconds": 63.1,
+                    "durationSeconds": 1,
+                    "phaseId": "sandbox-gloamforge-crucible-measure",
+                    "parameters": {
+                      "projectileCount": 7,
+                      "side": "port",
+                      "motionCue": "heavy-cannon"
+                    },
+                    "telegraphClipId": "sandbox-gloamforge-measure-port-return-warning"
+                  },
+                  {
+                    "id": "sandbox-gloamforge-measure-port-return-recovery",
+                    "label": "Recovery window",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "time",
+                    "startSeconds": 64.1,
+                    "durationSeconds": 1.8,
+                    "phaseId": "sandbox-gloamforge-crucible-measure",
+                    "parameters": {
+                      "color": "#f59e0b"
+                    }
+                  },
+                  {
+                    "id": "sandbox-gloamforge-measure-starboard-return-warning",
+                    "label": "Side barrage warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 74,
+                    "durationSeconds": 1.1,
+                    "phaseId": "sandbox-gloamforge-crucible-measure",
+                    "parameters": {
+                      "warningSeconds": 1.1,
+                      "telegraphStyle": "lane",
+                      "color": "#f59e0b"
+                    }
+                  },
+                  {
+                    "id": "sandbox-gloamforge-measure-starboard-return",
+                    "label": "Side barrage",
+                    "track": "attack",
+                    "primitiveId": "side-barrage",
+                    "trigger": "time",
+                    "startSeconds": 75.1,
+                    "durationSeconds": 1,
+                    "phaseId": "sandbox-gloamforge-crucible-measure",
+                    "parameters": {
+                      "projectileCount": 7,
+                      "side": "starboard",
+                      "motionCue": "heavy-cannon"
+                    },
+                    "telegraphClipId": "sandbox-gloamforge-measure-starboard-return-warning"
+                  },
+                  {
+                    "id": "sandbox-gloamforge-measure-starboard-return-recovery",
+                    "label": "Recovery window",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "time",
+                    "startSeconds": 76.1,
+                    "durationSeconds": 1.8,
+                    "phaseId": "sandbox-gloamforge-crucible-measure",
+                    "parameters": {
+                      "color": "#f59e0b"
+                    }
+                  },
+                  {
+                    "id": "sandbox-gloamforge-cleaver-unfurl-identity",
+                    "label": "Effect cue",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "phase-enter",
+                    "startSeconds": 0,
+                    "durationSeconds": 0.2,
+                    "phaseId": "sandbox-gloamforge-cleaver-unfurl",
+                    "parameters": {
+                      "color": "#fb7185"
+                    }
+                  },
+                  {
+                    "id": "sandbox-gloamforge-cleaver-unfurl-camera",
+                    "label": "Camera cue",
+                    "track": "presentation",
+                    "primitiveId": "camera-cue",
+                    "trigger": "phase-enter",
+                    "startSeconds": 0,
+                    "durationSeconds": 0.2,
+                    "phaseId": "sandbox-gloamforge-cleaver-unfurl",
+                    "parameters": {
+                      "strength": 2
+                    }
+                  },
+                  {
+                    "id": "sandbox-gloamforge-unfurl-crucible-ring-warning",
+                    "label": "Gap ring warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 2,
+                    "durationSeconds": 1.1,
+                    "phaseId": "sandbox-gloamforge-cleaver-unfurl",
+                    "parameters": {
+                      "warningSeconds": 1.1,
+                      "telegraphStyle": "ring",
+                      "color": "#fb7185"
+                    }
+                  },
+                  {
+                    "id": "sandbox-gloamforge-unfurl-crucible-ring",
+                    "label": "Gap ring",
+                    "track": "attack",
+                    "primitiveId": "gap-ring",
+                    "trigger": "time",
+                    "startSeconds": 3.1,
+                    "durationSeconds": 0.8,
+                    "phaseId": "sandbox-gloamforge-cleaver-unfurl",
+                    "parameters": {
+                      "projectileCount": 20,
+                      "sequence": 1
+                    },
+                    "telegraphClipId": "sandbox-gloamforge-unfurl-crucible-ring-warning"
+                  },
+                  {
+                    "id": "sandbox-gloamforge-unfurl-crucible-ring-recovery",
+                    "label": "Recovery window",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "time",
+                    "startSeconds": 3.9000000000000004,
+                    "durationSeconds": 1.8,
+                    "phaseId": "sandbox-gloamforge-cleaver-unfurl",
+                    "parameters": {
+                      "color": "#fb7185"
+                    }
+                  },
+                  {
+                    "id": "sandbox-gloamforge-unfurl-port-rail-warning",
+                    "label": "Rail sweep warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 14,
+                    "durationSeconds": 1.2,
+                    "phaseId": "sandbox-gloamforge-cleaver-unfurl",
+                    "parameters": {
+                      "warningSeconds": 1.2,
+                      "telegraphStyle": "lane",
+                      "color": "#fb7185"
+                    }
+                  },
+                  {
+                    "id": "sandbox-gloamforge-unfurl-port-rail",
+                    "label": "Rail sweep",
+                    "track": "laser",
+                    "primitiveId": "rail-sweep",
+                    "trigger": "time",
+                    "startSeconds": 15.2,
+                    "durationSeconds": 2,
+                    "phaseId": "sandbox-gloamforge-cleaver-unfurl",
+                    "parameters": {
+                      "sequence": 0
+                    },
+                    "telegraphClipId": "sandbox-gloamforge-unfurl-port-rail-warning"
+                  },
+                  {
+                    "id": "sandbox-gloamforge-unfurl-port-rail-recovery",
+                    "label": "Recovery window",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "time",
+                    "startSeconds": 17.2,
+                    "durationSeconds": 2.2,
+                    "phaseId": "sandbox-gloamforge-cleaver-unfurl",
+                    "parameters": {
+                      "color": "#fb7185"
+                    }
+                  },
+                  {
+                    "id": "sandbox-gloamforge-unfurl-cleaver-fan-warning",
+                    "label": "Tail fan warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 26,
+                    "durationSeconds": 1,
+                    "phaseId": "sandbox-gloamforge-cleaver-unfurl",
+                    "parameters": {
+                      "warningSeconds": 1,
+                      "telegraphStyle": "warning",
+                      "color": "#fb7185"
+                    }
+                  },
+                  {
+                    "id": "sandbox-gloamforge-unfurl-cleaver-fan",
+                    "label": "Tail fan",
+                    "track": "attack",
+                    "primitiveId": "tail-fan",
+                    "trigger": "time",
+                    "startSeconds": 27,
+                    "durationSeconds": 1.2,
+                    "phaseId": "sandbox-gloamforge-cleaver-unfurl",
+                    "parameters": {
+                      "projectileCount": 10,
+                      "sequence": 0
+                    },
+                    "telegraphClipId": "sandbox-gloamforge-unfurl-cleaver-fan-warning"
+                  },
+                  {
+                    "id": "sandbox-gloamforge-unfurl-cleaver-fan-recovery",
+                    "label": "Recovery window",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "time",
+                    "startSeconds": 28.2,
+                    "durationSeconds": 1.8,
+                    "phaseId": "sandbox-gloamforge-cleaver-unfurl",
+                    "parameters": {
+                      "color": "#fb7185"
+                    }
+                  },
+                  {
+                    "id": "sandbox-gloamforge-unfurl-slag-pods-warning",
+                    "label": "Pod volley warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 38,
+                    "durationSeconds": 1,
+                    "phaseId": "sandbox-gloamforge-cleaver-unfurl",
+                    "parameters": {
+                      "warningSeconds": 1,
+                      "telegraphStyle": "warning",
+                      "color": "#fb7185"
+                    }
+                  },
+                  {
+                    "id": "sandbox-gloamforge-unfurl-slag-pods",
+                    "label": "Pod volley",
+                    "track": "attack",
+                    "primitiveId": "pod-volley",
+                    "trigger": "time",
+                    "startSeconds": 39,
+                    "durationSeconds": 1.4,
+                    "phaseId": "sandbox-gloamforge-cleaver-unfurl",
+                    "parameters": {
+                      "projectileCount": 8,
+                      "sequence": 1
+                    },
+                    "telegraphClipId": "sandbox-gloamforge-unfurl-slag-pods-warning"
+                  },
+                  {
+                    "id": "sandbox-gloamforge-unfurl-slag-pods-recovery",
+                    "label": "Recovery window",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "time",
+                    "startSeconds": 40.4,
+                    "durationSeconds": 1.8,
+                    "phaseId": "sandbox-gloamforge-cleaver-unfurl",
+                    "parameters": {
+                      "color": "#fb7185"
+                    }
+                  },
+                  {
+                    "id": "sandbox-gloamforge-unfurl-cross-cut-warning",
+                    "label": "Cross beam warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 50,
+                    "durationSeconds": 1.2,
+                    "phaseId": "sandbox-gloamforge-cleaver-unfurl",
+                    "parameters": {
+                      "warningSeconds": 1.2,
+                      "telegraphStyle": "lane",
+                      "color": "#fb7185"
+                    }
+                  },
+                  {
+                    "id": "sandbox-gloamforge-unfurl-cross-cut",
+                    "label": "Cross beam",
+                    "track": "laser",
+                    "primitiveId": "cross-beam",
+                    "trigger": "time",
+                    "startSeconds": 51.2,
+                    "durationSeconds": 1.6,
+                    "phaseId": "sandbox-gloamforge-cleaver-unfurl",
+                    "telegraphClipId": "sandbox-gloamforge-unfurl-cross-cut-warning"
+                  },
+                  {
+                    "id": "sandbox-gloamforge-unfurl-cross-cut-recovery",
+                    "label": "Recovery window",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "time",
+                    "startSeconds": 52.800000000000004,
+                    "durationSeconds": 2.2,
+                    "phaseId": "sandbox-gloamforge-cleaver-unfurl",
+                    "parameters": {
+                      "color": "#fb7185"
+                    }
+                  },
+                  {
+                    "id": "sandbox-gloamforge-unfurl-slag-wall-warning",
+                    "label": "Weave wall warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 62,
+                    "durationSeconds": 1.1,
+                    "phaseId": "sandbox-gloamforge-cleaver-unfurl",
+                    "parameters": {
+                      "warningSeconds": 1.1,
+                      "telegraphStyle": "lane",
+                      "color": "#fb7185"
+                    }
+                  },
+                  {
+                    "id": "sandbox-gloamforge-unfurl-slag-wall",
+                    "label": "Weave wall",
+                    "track": "attack",
+                    "primitiveId": "weave-wall",
+                    "trigger": "time",
+                    "startSeconds": 63.1,
+                    "durationSeconds": 1.5,
+                    "phaseId": "sandbox-gloamforge-cleaver-unfurl",
+                    "parameters": {
+                      "projectileCount": 12,
+                      "sequence": 1
+                    },
+                    "telegraphClipId": "sandbox-gloamforge-unfurl-slag-wall-warning"
+                  },
+                  {
+                    "id": "sandbox-gloamforge-unfurl-slag-wall-recovery",
+                    "label": "Recovery window",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "time",
+                    "startSeconds": 64.6,
+                    "durationSeconds": 1.8,
+                    "phaseId": "sandbox-gloamforge-cleaver-unfurl",
+                    "parameters": {
+                      "color": "#fb7185"
+                    }
+                  },
+                  {
+                    "id": "sandbox-gloamforge-unfurl-starboard-rail-warning",
+                    "label": "Rail sweep warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 74,
+                    "durationSeconds": 1.2,
+                    "phaseId": "sandbox-gloamforge-cleaver-unfurl",
+                    "parameters": {
+                      "warningSeconds": 1.2,
+                      "telegraphStyle": "lane",
+                      "color": "#fb7185"
+                    }
+                  },
+                  {
+                    "id": "sandbox-gloamforge-unfurl-starboard-rail",
+                    "label": "Rail sweep",
+                    "track": "laser",
+                    "primitiveId": "rail-sweep",
+                    "trigger": "time",
+                    "startSeconds": 75.2,
+                    "durationSeconds": 2,
+                    "phaseId": "sandbox-gloamforge-cleaver-unfurl",
+                    "parameters": {
+                      "sequence": 2
+                    },
+                    "telegraphClipId": "sandbox-gloamforge-unfurl-starboard-rail-warning"
+                  },
+                  {
+                    "id": "sandbox-gloamforge-unfurl-starboard-rail-recovery",
+                    "label": "Recovery window",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "time",
+                    "startSeconds": 77.2,
+                    "durationSeconds": 2.4,
+                    "phaseId": "sandbox-gloamforge-cleaver-unfurl",
+                    "parameters": {
+                      "color": "#fb7185"
+                    }
+                  }
+                ]
+              }
             }
           ]
         }

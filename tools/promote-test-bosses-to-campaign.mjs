@@ -28,6 +28,16 @@ const promotionTargets = Object.freeze([
     missionOrder: 30,
     prototypeId: 'nullwake-revenant',
     spriteKey: 'CAMPAIGN_BOSS_NULLWAKE_REVENANT'
+  }),
+  Object.freeze({
+    missionOrder: 40,
+    prototypeId: 'aurora-storm-engine',
+    spriteKey: 'CAMPAIGN_BOSS_ORBIT_GYROSCOPE'
+  }),
+  Object.freeze({
+    missionOrder: 45,
+    prototypeId: 'gloamforge-mantis',
+    spriteKey: 'CAMPAIGN_BOSS_HAMMERHEAD_SIEGE'
   })
 ]);
 
@@ -102,7 +112,7 @@ const buildPromotedCampaign = async (sourceCampaign) => {
 
     // These encounters keep their existing authored behavior while receiving
     // the same monotonic Mission-economy hull treatment as promoted Test Bosses.
-    for (const missionOrder of [5, 10, 35, 40, 45, 50]) {
+    for (const missionOrder of [5, 10, 35, 50]) {
       const economy = economyByMission[missionOrder];
       const located = findCampaignBoss(campaign, missionOrder);
       if (located.event.bossId !== economy.bossId) {
@@ -196,5 +206,5 @@ if (checkOnly) {
     `${JSON.stringify(promotedCampaign, null, 2)}\n`,
     'utf8'
   );
-  console.log('Promoted Test Boss packages into Campaign Missions 15, 20, 25, and 30.');
+  console.log('Promoted Test Boss packages into Campaign Missions 15, 20, 25, 30, 40, and 45.');
 }

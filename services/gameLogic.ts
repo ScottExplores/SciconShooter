@@ -147,6 +147,7 @@ import {
   resolveSingularityPhase,
   resolveSingularityPincerPlan,
   resolveSingularityPulsePlan,
+  resolveSingularityQueuedAttackTransition,
   resolveSingularityStageDurations,
   sampleSingularityAnchorMovement,
   sampleSingularityBeam,
@@ -160,6 +161,7 @@ import {
   type SingularityPincerPlan,
   type SingularityPulsePlan,
   type SingularityPylonShot,
+  type SingularityQueuedAttackTransition,
   type SingularityWellPlan
 } from './gameplay/bosses/SingularityCommanderRuntime';
 import {
@@ -652,6 +654,9 @@ type BossSingularityRuntimeState = {
   pulsePlan?: SingularityPulsePlan;
   collapsePlan?: SingularityCollapsePlan;
 };
+type BossSingularityTransitionState = SingularityQueuedAttackTransition & {
+  actionId: SingularityActionId;
+};
 type FrontierCrownclawArtifactKind =
   | 'harpoon-claw'
   | 'harpoon-link'
@@ -757,6 +762,7 @@ export class Entity {
   bossHeliosMineFormationUseCount: number = 0;
   bossFrontierCrownclawState?: BossFrontierCrownclawRuntimeState;
   bossSingularityState?: BossSingularityRuntimeState;
+  bossSingularityTransition?: BossSingularityTransitionState;
   bossSingularityDefeatStartFrame: number = -1;
   bossSingularityDefeatConsumed: boolean = false;
   bossSingularityDeathCueDispatched: boolean = false;
@@ -3089,6 +3095,19 @@ export class GameEngine {
           GAME_CONFIG.FPS
         )
       : null;
+    const activeSingularityTransition = activeBoss?.bossSingularityTransition ?? null;
+    const recoveryFrames = activeBoss?.bossActionPresentation?.stage === 'recovery'
+      ? Math.max(
+          0,
+          activeBoss.bossActionPresentation.endFrame - activeBoss.attackTimer
+        )
+      : 0;
+    const transitionFrames = activeSingularityTransition
+      ? Math.max(
+          0,
+          activeSingularityTransition.nextAttackStartFrame - (activeBoss?.attackTimer ?? 0)
+        )
+      : 0;
     const activePrimitiveId = activeBoss?.bossActionPresentation?.primitiveId ?? null;
     const boss = activeBoss
       ? Object.freeze({
@@ -3115,12 +3134,18 @@ export class GameEngine {
             || entity.singularityDamageActive
           )
         ), 0),
-        cooldownFrames: activeBoss.bossActionPresentation?.stage === 'recovery'
-          ? Math.max(
-              0,
-              activeBoss.bossActionPresentation.endFrame - activeBoss.attackTimer
-            )
-          : 0,
+        state: activeBossAttack?.stage
+          ?? activeBoss.bossActionPresentation?.stage
+          ?? 'idle',
+        nextAttack: activeSingularityTransition
+          ? Object.freeze({
+              id: activeSingularityTransition.attackId,
+              label: activeSingularityTransition.attackLabel
+            })
+          : null,
+        recoveryFrames,
+        transitionFrames,
+        cooldownFrames: recoveryFrames,
         components: Object.freeze((activeBoss.bossComponents ?? []).map((component) => (
           Object.freeze({
             id: component.id,
@@ -3143,7 +3168,17 @@ export class GameEngine {
               beatCount: activeBossAttack.beatCount,
               clipId: activeBossAttack.activeClip.id
             })
-          : null,
+          : activeSingularityTransition
+            ? Object.freeze({
+                id: activeSingularityTransition.attackId,
+                label: activeSingularityTransition.attackLabel,
+                role: activeSingularityTransition.attackRole,
+                stage: 'transition' as const,
+                beatIndex: 1,
+                beatCount: 1,
+                clipId: activeSingularityTransition.sourceClipId
+              })
+            : null,
         activePrimitiveId,
         safeRegionGuide: resolvePreviewSafeRegionGuide(activePrimitiveId)
       })
@@ -14986,7 +15021,81 @@ export class GameEngine {
   private clearSingularityRuntime(boss: Entity) {
     this.clearSingularityArtifacts(boss);
     boss.bossSingularityState = undefined;
+    boss.bossSingularityTransition = undefined;
+    if (boss.bossActionPresentation?.stage === 'transition') {
+      boss.bossActionPresentation = undefined;
+    }
     boss.isCharging = false;
+  }
+
+  private updateSingularityAttackFlow(boss: Entity) {
+    if (!this.isSingularityCommander(boss) || !boss.bossTimeline) return;
+    const previewBossAttackLoop = this.previewBossAttackLoop;
+    if (
+      previewBossAttackLoop !== null
+      && previewBossAttackLoop.eventId === boss.sourceEventId
+      && previewBossAttackLoop.phaseId === boss.activeBossPhaseId
+    ) {
+      return;
+    }
+    const phaseId = boss.bossTimelinePhaseId ?? boss.activeBossPhaseId;
+    if (
+      phaseId !== 'gravitational-calibration'
+      && phaseId !== 'spatial-compression'
+      && phaseId !== 'event-horizon-instability'
+    ) return;
+    const transition = resolveSingularityQueuedAttackTransition({
+      timeline: boss.bossTimeline,
+      phaseId,
+      attackFrame: boss.attackTimer,
+      framesPerSecond: GAME_CONFIG.FPS
+    });
+    if (!transition || boss.bossSingularityState) {
+      if (
+        boss.bossSingularityTransition
+        && boss.attackTimer >= boss.bossSingularityTransition.nextAttackStartFrame
+      ) {
+        boss.bossSingularityTransition = undefined;
+      }
+      return;
+    }
+
+    // Skip only the authored empty frames. Telegraph and recovery clips retain
+    // their exact duration, and selected-attack loops bypass this method.
+    if (boss.attackTimer < transition.transitionStartFrame) {
+      boss.attackTimer = transition.transitionStartFrame;
+    }
+    const actionId = this.getSingularityActionId(transition.primitiveId);
+    const sourceClip = boss.bossTimeline.clips.find((clip) => (
+      clip.id === transition.sourceClipId
+    ));
+    if (!actionId || !sourceClip) return;
+    boss.bossSingularityTransition = { ...transition, actionId };
+    const durationFrames = Math.max(
+      1,
+      getBossTimelineDurationFrames(boss.bossTimeline, GAME_CONFIG.FPS)
+    );
+    boss.bossActionPresentation = {
+      actionClipId: sourceClip.id,
+      executionIndex: 0,
+      label: transition.attackLabel,
+      primitiveId: transition.primitiveId,
+      stage: 'transition',
+      startFrame: transition.transitionStartFrame,
+      endFrame: transition.nextAttackStartFrame,
+      sequence: resolveBossPatternSequence(
+        sourceClip.parameters?.sequence,
+        Math.floor(transition.nextAttackStartFrame / durationFrames)
+      ),
+      ...(sourceClip.parameters?.projectileCount === undefined
+        ? {}
+        : { projectileCount: sourceClip.parameters.projectileCount }),
+      motionCue: transition.motionCue,
+      side: sourceClip.parameters?.side,
+      handedness: sourceClip.parameters?.handedness,
+      rotationDirection: sourceClip.parameters?.rotationDirection
+    };
+    boss.isCharging = true;
   }
 
   private createSingularityRuntimeState(
@@ -15773,7 +15882,7 @@ export class GameEngine {
     if (!this.isSingularityCommander(boss)) return;
     const state = boss.bossSingularityState;
     if (!state) return;
-    if (boss.attackTimer > state.actionEndFrame) {
+    if (boss.attackTimer >= state.actionEndFrame) {
       this.clearSingularityRuntime(boss);
       return;
     }
@@ -15802,10 +15911,13 @@ export class GameEngine {
   private updateSingularityTimelineMovement(boss: Entity) {
     if (!this.isSingularityCommander(boss)) return false;
     const state = boss.bossSingularityState;
+    const transition = boss.bossSingularityTransition;
     const actionStage = state && state.fireStartFrame >= 0
       ? 'fire' as const
       : state
         ? 'telegraph' as const
+        : transition
+          ? 'preparation' as const
         : undefined;
     const movement = sampleSingularityAnchorMovement({
       frameCount: this.frameCount,
@@ -15814,7 +15926,7 @@ export class GameEngine {
       bossWidth: boss.width,
       bossHeight: boss.height,
       phaseIndex: this.getSingularityPhaseIndex(boss),
-      actionId: state?.actionId,
+      actionId: state?.actionId ?? transition?.actionId,
       actionStage
     });
     const previousX = boss.x;
@@ -19313,6 +19425,7 @@ export class GameEngine {
     this.updateFrontierCrownclawActionRuntime(boss);
     this.updatePrismMothActionRuntime(boss);
     this.updateSingularityActionRuntime(boss);
+    this.updateSingularityAttackFlow(boss);
     return true;
   }
 

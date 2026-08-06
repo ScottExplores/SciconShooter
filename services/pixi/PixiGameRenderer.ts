@@ -871,7 +871,10 @@ const createModularPreviewBossRigView = (
     if (part.frameId === null) continue;
     const sprite = new Sprite(Texture.WHITE);
     sprite.eventMode = 'none';
-    sprite.roundPixels = registration.manifest.id === PRISM_MOTH_MODULAR_RIG_ID;
+    sprite.roundPixels = Boolean(
+      registration.manifest.preserveAspectRatio
+      || registration.manifest.id === PRISM_MOTH_MODULAR_RIG_ID
+    );
     sprite.visible = false;
     if (part.anchor) sprite.anchor.set(part.anchor.x, part.anchor.y);
     partSprites[partId] = sprite;
@@ -4812,6 +4815,10 @@ export class PixiGameRenderer {
       entity,
       registration
     );
+    const preserveStructuralAspect = Boolean(
+      registration.manifest.preserveAspectRatio
+      || prismMothModularPreview
+    );
     const targetEntranceY = Math.max(72, Math.min(engine.height * 0.13, 116));
     const entranceProgress = clamp(
       (entity.y + entity.height) / Math.max(1, targetEntranceY + entity.height),
@@ -4836,9 +4843,9 @@ export class PixiGameRenderer {
     const designSize = registration.manifest.designSize;
     const authoredScaleX = entity.width / Math.max(1, designSize.width);
     const authoredScaleY = entity.height / Math.max(1, designSize.height);
-    const prismUniformScale = Math.min(authoredScaleX, authoredScaleY);
-    const designScaleX = prismMothModularPreview ? prismUniformScale : authoredScaleX;
-    const designScaleY = prismMothModularPreview ? prismUniformScale : authoredScaleY;
+    const uniformScale = Math.min(authoredScaleX, authoredScaleY);
+    const designScaleX = preserveStructuralAspect ? uniformScale : authoredScaleX;
+    const designScaleY = preserveStructuralAspect ? uniformScale : authoredScaleY;
     this.modularBossDebugSnapshot = Object.freeze({
       entityId: entity.id,
       centerX: entity.x + entity.width / 2,
@@ -4861,7 +4868,7 @@ export class PixiGameRenderer {
           - part.worldTransform.b * part.worldTransform.c
         );
         const authoredScaleY = determinant / scaleX;
-        const fragmentScaleY = prismMothModularPreview
+        const fragmentScaleY = preserveStructuralAspect
           ? Math.sign(authoredScaleY || 1) * scaleX
           : authoredScaleY;
         return [Object.freeze({
@@ -4960,7 +4967,7 @@ export class PixiGameRenderer {
         - part.worldTransform.b * part.worldTransform.c
       );
       const authoredPartScaleY = determinant / scaleX;
-      const partScaleY = prismMothModularPreview
+      const partScaleY = preserveStructuralAspect
         ? Math.sign(authoredPartScaleY || 1) * scaleX
         : authoredPartScaleY;
       sprite.rotation = Math.atan2(part.worldTransform.b, part.worldTransform.a);
@@ -6145,8 +6152,25 @@ export class PixiGameRenderer {
         : getDefaultEntityTexture(engine, entity));
       this.setTexture(view, textureKey);
       const styleScale = entity.spriteStyle?.scale ?? 1;
-      view.sprite.width = entity.width * styleScale;
-      view.sprite.height = entity.height * styleScale;
+      const preservePreviewAspect = Boolean(
+        entity.type === EntityType.BOSS
+        && this.isPreviewBossEntity(entity)
+        && this.previewBossArtwork?.modularRig?.manifest.preserveAspectRatio
+      );
+      if (preservePreviewAspect) {
+        const textureWidth = Math.max(1, view.sprite.texture.width);
+        const textureHeight = Math.max(1, view.sprite.texture.height);
+        const uniformScale = Math.min(
+          entity.width / textureWidth,
+          entity.height / textureHeight
+        ) * styleScale;
+        view.sprite.width = textureWidth * uniformScale;
+        view.sprite.height = textureHeight * uniformScale;
+        view.sprite.roundPixels = true;
+      } else {
+        view.sprite.width = entity.width * styleScale;
+        view.sprite.height = entity.height * styleScale;
+      }
       view.sprite.scale.x = Math.abs(view.sprite.scale.x) * (entity.spriteStyle?.flipX ? -1 : 1);
       view.sprite.rotation = ((entity.spriteStyle?.rotationDegrees ?? 0) * Math.PI) / 180;
       this.drawFallbackBody(view, entity);

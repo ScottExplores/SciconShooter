@@ -110,6 +110,11 @@ export interface ModularBossRigManifest {
   /** Authored neutral-pose bounds used to scale the rig into an entity box. */
   readonly designSize: Readonly<{ width: number; height: number }>;
   /**
+   * Keeps structural pixels on one uniform scale when the simulation entity's
+   * collision box has a different aspect ratio from the authored rig canvas.
+   */
+  readonly preserveAspectRatio?: boolean;
+  /**
    * The primary atlas remains required for backward compatibility. Additional
    * atlases may extend the same globally unique frame namespace.
    */
@@ -461,6 +466,17 @@ export const validateModularBossRigManifest = (
     validateFinite(value.designSize.width, '/designSize/width', issues, 1, MAX_ATLAS_SIZE);
     validateFinite(value.designSize.height, '/designSize/height', issues, 1, MAX_ATLAS_SIZE);
   }
+  if (
+    value.preserveAspectRatio !== undefined
+    && typeof value.preserveAspectRatio !== 'boolean'
+  ) {
+    issue(
+      issues,
+      '/preserveAspectRatio',
+      'invalid_type',
+      'Aspect-ratio preservation must be a boolean when provided.'
+    );
+  }
   validateAtlas(value.atlas, '/atlas', issues);
   const atlasCandidates: Array<Readonly<{ atlas: unknown; path: string }>> = [
     Object.freeze({ atlas: value.atlas, path: '/atlas' })
@@ -798,6 +814,9 @@ const cloneAndFreezeManifest = (manifest: ModularBossRigManifest): ModularBossRi
       width: manifest.designSize.width,
       height: manifest.designSize.height
     }),
+    ...(manifest.preserveAspectRatio === undefined
+      ? {}
+      : { preserveAspectRatio: manifest.preserveAspectRatio }),
     atlas,
     ...(supplementalAtlases === undefined ? {} : { supplementalAtlases }),
     parts,

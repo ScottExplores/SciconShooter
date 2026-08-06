@@ -948,9 +948,10 @@ test('Gloamforge Mantis uses anatomy-owned sentences and a two-phase cleaver tra
   assert.equal(boss.speed, 0.7);
   assert.equal(
     boss.componentMode,
-    undefined,
-    'the two visible forge-bore sockets retain bounded component hitboxes and projectile origins'
+    'hull-only',
+    'the two visible forge-bore sockets remain weapon origins without becoming detachable health components'
   );
+  assert.equal(boss.componentHealth, undefined);
   assert.deepEqual(
     boss.phases.map((phase) => ({
       label: phase.label,
