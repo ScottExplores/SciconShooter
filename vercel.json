@@ -69,6 +69,14 @@
     {
       "path": "/api/finalize-weekly-competition",
       "schedule": "10 20 * * 0"
+    },
+    {
+      "path": "/api/social-agent?mode=daily",
+      "schedule": "0 16 * * *"
+    },
+    {
+      "path": "/api/social-agent?mode=weekly",
+      "schedule": "15 21 * * 0"
     }
   ],
   "rewrites": [
@@ -99,6 +107,10 @@
     {
       "source": "/api/player-reports",
       "destination": "/api/events?route=player-reports"
+    },
+    {
+      "source": "/api/social-agent",
+      "destination": "/api/events?route=social-agent"
     },
     {
       "source": "/(.*)",

@@ -34,9 +34,14 @@ test('player reports share the events Vercel function and keep the Hobby functio
 
   assert.match(eventsApi, /const playerReportsHandler = require\('\.\/_lib\/playerReportsRoute'\)/);
   assert.match(eventsApi, /req\.query\?\.route === 'player-reports'/);
+  assert.match(eventsApi, /req\.query\?\.route === 'social-agent'/);
   assert.match(
     vercelConfig,
     /"source": "\/api\/player-reports"[\s\S]*?"destination": "\/api\/events\?route=player-reports"/
+  );
+  assert.match(
+    vercelConfig,
+    /"source": "\/api\/social-agent"[\s\S]*?"destination": "\/api\/events\?route=social-agent"/
   );
   assert.equal(apiFunctions.length, 12, 'Vercel Hobby allows at most 12 top-level functions');
 });
