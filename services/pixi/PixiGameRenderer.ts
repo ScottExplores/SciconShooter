@@ -980,6 +980,27 @@ export const PIXI_GAMEPLAY_STARTUP_TEXTURE_URLS = Object.freeze([
 ]);
 
 /**
+ * Compact first-frame pack for editor and hosted test sessions. Preview art is
+ * allowed to finish loading in the background, so a single slow mobile image
+ * request can never strand the canonical Pixi arena behind its retry screen.
+ */
+export const PIXI_GAMEPLAY_PREVIEW_STARTUP_TEXTURE_URLS = Object.freeze([
+  ...PIXI_WAVE_PRESENTATION_TEXTURE_URLS,
+  ASSETS.PIXI_BOSS_HEALTH_FRAME,
+  ASSETS.PIXI_BOSS_ALERT_FRAME,
+  ASSETS.PIXI_MINI_BOSS_ALERT_FRAME,
+  ASSETS.PIXI_BOSS_ALERT_RING,
+  ASSETS.PIXI_BOSS_ALERT_SCAN,
+  ASSETS.PIXI_BOSS_ALERT_CRYSTAL,
+  ...ASSETS.PIXI_THRUSTER_FRAMES,
+  ...ASSETS.PIXI_EXPLOSION_FRAMES,
+  ...ASSETS.PIXI_BOSS_DAMAGE_EXPLOSION_FRAMES,
+  ASSETS.POWERUP_MAX_SHOT_AURA,
+  ASSETS.POWERUP_MAX_SHOT_AURA_FRAMES[0],
+  ASSETS.RSC_TOKEN
+]);
+
+/**
  * Complete runtime catalog. The existing bounded Mission loader warms this
  * list; renderer initialization still blocks only on first-frame startup art.
  */
@@ -1279,6 +1300,7 @@ const usesStandaloneBossArt = (entity: Entity, previewArtwork = false) => (
 export interface PixiGameRendererOptions {
   readonly previewBossArtwork?: PreviewBossArtwork;
   readonly startupTextureUrls?: readonly string[];
+  readonly startupTexturePolicy?: 'required' | 'resilient-preview';
 }
 
 export class PixiGameRenderer {
@@ -1392,6 +1414,7 @@ export class PixiGameRenderer {
   private destroyed = false;
   private readonly previewBossArtwork?: PreviewBossArtwork;
   private readonly startupTextureUrls: readonly string[];
+  private readonly startupTexturePolicy: 'required' | 'resilient-preview';
   private previewBossArtworkReady = false;
   private readonly previewBossAtlasTextures = new Map<PreviewBossRigPartId, Texture>();
   private previewBossAtlasReady = false;
@@ -1409,6 +1432,7 @@ export class PixiGameRenderer {
   constructor(options: PixiGameRendererOptions = {}) {
     this.previewBossArtwork = options.previewBossArtwork;
     this.startupTextureUrls = options.startupTextureUrls ?? [];
+    this.startupTexturePolicy = options.startupTexturePolicy ?? 'required';
   }
 
   private bindStartupTextures() {
@@ -1688,7 +1712,9 @@ export class PixiGameRenderer {
       resolution,
       autoStart: false,
       sharedTicker: false,
-      powerPreference: 'high-performance',
+      powerPreference: mobile && this.startupTexturePolicy === 'resilient-preview'
+        ? 'low-power'
+        : 'high-performance',
       preference: 'webgl'
     });
     this.appReady = true;
@@ -1913,7 +1939,12 @@ export class PixiGameRenderer {
     this.flashOverlay.visible = false;
     this.maxShotScreenGlow.visible = false;
 
-    await this.environment.init(this.width, this.height, environmentWindow);
+    await this.environment.init(
+      this.width,
+      this.height,
+      environmentWindow,
+      this.startupTexturePolicy === 'required'
+    );
     if (this.destroyed) return;
     this.resize(this.width, this.height);
 
@@ -1924,10 +1955,16 @@ export class PixiGameRenderer {
         : [url];
     });
     const startupTextureUrls = [...new Set([
-      ...PIXI_GAMEPLAY_STARTUP_TEXTURE_URLS,
+      ...(this.startupTexturePolicy === 'required'
+        ? PIXI_GAMEPLAY_STARTUP_TEXTURE_URLS
+        : PIXI_GAMEPLAY_PREVIEW_STARTUP_TEXTURE_URLS),
       ...selectedRuntimeTextureUrls
     ].filter(Boolean))];
-    await this.textureBank.preloadRequired(startupTextureUrls);
+    if (this.startupTexturePolicy === 'required') {
+      await this.textureBank.preloadRequired(startupTextureUrls);
+    } else {
+      await this.textureBank.preload(startupTextureUrls);
+    }
     this.bindStartupTextures();
     if (this.destroyed) return;
     this.initialized = true;

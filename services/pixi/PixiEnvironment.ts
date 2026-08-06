@@ -613,14 +613,15 @@ export class PixiEnvironment {
   async init(
     width: number,
     height: number,
-    profileWindow: PixiEnvironmentWindow = INITIAL_ENVIRONMENT_WINDOW
+    profileWindow: PixiEnvironmentWindow = INITIAL_ENVIRONMENT_WINDOW,
+    requiredTextures = true
   ) {
     if (this.destroyed) return;
     this.width = Math.max(1, width);
     this.height = Math.max(1, height);
     if (!this.built) this.build();
     this.resize(this.width, this.height);
-    await this.preloadProfileWindow(profileWindow, true);
+    await this.preloadProfileWindow(profileWindow, requiredTextures);
     if (this.destroyed) return;
     this.applyProfile(profileWindow.currentBackgroundId, true);
     this.resize(this.width, this.height);

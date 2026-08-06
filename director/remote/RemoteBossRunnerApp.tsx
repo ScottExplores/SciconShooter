@@ -12,6 +12,7 @@ import campaignJson from '../../game-config/campaign.json';
 import { ASSET_CATALOG } from '../../game-config/catalog';
 import type { GameCampaignConfig } from '../../game-config/types';
 import { audioService } from '../../services/audioService';
+import { recoverFromModulePreloadFailure } from '../../services/deploymentUpdateService';
 import {
   DEFAULT_PREVIEW_BOSS_REFERENCE_COMPARISON,
   DEFAULT_PREVIEW_DEBUG_OVERLAYS,
@@ -643,7 +644,8 @@ export default function RemoteBossRunnerApp() {
             audioEnabled
             fieldUpgradesEnabled={false}
             onReady={() => setCanvasStatus('ready')}
-            onInitializationError={() => {
+            onInitializationError={(error) => {
+              if (recoverFromModulePreloadFailure(error)) return;
               setCanvasStatus('error');
               setNotice('The game renderer could not start.');
             }}

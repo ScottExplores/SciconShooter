@@ -70,7 +70,7 @@ import heliosRigSource from '../../../../director-data/prototype-assets/helios-c
 import prismMothAtlasSource from '../../../../director-data/prototype-assets/prism-moth-broodkeeper/prism-moth-broodkeeper-atlas.json';
 import prismMothRigSource from '../../../../director-data/prototype-assets/prism-moth-broodkeeper/prism-moth-broodkeeper.rig.json';
 
-export const BOSS_SANDBOX_VERSION = 'V 0.31' as const;
+export const BOSS_SANDBOX_VERSION = 'V 0.32' as const;
 
 export const BOSS_SANDBOX_RAIL_MIN_WIDTH = 236;
 export const BOSS_SANDBOX_RAIL_MAX_WIDTH = 420;
