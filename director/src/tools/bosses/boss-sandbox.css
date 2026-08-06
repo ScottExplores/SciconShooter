@@ -837,6 +837,16 @@
   text-transform: uppercase;
 }
 
+.boss-sandbox__mechanics-status {
+  display: block;
+  margin: -3px 0 7px;
+  color: #fdba74;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  line-height: 1.45;
+  text-transform: uppercase;
+}
+
 .boss-sandbox__attacks > div {
   display: grid;
   min-width: 0;

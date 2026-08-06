@@ -1018,6 +1018,12 @@ export type BossTimelinePrimitiveId =
   | 'prism-brood-procession'
   | 'prism-lunar-swoop'
   | 'prism-kaleidoscope-brood'
+  | 'singularity-gravity-well-genesis'
+  | 'singularity-event-horizon-gaze'
+  | 'singularity-tidal-claw-pincer'
+  | 'singularity-orbital-pylon-barrage'
+  | 'singularity-pulse'
+  | 'singularity-gravity-collapse'
   | 'chainclaw-harpoon'
   | 'crown-reactor-beam'
   | 'bastion-crabwalk-barrage'
@@ -1065,6 +1071,12 @@ export type BossTimelineMotionCue =
   | 'prism-swoop'
   | 'prism-kaleidoscope'
   | 'prism-metamorphosis'
+  | 'singularity-well-genesis'
+  | 'singularity-event-horizon-gaze'
+  | 'singularity-tidal-pincer'
+  | 'singularity-pylon-barrage'
+  | 'singularity-pulse'
+  | 'singularity-gravity-collapse'
   | 'frontier-chainclaw-harpoon'
   | 'frontier-crown-cross-link'
   | 'frontier-reactor-charge'
@@ -1090,6 +1102,14 @@ export type BossTimelineRotationDirection =
  * form one learnable player-facing movement puzzle.
  */
 export type BossAttackSentenceRole = 'core' | 'signature';
+
+/**
+ * Existing Boss Factory timelines use the original fixed roster contract: the
+ * same three core attacks and one signature attack are available in every
+ * phase. `phase-subset` is an explicit opt-in for larger global rosters whose
+ * learned attacks unlock or retire across phases.
+ */
+export type BossAttackAvailability = 'every-phase' | 'phase-subset';
 
 export type BossAttackSkillTest =
   | 'rhythm-dodge'
@@ -1196,9 +1216,12 @@ export interface BossTimelineConfig {
   /** When true, time-based clips repeat after durationSeconds. */
   loop: boolean;
   clips: BossTimelineClip[];
+  /** Omitted timelines retain the original strict every-phase four-attack contract. */
+  attackAvailability?: BossAttackAvailability;
   /**
-   * Optional Boss Factory contract. When present it contains exactly three
-   * core attack identities and one signature identity across every boss phase.
+   * Optional Boss Factory contract. The default contains exactly three core
+   * attack identities and one signature identity across every boss phase.
+   * Larger bounded rosters must opt into `phase-subset` availability.
    */
   attacks?: BossAttackSentence[];
 }

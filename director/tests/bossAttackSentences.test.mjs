@@ -119,6 +119,51 @@ const attackDefinitions = [
   }
 ];
 
+const phaseSubsetAttackDefinitions = [
+  ...attackDefinitions.slice(0, 3),
+  {
+    ...attackDefinitions[3],
+    role: 'core'
+  },
+  {
+    id: 'orbital-barrage',
+    label: 'Orbital Barrage',
+    role: 'core',
+    skillTest: 'rhythm-dodge',
+    recognitionCue: 'The weapon pylons ignite in a readable sequence.',
+    solution: 'Cross each firing lane after its warned pylon recoils.',
+    safeRouteRule: 'opposite-side-dodge',
+    sourceSocketRoles: ['port', 'starboard'],
+    startSeconds: 16,
+    primitiveId: 'side-barrage',
+    telegraphStyle: 'target',
+    parameters: (beatIndex) => ({
+      projectileCount: 4,
+      side: beatIndex % 2 === 0 ? 'port' : 'starboard'
+    }),
+    offsets: [0, 0.9]
+  },
+  {
+    id: 'gravity-collapse',
+    label: 'Gravity Collapse',
+    role: 'signature',
+    skillTest: 'route-combination',
+    recognitionCue: 'The core links every warned gravity well in sequence.',
+    solution: 'Read the collapse order and rotate through each released opening.',
+    safeRouteRule: 'channel-to-quadrant',
+    sourceSocketRoles: ['core', 'port', 'starboard'],
+    startSeconds: 20,
+    primitiveId: 'gap-ring',
+    telegraphStyle: 'ring',
+    parameters: (beatIndex) => ({
+      projectileCount: 12,
+      sequence: beatIndex,
+      rotationDirection: beatIndex % 2 === 0 ? 'clockwise' : 'counterclockwise'
+    }),
+    offsets: [0, 0.7, 1.4, 2.1]
+  }
+];
+
 const createBlueprint = (phaseIds) => ({
   durationSeconds: 18,
   loop: true,
@@ -153,10 +198,64 @@ const createBlueprint = (phaseIds) => ({
   }))
 });
 
+const createPhaseSubsetBlueprint = (phaseIds) => {
+  const attackOrder = phaseSubsetAttackDefinitions.map((definition) => definition.id);
+  const openingPhaseAttackIds = new Set([
+    'claw-corridor',
+    'dead-signal-gates',
+    'revenant-maze',
+    'orbital-barrage'
+  ]);
+  return {
+    durationSeconds: 26,
+    loop: true,
+    attackAvailability: 'phase-subset',
+    attackOrder,
+    phases: phaseIds.map((phaseId, phaseIndex) => ({
+      phaseId,
+      color: phaseIndex === 0 ? '#67e8f9' : '#c084fc',
+      cameraStrength: phaseIndex === 0 ? 1 : 2,
+      attacks: phaseSubsetAttackDefinitions
+        .filter((definition) => phaseIndex > 0 || openingPhaseAttackIds.has(definition.id))
+        .map((definition) => ({
+          id: definition.id,
+          label: definition.label,
+          phaseId,
+          role: definition.role,
+          skillTest: definition.skillTest,
+          recognitionCue: definition.recognitionCue,
+          solution: definition.solution,
+          safeRouteRule: definition.safeRouteRule,
+          sourceSocketRoles: [...definition.sourceSocketRoles],
+          startSeconds: definition.startSeconds,
+          recoverySeconds: 0.6,
+          color: phaseIndex === 0 ? '#67e8f9' : '#c084fc',
+          beats: definition.offsets.map((offsetSeconds, beatIndex) => ({
+            id: `beat-${beatIndex + 1}`,
+            label: `${definition.label} beat ${beatIndex + 1}`,
+            primitiveId: definition.primitiveId,
+            offsetSeconds,
+            leadSeconds: 0.5,
+            actionDurationSeconds: 0.2,
+            telegraphStyle: definition.telegraphStyle,
+            parameters: definition.parameters(beatIndex + phaseIndex)
+          }))
+        }))
+    }))
+  };
+};
+
 const compiledCampaignFixture = () => {
   const fixture = benchmarkBossFixture();
   const phaseIds = fixture.boss.phases.map((phase) => phase.id);
   fixture.boss.timeline = compileBossAttackTimeline(createBlueprint(phaseIds));
+  return fixture;
+};
+
+const compiledPhaseSubsetCampaignFixture = () => {
+  const fixture = benchmarkBossFixture();
+  const phaseIds = fixture.boss.phases.map((phase) => phase.id);
+  fixture.boss.timeline = compileBossAttackTimeline(createPhaseSubsetBlueprint(phaseIds));
   return fixture;
 };
 
@@ -201,6 +300,7 @@ test('Boss Factory compiler produces one deterministic three-core/one-signature 
   const second = compileBossAttackTimeline(structuredClone(blueprint));
 
   assert.deepEqual(first, second, 'the same authoring input must compile byte-for-byte equivalent data');
+  assert.equal(first.attackAvailability, undefined, 'legacy four-attack timelines keep their existing shape');
   assert.equal(first.attacks.length, 4);
   assert.equal(first.attacks.filter((attack) => attack.role === 'core').length, 3);
   assert.equal(first.attacks.filter((attack) => attack.role === 'signature').length, 1);
@@ -222,6 +322,71 @@ test('Boss Factory compiler produces one deterministic three-core/one-signature 
 
   boss.timeline = first;
   assertAcceptedByBoth(candidate);
+});
+
+test('Boss Factory compiler preserves six global attack identities while phases expose bounded subsets', () => {
+  const { candidate, boss } = benchmarkBossFixture();
+  const phaseIds = boss.phases.map((phase) => phase.id);
+  const blueprint = createPhaseSubsetBlueprint(phaseIds);
+  const first = compileBossAttackTimeline(blueprint);
+  const second = compileBossAttackTimeline(structuredClone(blueprint));
+
+  assert.deepEqual(first, second, 'phase-subset compilation must remain deterministic');
+  assert.equal(first.attackAvailability, 'phase-subset');
+  assert.deepEqual(
+    first.attacks.map((attack) => attack.id),
+    blueprint.attackOrder,
+    'the explicit global order must survive attacks first introduced in later phases'
+  );
+  assert.equal(first.attacks.length, 6);
+  assert.equal(first.attacks.filter((attack) => attack.role === 'core').length, 5);
+  assert.equal(first.attacks.filter((attack) => attack.role === 'signature').length, 1);
+
+  const openingAvailable = first.attacks.filter((attack) => (
+    attack.variants.some((variant) => variant.phaseId === phaseIds[0])
+  ));
+  const laterAvailable = first.attacks.filter((attack) => (
+    attack.variants.some((variant) => variant.phaseId === phaseIds[1])
+  ));
+  assert.deepEqual(
+    openingAvailable.map((attack) => attack.id),
+    ['claw-corridor', 'dead-signal-gates', 'revenant-maze', 'orbital-barrage']
+  );
+  assert.equal(laterAvailable.length, 6);
+  assert.equal(
+    first.attacks.find((attack) => attack.id === 'gravity-collapse').variants.length,
+    1,
+    'the signature may deliberately unlock only in a later phase'
+  );
+
+  boss.timeline = first;
+  assertAcceptedByBoth(candidate);
+});
+
+test('phase-subset compiler requires a stable complete order and at least three attacks per phase', () => {
+  const { boss } = benchmarkBossFixture();
+  const phaseIds = boss.phases.map((phase) => phase.id);
+
+  const missingOrder = createPhaseSubsetBlueprint(phaseIds);
+  delete missingOrder.attackOrder;
+  assert.throws(
+    () => compileBossAttackTimeline(missingOrder),
+    /stable global attack order/i
+  );
+
+  const incompleteOrder = createPhaseSubsetBlueprint(phaseIds);
+  incompleteOrder.attackOrder.pop();
+  assert.throws(
+    () => compileBossAttackTimeline(incompleteOrder),
+    /every compiled attack exactly once/i
+  );
+
+  const sparsePhase = createPhaseSubsetBlueprint(phaseIds);
+  sparsePhase.phases[0].attacks.splice(2);
+  assert.throws(
+    () => compileBossAttackTimeline(sparsePhase),
+    /between 3 and 6 attacks available/i
+  );
 });
 
 test('Mission Builder boss duplication remaps nested attack variants with their phases and clips', () => {
@@ -374,6 +539,35 @@ test('browser and server require exactly three core attacks and one signature at
   assertRejectedByBoth(wrongRoles.candidate, {
     browserCode: 'invalid_attack_roster',
     serverPattern: /exactly three core attacks and one signature/i
+  });
+});
+
+test('browser and server require an explicit valid phase-subset contract for a six-attack roster', () => {
+  const missingOptIn = compiledPhaseSubsetCampaignFixture();
+  delete missingOptIn.boss.timeline.attackAvailability;
+  assertRejectedByBoth(missingOptIn.candidate, {
+    browserCode: 'invalid_attack_roster',
+    serverPattern: /exactly three core attacks and one signature/i
+  });
+
+  const unsupportedMode = compiledPhaseSubsetCampaignFixture();
+  unsupportedMode.boss.timeline.attackAvailability = 'random-subset';
+  assertRejectedByBoth(unsupportedMode.candidate, {
+    browserCode: 'unsupported_value',
+    serverPattern: /attackAvailability has unsupported value/i
+  });
+
+  const sparsePhase = compiledPhaseSubsetCampaignFixture();
+  const openingPhaseId = sparsePhase.boss.phases[0].id;
+  sparsePhase.boss.timeline.attacks
+    .filter((attack) => attack.variants.some((variant) => variant.phaseId === openingPhaseId))
+    .slice(0, 2)
+    .forEach((attack) => {
+      attack.variants = attack.variants.filter((variant) => variant.phaseId !== openingPhaseId);
+    });
+  assertRejectedByBoth(sparsePhase.candidate, {
+    browserCode: 'invalid_attack_availability',
+    serverPattern: /at least three global attacks available/i
   });
 });
 

@@ -515,10 +515,28 @@ test('all boss choices expose numbered controls, grouping authored sentences and
 
     if (event.timeline) {
       if (event.timeline.attacks?.length) {
+        if (event.timeline.attackAvailability === 'phase-subset') {
+          for (const phase of event.phases) {
+            const phaseAttacks = model.getBossSandboxAttacks(preview, phase.id);
+            const expectedAttackIds = event.timeline.attacks
+              .filter((attack) => attack.variants.some((variant) => variant.phaseId === phase.id))
+              .map((attack) => attack.id);
+            assert.deepEqual(
+              phaseAttacks.map((attack) => attack.id),
+              expectedAttackIds,
+              `${choice.id}/${phase.id} must expose its authored phase attack subset`
+            );
+            assert.ok(
+              phaseAttacks.every((attack) => attack.phaseId === phase.id),
+              `${choice.id}/${phase.id} controls must target the selected phase`
+            );
+          }
+          continue;
+        }
         assert.deepEqual(
           attacks.map((attack) => attack.id),
           event.timeline.attacks.map((attack) => attack.id),
-          `${choice.id} must expose the four player-facing attack sentences`
+          `${choice.id} must expose every player-facing attack sentence`
         );
         assert.ok(
           attacks.every((attack) => attack.phaseId === event.phases[0].id),

@@ -28,6 +28,24 @@ const socketMatchesAction = (
   action: Parameters<BossWeaponSocketPoseSampler>[0]['action']
 ) => {
   if (!action) return true;
+  if (rigId === 'singularity-reach-commander') {
+    if (action.primitiveId === 'singularity-gravity-well-genesis') {
+      return id === 'gravity-seed-origin' || id === 'singularity-core';
+    }
+    if (
+      action.primitiveId === 'singularity-event-horizon-gaze'
+      || action.primitiveId === 'singularity-pulse'
+      || action.primitiveId === 'singularity-gravity-collapse'
+    ) {
+      return id === 'singularity-core';
+    }
+    if (action.primitiveId === 'singularity-tidal-claw-pincer') {
+      return id.startsWith('claw-tip-');
+    }
+    if (action.primitiveId === 'singularity-orbital-pylon-barrage') {
+      return id.startsWith('pylon-muzzle-');
+    }
+  }
   if (rigId === 'frontier-crownclaw') {
     if (action.primitiveId === 'chainclaw-harpoon') {
       return id.startsWith('claw-socket-')

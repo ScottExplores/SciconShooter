@@ -233,7 +233,7 @@ test('boss hits use silhouette collision without routine whole-sprite flashing',
   const engine = read('services/gameLogic.ts');
   const renderer = read('services/pixi/PixiGameRenderer.ts');
   const collisionFlow = engine.slice(
-    engine.indexOf('const bossShieldedNow = this.isBossShielded()'),
+    engine.indexOf('for (const shot of playerShots)'),
     engine.indexOf('getBossWarningComms(_type: BossWarningType)')
   );
   const flashRenderer = renderer.slice(
@@ -281,15 +281,13 @@ test('legacy Canvas also skips routine boss and mini-boss silhouette flashes', (
   assert.match(drawHitFlash, /this\.getHitFlashSprite\(e\)/);
 });
 
-test('boss shield escorts are large readable targets with low-wave durability', () => {
+test('the obsolete generic boss shield escort runtime stays removed', () => {
   const engine = read('services/gameLogic.ts');
+  const renderer = read('services/pixi/PixiGameRenderer.ts');
 
-  assert.match(engine, /BOSS_SHIELD_ESCORT_MOBILE_SIZE = Object\.freeze\(\{ width: 48, height: 42 \}\)/);
-  assert.match(engine, /BOSS_SHIELD_ESCORT_DESKTOP_SIZE = Object\.freeze\(\{ width: 54, height: 48 \}\)/);
-  assert.match(engine, /getBossShieldEscortHp = \(wave: number\) => Math\.min\(8, Math\.max\(2, Math\.round\(wave\)\)\)/);
-  assert.match(engine, /const hp = getBossShieldEscortHp\(phase\)/);
-  assert.match(engine, /shield\.width = escortSize\.width/);
-  assert.match(engine, /shield\.height = escortSize\.height/);
+  assert.doesNotMatch(engine, /spawnBossShieldRing|isBossShielded|getBossShieldCount|shieldHostId/);
+  assert.doesNotMatch(engine, /SHIELD RING|SHIELDS UP|SHIELD x|SHIELD -1/);
+  assert.doesNotMatch(renderer, /shieldHostId/);
 });
 
 test('destroyed side weapons leave distinct health-scaled core attacks active', () => {

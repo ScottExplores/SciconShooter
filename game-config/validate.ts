@@ -180,7 +180,7 @@ const SPAWN_ENEMY_KEYS = [
 const BOSS_WEAPON_KEYS = ['id', 'weaponId', 'attackIntervalSeconds', 'damage', 'projectileSpeed', 'burstCount'];
 const BOSS_PHASE_KEYS = ['id', 'label', 'triggerHealthRatio', 'movementPatternId', 'speedMultiplier', 'weaponSettingIds'];
 const BOSS_REVIVAL_KEYS = ['phaseId', 'shutdownSeconds', 'rebootSeconds', 'restoreHealthRatio', 'awakenedSizeMultiplier'];
-const BOSS_TIMELINE_KEYS = ['durationSeconds', 'loop', 'clips', 'attacks'];
+const BOSS_TIMELINE_KEYS = ['durationSeconds', 'loop', 'clips', 'attackAvailability', 'attacks'];
 const BOSS_TIMELINE_CLIP_KEYS = ['id', 'label', 'track', 'primitiveId', 'trigger', 'startSeconds', 'durationSeconds', 'phaseId', 'telegraphClipId', 'repeat', 'parameters'];
 const BOSS_TIMELINE_REPEAT_KEYS = ['count', 'intervalSeconds'];
 const BOSS_ATTACK_SENTENCE_KEYS = [
@@ -342,6 +342,12 @@ const BOSS_TIMELINE_MOTION_CUES = new Set([
   'prism-swoop',
   'prism-kaleidoscope',
   'prism-metamorphosis',
+  'singularity-well-genesis',
+  'singularity-event-horizon-gaze',
+  'singularity-tidal-pincer',
+  'singularity-pylon-barrage',
+  'singularity-pulse',
+  'singularity-gravity-collapse',
   'frontier-chainclaw-harpoon',
   'frontier-crown-cross-link',
   'frontier-reactor-charge',
@@ -363,6 +369,7 @@ const FRONTIER_CROWNCLAW_SANDBOX_PRIMITIVES = new Set([
   'bastion-crabwalk-barrage'
 ]);
 const BOSS_ATTACK_SENTENCE_ROLES = new Set(['core', 'signature']);
+const BOSS_ATTACK_AVAILABILITY = new Set(['every-phase', 'phase-subset']);
 const BOSS_ATTACK_SKILL_TESTS = new Set([
   'rhythm-dodge',
   'lane-routing',
@@ -1684,6 +1691,21 @@ const validateBossTimeline = (
   checkKeys(value, BOSS_TIMELINE_KEYS, path, issues);
   checkNumber(value.durationSeconds, `${path}/durationSeconds`, issues, 0.1, 180);
   checkBoolean(value.loop, `${path}/loop`, issues);
+  const attackAvailability = value.attackAvailability === undefined
+    ? 'every-phase'
+    : value.attackAvailability;
+  if (
+    typeof attackAvailability !== 'string'
+    || !BOSS_ATTACK_AVAILABILITY.has(attackAvailability)
+  ) {
+    pushIssue(
+      issues,
+      `${path}/attackAvailability`,
+      'unsupported_value',
+      `Unsupported boss attack availability: ${String(attackAvailability)}`
+    );
+  }
+  const usesPhaseSubsets = attackAvailability === 'phase-subset';
   if (!checkArray(value.clips, `${path}/clips`, issues)) return;
   const timelineClips = value.clips;
   if (timelineClips.length > 128) {
@@ -2207,12 +2229,18 @@ const validateBossTimeline = (
   if (value.attacks !== undefined) {
     const attacksPath = `${path}/attacks`;
     if (checkArray(value.attacks, attacksPath, issues)) {
-      if (value.attacks.length !== 4) {
+      if (
+        usesPhaseSubsets
+          ? value.attacks.length < 4 || value.attacks.length > 6
+          : value.attacks.length !== 4
+      ) {
         pushIssue(
           issues,
           attacksPath,
           'invalid_attack_roster',
-          'Boss Factory timelines require exactly three core attacks and one signature attack'
+          usesPhaseSubsets
+            ? 'Phase-subset Boss Factory timelines require between four and six global attacks'
+            : 'Boss Factory timelines require exactly three core attacks and one signature attack'
         );
       }
       const attackIds = new Set<string>();
@@ -2220,6 +2248,7 @@ const validateBossTimeline = (
       const usedRecoveryReferences = new Set<string>();
       let coreAttackCount = 0;
       let signatureAttackCount = 0;
+      const attacksPerPhase = new Map([...phaseIds].map((phaseId) => [phaseId, 0]));
       const windowsByPhase = new Map<string, Array<{
         startSeconds: number;
         endSeconds: number;
@@ -2410,7 +2439,12 @@ const validateBossTimeline = (
             windowsByPhase.set(phaseId, phaseWindows);
           }
         });
-        if (
+        if (usesPhaseSubsets) {
+          variantPhases.forEach((phaseId) => {
+            if (!phaseIds.has(phaseId)) return;
+            attacksPerPhase.set(phaseId, (attacksPerPhase.get(phaseId) ?? 0) + 1);
+          });
+        } else if (
           variantPhases.size !== phaseIds.size
           || [...phaseIds].some((phaseId) => !variantPhases.has(phaseId))
         ) {
@@ -2422,13 +2456,30 @@ const validateBossTimeline = (
           );
         }
       });
-      if (coreAttackCount !== 3 || signatureAttackCount !== 1) {
+      if (
+        usesPhaseSubsets
+          ? coreAttackCount < 3 || signatureAttackCount !== 1
+          : coreAttackCount !== 3 || signatureAttackCount !== 1
+      ) {
         pushIssue(
           issues,
           attacksPath,
           'invalid_attack_roster',
-          'Boss Factory timelines require exactly three core attacks and one signature attack'
+          usesPhaseSubsets
+            ? 'Phase-subset Boss Factory timelines require at least three core attacks and exactly one signature attack'
+            : 'Boss Factory timelines require exactly three core attacks and one signature attack'
         );
+      }
+      if (usesPhaseSubsets) {
+        attacksPerPhase.forEach((attackCount, phaseId) => {
+          if (attackCount >= 3) return;
+          pushIssue(
+            issues,
+            attacksPath,
+            'invalid_attack_availability',
+            `Boss phase ${phaseId} must make at least three global attacks available`
+          );
+        });
       }
       timelineClips.forEach((clip, clipIndex) => {
         if (
@@ -2496,7 +2547,13 @@ const validateBossTimeline = (
       'helix-volley': 24,
       'side-barrage': 8,
       'pod-volley': 6,
-      'weave-wall': 24
+      'weave-wall': 24,
+      'singularity-gravity-well-genesis': 24,
+      'singularity-event-horizon-gaze': 2,
+      'singularity-tidal-claw-pincer': 2,
+      'singularity-orbital-pylon-barrage': 16,
+      'singularity-pulse': 24,
+      'singularity-gravity-collapse': 24
     };
     return typeof parameters.projectileCount === 'number'
       ? parameters.projectileCount

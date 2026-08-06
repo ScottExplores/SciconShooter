@@ -130,6 +130,11 @@ export type PreviewCommand =
     readonly loop?: boolean;
   })
   | (PreviewCommandBase & {
+    readonly type: 'clear-boss-hazards';
+    /** Optional exact boss event ID when a wave contains multiple bosses. */
+    readonly eventId?: string;
+  })
+  | (PreviewCommandBase & {
     readonly type: 'set-mini-boss-signature-loop';
     readonly eventId: string;
     readonly enabled: boolean;
@@ -198,6 +203,9 @@ export interface PreviewBossSnapshot {
   readonly maxHealth: number;
   readonly healthRatio: number;
   readonly invincible: boolean;
+  readonly activeWells: number;
+  readonly hazardCount: number;
+  readonly cooldownFrames: number;
   readonly components: readonly PreviewBossComponentSnapshot[];
   readonly activeAttack: PreviewBossAttackSnapshot | null;
   readonly activePrimitiveId: BossTimelinePrimitiveId | null;

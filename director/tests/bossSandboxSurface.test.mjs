@@ -382,6 +382,11 @@ test('local and remote Boss Sandbox attack buttons follow the live runtime attac
   assert.match(source, /aria-label="Selected attack playback"/);
   assert.match(source, /Replay selected/);
   assert.match(source, /\{attackLoopEnabled \? 'Loop on' : 'Loop off'\}/);
+  assert.match(source, /type: 'clear-boss-hazards'/);
+  assert.match(source, /Clear hazards/);
+  assert.match(source, /previewSnapshot\.boss\.activeWells/);
+  assert.match(source, /previewSnapshot\.boss\.hazardCount/);
+  assert.match(source, /previewSnapshot\.boss\.cooldownFrames/);
   assert.match(styles, /\.boss-sandbox__attacks > div[\s\S]*grid-template-columns:/);
   assert.match(styles, /\.boss-sandbox__attack-playback button\.is-active/);
   assert.match(styles, /\.boss-sandbox__attacks button[\s\S]*min-height: 38px/);

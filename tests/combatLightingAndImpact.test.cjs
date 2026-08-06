@@ -57,8 +57,8 @@ test('primary impact shake is preference-aware, rate-limited, and never adds hit
 
   assert.match(engineSource, /this\.lastPrimaryImpactShakeFrame = -999/);
   assert.ok(
-    (engineSource.match(/this\.registerPrimaryWeaponImpact\(target, shot\)/g) || []).length >= 2,
-    'shielded and direct primary impacts both use the bounded feedback path'
+    (engineSource.match(/this\.registerPrimaryWeaponImpact\(target, shot\)/g) || []).length >= 1,
+    'direct primary impacts use the bounded feedback path after generic boss shields were removed'
   );
 });
 

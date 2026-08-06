@@ -435,7 +435,7 @@ const MAW_CARRIER = Object.freeze({
     linkedAsset('maw-spawn-art', stage20Enemy('crescent-minelayer')),
     generatedProjectileAsset('maw-seed', 'maw-carrier', [
       'maw-seed-01.png', 'maw-seed-02.png', 'maw-seed-03.png', 'maw-seed-04.png'
-    ], { widthPixels: 28, heightPixels: 32 }),
+    ], { widthPixels: 25, heightPixels: 32 }),
     telegraphAsset('maw-warning', 'warning-ring-amber'),
     sharedDeath
   ]),

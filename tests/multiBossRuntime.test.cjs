@@ -16,11 +16,11 @@ test('the runtime keeps grouped Bottleneck Drones distinct and aggregates their 
   assert.match(source, /TWIN BOTTLENECKS!/);
 });
 
-test('the Director exposes and validates the same Bottleneck boss count', () => {
+test('the Director exposes and validates the same Bottleneck elite-enemy count', () => {
   const inspector = fs.readFileSync(path.join(root, 'director', 'src', 'editor', 'EditorInspector.tsx'), 'utf8');
   const validator = fs.readFileSync(path.join(root, 'director', 'server', 'gameCampaignValidation.mjs'), 'utf8');
 
-  assert.match(inspector, /label="Boss count"/);
+  assert.match(inspector, /label="Elite enemy count"/);
   assert.match(inspector, /boss\.count \?\? 1/);
   assert.match(validator, /!\['bottleneck-drone', 'paywall-wall'\]\.includes\(event\.bossId\) && event\.count > 1/);
 });

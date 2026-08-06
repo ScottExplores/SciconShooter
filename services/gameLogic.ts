@@ -136,6 +136,32 @@ import {
   resolvePaywallBossCadence
 } from './gameplay/bosses/PaywallBossRuntime';
 import {
+  SINGULARITY_PYLON_SOCKET_IDS,
+  SINGULARITY_REACH_BOSS_ID,
+  SINGULARITY_RUNTIME_LIMITS,
+  buildSingularityCollapsePlan,
+  buildSingularityGravityWellPlan,
+  buildSingularityPylonShotPlan,
+  getSingularityCollapseDamagingWellIndex,
+  resolveSingularityBeamPlan,
+  resolveSingularityPhase,
+  resolveSingularityPincerPlan,
+  resolveSingularityPulsePlan,
+  sampleSingularityAnchorMovement,
+  sampleSingularityBeam,
+  sampleSingularityDefeat,
+  sampleSingularityPincer,
+  sampleSingularityWellLifecycle,
+  type SingularityActionId,
+  type SingularityBeamPlan,
+  type SingularityCollapsePlan,
+  type SingularityDefeatStage,
+  type SingularityPincerPlan,
+  type SingularityPulsePlan,
+  type SingularityPylonShot,
+  type SingularityWellPlan
+} from './gameplay/bosses/SingularityCommanderRuntime';
+import {
   resolveBossPreviewArtworkDimensions,
   type BossPreviewArtworkDesignSize
 } from './gameplay/bosses/BossPreviewArtworkGeometry';
@@ -592,6 +618,39 @@ type BossFrontierCrownclawRuntimeState = {
   crabwalkPlan?: FrontierCrabwalkPlan;
   lastBarrageShotIndex: number;
 };
+type SingularityArtifactKind =
+  | 'well'
+  | 'beam'
+  | 'claw-port'
+  | 'claw-starboard';
+type BossSingularityRuntimeState = {
+  actionId: SingularityActionId;
+  actionClipId: string;
+  attackId: string;
+  executionIndex: number;
+  phaseIndex: 1 | 2 | 3;
+  sequence: number;
+  warningStartFrame: number;
+  fireStartFrame: number;
+  actionEndFrame: number;
+  anchorX: number;
+  anchorY: number;
+  trackedTargetAngleRadians: number;
+  lockedTargetAngleRadians: number;
+  lockedTargetX: number;
+  lockedTargetY: number;
+  pincerTargetY: number;
+  lastPylonShotIndex: number;
+  lastWellEmissionIndexes: number[];
+  pulseSpawned: boolean;
+  collapseBurstIndexes: number[];
+  wells?: readonly SingularityWellPlan[];
+  beamPlan?: SingularityBeamPlan;
+  pincerPlan?: SingularityPincerPlan;
+  pylonShots?: readonly SingularityPylonShot[];
+  pulsePlan?: SingularityPulsePlan;
+  collapsePlan?: SingularityCollapsePlan;
+};
 type FrontierCrownclawArtifactKind =
   | 'harpoon-claw'
   | 'harpoon-link'
@@ -696,6 +755,11 @@ export class Entity {
   bossHeliosMineFormationState?: BossHeliosMineFormationState;
   bossHeliosMineFormationUseCount: number = 0;
   bossFrontierCrownclawState?: BossFrontierCrownclawRuntimeState;
+  bossSingularityState?: BossSingularityRuntimeState;
+  bossSingularityDefeatStartFrame: number = -1;
+  bossSingularityDefeatConsumed: boolean = false;
+  bossSingularityDeathCueDispatched: boolean = false;
+  bossSingularityDefeatLastStage?: SingularityDefeatStage;
   bossPrismMothActionStates: PrismMothActionRuntimeState[] = [];
   bossPrismMothBodyDamageActive: boolean = false;
   /** Pixi presentation only. Collision remains the entity's axis-aligned box. */
@@ -767,6 +831,10 @@ export class Entity {
   frontierCrownclawLinkIndex: number = -1;
   frontierCrownclawBeamIndex: number = -1;
   frontierCrownclawDamageActive: boolean = false;
+  singularityArtifactKind?: SingularityArtifactKind;
+  singularityActionId?: SingularityActionId;
+  singularityArtifactIndex: number = -1;
+  singularityDamageActive: boolean = false;
   prismMothArtifactState?: PrismMothOwnedArtifactRuntimeState;
 
   // Missile Props
@@ -850,7 +918,6 @@ export class Entity {
   miniBossLabReinforcementContactDamage: number = 0;
   flashFrames: number = 0;
   lastDamageFlashFrame: number = -999;
-  shieldHostId?: string;
   damage: number = 1;
   pierceRemaining: number = 0;
   weaponKind: PlayerWeaponKind = 'pulse';
@@ -1934,9 +2001,6 @@ const PLAYER_SHIP_SCALE = 0.95;
 const PAYWALL_INTERCEPTOR_SCALE = 1.1;
 const SPIRAL_PAYWALL_INTERCEPTOR_SCALE = 1.05;
 const CITATION_WRAITH_SCALE = 1.32;
-const BOSS_SHIELD_ESCORT_MOBILE_SIZE = Object.freeze({ width: 48, height: 42 });
-const BOSS_SHIELD_ESCORT_DESKTOP_SIZE = Object.freeze({ width: 54, height: 48 });
-const getBossShieldEscortHp = (wave: number) => Math.min(8, Math.max(2, Math.round(wave)));
 const MAIN_BOSS_ALERT_FRAMES = 120;
 export const STAGE_TAKEOFF_FRAMES = 180;
 export const STAGE_TAKEOFF_HOLD_FRAMES = 24;
@@ -3035,6 +3099,27 @@ export class GameEngine {
         maxHealth: Math.max(1, activeBoss.maxHp),
         healthRatio: clamp(activeBoss.hp / Math.max(1, activeBoss.maxHp), 0, 1),
         invincible: this.previewInvincibleBossHulls.has(activeBoss),
+        activeWells: this.entities.reduce((count, entity) => count + Number(
+          !entity.markedForDeletion
+          && entity.bossOwnerId === activeBoss.id
+          && entity.singularityArtifactKind === 'well'
+        ), 0),
+        hazardCount: this.entities.reduce((count, entity) => count + Number(
+          !entity.markedForDeletion
+          && entity.bossOwnerId === activeBoss.id
+          && entity.type === EntityType.PROJECTILE
+          && !entity.isTelegraph
+          && (
+            !entity.singularityArtifactKind
+            || entity.singularityDamageActive
+          )
+        ), 0),
+        cooldownFrames: activeBoss.bossActionPresentation?.stage === 'recovery'
+          ? Math.max(
+              0,
+              activeBoss.bossActionPresentation.endFrame - activeBoss.attackTimer
+            )
+          : 0,
         components: Object.freeze((activeBoss.bossComponents ?? []).map((component) => (
           Object.freeze({
             id: component.id,
@@ -3403,7 +3488,6 @@ export class GameEngine {
         entity.markedForDeletion = true;
       }
     }
-    this.clearBossShieldRing();
     this.compactEntities();
 
     for (const boss of bosses) {
@@ -3467,6 +3551,23 @@ export class GameEngine {
     }
     this.refreshLoadState();
     return bosses.every((boss) => boss.activeBossPhaseId === phaseId);
+  }
+
+  clearPreviewBossHazards(eventId?: string) {
+    if (!this.canUsePreviewControl()) return false;
+    const bosses = this.entities.filter((entity) => (
+      !entity.markedForDeletion
+      && entity.type === EntityType.BOSS
+      && (!eventId || entity.sourceEventId === eventId)
+    ));
+    if (bosses.length === 0) return false;
+    for (const boss of bosses) {
+      this.clearBossOwnedHazards(boss);
+      boss.bossActionPresentation = undefined;
+      boss.isCharging = false;
+    }
+    this.compactEntities();
+    return true;
   }
 
   private applyPreviewBossAttackLoop(boss: Entity) {
@@ -6905,14 +7006,6 @@ export class GameEngine {
     }
 
     if (!nearestTarget) return;
-    if (nearestTarget.type === EntityType.BOSS && this.isBossShielded()) {
-      this.pulseDamageFlash(nearestTarget);
-      if (this.frameCount % 10 === 0) {
-        this.spawnRingEffect(nearestTarget.x + nearestTarget.width / 2, nearestTarget.y + nearestTarget.height / 2, '#a7f3d0');
-      }
-      return;
-    }
-
     const damageByLevel = [1, 1, 1, 1.3, 1.3, 2.4, 4.2, 7.5];
     const isBossTarget = nearestTarget.type === EntityType.BOSS || nearestTarget.type === EntityType.MINI_BOSS;
     const laserDamage = damageByLevel[Math.min(level, damageByLevel.length - 1)] * (isBossTarget ? 1.35 : 1);
@@ -7476,12 +7569,6 @@ export class GameEngine {
     for (let index = 0; index < targets.length; index++) {
       const target = targets[index];
       const isBossTarget = target.type === EntityType.BOSS || target.type === EntityType.MINI_BOSS || target.type === EntityType.ENEMY_INVADER;
-      if (target.type === EntityType.BOSS && this.isBossShielded()) {
-        this.pulseDamageFlash(target);
-        this.spawnRingEffect(target.x + target.width / 2, target.y + target.height / 2, '#a7f3d0');
-        this.spawnFloatingText(target.x + target.width / 2, target.y + target.height * 0.22, 'SHIELDS UP', '#a7f3d0', 16);
-        continue;
-      }
       const bombDamage = target.type === EntityType.BOSS
         ? BOMB_DAMAGE_BOSS
         : target.type === EntityType.MINI_BOSS
@@ -7683,11 +7770,6 @@ export class GameEngine {
       const effectiveRadius = chargeRadius + targetAllowance;
       if ((dx * dx + dy * dy) > Math.max(radiusSq, effectiveRadius * effectiveRadius)) continue;
 
-      if (target.type === EntityType.BOSS && this.isBossShielded()) {
-        this.pulseDamageFlash(target);
-        continue;
-      }
-
       // Regular hostiles already die outright, so Signature Move scaling only
       // needs to move the armoured tiers.
       const abilityScale = this.getShipAbilityDamageScale();
@@ -7714,7 +7796,11 @@ export class GameEngine {
 
   isBossCombatInteractive(entity: Entity) {
     return entity.type !== EntityType.BOSS
-      || (entity.bossRevivalStage !== 'shutdown' && entity.bossRevivalStage !== 'rebooting');
+      || (
+        entity.bossRevivalStage !== 'shutdown'
+        && entity.bossRevivalStage !== 'rebooting'
+        && entity.bossSingularityDefeatStartFrame < 0
+      );
   }
 
   canBeginBossRevival(boss: Entity) {
@@ -7727,7 +7813,7 @@ export class GameEngine {
       ) > 0;
   }
 
-  private clearBossRevivalHazards(boss: Entity) {
+  private clearBossOwnedHazards(boss: Entity) {
     this.clearPrismMothRuntime(boss);
     this.pendingBossStrikes = this.pendingBossStrikes.filter((strike) => strike.bossId !== boss.id);
     const removedTelegraphIds = new Set<string>();
@@ -7740,7 +7826,6 @@ export class GameEngine {
       if (
         entity.bossOwnerId === boss.id
         || removedTelegraphIds.has(entity.id)
-        || entity.shieldHostId === boss.id
       ) {
         entity.markedForDeletion = true;
       }
@@ -7752,7 +7837,10 @@ export class GameEngine {
     boss.bossHeliosMachineGunChannelState = undefined;
     this.clearBossTimelineActionLocks(boss);
     this.removeBossCornerAmbushBeams(boss);
-    this.clearBossShieldRing();
+  }
+
+  private clearBossRevivalHazards(boss: Entity) {
+    this.clearBossOwnedHazards(boss);
   }
 
   private beginBossRevival(boss: Entity) {
@@ -7901,59 +7989,6 @@ export class GameEngine {
     boss.bossSignificantImpactIsComponent = componentImpact;
   }
 
-  getBossShieldCount() {
-    let count = 0;
-    for (let index = 0; index < this.entities.length; index++) {
-      const entity = this.entities[index];
-      if (!entity.markedForDeletion && entity.type === EntityType.ENEMY_SWARM && entity.formation === 'orbit') {
-        count++;
-      }
-    }
-    return count;
-  }
-
-  isBossShielded() {
-    return this.getBossShieldCount() > 0;
-  }
-
-  clearBossShieldRing() {
-    for (let index = 0; index < this.entities.length; index++) {
-      const entity = this.entities[index];
-      if (entity.type === EntityType.ENEMY_SWARM && entity.formation === 'orbit') {
-        entity.markedForDeletion = true;
-      }
-    }
-  }
-
-  spawnBossShieldRing(boss: Entity, phase: number, configuredCount?: number) {
-    const count = Number.isFinite(configuredCount)
-      ? Math.max(0, Math.floor(configuredCount as number))
-      : Math.min(this.mobileProfile ? 5 : 8, 3 + phase);
-    const hp = getBossShieldEscortHp(phase);
-    const escortSize = this.mobileProfile
-      ? BOSS_SHIELD_ESCORT_MOBILE_SIZE
-      : BOSS_SHIELD_ESCORT_DESKTOP_SIZE;
-
-    for (let i = 0; i < count; i++) {
-      const shield = this.createEntity(EntityType.ENEMY_SWARM, boss.x + boss.width / 2, boss.y + boss.height / 2);
-      shield.width = escortSize.width;
-      shield.height = escortSize.height;
-      shield.hp = hp;
-      shield.maxHp = hp;
-      shield.color = '#a7f3d0';
-      shield.formation = 'orbit';
-      shield.formationIndex = i;
-      shield.formationSeed = (Math.PI * 2 * i) / count;
-      shield.shieldHostId = boss.id;
-      shield.variant = 300 + i;
-      shield.sourceEventId = boss.sourceEventId;
-      shield.sourceItemId = boss.sourceItemId;
-      this.entities.push(shield);
-    }
-
-    this.spawnFloatingText(this.width / 2, Math.max(92, this.height * 0.16), 'SHIELD RING!', '#a7f3d0', this.mobileProfile ? 17 : 22);
-  }
-
   private recordWaveVictoryKill(target: Entity) {
     const encounterId = target.sourceEventId || target.id;
     if (target.type === EntityType.BOSS) {
@@ -8018,9 +8053,14 @@ export class GameEngine {
     if (target.type === EntityType.BOSS) {
       if (!this.isBossCombatInteractive(target)) return;
       if (this.beginBossRevival(target)) return;
+      if (this.beginSingularityDefeat(target)) return;
     }
 
-    if (target.type === EntityType.BOSS && target.bossTimeline) {
+    if (
+      target.type === EntityType.BOSS
+      && target.bossTimeline
+      && !target.bossSingularityDeathCueDispatched
+    ) {
       const phase = Math.max(1, target.activeBossPhaseIndex + 1);
       getBossTimelineTriggeredCues(
         target.bossTimeline,
@@ -8030,6 +8070,7 @@ export class GameEngine {
     }
     if (target.type === EntityType.BOSS) {
       this.clearPrismMothRuntime(target);
+      this.clearSingularityRuntime(target);
       target.bossCornerAmbushBeamState = undefined;
       target.bossCornerAmbushRamState = undefined;
       target.bossTrackingPincerState = undefined;
@@ -8096,10 +8137,6 @@ export class GameEngine {
     } else if (countsTowardCampaignRewards) {
       this.spawnCoin(target.x + target.width / 2, target.y + target.height / 2);
     }
-    if (target.type === EntityType.ENEMY_SWARM && target.formation === 'orbit') {
-      this.spawnFloatingText(centerX, centerY - 26, 'SHIELD -1', '#a7f3d0', 14);
-      this.spawnRingEffect(centerX, centerY, '#a7f3d0');
-    }
     const isElite = target.type === EntityType.ENEMY_JOURNAL
       || target.type === EntityType.ENEMY_BRICK
       || target.type === EntityType.MINI_BOSS
@@ -8159,7 +8196,6 @@ export class GameEngine {
       this.flashAlpha = Math.max(this.flashAlpha, 0.26);
       this.addHitStop(12);
       this.addShake(6.5);
-      this.clearBossShieldRing();
       this.bossRef = null;
       this.mainBossDefeated = true;
       this.waveTransitionPending = true;
@@ -8209,14 +8245,6 @@ export class GameEngine {
       if (target.markedForDeletion || !this.isEnemyTarget(target) || !intersectsBeam(target)) return;
 
       const isBossTarget = target.type === EntityType.BOSS || target.type === EntityType.MINI_BOSS || target.type === EntityType.ENEMY_INVADER;
-      if (target.type === EntityType.BOSS && this.isBossShielded()) {
-        this.pulseDamageFlash(target);
-        if (this.frameCount % 10 === 0) {
-          this.spawnRingEffect(target.x + target.width / 2, target.y + target.height / 2, '#a7f3d0');
-        }
-        return;
-      }
-
       const beamDamage = isBossTarget ? 0.9 : 1.45;
       const componentHit = target.type === EntityType.BOSS
         ? this.getBossComponentHit(target, beamBox)
@@ -12032,11 +12060,6 @@ export class GameEngine {
       const effectiveRadius = BTC_HASH_BURST_RADIUS * this.getShipAbilityRadiusScale()
         + Math.min(42, Math.max(target.width, target.height) * 0.22);
       if ((dx * dx + dy * dy) > effectiveRadius * effectiveRadius) continue;
-      if (target.type === EntityType.BOSS && this.isBossShielded()) {
-        this.pulseDamageFlash(target);
-        continue;
-      }
-
       const abilityScale = this.getShipAbilityDamageScale();
       const damage = target.type === EntityType.BOSS
         ? 12 * abilityScale
@@ -12368,10 +12391,6 @@ export class GameEngine {
     boss.bossComponents ??= this.createBossComponents(boss, configured?.componentHealth);
     this.bossRef = boss;
     this.entities.push(boss);
-    const shieldCount = configured ? Math.max(0, Math.floor(Number(configured.shieldCount) || 0)) : undefined;
-    if ((configured && (shieldCount || 0) > 0) || (!configured && phase >= 2)) {
-      this.spawnBossShieldRing(boss, phase, shieldCount);
-    }
   }
 
   getBossPulseCount(phase: number) {
@@ -13195,6 +13214,9 @@ export class GameEngine {
   private clearBossTimelineActionLocks(boss: Entity) {
     if (this.isSandboxFrontierCrownclaw(boss)) {
       this.clearFrontierCrownclawRuntime(boss);
+    }
+    if (this.isSingularityCommander(boss)) {
+      this.clearSingularityRuntime(boss);
     }
     boss.bossAttackOriginLocks = clearBossAttackOriginLocks();
     boss.bossGatlingAttackLock = undefined;
@@ -14870,6 +14892,948 @@ export class GameEngine {
 
   private isSandboxFrontierCrownclaw(boss: Entity) {
     return boss.sourceItemId === 'frontier-crownclaw';
+  }
+
+  private isSingularityCommander(boss: Entity) {
+    return boss.sourceItemId === SINGULARITY_REACH_BOSS_ID;
+  }
+
+  private getSingularityActionId(
+    primitiveId: BossTimelineCue['clip']['primitiveId'] | undefined
+  ): SingularityActionId | null {
+    switch (primitiveId) {
+      case 'singularity-gravity-well-genesis':
+        return 'gravity-well-genesis';
+      case 'singularity-event-horizon-gaze':
+        return 'event-horizon-gaze';
+      case 'singularity-tidal-claw-pincer':
+        return 'tidal-claw-pincer';
+      case 'singularity-orbital-pylon-barrage':
+        return 'orbital-pylon-barrage';
+      case 'singularity-pulse':
+        return 'singularity-pulse';
+      case 'singularity-gravity-collapse':
+        return 'gravity-collapse';
+      default:
+        return null;
+    }
+  }
+
+  private getSingularityActionContext(boss: Entity, clipId: string) {
+    const timeline = boss.bossTimeline;
+    const phaseId = boss.bossTimelinePhaseId ?? boss.activeBossPhaseId;
+    const fallback = {
+      attackId: clipId,
+      warningStartFrame: boss.attackTimer,
+      actionEndFrame: boss.attackTimer + GAME_CONFIG.FPS * 4
+    };
+    if (!timeline || !phaseId) return fallback;
+    const match = timeline.attacks
+      ?.flatMap((attack) => attack.variants.map((variant) => ({ attack, variant })))
+      .find(({ variant }) => (
+        variant.phaseId === phaseId && variant.beatClipIds.includes(clipId)
+      ));
+    if (!match) return fallback;
+    const beatClips = match.variant.beatClipIds
+      .map((id) => timeline.clips.find((clip) => clip.id === id))
+      .filter((clip): clip is BossTimelineCue['clip'] => Boolean(clip));
+    const warningStarts = beatClips
+      .map((clip) => timeline.clips.find((candidate) => candidate.id === clip.telegraphClipId))
+      .filter((clip): clip is BossTimelineCue['clip'] => Boolean(clip))
+      .map((clip) => clip.startSeconds);
+    const recovery = timeline.clips.find((clip) => clip.id === match.variant.recoveryClipId);
+    const durationFrames = Math.max(1, getBossTimelineDurationFrames(timeline, GAME_CONFIG.FPS));
+    const loopStartFrame = boss.attackTimer - (boss.attackTimer % durationFrames);
+    const warningStartSeconds = warningStarts.length > 0
+      ? Math.min(...warningStarts)
+      : Math.min(...beatClips.map((clip) => clip.startSeconds));
+    const endSeconds = recovery
+      ? recovery.startSeconds + recovery.durationSeconds
+      : Math.max(...beatClips.map((clip) => clip.startSeconds + clip.durationSeconds));
+    return {
+      attackId: match.attack.id,
+      warningStartFrame: loopStartFrame + Math.round(warningStartSeconds * GAME_CONFIG.FPS),
+      actionEndFrame: loopStartFrame + Math.round(endSeconds * GAME_CONFIG.FPS)
+    };
+  }
+
+  private getSingularityPhaseIndex(boss: Entity): 1 | 2 | 3 {
+    return resolveSingularityPhase(boss.hp / Math.max(1, boss.maxHp)).index;
+  }
+
+  private getSingularityCoreOrigin(boss: Entity) {
+    return this.getPreviewBossWeaponOriginById(
+      boss,
+      'singularity-core',
+      {
+        x: boss.x + boss.width * 0.5,
+        y: boss.y + boss.height * 0.52
+      }
+    );
+  }
+
+  private clearSingularityArtifacts(boss: Entity) {
+    for (const entity of this.entities) {
+      if (entity.bossOwnerId !== boss.id || !entity.singularityArtifactKind) continue;
+      entity.damage = 0;
+      entity.singularityDamageActive = false;
+      entity.life = 0;
+      entity.markedForDeletion = true;
+    }
+  }
+
+  private clearSingularityRuntime(boss: Entity) {
+    this.clearSingularityArtifacts(boss);
+    boss.bossSingularityState = undefined;
+    boss.isCharging = false;
+  }
+
+  private createSingularityRuntimeState(
+    boss: Entity,
+    cue: BossTimelineCue,
+    linkedAction: BossTimelineCue['clip'],
+    actionId: SingularityActionId
+  ): BossSingularityRuntimeState {
+    const phaseIndex = this.getSingularityPhaseIndex(boss);
+    const context = this.getSingularityActionContext(boss, linkedAction.id);
+    const sequence = resolveBossPatternSequence(
+      linkedAction.parameters?.sequence,
+      cue.executionIndex
+    );
+    const seedKey = [
+      this.gameplayRandomSeed,
+      boss.sourceEventId ?? boss.id,
+      context.attackId,
+      phaseIndex
+    ].join(':');
+    const playerCenter = {
+      x: this.player.x + this.player.width / 2,
+      y: this.player.y + this.player.height / 2
+    };
+    const targetAngle = Math.atan2(
+      playerCenter.y - (boss.y + boss.height * 0.52),
+      playerCenter.x - (boss.x + boss.width * 0.5)
+    );
+    const state: BossSingularityRuntimeState = {
+      actionId,
+      actionClipId: linkedAction.id,
+      attackId: context.attackId,
+      executionIndex: cue.executionIndex,
+      phaseIndex,
+      sequence,
+      warningStartFrame: context.warningStartFrame,
+      fireStartFrame: -1,
+      actionEndFrame: context.actionEndFrame,
+      anchorX: boss.x,
+      anchorY: boss.y,
+      trackedTargetAngleRadians: targetAngle,
+      lockedTargetAngleRadians: targetAngle,
+      lockedTargetX: playerCenter.x,
+      lockedTargetY: playerCenter.y,
+      pincerTargetY: clamp(playerCenter.y, this.height * 0.45, this.height * 0.76),
+      lastPylonShotIndex: -1,
+      lastWellEmissionIndexes: [],
+      pulseSpawned: false,
+      collapseBurstIndexes: []
+    };
+    if (actionId === 'gravity-well-genesis') {
+      state.wells = buildSingularityGravityWellPlan({
+        seedKey,
+        phaseIndex,
+        executionIndex: sequence,
+        arenaWidth: this.width,
+        arenaHeight: this.height,
+        playerCenter
+      });
+    } else if (actionId === 'event-horizon-gaze') {
+      const resolved = resolveSingularityBeamPlan({
+        phaseIndex,
+        seedKey,
+        executionIndex: sequence,
+        arenaWidth: this.width
+      });
+      const authoredWarningFrames = Math.max(
+        SINGULARITY_RUNTIME_LIMITS.minimumBeamLockFrames,
+        Math.round(
+          Math.max(0, linkedAction.startSeconds - cue.clip.startSeconds)
+          * GAME_CONFIG.FPS
+        )
+      );
+      state.beamPlan = {
+        ...resolved,
+        warningFrames: authoredWarningFrames,
+        lockFrame: Math.max(
+          0,
+          authoredWarningFrames - SINGULARITY_RUNTIME_LIMITS.minimumBeamLockFrames
+        )
+      };
+    } else if (actionId === 'tidal-claw-pincer') {
+      state.pincerPlan = resolveSingularityPincerPlan({
+        phaseIndex,
+        seedKey,
+        executionIndex: sequence,
+        arenaWidth: this.width
+      });
+    } else if (actionId === 'orbital-pylon-barrage') {
+      state.pylonShots = buildSingularityPylonShotPlan({
+        phaseIndex,
+        seedKey,
+        executionIndex: sequence
+      });
+    } else if (actionId === 'singularity-pulse') {
+      state.pulsePlan = resolveSingularityPulsePlan({
+        phaseIndex,
+        seedKey,
+        executionIndex: sequence,
+        arenaWidth: this.width
+      });
+    } else if (actionId === 'gravity-collapse') {
+      state.collapsePlan = buildSingularityCollapsePlan({
+        seedKey,
+        executionIndex: sequence,
+        arenaWidth: this.width,
+        arenaHeight: this.height,
+        playerCenter
+      });
+    }
+    return state;
+  }
+
+  private showSingularityTelegraph(
+    boss: Entity,
+    cue: BossTimelineCue,
+    linkedAction: BossTimelineCue['clip']
+  ) {
+    const actionId = this.getSingularityActionId(linkedAction.primitiveId);
+    if (!actionId || !this.isSingularityCommander(boss)) return false;
+    const context = this.getSingularityActionContext(boss, linkedAction.id);
+    let state = boss.bossSingularityState;
+    const startsDistinctRepeatableBeat = Boolean(
+      state
+      && state.attackId === context.attackId
+      && state.actionClipId !== linkedAction.id
+      && (actionId === 'event-horizon-gaze' || actionId === 'singularity-pulse')
+    );
+    if (
+      !state
+      || state.attackId !== context.attackId
+      || boss.attackTimer > state.actionEndFrame
+      || startsDistinctRepeatableBeat
+    ) {
+      if (startsDistinctRepeatableBeat) {
+        this.clearSingularityArtifacts(boss);
+      } else {
+        this.clearSingularityRuntime(boss);
+      }
+      state = this.createSingularityRuntimeState(boss, cue, linkedAction, actionId);
+      if (startsDistinctRepeatableBeat) {
+        state.warningStartFrame = boss.attackTimer;
+        state.actionEndFrame = context.actionEndFrame;
+      }
+      boss.bossSingularityState = state;
+    }
+    boss.isCharging = true;
+    const core = this.getSingularityCoreOrigin(boss);
+    if (actionId === 'event-horizon-gaze') {
+      this.spawnRingEffect(core.x, core.y, '#fb7185');
+    } else if (actionId === 'tidal-claw-pincer') {
+      const safeHalfWidth = (state.pincerPlan?.centerRoutePixels ?? 84) / 2;
+      this.spawnRingEffect(this.width / 2 - safeHalfWidth, state.pincerTargetY, '#f97316');
+      this.spawnRingEffect(this.width / 2 + safeHalfWidth, state.pincerTargetY, '#f97316');
+    } else if (actionId === 'orbital-pylon-barrage') {
+      for (const socketId of SINGULARITY_PYLON_SOCKET_IDS) {
+        const origin = this.getPreviewBossWeaponOriginById(boss, socketId, core);
+        this.spawnRingEffect(origin.x, origin.y, '#fbbf24');
+      }
+    } else {
+      this.spawnRingEffect(core.x, core.y, actionId === 'gravity-collapse' ? '#ef4444' : '#f97316');
+    }
+    this.playSound('siren', actionId === 'gravity-collapse' ? 0.82 : 0.62);
+    return true;
+  }
+
+  private beginSingularityAction(boss: Entity, cue: BossTimelineCue) {
+    const actionId = this.getSingularityActionId(cue.clip.primitiveId);
+    if (!actionId || !this.isSingularityCommander(boss)) return false;
+    const context = this.getSingularityActionContext(boss, cue.clip.id);
+    let state = boss.bossSingularityState;
+    if (!state || state.attackId !== context.attackId) {
+      state = this.createSingularityRuntimeState(boss, cue, cue.clip, actionId);
+      boss.bossSingularityState = state;
+    }
+    // Multi-beat attack sentences deliberately reference the same primitive.
+    // The first damaging beat starts one coherent lifecycle; later beats are
+    // authored rhythm markers and must never reset its locks or hazards.
+    if (state.fireStartFrame < 0) {
+      state.fireStartFrame = boss.attackTimer;
+      state.actionClipId = cue.clip.id;
+      state.executionIndex = cue.executionIndex;
+      state.actionEndFrame = Math.max(state.actionEndFrame, context.actionEndFrame);
+      boss.isCharging = false;
+      this.playSound('boss_shoot', actionId === 'gravity-collapse' ? 1.12 : 0.82, {
+        pitchJitter: 0.025,
+        pitchOffset: actionId === 'event-horizon-gaze' ? -0.12 : -0.04
+      });
+    }
+    return true;
+  }
+
+  private getActiveSingularityProjectileCount(boss: Entity) {
+    return this.entities.reduce((count, entity) => count + Number(
+      !entity.markedForDeletion
+      && entity.bossOwnerId === boss.id
+      && entity.type === EntityType.PROJECTILE
+      && !entity.isTelegraph
+      && !entity.singularityArtifactKind
+    ), 0);
+  }
+
+  private spawnSingularityProjectile(
+    boss: Entity,
+    origin: Readonly<{ x: number; y: number }>,
+    angleRadians: number,
+    speed: number,
+    size: number,
+    visualKind:
+      | 'boss-singularity-shard'
+      | 'boss-singularity-bolt'
+      | 'boss-singularity-pulse',
+    variant: number
+  ) {
+    if (
+      this.getActiveSingularityProjectileCount(boss)
+      >= SINGULARITY_RUNTIME_LIMITS.maximumOwnedProjectiles
+    ) {
+      return null;
+    }
+    const projectile = this.createEntity(
+      EntityType.PROJECTILE,
+      origin.x - size / 2,
+      origin.y - size / 2
+    );
+    projectile.vx = Math.cos(angleRadians) * speed;
+    projectile.vy = Math.sin(angleRadians) * speed;
+    projectile.width = size;
+    projectile.height = size;
+    projectile.color = visualKind === 'boss-singularity-bolt'
+      ? '#fbbf24'
+      : visualKind === 'boss-singularity-pulse'
+        ? '#ef4444'
+        : '#f97316';
+    projectile.damage = Math.max(1, Number(boss.projectileDamage) || 1);
+    projectile.bossOwnerId = boss.id;
+    projectile.projectileVisualKind = visualKind;
+    projectile.weaponVisualStartFrame = this.frameCount;
+    projectile.variant = variant;
+    this.entities.push(projectile);
+    return projectile;
+  }
+
+  private getSingularityWellEntity(
+    boss: Entity,
+    actionId: SingularityActionId,
+    index: number
+  ) {
+    return this.entities.find((entity) => (
+      !entity.markedForDeletion
+      && entity.bossOwnerId === boss.id
+      && entity.singularityArtifactKind === 'well'
+      && entity.singularityActionId === actionId
+      && entity.singularityArtifactIndex === index
+    ));
+  }
+
+  private ensureSingularityWellEntity(
+    boss: Entity,
+    state: BossSingularityRuntimeState,
+    index: number
+  ) {
+    const existing = this.getSingularityWellEntity(boss, state.actionId, index);
+    if (existing) return existing;
+    const core = this.getPreviewBossWeaponOriginById(
+      boss,
+      'gravity-seed-origin',
+      this.getSingularityCoreOrigin(boss)
+    );
+    const well = this.createEntity(EntityType.PROJECTILE, core.x - 12, core.y - 12);
+    well.width = 24;
+    well.height = 24;
+    well.vx = 0;
+    well.vy = 0;
+    well.color = '#f97316';
+    well.damage = 0;
+    well.bossOwnerId = boss.id;
+    well.singularityArtifactKind = 'well';
+    well.singularityActionId = state.actionId;
+    well.singularityArtifactIndex = index;
+    well.singularityDamageActive = false;
+    well.projectileVisualKind = 'boss-singularity-seed';
+    well.projectileAnimationMode = 'cycle';
+    well.weaponVisualStartFrame = this.frameCount;
+    this.entities.push(well);
+    return well;
+  }
+
+  private applySingularityGravity(
+    point: Readonly<{ x: number; y: number }>,
+    radiusPixels: number,
+    strength: number
+  ) {
+    const playerCenterX = this.player.x + this.player.width / 2;
+    const playerCenterY = this.player.y + this.player.height / 2;
+    const dx = point.x - playerCenterX;
+    const dy = point.y - playerCenterY;
+    const distance = Math.max(1, Math.hypot(dx, dy));
+    if (distance > radiusPixels * 5.5 || distance < radiusPixels * 0.42) return;
+    const falloff = clamp(1 - distance / Math.max(1, radiusPixels * 5.5), 0, 1);
+    const pull = Math.min(0.72, Math.max(0, strength) * (0.25 + falloff * 0.75));
+    this.player.x = clamp(
+      this.player.x + dx / distance * pull,
+      0,
+      Math.max(0, this.width - this.player.width)
+    );
+    this.player.y = clamp(
+      this.player.y + dy / distance * pull,
+      42,
+      Math.max(42, this.height - this.player.height)
+    );
+  }
+
+  private updateSingularityGravityWells(
+    boss: Entity,
+    state: BossSingularityRuntimeState
+  ) {
+    if (!state.wells || state.fireStartFrame < 0) return;
+    const elapsedFrames = Math.max(0, boss.attackTimer - state.fireStartFrame);
+    const core = this.getPreviewBossWeaponOriginById(
+      boss,
+      'gravity-seed-origin',
+      this.getSingularityCoreOrigin(boss)
+    );
+    state.wells.forEach((plan, index) => {
+      const sample = sampleSingularityWellLifecycle(plan, elapsedFrames);
+      const well = this.ensureSingularityWellEntity(boss, state, index);
+      if (!sample.visible || sample.shouldCleanup) {
+        well.singularityDamageActive = false;
+        well.damage = 0;
+        well.markedForDeletion = true;
+        return;
+      }
+      const localFrame = Math.max(0, elapsedFrames - plan.seedDelayFrames);
+      const travelProgress = clamp(localFrame / Math.max(1, plan.seedTravelFrames), 0, 1);
+      const easedTravel = travelProgress * travelProgress * (3 - 2 * travelProgress);
+      const centerX = core.x + (plan.x - core.x) * easedTravel;
+      const centerY = core.y + (plan.y - core.y) * easedTravel;
+      const scale = sample.stage === 'seed-travel'
+        ? 0.34 + sample.progress * 0.24
+        : sample.stage === 'forming'
+          ? 0.58 + sample.progress * 0.42
+          : sample.stage === 'imploding'
+            ? 1 + sample.progress * 0.34
+            : 1;
+      const diameter = Math.max(24, plan.radiusPixels * 2 * scale);
+      well.x = centerX - diameter / 2;
+      well.y = centerY - diameter / 2;
+      well.width = diameter;
+      well.height = diameter;
+      well.vx = 0;
+      well.vy = 0;
+      well.singularityDamageActive = sample.damageActive;
+      well.damage = sample.damageActive
+        ? Math.max(1, Number(boss.projectileDamage) || 1)
+        : 0;
+      well.projectileVisualKind = sample.stage === 'seed-travel'
+        ? 'boss-singularity-seed'
+        : 'boss-singularity-well';
+      well.projectileAnimationMode = sample.stage === 'imploding'
+        ? 'play-once-before-last'
+        : 'cycle';
+      if (sample.stage === 'active') {
+        this.applySingularityGravity(
+          { x: plan.x, y: plan.y },
+          plan.radiusPixels,
+          state.phaseIndex === 3 ? 0.34 : 0.26
+        );
+        const activeStart = plan.seedDelayFrames
+          + plan.seedTravelFrames
+          + plan.formingFrames
+          + plan.inactiveFrames;
+        const activeAge = Math.max(0, elapsedFrames - activeStart);
+        const interval = Math.max(12, Math.floor(plan.activeFrames / plan.projectileCount));
+        const emissionIndex = Math.floor(activeAge / interval);
+        if (
+          activeAge % interval === 0
+          && emissionIndex < plan.projectileCount
+          && emissionIndex > (state.lastWellEmissionIndexes[index] ?? -1)
+        ) {
+          state.lastWellEmissionIndexes[index] = emissionIndex;
+          const angle = (
+            state.sequence * 0.37
+            + index * 2.094
+            + emissionIndex * 1.618
+          ) % (Math.PI * 2);
+          this.spawnSingularityProjectile(
+            boss,
+            { x: plan.x, y: plan.y },
+            angle,
+            2.7 + state.phaseIndex * 0.32,
+            this.mobileProfile ? 18 : 21,
+            'boss-singularity-shard',
+            index * 100 + emissionIndex
+          );
+        }
+      }
+    });
+  }
+
+  private positionSingularityLine(
+    line: Entity,
+    origin: Readonly<{ x: number; y: number }>,
+    angleRadians: number,
+    thickness: number
+  ) {
+    const length = Math.hypot(this.width, this.height) * 1.2;
+    const targetX = origin.x + Math.cos(angleRadians) * length;
+    const targetY = origin.y + Math.sin(angleRadians) * length;
+    line.x = (origin.x + targetX) / 2 - length / 2;
+    line.y = (origin.y + targetY) / 2 - thickness / 2;
+    line.width = length;
+    line.height = thickness;
+    line.beamAngleRadians = angleRadians;
+    line.beamOriginX = origin.x;
+    line.beamOriginY = origin.y;
+    line.beamTargetX = targetX;
+    line.beamTargetY = targetY;
+  }
+
+  private ensureSingularityBeam(
+    boss: Entity,
+    state: BossSingularityRuntimeState,
+    beamIndex: number
+  ) {
+    const existing = this.entities.find((entity) => (
+      !entity.markedForDeletion
+      && entity.bossOwnerId === boss.id
+      && entity.singularityArtifactKind === 'beam'
+      && entity.singularityActionId === state.actionId
+      && entity.singularityArtifactIndex === beamIndex
+    ));
+    if (existing) return existing;
+    const beam = this.createEntity(EntityType.PROJECTILE, 0, 0);
+    beam.isBeam = true;
+    beam.isDetachedBeam = true;
+    beam.isTelegraph = true;
+    beam.bossOwnerId = boss.id;
+    beam.singularityArtifactKind = 'beam';
+    beam.singularityActionId = state.actionId;
+    beam.singularityArtifactIndex = beamIndex;
+    beam.singularityDamageActive = false;
+    beam.projectileVisualKind = 'boss-singularity-beam';
+    beam.weaponVisualStartFrame = this.frameCount;
+    beam.life = 3;
+    beam.maxLife = 3;
+    beam.damage = 0;
+    beam.color = '#fb7185';
+    this.entities.push(beam);
+    return beam;
+  }
+
+  private updateSingularityBeam(boss: Entity, state: BossSingularityRuntimeState) {
+    if (!state.beamPlan) return;
+    const elapsedFrames = Math.max(0, boss.attackTimer - state.warningStartFrame);
+    const playerAngle = Math.atan2(
+      this.player.y + this.player.height / 2 - (boss.y + boss.height * 0.52),
+      this.player.x + this.player.width / 2 - (boss.x + boss.width * 0.5)
+    );
+    const sample = sampleSingularityBeam({
+      plan: state.beamPlan,
+      elapsedFrames,
+      trackedAngleRadians: playerAngle,
+      lockedAngleRadians: state.lockedTargetAngleRadians
+    });
+    if (sample.shouldCleanup) {
+      for (const entity of this.entities) {
+        if (
+          entity.bossOwnerId === boss.id
+          && entity.singularityArtifactKind === 'beam'
+          && entity.singularityActionId === state.actionId
+        ) {
+          entity.markedForDeletion = true;
+        }
+      }
+      return;
+    }
+    if (sample.stage === 'tracking') {
+      state.trackedTargetAngleRadians = playerAngle;
+      state.lockedTargetAngleRadians = playerAngle;
+    }
+    const core = this.getSingularityCoreOrigin(boss);
+    sample.beamAnglesRadians.forEach((angle, index) => {
+      const beam = this.ensureSingularityBeam(boss, state, index);
+      const damaging = sample.damageActive && state.fireStartFrame >= 0;
+      beam.life = 3;
+      beam.maxLife = 3;
+      beam.isTelegraph = !damaging;
+      beam.singularityDamageActive = damaging;
+      beam.damage = damaging ? Math.max(1, Number(boss.projectileDamage) || 1) : 0;
+      beam.color = damaging ? '#f97316' : '#fb7185';
+      beam.projectileAnimationMode = damaging ? 'cycle' : 'hold-last';
+      this.positionSingularityLine(
+        beam,
+        core,
+        angle,
+        damaging ? (this.mobileProfile ? 20 : 24) : (this.mobileProfile ? 4 : 5)
+      );
+    });
+    for (const entity of this.entities) {
+      if (
+        entity.bossOwnerId === boss.id
+        && entity.singularityArtifactKind === 'beam'
+        && entity.singularityActionId === state.actionId
+        && entity.singularityArtifactIndex >= sample.beamAnglesRadians.length
+      ) {
+        entity.markedForDeletion = true;
+      }
+    }
+    if (sample.stage === 'firing' && sample.progress < 0.04) {
+      this.addShake(this.mobileProfile ? 1.5 : 2.1);
+    }
+  }
+
+  private ensureSingularityClaw(
+    boss: Entity,
+    state: BossSingularityRuntimeState,
+    side: 'port' | 'starboard'
+  ) {
+    const artifactKind: SingularityArtifactKind = side === 'port'
+      ? 'claw-port'
+      : 'claw-starboard';
+    const existing = this.entities.find((entity) => (
+      !entity.markedForDeletion
+      && entity.bossOwnerId === boss.id
+      && entity.singularityArtifactKind === artifactKind
+      && entity.singularityActionId === state.actionId
+    ));
+    if (existing) return existing;
+    const origin = this.getPreviewBossWeaponOriginById(
+      boss,
+      `claw-tip-${side}`,
+      {
+        x: boss.x + boss.width * (side === 'port' ? 0.18 : 0.82),
+        y: boss.y + boss.height * 0.72
+      }
+    );
+    const claw = this.createEntity(EntityType.PROJECTILE, origin.x - 34, origin.y - 28);
+    claw.width = 68;
+    claw.height = 56;
+    claw.vx = 0;
+    claw.vy = 0;
+    claw.color = '#f97316';
+    claw.damage = 0;
+    claw.bossOwnerId = boss.id;
+    claw.singularityArtifactKind = artifactKind;
+    claw.singularityActionId = state.actionId;
+    claw.singularityArtifactIndex = side === 'port' ? 0 : 1;
+    claw.projectileVisualKind = 'boss-singularity-claw';
+    claw.projectileAnimationMode = 'cycle';
+    claw.weaponVisualStartFrame = this.frameCount;
+    this.entities.push(claw);
+    return claw;
+  }
+
+  private updateSingularityPincer(boss: Entity, state: BossSingularityRuntimeState) {
+    if (!state.pincerPlan) return;
+    const elapsedFrames = Math.max(0, boss.attackTimer - state.warningStartFrame);
+    const sample = sampleSingularityPincer(state.pincerPlan, elapsedFrames);
+    const safeHalfWidth = state.pincerPlan.centerRoutePixels / 2;
+    const targetY = state.pincerTargetY;
+    (['port', 'starboard'] as const).forEach((side) => {
+      const claw = this.ensureSingularityClaw(boss, state, side);
+      const origin = this.getPreviewBossWeaponOriginById(
+        boss,
+        `claw-tip-${side}`,
+        {
+          x: boss.x + boss.width * (side === 'port' ? 0.18 : 0.82),
+          y: boss.y + boss.height * 0.72
+        }
+      );
+      const energy = side === 'port' ? sample.portEnergy : sample.starboardEnergy;
+      const targetX = this.width / 2 + (side === 'port' ? -1 : 1) * (
+        safeHalfWidth + claw.width / 2
+      );
+      claw.x = origin.x + (targetX - origin.x) * energy - claw.width / 2;
+      claw.y = origin.y + (targetY - origin.y) * energy - claw.height / 2;
+      claw.vx = 0;
+      claw.vy = 0;
+      claw.spriteFrameFixedRotationRadians = side === 'port' ? 0.18 : -0.18;
+      claw.singularityDamageActive = sample.damageActive;
+      claw.damage = sample.damageActive
+        ? Math.max(1, Number(boss.projectileDamage) || 1)
+        : 0;
+      if (sample.shouldCleanup) claw.markedForDeletion = true;
+    });
+  }
+
+  private updateSingularityPylonBarrage(
+    boss: Entity,
+    state: BossSingularityRuntimeState
+  ) {
+    if (!state.pylonShots || state.fireStartFrame < 0) return;
+    const elapsedFrames = Math.max(0, boss.attackTimer - state.fireStartFrame);
+    for (const shot of state.pylonShots) {
+      if (shot.shotIndex <= state.lastPylonShotIndex || shot.fireFrame > elapsedFrames) continue;
+      const fallback = {
+        x: boss.x + boss.width * (shot.shotIndex % 2 === 0 ? 0.24 : 0.76),
+        y: boss.y + boss.height * 0.4
+      };
+      const origin = this.getPreviewBossWeaponOriginById(boss, shot.socketId, fallback);
+      const targetAngle = Math.atan2(
+        state.lockedTargetY - origin.y,
+        state.lockedTargetX - origin.x
+      );
+      const baseAngle = shot.aimed
+        ? targetAngle
+        : Math.PI / 2 + (shot.shotIndex % 4 - 1.5) * 0.13;
+      this.spawnSingularityProjectile(
+        boss,
+        origin,
+        baseAngle + shot.angleOffsetRadians,
+        4.1 + state.phaseIndex * 0.42,
+        this.mobileProfile ? 20 : 23,
+        'boss-singularity-bolt',
+        shot.shotIndex
+      );
+      state.lastPylonShotIndex = shot.shotIndex;
+      this.spawnRingEffect(origin.x, origin.y, '#fbbf24');
+      this.playSound('boss_shoot', 0.46, {
+        pitchJitter: 0.045,
+        pitchOffset: (shot.shotIndex % 4) * 0.025 - 0.08
+      });
+    }
+  }
+
+  private updateSingularityPulse(boss: Entity, state: BossSingularityRuntimeState) {
+    const plan = state.pulsePlan;
+    if (!plan || state.fireStartFrame < 0) return;
+    if (!state.pulseSpawned) {
+      const core = this.getSingularityCoreOrigin(boss);
+      for (let index = 0; index < plan.projectileCount; index += 1) {
+        const angle = Math.PI * 2 * index / plan.projectileCount;
+        const insideGap = plan.gapAnglesRadians.some((gapAngle) => {
+          const delta = Math.abs(Math.atan2(
+            Math.sin(angle - gapAngle),
+            Math.cos(angle - gapAngle)
+          ));
+          return delta < plan.gapHalfWidthRadians;
+        });
+        if (insideGap) continue;
+        this.spawnSingularityProjectile(
+          boss,
+          core,
+          angle,
+          3.1 + state.phaseIndex * 0.28,
+          this.mobileProfile ? 18 : 21,
+          'boss-singularity-pulse',
+          index
+        );
+      }
+      state.pulseSpawned = true;
+      this.spawnRingEffect(core.x, core.y, '#ef4444');
+      this.addShake(this.mobileProfile ? 1.25 : 1.8);
+    }
+    const elapsedFrames = Math.max(0, boss.attackTimer - state.fireStartFrame);
+    if (elapsedFrames < plan.expansionFrames) {
+      this.applySingularityGravity(
+        this.getSingularityCoreOrigin(boss),
+        Math.max(54, boss.width * 0.24),
+        plan.pullStrength
+      );
+    }
+  }
+
+  private updateSingularityCollapse(boss: Entity, state: BossSingularityRuntimeState) {
+    const plan = state.collapsePlan;
+    if (!plan || state.fireStartFrame < 0) return;
+    const elapsedFrames = Math.max(0, boss.attackTimer - state.fireStartFrame);
+    const damagingWellIndex = getSingularityCollapseDamagingWellIndex(plan, elapsedFrames);
+    plan.wells.forEach((wellPlan, index) => {
+      const beat = plan.beats[index];
+      const well = this.ensureSingularityWellEntity(boss, state, index);
+      const prewarmStart = Math.max(0, beat.activationFrame - 42);
+      if (elapsedFrames < prewarmStart || elapsedFrames >= beat.endFrame) {
+        well.singularityDamageActive = false;
+        well.damage = 0;
+        if (elapsedFrames >= beat.endFrame) well.markedForDeletion = true;
+        return;
+      }
+      const prewarmProgress = clamp(
+        (elapsedFrames - prewarmStart) / Math.max(1, beat.activationFrame - prewarmStart),
+        0,
+        1
+      );
+      const implosionProgress = clamp(
+        (elapsedFrames - beat.implosionFrame) / Math.max(1, beat.endFrame - beat.implosionFrame),
+        0,
+        1
+      );
+      const diameter = Math.max(
+        28,
+        wellPlan.radiusPixels * 2 * (0.5 + prewarmProgress * 0.5 + implosionProgress * 0.35)
+      );
+      well.x = wellPlan.x - diameter / 2;
+      well.y = wellPlan.y - diameter / 2;
+      well.width = diameter;
+      well.height = diameter;
+      well.projectileVisualKind = elapsedFrames < beat.activationFrame
+        ? 'boss-singularity-seed'
+        : damagingWellIndex === index
+          ? 'boss-singularity-collapse'
+          : 'boss-singularity-well';
+      well.projectileAnimationMode = damagingWellIndex === index
+        ? 'play-once-before-last'
+        : 'cycle';
+      well.singularityDamageActive = damagingWellIndex === index;
+      well.damage = damagingWellIndex === index
+        ? Math.max(1, Number(boss.projectileDamage) || 1)
+        : 0;
+      if (elapsedFrames >= beat.activationFrame && elapsedFrames < beat.endFrame) {
+        this.applySingularityGravity(
+          { x: wellPlan.x, y: wellPlan.y },
+          wellPlan.radiusPixels,
+          0.38
+        );
+      }
+      if (
+        elapsedFrames >= beat.implosionFrame
+        && !state.collapseBurstIndexes.includes(index)
+      ) {
+        state.collapseBurstIndexes.push(index);
+        this.spawnBurst(wellPlan.x, wellPlan.y, '#f97316', 16, 4.6, 4);
+        this.addShake(this.mobileProfile ? 2.1 : 2.8);
+        this.playSound('electricity', 0.72, { pitchJitter: 0.03, pitchOffset: -0.12 });
+      }
+    });
+  }
+
+  private updateSingularityActionRuntime(boss: Entity) {
+    if (!this.isSingularityCommander(boss)) return;
+    const state = boss.bossSingularityState;
+    if (!state) return;
+    if (boss.attackTimer > state.actionEndFrame) {
+      this.clearSingularityRuntime(boss);
+      return;
+    }
+    switch (state.actionId) {
+      case 'gravity-well-genesis':
+        this.updateSingularityGravityWells(boss, state);
+        return;
+      case 'event-horizon-gaze':
+        this.updateSingularityBeam(boss, state);
+        return;
+      case 'tidal-claw-pincer':
+        this.updateSingularityPincer(boss, state);
+        return;
+      case 'orbital-pylon-barrage':
+        this.updateSingularityPylonBarrage(boss, state);
+        return;
+      case 'singularity-pulse':
+        this.updateSingularityPulse(boss, state);
+        return;
+      case 'gravity-collapse':
+        this.updateSingularityCollapse(boss, state);
+        return;
+    }
+  }
+
+  private updateSingularityTimelineMovement(boss: Entity) {
+    if (!this.isSingularityCommander(boss)) return false;
+    const state = boss.bossSingularityState;
+    const actionStage = state && state.fireStartFrame >= 0
+      ? 'fire' as const
+      : state
+        ? 'telegraph' as const
+        : undefined;
+    const movement = sampleSingularityAnchorMovement({
+      frameCount: this.frameCount,
+      arenaWidth: this.width,
+      arenaHeight: this.height,
+      bossWidth: boss.width,
+      bossHeight: boss.height,
+      phaseIndex: this.getSingularityPhaseIndex(boss),
+      actionId: state?.actionId,
+      actionStage
+    });
+    const previousX = boss.x;
+    const previousY = boss.y;
+    boss.x += (movement.x - boss.x) * 0.08;
+    boss.y += (movement.y - boss.y) * 0.08;
+    boss.x = clamp(boss.x, 6, Math.max(6, this.width - boss.width - 6));
+    boss.y = clamp(boss.y, 66, Math.max(66, this.height * 0.38));
+    boss.vx = boss.x - previousX;
+    boss.vy = boss.y - previousY;
+    boss.bossPresentationBankRadians = movement.bankRadians;
+    return true;
+  }
+
+  private beginSingularityDefeat(boss: Entity) {
+    if (!this.isSingularityCommander(boss) || boss.bossSingularityDefeatConsumed) {
+      return false;
+    }
+    boss.bossSingularityDefeatConsumed = true;
+    boss.bossSingularityDefeatStartFrame = this.frameCount;
+    boss.bossSingularityDefeatLastStage = undefined;
+    boss.hp = 0;
+    boss.vx = 0;
+    boss.vy = 0;
+    boss.isCharging = false;
+    this.clearBossOwnedHazards(boss);
+    if (boss.bossTimeline) {
+      const phase = Math.max(1, boss.activeBossPhaseIndex + 1);
+      getBossTimelineTriggeredCues(
+        boss.bossTimeline,
+        'death',
+        boss.bossTimelinePhaseId ?? boss.activeBossPhaseId
+      ).forEach((cue) => this.dispatchBossTimelineCue(boss, cue, phase, 'death'));
+      boss.bossSingularityDeathCueDispatched = true;
+    }
+    this.playSound('electricity', 0.9, { pitchJitter: 0.02, pitchOffset: -0.18 });
+    this.addShake(this.mobileProfile ? 2.2 : 3);
+    return true;
+  }
+
+  private updateSingularityDefeatSequence(boss: Entity) {
+    if (boss.bossSingularityDefeatStartFrame < 0) return false;
+    const elapsedFrames = this.frameCount - boss.bossSingularityDefeatStartFrame;
+    const sample = sampleSingularityDefeat(elapsedFrames);
+    if (sample.stage !== boss.bossSingularityDefeatLastStage) {
+      boss.bossSingularityDefeatLastStage = sample.stage;
+      const centerX = boss.x + boss.width / 2;
+      const centerY = boss.y + boss.height / 2;
+      if (sample.stage === 'pylons-failing') {
+        this.spawnBurst(centerX, centerY - boss.height * 0.12, '#fbbf24', 12, 3.8, 4);
+      } else if (sample.stage === 'claws-limp') {
+        this.spawnBurst(centerX, centerY + boss.height * 0.18, '#fb7185', 15, 4.2, 4);
+        this.addShake(1.6);
+      } else if (sample.stage === 'core-compression') {
+        this.spawnRingEffect(centerX, centerY, '#ef4444');
+        this.playSound('siren', 0.62);
+      } else if (sample.stage === 'final-collapse') {
+        this.spawnBurst(centerX, centerY, '#ffffff', 24, 6.2, 5);
+        this.spawnRingEffect(centerX, centerY, '#f97316');
+        this.addShake(this.mobileProfile ? 4.5 : 6);
+        this.addHitStop(8);
+      }
+    }
+    boss.vx = 0;
+    boss.vy = 0;
+    boss.bossPresentationBankRadians = sample.stage === 'claws-limp'
+      ? Math.sin(elapsedFrames * 0.08) * 0.045
+      : 0;
+    if (!sample.rewardReady) return true;
+    boss.bossSingularityDefeatStartFrame = -1;
+    boss.bossSingularityDefeatLastStage = 'complete';
+    this.handleEnemyDestroyed(boss);
+    return true;
   }
 
   private isFrontierCrownclawSideOperational(
@@ -17547,6 +18511,12 @@ export class GameEngine {
     );
     if (
       linkedAction
+      && this.showSingularityTelegraph(boss, cue, linkedAction)
+    ) {
+      return;
+    }
+    if (
+      linkedAction
       && this.showFrontierCrownclawTelegraph(boss, cue, linkedAction)
     ) {
       return;
@@ -17830,6 +18800,14 @@ export class GameEngine {
           this.beginPrismMothTimelineAction(boss, cue);
         }
         return;
+      case 'singularity-gravity-well-genesis':
+      case 'singularity-event-horizon-gaze':
+      case 'singularity-tidal-claw-pincer':
+      case 'singularity-orbital-pylon-barrage':
+      case 'singularity-pulse':
+      case 'singularity-gravity-collapse':
+        this.beginSingularityAction(boss, cue);
+        return;
       case 'cross-beam':
         this.spawnBossCrossBeamPair(boss, false);
         return;
@@ -17912,10 +18890,9 @@ export class GameEngine {
         this.spawnBossTimelineSummons(boss, cue);
         return;
       case 'set-shield': {
-        this.clearBossShieldRing();
-        if (parameters?.enabled !== false && (parameters?.shieldCount ?? 0) > 0) {
-          this.spawnBossShieldRing(boss, phase, parameters?.shieldCount);
-        }
+        // Legacy schema-v1 timelines may still contain this marker. The old
+        // generic escort ring was globally scoped and could make unrelated
+        // bosses invulnerable, so it is intentionally a runtime no-op.
         return;
       }
       case 'set-weak-point': {
@@ -18204,13 +19181,15 @@ export class GameEngine {
         && boss.bossActionPresentation?.actionClipId
           === boss.bossFrontierCrownclawState.actionClipId
       )
+      || this.isSingularityCommander(boss)
     );
     if (boss.y < targetEntranceY && !isPerformingSettledTimelineMovement) {
       // The authored phase clock begins only after the silhouette has settled
       // into its combat anchor. This preserves a real read window and prevents
       // off-screen attacks when a deliberately slow boss enters. Authored
-      // Helios and Prism movement sentences may rise above that anchor after a
-      // visible preparation without accidentally restarting the whole timeline.
+      // Helios, Prism, and Singularity movement sentences may rise above that
+      // anchor after a visible preparation without accidentally restarting the
+      // whole timeline.
       boss.attackTimer = 0;
       boss.bossActionPresentation = undefined;
       return true;
@@ -18229,6 +19208,7 @@ export class GameEngine {
     ) {
       this.clearPrismMothRuntime(boss);
       this.clearFrontierCrownclawRuntime(boss);
+      this.clearSingularityRuntime(boss);
       this.clearBossTimelineActionLocks(boss);
     }
     const phaseId = boss.bossTimelinePhaseId ?? boss.activeBossPhaseId;
@@ -18236,6 +19216,7 @@ export class GameEngine {
       if (boss.bossTimelineLastPhaseId !== undefined) {
         this.clearPrismMothRuntime(boss);
         this.clearFrontierCrownclawRuntime(boss);
+        this.clearSingularityRuntime(boss);
       }
       boss.bossTimelineLastPhaseId = phaseId;
       getBossTimelineTriggeredCues(timeline, 'phase-enter', phaseId)
@@ -18277,6 +19258,7 @@ export class GameEngine {
     }
     this.updateFrontierCrownclawActionRuntime(boss);
     this.updatePrismMothActionRuntime(boss);
+    this.updateSingularityActionRuntime(boss);
     return true;
   }
 
@@ -18286,6 +19268,9 @@ export class GameEngine {
       return;
     }
     if (this.updateFrontierCrownclawTimelineMovement(boss)) {
+      return;
+    }
+    if (this.updateSingularityTimelineMovement(boss)) {
       return;
     }
     const speed = Math.max(0.1, boss.configuredSpeed ?? 2) * boss.activeBossPhaseSpeedMultiplier;
@@ -18627,6 +19612,7 @@ export class GameEngine {
   }
 
   updateBoss(boss: Entity) {
+    if (this.updateSingularityDefeatSequence(boss)) return;
     if (this.updateBossRevival(boss)) return;
     boss.attackTimer++;
     this.applyPreviewBossAttackLoop(boss);
@@ -19438,6 +20424,8 @@ export class GameEngine {
       if (isEnemy) {
           hurtsPlayer = e.type === EntityType.SUPPLY_DROP
             ? false
+            : e.type === EntityType.BOSS && !this.isBossCombatInteractive(e)
+            ? false
             : this.isDestructiblePrismMothBrood(e)
             ? Boolean(e.prismMothArtifactState?.damageActive)
             : e.type === EntityType.BOSS && this.isSandboxPrismMoth(e)
@@ -19464,6 +20452,7 @@ export class GameEngine {
             )
             && (!e.heliosMineState || this.isHeliosMineDamageActive(e))
             && (!e.prismMothArtifactState || e.prismMothArtifactState.damageActive)
+            && (!e.singularityArtifactKind || e.singularityDamageActive)
           ) {
                // EXTRA FAILSAFE: If it's Cyan or Purple, assume it's player ammo (glitch protection)
                if (e.color !== '#00FFFF' && e.color !== '#00ffff' && e.color !== '#6c63ff') {
@@ -19564,8 +20553,6 @@ export class GameEngine {
       for (let column = startColumn; column <= endColumn; column++) collisionColumns[column].push(target);
     }
 
-    const bossShieldedNow = this.isBossShielded();
-
     for (const shot of playerShots) {
       if (shot.markedForDeletion) continue;
       const shotBox = getBox(shot);
@@ -19616,23 +20603,6 @@ export class GameEngine {
 
         // Boss-type enemies get shaved down a bit faster so fights don't drag.
         const isBossTarget = target.type === EntityType.BOSS || target.type === EntityType.MINI_BOSS;
-        const bossShielded = target.type === EntityType.BOSS && bossShieldedNow;
-        if (bossShielded) {
-          if (!shot.isBeam) shot.markedForDeletion = true;
-          this.pulseDamageFlash(target);
-          this.registerPrimaryWeaponImpact(target, shot);
-          if (this.frameCount % 5 === 0) {
-            this.spawnRingEffect(shot.x + shot.width / 2, shot.y + shot.height / 2, '#a7f3d0');
-            this.spawnBurst(shot.x + shot.width / 2, shot.y + shot.height / 2, '#a7f3d0', shot.type === EntityType.MISSILE ? 6 : 3, 2.2, 3);
-          }
-          if (shot.type === EntityType.MISSILE) {
-            this.addHitStop(3);
-            this.addShake(0.9);
-          }
-          if (!shot.isBeam) break;
-          continue;
-        }
-
         const representedRounds = shot.representedRoundsRemaining > 0
           ? getMaxShotRoundsForTarget(
             shot.representedRoundsRemaining,
@@ -20209,31 +21179,6 @@ export class GameEngine {
         ctx.save();
         ctx.fillStyle = '#7f1d1d';
         ctx.fillRect(-e.width / 2, -e.height / 2, e.width, e.height);
-        ctx.restore();
-      }
-
-      const shieldCount = this.getBossShieldCount();
-      if (shieldCount > 0) {
-        const shieldPulse = 0.72 + Math.sin(this.frameCount * 0.11) * 0.18;
-        ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
-        ctx.strokeStyle = `rgba(167, 243, 208, ${shieldPulse})`;
-        ctx.lineWidth = 3;
-        ctx.shadowBlur = this.getGlowBlur(22);
-        ctx.shadowColor = '#a7f3d0';
-        ctx.beginPath();
-        ctx.ellipse(0, 18, e.width * 0.62, e.height * 0.34, this.frameCount * 0.014, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.setLineDash([10, 8]);
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.ellipse(0, 18, e.width * 0.74, e.height * 0.42, -this.frameCount * 0.01, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.font = 'bold 11px Orbitron';
-        ctx.fillStyle = '#a7f3d0';
-        ctx.textAlign = 'center';
-        ctx.fillText(`SHIELD x${shieldCount}`, 0, e.height / 2 + 18);
         ctx.restore();
       }
 

@@ -161,7 +161,7 @@ test('standard shots and both continuous player beams share boss silhouette coll
     engine.indexOf('updateEnemyFire()', engine.indexOf('applyResearchBeamDamage()'))
   );
   const playerShotCollision = engine.slice(
-    engine.indexOf('const bossShieldedNow = this.isBossShielded()'),
+    engine.indexOf('for (const shot of playerShots)'),
     engine.indexOf('getBossWarningComms(_type: BossWarningType)')
   );
 

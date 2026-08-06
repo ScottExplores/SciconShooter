@@ -20,7 +20,15 @@ export const BOSS_MODULAR_PROJECTILE_VISUAL_KINDS = [
   'boss-frontier-chain-link',
   'boss-frontier-reactor-beam',
   'boss-frontier-crown-bolt',
-  'boss-frontier-shell-shard'
+  'boss-frontier-shell-shard',
+  'boss-singularity-seed',
+  'boss-singularity-well',
+  'boss-singularity-shard',
+  'boss-singularity-beam',
+  'boss-singularity-claw',
+  'boss-singularity-bolt',
+  'boss-singularity-pulse',
+  'boss-singularity-collapse'
 ] as const;
 
 export type BossModularProjectileVisualKind =

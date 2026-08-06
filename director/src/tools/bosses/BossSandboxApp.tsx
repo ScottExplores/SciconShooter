@@ -678,6 +678,13 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
     setNotice(`Boss health set to ${Math.round(healthRatio * 100)}%`);
   }, [eventId, sendCommand]);
 
+  const clearBossHazards = useCallback(() => {
+    if (!eventId) return;
+    sendCommand({ type: 'clear-boss-hazards', eventId });
+    setAttackLoopEnabled(false);
+    setNotice('Boss hazards cleared without restarting the fight');
+  }, [eventId, sendCommand]);
+
   const toggleMiniBossSignatureLoop = useCallback(() => {
     if (!eventId) return;
     const enabled = !signatureLoopEnabled;
@@ -1230,6 +1237,14 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
                 /{previewSnapshot.boss.activeAttack.beatCount}
               </small>
             ) : null}
+            {previewSnapshot?.boss?.bossId === 'singularity-crab' ? (
+              <small className="boss-sandbox__mechanics-status" aria-live="polite">
+                Phase {previewSnapshot.boss.phaseIndex + 1}
+                {' | wells '}{previewSnapshot.boss.activeWells}
+                {' | hazards '}{previewSnapshot.boss.hazardCount}
+                {' | cooldown '}{previewSnapshot.boss.cooldownFrames}f
+              </small>
+            ) : null}
             <div>
               {attacks.map((attack, index) => (
                 <button
@@ -1272,6 +1287,9 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
                 onClick={toggleSelectedAttackLoop}
               >
                 {attackLoopEnabled ? 'Loop on' : 'Loop off'}
+              </button>
+              <button type="button" onClick={clearBossHazards}>
+                Clear hazards
               </button>
             </div>
           </nav>

@@ -32174,13 +32174,14 @@
               "blocksWaveClock": true,
               "bossId": "singularity-crab",
               "rigId": "crown-claw",
+              "componentMode": "hull-only",
               "spriteKey": "CAMPAIGN_BOSS_SINGULARITY_CRAB",
               "spriteStyle": {
-                "hueRotateDegrees": 145,
-                "saturation": 1.16,
-                "brightness": 1.04,
-                "glowColor": "#67e8f9",
-                "glowBlur": 8
+                "hueRotateDegrees": 0,
+                "saturation": 1,
+                "brightness": 1,
+                "glowColor": "#f97316",
+                "glowBlur": 7
               },
               "positionId": "center-top",
               "movementPatternId": "arena-roam",
@@ -32190,21 +32191,21 @@
               "damage": 1,
               "scoreReward": 25010,
               "powerupDropChance": 1,
-              "shieldCount": 3,
+              "shieldCount": 0,
               "sizeMultiplier": 1.14,
               "weapons": [
                 {
-                  "id": "terminus-ascendant-radial-burst",
+                  "id": "singularity-core-emitter",
                   "weaponId": "burst-volley",
-                  "attackIntervalSeconds": 1.42,
+                  "attackIntervalSeconds": 30,
                   "damage": 1,
-                  "projectileSpeed": 4.6,
+                  "projectileSpeed": 4.8,
                   "burstCount": 1
                 },
                 {
-                  "id": "terminus-ascendant-charged-lanes",
+                  "id": "singularity-horizon-emitter",
                   "weaponId": "lane-beam",
-                  "attackIntervalSeconds": 1.42,
+                  "attackIntervalSeconds": 30,
                   "damage": 1,
                   "projectileSpeed": 0,
                   "burstCount": 1
@@ -32212,38 +32213,1462 @@
               ],
               "phases": [
                 {
-                  "id": "terminus-ascendant-phase-control",
-                  "label": "Arena control",
+                  "id": "gravitational-calibration",
+                  "label": "Gravitational Calibration",
                   "triggerHealthRatio": 1,
                   "movementPatternId": "arena-roam",
-                  "speedMultiplier": 0.72,
+                  "speedMultiplier": 0.78,
                   "weaponSettingIds": [
-                    "terminus-ascendant-radial-burst"
+                    "singularity-core-emitter",
+                    "singularity-horizon-emitter"
                   ]
                 },
                 {
-                  "id": "terminus-ascendant-phase-crossfire",
-                  "label": "Charged crossfire",
-                  "triggerHealthRatio": 0.46,
+                  "id": "spatial-compression",
+                  "label": "Spatial Compression",
+                  "triggerHealthRatio": 0.7,
                   "movementPatternId": "arena-roam",
-                  "speedMultiplier": 0.8,
+                  "speedMultiplier": 0.88,
                   "weaponSettingIds": [
-                    "terminus-ascendant-radial-burst",
-                    "terminus-ascendant-charged-lanes"
+                    "singularity-core-emitter",
+                    "singularity-horizon-emitter"
                   ]
                 },
                 {
-                  "id": "terminus-ascendant-phase-collapse",
-                  "label": "Collapse pattern",
-                  "triggerHealthRatio": 0.15,
+                  "id": "event-horizon-instability",
+                  "label": "Event Horizon Instability",
+                  "triggerHealthRatio": 0.35,
                   "movementPatternId": "arena-roam",
-                  "speedMultiplier": 0.9,
+                  "speedMultiplier": 1,
                   "weaponSettingIds": [
-                    "terminus-ascendant-radial-burst",
-                    "terminus-ascendant-charged-lanes"
+                    "singularity-core-emitter",
+                    "singularity-horizon-emitter"
                   ]
                 }
-              ]
+              ],
+              "timeline": {
+                "durationSeconds": 44,
+                "loop": true,
+                "clips": [
+                  {
+                    "id": "gravitational-calibration-identity",
+                    "label": "gravitational-calibration identity",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "phase-enter",
+                    "startSeconds": 0,
+                    "durationSeconds": 0.2,
+                    "phaseId": "gravitational-calibration",
+                    "parameters": {
+                      "color": "#f97316"
+                    }
+                  },
+                  {
+                    "id": "gravitational-calibration-camera",
+                    "label": "gravitational-calibration camera cue",
+                    "track": "presentation",
+                    "primitiveId": "camera-cue",
+                    "trigger": "phase-enter",
+                    "startSeconds": 0,
+                    "durationSeconds": 0.2,
+                    "phaseId": "gravitational-calibration",
+                    "parameters": {
+                      "strength": 0.8
+                    }
+                  },
+                  {
+                    "id": "spatial-compression-identity",
+                    "label": "spatial-compression identity",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "phase-enter",
+                    "startSeconds": 0,
+                    "durationSeconds": 0.2,
+                    "phaseId": "spatial-compression",
+                    "parameters": {
+                      "color": "#ef4444"
+                    }
+                  },
+                  {
+                    "id": "spatial-compression-camera",
+                    "label": "spatial-compression camera cue",
+                    "track": "presentation",
+                    "primitiveId": "camera-cue",
+                    "trigger": "phase-enter",
+                    "startSeconds": 0,
+                    "durationSeconds": 0.2,
+                    "phaseId": "spatial-compression",
+                    "parameters": {
+                      "strength": 1.3
+                    }
+                  },
+                  {
+                    "id": "event-horizon-instability-identity",
+                    "label": "event-horizon-instability identity",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "phase-enter",
+                    "startSeconds": 0,
+                    "durationSeconds": 0.2,
+                    "phaseId": "event-horizon-instability",
+                    "parameters": {
+                      "color": "#e11d48"
+                    }
+                  },
+                  {
+                    "id": "event-horizon-instability-camera",
+                    "label": "event-horizon-instability camera cue",
+                    "track": "presentation",
+                    "primitiveId": "camera-cue",
+                    "trigger": "phase-enter",
+                    "startSeconds": 0,
+                    "durationSeconds": 0.2,
+                    "phaseId": "event-horizon-instability",
+                    "parameters": {
+                      "strength": 1.8
+                    }
+                  },
+                  {
+                    "id": "gravitational-calibration-gravity-well-genesis-beat-1-warning",
+                    "label": "Gravity Well Genesis beat 1 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 0,
+                    "durationSeconds": 0.9,
+                    "phaseId": "gravitational-calibration",
+                    "parameters": {
+                      "warningSeconds": 0.9,
+                      "telegraphStyle": "target",
+                      "color": "#f97316"
+                    }
+                  },
+                  {
+                    "id": "gravitational-calibration-gravity-well-genesis-beat-1",
+                    "label": "Gravity Well Genesis beat 1",
+                    "track": "attack",
+                    "primitiveId": "singularity-gravity-well-genesis",
+                    "trigger": "time",
+                    "startSeconds": 0.9,
+                    "durationSeconds": 0.35,
+                    "phaseId": "gravitational-calibration",
+                    "telegraphClipId": "gravitational-calibration-gravity-well-genesis-beat-1-warning",
+                    "parameters": {
+                      "projectileCount": 2,
+                      "sequence": 0,
+                      "motionCue": "singularity-well-genesis",
+                      "rotationDirection": "clockwise"
+                    }
+                  },
+                  {
+                    "id": "gravitational-calibration-gravity-well-genesis-beat-2-warning",
+                    "label": "Gravity Well Genesis beat 2 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 2.2,
+                    "durationSeconds": 0.9,
+                    "phaseId": "gravitational-calibration",
+                    "parameters": {
+                      "warningSeconds": 0.9,
+                      "telegraphStyle": "target",
+                      "color": "#f97316"
+                    }
+                  },
+                  {
+                    "id": "gravitational-calibration-gravity-well-genesis-beat-2",
+                    "label": "Gravity Well Genesis beat 2",
+                    "track": "attack",
+                    "primitiveId": "singularity-gravity-well-genesis",
+                    "trigger": "time",
+                    "startSeconds": 3.1,
+                    "durationSeconds": 0.35,
+                    "phaseId": "gravitational-calibration",
+                    "telegraphClipId": "gravitational-calibration-gravity-well-genesis-beat-2-warning",
+                    "parameters": {
+                      "projectileCount": 2,
+                      "sequence": 1,
+                      "motionCue": "singularity-well-genesis",
+                      "rotationDirection": "counterclockwise"
+                    }
+                  },
+                  {
+                    "id": "gravitational-calibration-gravity-well-genesis-recovery",
+                    "label": "Gravity Well Genesis recovery",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "time",
+                    "startSeconds": 3.45,
+                    "durationSeconds": 0.9,
+                    "phaseId": "gravitational-calibration",
+                    "parameters": {
+                      "color": "#f97316"
+                    }
+                  },
+                  {
+                    "id": "gravitational-calibration-event-horizon-gaze-beat-1-warning",
+                    "label": "Event Horizon Gaze beat 1 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 14,
+                    "durationSeconds": 1,
+                    "phaseId": "gravitational-calibration",
+                    "parameters": {
+                      "warningSeconds": 1,
+                      "telegraphStyle": "lane",
+                      "color": "#f97316"
+                    }
+                  },
+                  {
+                    "id": "gravitational-calibration-event-horizon-gaze-beat-1",
+                    "label": "Event Horizon Gaze beat 1",
+                    "track": "laser",
+                    "primitiveId": "singularity-event-horizon-gaze",
+                    "trigger": "time",
+                    "startSeconds": 15,
+                    "durationSeconds": 0.45,
+                    "phaseId": "gravitational-calibration",
+                    "telegraphClipId": "gravitational-calibration-event-horizon-gaze-beat-1-warning",
+                    "parameters": {
+                      "sequence": 0,
+                      "motionCue": "singularity-event-horizon-gaze",
+                      "rotationDirection": "clockwise"
+                    }
+                  },
+                  {
+                    "id": "gravitational-calibration-event-horizon-gaze-beat-2-warning",
+                    "label": "Event Horizon Gaze beat 2 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 16.5,
+                    "durationSeconds": 1,
+                    "phaseId": "gravitational-calibration",
+                    "parameters": {
+                      "warningSeconds": 1,
+                      "telegraphStyle": "lane",
+                      "color": "#f97316"
+                    }
+                  },
+                  {
+                    "id": "gravitational-calibration-event-horizon-gaze-beat-2",
+                    "label": "Event Horizon Gaze beat 2",
+                    "track": "laser",
+                    "primitiveId": "singularity-event-horizon-gaze",
+                    "trigger": "time",
+                    "startSeconds": 17.5,
+                    "durationSeconds": 0.45,
+                    "phaseId": "gravitational-calibration",
+                    "telegraphClipId": "gravitational-calibration-event-horizon-gaze-beat-2-warning",
+                    "parameters": {
+                      "sequence": 1,
+                      "motionCue": "singularity-event-horizon-gaze",
+                      "rotationDirection": "clockwise"
+                    }
+                  },
+                  {
+                    "id": "gravitational-calibration-event-horizon-gaze-recovery",
+                    "label": "Event Horizon Gaze recovery",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "time",
+                    "startSeconds": 17.95,
+                    "durationSeconds": 1,
+                    "phaseId": "gravitational-calibration",
+                    "parameters": {
+                      "color": "#f97316"
+                    }
+                  },
+                  {
+                    "id": "gravitational-calibration-orbital-pylon-barrage-beat-1-warning",
+                    "label": "Orbital Pylon Barrage beat 1 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 28.5,
+                    "durationSeconds": 0.75,
+                    "phaseId": "gravitational-calibration",
+                    "parameters": {
+                      "warningSeconds": 0.75,
+                      "telegraphStyle": "target",
+                      "color": "#f97316"
+                    }
+                  },
+                  {
+                    "id": "gravitational-calibration-orbital-pylon-barrage-beat-1",
+                    "label": "Orbital Pylon Barrage beat 1",
+                    "track": "attack",
+                    "primitiveId": "singularity-orbital-pylon-barrage",
+                    "trigger": "time",
+                    "startSeconds": 29.25,
+                    "durationSeconds": 0.5,
+                    "phaseId": "gravitational-calibration",
+                    "telegraphClipId": "gravitational-calibration-orbital-pylon-barrage-beat-1-warning",
+                    "parameters": {
+                      "projectileCount": 8,
+                      "sequence": 0,
+                      "motionCue": "singularity-pylon-barrage",
+                      "shotIntervalFrames": 9,
+                      "projectileSpeedScale": 0.9
+                    }
+                  },
+                  {
+                    "id": "gravitational-calibration-orbital-pylon-barrage-beat-2-warning",
+                    "label": "Orbital Pylon Barrage beat 2 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 30.5,
+                    "durationSeconds": 0.75,
+                    "phaseId": "gravitational-calibration",
+                    "parameters": {
+                      "warningSeconds": 0.75,
+                      "telegraphStyle": "target",
+                      "color": "#f97316"
+                    }
+                  },
+                  {
+                    "id": "gravitational-calibration-orbital-pylon-barrage-beat-2",
+                    "label": "Orbital Pylon Barrage beat 2",
+                    "track": "attack",
+                    "primitiveId": "singularity-orbital-pylon-barrage",
+                    "trigger": "time",
+                    "startSeconds": 31.25,
+                    "durationSeconds": 0.5,
+                    "phaseId": "gravitational-calibration",
+                    "telegraphClipId": "gravitational-calibration-orbital-pylon-barrage-beat-2-warning",
+                    "parameters": {
+                      "projectileCount": 8,
+                      "sequence": 1,
+                      "motionCue": "singularity-pylon-barrage",
+                      "shotIntervalFrames": 9,
+                      "projectileSpeedScale": 0.9
+                    }
+                  },
+                  {
+                    "id": "gravitational-calibration-orbital-pylon-barrage-recovery",
+                    "label": "Orbital Pylon Barrage recovery",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "time",
+                    "startSeconds": 31.75,
+                    "durationSeconds": 0.9,
+                    "phaseId": "gravitational-calibration",
+                    "parameters": {
+                      "color": "#f97316"
+                    }
+                  },
+                  {
+                    "id": "spatial-compression-gravity-well-genesis-beat-1-warning",
+                    "label": "Gravity Well Genesis beat 1 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 0,
+                    "durationSeconds": 0.9,
+                    "phaseId": "spatial-compression",
+                    "parameters": {
+                      "warningSeconds": 0.9,
+                      "telegraphStyle": "target",
+                      "color": "#ef4444"
+                    }
+                  },
+                  {
+                    "id": "spatial-compression-gravity-well-genesis-beat-1",
+                    "label": "Gravity Well Genesis beat 1",
+                    "track": "attack",
+                    "primitiveId": "singularity-gravity-well-genesis",
+                    "trigger": "time",
+                    "startSeconds": 0.9,
+                    "durationSeconds": 0.35,
+                    "phaseId": "spatial-compression",
+                    "telegraphClipId": "spatial-compression-gravity-well-genesis-beat-1-warning",
+                    "parameters": {
+                      "projectileCount": 3,
+                      "sequence": 2,
+                      "motionCue": "singularity-well-genesis",
+                      "rotationDirection": "clockwise"
+                    }
+                  },
+                  {
+                    "id": "spatial-compression-gravity-well-genesis-beat-2-warning",
+                    "label": "Gravity Well Genesis beat 2 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 2.2,
+                    "durationSeconds": 0.9,
+                    "phaseId": "spatial-compression",
+                    "parameters": {
+                      "warningSeconds": 0.9,
+                      "telegraphStyle": "target",
+                      "color": "#ef4444"
+                    }
+                  },
+                  {
+                    "id": "spatial-compression-gravity-well-genesis-beat-2",
+                    "label": "Gravity Well Genesis beat 2",
+                    "track": "attack",
+                    "primitiveId": "singularity-gravity-well-genesis",
+                    "trigger": "time",
+                    "startSeconds": 3.1,
+                    "durationSeconds": 0.35,
+                    "phaseId": "spatial-compression",
+                    "telegraphClipId": "spatial-compression-gravity-well-genesis-beat-2-warning",
+                    "parameters": {
+                      "projectileCount": 3,
+                      "sequence": 3,
+                      "motionCue": "singularity-well-genesis",
+                      "rotationDirection": "counterclockwise"
+                    }
+                  },
+                  {
+                    "id": "spatial-compression-gravity-well-genesis-recovery",
+                    "label": "Gravity Well Genesis recovery",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "time",
+                    "startSeconds": 3.45,
+                    "durationSeconds": 0.9,
+                    "phaseId": "spatial-compression",
+                    "parameters": {
+                      "color": "#ef4444"
+                    }
+                  },
+                  {
+                    "id": "spatial-compression-event-horizon-gaze-beat-1-warning",
+                    "label": "Event Horizon Gaze beat 1 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 8,
+                    "durationSeconds": 1,
+                    "phaseId": "spatial-compression",
+                    "parameters": {
+                      "warningSeconds": 1,
+                      "telegraphStyle": "lane",
+                      "color": "#ef4444"
+                    }
+                  },
+                  {
+                    "id": "spatial-compression-event-horizon-gaze-beat-1",
+                    "label": "Event Horizon Gaze beat 1",
+                    "track": "laser",
+                    "primitiveId": "singularity-event-horizon-gaze",
+                    "trigger": "time",
+                    "startSeconds": 9,
+                    "durationSeconds": 0.45,
+                    "phaseId": "spatial-compression",
+                    "telegraphClipId": "spatial-compression-event-horizon-gaze-beat-1-warning",
+                    "parameters": {
+                      "sequence": 2,
+                      "motionCue": "singularity-event-horizon-gaze",
+                      "rotationDirection": "clockwise"
+                    }
+                  },
+                  {
+                    "id": "spatial-compression-event-horizon-gaze-beat-2-warning",
+                    "label": "Event Horizon Gaze beat 2 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 10.5,
+                    "durationSeconds": 1,
+                    "phaseId": "spatial-compression",
+                    "parameters": {
+                      "warningSeconds": 1,
+                      "telegraphStyle": "lane",
+                      "color": "#ef4444"
+                    }
+                  },
+                  {
+                    "id": "spatial-compression-event-horizon-gaze-beat-2",
+                    "label": "Event Horizon Gaze beat 2",
+                    "track": "laser",
+                    "primitiveId": "singularity-event-horizon-gaze",
+                    "trigger": "time",
+                    "startSeconds": 11.5,
+                    "durationSeconds": 0.45,
+                    "phaseId": "spatial-compression",
+                    "telegraphClipId": "spatial-compression-event-horizon-gaze-beat-2-warning",
+                    "parameters": {
+                      "sequence": 3,
+                      "motionCue": "singularity-event-horizon-gaze",
+                      "rotationDirection": "clockwise"
+                    }
+                  },
+                  {
+                    "id": "spatial-compression-event-horizon-gaze-recovery",
+                    "label": "Event Horizon Gaze recovery",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "time",
+                    "startSeconds": 11.95,
+                    "durationSeconds": 1,
+                    "phaseId": "spatial-compression",
+                    "parameters": {
+                      "color": "#ef4444"
+                    }
+                  },
+                  {
+                    "id": "spatial-compression-tidal-claw-pincer-beat-1-warning",
+                    "label": "Tidal Claw Pincer beat 1 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 16,
+                    "durationSeconds": 0.8,
+                    "phaseId": "spatial-compression",
+                    "parameters": {
+                      "warningSeconds": 0.8,
+                      "telegraphStyle": "lane",
+                      "color": "#ef4444"
+                    }
+                  },
+                  {
+                    "id": "spatial-compression-tidal-claw-pincer-beat-1",
+                    "label": "Tidal Claw Pincer beat 1",
+                    "track": "attack",
+                    "primitiveId": "singularity-tidal-claw-pincer",
+                    "trigger": "time",
+                    "startSeconds": 16.8,
+                    "durationSeconds": 0.55,
+                    "phaseId": "spatial-compression",
+                    "telegraphClipId": "spatial-compression-tidal-claw-pincer-beat-1-warning",
+                    "parameters": {
+                      "sequence": 2,
+                      "motionCue": "singularity-tidal-pincer"
+                    }
+                  },
+                  {
+                    "id": "spatial-compression-tidal-claw-pincer-beat-2-warning",
+                    "label": "Tidal Claw Pincer beat 2 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 18.1,
+                    "durationSeconds": 0.8,
+                    "phaseId": "spatial-compression",
+                    "parameters": {
+                      "warningSeconds": 0.8,
+                      "telegraphStyle": "lane",
+                      "color": "#ef4444"
+                    }
+                  },
+                  {
+                    "id": "spatial-compression-tidal-claw-pincer-beat-2",
+                    "label": "Tidal Claw Pincer beat 2",
+                    "track": "attack",
+                    "primitiveId": "singularity-tidal-claw-pincer",
+                    "trigger": "time",
+                    "startSeconds": 18.900000000000002,
+                    "durationSeconds": 0.55,
+                    "phaseId": "spatial-compression",
+                    "telegraphClipId": "spatial-compression-tidal-claw-pincer-beat-2-warning",
+                    "parameters": {
+                      "sequence": 3,
+                      "motionCue": "singularity-tidal-pincer"
+                    }
+                  },
+                  {
+                    "id": "spatial-compression-tidal-claw-pincer-recovery",
+                    "label": "Tidal Claw Pincer recovery",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "time",
+                    "startSeconds": 19.450000000000003,
+                    "durationSeconds": 1,
+                    "phaseId": "spatial-compression",
+                    "parameters": {
+                      "color": "#ef4444"
+                    }
+                  },
+                  {
+                    "id": "spatial-compression-orbital-pylon-barrage-beat-1-warning",
+                    "label": "Orbital Pylon Barrage beat 1 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 24,
+                    "durationSeconds": 0.75,
+                    "phaseId": "spatial-compression",
+                    "parameters": {
+                      "warningSeconds": 0.75,
+                      "telegraphStyle": "target",
+                      "color": "#ef4444"
+                    }
+                  },
+                  {
+                    "id": "spatial-compression-orbital-pylon-barrage-beat-1",
+                    "label": "Orbital Pylon Barrage beat 1",
+                    "track": "attack",
+                    "primitiveId": "singularity-orbital-pylon-barrage",
+                    "trigger": "time",
+                    "startSeconds": 24.75,
+                    "durationSeconds": 0.5,
+                    "phaseId": "spatial-compression",
+                    "telegraphClipId": "spatial-compression-orbital-pylon-barrage-beat-1-warning",
+                    "parameters": {
+                      "projectileCount": 12,
+                      "sequence": 2,
+                      "motionCue": "singularity-pylon-barrage",
+                      "shotIntervalFrames": 9,
+                      "projectileSpeedScale": 1
+                    }
+                  },
+                  {
+                    "id": "spatial-compression-orbital-pylon-barrage-beat-2-warning",
+                    "label": "Orbital Pylon Barrage beat 2 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 26,
+                    "durationSeconds": 0.75,
+                    "phaseId": "spatial-compression",
+                    "parameters": {
+                      "warningSeconds": 0.75,
+                      "telegraphStyle": "target",
+                      "color": "#ef4444"
+                    }
+                  },
+                  {
+                    "id": "spatial-compression-orbital-pylon-barrage-beat-2",
+                    "label": "Orbital Pylon Barrage beat 2",
+                    "track": "attack",
+                    "primitiveId": "singularity-orbital-pylon-barrage",
+                    "trigger": "time",
+                    "startSeconds": 26.75,
+                    "durationSeconds": 0.5,
+                    "phaseId": "spatial-compression",
+                    "telegraphClipId": "spatial-compression-orbital-pylon-barrage-beat-2-warning",
+                    "parameters": {
+                      "projectileCount": 12,
+                      "sequence": 3,
+                      "motionCue": "singularity-pylon-barrage",
+                      "shotIntervalFrames": 9,
+                      "projectileSpeedScale": 1
+                    }
+                  },
+                  {
+                    "id": "spatial-compression-orbital-pylon-barrage-recovery",
+                    "label": "Orbital Pylon Barrage recovery",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "time",
+                    "startSeconds": 27.25,
+                    "durationSeconds": 0.9,
+                    "phaseId": "spatial-compression",
+                    "parameters": {
+                      "color": "#ef4444"
+                    }
+                  },
+                  {
+                    "id": "spatial-compression-singularity-pulse-beat-1-warning",
+                    "label": "Singularity Pulse beat 1 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 32,
+                    "durationSeconds": 0.9,
+                    "phaseId": "spatial-compression",
+                    "parameters": {
+                      "warningSeconds": 0.9,
+                      "telegraphStyle": "ring",
+                      "color": "#ef4444"
+                    }
+                  },
+                  {
+                    "id": "spatial-compression-singularity-pulse-beat-1",
+                    "label": "Singularity Pulse beat 1",
+                    "track": "attack",
+                    "primitiveId": "singularity-pulse",
+                    "trigger": "time",
+                    "startSeconds": 32.9,
+                    "durationSeconds": 0.45,
+                    "phaseId": "spatial-compression",
+                    "telegraphClipId": "spatial-compression-singularity-pulse-beat-1-warning",
+                    "parameters": {
+                      "projectileCount": 20,
+                      "sequence": 2,
+                      "motionCue": "singularity-pulse",
+                      "rotationDirection": "clockwise"
+                    }
+                  },
+                  {
+                    "id": "spatial-compression-singularity-pulse-beat-2-warning",
+                    "label": "Singularity Pulse beat 2 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 34.4,
+                    "durationSeconds": 0.9,
+                    "phaseId": "spatial-compression",
+                    "parameters": {
+                      "warningSeconds": 0.9,
+                      "telegraphStyle": "ring",
+                      "color": "#ef4444"
+                    }
+                  },
+                  {
+                    "id": "spatial-compression-singularity-pulse-beat-2",
+                    "label": "Singularity Pulse beat 2",
+                    "track": "attack",
+                    "primitiveId": "singularity-pulse",
+                    "trigger": "time",
+                    "startSeconds": 35.3,
+                    "durationSeconds": 0.45,
+                    "phaseId": "spatial-compression",
+                    "telegraphClipId": "spatial-compression-singularity-pulse-beat-2-warning",
+                    "parameters": {
+                      "projectileCount": 20,
+                      "sequence": 3,
+                      "motionCue": "singularity-pulse",
+                      "rotationDirection": "counterclockwise"
+                    }
+                  },
+                  {
+                    "id": "spatial-compression-singularity-pulse-recovery",
+                    "label": "Singularity Pulse recovery",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "time",
+                    "startSeconds": 35.75,
+                    "durationSeconds": 1.1,
+                    "phaseId": "spatial-compression",
+                    "parameters": {
+                      "color": "#ef4444"
+                    }
+                  },
+                  {
+                    "id": "event-horizon-instability-gravity-well-genesis-beat-1-warning",
+                    "label": "Gravity Well Genesis beat 1 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 0,
+                    "durationSeconds": 0.9,
+                    "phaseId": "event-horizon-instability",
+                    "parameters": {
+                      "warningSeconds": 0.9,
+                      "telegraphStyle": "target",
+                      "color": "#e11d48"
+                    }
+                  },
+                  {
+                    "id": "event-horizon-instability-gravity-well-genesis-beat-1",
+                    "label": "Gravity Well Genesis beat 1",
+                    "track": "attack",
+                    "primitiveId": "singularity-gravity-well-genesis",
+                    "trigger": "time",
+                    "startSeconds": 0.9,
+                    "durationSeconds": 0.35,
+                    "phaseId": "event-horizon-instability",
+                    "telegraphClipId": "event-horizon-instability-gravity-well-genesis-beat-1-warning",
+                    "parameters": {
+                      "projectileCount": 3,
+                      "sequence": 4,
+                      "motionCue": "singularity-well-genesis",
+                      "rotationDirection": "clockwise"
+                    }
+                  },
+                  {
+                    "id": "event-horizon-instability-gravity-well-genesis-beat-2-warning",
+                    "label": "Gravity Well Genesis beat 2 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 2.2,
+                    "durationSeconds": 0.9,
+                    "phaseId": "event-horizon-instability",
+                    "parameters": {
+                      "warningSeconds": 0.9,
+                      "telegraphStyle": "target",
+                      "color": "#e11d48"
+                    }
+                  },
+                  {
+                    "id": "event-horizon-instability-gravity-well-genesis-beat-2",
+                    "label": "Gravity Well Genesis beat 2",
+                    "track": "attack",
+                    "primitiveId": "singularity-gravity-well-genesis",
+                    "trigger": "time",
+                    "startSeconds": 3.1,
+                    "durationSeconds": 0.35,
+                    "phaseId": "event-horizon-instability",
+                    "telegraphClipId": "event-horizon-instability-gravity-well-genesis-beat-2-warning",
+                    "parameters": {
+                      "projectileCount": 3,
+                      "sequence": 5,
+                      "motionCue": "singularity-well-genesis",
+                      "rotationDirection": "counterclockwise"
+                    }
+                  },
+                  {
+                    "id": "event-horizon-instability-gravity-well-genesis-recovery",
+                    "label": "Gravity Well Genesis recovery",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "time",
+                    "startSeconds": 3.45,
+                    "durationSeconds": 0.9,
+                    "phaseId": "event-horizon-instability",
+                    "parameters": {
+                      "color": "#e11d48"
+                    }
+                  },
+                  {
+                    "id": "event-horizon-instability-event-horizon-gaze-beat-1-warning",
+                    "label": "Event Horizon Gaze beat 1 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 7,
+                    "durationSeconds": 1,
+                    "phaseId": "event-horizon-instability",
+                    "parameters": {
+                      "warningSeconds": 1,
+                      "telegraphStyle": "lane",
+                      "color": "#e11d48"
+                    }
+                  },
+                  {
+                    "id": "event-horizon-instability-event-horizon-gaze-beat-1",
+                    "label": "Event Horizon Gaze beat 1",
+                    "track": "laser",
+                    "primitiveId": "singularity-event-horizon-gaze",
+                    "trigger": "time",
+                    "startSeconds": 8,
+                    "durationSeconds": 0.45,
+                    "phaseId": "event-horizon-instability",
+                    "telegraphClipId": "event-horizon-instability-event-horizon-gaze-beat-1-warning",
+                    "parameters": {
+                      "sequence": 4,
+                      "motionCue": "singularity-event-horizon-gaze",
+                      "rotationDirection": "seeded-random"
+                    }
+                  },
+                  {
+                    "id": "event-horizon-instability-event-horizon-gaze-beat-2-warning",
+                    "label": "Event Horizon Gaze beat 2 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 9.5,
+                    "durationSeconds": 1,
+                    "phaseId": "event-horizon-instability",
+                    "parameters": {
+                      "warningSeconds": 1,
+                      "telegraphStyle": "lane",
+                      "color": "#e11d48"
+                    }
+                  },
+                  {
+                    "id": "event-horizon-instability-event-horizon-gaze-beat-2",
+                    "label": "Event Horizon Gaze beat 2",
+                    "track": "laser",
+                    "primitiveId": "singularity-event-horizon-gaze",
+                    "trigger": "time",
+                    "startSeconds": 10.5,
+                    "durationSeconds": 0.45,
+                    "phaseId": "event-horizon-instability",
+                    "telegraphClipId": "event-horizon-instability-event-horizon-gaze-beat-2-warning",
+                    "parameters": {
+                      "sequence": 5,
+                      "motionCue": "singularity-event-horizon-gaze",
+                      "rotationDirection": "seeded-random"
+                    }
+                  },
+                  {
+                    "id": "event-horizon-instability-event-horizon-gaze-recovery",
+                    "label": "Event Horizon Gaze recovery",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "time",
+                    "startSeconds": 10.95,
+                    "durationSeconds": 1,
+                    "phaseId": "event-horizon-instability",
+                    "parameters": {
+                      "color": "#e11d48"
+                    }
+                  },
+                  {
+                    "id": "event-horizon-instability-tidal-claw-pincer-beat-1-warning",
+                    "label": "Tidal Claw Pincer beat 1 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 14,
+                    "durationSeconds": 0.8,
+                    "phaseId": "event-horizon-instability",
+                    "parameters": {
+                      "warningSeconds": 0.8,
+                      "telegraphStyle": "lane",
+                      "color": "#e11d48"
+                    }
+                  },
+                  {
+                    "id": "event-horizon-instability-tidal-claw-pincer-beat-1",
+                    "label": "Tidal Claw Pincer beat 1",
+                    "track": "attack",
+                    "primitiveId": "singularity-tidal-claw-pincer",
+                    "trigger": "time",
+                    "startSeconds": 14.8,
+                    "durationSeconds": 0.55,
+                    "phaseId": "event-horizon-instability",
+                    "telegraphClipId": "event-horizon-instability-tidal-claw-pincer-beat-1-warning",
+                    "parameters": {
+                      "sequence": 4,
+                      "motionCue": "singularity-tidal-pincer"
+                    }
+                  },
+                  {
+                    "id": "event-horizon-instability-tidal-claw-pincer-beat-2-warning",
+                    "label": "Tidal Claw Pincer beat 2 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 16.1,
+                    "durationSeconds": 0.8,
+                    "phaseId": "event-horizon-instability",
+                    "parameters": {
+                      "warningSeconds": 0.8,
+                      "telegraphStyle": "lane",
+                      "color": "#e11d48"
+                    }
+                  },
+                  {
+                    "id": "event-horizon-instability-tidal-claw-pincer-beat-2",
+                    "label": "Tidal Claw Pincer beat 2",
+                    "track": "attack",
+                    "primitiveId": "singularity-tidal-claw-pincer",
+                    "trigger": "time",
+                    "startSeconds": 16.900000000000002,
+                    "durationSeconds": 0.55,
+                    "phaseId": "event-horizon-instability",
+                    "telegraphClipId": "event-horizon-instability-tidal-claw-pincer-beat-2-warning",
+                    "parameters": {
+                      "sequence": 5,
+                      "motionCue": "singularity-tidal-pincer"
+                    }
+                  },
+                  {
+                    "id": "event-horizon-instability-tidal-claw-pincer-recovery",
+                    "label": "Tidal Claw Pincer recovery",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "time",
+                    "startSeconds": 17.450000000000003,
+                    "durationSeconds": 1,
+                    "phaseId": "event-horizon-instability",
+                    "parameters": {
+                      "color": "#e11d48"
+                    }
+                  },
+                  {
+                    "id": "event-horizon-instability-orbital-pylon-barrage-beat-1-warning",
+                    "label": "Orbital Pylon Barrage beat 1 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 21,
+                    "durationSeconds": 0.75,
+                    "phaseId": "event-horizon-instability",
+                    "parameters": {
+                      "warningSeconds": 0.75,
+                      "telegraphStyle": "target",
+                      "color": "#e11d48"
+                    }
+                  },
+                  {
+                    "id": "event-horizon-instability-orbital-pylon-barrage-beat-1",
+                    "label": "Orbital Pylon Barrage beat 1",
+                    "track": "attack",
+                    "primitiveId": "singularity-orbital-pylon-barrage",
+                    "trigger": "time",
+                    "startSeconds": 21.75,
+                    "durationSeconds": 0.5,
+                    "phaseId": "event-horizon-instability",
+                    "telegraphClipId": "event-horizon-instability-orbital-pylon-barrage-beat-1-warning",
+                    "parameters": {
+                      "projectileCount": 16,
+                      "sequence": 4,
+                      "motionCue": "singularity-pylon-barrage",
+                      "shotIntervalFrames": 7,
+                      "projectileSpeedScale": 1.1
+                    }
+                  },
+                  {
+                    "id": "event-horizon-instability-orbital-pylon-barrage-beat-2-warning",
+                    "label": "Orbital Pylon Barrage beat 2 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 23,
+                    "durationSeconds": 0.75,
+                    "phaseId": "event-horizon-instability",
+                    "parameters": {
+                      "warningSeconds": 0.75,
+                      "telegraphStyle": "target",
+                      "color": "#e11d48"
+                    }
+                  },
+                  {
+                    "id": "event-horizon-instability-orbital-pylon-barrage-beat-2",
+                    "label": "Orbital Pylon Barrage beat 2",
+                    "track": "attack",
+                    "primitiveId": "singularity-orbital-pylon-barrage",
+                    "trigger": "time",
+                    "startSeconds": 23.75,
+                    "durationSeconds": 0.5,
+                    "phaseId": "event-horizon-instability",
+                    "telegraphClipId": "event-horizon-instability-orbital-pylon-barrage-beat-2-warning",
+                    "parameters": {
+                      "projectileCount": 16,
+                      "sequence": 5,
+                      "motionCue": "singularity-pylon-barrage",
+                      "shotIntervalFrames": 7,
+                      "projectileSpeedScale": 1.1
+                    }
+                  },
+                  {
+                    "id": "event-horizon-instability-orbital-pylon-barrage-recovery",
+                    "label": "Orbital Pylon Barrage recovery",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "time",
+                    "startSeconds": 24.25,
+                    "durationSeconds": 0.9,
+                    "phaseId": "event-horizon-instability",
+                    "parameters": {
+                      "color": "#e11d48"
+                    }
+                  },
+                  {
+                    "id": "event-horizon-instability-singularity-pulse-beat-1-warning",
+                    "label": "Singularity Pulse beat 1 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 28,
+                    "durationSeconds": 0.9,
+                    "phaseId": "event-horizon-instability",
+                    "parameters": {
+                      "warningSeconds": 0.9,
+                      "telegraphStyle": "ring",
+                      "color": "#e11d48"
+                    }
+                  },
+                  {
+                    "id": "event-horizon-instability-singularity-pulse-beat-1",
+                    "label": "Singularity Pulse beat 1",
+                    "track": "attack",
+                    "primitiveId": "singularity-pulse",
+                    "trigger": "time",
+                    "startSeconds": 28.9,
+                    "durationSeconds": 0.45,
+                    "phaseId": "event-horizon-instability",
+                    "telegraphClipId": "event-horizon-instability-singularity-pulse-beat-1-warning",
+                    "parameters": {
+                      "projectileCount": 24,
+                      "sequence": 4,
+                      "motionCue": "singularity-pulse",
+                      "rotationDirection": "clockwise"
+                    }
+                  },
+                  {
+                    "id": "event-horizon-instability-singularity-pulse-beat-2-warning",
+                    "label": "Singularity Pulse beat 2 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 30.4,
+                    "durationSeconds": 0.9,
+                    "phaseId": "event-horizon-instability",
+                    "parameters": {
+                      "warningSeconds": 0.9,
+                      "telegraphStyle": "ring",
+                      "color": "#e11d48"
+                    }
+                  },
+                  {
+                    "id": "event-horizon-instability-singularity-pulse-beat-2",
+                    "label": "Singularity Pulse beat 2",
+                    "track": "attack",
+                    "primitiveId": "singularity-pulse",
+                    "trigger": "time",
+                    "startSeconds": 31.299999999999997,
+                    "durationSeconds": 0.45,
+                    "phaseId": "event-horizon-instability",
+                    "telegraphClipId": "event-horizon-instability-singularity-pulse-beat-2-warning",
+                    "parameters": {
+                      "projectileCount": 24,
+                      "sequence": 5,
+                      "motionCue": "singularity-pulse",
+                      "rotationDirection": "counterclockwise"
+                    }
+                  },
+                  {
+                    "id": "event-horizon-instability-singularity-pulse-recovery",
+                    "label": "Singularity Pulse recovery",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "time",
+                    "startSeconds": 31.749999999999996,
+                    "durationSeconds": 1.1,
+                    "phaseId": "event-horizon-instability",
+                    "parameters": {
+                      "color": "#e11d48"
+                    }
+                  },
+                  {
+                    "id": "event-horizon-instability-gravity-collapse-beat-1-warning",
+                    "label": "Gravity Collapse beat 1 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 35,
+                    "durationSeconds": 1.1,
+                    "phaseId": "event-horizon-instability",
+                    "parameters": {
+                      "warningSeconds": 1.1,
+                      "telegraphStyle": "ring",
+                      "color": "#e11d48"
+                    }
+                  },
+                  {
+                    "id": "event-horizon-instability-gravity-collapse-beat-1",
+                    "label": "Gravity Collapse beat 1",
+                    "track": "attack",
+                    "primitiveId": "singularity-gravity-collapse",
+                    "trigger": "time",
+                    "startSeconds": 36.1,
+                    "durationSeconds": 0.55,
+                    "phaseId": "event-horizon-instability",
+                    "telegraphClipId": "event-horizon-instability-gravity-collapse-beat-1-warning",
+                    "parameters": {
+                      "projectileCount": 3,
+                      "sequence": 0,
+                      "motionCue": "singularity-gravity-collapse",
+                      "rotationDirection": "clockwise"
+                    }
+                  },
+                  {
+                    "id": "event-horizon-instability-gravity-collapse-beat-2-warning",
+                    "label": "Gravity Collapse beat 2 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 36.9,
+                    "durationSeconds": 1.1,
+                    "phaseId": "event-horizon-instability",
+                    "parameters": {
+                      "warningSeconds": 1.1,
+                      "telegraphStyle": "ring",
+                      "color": "#e11d48"
+                    }
+                  },
+                  {
+                    "id": "event-horizon-instability-gravity-collapse-beat-2",
+                    "label": "Gravity Collapse beat 2",
+                    "track": "attack",
+                    "primitiveId": "singularity-gravity-collapse",
+                    "trigger": "time",
+                    "startSeconds": 38,
+                    "durationSeconds": 0.55,
+                    "phaseId": "event-horizon-instability",
+                    "telegraphClipId": "event-horizon-instability-gravity-collapse-beat-2-warning",
+                    "parameters": {
+                      "projectileCount": 3,
+                      "sequence": 1,
+                      "motionCue": "singularity-gravity-collapse",
+                      "rotationDirection": "counterclockwise"
+                    }
+                  },
+                  {
+                    "id": "event-horizon-instability-gravity-collapse-beat-3-warning",
+                    "label": "Gravity Collapse beat 3 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 38.8,
+                    "durationSeconds": 1.1,
+                    "phaseId": "event-horizon-instability",
+                    "parameters": {
+                      "warningSeconds": 1.1,
+                      "telegraphStyle": "ring",
+                      "color": "#e11d48"
+                    }
+                  },
+                  {
+                    "id": "event-horizon-instability-gravity-collapse-beat-3",
+                    "label": "Gravity Collapse beat 3",
+                    "track": "attack",
+                    "primitiveId": "singularity-gravity-collapse",
+                    "trigger": "time",
+                    "startSeconds": 39.9,
+                    "durationSeconds": 0.55,
+                    "phaseId": "event-horizon-instability",
+                    "telegraphClipId": "event-horizon-instability-gravity-collapse-beat-3-warning",
+                    "parameters": {
+                      "projectileCount": 3,
+                      "sequence": 2,
+                      "motionCue": "singularity-gravity-collapse",
+                      "rotationDirection": "clockwise"
+                    }
+                  },
+                  {
+                    "id": "event-horizon-instability-gravity-collapse-beat-4-warning",
+                    "label": "Gravity Collapse beat 4 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 40.7,
+                    "durationSeconds": 1.1,
+                    "phaseId": "event-horizon-instability",
+                    "parameters": {
+                      "warningSeconds": 1.1,
+                      "telegraphStyle": "ring",
+                      "color": "#e11d48"
+                    }
+                  },
+                  {
+                    "id": "event-horizon-instability-gravity-collapse-beat-4",
+                    "label": "Gravity Collapse beat 4",
+                    "track": "attack",
+                    "primitiveId": "singularity-gravity-collapse",
+                    "trigger": "time",
+                    "startSeconds": 41.800000000000004,
+                    "durationSeconds": 0.55,
+                    "phaseId": "event-horizon-instability",
+                    "telegraphClipId": "event-horizon-instability-gravity-collapse-beat-4-warning",
+                    "parameters": {
+                      "projectileCount": 3,
+                      "sequence": 3,
+                      "motionCue": "singularity-gravity-collapse",
+                      "rotationDirection": "counterclockwise"
+                    }
+                  },
+                  {
+                    "id": "event-horizon-instability-gravity-collapse-recovery",
+                    "label": "Gravity Collapse recovery",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "time",
+                    "startSeconds": 42.35,
+                    "durationSeconds": 1.3,
+                    "phaseId": "event-horizon-instability",
+                    "parameters": {
+                      "color": "#e11d48"
+                    }
+                  }
+                ],
+                "attackAvailability": "phase-subset",
+                "attacks": [
+                  {
+                    "id": "gravity-well-genesis",
+                    "label": "Gravity Well Genesis",
+                    "role": "core",
+                    "skillTest": "gap-tracking",
+                    "recognitionCue": "The core compresses two gravity seeds before casting them into the upper arena.",
+                    "solution": "Read each forming well, cross its quiet side, and never wait beneath an implosion.",
+                    "safeRouteRule": "opposite-side-dodge",
+                    "sourceSocketRoles": [
+                      "core"
+                    ],
+                    "variants": [
+                      {
+                        "phaseId": "gravitational-calibration",
+                        "beatClipIds": [
+                          "gravitational-calibration-gravity-well-genesis-beat-1",
+                          "gravitational-calibration-gravity-well-genesis-beat-2"
+                        ],
+                        "recoveryClipId": "gravitational-calibration-gravity-well-genesis-recovery"
+                      },
+                      {
+                        "phaseId": "spatial-compression",
+                        "beatClipIds": [
+                          "spatial-compression-gravity-well-genesis-beat-1",
+                          "spatial-compression-gravity-well-genesis-beat-2"
+                        ],
+                        "recoveryClipId": "spatial-compression-gravity-well-genesis-recovery"
+                      },
+                      {
+                        "phaseId": "event-horizon-instability",
+                        "beatClipIds": [
+                          "event-horizon-instability-gravity-well-genesis-beat-1",
+                          "event-horizon-instability-gravity-well-genesis-beat-2"
+                        ],
+                        "recoveryClipId": "event-horizon-instability-gravity-well-genesis-recovery"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "event-horizon-gaze",
+                    "label": "Event Horizon Gaze",
+                    "role": "core",
+                    "skillTest": "lane-routing",
+                    "recognitionCue": "The central lens tracks, locks, and brightens before the damaging horizon appears.",
+                    "solution": "Move during tracking, respect the lock, then ride the warned fixed, sweeping, or split lane.",
+                    "safeRouteRule": "shifting-channel",
+                    "sourceSocketRoles": [
+                      "core"
+                    ],
+                    "variants": [
+                      {
+                        "phaseId": "gravitational-calibration",
+                        "beatClipIds": [
+                          "gravitational-calibration-event-horizon-gaze-beat-1",
+                          "gravitational-calibration-event-horizon-gaze-beat-2"
+                        ],
+                        "recoveryClipId": "gravitational-calibration-event-horizon-gaze-recovery"
+                      },
+                      {
+                        "phaseId": "spatial-compression",
+                        "beatClipIds": [
+                          "spatial-compression-event-horizon-gaze-beat-1",
+                          "spatial-compression-event-horizon-gaze-beat-2"
+                        ],
+                        "recoveryClipId": "spatial-compression-event-horizon-gaze-recovery"
+                      },
+                      {
+                        "phaseId": "event-horizon-instability",
+                        "beatClipIds": [
+                          "event-horizon-instability-event-horizon-gaze-beat-1",
+                          "event-horizon-instability-event-horizon-gaze-beat-2"
+                        ],
+                        "recoveryClipId": "event-horizon-instability-event-horizon-gaze-recovery"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "tidal-claw-pincer",
+                    "label": "Tidal Claw Pincer",
+                    "role": "core",
+                    "skillTest": "gap-tracking",
+                    "recognitionCue": "Both lower claws brace wide, then curl inward around one readable center route.",
+                    "solution": "Commit to the warned middle route and follow the staggered claw that closes second.",
+                    "safeRouteRule": "shifting-channel",
+                    "sourceSocketRoles": [
+                      "port",
+                      "starboard"
+                    ],
+                    "variants": [
+                      {
+                        "phaseId": "spatial-compression",
+                        "beatClipIds": [
+                          "spatial-compression-tidal-claw-pincer-beat-1",
+                          "spatial-compression-tidal-claw-pincer-beat-2"
+                        ],
+                        "recoveryClipId": "spatial-compression-tidal-claw-pincer-recovery"
+                      },
+                      {
+                        "phaseId": "event-horizon-instability",
+                        "beatClipIds": [
+                          "event-horizon-instability-tidal-claw-pincer-beat-1",
+                          "event-horizon-instability-tidal-claw-pincer-beat-2"
+                        ],
+                        "recoveryClipId": "event-horizon-instability-tidal-claw-pincer-recovery"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "orbital-pylon-barrage",
+                    "label": "Orbital Pylon Barrage",
+                    "role": "core",
+                    "skillTest": "rhythm-dodge",
+                    "recognitionCue": "The four pylons ignite one after another in their exact firing order.",
+                    "solution": "Cross a pylon lane only after its visible recoil, then answer the next lit socket.",
+                    "safeRouteRule": "opposite-side-dodge",
+                    "sourceSocketRoles": [
+                      "port",
+                      "starboard"
+                    ],
+                    "variants": [
+                      {
+                        "phaseId": "gravitational-calibration",
+                        "beatClipIds": [
+                          "gravitational-calibration-orbital-pylon-barrage-beat-1",
+                          "gravitational-calibration-orbital-pylon-barrage-beat-2"
+                        ],
+                        "recoveryClipId": "gravitational-calibration-orbital-pylon-barrage-recovery"
+                      },
+                      {
+                        "phaseId": "spatial-compression",
+                        "beatClipIds": [
+                          "spatial-compression-orbital-pylon-barrage-beat-1",
+                          "spatial-compression-orbital-pylon-barrage-beat-2"
+                        ],
+                        "recoveryClipId": "spatial-compression-orbital-pylon-barrage-recovery"
+                      },
+                      {
+                        "phaseId": "event-horizon-instability",
+                        "beatClipIds": [
+                          "event-horizon-instability-orbital-pylon-barrage-beat-1",
+                          "event-horizon-instability-orbital-pylon-barrage-beat-2"
+                        ],
+                        "recoveryClipId": "event-horizon-instability-orbital-pylon-barrage-recovery"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "singularity-pulse",
+                    "label": "Singularity Pulse",
+                    "role": "core",
+                    "skillTest": "gap-tracking",
+                    "recognitionCue": "The core expands into a bright gravity ring with two opposing dark notches.",
+                    "solution": "Enter either warned notch and rotate with its opening while the pulse expands.",
+                    "safeRouteRule": "rotating-gap",
+                    "sourceSocketRoles": [
+                      "core"
+                    ],
+                    "variants": [
+                      {
+                        "phaseId": "spatial-compression",
+                        "beatClipIds": [
+                          "spatial-compression-singularity-pulse-beat-1",
+                          "spatial-compression-singularity-pulse-beat-2"
+                        ],
+                        "recoveryClipId": "spatial-compression-singularity-pulse-recovery"
+                      },
+                      {
+                        "phaseId": "event-horizon-instability",
+                        "beatClipIds": [
+                          "event-horizon-instability-singularity-pulse-beat-1",
+                          "event-horizon-instability-singularity-pulse-beat-2"
+                        ],
+                        "recoveryClipId": "event-horizon-instability-singularity-pulse-recovery"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "gravity-collapse",
+                    "label": "Gravity Collapse",
+                    "role": "signature",
+                    "skillTest": "route-combination",
+                    "recognitionCue": "Every pylon folds inward while three warned wells align around the compressed core.",
+                    "solution": "Read the implosion order, rotate through each released quadrant, then punish the exhausted core.",
+                    "safeRouteRule": "channel-to-quadrant",
+                    "sourceSocketRoles": [
+                      "core",
+                      "port",
+                      "starboard"
+                    ],
+                    "variants": [
+                      {
+                        "phaseId": "event-horizon-instability",
+                        "beatClipIds": [
+                          "event-horizon-instability-gravity-collapse-beat-1",
+                          "event-horizon-instability-gravity-collapse-beat-2",
+                          "event-horizon-instability-gravity-collapse-beat-3",
+                          "event-horizon-instability-gravity-collapse-beat-4"
+                        ],
+                        "recoveryClipId": "event-horizon-instability-gravity-collapse-recovery"
+                      }
+                    ]
+                  }
+                ]
+              }
             }
           ]
         }

@@ -596,6 +596,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           command.loop ?? false
         );
         break;
+      case 'clear-boss-hazards':
+        handled = engine.clearPreviewBossHazards(command.eventId);
+        break;
       case 'set-mini-boss-signature-loop':
         handled = engine.setPreviewMiniBossSignatureLoop(command.eventId, command.enabled);
         break;

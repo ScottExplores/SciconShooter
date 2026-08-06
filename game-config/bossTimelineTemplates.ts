@@ -25,7 +25,7 @@ export const BOSS_TIMELINE_TEMPLATES: readonly BossTimelineTemplateDescriptor[] 
   {
     id: 'advanced-showcase',
     label: 'Advanced showcase',
-    description: 'A non-shipping authoring fixture covering movement, projectile, laser, summon, shield, weak-point, rage, intro, and death primitives.'
+    description: 'A non-shipping authoring fixture covering movement, projectile, laser, summon, shield, weak-point, gravity, rage, intro, and death primitives.'
   }
 ]);
 
@@ -462,6 +462,64 @@ const advancedShowcase = (boss: BossEvent): BossTimelineConfig => {
       },
       actionDurationSeconds: 0.7
     }),
+    ...warningPair({
+      id: 'singularity-gravity-well-genesis',
+      primitiveId: 'singularity-gravity-well-genesis',
+      startSeconds: 28.2,
+      phaseId: ragePhaseId,
+      style: 'ring',
+      color: '#fb923c',
+      parameters: { projectileCount: 2, sequence: 0, motionCue: 'singularity-well-genesis' }
+    }),
+    ...warningPair({
+      id: 'singularity-event-horizon-gaze',
+      primitiveId: 'singularity-event-horizon-gaze',
+      startSeconds: 29.4,
+      phaseId: ragePhaseId,
+      style: 'target',
+      color: '#f97316',
+      parameters: { sequence: 0, motionCue: 'singularity-event-horizon-gaze' }
+    }),
+    ...warningPair({
+      id: 'singularity-tidal-claw-pincer',
+      primitiveId: 'singularity-tidal-claw-pincer',
+      startSeconds: 30.6,
+      phaseId: ragePhaseId,
+      style: 'lane',
+      color: '#fb7185',
+      parameters: { sequence: 0, motionCue: 'singularity-tidal-pincer' }
+    }),
+    ...warningPair({
+      id: 'singularity-orbital-pylon-barrage',
+      primitiveId: 'singularity-orbital-pylon-barrage',
+      startSeconds: 31.8,
+      phaseId: ragePhaseId,
+      color: '#fdba74',
+      parameters: {
+        projectileCount: 4,
+        sequence: 0,
+        motionCue: 'singularity-pylon-barrage',
+        shotIntervalFrames: 8
+      }
+    }),
+    ...warningPair({
+      id: 'singularity-pulse',
+      primitiveId: 'singularity-pulse',
+      startSeconds: 33,
+      phaseId: ragePhaseId,
+      style: 'ring',
+      color: '#facc15',
+      parameters: { projectileCount: 12, sequence: 0, motionCue: 'singularity-pulse' }
+    }),
+    ...warningPair({
+      id: 'singularity-gravity-collapse',
+      primitiveId: 'singularity-gravity-collapse',
+      startSeconds: 34.2,
+      phaseId: ragePhaseId,
+      style: 'ring',
+      color: '#ef4444',
+      parameters: { projectileCount: 3, sequence: 0, motionCue: 'singularity-gravity-collapse' }
+    }),
     {
       ...action('death-effect', 'effect-cue', 0, undefined, { color: '#ffffff' }),
       trigger: 'death',
@@ -475,7 +533,7 @@ const advancedShowcase = (boss: BossEvent): BossTimelineConfig => {
   ];
 
   return {
-    durationSeconds: 29,
+    durationSeconds: 36,
     loop: true,
     clips
   };
