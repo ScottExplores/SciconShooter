@@ -1,0 +1,502 @@
+const { isAuthorized, sendJson } = require('./weeklyCompetitionService');
+const { createXClient } = require('./xApi');
+const { generateReply } = require('./socialAgentModel');
+const {
+  classifyMention,
+  deterministicReply,
+  validateOriginalPost,
+  validateReply
+} = require('./socialAgentPolicy');
+const { createSocialStore } = require('./socialAgentStore');
+
+const ACCOUNT_HANDLE = 'SciconShooter';
+const GAME_URL = 'https://www.sciconshooter.xyz/';
+const MAX_WEEKLY_POST_AGE_MS = 72 * 60 * 60 * 1000;
+const METRICS_LOOKBACK_MS = 30 * 24 * 60 * 60 * 1000;
+const MIN_LEARNING_SAMPLES = 3;
+
+const comparePostIds = (left, right) => {
+  try {
+    const leftId = BigInt(left?.id || 0);
+    const rightId = BigInt(right?.id || 0);
+    return leftId < rightId ? -1 : leftId > rightId ? 1 : 0;
+  } catch {
+    return String(left?.id || '').localeCompare(String(right?.id || ''));
+  }
+};
+
+const positiveInteger = (value, fallback, maximum) => {
+  const parsed = Math.floor(Number(value));
+  if (!Number.isFinite(parsed) || parsed < 1) return fallback;
+  return Math.min(parsed, maximum);
+};
+
+const getPacificWeekday = (date) => new Intl.DateTimeFormat('en-US', {
+  timeZone: 'America/Los_Angeles',
+  weekday: 'short'
+}).format(date);
+
+const configuredOriginalDays = (environment) => new Set(
+  String(environment.X_AGENT_ORIGINAL_DAYS || 'Tue,Wed,Thu')
+    .split(',')
+    .map((value) => value.trim().slice(0, 3))
+    .filter(Boolean)
+);
+
+const buildQueuedPostText = (entry) => {
+  const text = String(entry?.post_text || '').trim();
+  const link = String(entry?.link_url || '').trim();
+  return link && !text.includes(link) ? `${text}\n${link}` : text;
+};
+
+const metricNumber = (metrics, key) => Math.max(0, Number(metrics?.[key]) || 0);
+
+const engagementRate = (metrics) => {
+  const impressions = metricNumber(metrics, 'impression_count');
+  if (impressions === 0) return null;
+  const weightedEngagement = metricNumber(metrics, 'like_count')
+    + (2 * metricNumber(metrics, 'reply_count'))
+    + (3 * metricNumber(metrics, 'retweet_count'))
+    + (3 * metricNumber(metrics, 'quote_count'));
+  return weightedEngagement / impressions;
+};
+
+const buildLearningSummary = (actions = []) => {
+  const groups = new Map();
+  for (const action of actions) {
+    const metrics = action?.metadata?.latestMetrics;
+    const rate = engagementRate(metrics);
+    if (rate === null) continue;
+    const kind = String(action?.metadata?.contentKind || action?.reason || action?.action_type || 'unknown');
+    const current = groups.get(kind) || { kind, samples: 0, totalRate: 0 };
+    current.samples += 1;
+    current.totalRate += rate;
+    groups.set(kind, current);
+  }
+  return [...groups.values()]
+    .map((group) => ({
+      kind: group.kind,
+      samples: group.samples,
+      averageEngagementRate: group.totalRate / group.samples,
+      eligible: group.samples >= MIN_LEARNING_SAMPLES
+    }))
+    .sort((left, right) => right.averageEngagementRate - left.averageEngagementRate);
+};
+
+const chooseQueuedPost = (entries = [], learning = []) => {
+  if (entries.length < 2) return entries[0] || null;
+  const eligibleRanks = new Map(
+    learning.filter((item) => item.eligible).map((item, index) => [item.kind, index])
+  );
+  if (eligibleRanks.size === 0) return entries[0];
+  const topPriority = Number(entries[0]?.priority) || 0;
+  const candidates = entries.filter((entry) => topPriority - (Number(entry?.priority) || 0) <= 5);
+  return [...candidates].sort((left, right) => {
+    const leftRank = eligibleRanks.get(String(left?.content_kind || '')) ?? Number.MAX_SAFE_INTEGER;
+    const rightRank = eligibleRanks.get(String(right?.content_kind || '')) ?? Number.MAX_SAFE_INTEGER;
+    return leftRank - rightRank;
+  })[0] || entries[0];
+};
+
+const safeDisplayName = (value) => String(value || '')
+  .replace(/[\r\n@#]/g, ' ')
+  .replace(/\s+/g, ' ')
+  .trim()
+  .slice(0, 40);
+
+const buildWeeklyThread = (competition) => {
+  const winner = safeDisplayName(competition?.winner_name);
+  const score = Number(competition?.winning_score);
+  const wave = Number(competition?.winning_wave || 1);
+  const proposalUrl = String(competition?.proposal_url || '').trim();
+  if (!winner || !Number.isFinite(score) || score < 0 || !Number.isFinite(wave) || wave < 1) return null;
+  try {
+    if (new URL(proposalUrl).hostname !== 'www.researchhub.com') return null;
+  } catch {
+    return null;
+  }
+  const formattedScore = Math.floor(score).toLocaleString('en-US');
+  return {
+    main: [
+      `${winner} wins this week's Scicon Shooter competition with ${formattedScore} points on Wave ${Math.floor(wave)}.`,
+      'They selected this proposal for the round\'s RSC funding-credit allocation. New ships, mini-ship upgrades and bosses are live.',
+      proposalUrl
+    ].join('\n\n'),
+    reply: `Think you can beat ${formattedScore}?\n\nPlay Scicon Shooter and reply with your score:\n${GAME_URL}`
+  };
+};
+
+const publishReservedAction = async ({ client, store, key, text, replyToId, metadata }) => {
+  try {
+    const post = await client.createPost({ text, replyToId });
+    if (!post?.id) throw new Error('X did not return a post ID.');
+    const action = await store.updateAction(key, {
+      status: 'published',
+      x_post_id: post.id,
+      published_at: new Date().toISOString(),
+      metadata: metadata || {}
+    });
+    return { published: true, postId: post.id, action };
+  } catch (error) {
+    await store.updateAction(key, {
+      status: 'failed',
+      reason: String(error?.message || error).slice(0, 500),
+      metadata: metadata || {}
+    }).catch(() => null);
+    throw error;
+  }
+};
+
+const processMentions = async ({
+  client,
+  store,
+  environment = process.env,
+  now = new Date(),
+  generateReplyFn = generateReply
+}) => {
+  const maxReplies = positiveInteger(environment.X_AGENT_MAX_REPLIES_PER_DAY, 3, 10);
+  const publishedSince = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+  let available = Math.max(0, maxReplies - await store.countPublishedRepliesSince(publishedSince));
+  if (available === 0) return { checked: 0, published: 0, skipped: 0, reason: 'daily_reply_limit' };
+
+  const account = String(environment.X_ACCOUNT_USER_ID || '').trim()
+    ? { id: String(environment.X_ACCOUNT_USER_ID).trim(), username: ACCOUNT_HANDLE }
+    : await client.getMe();
+  if (!account?.id) throw new Error('The X account user ID could not be resolved.');
+
+  const sinceId = await store.getLatestProcessedMentionId();
+  const payload = await client.getMentions(account.id, { sinceId, maxResults: 25 });
+  const authors = new Map((payload?.includes?.users || []).map((user) => [String(user.id), user]));
+  const mentions = [...(payload?.data || [])].sort(comparePostIds);
+  const result = { checked: mentions.length, published: 0, skipped: 0, actions: [] };
+
+  for (const mention of mentions) {
+    const sourcePostId = String(mention?.id || '');
+    const sourceAuthorId = String(mention?.author_id || '');
+    const directContact = String(mention?.in_reply_to_user_id || '') === String(account.id)
+      || new RegExp(`@${ACCOUNT_HANDLE}\\b`, 'i').test(String(mention?.text || ''));
+    if (!sourcePostId || !sourceAuthorId || sourceAuthorId === String(account.id) || !directContact) {
+      result.skipped += 1;
+      continue;
+    }
+
+    const key = `mention:${sourcePostId}`;
+    if (await store.getAction(key)) {
+      result.skipped += 1;
+      continue;
+    }
+
+    const classification = classifyMention(mention.text);
+    if (classification.action === 'skip' || available === 0) {
+      await store.reserveAction({
+        idempotencyKey: key,
+        actionType: 'reply',
+        sourcePostId,
+        sourceAuthorId,
+        reason: available === 0 ? 'daily_reply_limit' : classification.reason,
+        status: 'skipped',
+        metadata: { sourceUsername: authors.get(sourceAuthorId)?.username || null }
+      });
+      result.skipped += 1;
+      continue;
+    }
+
+    let replyText = deterministicReply(classification.reason);
+    if (classification.action === 'reply' && String(environment.OPENAI_API_KEY || '').trim()) {
+      try {
+        const generated = await generateReplyFn({
+          mentionText: mention.text,
+          reason: classification.reason,
+          environment
+        });
+        if (generated?.action === 'skip') {
+          await store.reserveAction({
+            idempotencyKey: key,
+            actionType: 'reply',
+            sourcePostId,
+            sourceAuthorId,
+            reason: `model_skip:${String(generated.reason || '').slice(0, 120)}`,
+            status: 'skipped'
+          });
+          result.skipped += 1;
+          continue;
+        }
+        if (generated?.action === 'reply') replyText = generated.text;
+      } catch (error) {
+        console.error('X reply generation failed; using the policy fallback:', error);
+      }
+    }
+
+    const validation = validateReply(replyText);
+    if (!validation.ok) {
+      await store.reserveAction({
+        idempotencyKey: key,
+        actionType: 'reply',
+        sourcePostId,
+        sourceAuthorId,
+        reason: `reply_validation:${validation.reason}`,
+        status: 'skipped'
+      });
+      result.skipped += 1;
+      continue;
+    }
+
+    const reserved = await store.reserveAction({
+      idempotencyKey: key,
+      actionType: 'reply',
+      sourcePostId,
+      sourceAuthorId,
+      content: validation.text,
+      reason: classification.reason,
+      metadata: {
+        sourceUsername: authors.get(sourceAuthorId)?.username || null,
+        conversationId: mention.conversation_id || null
+      }
+    });
+    if (!reserved) {
+      result.skipped += 1;
+      continue;
+    }
+
+    const published = await publishReservedAction({
+      client,
+      store,
+      key,
+      text: validation.text,
+      replyToId: sourcePostId,
+      metadata: reserved.metadata
+    });
+    result.published += 1;
+    available -= 1;
+    result.actions.push({ sourcePostId, postId: published.postId, reason: classification.reason });
+  }
+  return result;
+};
+
+const processQueuedOriginal = async ({ client, store, environment = process.env, now = new Date() }) => {
+  if (!configuredOriginalDays(environment).has(getPacificWeekday(now))) {
+    return { published: false, reason: 'not_an_original_post_day' };
+  }
+  const lookback = new Date(now.getTime() - METRICS_LOOKBACK_MS).toISOString();
+  const [entries, history] = await Promise.all([
+    store.getQueuedPosts(now.toISOString()),
+    store.getPublishedActionsSince(lookback)
+  ]);
+  const learning = buildLearningSummary(history);
+  const entry = chooseQueuedPost(entries, learning);
+  if (!entry) return { published: false, reason: 'queue_empty' };
+  if (entry?.metadata?.claims_verified !== true) {
+    return { published: false, reason: 'claims_not_verified', contentKey: entry.content_key };
+  }
+  if (entry.requires_media) {
+    return { published: false, reason: 'media_requires_review', contentKey: entry.content_key };
+  }
+  const text = buildQueuedPostText(entry);
+  const validation = validateOriginalPost(text);
+  if (!validation.ok) {
+    return { published: false, reason: `post_validation:${validation.reason}`, contentKey: entry.content_key };
+  }
+  const key = `queue:${entry.content_key}`;
+  const existing = await store.getAction(key);
+  if (existing) return { published: false, reason: `already_${existing.status}`, contentKey: entry.content_key };
+  const reserved = await store.reserveAction({
+    idempotencyKey: key,
+    actionType: 'original',
+    content: validation.text,
+    reason: entry.content_kind || 'queued_update',
+    metadata: {
+      contentKey: entry.content_key,
+      contentKind: entry.content_kind || 'queued_update',
+      learningApplied: learning.some((item) => item.eligible)
+    }
+  });
+  if (!reserved) return { published: false, reason: 'duplicate_reservation', contentKey: entry.content_key };
+
+  const published = await publishReservedAction({
+    client,
+    store,
+    key,
+    text: validation.text,
+    metadata: reserved.metadata
+  });
+  await store.markQueuedPostPublished(entry.content_key, published.action?.id || reserved.id);
+  return { published: true, postId: published.postId, contentKey: entry.content_key };
+};
+
+const syncPublishedMetrics = async ({ client, store, environment = process.env, now = new Date() }) => {
+  const account = String(environment.X_ACCOUNT_USER_ID || '').trim()
+    ? { id: String(environment.X_ACCOUNT_USER_ID).trim() }
+    : await client.getMe();
+  if (!account?.id) throw new Error('The X account user ID could not be resolved.');
+  const sinceIso = new Date(now.getTime() - METRICS_LOOKBACK_MS).toISOString();
+  const actions = await store.getPublishedActionsSince(sinceIso);
+  if (actions.length === 0) return { checked: 0, updated: 0, learning: [] };
+  const timeline = await client.getOwnPosts(account.id, { maxResults: 100 });
+  const posts = new Map((timeline?.data || []).map((post) => [String(post.id), post]));
+  let updated = 0;
+  const observedAt = now.toISOString();
+  for (const action of actions) {
+    const post = posts.get(String(action.x_post_id || ''));
+    if (!post?.public_metrics) continue;
+    await store.updateAction(action.idempotency_key, {
+      metadata: {
+        ...(action.metadata || {}),
+        latestMetrics: post.public_metrics,
+        metricsObservedAt: observedAt,
+        engagementRate: engagementRate(post.public_metrics)
+      }
+    });
+    updated += 1;
+  }
+  const refreshed = actions.map((action) => {
+    const post = posts.get(String(action.x_post_id || ''));
+    return post?.public_metrics
+      ? { ...action, metadata: { ...(action.metadata || {}), latestMetrics: post.public_metrics } }
+      : action;
+  });
+  return { checked: actions.length, updated, learning: buildLearningSummary(refreshed) };
+};
+
+const processWeeklyWinner = async ({ client, store, now = new Date() }) => {
+  const competition = await store.getLatestFinalizedCompetition();
+  if (!competition) return { published: false, reason: 'no_finalized_competition' };
+  const endedAt = new Date(competition.ends_at || '');
+  if (
+    !Number.isFinite(endedAt.getTime())
+    || endedAt.getTime() > now.getTime()
+    || now.getTime() - endedAt.getTime() > MAX_WEEKLY_POST_AGE_MS
+  ) {
+    return { published: false, reason: 'competition_not_current', weekKey: competition.week_key };
+  }
+  if (!competition.proposal_id || !competition.proposal_url) {
+    return { published: false, reason: 'proposal_selection_pending', weekKey: competition.week_key };
+  }
+  const thread = buildWeeklyThread(competition);
+  if (!thread) return { published: false, reason: 'invalid_competition_details', weekKey: competition.week_key };
+  const mainValidation = validateOriginalPost(thread.main, { allowResearchHubProposal: true });
+  const replyValidation = validateReply(thread.reply);
+  if (!mainValidation.ok || !replyValidation.ok) {
+    return {
+      published: false,
+      reason: `thread_validation:${mainValidation.reason || replyValidation.reason}`,
+      weekKey: competition.week_key
+    };
+  }
+
+  const mainKey = `weekly:${competition.week_key}:main`;
+  let mainAction = await store.getAction(mainKey);
+  let mainPostId = mainAction?.status === 'published' ? mainAction.x_post_id : null;
+  if (!mainAction) {
+    mainAction = await store.reserveAction({
+      idempotencyKey: mainKey,
+      actionType: 'weekly_winner',
+      content: mainValidation.text,
+      reason: 'finalized_winner_with_proposal_selection',
+      metadata: {
+        weekKey: competition.week_key,
+        competitionStatus: competition.status,
+        fundingStatus: competition.allocation_tx_hash ? 'transaction_confirmed' : 'selection_only'
+      }
+    });
+    if (!mainAction) return { published: false, reason: 'duplicate_main_reservation', weekKey: competition.week_key };
+    const publishedMain = await publishReservedAction({
+      client,
+      store,
+      key: mainKey,
+      text: mainValidation.text,
+      metadata: mainAction.metadata
+    });
+    mainPostId = publishedMain.postId;
+  }
+  if (!mainPostId) {
+    return { published: false, reason: `main_${mainAction?.status || 'unavailable'}`, weekKey: competition.week_key };
+  }
+
+  const replyKey = `weekly:${competition.week_key}:reply`;
+  const existingReply = await store.getAction(replyKey);
+  if (existingReply) {
+    return {
+      published: mainAction?.status === 'published',
+      mainPostId,
+      replyPostId: existingReply.x_post_id || null,
+      reason: `reply_${existingReply.status}`,
+      weekKey: competition.week_key
+    };
+  }
+  const reservedReply = await store.reserveAction({
+    idempotencyKey: replyKey,
+    actionType: 'weekly_reply',
+    sourcePostId: mainPostId,
+    content: replyValidation.text,
+    reason: 'score_challenge',
+    metadata: { weekKey: competition.week_key }
+  });
+  if (!reservedReply) return { published: true, mainPostId, reason: 'duplicate_reply_reservation' };
+  const publishedReply = await publishReservedAction({
+    client,
+    store,
+    key: replyKey,
+    text: replyValidation.text,
+    replyToId: mainPostId,
+    metadata: reservedReply.metadata
+  });
+  return {
+    published: true,
+    mainPostId,
+    replyPostId: publishedReply.postId,
+    weekKey: competition.week_key
+  };
+};
+
+const runSocialAgent = async ({
+  mode = 'daily',
+  environment = process.env,
+  now = new Date(),
+  client,
+  store
+} = {}) => {
+  if (String(environment.X_AUTONOMY_ENABLED || '').toLowerCase() !== 'true') {
+    return { enabled: false, mode, reason: 'kill_switch_disabled' };
+  }
+  const activeClient = client || createXClient({ environment });
+  const activeStore = store || createSocialStore();
+  const output = { enabled: true, mode };
+  if (mode === 'daily' || mode === 'all') {
+    output.mentions = await processMentions({ client: activeClient, store: activeStore, environment, now });
+    output.original = await processQueuedOriginal({ client: activeClient, store: activeStore, environment, now });
+    output.metrics = await syncPublishedMetrics({ client: activeClient, store: activeStore, environment, now });
+  }
+  if (mode === 'weekly' || mode === 'all') {
+    output.weekly = await processWeeklyWinner({ client: activeClient, store: activeStore, now });
+  }
+  if (!['daily', 'weekly', 'all'].includes(mode)) throw Object.assign(new Error('Unknown social-agent mode.'), { statusCode: 400 });
+  return output;
+};
+
+const socialAgentHandler = async (req, res) => {
+  if (req.method !== 'GET' && req.method !== 'POST') return sendJson(res, 405, { error: 'Method not allowed' });
+  if (!isAuthorized(req)) return sendJson(res, 401, { error: 'Unauthorized' });
+  try {
+    const mode = String(req.query?.mode || 'daily').trim().toLowerCase();
+    const result = await runSocialAgent({ mode });
+    return sendJson(res, 200, result);
+  } catch (error) {
+    console.error('Autonomous X agent failed:', error);
+    return sendJson(res, error.statusCode || 500, { error: error.message || 'Autonomous X agent failed' });
+  }
+};
+
+module.exports = {
+  ACCOUNT_HANDLE,
+  GAME_URL,
+  buildQueuedPostText,
+  buildLearningSummary,
+  buildWeeklyThread,
+  chooseQueuedPost,
+  processMentions,
+  processQueuedOriginal,
+  processWeeklyWinner,
+  runSocialAgent,
+  socialAgentHandler,
+  syncPublishedMetrics
+};

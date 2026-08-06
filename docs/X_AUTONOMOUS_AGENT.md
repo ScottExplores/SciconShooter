@@ -1,0 +1,69 @@
+# Scicon Shooter autonomous X agent
+
+## Scope
+
+The production worker uses the official X API. It can perform only these actions:
+
+- Publish one verified queued original post on configured weekdays.
+- Read mentions of `@SciconShooter` and reply inside conversations that directly contacted the account.
+- Publish the finalized weekly winner thread only when the winner, score, wave, and ResearchHub proposal selection are present in the competition record.
+- Save every attempted action, decision, source post, final copy, status, and X post ID in Supabase.
+- Record public performance metrics for the account's own posts and use them to improve queued-content selection.
+
+The worker has no implementation for likes, follows, unfollows, reposts, quotes, Direct Messages, deleting posts, trend searches, or cold outreach.
+
+Performance learning is deliberately slow. A content category needs at least three measured posts before it can influence selection, and it can only reorder queued posts whose editorial priorities are within five points. One lucky post cannot take over the account strategy.
+
+## Safety boundaries
+
+- `X_AUTONOMY_ENABLED=false` is the emergency kill switch and the deployment default.
+- The X developer app must have only **Read and write** permission. Do not grant Direct Message permission.
+- Reply volume defaults to three published replies per rolling 24 hours and cannot exceed ten through configuration.
+- Only direct mentions and direct replies are eligible. Unrelated posts are never searched or contacted.
+- Hostile, spammy, promotional, and ambiguous mentions are ignored.
+- Wallet, payment, transaction, security, legal, and confirmed-funding topics receive only the fixed support-routing response.
+- Generated replies are treated as untrusted until they pass URL, length, secret-request, hashtag, and claim validation.
+- A failed or interrupted action keeps its idempotency reservation and is not automatically retried, preventing duplicate posts.
+- Queued original posts require `metadata.claims_verified=true`. Media-required entries stop for review.
+- Funding is never described as completed from proposal selection alone. The weekly thread records `selection_only` unless an allocation transaction hash exists.
+
+## Required production secrets
+
+Store these only as encrypted Vercel environment variables. Never put them in Git, project logs, screenshots, chat, or browser notes.
+
+- `X_API_KEY`
+- `X_API_SECRET`
+- `X_ACCESS_TOKEN`
+- `X_ACCESS_TOKEN_SECRET`
+- `X_ACCOUNT_USER_ID`
+- `OPENAI_API_KEY`
+- `CRON_SECRET`
+
+Optional controls:
+
+- `X_AGENT_MODEL=gpt-5-mini`
+- `X_AGENT_MAX_REPLIES_PER_DAY=3`
+- `X_AGENT_ORIGINAL_DAYS=Tue,Wed,Thu`
+
+## Schedule
+
+- Daily mentions and queued content: `16:00 UTC`, which is 9:00 AM Pacific during daylight saving time. Vercel Hobby may execute anywhere within that hour.
+- Weekly finalized result: Sunday at `21:15 UTC`, after the existing competition-finalization jobs. Vercel Hobby may execute anywhere within that hour.
+
+The worker shares the existing `api/events.js` function through `/api/social-agent`, preserving the 12-function Hobby deployment limit. Vercel authenticates cron calls with `CRON_SECRET`.
+
+## Activation checklist
+
+1. Apply the social-agent migrations under `supabase/migrations` and run Supabase security and performance advisors.
+2. Create one X developer app owned by the Scicon Shooter account and set it to Read and write without Direct Messages.
+3. Set an X API spending cap and fund only the amount Scott approves.
+4. Generate account access tokens after permissions are final. Changing permissions later requires regenerating the tokens.
+5. Add all required secrets to Vercel Production only.
+6. Deploy with `X_AUTONOMY_ENABLED=false` and invoke the worker to confirm the kill-switch response.
+7. Run unit tests and a credentialed read-only identity check.
+8. Set `X_AUTONOMY_ENABLED=true`, invoke one controlled run, and verify the Supabase audit row and X post ID.
+9. Configure X's automated-account label and connect it to Scott's human-managed X account.
+
+## Emergency stop
+
+Set `X_AUTONOMY_ENABLED=false` in Vercel and redeploy. If credentials may be exposed, revoke the X app tokens, rotate `CRON_SECRET`, rotate the OpenAI API key, and review `scicon_social_actions` before restoring service.
