@@ -296,6 +296,38 @@ button {
   font-weight: 750;
 }
 
+.remote-runner__categories {
+  display: flex;
+  gap: 0.42rem;
+  overflow-x: auto;
+  padding: 0.08rem 0 0.28rem;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  scroll-snap-type: x proximity;
+}
+
+.remote-runner__categories button {
+  min-height: 2.35rem;
+  flex: 0 0 auto;
+  padding: 0.48rem 0.68rem;
+  border: 1px solid rgb(103 232 249 / 22%);
+  border-radius: 999px;
+  background: rgb(8 47 73 / 31%);
+  color: #94a3b8;
+  font-size: 0.65rem;
+  font-weight: 850;
+  scroll-snap-align: start;
+  white-space: nowrap;
+}
+
+.remote-runner__categories button.is-active,
+.remote-runner__categories button[aria-pressed="true"] {
+  border-color: #67e8f9;
+  background: rgb(8 145 178 / 20%);
+  color: #ecfeff;
+  box-shadow: 0 0 0 2px rgb(34 211 238 / 10%);
+}
+
 .remote-runner__boss-select,
 .remote-runner__companion label {
   display: grid;
@@ -521,6 +553,11 @@ button {
   color: #fde047;
 }
 
+.remote-runner__boss-card-copy > span[data-encounter-class="mini-boss"] {
+  border-color: rgb(110 231 183 / 45%);
+  color: #6ee7b7;
+}
+
 .remote-runner__boss-card-copy h2 {
   margin: 0.1rem 0 0;
   color: #f8fafc;
@@ -542,6 +579,24 @@ button {
 .remote-runner__boss-card-copy small {
   color: #64748b;
   font-size: 0.67rem;
+}
+
+.remote-runner__category-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.15rem;
+}
+
+.remote-runner__category-tags span {
+  padding: 0.16rem 0.36rem;
+  border: 1px solid rgb(148 163 184 / 22%);
+  border-radius: 999px;
+  color: #94a3b8;
+  font-size: 0.54rem;
+  font-weight: 800;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
 }
 
 .remote-runner__boss-card-copy em {
