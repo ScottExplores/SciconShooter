@@ -1,7 +1,8 @@
 # Scicon Shooter social calendar
 
 Start date: July 19, 2026  
-Primary network: X (`@ScottExplores29`)  
+Primary network: X (`@SciconShooter`)
+Support email: `sciconshooter@gmail.com`
 Timezone: America/Los_Angeles
 
 ## Operating principle
@@ -14,8 +15,10 @@ Reddit is excluded while the account is banned/security-locked. Community outrea
 
 ## X account safety and publishing
 
-- Codex prepares copy, media, timing, and reply suggestions. The account owner manually publishes on X.
-- Do not use scripted browser posting, automated likes, automated follows, bulk replies, or keyword-triggered mentions.
+- Browser-based public posts and profile changes require owner approval at action time. The production autonomous worker may publish through the official X API only after its standing-consent controls, restricted credentials, spending cap, audit tables, and kill switch are enabled.
+- Use `@SciconShooter` for game updates and support. Do not route game communications through Scott's personal X account.
+- Do not use scripted browser posting, automated likes, automated follows, bulk replies, trend automation, or keyword-triggered cold outreach.
+- Autonomous replies are limited to direct mentions and replies received by `@SciconShooter`, with the policy and volume controls documented in `docs/X_AUTONOMOUS_AGENT.md`.
 - Never reuse identical or near-identical copy, replies, images, or link-only posts. Each post needs a new reason to exist.
 - Keep the normal ceiling at four original posts per week. Do not publish merely because a slot exists.
 - Space substantive replies naturally and respond only where the game is relevant to the conversation.
@@ -122,6 +125,19 @@ Within 30–90 minutes of each post:
 3. Do not reply to unrelated popular posts with a game link.
 4. Save actionable feedback in the weekly marketing log with the source link and a short product implication.
 5. Publish a later `you asked, we changed` post when feedback results in a real update.
+
+## Managed account workflow
+
+Codex may inspect public mentions, replies, current game code, competition data, and the weekly marketing log to prepare an approval queue. The production API worker may separately publish verified queued posts and safe direct replies under `docs/X_AUTONOMOUS_AGENT.md`. Both paths should prioritize player questions, useful product feedback, score challenges, and shipped upgrades.
+
+- Prepare proposed replies in Scott's direct voice with the source post URL and the reason a reply is useful.
+- Prepare beta-tester calls around one concrete mechanic or build, not generic requests for engagement.
+- Verify shipped behavior in the current project before describing an upgrade.
+- Require explicit owner approval for browser publication and any API content outside the autonomous worker's pre-authorized scope.
+- Never enable keyword-triggered cold messages, automated likes, automated follows, trend replies, Direct Messages, or bulk engagement.
+- Ignore engagement bait and unrelated trending posts. Do not attach a game link unless it directly helps the conversation.
+- Move account-specific wallet or transaction support to the in-game report flow and support email; never request secrets in X replies or DMs.
+- Record every published post, reply, source URL, asset, posting time, and response goal in the current weekly marketing log.
 
 ## Measurement
 
