@@ -56,6 +56,12 @@ const { GameEngine } = await vite.ssrLoadModule('/services/gameLogic.ts');
 const { getBossTimelineAttackWindow } = await vite.ssrLoadModule(
   '/services/gameplay/bosses/BossTimelineRuntime.ts'
 );
+const {
+  SINGULARITY_PHASE_TRANSITION_FRAMES,
+  resolveSingularityQueuedAttackTransition
+} = await vite.ssrLoadModule(
+  '/services/gameplay/bosses/SingularityCommanderRuntime.ts'
+);
 const { resolveCampaignBossArtwork } = await vite.ssrLoadModule(
   '/services/pixi/boss-rigs/CampaignBossArtworkRegistry.ts'
 );
@@ -327,6 +333,131 @@ test('phase jumps expose exactly the authored 4/5/6 attack rosters', () => {
       );
     }
   }
+});
+
+test('post-recovery gaps compress into configured visible transitions without moving warnings', () => {
+  assert.deepEqual(SINGULARITY_PHASE_TRANSITION_FRAMES, {
+    'gravitational-calibration': 48,
+    'spatial-compression': 36,
+    'event-horizon-instability': 24
+  });
+  const phaseId = 'gravitational-calibration';
+  const firstWindow = getBossTimelineAttackWindow(
+    event.timeline,
+    'gravity-well-genesis',
+    phaseId,
+    60
+  );
+  const secondWindow = getBossTimelineAttackWindow(
+    event.timeline,
+    'event-horizon-gaze',
+    phaseId,
+    60
+  );
+  assert.ok(firstWindow && secondWindow);
+  const transition = resolveSingularityQueuedAttackTransition({
+    timeline: event.timeline,
+    phaseId,
+    attackFrame: firstWindow.endFrame + 1,
+    framesPerSecond: 60
+  });
+  assert.ok(transition);
+  assert.equal(transition.attackId, 'event-horizon-gaze');
+  assert.equal(transition.nextAttackStartFrame, secondWindow.startFrame);
+  assert.equal(transition.transitionStartFrame, secondWindow.startFrame - 48);
+  assert.equal(transition.transitionFrames, 48);
+});
+
+test('normal production flow has no blank post-recovery state in any phase', () => {
+  const expectedByPhase = new Map([
+    ['gravitational-calibration', 48],
+    ['spatial-compression', 36],
+    ['event-horizon-instability', 24]
+  ]);
+  for (const [phaseId, maximumTransitionFrames] of expectedByPhase) {
+    const engine = createEngine(`singularity-continuous-flow-${phaseId}`);
+    assert.equal(engine.jumpToAuthoredBossPhase(phaseId, event.id), true);
+    const authoredAttackIds = new Set(event.timeline.attacks
+      .filter((attack) => attack.variants.some((variant) => variant.phaseId === phaseId))
+      .map((attack) => attack.id));
+    const warnings = new Set();
+    let sawTransition = false;
+    let sawAttack = false;
+    for (let frame = 0; frame < 3_600; frame += 1) {
+      engine.update();
+      const snapshot = engine.getPreviewSnapshot().boss;
+      assert.ok(snapshot);
+      if (snapshot.activeAttack) {
+        sawAttack = true;
+        if (snapshot.activeAttack.stage === 'warning') {
+          warnings.add(snapshot.activeAttack.id);
+        }
+      }
+      if (sawAttack) {
+        assert.notEqual(
+          snapshot.state,
+          'idle',
+          `${phaseId} may not add a blank state after combat begins`
+        );
+      }
+      if (snapshot.transitionFrames > 0) {
+        sawTransition = true;
+        assert.ok(snapshot.nextAttack);
+        assert.ok(snapshot.transitionFrames <= maximumTransitionFrames);
+        assert.equal(snapshot.activeAttack?.stage, 'transition');
+      }
+      if (warnings.size === authoredAttackIds.size && sawTransition) break;
+    }
+    assert.equal(sawTransition, true, `${phaseId} must expose a purposeful queued transition`);
+    assert.deepEqual(warnings, authoredAttackIds, `${phaseId} must preserve every warning`);
+  }
+});
+
+test('selected-attack looping keeps its exact authored window and bypasses flow compression', () => {
+  const phaseId = 'gravitational-calibration';
+  const attackId = 'event-horizon-gaze';
+  const window = getBossTimelineAttackWindow(event.timeline, attackId, phaseId, 60);
+  assert.ok(window);
+  const engine = createEngine('singularity-selected-loop-flow');
+  assert.equal(engine.triggerAuthoredBossAttack(attackId, event.id, phaseId, true), true);
+  let warningEntries = 0;
+  let previousStage = null;
+  for (let frame = 0; frame < (window.endFrame - window.startFrame) * 2 + 24; frame += 1) {
+    engine.update();
+    const boss = engine.bossRef;
+    const snapshot = engine.getPreviewSnapshot().boss;
+    assert.ok(boss && snapshot);
+    if (snapshot.activeAttack) assert.equal(snapshot.activeAttack.id, attackId);
+    if (snapshot.activeAttack?.stage === 'warning' && previousStage !== 'warning') {
+      warningEntries += 1;
+    }
+    previousStage = snapshot.activeAttack?.stage ?? null;
+    assert.equal(boss.bossSingularityTransition, undefined);
+    assert.equal(snapshot.transitionFrames, 0);
+    assert.equal(snapshot.nextAttack, null);
+  }
+  assert.ok(warningEntries >= 2, 'the selected warning must replay on its authored loop');
+});
+
+test('phase reconstruction clears a queued transition and restarts from authored phase frame zero', () => {
+  const engine = createEngine('singularity-transition-phase-reset');
+  assert.equal(engine.jumpToAuthoredBossPhase('gravitational-calibration', event.id), true);
+  let observedTransition = false;
+  for (let frame = 0; frame < 1_000; frame += 1) {
+    engine.update();
+    if (engine.getPreviewSnapshot().boss?.nextAttack) {
+      observedTransition = true;
+      break;
+    }
+  }
+  assert.equal(observedTransition, true);
+  assert.ok(engine.bossRef?.bossSingularityTransition);
+  assert.equal(engine.jumpToAuthoredBossPhase('spatial-compression', event.id), true);
+  assert.equal(engine.bossRef?.attackTimer, 0);
+  assert.equal(engine.bossRef?.bossSingularityTransition, undefined);
+  const snapshot = engine.getPreviewSnapshot().boss;
+  assert.equal(snapshot?.transitionFrames, 0);
+  assert.equal(snapshot?.nextAttack, null);
 });
 
 test('Singularity Pulse executes exactly 3/6/9 complete scheduled bursts by phase', () => {

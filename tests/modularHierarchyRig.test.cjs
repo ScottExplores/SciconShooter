@@ -195,12 +195,14 @@ const buildManifest = () => {
 
 test('strict registration validates and freezes one complete Gloamforge hierarchy', () => {
   const manifest = buildManifest();
+  manifest.preserveAspectRatio = true;
   const issues = runtime.exports.validateModularBossRigManifest(manifest);
   assert.equal(issues.length, 0);
   const registration = runtime.exports.registerModularBossRig(manifest);
 
   assert.equal(Object.isFrozen(registration.manifest), true);
   assert.equal(Object.isFrozen(registration.manifest.designSize), true);
+  assert.equal(registration.manifest.preserveAspectRatio, true);
   assert.equal(Object.isFrozen(registration.manifest.parts), true);
   assert.equal(registration.manifest.supplementalAtlases, undefined);
   assert.equal(registration.atlases.length, 1);
@@ -231,6 +233,23 @@ test('strict registration validates and freezes one complete Gloamforge hierarch
     9
   ), 'exhaust.small');
   assert.equal(gloamforge.exports.validateGloamforgeRigCompatibility(registration).length, 0);
+});
+
+test('aspect-ratio preservation is optional but strictly boolean', () => {
+  const omitted = buildManifest();
+  assert.equal(runtime.exports.validateModularBossRigManifest(omitted).length, 0);
+  assert.equal(
+    runtime.exports.registerModularBossRig(omitted).manifest.preserveAspectRatio,
+    undefined
+  );
+
+  const invalid = buildManifest();
+  invalid.preserveAspectRatio = 'yes';
+  const issues = runtime.exports.validateModularBossRigManifest(invalid);
+  assert.ok(Array.from(issues).some((entry) => (
+    entry.path === '/preserveAspectRatio'
+    && entry.code === 'invalid_type'
+  )));
 });
 
 test('supplemental atlases share one frozen frame namespace for parts, poses, and animations', () => {

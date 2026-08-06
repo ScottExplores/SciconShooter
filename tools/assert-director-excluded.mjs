@@ -29,7 +29,6 @@ const forbiddenPrototypeAssetBasenames = [
   'riftcoil-wyrm-modular-sheet',
   'gloamforge-mantis-neutral',
   'gloamforge-mantis-atlas',
-  'gloamforge-mantis',
   'aurora-boss-vfx-sheet-v1'
 ];
 const forbiddenText = [

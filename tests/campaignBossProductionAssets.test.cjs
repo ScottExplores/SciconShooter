@@ -9,6 +9,12 @@ const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const HELIOS_ASSET_KEY = 'CAMPAIGN_BOSS_HELIOS_CLAWCARRIER';
 const HELIOS_ASSET_URL = '/game-art/generated/bosses/campaign-packages/helios-clawcarrier/assembled.png';
 const HELIOS_ASSET_PATH = path.join(root, 'public', HELIOS_ASSET_URL.replace(/^\//, ''));
+const AURORA_ASSET_KEY = 'CAMPAIGN_BOSS_ORBIT_GYROSCOPE';
+const AURORA_ASSET_URL = '/game-art/generated/bosses/campaign-packages/orbit-gyroscope/assembled.png';
+const AURORA_ASSET_PATH = path.join(root, 'public', AURORA_ASSET_URL.replace(/^\//, ''));
+const GLOAMFORGE_ASSET_KEY = 'CAMPAIGN_BOSS_HAMMERHEAD_SIEGE';
+const GLOAMFORGE_ASSET_URL = '/game-art/generated/bosses/campaign-packages/hammerhead-siege/assembled.png';
+const GLOAMFORGE_ASSET_PATH = path.join(root, 'public', GLOAMFORGE_ASSET_URL.replace(/^\//, ''));
 
 test('M25 Helios art stays aligned across Campaign, constants, catalog, and record cards', () => {
   const campaign = JSON.parse(read('game-config/campaign.json'));
@@ -92,4 +98,62 @@ test('campaign Helios resolves the promoted modular artwork package instead of s
   assert.match(registrySource, /sampleHeliosModularPose/);
   assert.match(canvas, /resolveCampaignBossArtwork/);
   assert.match(canvas, /previewBossArtwork: setupBossArtwork/);
+});
+
+test('M40 Aurora art stays aligned across Campaign, constants, catalog, record cards, and public assets', () => {
+  const campaign = JSON.parse(read('game-config/campaign.json'));
+  const constants = read('constants.ts');
+  const catalog = read('game-config/catalog.ts');
+  const recordCard = read('api/record-card.js');
+  const mission = campaign.levels.find((level) => level.order === 40);
+  const boss = mission.waves
+    .flatMap((wave) => wave.events)
+    .find((event) => event.kind === 'boss');
+
+  assert.equal(boss.bossId, 'orbit-gyroscope');
+  assert.equal(boss.label, 'Aurora Oculus');
+  assert.equal(boss.rigId, 'paywall-siege');
+  assert.equal(boss.spriteKey, AURORA_ASSET_KEY);
+  assert.equal(mission.scorecard.encounterAssetKey, AURORA_ASSET_KEY);
+  assert.match(
+    constants,
+    new RegExp(`${AURORA_ASSET_KEY}:\\s*"${escapeRegExp(AURORA_ASSET_URL)}"`)
+  );
+  assert.match(catalog, /CAMPAIGN_BOSS_ORBIT_GYROSCOPE[^\n]+Aurora Oculus/);
+  assert.match(
+    recordCard,
+    new RegExp(`${AURORA_ASSET_KEY}:\\s*'${escapeRegExp(AURORA_ASSET_URL)}'`)
+  );
+  assert.equal(fs.existsSync(AURORA_ASSET_PATH), true);
+  assert.ok(fs.statSync(AURORA_ASSET_PATH).size > 1024);
+});
+
+test('M45 Gloamforge art stays aligned across Campaign, constants, catalog, record cards, and public assets', () => {
+  const campaign = JSON.parse(read('game-config/campaign.json'));
+  const constants = read('constants.ts');
+  const catalog = read('game-config/catalog.ts');
+  const recordCard = read('api/record-card.js');
+  const mission = campaign.levels.find((level) => level.order === 45);
+  const boss = mission.waves
+    .flatMap((wave) => wave.events)
+    .find((event) => event.kind === 'boss');
+
+  assert.equal(boss.bossId, 'hammerhead-siege');
+  assert.equal(boss.label, 'Gloamforge Mantis');
+  assert.equal(boss.rigId, 'paywall-siege');
+  assert.equal(boss.componentMode, 'hull-only');
+  assert.equal(boss.componentHealth, undefined);
+  assert.equal(boss.spriteKey, GLOAMFORGE_ASSET_KEY);
+  assert.equal(mission.scorecard.encounterAssetKey, GLOAMFORGE_ASSET_KEY);
+  assert.match(
+    constants,
+    new RegExp(`${GLOAMFORGE_ASSET_KEY}:\\s*"${escapeRegExp(GLOAMFORGE_ASSET_URL)}"`)
+  );
+  assert.match(catalog, /CAMPAIGN_BOSS_HAMMERHEAD_SIEGE[^\n]+Gloamforge Mantis/);
+  assert.match(
+    recordCard,
+    new RegExp(`${GLOAMFORGE_ASSET_KEY}:\\s*'${escapeRegExp(GLOAMFORGE_ASSET_URL)}'`)
+  );
+  assert.equal(fs.existsSync(GLOAMFORGE_ASSET_PATH), true);
+  assert.ok(fs.statSync(GLOAMFORGE_ASSET_PATH).size > 1024);
 });

@@ -31,6 +31,14 @@ const expectedPackages = Object.freeze({
   30: Object.freeze({
     bossId: 'nullwake-revenant',
     rigId: 'nullwake-revenant-articulated'
+  }),
+  40: Object.freeze({
+    bossId: 'orbit-gyroscope',
+    atlasKind: 'rotating-emitter-core-v1'
+  }),
+  45: Object.freeze({
+    bossId: 'hammerhead-siege',
+    rigId: 'gloamforge-mantis'
   })
 });
 
@@ -55,9 +63,9 @@ test('promoted campaign boss packages contain checked-in, hash-verified runtime 
       artwork.url,
       /^\/game-art\/generated\/bosses\/campaign-packages\//
     );
-    assert.match(
-      artwork.modularRigManifest?.atlas?.url ?? '',
-      /^\/game-art\/generated\/bosses\/campaign-packages\//
+    assert.ok(
+      artwork.modularRigManifest?.atlas?.url || artwork.articulatedAtlas?.url,
+      `${bossId} must include a modular rig or articulated atlas`
     );
     assert.ok(urls.length >= 2, `${bossId} must include assembled and modular art`);
     for (const url of new Set(urls)) {
@@ -109,13 +117,58 @@ test('campaign missions resolve the same promoted modular packages used by Test 
       );
       assert.ok(artwork, `Mission ${order} must resolve promoted artwork`);
       assert.equal(artwork.eventId, boss.id);
-      assert.equal(artwork.modularRig.manifest.id, expectation.rigId);
-      assert.equal(typeof artwork.sampleModularPose, 'function');
+      if (expectation.rigId) {
+        assert.equal(artwork.modularRig.manifest.id, expectation.rigId);
+        assert.equal(typeof artwork.sampleModularPose, 'function');
+      } else {
+        assert.equal(artwork.modularRig, undefined);
+        assert.equal(artwork.articulatedAtlas.kind, expectation.atlasKind);
+        assert.equal(artwork.sampleModularPose, undefined);
+      }
       assert.match(
         artwork.url,
         new RegExp(`/campaign-packages/${expectation.bossId}/assembled\\.png$`)
       );
     }
+  } finally {
+    await vite.close();
+  }
+});
+
+test('Weekly Run clones the canonical promoted boss events with only run-specific tuning', async () => {
+  const { createServer } = await import('vite');
+  const vite = await createServer({
+    root,
+    server: { middlewareMode: true, hmr: false },
+    appType: 'custom'
+  });
+
+  try {
+    const weekly = await vite.ssrLoadModule('/services/weeklyRunGenerator.ts');
+    const run = weekly.buildWeeklyRunCampaign('2026-W21', campaign, 48);
+    const aurora = run.levels
+      .flatMap((level) => level.waves)
+      .flatMap((wave) => wave.events)
+      .find((event) => event.kind === 'boss' && event.bossId === 'orbit-gyroscope');
+    const gloamforge = run.levels
+      .flatMap((level) => level.waves)
+      .flatMap((wave) => wave.events)
+      .find((event) => event.kind === 'boss' && event.bossId === 'hammerhead-siege');
+
+    assert.ok(aurora, 'Weekly Run must include the M40 boss identity');
+    assert.equal(aurora.label, 'Aurora Oculus');
+    assert.equal(aurora.rigId, 'paywall-siege');
+    assert.equal(aurora.spriteKey, 'CAMPAIGN_BOSS_ORBIT_GYROSCOPE');
+    assert.equal(aurora.timeline.clips.length, 27);
+    assert.notEqual(aurora.health, 2900, 'Weekly Run keeps its own stage health normalization');
+    assert.ok(gloamforge, 'Weekly Run must include the M45 boss identity');
+    assert.equal(gloamforge.label, 'Gloamforge Mantis');
+    assert.equal(gloamforge.rigId, 'paywall-siege');
+    assert.equal(gloamforge.spriteKey, 'CAMPAIGN_BOSS_HAMMERHEAD_SIEGE');
+    assert.equal(gloamforge.timeline.clips.length, 46);
+    assert.equal(gloamforge.componentMode, 'hull-only');
+    assert.equal(gloamforge.componentHealth, undefined);
+    assert.notEqual(gloamforge.health, 3150, 'Weekly Run keeps its own stage health normalization');
   } finally {
     await vite.close();
   }

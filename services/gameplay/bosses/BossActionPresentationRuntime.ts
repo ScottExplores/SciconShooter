@@ -8,6 +8,7 @@ import type { BossGapRouteDirectionPolicy } from './BossPatternRuntime';
 export type BossActionPresentationStage =
   | 'warning'
   | 'fire'
+  | 'transition'
   | 'recovery'
   | 'phase-enter'
   | 'death';

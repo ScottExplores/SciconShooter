@@ -32,7 +32,10 @@ test('preview overrides and promoted campaign boss artwork share the canonical c
 });
 
 test('an unmounted preview cannot resume environment setup after asynchronous preload', () => {
-  assert.match(environmentSource, /await this\.preloadProfileWindow\(profileWindow, true\);\s+if \(this\.destroyed\) return;/);
+  assert.match(
+    environmentSource,
+    /await this\.preloadProfileWindow\(profileWindow, requiredTextures\);\s+if \(this\.destroyed\) return;/
+  );
   assert.match(environmentSource, /destroy\(\) \{\s+if \(this\.destroyed\) return;\s+this\.destroyed = true;/);
   assert.match(canvasSource, /setupRuntime\(\)\.catch\(\(error\) => \{\s+if \(disposed\) return;/);
 });

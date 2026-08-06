@@ -99,6 +99,32 @@ test('critical gameplay art cannot time out as ready and the full catalog is not
   assert.match(textureBank, /runRequiredGameplayAssetPreloadQueue/);
 });
 
+test('preview arenas use a compact resilient startup pack while production remains strict', () => {
+  const canvas = read('components', 'GameCanvas.tsx');
+  const renderer = read('services', 'pixi', 'PixiGameRenderer.ts');
+  const environment = read('services', 'pixi', 'PixiEnvironment.ts');
+  const previewPack = sliceRequired(
+    renderer,
+    'export const PIXI_GAMEPLAY_PREVIEW_STARTUP_TEXTURE_URLS',
+    '/**\n * Complete runtime catalog.'
+  );
+
+  assert.match(
+    canvas,
+    /startupTexturePolicy:\s*previewMode\s*\?\s*'resilient-preview'\s*:\s*'required'/
+  );
+  assert.match(renderer, /startupTexturePolicy\?: 'required' \| 'resilient-preview'/);
+  assert.match(
+    renderer,
+    /mobile && this\.startupTexturePolicy === 'resilient-preview'[\s\S]{0,100}\? 'low-power'[\s\S]{0,40}: 'high-performance'/
+  );
+  assert.match(renderer, /this\.startupTexturePolicy === 'required'[\s\S]{0,260}PIXI_GAMEPLAY_PREVIEW_STARTUP_TEXTURE_URLS/);
+  assert.match(renderer, /await this\.textureBank\.preload\(startupTextureUrls\)/);
+  assert.match(environment, /requiredTextures = true/);
+  assert.match(environment, /this\.preloadProfileWindow\(profileWindow, requiredTextures\)/);
+  assert.doesNotMatch(previewPack, /PLAYER_WEAPON_FRAME_URLS|SHIP_ABILITY_FRAME_URLS/);
+});
+
 test('the selected Mission and a short endless look-ahead form the runtime texture pack', () => {
   const manifest = read('services', 'gameplayAssetManifest.ts');
   const canvas = read('components', 'GameCanvas.tsx');

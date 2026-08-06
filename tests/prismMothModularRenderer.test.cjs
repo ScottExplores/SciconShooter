@@ -87,30 +87,30 @@ test('Prism modular root, parts, and death fragments retain uniform pixel-art sc
   );
   assert.match(
     createRig,
-    /sprite\.roundPixels = registration\.manifest\.id === PRISM_MOTH_MODULAR_RIG_ID/
+    /registration\.manifest\.preserveAspectRatio[\s\S]*registration\.manifest\.id === PRISM_MOTH_MODULAR_RIG_ID/
   );
 
   const modular = methodSource(
     'drawModularPreviewBoss',
     'drawWingbeatHoverPreviewBossAtlas'
   );
-  assert.match(modular, /const prismUniformScale = Math\.min\(authoredScaleX, authoredScaleY\)/);
+  assert.match(modular, /const uniformScale = Math\.min\(authoredScaleX, authoredScaleY\)/);
   assert.match(
     modular,
-    /const designScaleX = prismMothModularPreview \? prismUniformScale : authoredScaleX/
+    /const designScaleX = preserveStructuralAspect \? uniformScale : authoredScaleX/
   );
   assert.match(
     modular,
-    /const designScaleY = prismMothModularPreview \? prismUniformScale : authoredScaleY/
+    /const designScaleY = preserveStructuralAspect \? uniformScale : authoredScaleY/
   );
   assert.match(modular, /rigView\.root\.scale\.set\(designScaleX, designScaleY\)/);
   assert.match(
     modular,
-    /const fragmentScaleY = prismMothModularPreview[\s\S]*Math\.sign\(authoredScaleY \|\| 1\) \* scaleX/
+    /const fragmentScaleY = preserveStructuralAspect[\s\S]*Math\.sign\(authoredScaleY \|\| 1\) \* scaleX/
   );
   assert.match(
     modular,
-    /const partScaleY = prismMothModularPreview[\s\S]*Math\.sign\(authoredPartScaleY \|\| 1\) \* scaleX/
+    /const partScaleY = preserveStructuralAspect[\s\S]*Math\.sign\(authoredPartScaleY \|\| 1\) \* scaleX/
   );
   assert.match(modular, /sprite\.scale\.set\(scaleX, partScaleY\)/);
 

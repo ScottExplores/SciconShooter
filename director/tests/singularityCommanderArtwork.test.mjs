@@ -67,8 +67,22 @@ const basePose = Object.freeze({
 test('Singularity Commander package owns checked-in, hash-verified production art', async () => {
   assert.equal(packageDefinition.bossId, 'singularity-crab');
   assert.equal(packageDefinition.prototypeId, 'singularity-reach-commander');
-  assert.equal(packageDefinition.artwork.url.endsWith('/poses/02-neutral-idle.png'), true);
+  assert.equal(
+    packageDefinition.artwork.url.endsWith('/reference/singularity-reach-commander-canonical.png'),
+    true
+  );
+  assert.equal(
+    packageDefinition.artwork.contentHash,
+    '2c8401e89268951be1e9cf851f13c6cf4ad80969ca9ac4afbfeabcd4f17093ac'
+  );
   assert.equal(packageDefinition.artwork.modularRigManifest, manifest);
+  assert.equal(
+    packageDefinition.artwork.modularReferenceComparison.url,
+    packageDefinition.artwork.url
+  );
+  assert.equal(packageDefinition.artwork.modularReferenceComparison.width, 384);
+  assert.equal(packageDefinition.artwork.modularReferenceComparison.height, 384);
+  assert.equal(packageDefinition.artwork.modularReferenceComparison.landmarks.length, 5);
 
   const assets = [
     Object.freeze({
@@ -120,13 +134,32 @@ test('Singularity Commander registers one connected modular hierarchy and every 
     width: 100,
     height: 102
   });
+  assert.deepEqual(plain(registration.frameById['rig.joint-cap']), {
+    x: 411,
+    y: 267,
+    width: 45,
+    height: 65
+  });
+  assert.equal(registration.manifest.preserveAspectRatio, true);
   assert.equal(registration.partById.core.frameId, 'rig.core-neutral');
-  assert.equal(registration.partById['claw.port'].transform.scaleX, 0.55);
-  assert.equal(registration.partById['claw.starboard'].transform.scaleX, 0.55);
+  assert.equal(registration.partById.core.transform.scaleX, 0.82);
+  assert.equal(registration.partById.core.transform.scaleY, 0.82);
+  assert.equal(registration.partById['claw.port'].transform.scaleX, 0.72);
+  assert.equal(registration.partById['claw.starboard'].transform.scaleX, 0.72);
+  assert.equal(registration.partById['pylon.port'].transform.scaleX, 0.86);
+  assert.equal(registration.partById['pylon.starboard'].transform.scaleX, 0.86);
+  assert.equal(
+    registration.partById['pylon.port.mount'].transform.x,
+    -registration.partById['pylon.starboard.mount'].transform.x
+  );
+  assert.equal(
+    registration.partById['claw.port.mount'].transform.x,
+    -registration.partById['claw.starboard.mount'].transform.x
+  );
   assert.ok(
     Math.abs(registration.partById['pylon.port.mount'].transform.x)
-      < Math.abs(registration.partById['claw.port.mount'].transform.x),
-    'rear pylons must remain visible inside the smaller foreground claws'
+      > Math.abs(registration.partById['claw.port.mount'].transform.x),
+    'upper pylons must reproduce the wider archived silhouette'
   );
 
   const resolved = hierarchyModule.resolveModularBossRigHierarchy(
@@ -142,6 +175,40 @@ test('Singularity Commander registers one connected modular hierarchy and every 
     assert.ok(Number.isFinite(socket.worldX));
     assert.ok(Number.isFinite(socket.worldY));
   }
+
+  const structuralParts = resolved.parts.filter((part) => (
+    part.visible
+    && part.frame
+    && part.anchor
+    && part.role !== 'effect'
+  ));
+  const alphaBoundsByPart = Object.freeze({
+    'rear-armor': Object.freeze({ left: -22.5, top: -32.5, right: 22.5, bottom: 32.5 }),
+    'pylon.port': Object.freeze({ left: -53, top: -91, right: 55, bottom: 92 }),
+    'pylon.starboard': Object.freeze({ left: -53, top: -91, right: 54, bottom: 90 }),
+    'claw.port': Object.freeze({ left: -56, top: -90, right: 52, bottom: 91 }),
+    'claw.starboard': Object.freeze({ left: -53, top: -90, right: 56, bottom: 91 }),
+    body: Object.freeze({ left: -62, top: -91, right: 65, bottom: 91 }),
+    core: Object.freeze({ left: -50, top: -51, right: 50, bottom: 51 })
+  });
+  const corners = structuralParts.flatMap((part) => {
+    const bounds = alphaBoundsByPart[part.id];
+    assert.ok(bounds, `missing audited alpha bounds for ${part.id}`);
+    const { left, top, right, bottom } = bounds;
+    return [[left, top], [right, top], [right, bottom], [left, bottom]].map(([x, y]) => ({
+      x: part.worldTransform.a * x + part.worldTransform.c * y + part.worldTransform.tx,
+      y: part.worldTransform.b * x + part.worldTransform.d * y + part.worldTransform.ty
+    }));
+  });
+  const minX = Math.min(...corners.map((point) => point.x));
+  const maxX = Math.max(...corners.map((point) => point.x));
+  const minY = Math.min(...corners.map((point) => point.y));
+  const maxY = Math.max(...corners.map((point) => point.y));
+  const width = maxX - minX;
+  const height = maxY - minY;
+  assert.ok(width >= 270 && width <= 300, `neutral width ${width} must match the archive`);
+  assert.ok(height >= 255 && height <= 285, `neutral height ${height} must match the archive`);
+  assert.ok(width / height >= 0.98 && width / height <= 1.1);
 });
 
 test('pose sampling is deterministic and gives entrance, idle, phases, damage, and attacks purposeful motion', () => {
@@ -170,6 +237,16 @@ test('pose sampling is deterministic and gives entrance, idle, phases, damage, a
   });
   assert.equal(well['effect.gravity-seed'].visible, true);
   assert.equal(well.core.frameId, 'rig.core-neutral');
+
+  const queuedWell = samplePose({
+    ...basePose,
+    action: { primitiveId: 'singularity-gravity-well-genesis', stage: 'transition', progress: 0.5, sequence: 0 }
+  });
+  assert.equal(queuedWell['effect.gravity-seed'].visible, true);
+  assert.ok(
+    queuedWell.core.scaleXMultiplier > idle.core.scaleXMultiplier,
+    'a queued move must visibly prepare before its warning begins'
+  );
 
   const firingWell = samplePose({
     ...basePose,
@@ -218,6 +295,13 @@ test('pose sampling is deterministic and gives entrance, idle, phases, damage, a
   });
   assert.equal(collapse.core.frameId, 'rig.core-neutral');
   assert.equal(collapse['effect.phase-distortion'].visible, true);
+
+  const returnedToIdle = samplePose(basePose);
+  assert.deepEqual(
+    plain(returnedToIdle),
+    plain(idle),
+    'attack sampling must never accumulate transforms into the canonical idle layout'
+  );
 });
 
 test('live socket sampler selects only the anatomy that owns each Singularity attack', () => {

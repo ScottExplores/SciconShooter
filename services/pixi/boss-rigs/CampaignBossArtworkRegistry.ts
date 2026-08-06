@@ -11,6 +11,7 @@ import {
 import {
   sampleFrontierCrownclawSandboxPose
 } from './FrontierCrownclawModularPose';
+import { sampleGloamforgeModularPose } from './GloamforgeModularPose';
 import { sampleHeliosModularPose } from './HeliosModularPose';
 import { sampleNullwakeModularPose } from './NullwakeModularPose';
 import { samplePrismMothSandboxPose } from './PrismMothModularPose';
@@ -26,7 +27,9 @@ import type {
 } from './PreviewBossRigContracts';
 
 type CampaignBossPoseKey =
+  | 'aurora-storm-engine'
   | 'frontier-crownclaw'
+  | 'gloamforge-mantis'
   | 'helios-clawcarrier'
   | 'nullwake-revenant'
   | 'prism-moth'
@@ -64,9 +67,10 @@ const registrationByBossId = new Map<
 >();
 
 const poseSamplers: Readonly<
-  Record<CampaignBossPoseKey, PreviewBossModularPoseSampler>
+  Partial<Record<CampaignBossPoseKey, PreviewBossModularPoseSampler>>
 > = Object.freeze({
   'frontier-crownclaw': sampleFrontierCrownclawSandboxPose,
+  'gloamforge-mantis': (input) => sampleGloamforgeModularPose(input).partOverrides,
   'helios-clawcarrier': (input) => sampleHeliosModularPose(input).partOverrides,
   'nullwake-revenant': (input) => sampleNullwakeModularPose(input).partOverrides,
   'prism-moth': samplePrismMothSandboxPose,
@@ -131,11 +135,12 @@ export const resolveCampaignBossArtwork = (
     modularRigManifest: _modularRigManifest,
     ...artwork
   } = packageDefinition.artwork;
+  const sampleModularPose = poseSamplers[packageDefinition.poseKey];
   return Object.freeze({
     eventId: boss.id,
     ...artwork,
     ...(modularRig ? { modularRig } : {}),
-    sampleModularPose: poseSamplers[packageDefinition.poseKey]
+    ...(sampleModularPose ? { sampleModularPose } : {})
   });
 };
 

@@ -50,6 +50,20 @@ const expectedBossSlots = [
     health: 2500,
     eventId: 'stage-rail-meridian-commander-major-boss',
     encounterAssetKey: 'CAMPAIGN_BOSS_NULLWAKE_REVENANT'
+  },
+  {
+    order: 40,
+    bossId: 'orbit-gyroscope',
+    health: 2900,
+    eventId: 'stage-gyroscope-array-commander-major-boss',
+    encounterAssetKey: 'CAMPAIGN_BOSS_ORBIT_GYROSCOPE'
+  },
+  {
+    order: 45,
+    bossId: 'hammerhead-siege',
+    health: 3150,
+    eventId: 'stage-hammerhead-line-commander-major-boss',
+    encounterAssetKey: 'CAMPAIGN_BOSS_HAMMERHEAD_SIEGE'
   }
 ];
 
@@ -74,7 +88,7 @@ const getBossSlot = (order) => {
   return { mission, sector, graphNode, event: bossEvents[0] };
 };
 
-test('M05 through M30 use the approved Campaign boss roster consistently', () => {
+test('approved Campaign boss slots use one canonical roster consistently', () => {
   for (const expected of expectedBossSlots) {
     const { mission, sector, graphNode, event } = getBossSlot(expected.order);
     const missionLabel = `M${String(expected.order).padStart(2, '0')}`;
@@ -97,6 +111,8 @@ test('promoted Test Bosses keep their exact authored timelines and Mission-scale
   const frontier = getBossSlot(20).event;
   const helios = getBossSlot(25).event;
   const nullwake = getBossSlot(30).event;
+  const aurora = getBossSlot(40).event;
+  const gloamforge = getBossSlot(45).event;
 
   assert.equal(prism.componentMode, 'hull-only');
   assert.equal(prism.timeline.clips.length, 41);
@@ -119,6 +135,15 @@ test('promoted Test Bosses keep their exact authored timelines and Mission-scale
     restoreHealthRatio: 1,
     awakenedSizeMultiplier: 1.22
   });
+  assert.equal(aurora.label, 'Aurora Oculus');
+  assert.equal(aurora.rigId, 'paywall-siege');
+  assert.equal(aurora.componentMode, 'hull-only');
+  assert.equal(aurora.timeline.clips.length, 27);
+  assert.equal(gloamforge.label, 'Gloamforge Mantis');
+  assert.equal(gloamforge.rigId, 'paywall-siege');
+  assert.equal(gloamforge.componentMode, 'hull-only');
+  assert.equal(gloamforge.componentHealth, undefined);
+  assert.equal(gloamforge.timeline.clips.length, 46);
 });
 
 test('authored Campaign hull health remains monotonic after the Revenant promotion', () => {

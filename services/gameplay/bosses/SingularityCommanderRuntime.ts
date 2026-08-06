@@ -1,3 +1,14 @@
+import type {
+  BossTimelineConfig,
+  BossTimelineMotionCue,
+  BossTimelinePrimitiveId
+} from '../../../game-config/types';
+import {
+  getBossTimelineAttackWindow,
+  getBossTimelineDurationFrames,
+  resolveBossTimelineAttackVariant
+} from './BossTimelineRuntime';
+
 export const SINGULARITY_REACH_BOSS_ID = 'singularity-crab' as const;
 
 export const SINGULARITY_ACTION_IDS = Object.freeze([
@@ -67,6 +78,116 @@ export const SINGULARITY_PHASES = Object.freeze([
 export type SingularityPhase = (typeof SINGULARITY_PHASES)[number];
 export type SingularityPhaseId = SingularityPhase['id'];
 export type SingularityPhaseIndex = SingularityPhase['index'];
+
+/**
+ * The authored warnings and recoveries remain untouched. These values replace
+ * only the otherwise-empty wait between one completed sentence and the next
+ * warning, keeping later phases progressively more urgent.
+ */
+export const SINGULARITY_PHASE_TRANSITION_FRAMES = Object.freeze({
+  'gravitational-calibration': 48,
+  'spatial-compression': 36,
+  'event-horizon-instability': 24
+} satisfies Readonly<Record<SingularityPhaseId, number>>);
+
+export interface SingularityQueuedAttackTransition {
+  readonly phaseId: SingularityPhaseId;
+  readonly attackId: string;
+  readonly attackLabel: string;
+  readonly attackRole: 'core' | 'signature';
+  readonly sourceClipId: string;
+  readonly primitiveId: BossTimelinePrimitiveId;
+  readonly motionCue?: BossTimelineMotionCue;
+  readonly transitionStartFrame: number;
+  readonly nextAttackStartFrame: number;
+  readonly transitionFrames: number;
+}
+
+/**
+ * Resolves the next authored attack only while the phase clock is in a true
+ * post-recovery gap. The first entrance is intentionally excluded. Returned
+ * frames are absolute attackTimer frames, including a transition that crosses
+ * a looping timeline boundary.
+ */
+export const resolveSingularityQueuedAttackTransition = ({
+  timeline,
+  phaseId,
+  attackFrame,
+  framesPerSecond = 60
+}: {
+  timeline: BossTimelineConfig;
+  phaseId: SingularityPhaseId;
+  attackFrame: number;
+  framesPerSecond?: number;
+}): SingularityQueuedAttackTransition | null => {
+  const durationFrames = Math.max(
+    1,
+    getBossTimelineDurationFrames(timeline, framesPerSecond)
+  );
+  const safeFrame = Math.max(0, Math.floor(Number(attackFrame) || 0));
+  const cycleIndex = Math.floor(safeFrame / durationFrames);
+  const timelineFrame = safeFrame % durationFrames;
+  const windows = (timeline.attacks ?? []).flatMap((attack) => {
+    const resolved = resolveBossTimelineAttackVariant(timeline, attack.id, phaseId);
+    const window = getBossTimelineAttackWindow(
+      timeline,
+      attack.id,
+      phaseId,
+      framesPerSecond
+    );
+    if (!resolved || !window) return [];
+    const sourceClip = resolved.variant.beatClipIds
+      .map((clipId) => timeline.clips.find((clip) => clip.id === clipId))
+      .find((clip) => Boolean(clip));
+    if (!sourceClip) return [];
+    return [{ attack, window, sourceClip }];
+  }).sort((left, right) => left.window.startFrame - right.window.startFrame);
+  if (windows.length === 0) return null;
+  if (windows.some(({ window }) => (
+    timelineFrame >= window.startFrame && timelineFrame < window.endFrame
+  ))) {
+    return null;
+  }
+
+  let previous = [...windows].reverse().find(({ window }) => (
+    window.endFrame <= timelineFrame
+  ));
+  let previousCycleIndex = cycleIndex;
+  let next = windows.find(({ window }) => window.startFrame > timelineFrame);
+  let nextCycleIndex = cycleIndex;
+
+  if (!previous) {
+    // Preserve the intentional opening read on the very first cycle.
+    if (cycleIndex === 0) return null;
+    previous = windows[windows.length - 1];
+    previousCycleIndex -= 1;
+  }
+  if (!next) {
+    next = windows[0];
+    nextCycleIndex += 1;
+  }
+
+  const previousEndFrame = previousCycleIndex * durationFrames + previous.window.endFrame;
+  const nextAttackStartFrame = nextCycleIndex * durationFrames + next.window.startFrame;
+  if (safeFrame < previousEndFrame || safeFrame >= nextAttackStartFrame) return null;
+  const configuredTransitionFrames = SINGULARITY_PHASE_TRANSITION_FRAMES[phaseId];
+  const transitionStartFrame = Math.max(
+    previousEndFrame,
+    nextAttackStartFrame - configuredTransitionFrames
+  );
+  return Object.freeze({
+    phaseId,
+    attackId: next.attack.id,
+    attackLabel: next.attack.label,
+    attackRole: next.attack.role,
+    sourceClipId: next.sourceClip.id,
+    primitiveId: next.sourceClip.primitiveId,
+    motionCue: next.sourceClip.parameters?.motionCue,
+    transitionStartFrame,
+    nextAttackStartFrame,
+    transitionFrames: Math.max(0, nextAttackStartFrame - transitionStartFrame)
+  });
+};
 
 export const SINGULARITY_PHASE_ACTIONS: Readonly<Record<
   SingularityPhaseId,

@@ -386,7 +386,10 @@ test('local and remote Boss Sandbox attack buttons follow the live runtime attac
   assert.match(source, /Clear hazards/);
   assert.match(source, /previewSnapshot\.boss\.activeWells/);
   assert.match(source, /previewSnapshot\.boss\.hazardCount/);
-  assert.match(source, /previewSnapshot\.boss\.cooldownFrames/);
+  assert.match(source, /previewSnapshot\.boss\.state/);
+  assert.match(source, /previewSnapshot\.boss\.nextAttack/);
+  assert.match(source, /previewSnapshot\.boss\.recoveryFrames/);
+  assert.match(source, /previewSnapshot\.boss\.transitionFrames/);
   assert.match(styles, /\.boss-sandbox__attacks > div[\s\S]*grid-template-columns:/);
   assert.match(styles, /\.boss-sandbox__attack-playback button\.is-active/);
   assert.match(styles, /\.boss-sandbox__attacks button[\s\S]*min-height: 38px/);
@@ -414,8 +417,11 @@ test('remote restart preserves the ready renderer instead of reopening its start
   assert.doesNotMatch(restart, /setCanvasStatus\('loading'\)/);
 });
 
-test('generated boss art is selected from the fixed local registry', () => {
+test('generated and campaign boss art are selected from their canonical local registries', () => {
   assert.match(source, /getSandboxBossArtworkRegistration\(selectedChoice\?\.prototypeId\)/);
   assert.match(source, /createSandboxOnlyBossArtwork\(preview\)/);
+  assert.match(source, /selectedChoice\?\.source === 'campaign'/);
+  assert.match(source, /resolveCampaignBossArtwork\(/);
+  assert.match(source, /initialState\.campaign,[\s\S]*selectedChoice\.levelId,[\s\S]*selectedChoice\.waveId/);
   assert.doesNotMatch(source, /director-data|\.png\?inline/);
 });

@@ -205,6 +205,11 @@ export interface PreviewBossSnapshot {
   readonly invincible: boolean;
   readonly activeWells: number;
   readonly hazardCount: number;
+  readonly state: 'idle' | 'warning' | 'fire' | 'transition' | 'recovery' | 'phase-enter' | 'death';
+  readonly nextAttack: Readonly<{ id: string; label: string }> | null;
+  readonly recoveryFrames: number;
+  readonly transitionFrames: number;
+  /** @deprecated Use recoveryFrames. Retained for compatibility with V0.32 clients. */
   readonly cooldownFrames: number;
   readonly components: readonly PreviewBossComponentSnapshot[];
   readonly activeAttack: PreviewBossAttackSnapshot | null;

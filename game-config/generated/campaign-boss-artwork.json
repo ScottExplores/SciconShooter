@@ -4655,6 +4655,1452 @@
           }
         }
       }
+    },
+    "orbit-gyroscope": {
+      "bossId": "orbit-gyroscope",
+      "prototypeId": "aurora-storm-engine",
+      "prototypeHash": "sandbox-fnv1a64:243b44659656036e",
+      "poseKey": "aurora-storm-engine",
+      "artwork": {
+        "url": "/game-art/generated/bosses/campaign-packages/orbit-gyroscope/assembled.png",
+        "contentHash": "4b0db8c860f6813b60375241c4cbca710633bf1ea98677f3ab2d66d7b04925e3",
+        "collisionMask": {
+          "width": 64,
+          "height": 64,
+          "rowWords": [
+            0,
+            0,
+            3221225472,
+            1,
+            3221225472,
+            3,
+            3221225472,
+            3,
+            3221225472,
+            3,
+            3759931392,
+            6151,
+            3760062464,
+            30727,
+            3762225152,
+            31751,
+            3762257920,
+            64519,
+            3760160768,
+            129031,
+            4027564032,
+            258063,
+            4027047936,
+            516111,
+            4026785792,
+            507919,
+            4026658816,
+            1015823,
+            4160811008,
+            1015823,
+            4168153088,
+            2035231,
+            4168644608,
+            1974047,
+            3774642176,
+            1982215,
+            4177280000,
+            4079391,
+            4277681152,
+            3940223,
+            4286069760,
+            3940351,
+            4281339904,
+            789759,
+            4286578688,
+            511,
+            4290772992,
+            1023,
+            4291817472,
+            521215,
+            4291821056,
+            8385535,
+            4294967168,
+            33554431,
+            4294967232,
+            67108863,
+            4293918704,
+            268433407,
+            4294967294,
+            2147483647,
+            4294967295,
+            2147483647,
+            4294967295,
+            4294967295,
+            4294967295,
+            4294967295,
+            4294967295,
+            4294967295,
+            4294967294,
+            2147483647,
+            4293918704,
+            268435455,
+            4293918656,
+            67106815,
+            4294967232,
+            33554431,
+            4294967040,
+            16777215,
+            4291819520,
+            2094079,
+            4290772992,
+            1023,
+            4286578688,
+            511,
+            4281339904,
+            789759,
+            4286069760,
+            1842943,
+            4277681152,
+            3940223,
+            4244388864,
+            4079423,
+            4043078656,
+            1982223,
+            4168644608,
+            2039583,
+            4168153088,
+            2035231,
+            4160811008,
+            1015839,
+            4026658816,
+            1015823,
+            4026785792,
+            507919,
+            4027047936,
+            516111,
+            4027564032,
+            258063,
+            3760160768,
+            129031,
+            3762257920,
+            64519,
+            3762225152,
+            64519,
+            3760062464,
+            30727,
+            3759931392,
+            14343,
+            3221225472,
+            3,
+            3221225472,
+            3,
+            3221225472,
+            3,
+            3221225472,
+            1,
+            0,
+            0
+          ]
+        },
+        "articulatedAtlas": {
+          "kind": "rotating-emitter-core-v1",
+          "url": "/game-art/generated/bosses/campaign-packages/orbit-gyroscope/articulated-atlas.png",
+          "contentHash": "e2132ed3b90a78a64bea25350ed19477aa3a94a312beaffa258f1ba691351f5e",
+          "width": 1254,
+          "height": 1254,
+          "frames": {
+            "chassisClosed": {
+              "x": 667,
+              "y": 120,
+              "width": 254,
+              "height": 262
+            },
+            "chassisOpen": {
+              "x": 971,
+              "y": 122,
+              "width": 255,
+              "height": 264
+            },
+            "perimeterRing": {
+              "x": 53,
+              "y": 904,
+              "width": 329,
+              "height": 314
+            },
+            "rotorHub": {
+              "x": 409,
+              "y": 925,
+              "width": 313,
+              "height": 301
+            },
+            "arm0": {
+              "x": 528,
+              "y": 464,
+              "width": 87,
+              "height": 129
+            },
+            "arm1": {
+              "x": 528,
+              "y": 464,
+              "width": 87,
+              "height": 129
+            },
+            "arm2": {
+              "x": 528,
+              "y": 464,
+              "width": 87,
+              "height": 129
+            },
+            "arm3": {
+              "x": 528,
+              "y": 464,
+              "width": 87,
+              "height": 129
+            },
+            "arm4": {
+              "x": 528,
+              "y": 464,
+              "width": 87,
+              "height": 129
+            },
+            "arm5": {
+              "x": 528,
+              "y": 464,
+              "width": 87,
+              "height": 129
+            },
+            "arm6": {
+              "x": 528,
+              "y": 464,
+              "width": 87,
+              "height": 129
+            },
+            "arm7": {
+              "x": 528,
+              "y": 464,
+              "width": 87,
+              "height": 129
+            },
+            "muzzle0": {
+              "x": 398,
+              "y": 842,
+              "width": 68,
+              "height": 72
+            },
+            "muzzle1": {
+              "x": 491,
+              "y": 842,
+              "width": 69,
+              "height": 72
+            },
+            "muzzle2": {
+              "x": 398,
+              "y": 842,
+              "width": 68,
+              "height": 72
+            },
+            "muzzle3": {
+              "x": 491,
+              "y": 842,
+              "width": 69,
+              "height": 72
+            },
+            "muzzle4": {
+              "x": 398,
+              "y": 842,
+              "width": 68,
+              "height": 72
+            },
+            "muzzle5": {
+              "x": 491,
+              "y": 842,
+              "width": 69,
+              "height": 72
+            },
+            "muzzle6": {
+              "x": 398,
+              "y": 842,
+              "width": 68,
+              "height": 72
+            },
+            "muzzle7": {
+              "x": 491,
+              "y": 842,
+              "width": 69,
+              "height": 72
+            },
+            "relayNorthWest": {
+              "x": 398,
+              "y": 842,
+              "width": 68,
+              "height": 72
+            },
+            "relayNorthEast": {
+              "x": 491,
+              "y": 842,
+              "width": 69,
+              "height": 72
+            },
+            "relaySouthEast": {
+              "x": 585,
+              "y": 842,
+              "width": 69,
+              "height": 72
+            },
+            "relaySouthWest": {
+              "x": 677,
+              "y": 843,
+              "width": 68,
+              "height": 71
+            },
+            "portal0": {
+              "x": 877,
+              "y": 839,
+              "width": 87,
+              "height": 110
+            },
+            "portal1": {
+              "x": 877,
+              "y": 839,
+              "width": 87,
+              "height": 110
+            },
+            "portal2": {
+              "x": 877,
+              "y": 839,
+              "width": 87,
+              "height": 110
+            },
+            "portal3": {
+              "x": 877,
+              "y": 839,
+              "width": 87,
+              "height": 110
+            },
+            "pulseSmall": {
+              "x": 741,
+              "y": 1047,
+              "width": 122,
+              "height": 119
+            },
+            "pulseMedium": {
+              "x": 899,
+              "y": 1045,
+              "width": 141,
+              "height": 122
+            },
+            "pulseLarge": {
+              "x": 1069,
+              "y": 1024,
+              "width": 169,
+              "height": 157
+            },
+            "eyeCometLeft": {
+              "x": 398,
+              "y": 842,
+              "width": 68,
+              "height": 72
+            },
+            "eyeCometRight": {
+              "x": 585,
+              "y": 842,
+              "width": 69,
+              "height": 72
+            }
+          }
+        },
+        "vfxAtlas": {
+          "url": "/game-art/generated/bosses/campaign-packages/shared/boss-vfx-atlas-v1.png",
+          "contentHash": "09bcf6e00e0a3d6d96b4a64f73f09a3b7a59b890219169bcf433ebfea2b7e8b1",
+          "width": 1254,
+          "height": 1254,
+          "frames": {
+            "pinkDrop0": {
+              "x": 130,
+              "y": 110,
+              "width": 100,
+              "height": 198
+            },
+            "pinkDrop1": {
+              "x": 436,
+              "y": 56,
+              "width": 89,
+              "height": 252
+            },
+            "pinkDrop2": {
+              "x": 735,
+              "y": 51,
+              "width": 78,
+              "height": 257
+            },
+            "pinkDrop3": {
+              "x": 1039,
+              "y": 48,
+              "width": 72,
+              "height": 260
+            },
+            "goldDrop0": {
+              "x": 121,
+              "y": 403,
+              "width": 117,
+              "height": 198
+            },
+            "goldDrop1": {
+              "x": 424,
+              "y": 369,
+              "width": 114,
+              "height": 232
+            },
+            "goldDrop2": {
+              "x": 718,
+              "y": 352,
+              "width": 112,
+              "height": 250
+            },
+            "goldDrop3": {
+              "x": 1020,
+              "y": 340,
+              "width": 110,
+              "height": 262
+            },
+            "prismDrop0": {
+              "x": 135,
+              "y": 703,
+              "width": 92,
+              "height": 186
+            },
+            "prismDrop1": {
+              "x": 436,
+              "y": 667,
+              "width": 91,
+              "height": 273
+            },
+            "prismDrop2": {
+              "x": 729,
+              "y": 658,
+              "width": 91,
+              "height": 239
+            },
+            "prismDrop3": {
+              "x": 1033,
+              "y": 653,
+              "width": 89,
+              "height": 244
+            },
+            "orbCharge": {
+              "x": 99,
+              "y": 1021,
+              "width": 160,
+              "height": 159
+            },
+            "orbMuzzle": {
+              "x": 408,
+              "y": 940,
+              "width": 146,
+              "height": 244
+            },
+            "beamLive": {
+              "x": 743,
+              "y": 940,
+              "width": 64,
+              "height": 265
+            },
+            "beamImpact": {
+              "x": 977,
+              "y": 1013,
+              "width": 191,
+              "height": 184
+            }
+          }
+        }
+      }
+    },
+    "hammerhead-siege": {
+      "bossId": "hammerhead-siege",
+      "prototypeId": "gloamforge-mantis",
+      "prototypeHash": "sandbox-fnv1a64:26bf95ac7549e396",
+      "poseKey": "gloamforge-mantis",
+      "artwork": {
+        "url": "/game-art/generated/bosses/campaign-packages/hammerhead-siege/assembled.png",
+        "contentHash": "1f120a336cbd05bce0955b657964e35fb724ed59664b2301540a39b7c2c9bca8",
+        "collisionMask": {
+          "width": 64,
+          "height": 64,
+          "rowWords": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            201326592,
+            96,
+            4018143232,
+            2023,
+            4026466304,
+            131063,
+            4294950912,
+            524287,
+            4294950912,
+            262143,
+            4294934528,
+            262143,
+            4294901760,
+            131071,
+            4294836224,
+            65535,
+            4294705152,
+            32767,
+            4294705152,
+            32767,
+            4294705152,
+            32767,
+            4294717440,
+            819199,
+            4294850560,
+            1867775,
+            4292818944,
+            4061183,
+            4291820544,
+            4192255,
+            4292869120,
+            8386559,
+            4292869632,
+            8388607,
+            4288675328,
+            8387071,
+            4288675328,
+            16775679,
+            4287627008,
+            16773631,
+            4287627008,
+            16774143,
+            4287627008,
+            16774143,
+            4287622912,
+            16249855,
+            4287090432,
+            15983103,
+            4160997120,
+            14925855,
+            4144219904,
+            14926079,
+            4286826240,
+            14926335,
+            4291022592,
+            15959039,
+            4292873984,
+            15729663,
+            4293922560,
+            15730687,
+            4293926656,
+            16257023,
+            4294459136,
+            16519167,
+            4294721280,
+            16523263,
+            4290526976,
+            16523263,
+            4154343168,
+            16530943,
+            4154343168,
+            16530479,
+            4027465216,
+            8140815,
+            4026539520,
+            7864335,
+            1610615808,
+            3145734,
+            3072,
+            3145728,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "modularRigManifest": {
+          "kind": "modular-hierarchy-v1",
+          "id": "gloamforge-mantis",
+          "designSize": {
+            "width": 720,
+            "height": 620
+          },
+          "atlas": {
+            "url": "/game-art/generated/bosses/campaign-packages/hammerhead-siege/atlas.png",
+            "contentHash": "eb08e5b68bdbc6cc999f8d1e45d293628248308d338004d86be6d4f2e6857f60",
+            "width": 2048,
+            "height": 2048,
+            "frames": {
+              "arm.port.inner": {
+                "x": 802,
+                "y": 918,
+                "width": 108,
+                "height": 188
+              },
+              "arm.port.shell": {
+                "x": 2,
+                "y": 2,
+                "width": 552,
+                "height": 914
+              },
+              "arm.starboard.inner": {
+                "x": 912,
+                "y": 918,
+                "width": 106,
+                "height": 188
+              },
+              "arm.starboard.shell": {
+                "x": 556,
+                "y": 2,
+                "width": 539,
+                "height": 911
+              },
+              "baffle.port": {
+                "x": 440,
+                "y": 1370,
+                "width": 132,
+                "height": 122
+              },
+              "baffle.starboard": {
+                "x": 292,
+                "y": 1370,
+                "width": 146,
+                "height": 126
+              },
+              "body.closed": {
+                "x": 1097,
+                "y": 2,
+                "width": 201,
+                "height": 356
+              },
+              "body.open": {
+                "x": 1300,
+                "y": 2,
+                "width": 201,
+                "height": 356
+              },
+              "cannon.port.charge": {
+                "x": 646,
+                "y": 1209,
+                "width": 324,
+                "height": 158
+              },
+              "cannon.port.fire": {
+                "x": 972,
+                "y": 1209,
+                "width": 324,
+                "height": 158
+              },
+              "cannon.port.idle": {
+                "x": 1298,
+                "y": 1209,
+                "width": 324,
+                "height": 158
+              },
+              "cannon.port.recover": {
+                "x": 1624,
+                "y": 1209,
+                "width": 324,
+                "height": 158
+              },
+              "cannon.starboard.charge": {
+                "x": 1354,
+                "y": 918,
+                "width": 320,
+                "height": 159
+              },
+              "cannon.starboard.fire": {
+                "x": 1676,
+                "y": 918,
+                "width": 320,
+                "height": 159
+              },
+              "cannon.starboard.idle": {
+                "x": 2,
+                "y": 1209,
+                "width": 320,
+                "height": 159
+              },
+              "cannon.starboard.recover": {
+                "x": 324,
+                "y": 1209,
+                "width": 320,
+                "height": 159
+              },
+              "cleaver": {
+                "x": 1263,
+                "y": 918,
+                "width": 89,
+                "height": 162
+              },
+              "exhaust.large": {
+                "x": 1950,
+                "y": 1209,
+                "width": 61,
+                "height": 153
+              },
+              "exhaust.medium": {
+                "x": 2,
+                "y": 1370,
+                "width": 61,
+                "height": 153
+              },
+              "exhaust.small": {
+                "x": 65,
+                "y": 1370,
+                "width": 61,
+                "height": 153
+              },
+              "leg.inner-port": {
+                "x": 1020,
+                "y": 918,
+                "width": 122,
+                "height": 183
+              },
+              "leg.inner-starboard": {
+                "x": 1144,
+                "y": 918,
+                "width": 117,
+                "height": 181
+              },
+              "leg.outer-port": {
+                "x": 552,
+                "y": 918,
+                "width": 134,
+                "height": 190
+              },
+              "leg.outer-starboard": {
+                "x": 688,
+                "y": 918,
+                "width": 112,
+                "height": 190
+              },
+              "muzzle.burst": {
+                "x": 1503,
+                "y": 2,
+                "width": 273,
+                "height": 289
+              },
+              "muzzle.medium": {
+                "x": 2,
+                "y": 918,
+                "width": 273,
+                "height": 289
+              },
+              "muzzle.small": {
+                "x": 277,
+                "y": 918,
+                "width": 273,
+                "height": 289
+              },
+              "pod.port": {
+                "x": 128,
+                "y": 1370,
+                "width": 80,
+                "height": 143
+              },
+              "pod.starboard": {
+                "x": 210,
+                "y": 1370,
+                "width": 80,
+                "height": 143
+              }
+            }
+          },
+          "parts": [
+            {
+              "id": "root",
+              "role": "joint",
+              "parentId": null,
+              "frameId": null,
+              "transform": {
+                "x": 0,
+                "y": -95,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1
+              },
+              "anchor": null,
+              "layer": 0,
+              "visible": false
+            },
+            {
+              "id": "exhaust",
+              "role": "exhaust",
+              "parentId": "root",
+              "frameId": "exhaust.small",
+              "transform": {
+                "x": 0,
+                "y": 164,
+                "rotation": 0,
+                "scaleX": 0.62,
+                "scaleY": 0.62
+              },
+              "anchor": {
+                "x": 0.5,
+                "y": 0.05
+              },
+              "layer": 1,
+              "visible": true
+            },
+            {
+              "id": "baffle.port",
+              "role": "armor",
+              "parentId": "root",
+              "frameId": "baffle.port",
+              "transform": {
+                "x": -72,
+                "y": 4,
+                "rotation": -0.3141592653589793,
+                "scaleX": 0.72,
+                "scaleY": 0.72
+              },
+              "anchor": {
+                "x": 0.75,
+                "y": 0.5
+              },
+              "layer": 3,
+              "visible": false
+            },
+            {
+              "id": "baffle.starboard",
+              "role": "armor",
+              "parentId": "root",
+              "frameId": "baffle.starboard",
+              "transform": {
+                "x": 72,
+                "y": 4,
+                "rotation": 0.3141592653589793,
+                "scaleX": 0.72,
+                "scaleY": 0.72
+              },
+              "anchor": {
+                "x": 0.25,
+                "y": 0.5
+              },
+              "layer": 3,
+              "visible": false
+            },
+            {
+              "id": "leg.outer-port",
+              "role": "stabilizer",
+              "parentId": "root",
+              "frameId": "leg.outer-port",
+              "transform": {
+                "x": -82,
+                "y": 112,
+                "rotation": 0.3490658503988659,
+                "scaleX": 0.7,
+                "scaleY": 0.7
+              },
+              "anchor": {
+                "x": 0.5,
+                "y": 0.08
+              },
+              "layer": 5,
+              "visible": true
+            },
+            {
+              "id": "leg.inner-port",
+              "role": "stabilizer",
+              "parentId": "root",
+              "frameId": "leg.inner-port",
+              "transform": {
+                "x": -38,
+                "y": 126,
+                "rotation": 0.13962634015954636,
+                "scaleX": 0.64,
+                "scaleY": 0.64
+              },
+              "anchor": {
+                "x": 0.5,
+                "y": 0.08
+              },
+              "layer": 6,
+              "visible": true
+            },
+            {
+              "id": "leg.inner-starboard",
+              "role": "stabilizer",
+              "parentId": "root",
+              "frameId": "leg.inner-starboard",
+              "transform": {
+                "x": 38,
+                "y": 126,
+                "rotation": -0.13962634015954636,
+                "scaleX": 0.64,
+                "scaleY": 0.64
+              },
+              "anchor": {
+                "x": 0.5,
+                "y": 0.08
+              },
+              "layer": 6,
+              "visible": true
+            },
+            {
+              "id": "leg.outer-starboard",
+              "role": "stabilizer",
+              "parentId": "root",
+              "frameId": "leg.outer-starboard",
+              "transform": {
+                "x": 82,
+                "y": 112,
+                "rotation": -0.3490658503988659,
+                "scaleX": 0.7,
+                "scaleY": 0.7
+              },
+              "anchor": {
+                "x": 0.5,
+                "y": 0.08
+              },
+              "layer": 5,
+              "visible": true
+            },
+            {
+              "id": "arm.port.mount",
+              "role": "joint",
+              "parentId": "root",
+              "frameId": null,
+              "transform": {
+                "x": -61,
+                "y": -108,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1
+              },
+              "anchor": null,
+              "layer": 8,
+              "visible": false
+            },
+            {
+              "id": "arm.port.shell",
+              "role": "arm",
+              "parentId": "arm.port.mount",
+              "frameId": "arm.port.shell",
+              "transform": {
+                "x": 0,
+                "y": 0,
+                "rotation": 0,
+                "scaleX": 0.42,
+                "scaleY": 0.42
+              },
+              "anchor": {
+                "x": 0.91,
+                "y": 0.065
+              },
+              "layer": 9,
+              "visible": true
+            },
+            {
+              "id": "arm.starboard.mount",
+              "role": "joint",
+              "parentId": "root",
+              "frameId": null,
+              "transform": {
+                "x": 61,
+                "y": -108,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1
+              },
+              "anchor": null,
+              "layer": 8,
+              "visible": false
+            },
+            {
+              "id": "arm.starboard.shell",
+              "role": "arm",
+              "parentId": "arm.starboard.mount",
+              "frameId": "arm.starboard.shell",
+              "transform": {
+                "x": 0,
+                "y": 0,
+                "rotation": 0,
+                "scaleX": 0.42,
+                "scaleY": 0.42
+              },
+              "anchor": {
+                "x": 0.065,
+                "y": 0.065
+              },
+              "layer": 9,
+              "visible": true
+            },
+            {
+              "id": "body",
+              "role": "body",
+              "parentId": "root",
+              "frameId": "body.closed",
+              "transform": {
+                "x": 0,
+                "y": 24,
+                "rotation": 0,
+                "scaleX": 0.86,
+                "scaleY": 0.86
+              },
+              "anchor": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "layer": 16,
+              "visible": true
+            },
+            {
+              "id": "arm.port.inner",
+              "role": "arm",
+              "parentId": "root",
+              "frameId": "arm.port.inner",
+              "transform": {
+                "x": -82,
+                "y": -6,
+                "rotation": -0.3141592653589793,
+                "scaleX": 0.62,
+                "scaleY": 0.62
+              },
+              "anchor": {
+                "x": 0.5,
+                "y": 0.12
+              },
+              "layer": 18,
+              "visible": true
+            },
+            {
+              "id": "arm.starboard.inner",
+              "role": "arm",
+              "parentId": "root",
+              "frameId": "arm.starboard.inner",
+              "transform": {
+                "x": 82,
+                "y": -6,
+                "rotation": 0.3141592653589793,
+                "scaleX": 0.62,
+                "scaleY": 0.62
+              },
+              "anchor": {
+                "x": 0.5,
+                "y": 0.12
+              },
+              "layer": 18,
+              "visible": true
+            },
+            {
+              "id": "cannon.port",
+              "role": "weapon",
+              "parentId": "arm.port.mount",
+              "frameId": "cannon.port.idle",
+              "transform": {
+                "x": -106,
+                "y": 166,
+                "rotation": -1.0122909661567112,
+                "scaleX": 0.37,
+                "scaleY": 0.37
+              },
+              "anchor": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "layer": 22,
+              "visible": true
+            },
+            {
+              "id": "cannon.starboard",
+              "role": "weapon",
+              "parentId": "arm.starboard.mount",
+              "frameId": "cannon.starboard.idle",
+              "transform": {
+                "x": 106,
+                "y": 166,
+                "rotation": 1.0122909661567112,
+                "scaleX": 0.37,
+                "scaleY": 0.37
+              },
+              "anchor": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "layer": 22,
+              "visible": true
+            },
+            {
+              "id": "pod.port",
+              "role": "pod",
+              "parentId": "arm.port.mount",
+              "frameId": "pod.port",
+              "transform": {
+                "x": -173,
+                "y": 246,
+                "rotation": 0,
+                "scaleX": 0.68,
+                "scaleY": 0.68
+              },
+              "anchor": {
+                "x": 0.5,
+                "y": 0.08
+              },
+              "layer": 24,
+              "visible": true
+            },
+            {
+              "id": "pod.starboard",
+              "role": "pod",
+              "parentId": "arm.starboard.mount",
+              "frameId": "pod.starboard",
+              "transform": {
+                "x": 173,
+                "y": 246,
+                "rotation": 0,
+                "scaleX": 0.68,
+                "scaleY": 0.68
+              },
+              "anchor": {
+                "x": 0.5,
+                "y": 0.08
+              },
+              "layer": 24,
+              "visible": true
+            },
+            {
+              "id": "cleaver",
+              "role": "phase-attachment",
+              "parentId": "body",
+              "frameId": "cleaver",
+              "transform": {
+                "x": 0,
+                "y": 128,
+                "rotation": 0,
+                "scaleX": 0.76,
+                "scaleY": 0.76
+              },
+              "anchor": {
+                "x": 0.5,
+                "y": 0.05
+              },
+              "layer": 28,
+              "visible": false
+            },
+            {
+              "id": "muzzle.port",
+              "role": "effect",
+              "parentId": "cannon.port",
+              "frameId": "muzzle.small",
+              "transform": {
+                "x": -430,
+                "y": 0,
+                "rotation": 0,
+                "scaleX": 1.45,
+                "scaleY": 1.45
+              },
+              "anchor": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "layer": 30,
+              "visible": false
+            },
+            {
+              "id": "muzzle.starboard",
+              "role": "effect",
+              "parentId": "cannon.starboard",
+              "frameId": "muzzle.small",
+              "transform": {
+                "x": 430,
+                "y": 0,
+                "rotation": 0,
+                "scaleX": 1.45,
+                "scaleY": 1.45
+              },
+              "anchor": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "layer": 30,
+              "visible": false
+            }
+          ],
+          "animations": [
+            {
+              "kind": "fixed-frame-sequence-v1",
+              "id": "body-phase-open",
+              "partId": "body",
+              "frameIds": [
+                "body.closed",
+                "body.open"
+              ],
+              "frameHold": 15,
+              "loop": false
+            },
+            {
+              "kind": "fixed-frame-sequence-v1",
+              "id": "cannon-port-cycle",
+              "partId": "cannon.port",
+              "frameIds": [
+                "cannon.port.idle",
+                "cannon.port.charge",
+                "cannon.port.fire",
+                "cannon.port.recover"
+              ],
+              "frameHold": 7,
+              "loop": false
+            },
+            {
+              "kind": "fixed-frame-sequence-v1",
+              "id": "cannon-starboard-cycle",
+              "partId": "cannon.starboard",
+              "frameIds": [
+                "cannon.starboard.idle",
+                "cannon.starboard.charge",
+                "cannon.starboard.fire",
+                "cannon.starboard.recover"
+              ],
+              "frameHold": 7,
+              "loop": false
+            },
+            {
+              "kind": "fixed-frame-sequence-v1",
+              "id": "muzzle-port-cycle",
+              "partId": "muzzle.port",
+              "frameIds": [
+                "muzzle.small",
+                "muzzle.medium",
+                "muzzle.burst"
+              ],
+              "frameHold": 4,
+              "loop": false
+            },
+            {
+              "kind": "fixed-frame-sequence-v1",
+              "id": "muzzle-starboard-cycle",
+              "partId": "muzzle.starboard",
+              "frameIds": [
+                "muzzle.small",
+                "muzzle.medium",
+                "muzzle.burst"
+              ],
+              "frameHold": 4,
+              "loop": false
+            },
+            {
+              "kind": "fixed-frame-sequence-v1",
+              "id": "exhaust-idle",
+              "partId": "exhaust",
+              "frameIds": [
+                "exhaust.small",
+                "exhaust.medium",
+                "exhaust.large",
+                "exhaust.medium"
+              ],
+              "frameHold": 8,
+              "loop": true
+            }
+          ],
+          "sockets": [
+            {
+              "id": "muzzle-port",
+              "role": "projectile-muzzle",
+              "partId": "cannon.port",
+              "x": -170,
+              "y": 0,
+              "rotation": 0
+            },
+            {
+              "id": "muzzle-starboard",
+              "role": "projectile-muzzle",
+              "partId": "cannon.starboard",
+              "x": 170,
+              "y": 0,
+              "rotation": 0
+            },
+            {
+              "id": "pod-port",
+              "role": "detachable-pod",
+              "partId": "pod.port",
+              "x": 0,
+              "y": 70,
+              "rotation": 0
+            },
+            {
+              "id": "pod-starboard",
+              "role": "detachable-pod",
+              "partId": "pod.starboard",
+              "x": 0,
+              "y": 70,
+              "rotation": 0
+            },
+            {
+              "id": "crucible-core",
+              "role": "core-origin",
+              "partId": "body",
+              "x": 0,
+              "y": -6,
+              "rotation": 0
+            },
+            {
+              "id": "cleaver-root",
+              "role": "melee-root",
+              "partId": "body",
+              "x": 0,
+              "y": 126,
+              "rotation": 0
+            },
+            {
+              "id": "shoulder-port",
+              "role": "effect-origin",
+              "partId": "arm.port.mount",
+              "x": 0,
+              "y": 0,
+              "rotation": 0
+            },
+            {
+              "id": "shoulder-starboard",
+              "role": "effect-origin",
+              "partId": "arm.starboard.mount",
+              "x": 0,
+              "y": 0,
+              "rotation": 0
+            }
+          ]
+        },
+        "vfxAtlas": {
+          "url": "/game-art/generated/bosses/campaign-packages/shared/boss-vfx-atlas-v1.png",
+          "contentHash": "09bcf6e00e0a3d6d96b4a64f73f09a3b7a59b890219169bcf433ebfea2b7e8b1",
+          "width": 1254,
+          "height": 1254,
+          "frames": {
+            "pinkDrop0": {
+              "x": 130,
+              "y": 110,
+              "width": 100,
+              "height": 198
+            },
+            "pinkDrop1": {
+              "x": 436,
+              "y": 56,
+              "width": 89,
+              "height": 252
+            },
+            "pinkDrop2": {
+              "x": 735,
+              "y": 51,
+              "width": 78,
+              "height": 257
+            },
+            "pinkDrop3": {
+              "x": 1039,
+              "y": 48,
+              "width": 72,
+              "height": 260
+            },
+            "goldDrop0": {
+              "x": 121,
+              "y": 403,
+              "width": 117,
+              "height": 198
+            },
+            "goldDrop1": {
+              "x": 424,
+              "y": 369,
+              "width": 114,
+              "height": 232
+            },
+            "goldDrop2": {
+              "x": 718,
+              "y": 352,
+              "width": 112,
+              "height": 250
+            },
+            "goldDrop3": {
+              "x": 1020,
+              "y": 340,
+              "width": 110,
+              "height": 262
+            },
+            "prismDrop0": {
+              "x": 135,
+              "y": 703,
+              "width": 92,
+              "height": 186
+            },
+            "prismDrop1": {
+              "x": 436,
+              "y": 667,
+              "width": 91,
+              "height": 273
+            },
+            "prismDrop2": {
+              "x": 729,
+              "y": 658,
+              "width": 91,
+              "height": 239
+            },
+            "prismDrop3": {
+              "x": 1033,
+              "y": 653,
+              "width": 89,
+              "height": 244
+            },
+            "orbCharge": {
+              "x": 99,
+              "y": 1021,
+              "width": 160,
+              "height": 159
+            },
+            "orbMuzzle": {
+              "x": 408,
+              "y": 940,
+              "width": 146,
+              "height": 244
+            },
+            "beamLive": {
+              "x": 743,
+              "y": 940,
+              "width": 64,
+              "height": 265
+            },
+            "beamImpact": {
+              "x": 977,
+              "y": 1013,
+              "width": 191,
+              "height": 184
+            }
+          }
+        }
+      }
     }
   }
 }

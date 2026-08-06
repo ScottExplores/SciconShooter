@@ -9,6 +9,7 @@ import type {
   PreviewBossArtwork,
   PreviewBossProjectileAnimation
 } from './PreviewBossRigContracts';
+import type { PreviewBossReferenceComparisonDescriptor } from './PreviewBossReferenceComparison';
 
 const ART_ROOT = '/game-art/generated/bosses/singularity-reach-commander';
 
@@ -100,7 +101,10 @@ const rigFrames = Object.freeze({
   ...createGridFrames(RIG_FRAME_IDS, 192, 4),
   // The source cell also contains a disconnected export fragment. Cropping to
   // the largest connected component preserves the clean reference ring only.
-  'rig.core-neutral': Object.freeze({ x: 278, y: 62, width: 100, height: 102 })
+  'rig.core-neutral': Object.freeze({ x: 278, y: 62, width: 100, height: 102 }),
+  // The rear-armor cell contains three unrelated export fragments. Keep only
+  // the centered armor cap so hidden fragments cannot distort the silhouette.
+  'rig.joint-cap': Object.freeze({ x: 411, y: 267, width: 45, height: 65 })
 });
 
 const rigAtlas: ModularBossRigAtlas = Object.freeze({
@@ -156,21 +160,22 @@ export const SINGULARITY_COMMANDER_RIG_MANIFEST = Object.freeze({
   kind: 'modular-hierarchy-v1',
   id: 'singularity-reach-commander',
   designSize: Object.freeze({ width: 320, height: 300 }),
+  preserveAspectRatio: true,
   atlas: rigAtlas,
   supplementalAtlases,
   parts: Object.freeze([
     Object.freeze({ id: 'root', role: 'joint', parentId: null, frameId: null, transform: transform(0, 0), anchor: null, layer: 0, visible: false }),
-    Object.freeze({ id: 'rear-armor', role: 'armor', parentId: 'root', frameId: 'rig.joint-cap', transform: transform(0, 10, 0, 0.72, 0.72), anchor: anchor(), layer: 2, visible: true }),
-    Object.freeze({ id: 'pylon.port.mount', role: 'joint', parentId: 'root', frameId: null, transform: transform(-62, -38), anchor: null, layer: 4, visible: false }),
-    Object.freeze({ id: 'pylon.port', role: 'weapon', parentId: 'pylon.port.mount', frameId: 'rig.pylon.port', transform: transform(0, 0), anchor: anchor(), layer: 10, visible: true }),
-    Object.freeze({ id: 'pylon.starboard.mount', role: 'joint', parentId: 'root', frameId: null, transform: transform(62, -38), anchor: null, layer: 4, visible: false }),
-    Object.freeze({ id: 'pylon.starboard', role: 'weapon', parentId: 'pylon.starboard.mount', frameId: 'rig.pylon.starboard', transform: transform(0, 0), anchor: anchor(), layer: 10, visible: true }),
-    Object.freeze({ id: 'claw.port.mount', role: 'joint', parentId: 'root', frameId: null, transform: transform(-83, 58), anchor: null, layer: 5, visible: false }),
-    Object.freeze({ id: 'claw.port', role: 'arm', parentId: 'claw.port.mount', frameId: 'rig.claw.port', transform: transform(0, 0, 0, 0.55, 0.55), anchor: anchor(), layer: 12, visible: true }),
-    Object.freeze({ id: 'claw.starboard.mount', role: 'joint', parentId: 'root', frameId: null, transform: transform(83, 58), anchor: null, layer: 5, visible: false }),
-    Object.freeze({ id: 'claw.starboard', role: 'arm', parentId: 'claw.starboard.mount', frameId: 'rig.claw.starboard', transform: transform(0, 0, 0, 0.55, 0.55), anchor: anchor(), layer: 12, visible: true }),
+    Object.freeze({ id: 'rear-armor', role: 'armor', parentId: 'root', frameId: 'rig.joint-cap', transform: transform(0, 36, 0, 0.78, 0.78), anchor: anchor(), layer: 2, visible: true }),
+    Object.freeze({ id: 'pylon.port.mount', role: 'joint', parentId: 'root', frameId: null, transform: transform(-91, -52), anchor: null, layer: 4, visible: false }),
+    Object.freeze({ id: 'pylon.port', role: 'weapon', parentId: 'pylon.port.mount', frameId: 'rig.pylon.port', transform: transform(0, 0, 0, 0.86, 0.86), anchor: anchor(), layer: 10, visible: true }),
+    Object.freeze({ id: 'pylon.starboard.mount', role: 'joint', parentId: 'root', frameId: null, transform: transform(91, -52), anchor: null, layer: 4, visible: false }),
+    Object.freeze({ id: 'pylon.starboard', role: 'weapon', parentId: 'pylon.starboard.mount', frameId: 'rig.pylon.starboard', transform: transform(0, 0, 0, 0.86, 0.86), anchor: anchor(), layer: 10, visible: true }),
+    Object.freeze({ id: 'claw.port.mount', role: 'joint', parentId: 'root', frameId: null, transform: transform(-82, 70), anchor: null, layer: 5, visible: false }),
+    Object.freeze({ id: 'claw.port', role: 'arm', parentId: 'claw.port.mount', frameId: 'rig.claw.port', transform: transform(0, 0, 0, 0.72, 0.72), anchor: anchor(), layer: 12, visible: true }),
+    Object.freeze({ id: 'claw.starboard.mount', role: 'joint', parentId: 'root', frameId: null, transform: transform(82, 70), anchor: null, layer: 5, visible: false }),
+    Object.freeze({ id: 'claw.starboard', role: 'arm', parentId: 'claw.starboard.mount', frameId: 'rig.claw.starboard', transform: transform(0, 0, 0, 0.72, 0.72), anchor: anchor(), layer: 12, visible: true }),
     Object.freeze({ id: 'body', role: 'body', parentId: 'root', frameId: 'rig.body', transform: transform(0, 0), anchor: anchor(), layer: 20, visible: true }),
-    Object.freeze({ id: 'core', role: 'phase-attachment', parentId: 'body', frameId: 'rig.core-neutral', transform: transform(0, -8, 0, 0.9, 0.9), anchor: anchor(), layer: 24, visible: true }),
+    Object.freeze({ id: 'core', role: 'phase-attachment', parentId: 'body', frameId: 'rig.core-neutral', transform: transform(0, -8, 0, 0.82, 0.82), anchor: anchor(), layer: 24, visible: true }),
     Object.freeze({ id: 'effect.gravity-seed', role: 'effect', parentId: 'core', frameId: 'well.seed', transform: transform(0, 0, 0, 0.42, 0.42), anchor: anchor(), layer: 30, visible: false }),
     Object.freeze({ id: 'effect.beam', role: 'effect', parentId: 'body', frameId: 'beam.startup', transform: transform(0, 14, 0, 0.52, 0.52), anchor: anchor(0.5, 0), layer: 32, visible: false }),
     Object.freeze({ id: 'effect.claw.port', role: 'effect', parentId: 'claw.port', frameId: 'claw.charge', transform: transform(41, 62, -0.38, 0.62, 0.62), anchor: anchor(), layer: 31, visible: false }),
@@ -216,13 +221,13 @@ export const SINGULARITY_COMMANDER_RIG_MANIFEST = Object.freeze({
 export const SINGULARITY_COMMANDER_WEAPON_SOCKETS: BossWeaponSocketProfile = Object.freeze({
   kind: 'normalized-boss-sockets-v1',
   sockets: Object.freeze([
-    Object.freeze({ id: 'pylon-muzzle-upper-port', role: 'port', xRatio: 0.2875, yRatio: 0.13 }),
-    Object.freeze({ id: 'pylon-muzzle-lower-port', role: 'port', xRatio: 0.325, yRatio: 0.157 }),
-    Object.freeze({ id: 'pylon-muzzle-lower-starboard', role: 'starboard', xRatio: 0.675, yRatio: 0.157 }),
-    Object.freeze({ id: 'pylon-muzzle-upper-starboard', role: 'starboard', xRatio: 0.7125, yRatio: 0.13 }),
+    Object.freeze({ id: 'pylon-muzzle-upper-port', role: 'port', xRatio: 0.1995, yRatio: 0.1174 }),
+    Object.freeze({ id: 'pylon-muzzle-lower-port', role: 'port', xRatio: 0.23175, yRatio: 0.140333 }),
+    Object.freeze({ id: 'pylon-muzzle-lower-starboard', role: 'starboard', xRatio: 0.76825, yRatio: 0.140333 }),
+    Object.freeze({ id: 'pylon-muzzle-upper-starboard', role: 'starboard', xRatio: 0.8005, yRatio: 0.1174 }),
     Object.freeze({ id: 'singularity-core', role: 'core', xRatio: 0.5, yRatio: 0.473333 }),
-    Object.freeze({ id: 'claw-tip-port', role: 'port', xRatio: 0.311, yRatio: 0.807 }),
-    Object.freeze({ id: 'claw-tip-starboard', role: 'starboard', xRatio: 0.689, yRatio: 0.807 }),
+    Object.freeze({ id: 'claw-tip-port', role: 'port', xRatio: 0.336, yRatio: 0.882133 }),
+    Object.freeze({ id: 'claw-tip-starboard', role: 'starboard', xRatio: 0.664, yRatio: 0.882133 }),
     Object.freeze({ id: 'gravity-seed-origin', role: 'core', xRatio: 0.5, yRatio: 0.473333 })
   ])
 });
@@ -253,15 +258,56 @@ export const SINGULARITY_COMMANDER_PROJECTILE_ANIMATIONS = Object.freeze({
 } satisfies Readonly<Partial<Record<BossModularProjectileVisualKind, PreviewBossProjectileAnimation>>>);
 
 const collisionRowWords = Object.freeze([
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 458752, 458752, 458752, 458752, 458752, 458752, 458752, 458752,
-  1015808, 1015808, 2080768, 2080768, 2088960, 4177920, 809492480, 4186160, 943710208, 4186224, 943710208, 4186338, 3162497024, 4190455, 4236238848, 4192511,
-  4253016064, 4194303, 4294950912, 2097151, 4294959104, 4194303, 4294959104, 4194303, 4294963200, 8388607, 4294963200, 8388607, 4294965248, 16777215, 4294835200, 33554431,
-  4294573056, 33357823, 4293688320, 32555007, 4294843904, 29622271, 4294909440, 63438847, 4294954496, 59768831, 4294954496, 27262975, 4294960128, 29360127, 4294435840, 20971519,
-  4294041600, 20725759, 4293976064, 3702783, 4294909952, 2322431, 4287037440, 511999, 4287070208, 460799, 4290740224, 1048575, 4294934528, 1048575, 4160716800, 1048503,
-  1946140672, 2096947, 1644150784, 2096176, 1090502656, 2095128, 8372224, 2093064, 4161536, 1044480, 4161536, 516096, 8257536, 258048, 16646144, 260096,
-  33292288, 130048, 7340032, 28672, 6291456, 14336, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  0, 0, 0, 0, 7680, 3670016, 7680, 8126464, 15872, 8126464, 7680, 8126464, 15872, 8126464, 32512, 16646144,
+  65408, 33488896, 65472, 67076096, 201457632, 67076144, 235012064, 134185008, 251920352, 134201456, 2399404000, 134201585, 3473145824, 134209779, 4287102944, 134210047,
+  4287102944, 134210047, 4294967264, 67108863, 4294967232, 67108863, 4294967168, 33554431, 4294967232, 67108863, 4294967232, 67108863, 4294967264, 134217727, 4294967280, 134217727,
+  4294967280, 268435455, 4294967288, 536870911, 4294967292, 1073741823, 4294961148, 1073217535, 4294959612, 1065877503, 4294963454, 1058013183, 4294966398, 2118123519, 4294966846, 2088763391,
+  4294967070, 2097151999, 4294967198, 2046820351, 4294967198, 973078527, 4294967260, 1006632959, 4294950860, 872415231, 4294938572, 334626815, 4294952904, 333578239, 4294965696, 60817407,
+  4294966464, 54525951, 4294475328, 58662911, 4294458880, 8265727, 4294966784, 8388607, 4294966784, 8388607, 4294967040, 8388607, 4278189824, 16777151, 3741319040, 16777023,
+  2619342720, 33553469, 1008729984, 33552412, 940572544, 33552412, 805830528, 33546252, 261888, 16769024, 261632, 8372224, 523264, 4186112, 523264, 2088960,
+  1046528, 1044480, 2093056, 522240, 2080768, 260096, 1015808, 126976, 917504, 28672, 0, 0, 0, 0, 0, 0
 ]);
+
+export const SINGULARITY_COMMANDER_REFERENCE_COMPARISON = Object.freeze({
+  kind: 'modular-boss-reference-comparison-v1',
+  url: `${ART_ROOT}/reference/singularity-reach-commander-canonical.png`,
+  contentHash: '2c8401e89268951be1e9cf851f13c6cf4ad80969ca9ac4afbfeabcd4f17093ac',
+  width: 384,
+  height: 384,
+  provenance: 'Locked Boss Archive reference for the Singularity Reach Commander neutral pose.',
+  landmarks: Object.freeze([
+    Object.freeze({
+      id: 'core-center',
+      label: 'Singularity Core',
+      reference: Object.freeze({ xRatio: 0.5, yRatio: 0.455 }),
+      rig: Object.freeze({ kind: 'socket', socketId: 'singularity-core' })
+    }),
+    Object.freeze({
+      id: 'upper-pylon-port',
+      label: 'Upper-left pylon',
+      reference: Object.freeze({ xRatio: 0.174, yRatio: 0.11 }),
+      rig: Object.freeze({ kind: 'socket', socketId: 'pylon-muzzle-upper-port' })
+    }),
+    Object.freeze({
+      id: 'upper-pylon-starboard',
+      label: 'Upper-right pylon',
+      reference: Object.freeze({ xRatio: 0.826, yRatio: 0.11 }),
+      rig: Object.freeze({ kind: 'socket', socketId: 'pylon-muzzle-upper-starboard' })
+    }),
+    Object.freeze({
+      id: 'lower-claw-port',
+      label: 'Lower-left claw',
+      reference: Object.freeze({ xRatio: 0.184, yRatio: 0.895 }),
+      rig: Object.freeze({ kind: 'socket', socketId: 'claw-tip-port' })
+    }),
+    Object.freeze({
+      id: 'lower-claw-starboard',
+      label: 'Lower-right claw',
+      reference: Object.freeze({ xRatio: 0.816, yRatio: 0.895 }),
+      rig: Object.freeze({ kind: 'socket', socketId: 'claw-tip-starboard' })
+    })
+  ])
+} satisfies PreviewBossReferenceComparisonDescriptor);
 
 export type SingularityCommanderArtworkPackage = Readonly<{
   bossId: 'singularity-crab';
@@ -276,15 +322,16 @@ export type SingularityCommanderArtworkPackage = Readonly<{
 export const SINGULARITY_COMMANDER_ARTWORK_PACKAGE: SingularityCommanderArtworkPackage = Object.freeze({
   bossId: 'singularity-crab',
   prototypeId: 'singularity-reach-commander',
-  prototypeHash: '45e4c5a665ba61603ec2ba0c6ec955eb0a255ef10df57a1da20c07b9e8960397',
+  prototypeHash: '2c8401e89268951be1e9cf851f13c6cf4ad80969ca9ac4afbfeabcd4f17093ac',
   poseKey: 'singularity-reach-commander',
   artwork: Object.freeze({
-    url: `${ART_ROOT}/poses/02-neutral-idle.png`,
-    contentHash: '45e4c5a665ba61603ec2ba0c6ec955eb0a255ef10df57a1da20c07b9e8960397',
+    url: SINGULARITY_COMMANDER_REFERENCE_COMPARISON.url,
+    contentHash: SINGULARITY_COMMANDER_REFERENCE_COMPARISON.contentHash,
     collisionMask: Object.freeze({ width: 64, height: 64, rowWords: collisionRowWords }),
     weaponSockets: SINGULARITY_COMMANDER_WEAPON_SOCKETS,
     renderMode: 'articulated',
     modularRigManifest: SINGULARITY_COMMANDER_RIG_MANIFEST,
+    modularReferenceComparison: SINGULARITY_COMMANDER_REFERENCE_COMPARISON,
     projectileAnimations: SINGULARITY_COMMANDER_PROJECTILE_ANIMATIONS
   })
 });

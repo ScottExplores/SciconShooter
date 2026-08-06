@@ -138,6 +138,54 @@ const packages = Object.freeze([
           '/__director/api/v1/prototype-assets/nullwake-revenant/a0d29566c3e925c764267f48202ce1a18247f28007b43ad7fdcba7c8573da2cd/factory-atlas-v3.png'
       })
     ])
+  }),
+  Object.freeze({
+    bossId: 'orbit-gyroscope',
+    prototypeId: 'aurora-storm-engine',
+    poseKey: 'aurora-storm-engine',
+    assets: Object.freeze([
+      Object.freeze({
+        source: path.join(
+          prototypeAssetRoot,
+          'aurora-storm-engine-assembled.png'
+        ),
+        output: 'orbit-gyroscope/assembled.png',
+        registrationPath: 'assembled'
+      }),
+      Object.freeze({
+        source: path.join(
+          prototypeAssetRoot,
+          'aurora-storm-engine-modular-sheet.png'
+        ),
+        output: 'orbit-gyroscope/articulated-atlas.png',
+        registrationPath: 'sheet'
+      })
+    ])
+  }),
+  Object.freeze({
+    bossId: 'hammerhead-siege',
+    prototypeId: 'gloamforge-mantis',
+    poseKey: 'gloamforge-mantis',
+    assets: Object.freeze([
+      Object.freeze({
+        source: path.join(
+          prototypeAssetRoot,
+          'gloamforge-mantis',
+          'gloamforge-mantis-neutral.png'
+        ),
+        output: 'hammerhead-siege/assembled.png',
+        registrationPath: 'assembled'
+      }),
+      Object.freeze({
+        source: path.join(
+          prototypeAssetRoot,
+          'gloamforge-mantis',
+          'gloamforge-mantis-atlas.png'
+        ),
+        output: 'hammerhead-siege/atlas.png',
+        registrationPath: 'sheet'
+      })
+    ])
   })
 ]);
 

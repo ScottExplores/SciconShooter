@@ -38,6 +38,11 @@ import {
   collectRuntimeTextureUrls
 } from '../services/gameplayAssetManifest';
 import { recordPlayerReportBreadcrumb } from '../services/playerReportService';
+import {
+  getPlayerShipWeaponVisualFamily,
+  getPlayerWeaponFrames
+} from '../services/playerWeaponVisuals';
+import { getShipAbilityDefinition } from '../services/shipAbilityService';
 
 export const preloadGameplayAssets = async () => {
   await preloadPixiGameplayTextures();
@@ -267,8 +272,14 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       levelId,
       continuousStageBoundaries ? 3 : 1
     ),
-    ...collectRuntimeTextureUrls(activeBossArtwork)
-  ], [activeBossArtwork, campaign, continuousStageBoundaries, levelId]);
+    ...collectRuntimeTextureUrls(activeBossArtwork),
+    ...getPlayerWeaponFrames(
+      'pulse',
+      0,
+      getPlayerShipWeaponVisualFamily(playerShipId)
+    ),
+    ...getShipAbilityDefinition(playerShipId).frames
+  ], [activeBossArtwork, campaign, continuousStageBoundaries, levelId, playerShipId]);
   // App keys each production flight by gameId. Keep every other live prop out
   // of the renderer lifetime boundary so delayed profile/network updates can
   // never reconstruct an active engine. Preview/editor sessions retain their
@@ -895,6 +906,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       const initialHeight = setup.previewViewportHeight ?? Math.max(1, Math.round(initialRect.height || 720));
       const renderer = new PixiGameRenderer({
         previewBossArtwork: setupBossArtwork,
+        startupTexturePolicy: previewMode ? 'resilient-preview' : 'required',
         startupTextureUrls: [
           ...(setup.playerShipUrl
             ? [setup.playerShipUrl]
