@@ -2724,6 +2724,47 @@
     text-align: left;
   }
 
+  .sci-more-audio-settings__toggle {
+    width: 100%;
+    min-height: 2.75rem;
+    justify-content: space-between;
+    padding: 0.38rem 0.15rem;
+    text-align: left;
+  }
+
+  .sci-more-audio-settings__toggle:focus-visible {
+    border-radius: 0.2rem;
+    outline: 2px solid rgb(165 243 252 / 0.88);
+    outline-offset: 0.22rem;
+  }
+
+  .sci-more-audio-settings__state {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.28rem;
+    color: rgb(103 232 249 / 0.78);
+    font-size: 0.48rem;
+    letter-spacing: 0.12em;
+  }
+
+  .sci-more-audio-settings__chevron {
+    display: inline-block;
+    color: rgb(167 243 208);
+    font-size: 0.9rem;
+    line-height: 0.5;
+    transform: rotate(0deg);
+    transition: transform 160ms ease;
+  }
+
+  .sci-more-audio-settings__toggle[aria-expanded='true'] .sci-more-audio-settings__chevron {
+    transform: rotate(180deg);
+  }
+
+  .sci-more-audio-settings__body {
+    display: grid;
+    gap: 0.42rem;
+  }
+
   .sci-more-menu__grid > :last-child:nth-child(3n + 1) {
     grid-column: 2;
   }
