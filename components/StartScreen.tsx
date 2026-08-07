@@ -2833,7 +2833,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
                   Guest play does not require a wallet. Submitted pilot names and scores may appear publicly. Connected-wallet actions and minted records are public onchain. Scicon Shooter is community-built and open source; it is not represented as an official ResearchHub product.
                 </p>
                 <p className="mt-2">
-                  The game records anonymous usage events and bounded crash diagnostics so reliability problems can be found. Player reports may include game version, Mission and Wave, screen size, connection state, and recent technical events when diagnostics are enabled. Reports never intentionally include wallet addresses, recovery phrases, private keys, authorization data, or browser storage.
+                  The game records anonymous usage events and bounded crash diagnostics so reliability problems can be found. Gameplay analytics use a random device-local identifier, stored only as a one-way server hash, plus foreground-time samples to estimate new and returning players and active playtime. The owner view shows aggregate totals only; gameplay analytics do not store pilot names, wallet addresses, or IP addresses. Player reports may include game version, Mission and Wave, screen size, connection state, and recent technical events when diagnostics are enabled. Reports never intentionally include wallet addresses, recovery phrases, private keys, authorization data, or browser storage.
                 </p>
               </section>
             </div>
