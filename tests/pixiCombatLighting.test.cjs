@@ -115,7 +115,7 @@ test('Research Charge and coin art have no hard vector aura and the charge reuse
   const triggerEnd = engine.indexOf('\n  spawnShipAbilityProjectile(', triggerStart);
   const trigger = engine.slice(triggerStart, triggerEnd);
   const detonateStart = engine.indexOf('  detonateResearchCharge(');
-  const detonateEnd = engine.indexOf('\n  isEnemyTarget(', detonateStart);
+  const detonateEnd = engine.indexOf('\n  private isUmbraNeedlewing(', detonateStart);
   const detonate = engine.slice(detonateStart, detonateEnd);
 
   assert.doesNotMatch(research, /view\.aura\.(?:circle|ellipse|stroke)/);

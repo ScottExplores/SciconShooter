@@ -46838,7 +46838,7 @@
                 }
               ],
               "timeline": {
-                "durationSeconds": 20.8,
+                "durationSeconds": 24.25,
                 "loop": true,
                 "clips": [
                   {
@@ -46982,12 +46982,41 @@
                     }
                   },
                   {
+                    "id": "sandbox-umbra-survey-upper-anchor-return-warning",
+                    "label": "Upper-anchor return volley warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 2.45,
+                    "durationSeconds": 0.8,
+                    "phaseId": "sandbox-umbra-wing-survey",
+                    "parameters": {
+                      "warningSeconds": 0.8,
+                      "telegraphStyle": "warning",
+                      "color": "#818cf8"
+                    }
+                  },
+                  {
+                    "id": "sandbox-umbra-survey-upper-anchor-return",
+                    "label": "Upper-anchor return volley",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "time",
+                    "startSeconds": 3.25,
+                    "durationSeconds": 0.45,
+                    "phaseId": "sandbox-umbra-wing-survey",
+                    "telegraphClipId": "sandbox-umbra-survey-upper-anchor-return-warning",
+                    "parameters": {
+                      "motionCue": "umbra-needle-lattice"
+                    }
+                  },
+                  {
                     "id": "sandbox-umbra-wing-survey-wing-shear-crossfire-recovery",
                     "label": "Wing Shear Crossfire recovery",
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 2.7,
+                    "startSeconds": 3.7,
                     "durationSeconds": 0.9,
                     "phaseId": "sandbox-umbra-wing-survey",
                     "parameters": {
@@ -46996,42 +47025,51 @@
                   },
                   {
                     "id": "sandbox-umbra-survey-ring-a-warning",
-                    "label": "Clockwise survey opening warning",
+                    "label": "Clockwise opening salvos warning",
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 4.4,
+                    "startSeconds": 5.2,
                     "durationSeconds": 0.8,
                     "phaseId": "sandbox-umbra-wing-survey",
                     "parameters": {
                       "warningSeconds": 0.8,
                       "telegraphStyle": "ring",
                       "color": "#818cf8"
+                    },
+                    "repeat": {
+                      "count": 4,
+                      "intervalSeconds": 1.1
                     }
                   },
                   {
                     "id": "sandbox-umbra-survey-ring-a",
-                    "label": "Clockwise survey opening",
+                    "label": "Clockwise opening salvos",
                     "track": "attack",
                     "primitiveId": "gap-ring",
                     "trigger": "time",
-                    "startSeconds": 5.2,
+                    "startSeconds": 6,
                     "durationSeconds": 0.35,
                     "phaseId": "sandbox-umbra-wing-survey",
                     "telegraphClipId": "sandbox-umbra-survey-ring-a-warning",
                     "parameters": {
                       "projectileCount": 14,
                       "sequence": 0,
+                      "rotationDirection": "clockwise",
                       "motionCue": "umbra-wing-shard-gate"
+                    },
+                    "repeat": {
+                      "count": 4,
+                      "intervalSeconds": 1.1
                     }
                   },
                   {
                     "id": "sandbox-umbra-survey-ring-b-warning",
-                    "label": "Counter survey opening warning",
+                    "label": "Final clockwise opening salvo warning",
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 5.7,
+                    "startSeconds": 9.600000000000001,
                     "durationSeconds": 0.8,
                     "phaseId": "sandbox-umbra-wing-survey",
                     "parameters": {
@@ -47042,27 +47080,28 @@
                   },
                   {
                     "id": "sandbox-umbra-survey-ring-b",
-                    "label": "Counter survey opening",
+                    "label": "Final clockwise opening salvo",
                     "track": "attack",
                     "primitiveId": "gap-ring",
                     "trigger": "time",
-                    "startSeconds": 6.5,
+                    "startSeconds": 10.400000000000002,
                     "durationSeconds": 0.35,
                     "phaseId": "sandbox-umbra-wing-survey",
                     "telegraphClipId": "sandbox-umbra-survey-ring-b-warning",
                     "parameters": {
                       "projectileCount": 16,
-                      "sequence": 1,
+                      "sequence": 4,
+                      "rotationDirection": "clockwise",
                       "motionCue": "umbra-wing-shard-gate"
                     }
                   },
                   {
                     "id": "sandbox-umbra-wing-survey-orbit-gap-thread-recovery",
-                    "label": "Orbit Gap Thread recovery",
+                    "label": "Broken Clockwise Opening recovery",
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 6.85,
+                    "startSeconds": 10.750000000000002,
                     "durationSeconds": 0.9,
                     "phaseId": "sandbox-umbra-wing-survey",
                     "parameters": {
@@ -47075,7 +47114,7 @@
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 8.55,
+                    "startSeconds": 12.25,
                     "durationSeconds": 0.9,
                     "phaseId": "sandbox-umbra-wing-survey",
                     "parameters": {
@@ -47090,7 +47129,7 @@
                     "track": "laser",
                     "primitiveId": "corner-ambush-beam",
                     "trigger": "time",
-                    "startSeconds": 9.450000000000001,
+                    "startSeconds": 13.15,
                     "durationSeconds": 0.45,
                     "phaseId": "sandbox-umbra-wing-survey",
                     "telegraphClipId": "sandbox-umbra-survey-port-return-warning",
@@ -47105,7 +47144,7 @@
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 10.100000000000001,
+                    "startSeconds": 13.8,
                     "durationSeconds": 0.9,
                     "phaseId": "sandbox-umbra-wing-survey",
                     "parameters": {
@@ -47120,7 +47159,7 @@
                     "track": "laser",
                     "primitiveId": "corner-ambush-beam",
                     "trigger": "time",
-                    "startSeconds": 11.000000000000002,
+                    "startSeconds": 14.700000000000001,
                     "durationSeconds": 0.45,
                     "phaseId": "sandbox-umbra-wing-survey",
                     "telegraphClipId": "sandbox-umbra-survey-starboard-return-warning",
@@ -47131,11 +47170,11 @@
                   },
                   {
                     "id": "sandbox-umbra-wing-survey-corner-needle-lock-recovery",
-                    "label": "Corner Needle Lock recovery",
+                    "label": "Blackout Laser recovery",
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 11.450000000000001,
+                    "startSeconds": 15.15,
                     "durationSeconds": 0.9,
                     "phaseId": "sandbox-umbra-wing-survey",
                     "parameters": {
@@ -47143,12 +47182,41 @@
                     }
                   },
                   {
-                    "id": "sandbox-umbra-survey-lower-right-ram-warning",
-                    "label": "Lower-right blackout ram warning",
+                    "id": "sandbox-umbra-survey-shadow-dissolve-warning",
+                    "label": "Survey shadow dissolve warning",
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 13.15,
+                    "startSeconds": 17,
+                    "durationSeconds": 0.8,
+                    "phaseId": "sandbox-umbra-wing-survey",
+                    "parameters": {
+                      "warningSeconds": 0.8,
+                      "telegraphStyle": "warning",
+                      "color": "#818cf8"
+                    }
+                  },
+                  {
+                    "id": "sandbox-umbra-survey-shadow-dissolve",
+                    "label": "Survey shadow dissolve",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "time",
+                    "startSeconds": 17.8,
+                    "durationSeconds": 0.25,
+                    "phaseId": "sandbox-umbra-wing-survey",
+                    "telegraphClipId": "sandbox-umbra-survey-shadow-dissolve-warning",
+                    "parameters": {
+                      "motionCue": "umbra-blackout-ambush"
+                    }
+                  },
+                  {
+                    "id": "sandbox-umbra-survey-lower-right-ram-warning",
+                    "label": "Lower-right blackout charge warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 17.8,
                     "durationSeconds": 1,
                     "phaseId": "sandbox-umbra-wing-survey",
                     "parameters": {
@@ -47159,11 +47227,11 @@
                   },
                   {
                     "id": "sandbox-umbra-survey-lower-right-ram",
-                    "label": "Lower-right blackout ram",
+                    "label": "Lower-right blackout charge",
                     "track": "movement",
                     "primitiveId": "corner-ambush-ram",
                     "trigger": "time",
-                    "startSeconds": 14.15,
+                    "startSeconds": 18.8,
                     "durationSeconds": 0.65,
                     "phaseId": "sandbox-umbra-wing-survey",
                     "telegraphClipId": "sandbox-umbra-survey-lower-right-ram-warning",
@@ -47173,103 +47241,71 @@
                     }
                   },
                   {
-                    "id": "sandbox-umbra-survey-left-corner-warning",
-                    "label": "Left blackout reveal warning",
+                    "id": "sandbox-umbra-survey-lower-left-ram-warning",
+                    "label": "Lower-left blackout charge warning",
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 15,
-                    "durationSeconds": 0.9,
+                    "startSeconds": 19.55,
+                    "durationSeconds": 1,
                     "phaseId": "sandbox-umbra-wing-survey",
                     "parameters": {
-                      "warningSeconds": 0.9,
+                      "warningSeconds": 1,
                       "telegraphStyle": "target",
                       "color": "#818cf8"
                     }
                   },
                   {
-                    "id": "sandbox-umbra-survey-left-corner",
-                    "label": "Left blackout reveal",
-                    "track": "laser",
-                    "primitiveId": "corner-ambush-beam",
+                    "id": "sandbox-umbra-survey-lower-left-ram",
+                    "label": "Lower-left blackout charge",
+                    "track": "movement",
+                    "primitiveId": "corner-ambush-ram",
                     "trigger": "time",
-                    "startSeconds": 15.9,
-                    "durationSeconds": 0.45,
+                    "startSeconds": 20.55,
+                    "durationSeconds": 0.65,
                     "phaseId": "sandbox-umbra-wing-survey",
-                    "telegraphClipId": "sandbox-umbra-survey-left-corner-warning",
+                    "telegraphClipId": "sandbox-umbra-survey-lower-left-ram-warning",
                     "parameters": {
                       "sequence": 0,
                       "motionCue": "umbra-blackout-ambush"
                     }
                   },
                   {
-                    "id": "sandbox-umbra-survey-right-corner-warning",
-                    "label": "Right blackout reveal warning",
+                    "id": "sandbox-umbra-survey-upper-anchor-materialize-warning",
+                    "label": "Survey upper-anchor materialization warning",
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 16.55,
-                    "durationSeconds": 0.9,
-                    "phaseId": "sandbox-umbra-wing-survey",
-                    "parameters": {
-                      "warningSeconds": 0.9,
-                      "telegraphStyle": "target",
-                      "color": "#818cf8"
-                    }
-                  },
-                  {
-                    "id": "sandbox-umbra-survey-right-corner",
-                    "label": "Right blackout reveal",
-                    "track": "laser",
-                    "primitiveId": "corner-ambush-beam",
-                    "trigger": "time",
-                    "startSeconds": 17.45,
-                    "durationSeconds": 0.45,
-                    "phaseId": "sandbox-umbra-wing-survey",
-                    "telegraphClipId": "sandbox-umbra-survey-right-corner-warning",
-                    "parameters": {
-                      "sequence": 1,
-                      "motionCue": "umbra-blackout-ambush"
-                    }
-                  },
-                  {
-                    "id": "sandbox-umbra-survey-ring-c-warning",
-                    "label": "Blackout exit opening warning",
-                    "track": "presentation",
-                    "primitiveId": "telegraph",
-                    "trigger": "time",
-                    "startSeconds": 18.1,
+                    "startSeconds": 21.3,
                     "durationSeconds": 0.8,
                     "phaseId": "sandbox-umbra-wing-survey",
                     "parameters": {
                       "warningSeconds": 0.8,
-                      "telegraphStyle": "ring",
+                      "telegraphStyle": "warning",
                       "color": "#818cf8"
                     }
                   },
                   {
-                    "id": "sandbox-umbra-survey-ring-c",
-                    "label": "Blackout exit opening",
-                    "track": "attack",
-                    "primitiveId": "gap-ring",
+                    "id": "sandbox-umbra-survey-upper-anchor-materialize",
+                    "label": "Survey upper-anchor materialization",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 18.900000000000002,
-                    "durationSeconds": 0.4,
+                    "startSeconds": 22.1,
+                    "durationSeconds": 0.3,
                     "phaseId": "sandbox-umbra-wing-survey",
-                    "telegraphClipId": "sandbox-umbra-survey-ring-c-warning",
+                    "telegraphClipId": "sandbox-umbra-survey-upper-anchor-materialize-warning",
                     "parameters": {
-                      "projectileCount": 14,
-                      "sequence": 2,
                       "motionCue": "umbra-blackout-ambush"
                     }
                   },
                   {
                     "id": "sandbox-umbra-wing-survey-blackout-ambush-recovery",
-                    "label": "Blackout Ambush recovery",
+                    "label": "Blackout Hunt recovery",
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 19.3,
+                    "startSeconds": 22.400000000000002,
                     "durationSeconds": 0.9,
                     "phaseId": "sandbox-umbra-wing-survey",
                     "parameters": {
@@ -47339,12 +47375,41 @@
                     }
                   },
                   {
+                    "id": "sandbox-umbra-hunt-upper-anchor-return-warning",
+                    "label": "Upper-anchor hunting return warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 2.15,
+                    "durationSeconds": 0.8,
+                    "phaseId": "sandbox-umbra-blackout-hunt",
+                    "parameters": {
+                      "warningSeconds": 0.8,
+                      "telegraphStyle": "warning",
+                      "color": "#ef4444"
+                    }
+                  },
+                  {
+                    "id": "sandbox-umbra-hunt-upper-anchor-return",
+                    "label": "Upper-anchor hunting return",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "time",
+                    "startSeconds": 2.95,
+                    "durationSeconds": 0.4,
+                    "phaseId": "sandbox-umbra-blackout-hunt",
+                    "telegraphClipId": "sandbox-umbra-hunt-upper-anchor-return-warning",
+                    "parameters": {
+                      "motionCue": "umbra-needle-lattice"
+                    }
+                  },
+                  {
                     "id": "sandbox-umbra-blackout-hunt-wing-shear-crossfire-recovery",
                     "label": "Wing Shear Crossfire recovery",
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 2.4499999999999997,
+                    "startSeconds": 3.35,
                     "durationSeconds": 0.7,
                     "phaseId": "sandbox-umbra-blackout-hunt",
                     "parameters": {
@@ -47353,42 +47418,51 @@
                   },
                   {
                     "id": "sandbox-umbra-hunt-entry-ring-warning",
-                    "label": "Hunt entry opening warning",
+                    "label": "Clockwise hunting salvos warning",
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 3.7,
+                    "startSeconds": 4.53,
                     "durationSeconds": 0.8,
                     "phaseId": "sandbox-umbra-blackout-hunt",
                     "parameters": {
                       "warningSeconds": 0.8,
                       "telegraphStyle": "ring",
                       "color": "#ef4444"
+                    },
+                    "repeat": {
+                      "count": 5,
+                      "intervalSeconds": 0.8
                     }
                   },
                   {
                     "id": "sandbox-umbra-hunt-entry-ring",
-                    "label": "Hunt entry opening",
+                    "label": "Clockwise hunting salvos",
                     "track": "attack",
                     "primitiveId": "gap-ring",
                     "trigger": "time",
-                    "startSeconds": 4.5,
+                    "startSeconds": 5.33,
                     "durationSeconds": 0.3,
                     "phaseId": "sandbox-umbra-blackout-hunt",
                     "telegraphClipId": "sandbox-umbra-hunt-entry-ring-warning",
                     "parameters": {
                       "projectileCount": 16,
-                      "sequence": 2,
+                      "sequence": 5,
+                      "rotationDirection": "clockwise",
                       "motionCue": "umbra-wing-shard-gate"
+                    },
+                    "repeat": {
+                      "count": 5,
+                      "intervalSeconds": 0.8
                     }
                   },
                   {
                     "id": "sandbox-umbra-hunt-ring-warning",
-                    "label": "Hunt reversal opening warning",
+                    "label": "Final clockwise hunting salvo warning",
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 4.85,
+                    "startSeconds": 8.530000000000001,
                     "durationSeconds": 0.8,
                     "phaseId": "sandbox-umbra-blackout-hunt",
                     "parameters": {
@@ -47399,27 +47473,28 @@
                   },
                   {
                     "id": "sandbox-umbra-hunt-ring",
-                    "label": "Hunt reversal opening",
+                    "label": "Final clockwise hunting salvo",
                     "track": "attack",
                     "primitiveId": "gap-ring",
                     "trigger": "time",
-                    "startSeconds": 5.6499999999999995,
+                    "startSeconds": 9.330000000000002,
                     "durationSeconds": 0.3,
                     "phaseId": "sandbox-umbra-blackout-hunt",
                     "telegraphClipId": "sandbox-umbra-hunt-ring-warning",
                     "parameters": {
                       "projectileCount": 16,
-                      "sequence": 3,
+                      "sequence": 10,
+                      "rotationDirection": "clockwise",
                       "motionCue": "umbra-wing-shard-gate"
                     }
                   },
                   {
                     "id": "sandbox-umbra-blackout-hunt-orbit-gap-thread-recovery",
-                    "label": "Orbit Gap Thread recovery",
+                    "label": "Broken Clockwise Opening recovery",
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 5.949999999999999,
+                    "startSeconds": 9.630000000000003,
                     "durationSeconds": 0.7,
                     "phaseId": "sandbox-umbra-blackout-hunt",
                     "parameters": {
@@ -47432,7 +47507,7 @@
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 7.2,
+                    "startSeconds": 10.86,
                     "durationSeconds": 0.85,
                     "phaseId": "sandbox-umbra-blackout-hunt",
                     "parameters": {
@@ -47447,7 +47522,7 @@
                     "track": "laser",
                     "primitiveId": "corner-ambush-beam",
                     "trigger": "time",
-                    "startSeconds": 8.05,
+                    "startSeconds": 11.709999999999999,
                     "durationSeconds": 0.42,
                     "phaseId": "sandbox-umbra-blackout-hunt",
                     "telegraphClipId": "sandbox-umbra-hunt-left-corner-warning",
@@ -47462,7 +47537,7 @@
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 8.6,
+                    "startSeconds": 12.26,
                     "durationSeconds": 0.85,
                     "phaseId": "sandbox-umbra-blackout-hunt",
                     "parameters": {
@@ -47477,7 +47552,7 @@
                     "track": "laser",
                     "primitiveId": "corner-ambush-beam",
                     "trigger": "time",
-                    "startSeconds": 9.45,
+                    "startSeconds": 13.11,
                     "durationSeconds": 0.42,
                     "phaseId": "sandbox-umbra-blackout-hunt",
                     "telegraphClipId": "sandbox-umbra-hunt-right-corner-warning",
@@ -47488,11 +47563,11 @@
                   },
                   {
                     "id": "sandbox-umbra-blackout-hunt-corner-needle-lock-recovery",
-                    "label": "Corner Needle Lock recovery",
+                    "label": "Blackout Laser recovery",
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 9.87,
+                    "startSeconds": 13.53,
                     "durationSeconds": 0.7,
                     "phaseId": "sandbox-umbra-blackout-hunt",
                     "parameters": {
@@ -47500,12 +47575,41 @@
                     }
                   },
                   {
-                    "id": "sandbox-umbra-hunt-lower-right-ram-warning",
-                    "label": "Lower-right hunting ram warning",
+                    "id": "sandbox-umbra-hunt-shadow-dissolve-warning",
+                    "label": "Hunt shadow dissolve warning",
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 11.12,
+                    "startSeconds": 14.73,
+                    "durationSeconds": 0.8,
+                    "phaseId": "sandbox-umbra-blackout-hunt",
+                    "parameters": {
+                      "warningSeconds": 0.8,
+                      "telegraphStyle": "warning",
+                      "color": "#ef4444"
+                    }
+                  },
+                  {
+                    "id": "sandbox-umbra-hunt-shadow-dissolve",
+                    "label": "Hunt shadow dissolve",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "time",
+                    "startSeconds": 15.530000000000001,
+                    "durationSeconds": 0.25,
+                    "phaseId": "sandbox-umbra-blackout-hunt",
+                    "telegraphClipId": "sandbox-umbra-hunt-shadow-dissolve-warning",
+                    "parameters": {
+                      "motionCue": "umbra-blackout-ambush"
+                    }
+                  },
+                  {
+                    "id": "sandbox-umbra-hunt-lower-right-ram-warning",
+                    "label": "Lower-right hunting charge warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 15.530000000000001,
                     "durationSeconds": 0.95,
                     "phaseId": "sandbox-umbra-blackout-hunt",
                     "parameters": {
@@ -47516,11 +47620,11 @@
                   },
                   {
                     "id": "sandbox-umbra-hunt-lower-right-ram",
-                    "label": "Lower-right hunting ram",
+                    "label": "Lower-right hunting charge",
                     "track": "movement",
                     "primitiveId": "corner-ambush-ram",
                     "trigger": "time",
-                    "startSeconds": 12.069999999999999,
+                    "startSeconds": 16.48,
                     "durationSeconds": 0.58,
                     "phaseId": "sandbox-umbra-blackout-hunt",
                     "telegraphClipId": "sandbox-umbra-hunt-lower-right-ram-warning",
@@ -47530,141 +47634,131 @@
                     }
                   },
                   {
-                    "id": "sandbox-umbra-hunt-left-corner-return-warning",
-                    "label": "Left hunting return warning",
+                    "id": "sandbox-umbra-hunt-mid-left-ram-warning",
+                    "label": "Mid-left hunting charge warning",
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 12.87,
-                    "durationSeconds": 0.85,
+                    "startSeconds": 17.16,
+                    "durationSeconds": 0.95,
                     "phaseId": "sandbox-umbra-blackout-hunt",
                     "parameters": {
-                      "warningSeconds": 0.85,
+                      "warningSeconds": 0.95,
                       "telegraphStyle": "target",
                       "color": "#ef4444"
                     }
                   },
                   {
-                    "id": "sandbox-umbra-hunt-left-corner-return",
-                    "label": "Left hunting return",
-                    "track": "laser",
-                    "primitiveId": "corner-ambush-beam",
+                    "id": "sandbox-umbra-hunt-mid-left-ram",
+                    "label": "Mid-left hunting charge",
+                    "track": "movement",
+                    "primitiveId": "corner-ambush-ram",
                     "trigger": "time",
-                    "startSeconds": 13.719999999999999,
-                    "durationSeconds": 0.42,
+                    "startSeconds": 18.11,
+                    "durationSeconds": 0.58,
                     "phaseId": "sandbox-umbra-blackout-hunt",
-                    "telegraphClipId": "sandbox-umbra-hunt-left-corner-return-warning",
+                    "telegraphClipId": "sandbox-umbra-hunt-mid-left-ram-warning",
                     "parameters": {
                       "sequence": 2,
                       "motionCue": "umbra-blackout-ambush"
                     }
                   },
                   {
-                    "id": "sandbox-umbra-hunt-right-corner-return-warning",
-                    "label": "Right hunting return warning",
+                    "id": "sandbox-umbra-hunt-mid-right-ram-warning",
+                    "label": "Mid-right hunting charge warning",
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 14.37,
-                    "durationSeconds": 0.85,
+                    "startSeconds": 18.79,
+                    "durationSeconds": 0.95,
                     "phaseId": "sandbox-umbra-blackout-hunt",
                     "parameters": {
-                      "warningSeconds": 0.85,
+                      "warningSeconds": 0.95,
                       "telegraphStyle": "target",
                       "color": "#ef4444"
                     }
                   },
                   {
-                    "id": "sandbox-umbra-hunt-right-corner-return",
-                    "label": "Right hunting return",
-                    "track": "laser",
-                    "primitiveId": "corner-ambush-beam",
+                    "id": "sandbox-umbra-hunt-mid-right-ram",
+                    "label": "Mid-right hunting charge",
+                    "track": "movement",
+                    "primitiveId": "corner-ambush-ram",
                     "trigger": "time",
-                    "startSeconds": 15.219999999999999,
-                    "durationSeconds": 0.42,
+                    "startSeconds": 19.74,
+                    "durationSeconds": 0.58,
                     "phaseId": "sandbox-umbra-blackout-hunt",
-                    "telegraphClipId": "sandbox-umbra-hunt-right-corner-return-warning",
+                    "telegraphClipId": "sandbox-umbra-hunt-mid-right-ram-warning",
                     "parameters": {
                       "sequence": 3,
                       "motionCue": "umbra-blackout-ambush"
                     }
                   },
                   {
-                    "id": "sandbox-umbra-hunt-exit-ring-warning",
-                    "label": "Double hunting exit warning",
+                    "id": "sandbox-umbra-hunt-lower-left-ram-warning",
+                    "label": "Lower-left hunting charge warning",
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 15.87,
-                    "durationSeconds": 0.8,
+                    "startSeconds": 20.42,
+                    "durationSeconds": 0.95,
                     "phaseId": "sandbox-umbra-blackout-hunt",
                     "parameters": {
-                      "warningSeconds": 0.8,
-                      "telegraphStyle": "ring",
-                      "color": "#ef4444"
-                    },
-                    "repeat": {
-                      "count": 2,
-                      "intervalSeconds": 1.15
-                    }
-                  },
-                  {
-                    "id": "sandbox-umbra-hunt-exit-ring",
-                    "label": "Double hunting exit",
-                    "track": "attack",
-                    "primitiveId": "gap-ring",
-                    "trigger": "time",
-                    "startSeconds": 16.669999999999998,
-                    "durationSeconds": 0.38,
-                    "phaseId": "sandbox-umbra-blackout-hunt",
-                    "telegraphClipId": "sandbox-umbra-hunt-exit-ring-warning",
-                    "parameters": {
-                      "projectileCount": 18,
-                      "sequence": 4,
-                      "motionCue": "umbra-blackout-ambush"
-                    },
-                    "repeat": {
-                      "count": 2,
-                      "intervalSeconds": 1.15
-                    }
-                  },
-                  {
-                    "id": "sandbox-umbra-hunt-final-corner-warning",
-                    "label": "Final hunting lock warning",
-                    "track": "presentation",
-                    "primitiveId": "telegraph",
-                    "trigger": "time",
-                    "startSeconds": 18.369999999999997,
-                    "durationSeconds": 0.85,
-                    "phaseId": "sandbox-umbra-blackout-hunt",
-                    "parameters": {
-                      "warningSeconds": 0.85,
+                      "warningSeconds": 0.95,
                       "telegraphStyle": "target",
                       "color": "#ef4444"
                     }
                   },
                   {
-                    "id": "sandbox-umbra-hunt-final-corner",
-                    "label": "Final hunting lock",
-                    "track": "laser",
-                    "primitiveId": "corner-ambush-beam",
+                    "id": "sandbox-umbra-hunt-lower-left-ram",
+                    "label": "Lower-left hunting charge",
+                    "track": "movement",
+                    "primitiveId": "corner-ambush-ram",
                     "trigger": "time",
-                    "startSeconds": 19.22,
-                    "durationSeconds": 0.42,
+                    "startSeconds": 21.37,
+                    "durationSeconds": 0.58,
                     "phaseId": "sandbox-umbra-blackout-hunt",
-                    "telegraphClipId": "sandbox-umbra-hunt-final-corner-warning",
+                    "telegraphClipId": "sandbox-umbra-hunt-lower-left-ram-warning",
                     "parameters": {
-                      "sequence": 5,
+                      "sequence": 0,
+                      "motionCue": "umbra-blackout-ambush"
+                    }
+                  },
+                  {
+                    "id": "sandbox-umbra-hunt-upper-anchor-materialize-warning",
+                    "label": "Hunt upper-anchor materialization warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 22.05,
+                    "durationSeconds": 0.8,
+                    "phaseId": "sandbox-umbra-blackout-hunt",
+                    "parameters": {
+                      "warningSeconds": 0.8,
+                      "telegraphStyle": "warning",
+                      "color": "#ef4444"
+                    }
+                  },
+                  {
+                    "id": "sandbox-umbra-hunt-upper-anchor-materialize",
+                    "label": "Hunt upper-anchor materialization",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "time",
+                    "startSeconds": 22.85,
+                    "durationSeconds": 0.3,
+                    "phaseId": "sandbox-umbra-blackout-hunt",
+                    "telegraphClipId": "sandbox-umbra-hunt-upper-anchor-materialize-warning",
+                    "parameters": {
                       "motionCue": "umbra-blackout-ambush"
                     }
                   },
                   {
                     "id": "sandbox-umbra-blackout-hunt-blackout-ambush-recovery",
-                    "label": "Blackout Ambush recovery",
+                    "label": "Blackout Hunt recovery",
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 19.64,
+                    "startSeconds": 23.150000000000002,
                     "durationSeconds": 0.7,
                     "phaseId": "sandbox-umbra-blackout-hunt",
                     "parameters": {
@@ -47734,12 +47828,41 @@
                     }
                   },
                   {
+                    "id": "sandbox-umbra-compass-upper-anchor-return-warning",
+                    "label": "Broken upper-anchor return warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 1.7999999999999998,
+                    "durationSeconds": 0.8,
+                    "phaseId": "sandbox-umbra-broken-compass",
+                    "parameters": {
+                      "warningSeconds": 0.8,
+                      "telegraphStyle": "warning",
+                      "color": "#f43f5e"
+                    }
+                  },
+                  {
+                    "id": "sandbox-umbra-compass-upper-anchor-return",
+                    "label": "Broken upper-anchor return",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "time",
+                    "startSeconds": 2.5999999999999996,
+                    "durationSeconds": 0.35,
+                    "phaseId": "sandbox-umbra-broken-compass",
+                    "telegraphClipId": "sandbox-umbra-compass-upper-anchor-return-warning",
+                    "parameters": {
+                      "motionCue": "umbra-needle-lattice"
+                    }
+                  },
+                  {
                     "id": "sandbox-umbra-broken-compass-wing-shear-crossfire-recovery",
                     "label": "Wing Shear Crossfire recovery",
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 2.1799999999999997,
+                    "startSeconds": 2.9499999999999997,
                     "durationSeconds": 0.6,
                     "phaseId": "sandbox-umbra-broken-compass",
                     "parameters": {
@@ -47748,73 +47871,91 @@
                   },
                   {
                     "id": "sandbox-umbra-compass-ring-a-warning",
-                    "label": "Broken clockwise opening warning",
+                    "label": "Four broken clockwise salvos warning",
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 3.08,
+                    "startSeconds": 3.81,
                     "durationSeconds": 0.8,
                     "phaseId": "sandbox-umbra-broken-compass",
                     "parameters": {
                       "warningSeconds": 0.8,
                       "telegraphStyle": "ring",
                       "color": "#f43f5e"
+                    },
+                    "repeat": {
+                      "count": 4,
+                      "intervalSeconds": 0.5
                     }
                   },
                   {
                     "id": "sandbox-umbra-compass-ring-a",
-                    "label": "Broken clockwise opening",
+                    "label": "Four broken clockwise salvos",
                     "track": "attack",
                     "primitiveId": "gap-ring",
                     "trigger": "time",
-                    "startSeconds": 3.88,
+                    "startSeconds": 4.61,
                     "durationSeconds": 0.28,
                     "phaseId": "sandbox-umbra-broken-compass",
                     "telegraphClipId": "sandbox-umbra-compass-ring-a-warning",
                     "parameters": {
                       "projectileCount": 16,
-                      "sequence": 5,
+                      "sequence": 12,
+                      "rotationDirection": "clockwise",
                       "motionCue": "umbra-wing-shard-gate"
+                    },
+                    "repeat": {
+                      "count": 4,
+                      "intervalSeconds": 0.5
                     }
                   },
                   {
                     "id": "sandbox-umbra-compass-ring-b-warning",
-                    "label": "Broken reverse opening warning",
+                    "label": "Four broken reverse salvos warning",
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 4.03,
+                    "startSeconds": 5.8100000000000005,
                     "durationSeconds": 0.8,
                     "phaseId": "sandbox-umbra-broken-compass",
                     "parameters": {
                       "warningSeconds": 0.8,
                       "telegraphStyle": "ring",
                       "color": "#f43f5e"
+                    },
+                    "repeat": {
+                      "count": 4,
+                      "intervalSeconds": 0.5
                     }
                   },
                   {
                     "id": "sandbox-umbra-compass-ring-b",
-                    "label": "Broken reverse opening",
+                    "label": "Four broken reverse salvos",
                     "track": "attack",
                     "primitiveId": "gap-ring",
                     "trigger": "time",
-                    "startSeconds": 4.83,
+                    "startSeconds": 6.61,
                     "durationSeconds": 0.28,
                     "phaseId": "sandbox-umbra-broken-compass",
                     "telegraphClipId": "sandbox-umbra-compass-ring-b-warning",
                     "parameters": {
                       "projectileCount": 18,
-                      "sequence": 6,
+                      "sequence": 13,
+                      "rotationDirection": "counterclockwise",
                       "motionCue": "umbra-wing-shard-gate"
+                    },
+                    "repeat": {
+                      "count": 4,
+                      "intervalSeconds": 0.5
                     }
                   },
                   {
                     "id": "sandbox-umbra-broken-compass-orbit-gap-thread-recovery",
-                    "label": "Orbit Gap Thread recovery",
+                    "label": "Broken Clockwise Opening recovery",
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 5.11,
+                    "startSeconds": 8.389999999999999,
                     "durationSeconds": 0.6,
                     "phaseId": "sandbox-umbra-broken-compass",
                     "parameters": {
@@ -47827,7 +47968,7 @@
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 6.01,
+                    "startSeconds": 9.51,
                     "durationSeconds": 0.82,
                     "phaseId": "sandbox-umbra-broken-compass",
                     "parameters": {
@@ -47842,7 +47983,7 @@
                     "track": "laser",
                     "primitiveId": "corner-ambush-beam",
                     "trigger": "time",
-                    "startSeconds": 6.83,
+                    "startSeconds": 10.33,
                     "durationSeconds": 0.38,
                     "phaseId": "sandbox-umbra-broken-compass",
                     "telegraphClipId": "sandbox-umbra-compass-right-corner-warning",
@@ -47857,7 +47998,7 @@
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 7.16,
+                    "startSeconds": 10.66,
                     "durationSeconds": 0.82,
                     "phaseId": "sandbox-umbra-broken-compass",
                     "parameters": {
@@ -47872,7 +48013,7 @@
                     "track": "laser",
                     "primitiveId": "corner-ambush-beam",
                     "trigger": "time",
-                    "startSeconds": 7.98,
+                    "startSeconds": 11.48,
                     "durationSeconds": 0.38,
                     "phaseId": "sandbox-umbra-broken-compass",
                     "telegraphClipId": "sandbox-umbra-compass-left-corner-warning",
@@ -47883,11 +48024,11 @@
                   },
                   {
                     "id": "sandbox-umbra-broken-compass-corner-needle-lock-recovery",
-                    "label": "Corner Needle Lock recovery",
+                    "label": "Blackout Laser recovery",
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 8.360000000000001,
+                    "startSeconds": 11.860000000000001,
                     "durationSeconds": 0.6,
                     "phaseId": "sandbox-umbra-broken-compass",
                     "parameters": {
@@ -47895,42 +48036,41 @@
                     }
                   },
                   {
-                    "id": "sandbox-umbra-compass-right-corner-return-warning",
-                    "label": "Broken right return warning",
+                    "id": "sandbox-umbra-compass-shadow-dissolve-warning",
+                    "label": "Broken Compass shadow dissolve warning",
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 9.24,
-                    "durationSeconds": 0.82,
+                    "startSeconds": 12.76,
+                    "durationSeconds": 0.8,
                     "phaseId": "sandbox-umbra-broken-compass",
                     "parameters": {
-                      "warningSeconds": 0.82,
-                      "telegraphStyle": "target",
+                      "warningSeconds": 0.8,
+                      "telegraphStyle": "warning",
                       "color": "#f43f5e"
                     }
                   },
                   {
-                    "id": "sandbox-umbra-compass-right-corner-return",
-                    "label": "Broken right return",
-                    "track": "laser",
-                    "primitiveId": "corner-ambush-beam",
+                    "id": "sandbox-umbra-compass-shadow-dissolve",
+                    "label": "Broken Compass shadow dissolve",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 10.06,
-                    "durationSeconds": 0.38,
+                    "startSeconds": 13.56,
+                    "durationSeconds": 0.25,
                     "phaseId": "sandbox-umbra-broken-compass",
-                    "telegraphClipId": "sandbox-umbra-compass-right-corner-return-warning",
+                    "telegraphClipId": "sandbox-umbra-compass-shadow-dissolve-warning",
                     "parameters": {
-                      "sequence": 3,
                       "motionCue": "umbra-blackout-ambush"
                     }
                   },
                   {
                     "id": "sandbox-umbra-compass-lower-left-ram-warning",
-                    "label": "Broken lower-left ram warning",
+                    "label": "Broken lower-left charge warning",
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 10.64,
+                    "startSeconds": 13.56,
                     "durationSeconds": 0.85,
                     "phaseId": "sandbox-umbra-broken-compass",
                     "parameters": {
@@ -47941,56 +48081,26 @@
                   },
                   {
                     "id": "sandbox-umbra-compass-lower-left-ram",
-                    "label": "Broken lower-left ram",
+                    "label": "Broken lower-left charge",
                     "track": "movement",
                     "primitiveId": "corner-ambush-ram",
                     "trigger": "time",
-                    "startSeconds": 11.49,
+                    "startSeconds": 14.41,
                     "durationSeconds": 0.5,
                     "phaseId": "sandbox-umbra-broken-compass",
                     "telegraphClipId": "sandbox-umbra-compass-lower-left-ram-warning",
                     "parameters": {
-                      "sequence": 2,
-                      "motionCue": "umbra-blackout-ambush"
-                    }
-                  },
-                  {
-                    "id": "sandbox-umbra-compass-left-corner-return-warning",
-                    "label": "Broken left return warning",
-                    "track": "presentation",
-                    "primitiveId": "telegraph",
-                    "trigger": "time",
-                    "startSeconds": 12.190000000000001,
-                    "durationSeconds": 0.82,
-                    "phaseId": "sandbox-umbra-broken-compass",
-                    "parameters": {
-                      "warningSeconds": 0.82,
-                      "telegraphStyle": "target",
-                      "color": "#f43f5e"
-                    }
-                  },
-                  {
-                    "id": "sandbox-umbra-compass-left-corner-return",
-                    "label": "Broken left return",
-                    "track": "laser",
-                    "primitiveId": "corner-ambush-beam",
-                    "trigger": "time",
-                    "startSeconds": 13.010000000000002,
-                    "durationSeconds": 0.38,
-                    "phaseId": "sandbox-umbra-broken-compass",
-                    "telegraphClipId": "sandbox-umbra-compass-left-corner-return-warning",
-                    "parameters": {
-                      "sequence": 4,
+                      "sequence": 0,
                       "motionCue": "umbra-blackout-ambush"
                     }
                   },
                   {
                     "id": "sandbox-umbra-compass-lower-right-ram-warning",
-                    "label": "Broken lower-right ram warning",
+                    "label": "Broken lower-right charge warning",
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 13.59,
+                    "startSeconds": 14.99,
                     "durationSeconds": 0.85,
                     "phaseId": "sandbox-umbra-broken-compass",
                     "parameters": {
@@ -48001,126 +48111,175 @@
                   },
                   {
                     "id": "sandbox-umbra-compass-lower-right-ram",
-                    "label": "Broken lower-right ram",
+                    "label": "Broken lower-right charge",
                     "track": "movement",
                     "primitiveId": "corner-ambush-ram",
                     "trigger": "time",
-                    "startSeconds": 14.44,
+                    "startSeconds": 15.84,
                     "durationSeconds": 0.5,
                     "phaseId": "sandbox-umbra-broken-compass",
                     "telegraphClipId": "sandbox-umbra-compass-lower-right-ram-warning",
+                    "parameters": {
+                      "sequence": 1,
+                      "motionCue": "umbra-blackout-ambush"
+                    }
+                  },
+                  {
+                    "id": "sandbox-umbra-compass-mid-left-ram-warning",
+                    "label": "Broken mid-left charge warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 16.42,
+                    "durationSeconds": 0.85,
+                    "phaseId": "sandbox-umbra-broken-compass",
+                    "parameters": {
+                      "warningSeconds": 0.85,
+                      "telegraphStyle": "target",
+                      "color": "#f43f5e"
+                    }
+                  },
+                  {
+                    "id": "sandbox-umbra-compass-mid-left-ram",
+                    "label": "Broken mid-left charge",
+                    "track": "movement",
+                    "primitiveId": "corner-ambush-ram",
+                    "trigger": "time",
+                    "startSeconds": 17.270000000000003,
+                    "durationSeconds": 0.5,
+                    "phaseId": "sandbox-umbra-broken-compass",
+                    "telegraphClipId": "sandbox-umbra-compass-mid-left-ram-warning",
+                    "parameters": {
+                      "sequence": 2,
+                      "motionCue": "umbra-blackout-ambush"
+                    }
+                  },
+                  {
+                    "id": "sandbox-umbra-compass-mid-right-ram-warning",
+                    "label": "Broken mid-right charge warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 17.85,
+                    "durationSeconds": 0.85,
+                    "phaseId": "sandbox-umbra-broken-compass",
+                    "parameters": {
+                      "warningSeconds": 0.85,
+                      "telegraphStyle": "target",
+                      "color": "#f43f5e"
+                    }
+                  },
+                  {
+                    "id": "sandbox-umbra-compass-mid-right-ram",
+                    "label": "Broken mid-right charge",
+                    "track": "movement",
+                    "primitiveId": "corner-ambush-ram",
+                    "trigger": "time",
+                    "startSeconds": 18.700000000000003,
+                    "durationSeconds": 0.5,
+                    "phaseId": "sandbox-umbra-broken-compass",
+                    "telegraphClipId": "sandbox-umbra-compass-mid-right-ram-warning",
                     "parameters": {
                       "sequence": 3,
                       "motionCue": "umbra-blackout-ambush"
                     }
                   },
                   {
-                    "id": "sandbox-umbra-compass-exit-ring-warning",
-                    "label": "Broken double exit warning",
+                    "id": "sandbox-umbra-compass-lower-left-return-ram-warning",
+                    "label": "Broken lower-left return charge warning",
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 15.14,
-                    "durationSeconds": 0.8,
+                    "startSeconds": 19.28,
+                    "durationSeconds": 0.85,
                     "phaseId": "sandbox-umbra-broken-compass",
                     "parameters": {
-                      "warningSeconds": 0.8,
-                      "telegraphStyle": "ring",
-                      "color": "#f43f5e"
-                    },
-                    "repeat": {
-                      "count": 2,
-                      "intervalSeconds": 1
-                    }
-                  },
-                  {
-                    "id": "sandbox-umbra-compass-exit-ring",
-                    "label": "Broken double exit",
-                    "track": "attack",
-                    "primitiveId": "gap-ring",
-                    "trigger": "time",
-                    "startSeconds": 15.940000000000001,
-                    "durationSeconds": 0.35,
-                    "phaseId": "sandbox-umbra-broken-compass",
-                    "telegraphClipId": "sandbox-umbra-compass-exit-ring-warning",
-                    "parameters": {
-                      "projectileCount": 18,
-                      "sequence": 7,
-                      "motionCue": "umbra-blackout-ambush"
-                    },
-                    "repeat": {
-                      "count": 2,
-                      "intervalSeconds": 1
-                    }
-                  },
-                  {
-                    "id": "sandbox-umbra-compass-final-corner-warning",
-                    "label": "Final broken lock warning",
-                    "track": "presentation",
-                    "primitiveId": "telegraph",
-                    "trigger": "time",
-                    "startSeconds": 17.439999999999998,
-                    "durationSeconds": 0.82,
-                    "phaseId": "sandbox-umbra-broken-compass",
-                    "parameters": {
-                      "warningSeconds": 0.82,
+                      "warningSeconds": 0.85,
                       "telegraphStyle": "target",
                       "color": "#f43f5e"
                     }
                   },
                   {
-                    "id": "sandbox-umbra-compass-final-corner",
-                    "label": "Final broken lock",
-                    "track": "laser",
-                    "primitiveId": "corner-ambush-beam",
+                    "id": "sandbox-umbra-compass-lower-left-return-ram",
+                    "label": "Broken lower-left return charge",
+                    "track": "movement",
+                    "primitiveId": "corner-ambush-ram",
                     "trigger": "time",
-                    "startSeconds": 18.259999999999998,
-                    "durationSeconds": 0.38,
+                    "startSeconds": 20.130000000000003,
+                    "durationSeconds": 0.5,
                     "phaseId": "sandbox-umbra-broken-compass",
-                    "telegraphClipId": "sandbox-umbra-compass-final-corner-warning",
+                    "telegraphClipId": "sandbox-umbra-compass-lower-left-return-ram-warning",
+                    "parameters": {
+                      "sequence": 4,
+                      "motionCue": "umbra-blackout-ambush"
+                    }
+                  },
+                  {
+                    "id": "sandbox-umbra-compass-lower-right-return-ram-warning",
+                    "label": "Broken lower-right return charge warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 20.71,
+                    "durationSeconds": 0.85,
+                    "phaseId": "sandbox-umbra-broken-compass",
+                    "parameters": {
+                      "warningSeconds": 0.85,
+                      "telegraphStyle": "target",
+                      "color": "#f43f5e"
+                    }
+                  },
+                  {
+                    "id": "sandbox-umbra-compass-lower-right-return-ram",
+                    "label": "Broken lower-right return charge",
+                    "track": "movement",
+                    "primitiveId": "corner-ambush-ram",
+                    "trigger": "time",
+                    "startSeconds": 21.560000000000002,
+                    "durationSeconds": 0.5,
+                    "phaseId": "sandbox-umbra-broken-compass",
+                    "telegraphClipId": "sandbox-umbra-compass-lower-right-return-ram-warning",
                     "parameters": {
                       "sequence": 5,
                       "motionCue": "umbra-blackout-ambush"
                     }
                   },
                   {
-                    "id": "sandbox-umbra-compass-blackout-ring-warning",
-                    "label": "Blackout collapse opening warning",
+                    "id": "sandbox-umbra-compass-upper-anchor-materialize-warning",
+                    "label": "Broken Compass upper-anchor materialization warning",
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 18.79,
+                    "startSeconds": 22.14,
                     "durationSeconds": 0.8,
                     "phaseId": "sandbox-umbra-broken-compass",
                     "parameters": {
                       "warningSeconds": 0.8,
-                      "telegraphStyle": "ring",
+                      "telegraphStyle": "warning",
                       "color": "#f43f5e"
                     }
                   },
                   {
-                    "id": "sandbox-umbra-compass-blackout-ring",
-                    "label": "Blackout collapse opening",
-                    "track": "attack",
-                    "primitiveId": "gap-ring",
+                    "id": "sandbox-umbra-compass-upper-anchor-materialize",
+                    "label": "Broken Compass upper-anchor materialization",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 19.59,
-                    "durationSeconds": 0.35,
+                    "startSeconds": 22.94,
+                    "durationSeconds": 0.3,
                     "phaseId": "sandbox-umbra-broken-compass",
-                    "telegraphClipId": "sandbox-umbra-compass-blackout-ring-warning",
+                    "telegraphClipId": "sandbox-umbra-compass-upper-anchor-materialize-warning",
                     "parameters": {
-                      "projectileCount": 18,
-                      "sequence": 8,
                       "motionCue": "umbra-blackout-ambush"
                     }
                   },
                   {
                     "id": "sandbox-umbra-broken-compass-blackout-ambush-recovery",
-                    "label": "Blackout Ambush recovery",
+                    "label": "Blackout Hunt recovery",
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 19.94,
+                    "startSeconds": 23.240000000000002,
                     "durationSeconds": 0.6,
                     "phaseId": "sandbox-umbra-broken-compass",
                     "parameters": {
@@ -48146,7 +48305,8 @@
                         "phaseId": "sandbox-umbra-wing-survey",
                         "beatClipIds": [
                           "sandbox-umbra-survey-port",
-                          "sandbox-umbra-survey-starboard"
+                          "sandbox-umbra-survey-starboard",
+                          "sandbox-umbra-survey-upper-anchor-return"
                         ],
                         "recoveryClipId": "sandbox-umbra-wing-survey-wing-shear-crossfire-recovery"
                       },
@@ -48154,7 +48314,8 @@
                         "phaseId": "sandbox-umbra-blackout-hunt",
                         "beatClipIds": [
                           "sandbox-umbra-hunt-port",
-                          "sandbox-umbra-hunt-starboard"
+                          "sandbox-umbra-hunt-starboard",
+                          "sandbox-umbra-hunt-upper-anchor-return"
                         ],
                         "recoveryClipId": "sandbox-umbra-blackout-hunt-wing-shear-crossfire-recovery"
                       },
@@ -48162,7 +48323,8 @@
                         "phaseId": "sandbox-umbra-broken-compass",
                         "beatClipIds": [
                           "sandbox-umbra-compass-port",
-                          "sandbox-umbra-compass-starboard"
+                          "sandbox-umbra-compass-starboard",
+                          "sandbox-umbra-compass-upper-anchor-return"
                         ],
                         "recoveryClipId": "sandbox-umbra-broken-compass-wing-shear-crossfire-recovery"
                       }
@@ -48170,13 +48332,15 @@
                   },
                   {
                     "id": "orbit-gap-thread",
-                    "label": "Orbit Gap Thread",
+                    "label": "Broken Clockwise Opening",
                     "role": "core",
                     "skillTest": "gap-tracking",
-                    "recognitionCue": "The core opens while orbit nodes mark the next ring rotation.",
-                    "solution": "Enter the declared opening and follow its bounded rotation through the second ring.",
+                    "recognitionCue": "The wings open in sequence while the core turns one broken downward spiral.",
+                    "solution": "Read the missing wedge and weave with it as each sequential salvo rotates the opening.",
                     "safeRouteRule": "rotating-gap",
                     "sourceSocketRoles": [
+                      "port",
+                      "starboard",
                       "core"
                     ],
                     "variants": [
@@ -48208,11 +48372,11 @@
                   },
                   {
                     "id": "corner-needle-lock",
-                    "label": "Corner Needle Lock",
+                    "label": "Blackout Laser",
                     "role": "core",
                     "skillTest": "lane-routing",
-                    "recognitionCue": "Umbra braces in one upper corner and fixes a target lock before firing.",
-                    "solution": "Leave the warned sightline before commitment, then route away from the opposite corner.",
+                    "recognitionCue": "The arena blacks out while detached red eyes mark one committed laser lane.",
+                    "solution": "Read the eye and lock line, wait for commitment, then leave the laser lane before it fires.",
                     "safeRouteRule": "shifting-channel",
                     "sourceSocketRoles": [
                       "core"
@@ -48246,11 +48410,11 @@
                   },
                   {
                     "id": "blackout-ambush",
-                    "label": "Blackout Ambush",
+                    "label": "Blackout Hunt",
                     "role": "signature",
                     "skillTest": "route-combination",
-                    "recognitionCue": "The arena blacks out as a lower-corner silhouette folds its wings for pursuit.",
-                    "solution": "Vacate the locked ram, read the alternating corner reveals, then take the final ring opening.",
+                    "recognitionCue": "Umbra dissolves into darkness and red eyes reveal each controlled corner charge.",
+                    "solution": "Wait for each eye pair to lock, leave that lane, and let Umbra fully exit before reading the next charge.",
                     "safeRouteRule": "channel-to-quadrant",
                     "sourceSocketRoles": [
                       "port",
@@ -48261,34 +48425,36 @@
                       {
                         "phaseId": "sandbox-umbra-wing-survey",
                         "beatClipIds": [
+                          "sandbox-umbra-survey-shadow-dissolve",
                           "sandbox-umbra-survey-lower-right-ram",
-                          "sandbox-umbra-survey-left-corner",
-                          "sandbox-umbra-survey-right-corner",
-                          "sandbox-umbra-survey-ring-c"
+                          "sandbox-umbra-survey-lower-left-ram",
+                          "sandbox-umbra-survey-upper-anchor-materialize"
                         ],
                         "recoveryClipId": "sandbox-umbra-wing-survey-blackout-ambush-recovery"
                       },
                       {
                         "phaseId": "sandbox-umbra-blackout-hunt",
                         "beatClipIds": [
+                          "sandbox-umbra-hunt-shadow-dissolve",
                           "sandbox-umbra-hunt-lower-right-ram",
-                          "sandbox-umbra-hunt-left-corner-return",
-                          "sandbox-umbra-hunt-right-corner-return",
-                          "sandbox-umbra-hunt-exit-ring",
-                          "sandbox-umbra-hunt-final-corner"
+                          "sandbox-umbra-hunt-mid-left-ram",
+                          "sandbox-umbra-hunt-mid-right-ram",
+                          "sandbox-umbra-hunt-lower-left-ram",
+                          "sandbox-umbra-hunt-upper-anchor-materialize"
                         ],
                         "recoveryClipId": "sandbox-umbra-blackout-hunt-blackout-ambush-recovery"
                       },
                       {
                         "phaseId": "sandbox-umbra-broken-compass",
                         "beatClipIds": [
-                          "sandbox-umbra-compass-right-corner-return",
+                          "sandbox-umbra-compass-shadow-dissolve",
                           "sandbox-umbra-compass-lower-left-ram",
-                          "sandbox-umbra-compass-left-corner-return",
                           "sandbox-umbra-compass-lower-right-ram",
-                          "sandbox-umbra-compass-exit-ring",
-                          "sandbox-umbra-compass-final-corner",
-                          "sandbox-umbra-compass-blackout-ring"
+                          "sandbox-umbra-compass-mid-left-ram",
+                          "sandbox-umbra-compass-mid-right-ram",
+                          "sandbox-umbra-compass-lower-left-return-ram",
+                          "sandbox-umbra-compass-lower-right-return-ram",
+                          "sandbox-umbra-compass-upper-anchor-materialize"
                         ],
                         "recoveryClipId": "sandbox-umbra-broken-compass-blackout-ambush-recovery"
                       }

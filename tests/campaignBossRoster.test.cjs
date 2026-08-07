@@ -156,7 +156,7 @@ test('promoted Test Bosses keep their exact authored timelines and Mission-scale
   assert.equal(umbra.rigId, 'open-orbit');
   assert.equal(umbra.componentMode, 'hull-only');
   assert.equal(umbra.componentHealth, undefined);
-  assert.equal(umbra.timeline.clips.length, 86);
+  assert.equal(umbra.timeline.clips.length, 96);
 });
 
 test('authored Campaign hull health remains monotonic after the Revenant promotion', () => {

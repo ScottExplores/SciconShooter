@@ -183,7 +183,7 @@ test('Weekly Run clones the canonical promoted boss events with only run-specifi
     assert.equal(umbra.spriteKey, 'CAMPAIGN_BOSS_UMBRA_NEEDLEWING');
     assert.equal(umbra.componentMode, 'hull-only');
     assert.equal(umbra.componentHealth, undefined);
-    assert.equal(umbra.timeline.clips.length, 86);
+    assert.equal(umbra.timeline.clips.length, 96);
     assert.notEqual(umbra.health, 3400, 'Weekly Run keeps its own stage health normalization');
   } finally {
     await vite.close();

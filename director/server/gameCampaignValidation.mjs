@@ -2486,8 +2486,8 @@ const validateBossTimeline = (
                 return;
               }
               const primitive = BOSS_TIMELINE_PRIMITIVES.get(beat.primitiveId);
-              if (!primitive?.damaging || beat.trigger !== 'time') {
-                errors.push(`${beatLocation} must reference a damaging time-based clip`);
+              if ((!primitive?.damaging && beat.primitiveId !== 'effect-cue') || beat.trigger !== 'time') {
+                errors.push(`${beatLocation} must reference a damaging clip or time-based effect-cue transition`);
               }
               if (beat.phaseId !== phaseId) {
                 errors.push(`${beatLocation} must reference a clip in phase ${phaseId}`);

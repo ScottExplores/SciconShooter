@@ -225,7 +225,10 @@ test('engine intercepts first depletion before true death and disables combat du
 
   assert.match(source, /entity\.bossRevivalStage !== 'shutdown'[\s\S]*entity\.bossRevivalStage !== 'rebooting'/);
   assert.match(source, /if \(!this\.isBossCombatInteractive\(entity\)\) return false/);
-  assert.match(source, /firstDepletionWillRevive \? false : undefined/);
+  assert.match(
+    source,
+    /firstDepletionWillRevive \|\| firstDepletionWillEscape \? false : undefined/
+  );
   assert.match(source, /if \(this\.updateBossRevival\(boss\)\) return/);
   assert.match(source, /createCompletedBossRevivalRuntimeState\(/);
 });

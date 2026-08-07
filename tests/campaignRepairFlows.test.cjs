@@ -50,7 +50,7 @@ test('upgrade drops render as larger unframed sprites in Pixi and canvas', () =>
   const pixiStart = pixi.lastIndexOf('} else if (entity.type === EntityType.POWERUP)');
   const pixiPowerup = pixi.slice(
     pixiStart,
-    pixi.indexOf('\n\n    this.syncDamageRecoil', pixiStart)
+    pixi.indexOf('\n\n    if (!entity.bossEscapeState)', pixiStart)
   );
   const canvasStart = engine.lastIndexOf('} else if (e.type === EntityType.POWERUP)');
   const canvasPowerup = engine.slice(canvasStart, engine.indexOf('} else if (e.type === EntityType.MINI_BOSS)', canvasStart));

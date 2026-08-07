@@ -307,7 +307,7 @@ test('App isolates Campaign reward grants and keeps Campaign off the weekly boar
   );
   assert.match(
     appSource,
-    /if\s*\(\s*!isCampaignRun\s*&&\s*!isNonCompetitiveRun\s*&&\s*summary\.bossEncounterId\s*\)/
+    /if\s*\(\s*!isCampaignRun\s*&&\s*!isNonCompetitiveRun\s*&&\s*summary\.bossEncounterId\s*&&\s*summary\.bossTerminalOutcome !== 'escaped'\s*\)/
   );
   // Campaign is progression, not a weekly entry. The name prompt and the
   // submit path hang off leaderboard eligibility, which excludes Campaign,

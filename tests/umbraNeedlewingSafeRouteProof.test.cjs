@@ -7,6 +7,22 @@ const ts = require('typescript');
 
 const root = path.resolve(__dirname, '..');
 
+const loadCompiledUmbraTimeline = () => {
+  const campaign = JSON.parse(fs.readFileSync(path.join(
+    root,
+    'game-config',
+    'campaign.json'
+  ), 'utf8'));
+  const matches = campaign.levels.flatMap((level) => (
+    level.waves.flatMap((wave) => wave.events.filter((event) => (
+      event.kind === 'boss' && event.bossId === 'umbra-needlewing'
+    )))
+  ));
+  assert.equal(matches.length, 1, 'the compiled campaign must contain one Umbra boss');
+  assert.ok(matches[0].timeline, 'the compiled Umbra boss must own its timeline');
+  return matches[0].timeline;
+};
+
 const loadRuntime = () => {
   const cache = new Map();
   const loadFile = (absolutePath) => {
@@ -42,7 +58,8 @@ const loadRuntime = () => {
 
 test('all four Umbra sentences retain a continuous canonical-phone route in every phase', () => {
   const runtime = loadRuntime();
-  const matrix = runtime.buildUmbraNeedlewingSafeRouteMatrix();
+  const timeline = loadCompiledUmbraTimeline();
+  const matrix = runtime.buildUmbraNeedlewingSafeRouteMatrix(timeline);
 
   assert.equal(matrix.length, 12);
   const failures = matrix.filter((entry) => entry.proof.status !== 'proven');
@@ -79,6 +96,7 @@ test('all four Umbra sentences retain a continuous canonical-phone route in ever
 test('Umbra proof is deterministic and never reads ambient randomness', () => {
   const runtime = loadRuntime();
   const request = {
+    timeline: loadCompiledUmbraTimeline(),
     attackId: runtime.UMBRA_NEEDLEWING_ATTACK_IDS.blackoutAmbush,
     phaseId: runtime.UMBRA_NEEDLEWING_PHASE_IDS.broken
   };
@@ -105,6 +123,7 @@ test('Umbra proof is deterministic and never reads ambient randomness', () => {
 test('proof rejects any viewport that is not the canonical mobile arena', () => {
   const runtime = loadRuntime();
   const result = runtime.proveUmbraNeedlewingSafeRoute({
+    timeline: loadCompiledUmbraTimeline(),
     attackId: runtime.UMBRA_NEEDLEWING_ATTACK_IDS.wingShear,
     phaseId: runtime.UMBRA_NEEDLEWING_PHASE_IDS.survey,
     viewport: {
@@ -120,22 +139,39 @@ test('proof rejects any viewport that is not the canonical mobile arena', () => 
   assert.match(result.detail, /390x844/);
 });
 
-test('proof plan stays aligned with the four current authored Umbra attacks', () => {
+test('proof schedule is derived from the current compiled Umbra timeline', () => {
   const runtime = loadRuntime();
-  const sandboxSource = fs.readFileSync(path.join(
+  const timeline = loadCompiledUmbraTimeline();
+  const proofSource = fs.readFileSync(path.join(
     root,
-    'director',
-    'src',
-    'combat-lab',
-    'sandboxBossPrototypes.ts'
+    'services',
+    'gameplay',
+    'bosses',
+    'UmbraNeedlewingSafeRouteProof.ts'
   ), 'utf8');
 
-  for (const attackId of Object.values(runtime.UMBRA_NEEDLEWING_ATTACK_IDS)) {
-    assert.match(sandboxSource, new RegExp(`id: '${attackId}'`));
-  }
-  for (const phaseId of Object.values(runtime.UMBRA_NEEDLEWING_PHASE_IDS)) {
-    assert.match(sandboxSource, new RegExp(`'${phaseId}'`));
-  }
-  assert.match(sandboxSource, /durationSeconds:\s*20\.8/);
-  assert.match(sandboxSource, /projectileCount:\s*18,\s*sequence:\s*8/);
+  assert.equal(timeline.clips.length, 96);
+  assert.equal(timeline.attacks.length, 4);
+  assert.doesNotMatch(proofSource, /const PLANS|wingPlan\(|ringPlan\(|cornerPlan\(|signaturePlan\(/);
+
+  const attackId = runtime.UMBRA_NEEDLEWING_ATTACK_IDS.orbitGap;
+  const phaseId = runtime.UMBRA_NEEDLEWING_PHASE_IDS.broken;
+  const baseline = runtime.proveUmbraNeedlewingSafeRoute({ timeline, attackId, phaseId });
+  const changedTimeline = structuredClone(timeline);
+  const variant = changedTimeline.attacks
+    .find((attack) => attack.id === attackId)
+    .variants.find((candidate) => candidate.phaseId === phaseId);
+  const firstAction = changedTimeline.clips.find((clip) => clip.id === variant.beatClipIds[0]);
+  const recovery = changedTimeline.clips.find((clip) => clip.id === variant.recoveryClipId);
+  firstAction.parameters.sequence += 7;
+  recovery.durationSeconds += 0.25;
+  const changed = runtime.proveUmbraNeedlewingSafeRoute({
+    timeline: changedTimeline,
+    attackId,
+    phaseId
+  });
+
+  assert.equal(baseline.status, 'proven', baseline.detail);
+  assert.equal(changed.durationFrames, baseline.durationFrames + 15);
+  assert.notEqual(changed.configurationHash, baseline.configurationHash);
 });

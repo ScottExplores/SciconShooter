@@ -8,8 +8,14 @@ import {
 } from './BossSafeRouteProof';
 import {
   resolveBossGapRoute,
-  resolveBossGapRouteDirection
+  resolveBossGapRouteDirection,
+  resolveBossPatternSequence,
+  type BossGapRouteDirectionPolicy
 } from './BossPatternRuntime';
+import {
+  getBossTimelineAttackWindow,
+  resolveBossTimelineAttackVariant
+} from './BossTimelineRuntime';
 import {
   resolveCornerAmbushBeamLock,
   type CornerAmbushBeamLock
@@ -19,6 +25,11 @@ import {
   sampleCornerAmbushRamProgress,
   type CornerAmbushRamLock
 } from './CornerAmbushRamRuntime';
+import type {
+  BossTimelineClip,
+  BossTimelineConfig,
+  BossTimelinePrimitiveId
+} from '../../../game-config/types';
 
 /**
  * Umbra's proof stays boss-owned because two of its four sentences combine
@@ -30,6 +41,9 @@ export const UMBRA_NEEDLEWING_SAFE_ROUTE_FPS = 60;
 export const UMBRA_NEEDLEWING_SAFE_ROUTE_SEED = 0x0b1ac0de;
 export const UMBRA_NEEDLEWING_GEOMETRY_UNCERTAINTY_PIXELS = 3;
 export const UMBRA_NEEDLEWING_REQUIRED_RAW_CLEARANCE_PIXELS = 9;
+export const UMBRA_NEEDLEWING_FORWARD_ARC_CENTER_RADIANS = Math.PI / 2;
+export const UMBRA_NEEDLEWING_FORWARD_ARC_HALF_WIDTH_RADIANS = 1.35;
+export const UMBRA_NEEDLEWING_GAP_HALF_WIDTH_RADIANS = 0.58;
 export const UMBRA_NEEDLEWING_PHONE_VIEWPORT = (
   BOSS_SAFE_ROUTE_BENCHMARK_VIEWPORTS.mobile
 );
@@ -55,7 +69,7 @@ export type UmbraNeedlewingAttackId = (
   typeof UMBRA_NEEDLEWING_ATTACK_IDS[keyof typeof UMBRA_NEEDLEWING_ATTACK_IDS]
 );
 
-type UmbraBeatKind = 'side-barrage' | 'gap-ring' | 'corner-beam' | 'corner-ram';
+type UmbraBeatKind = 'side-barrage' | 'reposition' | 'gap-ring' | 'corner-beam' | 'corner-ram';
 
 interface UmbraBeat {
   readonly id: string;
@@ -64,6 +78,7 @@ interface UmbraBeat {
   readonly fireFrame: number;
   readonly activeFrames: number;
   readonly sequence: number;
+  readonly rotationDirection?: BossGapRouteDirectionPolicy;
   readonly projectileCount?: number;
   readonly side?: 'port' | 'starboard';
 }
@@ -123,6 +138,7 @@ export interface UmbraNeedlewingSafeRouteWitnessPoint extends BossSafeRoutePoint
 export type UmbraNeedlewingSafeRouteFailureReason =
   | 'proven'
   | 'invalid-viewport'
+  | 'invalid-timeline'
   | 'unsupported-attack'
   | 'unsupported-phase'
   | 'route-collision'
@@ -149,6 +165,8 @@ export interface UmbraNeedlewingSafeRouteProof {
 }
 
 export interface UmbraNeedlewingSafeRouteProofRequest {
+  /** The compiled timeline used by the canonical preview/gameplay runtime. */
+  readonly timeline: Readonly<BossTimelineConfig>;
   readonly attackId: UmbraNeedlewingAttackId;
   readonly phaseId: UmbraNeedlewingPhaseId;
   readonly viewport?: Readonly<BossSafeRouteViewport>;
@@ -178,179 +196,177 @@ const fnv1a = (value: string) => {
   return (hash >>> 0).toString(16).padStart(8, '0');
 };
 
-const beat = ({
-  id,
-  kind,
-  offsetSeconds,
-  leadSeconds,
-  actionSeconds,
-  sequence,
-  projectileCount,
-  side
-}: Readonly<{
-  id: string;
-  kind: UmbraBeatKind;
-  offsetSeconds: number;
-  leadSeconds: number;
-  actionSeconds: number;
-  sequence: number;
-  projectileCount?: number;
-  side?: 'port' | 'starboard';
-}>): UmbraBeat => ({
-  id,
-  kind,
-  warningFrame: frame(offsetSeconds),
-  fireFrame: frame(offsetSeconds + leadSeconds),
-  activeFrames: Math.max(1, frame(actionSeconds)),
-  sequence,
-  projectileCount,
-  side
+const UMBRA_BEAT_KIND_BY_PRIMITIVE: Readonly<Partial<
+  Record<BossTimelinePrimitiveId, UmbraBeatKind>
+>> = Object.freeze({
+  'side-barrage': 'side-barrage',
+  'effect-cue': 'reposition',
+  'gap-ring': 'gap-ring',
+  'corner-ambush-beam': 'corner-beam',
+  'corner-ambush-ram': 'corner-ram'
 });
 
-const wingPlan = (
-  phaseId: UmbraNeedlewingPhaseId,
-  offset: number,
-  count: number,
-  action: number
-): UmbraAttackPlan => ({
-  attackId: UMBRA_NEEDLEWING_ATTACK_IDS.wingShear,
-  phaseId,
-  beats: [
-    beat({ id: `${phaseId}-port`, kind: 'side-barrage', offsetSeconds: 0, leadSeconds: 0.8, actionSeconds: action, sequence: 0, projectileCount: count, side: 'port' }),
-    beat({ id: `${phaseId}-starboard`, kind: 'side-barrage', offsetSeconds: offset, leadSeconds: 0.8, actionSeconds: action, sequence: 1, projectileCount: count, side: 'starboard' })
-  ],
-  durationFrames: frame(offset + 0.8 + action + 2.8)
-});
+interface UmbraPlanResolution {
+  readonly plan?: UmbraAttackPlan;
+  readonly reason?: Extract<
+    UmbraNeedlewingSafeRouteFailureReason,
+    'invalid-timeline' | 'unsupported-attack' | 'unsupported-phase'
+  >;
+  readonly detail?: string;
+}
 
-const ringPlan = (
-  phaseId: UmbraNeedlewingPhaseId,
-  offset: number,
-  counts: readonly [number, number],
-  sequences: readonly [number, number],
-  action: number
-): UmbraAttackPlan => ({
-  attackId: UMBRA_NEEDLEWING_ATTACK_IDS.orbitGap,
-  phaseId,
-  beats: [
-    beat({ id: `${phaseId}-ring-a`, kind: 'gap-ring', offsetSeconds: 0, leadSeconds: 0.8, actionSeconds: action, sequence: sequences[0], projectileCount: counts[0] }),
-    beat({ id: `${phaseId}-ring-b`, kind: 'gap-ring', offsetSeconds: offset, leadSeconds: 0.8, actionSeconds: action, sequence: sequences[1], projectileCount: counts[1] })
-  ],
-  durationFrames: frame(offset + 0.8 + action + 4.2)
-});
+const repeatCount = (clip: Readonly<BossTimelineClip>) => Math.max(
+  1,
+  Math.min(8, Math.floor(clip.repeat?.count ?? 1))
+);
 
-const cornerPlan = (
-  phaseId: UmbraNeedlewingPhaseId,
-  offset: number,
-  sequences: readonly [number, number],
-  lead: number,
-  action: number
-): UmbraAttackPlan => ({
-  attackId: UMBRA_NEEDLEWING_ATTACK_IDS.cornerNeedle,
-  phaseId,
-  beats: [
-    beat({ id: `${phaseId}-corner-a`, kind: 'corner-beam', offsetSeconds: 0, leadSeconds: lead, actionSeconds: action, sequence: sequences[0] }),
-    beat({ id: `${phaseId}-corner-b`, kind: 'corner-beam', offsetSeconds: offset, leadSeconds: lead, actionSeconds: action, sequence: sequences[1] })
-  ],
-  durationFrames: frame(offset + lead + action + 1.1)
-});
+const repeatIntervalFrames = (clip: Readonly<BossTimelineClip>) => (
+  clip.repeat ? Math.max(1, frame(clip.repeat.intervalSeconds)) : 0
+);
 
-const signaturePlan = (
-  phaseId: UmbraNeedlewingPhaseId,
-  specifications: readonly Readonly<{
-    id: string;
-    kind: UmbraBeatKind;
-    offset: number;
-    lead: number;
-    action: number;
-    sequence: number;
-    projectileCount?: number;
-    repeatOffset?: number;
-  }>[]
-): UmbraAttackPlan => {
-  const beats = specifications.flatMap((specification) => {
-    const primary = beat({
-      id: `${phaseId}-${specification.id}`,
-      kind: specification.kind,
-      offsetSeconds: specification.offset,
-      leadSeconds: specification.lead,
-      actionSeconds: specification.action,
-      sequence: specification.sequence,
-      projectileCount: specification.projectileCount
-    });
-    return specification.repeatOffset === undefined
-      ? [primary]
-      : [primary, beat({
-          id: `${phaseId}-${specification.id}-repeat`,
-          kind: specification.kind,
-          offsetSeconds: specification.offset + specification.repeatOffset,
-          leadSeconds: specification.lead,
-          actionSeconds: specification.action,
-          sequence: specification.sequence + 1,
-          projectileCount: specification.projectileCount
-        })];
-  });
-  const last = beats.reduce((latest, candidate) => (
-    candidate.fireFrame + candidate.activeFrames > latest.fireFrame + latest.activeFrames
-      ? candidate
-      : latest
-  ));
-  return {
-    attackId: UMBRA_NEEDLEWING_ATTACK_IDS.blackoutAmbush,
-    phaseId,
-    beats,
-    durationFrames: last.fireFrame + last.activeFrames + frame(4.2)
-  };
-};
-
-const PLANS: Readonly<Record<UmbraNeedlewingPhaseId, Readonly<Record<UmbraNeedlewingAttackId, UmbraAttackPlan>>>> = Object.freeze({
-  [UMBRA_NEEDLEWING_PHASE_IDS.survey]: Object.freeze({
-    [UMBRA_NEEDLEWING_ATTACK_IDS.wingShear]: wingPlan(UMBRA_NEEDLEWING_PHASE_IDS.survey, 1.3, 5, 0.35),
-    [UMBRA_NEEDLEWING_ATTACK_IDS.orbitGap]: ringPlan(UMBRA_NEEDLEWING_PHASE_IDS.survey, 1.3, [14, 16], [0, 1], 0.35),
-    [UMBRA_NEEDLEWING_ATTACK_IDS.cornerNeedle]: cornerPlan(UMBRA_NEEDLEWING_PHASE_IDS.survey, 1.55, [0, 1], 0.9, 0.45),
-    [UMBRA_NEEDLEWING_ATTACK_IDS.blackoutAmbush]: signaturePlan(UMBRA_NEEDLEWING_PHASE_IDS.survey, [
-      { id: 'ram', kind: 'corner-ram', offset: 0, lead: 1, action: 0.65, sequence: 1 },
-      { id: 'beam-left', kind: 'corner-beam', offset: 1.85, lead: 0.9, action: 0.45, sequence: 0 },
-      { id: 'beam-right', kind: 'corner-beam', offset: 3.4, lead: 0.9, action: 0.45, sequence: 1 },
-      { id: 'exit-ring', kind: 'gap-ring', offset: 4.95, lead: 0.8, action: 0.4, sequence: 2, projectileCount: 14 }
-    ])
-  }),
-  [UMBRA_NEEDLEWING_PHASE_IDS.hunt]: Object.freeze({
-    [UMBRA_NEEDLEWING_ATTACK_IDS.wingShear]: wingPlan(UMBRA_NEEDLEWING_PHASE_IDS.hunt, 1.15, 6, 0.3),
-    [UMBRA_NEEDLEWING_ATTACK_IDS.orbitGap]: ringPlan(UMBRA_NEEDLEWING_PHASE_IDS.hunt, 1.15, [16, 16], [2, 3], 0.3),
-    [UMBRA_NEEDLEWING_ATTACK_IDS.cornerNeedle]: cornerPlan(UMBRA_NEEDLEWING_PHASE_IDS.hunt, 1.4, [0, 1], 0.85, 0.42),
-    [UMBRA_NEEDLEWING_ATTACK_IDS.blackoutAmbush]: signaturePlan(UMBRA_NEEDLEWING_PHASE_IDS.hunt, [
-      { id: 'ram', kind: 'corner-ram', offset: 0, lead: 0.95, action: 0.58, sequence: 1 },
-      { id: 'beam-left', kind: 'corner-beam', offset: 1.75, lead: 0.85, action: 0.42, sequence: 2 },
-      { id: 'beam-right', kind: 'corner-beam', offset: 3.25, lead: 0.85, action: 0.42, sequence: 3 },
-      { id: 'exit-ring', kind: 'gap-ring', offset: 4.75, lead: 0.8, action: 0.38, sequence: 4, projectileCount: 18, repeatOffset: 1.15 },
-      { id: 'final-beam', kind: 'corner-beam', offset: 7.25, lead: 0.85, action: 0.42, sequence: 5 }
-    ])
-  }),
-  [UMBRA_NEEDLEWING_PHASE_IDS.broken]: Object.freeze({
-    [UMBRA_NEEDLEWING_ATTACK_IDS.wingShear]: wingPlan(UMBRA_NEEDLEWING_PHASE_IDS.broken, 0.95, 7, 0.28),
-    [UMBRA_NEEDLEWING_ATTACK_IDS.orbitGap]: ringPlan(UMBRA_NEEDLEWING_PHASE_IDS.broken, 0.95, [16, 18], [5, 6], 0.28),
-    [UMBRA_NEEDLEWING_ATTACK_IDS.cornerNeedle]: cornerPlan(UMBRA_NEEDLEWING_PHASE_IDS.broken, 1.15, [1, 0], 0.82, 0.38),
-    [UMBRA_NEEDLEWING_ATTACK_IDS.blackoutAmbush]: signaturePlan(UMBRA_NEEDLEWING_PHASE_IDS.broken, [
-      { id: 'beam-right', kind: 'corner-beam', offset: 0, lead: 0.82, action: 0.38, sequence: 3 },
-      { id: 'ram-left', kind: 'corner-ram', offset: 1.4, lead: 0.85, action: 0.5, sequence: 2 },
-      { id: 'beam-left', kind: 'corner-beam', offset: 2.95, lead: 0.82, action: 0.38, sequence: 4 },
-      { id: 'ram-right', kind: 'corner-ram', offset: 4.35, lead: 0.85, action: 0.5, sequence: 3 },
-      { id: 'exit-ring', kind: 'gap-ring', offset: 5.9, lead: 0.8, action: 0.35, sequence: 7, projectileCount: 18, repeatOffset: 1 },
-      { id: 'final-beam', kind: 'corner-beam', offset: 8.2, lead: 0.82, action: 0.38, sequence: 5 },
-      { id: 'collapse-ring', kind: 'gap-ring', offset: 9.55, lead: 0.8, action: 0.35, sequence: 8, projectileCount: 18 }
-    ])
-  })
-});
-
-const resolvePlan = (
+/**
+ * Converts the exact compiled Boss Factory sentence into proof geometry. This
+ * deliberately owns no authored seconds, counts, sequences, or repeat data:
+ * the canonical timeline used by gameplay is the only schedule source.
+ */
+const compileProofPlan = (
+  timeline: Readonly<BossTimelineConfig>,
   attackId: UmbraNeedlewingAttackId,
   phaseId: UmbraNeedlewingPhaseId
-) => PLANS[phaseId]?.[attackId];
+): UmbraAttackPlan => {
+  const resolved = resolveBossTimelineAttackVariant(timeline, attackId, phaseId);
+  const window = getBossTimelineAttackWindow(
+    timeline,
+    attackId,
+    phaseId,
+    UMBRA_NEEDLEWING_SAFE_ROUTE_FPS
+  );
+  if (!resolved || !window) {
+    throw new Error(`${attackId}/${phaseId} has no compiled attack window.`);
+  }
+  const clipsById = new Map(timeline.clips.map((clip) => [clip.id, clip]));
+  const beats: UmbraBeat[] = [];
+
+  for (const clipId of resolved.variant.beatClipIds) {
+    const action = clipsById.get(clipId);
+    if (!action || action.trigger !== 'time' || action.phaseId !== phaseId) {
+      throw new Error(`${clipId} is not a phase-owned time action.`);
+    }
+    const kind = UMBRA_BEAT_KIND_BY_PRIMITIVE[action.primitiveId];
+    if (!kind) {
+      throw new Error(`${clipId} uses unmodeled primitive ${action.primitiveId}.`);
+    }
+    const warning = action.telegraphClipId
+      ? clipsById.get(action.telegraphClipId)
+      : undefined;
+    if (
+      !warning
+      || warning.primitiveId !== 'telegraph'
+      || warning.trigger !== 'time'
+      || warning.phaseId !== phaseId
+    ) {
+      throw new Error(`${clipId} has no matching phase-owned telegraph.`);
+    }
+    const actionRepeats = repeatCount(action);
+    const warningRepeats = repeatCount(warning);
+    if (actionRepeats !== warningRepeats) {
+      throw new Error(`${clipId} action and telegraph repeats do not match.`);
+    }
+    const actionInterval = repeatIntervalFrames(action);
+    const warningInterval = repeatIntervalFrames(warning);
+    if (actionInterval !== warningInterval) {
+      throw new Error(`${clipId} action and telegraph repeat cadence does not match.`);
+    }
+
+    for (let executionIndex = 0; executionIndex < actionRepeats; executionIndex += 1) {
+      const warningFrame = (
+        frame(warning.startSeconds)
+        + executionIndex * warningInterval
+        - window.startFrame
+      );
+      const fireFrame = (
+        frame(action.startSeconds)
+        + executionIndex * actionInterval
+        - window.startFrame
+      );
+      if (warningFrame < 0 || warningFrame >= fireFrame) {
+        throw new Error(`${clipId} execution ${executionIndex + 1} has an invalid warning window.`);
+      }
+      beats.push({
+        id: `${action.id}:${executionIndex}`,
+        kind,
+        warningFrame,
+        fireFrame,
+        activeFrames: Math.max(1, frame(action.durationSeconds)),
+        sequence: resolveBossPatternSequence(action.parameters?.sequence, executionIndex),
+        ...(action.parameters?.rotationDirection
+          ? { rotationDirection: action.parameters.rotationDirection }
+          : {}),
+        ...(action.parameters?.projectileCount !== undefined
+          ? { projectileCount: action.parameters.projectileCount }
+          : {}),
+        ...(action.parameters?.side ? { side: action.parameters.side } : {})
+      });
+    }
+  }
+  if (beats.length === 0) {
+    throw new Error(`${attackId}/${phaseId} has no proofable beats.`);
+  }
+  beats.sort((left, right) => (
+    left.warningFrame - right.warningFrame
+    || left.fireFrame - right.fireFrame
+    || left.id.localeCompare(right.id)
+  ));
+  return Object.freeze({
+    attackId,
+    phaseId,
+    beats: Object.freeze(beats),
+    durationFrames: Math.max(1, window.endFrame - window.startFrame)
+  });
+};
+
+const resolvePlan = (
+  timeline: Readonly<BossTimelineConfig>,
+  attackId: UmbraNeedlewingAttackId,
+  phaseId: UmbraNeedlewingPhaseId
+): UmbraPlanResolution => {
+  const knownPhase = timeline.attacks?.some((attack) => (
+    attack.variants.some((variant) => variant.phaseId === phaseId)
+  )) ?? false;
+  const knownAttack = timeline.attacks?.some((attack) => attack.id === attackId) ?? false;
+  if (!knownPhase) {
+    return {
+      reason: 'unsupported-phase',
+      detail: `The compiled Umbra timeline has no ${phaseId} phase.`
+    };
+  }
+  if (!knownAttack) {
+    return {
+      reason: 'unsupported-attack',
+      detail: `The compiled Umbra timeline has no ${attackId} attack.`
+    };
+  }
+  try {
+    return { plan: compileProofPlan(timeline, attackId, phaseId) };
+  } catch (error) {
+    return {
+      reason: 'invalid-timeline',
+      detail: error instanceof Error ? error.message : String(error)
+    };
+  }
+};
 
 const bossMetrics = (viewport: Readonly<BossSafeRouteViewport>) => {
   const width = Math.min(Math.round(220 * 1.75), Math.round(viewport.width * 0.82));
   const height = Math.round(width * (320 / 512));
-  return { width, height, core: point(viewport.width / 2, 282) };
+  const core = point(viewport.width / 2, 282);
+  return {
+    width,
+    height,
+    x: core.x - width * 0.5,
+    y: core.y - height * 0.687,
+    core
+  };
 };
 
 const initialPosition = (
@@ -367,7 +383,13 @@ const initialPosition = (
 const sideOrigin = (
   side: 'port' | 'starboard',
   viewport: Readonly<BossSafeRouteViewport>
-) => point(viewport.width * (side === 'port' ? 0.25 : 0.75), 305);
+) => {
+  const metrics = bossMetrics(viewport);
+  return point(
+    metrics.x + metrics.width * (side === 'port' ? 0.365 : 0.635),
+    metrics.y + metrics.height * 0.65
+  );
+};
 
 const lockBeat = (
   beat: Readonly<UmbraBeat>,
@@ -441,11 +463,15 @@ const spawnProjectiles = (
       originX: metrics.core.x,
       originY: metrics.core.y,
       sequence: beat.sequence,
-      direction: resolveBossGapRouteDirection(undefined, beat.sequence)
+      direction: resolveBossGapRouteDirection(beat.rotationDirection, beat.sequence)
     });
-    const gapHalfWidth = 0.5;
+    const arcCenter = UMBRA_NEEDLEWING_FORWARD_ARC_CENTER_RADIANS;
+    const arcHalfWidth = UMBRA_NEEDLEWING_FORWARD_ARC_HALF_WIDTH_RADIANS;
+    const gapHalfWidth = UMBRA_NEEDLEWING_GAP_HALF_WIDTH_RADIANS;
     return Array.from({ length: count }, (_, index): UmbraProjectileHazard[] => {
-      const angle = Math.PI * 2 * index / count;
+      const angle = count === 1
+        ? arcCenter
+        : arcCenter - arcHalfWidth + (2 * arcHalfWidth * index) / (count - 1);
       const gapDistance = Math.abs(Math.atan2(
         Math.sin(angle - route.angleRadians),
         Math.cos(angle - route.angleRadians)
@@ -534,6 +560,111 @@ const hazardClearance = (
   return pointToAabbClearance(hazard, hazard.radius, playerCenter, player);
 };
 
+const resolveProjectileEvasionVelocity = ({
+  x,
+  y,
+  vx,
+  vy,
+  routeTarget,
+  hazards,
+  viewport,
+  player,
+  uncertainty,
+  desiredVx,
+  desiredVy
+}: Readonly<{
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  routeTarget: BossSafeRoutePoint;
+  hazards: readonly UmbraHazard[];
+  viewport: BossSafeRouteViewport;
+  player: BossSafeRoutePlayerProfile;
+  uncertainty: number;
+  desiredVx: number;
+  desiredVy: number;
+}>) => {
+  const nearby = hazards.filter((hazard): hazard is UmbraProjectileHazard => (
+    (hazard.kind === 'needle' || hazard.kind === 'wing-shard')
+    && Math.hypot(hazard.x - x, hazard.y - y) < 340
+  ));
+  if (nearby.length === 0) return point(desiredVx, desiredVy);
+
+  const speed = player.maximumSpeedPerFrame;
+  const diagonal = speed / Math.SQRT2;
+  const candidates = [
+    point(desiredVx, desiredVy),
+    point(speed, 0),
+    point(-speed, 0),
+    point(0, speed),
+    point(0, -speed),
+    point(diagonal, diagonal),
+    point(diagonal, -diagonal),
+    point(-diagonal, diagonal),
+    point(-diagonal, -diagonal)
+  ];
+  const minimumX = player.collisionWidth / 2 + uncertainty;
+  const maximumX = viewport.width - player.collisionWidth / 2 - uncertainty;
+  const minimumY = 410;
+  const maximumY = viewport.height - player.collisionHeight / 2 - uncertainty;
+  // Umbra's needle volleys cross the canonical phone arena in roughly
+  // 65-72 frames. Looking through that full travel window prevents the proof
+  // from choosing a locally clear lane that the already-locked fan later seals.
+  const lookaheadFrames = 90;
+
+  return candidates.reduce((best, candidate) => {
+    let simulatedX = x;
+    let simulatedY = y;
+    let simulatedVx = vx;
+    let simulatedVy = vy;
+    let minimumClearance = Number.POSITIVE_INFINITY;
+    for (let lookahead = 1; lookahead <= lookaheadFrames; lookahead += 1) {
+      simulatedVx = approach(simulatedVx, candidate.x, player.accelerationPerFrame);
+      simulatedVy = approach(simulatedVy, candidate.y, player.accelerationPerFrame);
+      const simulatedSpeed = magnitude(simulatedVx, simulatedVy);
+      if (simulatedSpeed > speed) {
+        simulatedVx = simulatedVx / simulatedSpeed * speed;
+        simulatedVy = simulatedVy / simulatedSpeed * speed;
+      }
+      simulatedX = clamp(simulatedX + simulatedVx, minimumX, maximumX);
+      simulatedY = clamp(simulatedY + simulatedVy, minimumY, maximumY);
+      for (const hazard of nearby) {
+        minimumClearance = Math.min(
+          minimumClearance,
+          pointToAabbClearance(
+            point(
+              hazard.x + hazard.vx * lookahead,
+              hazard.y + hazard.vy * lookahead
+            ),
+            hazard.radius,
+            point(simulatedX, simulatedY),
+            player
+          )
+        );
+      }
+    }
+    const routeDistance = Math.hypot(
+      routeTarget.x - simulatedX,
+      routeTarget.y - simulatedY
+    );
+    const clearsRequiredMargin = minimumClearance
+      >= MINIMUM_PROVEN_BOSS_ROUTE_CLEARANCE_PIXELS;
+    // Once a candidate clears the proof margin, follow the authored escape
+    // destination instead of chasing a few extra pixels of local separation.
+    // Unsafe candidates still rank strictly by their worst projected clearance.
+    const score = clearsRequiredMargin
+      ? 1_000_000 - routeDistance * 10 + Math.min(minimumClearance, 24)
+      : minimumClearance * 1_000 - routeDistance * 0.01;
+    return score > best.score
+      ? { velocity: candidate, score }
+      : best;
+  }, {
+    velocity: point(desiredVx, desiredVy),
+    score: Number.NEGATIVE_INFINITY
+  }).velocity;
+};
+
 const routeTargetForWarning = (
   beat: Readonly<UmbraBeat>,
   lock: Readonly<UmbraBeatLock>,
@@ -546,6 +677,7 @@ const routeTargetForWarning = (
   const maximumX = viewport.width - player.collisionWidth / 2 - uncertainty - 12;
   const minimumY = 430;
   const maximumY = viewport.height - player.collisionHeight / 2 - uncertainty - 12;
+  if (beat.kind === 'reposition') return point(current.x, current.y);
   if (beat.kind === 'gap-ring') {
     const metrics = bossMetrics(viewport);
     const route = resolveBossGapRoute({
@@ -554,7 +686,7 @@ const routeTargetForWarning = (
       originX: metrics.core.x,
       originY: metrics.core.y,
       sequence: beat.sequence,
-      direction: resolveBossGapRouteDirection(undefined, beat.sequence)
+      direction: resolveBossGapRouteDirection(beat.rotationDirection, beat.sequence)
     });
     return point(
       clamp(route.x, minimumX, maximumX),
@@ -599,6 +731,12 @@ const routeTargetForWarning = (
       return candidateClearance > bestClearance ? candidate : best;
     });
   }
+  if (beat.kind === 'side-barrage' && beat.sequence >= 2) {
+    return point(
+      clamp(viewport.width * 0.16, minimumX, maximumX),
+      clamp(viewport.height * 0.55, minimumY, maximumY)
+    );
+  }
   if (beat.kind === 'side-barrage' && beat.side === 'starboard') {
     return point(
       clamp(viewport.width * 0.231, minimumX, maximumX),
@@ -624,7 +762,7 @@ const proofConfigurationHash = (
   player: Readonly<BossSafeRoutePlayerProfile>,
   uncertainty: number
 ) => fnv1a(JSON.stringify({
-  revision: 'umbra-needlewing-route-v1',
+  revision: 'umbra-needlewing-route-v5-compiled-timeline',
   plan,
   viewport,
   seed,
@@ -645,7 +783,8 @@ export const proveUmbraNeedlewingSafeRoute = (
     Number(request.geometryUncertaintyPixels)
       || UMBRA_NEEDLEWING_GEOMETRY_UNCERTAINTY_PIXELS
   );
-  const plan = resolvePlan(request.attackId, request.phaseId);
+  const resolution = resolvePlan(request.timeline, request.attackId, request.phaseId);
+  const plan = resolution.plan;
   const base = {
     attackId: request.attackId,
     phaseId: request.phaseId,
@@ -674,8 +813,8 @@ export const proveUmbraNeedlewingSafeRoute = (
     return {
       ...base,
       status: 'unproven',
-      reason: PLANS[request.phaseId] ? 'unsupported-attack' : 'unsupported-phase',
-      detail: 'No authored Umbra attack plan matches this attack and phase.'
+      reason: resolution.reason ?? 'invalid-timeline',
+      detail: resolution.detail ?? 'The compiled Umbra attack plan could not be resolved.'
     };
   }
 
@@ -701,22 +840,30 @@ export const proveUmbraNeedlewingSafeRoute = (
       if (currentBeat.warningFrame === currentFrame) {
         const lock = lockBeat(currentBeat, point(x, y), viewport);
         locks.set(currentBeat.id, lock);
-        routeTarget = routeTargetForWarning(
-          currentBeat,
-          lock,
-          point(x, y),
-          viewport,
-          player,
-          uncertainty
-        );
+        if (currentBeat.kind !== 'reposition') {
+          routeTarget = routeTargetForWarning(
+            currentBeat,
+            lock,
+            point(x, y),
+            viewport,
+            player,
+            uncertainty
+          );
+        }
       }
       if (currentBeat.fireFrame === currentFrame) {
         const lock = locks.get(currentBeat.id) ?? {};
         hazards.push(...spawnProjectiles(currentBeat, lock, viewport, uncertainty));
+        if (currentBeat.kind === 'side-barrage' && currentBeat.sequence >= 2) {
+          routeTarget = point(
+            clamp(viewport.width * 0.84, minimumX + 12, maximumX - 12),
+            clamp(viewport.height * 0.55, minimumY, maximumY)
+          );
+        }
         if (currentBeat.kind === 'side-barrage' && currentBeat.side === 'starboard') {
           routeTarget = point(
-            clamp(viewport.width * 0.231, minimumX + 12, maximumX - 12),
-            clamp(viewport.height * 0.545, minimumY, maximumY)
+            clamp(viewport.width * 0.26, minimumX + 12, maximumX - 12),
+            clamp(viewport.height * 0.9, minimumY, maximumY)
           );
         }
         if (currentBeat.kind === 'corner-beam' && lock.beam) {
@@ -747,16 +894,31 @@ export const proveUmbraNeedlewingSafeRoute = (
       }
     }
 
-    const desiredVx = clamp(
+    let desiredVx = clamp(
       (routeTarget.x - x) * 0.12,
       -player.maximumSpeedPerFrame,
       player.maximumSpeedPerFrame
     );
-    const desiredVy = clamp(
+    let desiredVy = clamp(
       (routeTarget.y - y) * 0.12,
       -player.maximumSpeedPerFrame,
       player.maximumSpeedPerFrame
     );
+    const evasionVelocity = resolveProjectileEvasionVelocity({
+      x,
+      y,
+      vx,
+      vy,
+      routeTarget,
+      hazards,
+      viewport,
+      player,
+      uncertainty,
+      desiredVx,
+      desiredVy
+    });
+    desiredVx = evasionVelocity.x;
+    desiredVy = evasionVelocity.y;
     vx = approach(vx, desiredVx, player.accelerationPerFrame);
     vy = approach(vy, desiredVy, player.accelerationPerFrame);
     const speed = magnitude(vx, vy);
@@ -862,12 +1024,14 @@ export interface UmbraNeedlewingSafeRouteMatrixEntry {
   readonly proof: UmbraNeedlewingSafeRouteProof;
 }
 
-export const buildUmbraNeedlewingSafeRouteMatrix = () => (
+export const buildUmbraNeedlewingSafeRouteMatrix = (
+  timeline: Readonly<BossTimelineConfig>
+) => (
   Object.values(UMBRA_NEEDLEWING_PHASE_IDS).flatMap((phaseId) => (
     Object.values(UMBRA_NEEDLEWING_ATTACK_IDS).map((attackId) => ({
       attackId,
       phaseId,
-      proof: proveUmbraNeedlewingSafeRoute({ attackId, phaseId })
+      proof: proveUmbraNeedlewingSafeRoute({ timeline, attackId, phaseId })
     }))
   ))
 );

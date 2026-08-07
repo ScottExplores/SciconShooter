@@ -871,34 +871,52 @@ test('four legacy design-board bosses retain three fair phases and serial 90-sec
 const retainedUmbraBeatIds = Object.freeze([
   'sandbox-umbra-survey-port',
   'sandbox-umbra-survey-starboard',
+  'sandbox-umbra-survey-upper-anchor-return',
   'sandbox-umbra-survey-ring-a',
-  'sandbox-umbra-survey-port-return',
   'sandbox-umbra-survey-ring-b',
+  'sandbox-umbra-survey-port-return',
   'sandbox-umbra-survey-starboard-return',
-  'sandbox-umbra-survey-ring-c',
-  'sandbox-umbra-hunt-lower-right-ram',
+  'sandbox-umbra-survey-shadow-dissolve',
+  'sandbox-umbra-survey-lower-left-ram',
+  'sandbox-umbra-survey-lower-right-ram',
+  'sandbox-umbra-survey-upper-anchor-materialize',
+  'sandbox-umbra-hunt-port',
+  'sandbox-umbra-hunt-starboard',
+  'sandbox-umbra-hunt-upper-anchor-return',
+  'sandbox-umbra-hunt-entry-ring',
+  'sandbox-umbra-hunt-ring',
   'sandbox-umbra-hunt-left-corner',
   'sandbox-umbra-hunt-right-corner',
-  'sandbox-umbra-hunt-ring',
-  'sandbox-umbra-hunt-starboard',
-  'sandbox-umbra-hunt-left-corner-return',
-  'sandbox-umbra-hunt-exit-ring',
-  'sandbox-umbra-compass-right-corner',
-  'sandbox-umbra-compass-ring-a',
-  'sandbox-umbra-compass-left-corner',
-  'sandbox-umbra-compass-right-corner-return',
-  'sandbox-umbra-compass-lower-left-ram',
+  'sandbox-umbra-hunt-shadow-dissolve',
+  'sandbox-umbra-hunt-lower-left-ram',
+  'sandbox-umbra-hunt-mid-right-ram',
+  'sandbox-umbra-hunt-lower-right-ram',
+  'sandbox-umbra-hunt-mid-left-ram',
+  'sandbox-umbra-hunt-upper-anchor-materialize',
+  'sandbox-umbra-compass-port',
   'sandbox-umbra-compass-starboard',
-  'sandbox-umbra-compass-ring-b'
+  'sandbox-umbra-compass-upper-anchor-return',
+  'sandbox-umbra-compass-ring-a',
+  'sandbox-umbra-compass-ring-b',
+  'sandbox-umbra-compass-right-corner',
+  'sandbox-umbra-compass-left-corner',
+  'sandbox-umbra-compass-shadow-dissolve',
+  'sandbox-umbra-compass-lower-left-ram',
+  'sandbox-umbra-compass-lower-right-ram',
+  'sandbox-umbra-compass-mid-left-ram',
+  'sandbox-umbra-compass-mid-right-ram',
+  'sandbox-umbra-compass-lower-left-return-ram',
+  'sandbox-umbra-compass-lower-right-return-ram',
+  'sandbox-umbra-compass-upper-anchor-materialize'
 ]);
 
-test('Umbra Needlewing compiles three core attacks and Blackout Ambush in every phase', () => {
+test('Umbra Needlewing compiles three core attacks and Blackout Hunt in every phase', () => {
   const { boss } = getPrototypeBoss('umbra-needlewing');
   assert.deepEqual(
     boss.phases.map((phase) => phase.label),
     ['Wing Survey', 'Blackout Hunt', 'Broken Compass']
   );
-  assert.equal(boss.timeline.durationSeconds, 20.8);
+  assert.equal(boss.timeline.durationSeconds, 24.25);
   assert.equal(boss.timeline.loop, true);
   assert.deepEqual(
     boss.timeline.attacks.map((attack) => attack.id),
@@ -908,7 +926,9 @@ test('Umbra Needlewing compiles three core attacks and Blackout Ambush in every 
     boss.timeline.attacks.map((attack) => attack.role),
     ['core', 'core', 'core', 'signature']
   );
-  assert.equal(boss.timeline.attacks.at(-1).label, 'Blackout Ambush');
+  assert.equal(boss.timeline.attacks[2].label, 'Blackout Laser');
+  assert.equal(boss.timeline.attacks.at(-1).label, 'Blackout Hunt');
+  assert.equal(boss.timeline.attacks[1].label, 'Broken Clockwise Opening');
   boss.timeline.attacks.forEach((attack) => {
     assert.equal(attack.variants.length, 3, `${attack.id} needs one remix per phase`);
     assert.deepEqual(
@@ -919,6 +939,101 @@ test('Umbra Needlewing compiles three core attacks and Blackout Ambush in every 
     assert.ok(attack.solution.length > 0);
     assert.ok(attack.sourceSocketRoles.length > 0);
   });
+
+  const wingShear = boss.timeline.attacks.find((attack) => attack.id === 'wing-shear-crossfire');
+  wingShear.variants.forEach((variant) => {
+    assert.equal(variant.beatClipIds.length, 3, `${variant.phaseId} needs a return beat`);
+    const returnClip = boss.timeline.clips.find(
+      (clip) => clip.id === variant.beatClipIds.at(-1)
+    );
+    assert.match(returnClip.id, /upper-anchor-return$/);
+    assert.equal(returnClip.parameters.motionCue, 'umbra-needle-lattice');
+  });
+
+  const orbitGap = boss.timeline.attacks.find((attack) => attack.id === 'orbit-gap-thread');
+  const expectedSalvos = new Map([
+    ['sandbox-umbra-wing-survey', 5],
+    ['sandbox-umbra-blackout-hunt', 6],
+    ['sandbox-umbra-broken-compass', 8]
+  ]);
+  orbitGap.variants.forEach((variant) => {
+    const salvos = variant.beatClipIds.map((clipId) => (
+      boss.timeline.clips.find((clip) => clip.id === clipId)
+    ));
+    assert.equal(
+      salvos.reduce((count, clip) => count + (clip.repeat?.count ?? 1), 0),
+      expectedSalvos.get(variant.phaseId)
+    );
+    salvos.forEach((clip) => {
+      assert.equal(clip.parameters.motionCue, 'umbra-wing-shard-gate');
+      assert.ok(['clockwise', 'counterclockwise'].includes(clip.parameters.rotationDirection));
+    });
+    assert.deepEqual(
+      [...new Set(salvos.map((clip) => clip.parameters.rotationDirection))],
+      variant.phaseId === 'sandbox-umbra-broken-compass'
+        ? ['clockwise', 'counterclockwise']
+        : ['clockwise']
+    );
+  });
+  const blackoutLaser = boss.timeline.attacks.find(
+    (attack) => attack.id === 'corner-needle-lock'
+  );
+  blackoutLaser.variants.forEach((variant) => {
+    const clips = variant.beatClipIds.map((clipId) => (
+      boss.timeline.clips.find((clip) => clip.id === clipId)
+    ));
+    assert.equal(clips.length, 2, `${variant.phaseId} needs two laser locks`);
+    assert.ok(
+      clips.every((clip) => clip.primitiveId === 'corner-ambush-beam'),
+      `${variant.phaseId} Blackout Laser must stay beam-only`
+    );
+  });
+  const blackoutHunt = boss.timeline.attacks.find(
+    (attack) => attack.id === 'blackout-ambush'
+  );
+  const expectedCharges = new Map([
+    ['sandbox-umbra-wing-survey', 2],
+    ['sandbox-umbra-blackout-hunt', 4],
+    ['sandbox-umbra-broken-compass', 6]
+  ]);
+  blackoutHunt.variants.forEach((variant) => {
+    const clips = variant.beatClipIds.map((clipId) => (
+      boss.timeline.clips.find((clip) => clip.id === clipId)
+    ));
+    const charges = clips.filter((clip) => clip.primitiveId === 'corner-ambush-ram');
+    const transitions = clips.filter((clip) => clip.primitiveId === 'effect-cue');
+    assert.equal(charges.length, expectedCharges.get(variant.phaseId));
+    assert.equal(transitions.length, 2, `${variant.phaseId} needs dissolve and materialize beats`);
+    assert.ok(
+      clips.every((clip) => (
+        clip.primitiveId === 'corner-ambush-ram'
+        || clip.primitiveId === 'effect-cue'
+      )),
+      `${variant.phaseId} Blackout Hunt must not mix in beams or rings`
+    );
+    assert.deepEqual(
+      new Set(charges.map((clip) => clip.parameters.sequence % 4)),
+      variant.phaseId === 'sandbox-umbra-wing-survey'
+        ? new Set([0, 1])
+        : new Set([0, 1, 2, 3])
+    );
+    charges.forEach((clip, index) => {
+      if (index === 0) return;
+      const previous = charges[index - 1];
+      const warning = boss.timeline.clips.find(
+        (candidate) => candidate.id === clip.telegraphClipId
+      );
+      const gapAfterExit = warning.startSeconds
+        - (previous.startSeconds + previous.durationSeconds);
+      assert.ok(gapAfterExit >= -0.000001, `${previous.id} must fully exit first`);
+      assert.ok(gapAfterExit <= 0.101, `${clip.id} warning should follow immediately`);
+    });
+  });
+  assert.equal(
+    boss.timeline.clips.some((clip) => /safe gap|portal track/i.test(clip.label)),
+    false,
+    'player-facing timeline must not compile production debug-guide labels'
+  );
 
   const clipIds = new Set(boss.timeline.clips.map((clip) => clip.id));
   retainedUmbraBeatIds.forEach((clipId) => {
@@ -955,7 +1070,7 @@ test('Umbra Needlewing compiles three core attacks and Blackout Ambush in every 
         0
       );
       assert.ok(
-        expandedBeatCount >= (attack.role === 'signature' ? 4 : 2),
+        expandedBeatCount >= 2,
         `${attack.id}/${phase.id} needs connected beats`
       );
       const recovery = boss.timeline.clips.find((clip) => clip.id === variant.recoveryClipId);

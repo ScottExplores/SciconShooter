@@ -3,7 +3,7 @@
   "artifactType": "boss-reference-lock",
   "bossId": "umbra-needlewing",
   "lockDate": "2026-08-06",
-  "status": "locked-package-built-human-gate-review-pending",
+  "status": "locked-runtime-integrated-human-gate-review-pending",
   "canonicalCompleteReference": {
     "path": "director-data/prototype-assets/umbra-needlewing/umbra-needlewing-reference.png",
     "chromaSourcePath": "director-data/prototype-assets/umbra-needlewing/umbra-needlewing-reference-chroma.png",
@@ -40,8 +40,8 @@
   "referenceRoles": {
     "neutral": "canonicalCompleteReference",
     "chargedPhaseTwo": "core.open plus registered reentry-cycle and transform-driven wing spread",
-    "damaged": "damage.spark on the rooted body with persistent damage treatment pending runtime work",
-    "death": "escape.module plus escape.flame with staged hierarchy cleanup pending runtime work"
+    "damaged": "damage.spark and rooted component reactions are runtime-integrated; human visual review remains pending",
+    "death": "escape.module plus escape.flame and staged hierarchy cleanup are runtime-integrated; human visual review remains pending"
   },
   "neutralComparison": {
     "actualBossSandboxRequired": true,

@@ -106,12 +106,12 @@
     "magentaAndGuidePixelsRemoved": true,
     "transparentEdgesClean": false,
     "alternateFramesEqualCanvasAndRegistered": true,
-    "textureSmoothingDisabled": false,
+    "textureSmoothingDisabled": true,
     "structuralScalingUniform": true,
     "silentUnusedAssetCount": 0,
     "pendingNotes": [
       "Human zoom review must approve generated transparent edges before Gate 1 passes.",
-      "Runtime texture smoothing cannot be verified until integration is authorized."
+      "The shared live-game and Director texture loaders set nearest-neighbor sampling; final gameplay pixel-quality capture remains pending."
     ]
   }
 }

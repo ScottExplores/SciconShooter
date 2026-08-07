@@ -17,7 +17,7 @@ Status: compact modular art and runtime integration are complete, and all 12 att
 - [x] Core, needle, shard, and re-entry animation families use registered equal-canvas groups.
 - [x] Needle `0–3`, shard `0–3`, re-entry `0–3`, reticle, dash trail, damage spark, and escape flame all exist as generated runtime frames.
 - [ ] Human-review every generated component at high zoom for remaining chroma fringe, lost intended magenta effect pixels, palette coherence, and transparent-edge quality.
-- [ ] Confirm runtime texture smoothing will be disabled before integration.
+- [x] Confirm the shared live-game and Director texture loaders use nearest-neighbor sampling for runtime textures.
 - [ ] Record an accepted Gate 1 verdict in `evidence/visual-verification.md`.
 
 ## Gate 2 — Neutral-Pose Match
@@ -43,15 +43,15 @@ Status: compact modular art and runtime integration are complete, and all 12 att
 
 - [x] Map exactly three core attacks and one anatomy-specific signature in `umbra-needlewing.attack-sprite-map.json`.
 - [x] Map each attack to moving parts, registered animations, named sockets, anatomy telegraph, connected beats, recoil, recovery, and five reserved capture paths.
-- [x] Make Blackout Ambush depend on Umbra's eight-wing fold, re-entry frames, dash trail, and open core rather than a transferable generic bullet pattern.
+- [x] Make Blackout Hunt depend on Umbra's eight-wing fold, re-entry frames, dash trail, and physical two/four/six-ram sequence rather than a transferable generic bullet pattern.
 - [ ] Verify every damaging beat leaves the named moving socket and follows visible sprite anatomy in actual runtime.
 - [ ] Verify telegraphs lock before damage and no hidden part emits collision.
 - [ ] Record the accepted Gate 4 verdict and captures.
 
 ## Gate 5 — Actual Gameplay Review
 
-- [ ] Run all three core attacks and Blackout Ambush individually at mobile `390 × 844`.
-- [ ] Repeat visual review in the desktop host without treating a different desktop arena geometry as acceptance proof.
+- [ ] Run Wing Shear Crossfire, Broken Clockwise Opening, Blackout Laser, and Blackout Hunt individually at mobile `390 × 844`.
+- [ ] Repeat visual review in the wide letterboxed host while preserving the same canonical mobile arena geometry.
 - [ ] Capture preparation, telegraph, first beat, peak danger, and recovery for every attack.
 - [ ] Capture a clean mobile gameplay frame with all developer overlays disabled.
 - [ ] Confirm attack/beat/state text, prediction lines, socket markers, bounds, hitboxes, and debug guides are absent.
@@ -60,7 +60,7 @@ Status: compact modular art and runtime integration are complete, and all 12 att
 ## Deterministic safety and release
 
 - [x] Replay fixed seed `0x0b1ac0de` against all 12 attack-by-phase configuration hashes recorded in `evidence/umbra-needlewing-safe-route-evidence.json`.
-- [x] Prove every core/signature phase route keeps at least 6 px clearance after 3 px geometry uncertainty; the current minimum is `21.261279178038116 px` after uncertainty.
+- [x] Prove every core/signature phase route keeps at least 6 px clearance after 3 px geometry uncertainty; the current minimum is `6.075921547 px` after uncertainty.
 - [ ] Verify spawn/reset/replay/loop/state controls remove every Umbra-owned projectile, warning, trail, collision, and VFX object.
-- [ ] Re-run focused checks, Director/root typechecks, production build/exclusion, Runner parity, and any requested private deployment only after integration is authorized.
+- [ ] Re-run focused checks, Director/root typechecks, production build/exclusion, Runner parity, and any requested private deployment before release after the visual capture package is complete.
 - [ ] Release the one-boss lock only after all five gates pass or the user explicitly accepts documented exceptions.

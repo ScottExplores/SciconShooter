@@ -3,7 +3,11 @@ export const CORNER_AMBUSH_RAM_MAX_WARNING_SECONDS = 2.5;
 export const CORNER_AMBUSH_RAM_MIN_LIVE_SECONDS = 0.45;
 export const CORNER_AMBUSH_RAM_MAX_LIVE_SECONDS = 1.4;
 
-export type CornerAmbushRamSide = 'lower-left' | 'lower-right';
+export type CornerAmbushRamSide =
+  | 'lower-left'
+  | 'lower-right'
+  | 'mid-left'
+  | 'mid-right';
 
 export interface CornerAmbushRamLock {
   side: CornerAmbushRamSide;
@@ -33,9 +37,12 @@ const clamp = (value: number, minimum: number, maximum: number) => (
 );
 
 export const resolveCornerAmbushRamSide = (sequence: number): CornerAmbushRamSide => (
-  Math.abs(Math.floor(Number.isFinite(sequence) ? sequence : 0)) % 2 === 0
-    ? 'lower-left'
-    : 'lower-right'
+  ([
+    'lower-left',
+    'lower-right',
+    'mid-left',
+    'mid-right'
+  ] as const)[Math.abs(Math.floor(Number.isFinite(sequence) ? sequence : 0)) % 4]
 );
 
 /**
@@ -52,18 +59,26 @@ export const resolveCornerAmbushRamLock = (
   const bossHeight = clamp(Number(input.bossHeight) || 1, 1, arenaHeight);
   const sequence = Math.max(0, Math.floor(Number(input.sequence) || 0));
   const side = resolveCornerAmbushRamSide(sequence);
+  const leftEntry = side === 'lower-left' || side === 'mid-left';
+  const middleEntry = side === 'mid-left' || side === 'mid-right';
   const sideMargin = Math.max(input.mobileProfile ? 8 : 18, arenaWidth * 0.025);
-  const startX = side === 'lower-left'
+  const startX = leftEntry
     ? sideMargin
     : Math.max(sideMargin, arenaWidth - bossWidth - sideMargin);
-  const startY = clamp(
-    Math.max(
-      arenaHeight * 0.62,
-      arenaHeight - bossHeight * (input.mobileProfile ? 0.72 : 0.78)
-    ),
-    0,
-    Math.max(0, arenaHeight - bossHeight)
-  );
+  const startY = middleEntry
+    ? clamp(
+        arenaHeight * (input.mobileProfile ? 0.48 : 0.44) - bossHeight / 2,
+        sideMargin,
+        Math.max(sideMargin, arenaHeight - bossHeight - sideMargin)
+      )
+    : clamp(
+        Math.max(
+          arenaHeight * 0.62,
+          arenaHeight - bossHeight * (input.mobileProfile ? 0.72 : 0.78)
+        ),
+        0,
+        Math.max(0, arenaHeight - bossHeight)
+      );
   const targetMargin = Math.max(input.mobileProfile ? 28 : 42, arenaWidth * 0.045);
   const targetX = clamp(
     Number(input.playerCenterX) || arenaWidth / 2,

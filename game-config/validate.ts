@@ -2359,10 +2359,13 @@ const validateBossTimeline = (
               if (
                 typeof beat.primitiveId !== 'string'
                 || !Object.prototype.hasOwnProperty.call(BOSS_TIMELINE_PRIMITIVES, beat.primitiveId)
-                || !isDamagingBossTimelinePrimitive(beat.primitiveId as keyof typeof BOSS_TIMELINE_PRIMITIVES)
+                || (
+                  !isDamagingBossTimelinePrimitive(beat.primitiveId as keyof typeof BOSS_TIMELINE_PRIMITIVES)
+                  && beat.primitiveId !== 'effect-cue'
+                )
                 || beat.trigger !== 'time'
               ) {
-                pushIssue(issues, beatPath, 'invalid_reference', 'Attack beats must reference damaging time-based clips');
+                pushIssue(issues, beatPath, 'invalid_reference', 'Attack beats must reference damaging clips or time-based effect-cue transitions');
               }
               if (beat.phaseId !== phaseId) {
                 pushIssue(issues, beatPath, 'invalid_reference', 'Attack beats must belong to the variant phase');

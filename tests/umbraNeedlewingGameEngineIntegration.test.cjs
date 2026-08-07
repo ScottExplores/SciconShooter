@@ -142,6 +142,76 @@ const createOverlappingPlayerShot = (engine, boss, damage = 10) => {
   return shot;
 };
 
+const getUpperCombatAnchor = (engine, boss) => ({
+  x: Math.max(
+    10,
+    Math.min(
+      (engine.width - boss.width) / 2,
+      Math.max(10, engine.width - boss.width - 10)
+    )
+  ),
+  y: Math.max(
+    0,
+    Math.min(
+      Math.max(72, Math.min(engine.height * 0.13, 116)),
+      Math.max(0, engine.height - boss.height)
+    )
+  )
+});
+
+const seedUmbraInterruptRuntime = (engine, boss) => {
+  engine.beginUmbraVanishReentry(boss, 60, 18, 610, 205, 730);
+  boss.bossActionPresentation = {
+    primitiveId: 'corner-ambush-ram',
+    stage: 'fire',
+    motionCue: 'umbra-blackout-ambush'
+  };
+  boss.bossCornerAmbushBeamState = { actionClipId: 'stale-beam' };
+  boss.bossCornerAmbushRamState = { actionClipId: 'stale-ram' };
+  boss.bossUmbraBlackoutHuntActive = true;
+  boss.bossPresentationBankRadians = 0.9;
+  boss.isCharging = true;
+  boss.x = -boss.width - 40;
+  boss.y = engine.height + 40;
+  boss.vx = 12;
+  boss.vy = -9;
+
+  const hazard = engine.createEntity('PROJECTILE', 100, 300);
+  hazard.bossOwnerId = boss.id;
+  hazard.damage = 9;
+  hazard.isPlayerShot = false;
+  engine.entities.push(hazard);
+  engine.pendingBossStrikes = [{ bossId: boss.id }];
+  engine.pendingEnemyLasers = [{ sourceId: boss.id, telegraphId: 'stale-telegraph' }];
+  return hazard;
+};
+
+const assertUmbraInterruptRuntimeRestored = (engine, boss, staleHazard) => {
+  const anchor = getUpperCombatAnchor(engine, boss);
+  assert.equal(boss.x, anchor.x);
+  assert.equal(boss.y, anchor.y);
+  assert.equal(boss.vx, 0);
+  assert.equal(boss.vy, 0);
+  assert.equal(boss.bossPresentationBankRadians, 0);
+  assert.equal(boss.bossActionPresentation, undefined);
+  assert.equal(boss.bossCornerAmbushBeamState, undefined);
+  assert.equal(boss.bossCornerAmbushRamState, undefined);
+  assert.equal(boss.bossUmbraBlackoutHuntActive, false);
+  assert.equal(boss.bossVanishReentryState, undefined);
+  assert.equal(boss.bossVanishReentryStage, undefined);
+  assert.equal(boss.bossVanishOpacity, 1);
+  assert.equal(boss.isCharging, false);
+  assert.equal(staleHazard.markedForDeletion, true);
+  assert.equal(
+    engine.entities.some((entity) => (
+      !entity.markedForDeletion && entity.bossOwnerId === boss.id && entity.id === staleHazard.id
+    )),
+    false
+  );
+  assert.equal(engine.pendingBossStrikes.some((strike) => strike.bossId === boss.id), false);
+  assert.equal(engine.pendingEnemyLasers.some((laser) => laser.sourceId === boss.id), false);
+};
+
 const advanceVanishLifecycleTo = (engine, boss, desiredStage) => {
   const startFrame = boss.bossVanishReentryState.startFrame;
   const maximumFrame = startFrame + 300;
@@ -233,6 +303,8 @@ test('Blackout Ambush preserves one exact warning lock through vanish and damagi
     loop: false,
     clips: [warning, ram]
   };
+  const warningRings = [];
+  engine.spawnRingEffect = (...args) => warningRings.push(args);
   engine.player.x = 255;
   engine.player.y = 690;
 
@@ -246,6 +318,11 @@ test('Blackout Ambush preserves one exact warning lock through vanish and damagi
   const vanish = boss.bossVanishReentryState;
   assert.ok(warnedRam);
   assert.ok(vanish);
+  assert.deepEqual(
+    warningRings,
+    [],
+    'Blackout Hunt uses the eye lock and silhouette instead of a visible timing circle'
+  );
   assert.deepEqual(
     { x: vanish.lock.reentry.x, y: vanish.lock.reentry.y },
     {
@@ -281,6 +358,335 @@ test('Blackout Ambush preserves one exact warning lock through vanish and damagi
   );
 });
 
+test('Blackout sequence 2 fully exits from a mid-edge lock before hidden upper-anchor rematerialization', () => {
+  const engine = createEngine();
+  const boss = spawnUmbra(engine);
+  const warning = {
+    id: 'umbra-mid-edge-warning',
+    label: 'Mid-edge ambush warning',
+    track: 'presentation',
+    primitiveId: 'telegraph',
+    trigger: 'time',
+    startSeconds: 0,
+    durationSeconds: 0.8,
+    parameters: { telegraphStyle: 'target', motionCue: 'umbra-blackout-ambush' }
+  };
+  const ram = {
+    id: 'umbra-mid-edge-ram',
+    label: 'Mid-edge blackout ram',
+    track: 'attack',
+    primitiveId: 'corner-ambush-ram',
+    trigger: 'time',
+    startSeconds: 0.8,
+    durationSeconds: 0.55,
+    telegraphClipId: warning.id,
+    parameters: { sequence: 2, motionCue: 'umbra-blackout-ambush' }
+  };
+  boss.bossTimeline = { durationSeconds: 3, loop: false, clips: [warning, ram] };
+  engine.player.x = 246;
+  engine.player.y = 690;
+
+  engine.dispatchBossTimelineCue(boss, {
+    clip: warning,
+    executionIndex: 0,
+    timelineFrame: 0
+  }, 3);
+  const warnedLock = { ...boss.bossCornerAmbushRamState.lock };
+  assert.equal(warnedLock.side, 'mid-left');
+  assert.ok(warnedLock.startY < engine.height * 0.55);
+
+  engine.player.x = 22;
+  engine.player.y = 440;
+  const warningLifecycle = boss.bossVanishReentryState;
+  engine.frameCount = warningLifecycle.startFrame + warningLifecycle.durations.totalFrames;
+  engine.updateBossVanishReentry(boss);
+  boss.attackTimer = Math.round(ram.startSeconds * 60);
+  engine.dispatchBossTimelineCue(boss, {
+    clip: ram,
+    executionIndex: 0,
+    timelineFrame: boss.attackTimer
+  }, 3);
+
+  assert.equal(boss.bossCornerAmbushRamState.stage, 'charge');
+  assert.deepEqual(boss.bossCornerAmbushRamState.lock, warnedLock);
+  boss.attackTimer = boss.bossCornerAmbushRamState.endFrame;
+  engine.updateTimelineBossMovement(boss, 0.4);
+
+  assert.equal(boss.x, warnedLock.exitX);
+  assert.equal(boss.y, warnedLock.exitY);
+  assert.ok(
+    boss.x + boss.width < 0
+      || boss.x > engine.width
+      || boss.y + boss.height < 0
+      || boss.y > engine.height,
+    'the complete boss body reaches the warned offscreen exit'
+  );
+  assert.equal(boss.bossCornerAmbushRamState, undefined);
+  assert.equal(boss.bossVanishReentryStage, 'hidden');
+  assert.equal(boss.bossVanishOpacity, 0);
+  assert.equal(engine.isBossCombatInteractive(boss), false);
+
+  advanceVanishLifecycleTo(engine, boss, 'recovery');
+  const anchor = getUpperCombatAnchor(engine, boss);
+  assert.equal(boss.x, anchor.x);
+  assert.equal(boss.y, anchor.y);
+  assert.equal(engine.isBossCombatInteractive(boss), true);
+});
+
+test('Blackout Hunt stays dark between physical rams and clears only at final materialization', () => {
+  const engine = createEngine();
+  const boss = spawnUmbra(engine);
+  const dissolve = {
+    id: 'umbra-hunt-shadow-dissolve',
+    label: 'Blackout Hunt dissolve',
+    track: 'presentation',
+    primitiveId: 'effect-cue',
+    trigger: 'time',
+    startSeconds: 0,
+    durationSeconds: 0.35,
+    parameters: { motionCue: 'umbra-blackout-ambush' }
+  };
+  const materialize = {
+    id: 'umbra-hunt-upper-anchor-materialize',
+    label: 'Blackout Hunt materialization',
+    track: 'presentation',
+    primitiveId: 'effect-cue',
+    trigger: 'time',
+    startSeconds: 4,
+    durationSeconds: 0.35,
+    parameters: { motionCue: 'umbra-blackout-ambush' }
+  };
+
+  engine.dispatchBossTimelineCue(boss, {
+    clip: dissolve,
+    executionIndex: 0,
+    timelineFrame: 0
+  }, 1);
+  assert.equal(boss.bossUmbraBlackoutHuntActive, true);
+
+  boss.bossCornerAmbushRamState = undefined;
+  boss.bossVanishReentryState = undefined;
+  boss.bossVanishReentryStage = undefined;
+  assert.equal(
+    boss.bossUmbraBlackoutHuntActive,
+    true,
+    'the arena remains dark during the purposeful gap before the next ram warning'
+  );
+
+  engine.dispatchBossTimelineCue(boss, {
+    clip: materialize,
+    executionIndex: 0,
+    timelineFrame: 240
+  }, 1);
+  assert.equal(boss.bossUmbraBlackoutHuntActive, false);
+});
+
+test('manual attack, phase jump, restart, and life loss share the Umbra interruption cleanup boundary', () => {
+  const scenarios = [
+    {
+      label: 'manual attack',
+      run(engine, boss) {
+        boss.sourceEventId = fixture.event.id;
+        const weaponId = fixture.event.weapons[0]?.id;
+        assert.ok(weaponId, 'fixture exposes a manual preview weapon');
+        assert.equal(engine.triggerAuthoredBossAttack(weaponId, fixture.event.id), true);
+      }
+    },
+    {
+      label: 'phase jump',
+      run(engine, boss) {
+        boss.sourceEventId = fixture.event.id;
+        assert.equal(
+          engine.jumpToAuthoredBossPhase(fixture.event.phases[0].id, fixture.event.id),
+          true
+        );
+      }
+    },
+    {
+      label: 'restart',
+      run(engine) {
+        engine.restartPreview();
+      }
+    },
+    {
+      label: 'life loss',
+      run(engine) {
+        const livesBefore = engine.lives;
+        const transition = engine.applyPlayerLifeDamage(1);
+        assert.equal(transition.damageApplied, 1);
+        assert.equal(engine.lives, livesBefore - 1);
+      }
+    }
+  ];
+
+  for (const scenario of scenarios) {
+    const engine = createEngine();
+    const boss = spawnUmbra(engine);
+    const staleHazard = seedUmbraInterruptRuntime(engine, boss);
+    scenario.run(engine, boss);
+    assertUmbraInterruptRuntimeRestored(engine, boss, staleHazard);
+    assert.equal(
+      boss.bossCornerAmbushBeamState
+        || boss.bossCornerAmbushRamState
+        || boss.bossVanishReentryState,
+      undefined,
+      `${scenario.label} leaves no stale blackout state`
+    );
+  }
+});
+
+test('Wing Shear posture transition restores the upper combat anchor without a damaging volley', () => {
+  const engine = createEngine();
+  const boss = spawnUmbra(engine);
+  const transitionRings = [];
+  engine.spawnRingEffect = (...args) => transitionRings.push(args);
+  boss.x = engine.width - boss.width;
+  boss.y = engine.height - boss.height;
+  boss.vx = 8;
+  boss.vy = 10;
+  boss.bossPresentationBankRadians = 0.8;
+  const transition = {
+    id: 'umbra-upper-anchor-return',
+    label: 'Upper-anchor return',
+    track: 'presentation',
+    primitiveId: 'effect-cue',
+    trigger: 'time',
+    startSeconds: 0.8,
+    durationSeconds: 0.4,
+    parameters: { motionCue: 'umbra-needle-lattice' }
+  };
+
+  engine.dispatchBossTimelineCue(boss, {
+    clip: transition,
+    executionIndex: 0,
+    timelineFrame: 48
+  }, 1);
+
+  assert.deepEqual({ x: boss.x, y: boss.y }, getUpperCombatAnchor(engine, boss));
+  assert.equal(boss.vx, 0);
+  assert.equal(boss.vy, 0);
+  assert.equal(boss.bossPresentationBankRadians, 0);
+  assert.deepEqual(
+    transitionRings,
+    [],
+    'Umbra transition posture is communicated by its rig rather than a generic effect ring'
+  );
+  assert.equal(
+    engine.entities.some((entity) => (
+      entity.type === 'PROJECTILE'
+      && entity.bossOwnerId === boss.id
+      && entity.damage > 0
+    )),
+    false,
+    'the posture transition itself emits no damaging projectile'
+  );
+});
+
+test('Wing Shear uses animated anatomy instead of production guide lines or attack labels', () => {
+  const engine = createEngine();
+  const boss = spawnUmbra(engine);
+  const warning = {
+    id: 'umbra-wing-shear-warning',
+    label: 'Wing Shear warning',
+    track: 'presentation',
+    primitiveId: 'telegraph',
+    trigger: 'time',
+    startSeconds: 0,
+    durationSeconds: 0.8,
+    parameters: {
+      telegraphStyle: 'lane',
+      motionCue: 'umbra-needle-lattice'
+    }
+  };
+  const action = {
+    id: 'umbra-wing-shear-action',
+    label: 'Wing Shear volley',
+    track: 'attack',
+    primitiveId: 'side-barrage',
+    trigger: 'time',
+    startSeconds: 0.8,
+    durationSeconds: 0.35,
+    telegraphClipId: warning.id,
+    parameters: {
+      projectileCount: 5,
+      side: 'port',
+      motionCue: 'umbra-needle-lattice'
+    }
+  };
+  boss.bossTimeline = { durationSeconds: 2, loop: false, clips: [warning, action] };
+  const floatingLabels = [];
+  const rings = [];
+  engine.spawnFloatingText = (...args) => floatingLabels.push(args[2]);
+  engine.spawnRingEffect = (...args) => rings.push(args);
+
+  engine.dispatchBossTimelineCue(boss, {
+    clip: warning,
+    executionIndex: 0,
+    timelineFrame: 0
+  }, 1);
+
+  assert.equal(
+    engine.entities.some((entity) => entity.isBossSideBarrageGuide),
+    false,
+    'the live warning does not draw a predicted trajectory'
+  );
+  assert.deepEqual(rings, [], 'the live warning does not draw a target ring');
+
+  engine.dispatchBossTimelineCue(boss, {
+    clip: action,
+    executionIndex: 0,
+    timelineFrame: 48
+  }, 1);
+
+  assert.equal(floatingLabels.length, 0, 'normal gameplay does not show an attack-name label');
+  assert.equal(
+    engine.entities.filter((entity) => (
+      entity.bossOwnerId === boss.id
+      && entity.projectileVisualKind === 'boss-umbra-needle'
+    )).length,
+    5,
+    'the visible wing-node animation still owns a complete needle volley'
+  );
+
+  const transitionWarning = {
+    id: 'umbra-return-warning',
+    label: 'Upper-anchor return volley warning',
+    track: 'presentation',
+    primitiveId: 'telegraph',
+    trigger: 'time',
+    startSeconds: 1.2,
+    durationSeconds: 0.8,
+    parameters: {
+      telegraphStyle: 'warning',
+      motionCue: 'umbra-needle-lattice'
+    }
+  };
+  const transitionAction = {
+    id: 'umbra-return-action',
+    label: 'Upper-anchor return volley',
+    track: 'presentation',
+    primitiveId: 'effect-cue',
+    trigger: 'time',
+    startSeconds: 2,
+    durationSeconds: 0.4,
+    telegraphClipId: transitionWarning.id,
+    parameters: { motionCue: 'umbra-needle-lattice' }
+  };
+  boss.bossTimeline = {
+    durationSeconds: 3,
+    loop: false,
+    clips: [transitionWarning, transitionAction]
+  };
+  engine.dispatchBossTimelineCue(boss, {
+    clip: transitionWarning,
+    executionIndex: 0,
+    timelineFrame: 72
+  }, 1);
+
+  assert.deepEqual(rings, [], 'the return posture does not draw a timing circle');
+  assert.deepEqual(floatingLabels, [], 'the return posture does not expose its internal label');
+});
+
 test('Umbra projectiles carry the registered animated needle and wing-shard presentation kinds', () => {
   const engine = createEngine();
   const boss = spawnUmbra(engine);
@@ -309,7 +715,20 @@ test('Umbra projectiles carry the registered animated needle and wing-shard pres
     entity.bossOwnerId === boss.id
     && entity.projectileVisualKind === 'boss-umbra-wing-shard'
   ));
-  assert.ok(shards.length >= 10, 'the gap remains readable while using visible shard art');
+  assert.ok(shards.length >= 6, 'the forward salvo keeps enough visible shard art to read as a wall');
+  assert.ok(shards.length < 16, 'the forward salvo preserves a real missing lane');
+  assert.ok(
+    shards.every((projectile) => projectile.vy > 0),
+    'Umbra wing shards travel toward the player half of the phone arena'
+  );
+  const forwardAngles = shards
+    .map((projectile) => Math.atan2(projectile.vy, projectile.vx))
+    .sort((left, right) => left - right);
+  const largestOpening = forwardAngles.slice(1).reduce(
+    (largest, angle, index) => Math.max(largest, angle - forwardAngles[index]),
+    0
+  );
+  assert.ok(largestOpening >= 0.58, 'the rotating opening remains physically navigable');
 });
 
 test('terminal escape cleans owned hazards, grants one escape reward, and produces an escaped summary', () => {

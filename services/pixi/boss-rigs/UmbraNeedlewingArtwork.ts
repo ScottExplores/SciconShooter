@@ -30,22 +30,12 @@ export const UMBRA_NEEDLEWING_ATLAS_SHA256 =
 export const UMBRA_NEEDLEWING_REFERENCE_SHA256 =
   '2db71f4a183415e9851be2363b2224b8d7912e272922b55c7cfb8c1043e0ac21';
 
-const assetUrl = (hash: string, variant: string) => (
-  `/__director/api/v1/prototype-assets/umbra-needlewing/${hash}/${variant}.png`
-);
-
-export const UMBRA_NEEDLEWING_NEUTRAL_URL = assetUrl(
-  UMBRA_NEEDLEWING_NEUTRAL_SHA256,
-  'assembled'
-);
-export const UMBRA_NEEDLEWING_ATLAS_URL = assetUrl(
-  UMBRA_NEEDLEWING_ATLAS_SHA256,
-  'sheet'
-);
-export const UMBRA_NEEDLEWING_REFERENCE_URL = assetUrl(
-  UMBRA_NEEDLEWING_REFERENCE_SHA256,
-  'reference'
-);
+export const UMBRA_NEEDLEWING_NEUTRAL_URL =
+  `/__director/api/v1/prototype-assets/umbra-needlewing/${UMBRA_NEEDLEWING_NEUTRAL_SHA256}/assembled.png`;
+export const UMBRA_NEEDLEWING_ATLAS_URL =
+  `/__director/api/v1/prototype-assets/umbra-needlewing/${UMBRA_NEEDLEWING_ATLAS_SHA256}/sheet.png`;
+export const UMBRA_NEEDLEWING_REFERENCE_URL =
+  `/__director/api/v1/prototype-assets/umbra-needlewing/${UMBRA_NEEDLEWING_REFERENCE_SHA256}/reference.png`;
 
 export const UMBRA_NEEDLEWING_NEUTRAL_SIZE = Object.freeze({
   width: 512,

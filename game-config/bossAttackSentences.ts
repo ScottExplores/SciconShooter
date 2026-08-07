@@ -24,10 +24,12 @@ export type BossAttackDamagingPrimitiveId = Exclude<
   | 'camera-cue'
 >;
 
+export type BossAttackBeatPrimitiveId = BossAttackDamagingPrimitiveId | 'effect-cue';
+
 export interface BossAttackBeatBlueprint {
   readonly id: string;
   readonly label: string;
-  readonly primitiveId: BossAttackDamagingPrimitiveId;
+  readonly primitiveId: BossAttackBeatPrimitiveId;
   /** Seconds after the attack sentence begins. */
   readonly offsetSeconds: number;
   readonly telegraphStyle: BossTimelineTelegraphStyle;
@@ -131,11 +133,14 @@ const compileBeat = (
 ): readonly [BossTimelineClip, BossTimelineClip] => {
   safeId(beat.id, `${attack.id} beat ID`);
   text(beat.label, `${attack.id}/${beat.id} label`, 100);
+  const presentationTransition = beat.primitiveId === 'effect-cue';
   if (
     !Object.prototype.hasOwnProperty.call(BOSS_TIMELINE_PRIMITIVES, beat.primitiveId)
-    || !isDamagingBossTimelinePrimitive(beat.primitiveId)
+    || (!isDamagingBossTimelinePrimitive(beat.primitiveId) && !presentationTransition)
   ) {
-    throw new Error(`${attack.id}/${beat.id} must use a damaging Boss Factory primitive.`);
+    throw new Error(
+      `${attack.id}/${beat.id} must use a damaging Boss Factory primitive or an effect-cue transition.`
+    );
   }
   if (!['warning', 'lane', 'target', 'ring', 'spokes'].includes(beat.telegraphStyle)) {
     throw new Error(`${attack.id}/${beat.id} uses an unsupported telegraph style.`);

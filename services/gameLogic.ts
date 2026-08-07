@@ -393,6 +393,7 @@ import {
   createBossVanishReentryRuntimeState,
   resolveBossVanishReentryLock,
   sampleBossVanishReentryRuntime,
+  type BossVanishReentryDurationInput,
   type BossVanishReentryRuntimeState,
   type BossVanishReentryStage
 } from './gameplay/bosses/BossVanishReentryRuntime';
@@ -480,8 +481,13 @@ export type BossComponentState = {
 };
 export type BossCornerAmbushBeamState = {
   actionClipId: string;
+  sequence: number;
+  warningStartFrame: number;
+  trackingUntilFrame: number;
+  warningEndFrame: number;
   holdUntilFrame: number;
   lock: CornerAmbushBeamLock;
+  telegraphId: string;
 };
 export type BossCornerAmbushRamState = {
   actionClipId: string;
@@ -489,6 +495,10 @@ export type BossCornerAmbushRamState = {
   startFrame: number;
   endFrame: number;
   lock: CornerAmbushRamLock;
+};
+type UmbraVanishReentryOptions = {
+  durations?: BossVanishReentryDurationInput;
+  startHidden?: boolean;
 };
 export type BossTrackingPincerState = {
   actionClipId: string;
@@ -757,6 +767,7 @@ export class Entity {
   bossTimelinePhaseId?: string;
   bossTimelineLastPhaseId?: string;
   bossActionPresentation?: BossActionPresentationState;
+  bossUmbraBlackoutHuntActive: boolean = false;
   bossRevival?: BossRevivalConfig;
   bossRevivalRuntime?: BossRevivalRuntimeState;
   bossRevivalStage?: BossRevivalStage;
@@ -1383,6 +1394,9 @@ const ELITE_EXTRA_LIFE_DROP_CHANCE = 0.007;
 const MINI_BOSS_BOMB_REWARD_CHANCE = 0.28;
 const BOMB_DAMAGE_BOSS = 14;
 const BOMB_DAMAGE_MINI_BOSS = 18;
+const UMBRA_FORWARD_ARC_CENTER_RADIANS = Math.PI / 2;
+const UMBRA_FORWARD_ARC_HALF_WIDTH_RADIANS = 1.35;
+const UMBRA_FORWARD_ARC_GAP_HALF_WIDTH_RADIANS = 0.58;
 const BOMB_DAMAGE_INVADER = 3;
 const WAVE_ONE_GATEKEEPER_START_INTERVAL_MULTIPLIER = 1.45;
 const WAVE_ONE_GATEKEEPER_MAX_SPEED_HEALTH_RATIO = 0.35;
@@ -3382,6 +3396,9 @@ export class GameEngine {
     const removedEntityIds = new Set<string>();
     for (const entity of this.entities) {
       if (entity.sourceEventId !== eventId) continue;
+      if (this.isUmbraNeedlewing(entity)) {
+        this.restoreUmbraCombatRuntime(entity, true, true);
+      }
       removedEntityIds.add(entity.id);
       entity.markedForDeletion = true;
     }
@@ -3575,7 +3592,9 @@ export class GameEngine {
     this.compactEntities();
 
     for (const boss of bosses) {
-      this.clearPrismMothRuntime(boss);
+      if (!this.restoreUmbraCombatRuntime(boss, true, true)) {
+        this.clearPrismMothRuntime(boss);
+      }
       let targetHealthRatio = clamp(authoredPhase.triggerHealthRatio, 0.0001, 1);
       if (boss.type === EntityType.BOSS && event.revival && revivalPhaseIndex > 0) {
         boss.bossRevival = { ...event.revival };
@@ -3633,6 +3652,7 @@ export class GameEngine {
       }
       this.applyConfiguredBossPhase(boss);
     }
+    this.compactEntities();
     this.refreshLoadState();
     return bosses.every((boss) => boss.activeBossPhaseId === phaseId);
   }
@@ -3646,9 +3666,11 @@ export class GameEngine {
     ));
     if (bosses.length === 0) return false;
     for (const boss of bosses) {
-      this.clearBossOwnedHazards(boss);
-      boss.bossActionPresentation = undefined;
-      boss.isCharging = false;
+      if (!this.restoreUmbraCombatRuntime(boss)) {
+        this.clearBossOwnedHazards(boss);
+        boss.bossActionPresentation = undefined;
+        boss.isCharging = false;
+      }
     }
     this.compactEntities();
     return true;
@@ -3668,7 +3690,9 @@ export class GameEngine {
     );
     if (loopFrame === boss.attackTimer) return;
 
-    this.clearPrismMothRuntime(boss);
+    if (!this.restoreUmbraCombatRuntime(boss)) {
+      this.clearPrismMothRuntime(boss);
+    }
 
     this.pendingBossStrikes = this.pendingBossStrikes.filter(
       (strike) => strike.bossId !== boss.id
@@ -3706,6 +3730,7 @@ export class GameEngine {
     boss.bossHeliosCornerClampState = undefined;
     boss.bossHeliosMachineGunChannelState = undefined;
     boss.bossActionPresentation = undefined;
+    boss.bossUmbraBlackoutHuntActive = false;
     boss.isCharging = false;
     boss.attackTimer = loopFrame;
   }
@@ -4560,7 +4585,11 @@ export class GameEngine {
     this.gameplayRandom = createGameplayRandom(this.gameplayRandomSeed);
     this.entities
       .filter((entity) => entity.type === EntityType.BOSS)
-      .forEach((boss) => this.clearBossTimelineActionLocks(boss));
+      .forEach((boss) => {
+        if (!this.restoreUmbraCombatRuntime(boss, true, true)) {
+          this.clearBossTimelineActionLocks(boss);
+        }
+      });
     this.entities = [];
     this.pendingPlayerShots = [];
     this.activePowerups.clear();
@@ -5092,6 +5121,22 @@ export class GameEngine {
     );
     this.syncPlayerLives(transition.lives);
     this.recordPlayerDamage(transition.damageApplied);
+    if (transition.damageApplied > 0) {
+      for (const boss of this.entities) {
+        if (
+          !boss.markedForDeletion
+          && this.isUmbraNeedlewing(boss)
+          && (
+            boss.bossActionPresentation
+            || boss.bossCornerAmbushBeamState
+            || boss.bossCornerAmbushRamState
+            || boss.bossVanishReentryState
+          )
+        ) {
+          this.restoreUmbraCombatRuntime(boss);
+        }
+      }
+    }
     return transition;
   }
 
@@ -5175,6 +5220,9 @@ export class GameEngine {
     this.playerSquashVelocity = 0;
     this.playerDrawAlpha = 1;
     this.playerDrawScale = 1;
+    for (const boss of this.entities) {
+      if (!boss.markedForDeletion) this.restoreUmbraCombatRuntime(boss);
+    }
     this.prepareEntitiesForContinue();
     this.flashAlpha = Math.max(this.flashAlpha, 0.35);
     this.addShake(2.6);
@@ -7971,27 +8019,103 @@ export class GameEngine {
     this.removeBossCornerAmbushBeams(boss);
   }
 
+  private getBossUpperCombatAnchor(boss: Entity) {
+    const targetY = Math.max(72, Math.min(this.height * 0.13, 116));
+    return {
+      x: clamp(
+        (this.width - boss.width) / 2,
+        10,
+        Math.max(10, this.width - boss.width - 10)
+      ),
+      y: clamp(targetY, 0, Math.max(0, this.height - boss.height))
+    };
+  }
+
+  /**
+   * One cancellation boundary for every interruptible Umbra attack. This is
+   * intentionally separate from `clearBossOwnedHazards`: terminal escape uses
+   * that lower-level cleanup without teleporting the boss back into combat.
+   */
+  private restoreUmbraCombatRuntime(
+    boss: Entity,
+    restoreToUpperAnchor: boolean = true,
+    resetTerminalLifecycle: boolean = false
+  ) {
+    if (!this.isUmbraNeedlewing(boss)) return false;
+
+    this.clearBossOwnedHazards(boss);
+    boss.bossMovementPathId = undefined;
+    boss.bossMovementPathStartFrame = -1;
+    boss.bossMovementPathDurationFrames = 0;
+    boss.bossPresentationBankRadians = 0;
+    boss.generatedBossChargeUntilTimer = -1;
+    boss.generatedBossTechniqueTimer = -1;
+    boss.generatedBossTargetX = null;
+    boss.generatedBossTargetY = null;
+    boss.generatedBossTargetSequence = -1;
+    boss.bossActionPresentation = undefined;
+    boss.bossUmbraBlackoutHuntActive = false;
+    boss.isCharging = false;
+    boss.vx = 0;
+    boss.vy = 0;
+
+    if (resetTerminalLifecycle) {
+      boss.bossEscapeState = undefined;
+      boss.bossEscapeStage = undefined;
+      boss.bossEscapeProgress = 0;
+      boss.bossEscapeOpacity = 1;
+      boss.bossEscapeTrailIntensity = 0;
+      boss.bossEscapePoseOffsetX = 0;
+      boss.bossEscapePoseOffsetY = 0;
+      boss.bossEscapePoseRotation = 0;
+      boss.bossEscapePoseScaleX = 1;
+      boss.bossEscapePoseScaleY = 1;
+      boss.bossEscapeConsumed = false;
+      boss.bossSingularityDeathCueDispatched = false;
+    }
+
+    if (restoreToUpperAnchor) {
+      const anchor = this.getBossUpperCombatAnchor(boss);
+      boss.x = anchor.x;
+      boss.y = anchor.y;
+    }
+    return true;
+  }
+
   private beginUmbraVanishReentry(
     boss: Entity,
     warningFrames: number,
     reentryX: number,
     reentryY: number,
     targetX: number,
-    targetY: number
+    targetY: number,
+    options: UmbraVanishReentryOptions = {}
   ) {
     if (!this.isUmbraNeedlewing(boss) || warningFrames < 5) return false;
-    const fadeOutFrames = Math.max(1, Math.floor(warningFrames * 0.16));
-    const hiddenFrames = Math.max(1, Math.floor(warningFrames * 0.18));
-    const reentryWarningFrames = Math.max(1, Math.floor(warningFrames * 0.34));
-    const reappearFrames = Math.max(1, Math.floor(warningFrames * 0.22));
-    const recoveryFrames = Math.max(
+    const fadeOutFrames = Math.max(
       1,
-      warningFrames
-        - fadeOutFrames
-        - hiddenFrames
-        - reentryWarningFrames
-        - reappearFrames
+      Math.floor(options.durations?.fadeOutFrames ?? warningFrames * 0.16)
     );
+    const hiddenFrames = Math.max(
+      1,
+      Math.floor(options.durations?.hiddenFrames ?? warningFrames * 0.18)
+    );
+    const reentryWarningFrames = Math.max(
+      1,
+      Math.floor(options.durations?.reentryWarningFrames ?? warningFrames * 0.34)
+    );
+    const reappearFrames = Math.max(
+      1,
+      Math.floor(options.durations?.reappearFrames ?? warningFrames * 0.22)
+    );
+    const recoveryFrames = Math.max(1, Math.floor(
+      options.durations?.recoveryFrames
+        ?? warningFrames
+          - fadeOutFrames
+          - hiddenFrames
+          - reentryWarningFrames
+          - reappearFrames
+    ));
     const lock = resolveBossVanishReentryLock({
       arenaWidth: this.width,
       arenaHeight: this.height,
@@ -8005,7 +8129,7 @@ export class GameEngine {
       reentryY: reentryY + boss.height / 2
     });
     boss.bossVanishReentryState = createBossVanishReentryRuntimeState({
-      startFrame: this.frameCount,
+      startFrame: this.frameCount - (options.startHidden ? fadeOutFrames : 0),
       lock,
       durations: {
         fadeOutFrames,
@@ -8015,9 +8139,9 @@ export class GameEngine {
         recoveryFrames
       }
     });
-    boss.bossVanishReentryStage = 'fade-out';
+    boss.bossVanishReentryStage = options.startHidden ? 'hidden' : 'fade-out';
     boss.bossVanishReentryProgress = 0;
-    boss.bossVanishOpacity = 1;
+    boss.bossVanishOpacity = options.startHidden ? 0 : 1;
     return true;
   }
 
@@ -10668,7 +10792,9 @@ export class GameEngine {
     if ((boss.bossAttackArchetype || boss.bossTimeline) && transitionedBetweenActivePhases) {
       // A new authored boss phase starts at the beginning of its cue cycle so
       // a damaging technique can never skip its warning.
-      this.clearPrismMothRuntime(boss);
+      if (!this.restoreUmbraCombatRuntime(boss)) {
+        this.clearPrismMothRuntime(boss);
+      }
       boss.attackTimer = 0;
       boss.bossMovementPathId = undefined;
       boss.bossMovementPathStartFrame = -1;
@@ -14012,14 +14138,26 @@ export class GameEngine {
     const gapAngle = darkPulse
       ? sequence * 0.47 + phase * 0.11
       : route.angleRadians;
-    const gapHalfWidth = darkPulse ? 0.29 : this.mobileProfile ? 0.5 : 0.42;
     const speed = Math.min(7.2, Math.max(3.8, Number(boss.projectileSpeed) || 5.2) * 0.72);
     const umbraWingShardGate = (
       boss.bossActionPresentation?.motionCue === 'umbra-wing-shard-gate'
     );
+    const gapHalfWidth = darkPulse
+      ? 0.29
+      : umbraWingShardGate
+        ? UMBRA_FORWARD_ARC_GAP_HALF_WIDTH_RADIANS
+        : this.mobileProfile
+          ? 0.5
+          : 0.42;
 
     for (let index = 0; index < shotCount; index++) {
-      const angle = (Math.PI * 2 * index) / shotCount;
+      const angle = umbraWingShardGate
+        ? shotCount <= 1
+          ? UMBRA_FORWARD_ARC_CENTER_RADIANS
+          : UMBRA_FORWARD_ARC_CENTER_RADIANS
+            - UMBRA_FORWARD_ARC_HALF_WIDTH_RADIANS
+            + (UMBRA_FORWARD_ARC_HALF_WIDTH_RADIANS * 2 * index) / (shotCount - 1)
+        : (Math.PI * 2 * index) / shotCount;
       const firstGapDistance = Math.abs(Math.atan2(
         Math.sin(angle - gapAngle),
         Math.cos(angle - gapAngle)
@@ -14068,7 +14206,7 @@ export class GameEngine {
     this.spawnRingEffect(originX, originY, darkPulse ? '#7c3aed' : '#67e8f9');
     const suppressAuthoredHeliosLabel = this.isSelectedPreviewBoss(boss)
       && boss.bossActionPresentation?.primitiveId === 'reactor-aperture-pattern';
-    if (!suppressAuthoredHeliosLabel) {
+    if (!suppressAuthoredHeliosLabel && !umbraWingShardGate) {
       this.spawnFloatingText(
         originX,
         boss.y + boss.height + 8,
@@ -14352,19 +14490,21 @@ export class GameEngine {
       }
     }
 
-    const labelOrigin = origins[Math.floor((origins.length - 1) / 2)];
-    this.spawnFloatingText(
-      labelOrigin.x,
-      labelOrigin.y + 24,
-      this.getBossActionDisplayLabel(
-        boss,
-        heavyCannon
-          ? `${resolvedSide} heavy cannon`
-          : `${resolvedSide} barrage`
-      ),
-      resolvedSide === 'port' ? '#fda4af' : '#fde68a',
-      15
-    );
+    if (!umbraNeedleLattice) {
+      const labelOrigin = origins[Math.floor((origins.length - 1) / 2)];
+      this.spawnFloatingText(
+        labelOrigin.x,
+        labelOrigin.y + 24,
+        this.getBossActionDisplayLabel(
+          boss,
+          heavyCannon
+            ? `${resolvedSide} heavy cannon`
+            : `${resolvedSide} barrage`
+        ),
+        resolvedSide === 'port' ? '#fda4af' : '#fde68a',
+        15
+      );
+    }
     this.playSound(
       heavyCannon ? 'boss_cannon' : 'boss_shoot',
       heavyCannon ? 1.15 : resolvedSide === 'port' ? 0.92 : 1.06,
@@ -14933,6 +15073,50 @@ export class GameEngine {
     return beam;
   }
 
+  private applyBossCornerAmbushBeamLock(
+    beam: Entity,
+    lock: CornerAmbushBeamLock
+  ) {
+    beam.x = lock.beamCenterX - lock.beamLength / 2;
+    beam.y = lock.beamCenterY - beam.height / 2;
+    beam.width = lock.beamLength;
+    beam.beamAngleRadians = lock.angleRadians;
+    beam.beamOriginX = lock.originX;
+    beam.beamOriginY = lock.originY;
+    beam.beamTargetX = lock.targetX;
+    beam.beamTargetY = lock.targetY;
+  }
+
+  /** Track only during the first part of the warning, then preserve one exact
+   * lane for the dodge window and damaging beam. */
+  private updateBossCornerAmbushBeamTracking(boss: Entity) {
+    const state = boss.bossCornerAmbushBeamState;
+    if (
+      !state
+      || boss.attackTimer >= state.trackingUntilFrame
+      || boss.attackTimer >= state.warningEndFrame
+    ) return;
+
+    const lock = resolveCornerAmbushBeamLock({
+      sequence: state.sequence,
+      arenaWidth: this.width,
+      arenaHeight: this.height,
+      bossWidth: boss.width,
+      bossHeight: boss.height,
+      playerCenterX: this.player.x + this.player.width / 2,
+      playerCenterY: this.player.y + this.player.height / 2,
+      mobileProfile: this.mobileProfile
+    });
+    state.lock = lock;
+    const telegraph = this.entities.find((entity) => (
+      entity.id === state.telegraphId
+      && !entity.markedForDeletion
+      && entity.isCornerAmbushBeam
+      && entity.isTelegraph
+    ));
+    if (telegraph) this.applyBossCornerAmbushBeamLock(telegraph, lock);
+  }
+
   private beginBossCornerAmbushBeamWarning(
     boss: Entity,
     cue: BossTimelineCue,
@@ -14966,20 +15150,50 @@ export class GameEngine {
       CORNER_AMBUSH_BEAM_MAX_LIVE_SECONDS
     );
     const liveFrames = Math.max(1, Math.round(liveSeconds * GAME_CONFIG.FPS));
+    const dodgeWindowFrames = Math.min(
+      Math.max(1, warningFrames - 1),
+      Math.max(12, Math.round(GAME_CONFIG.FPS * 0.32))
+    );
+    const warningStartFrame = boss.attackTimer;
+    const warningEndFrame = warningStartFrame + warningFrames;
 
     this.removeBossCornerAmbushBeams(boss);
+    const telegraph = this.spawnBossCornerAmbushBeamEntity(
+      boss,
+      lock,
+      true,
+      warningFrames
+    );
     boss.bossCornerAmbushBeamState = {
       actionClipId: linkedAction.id,
-      holdUntilFrame: boss.attackTimer + warningFrames + liveFrames,
-      lock
+      sequence,
+      warningStartFrame,
+      trackingUntilFrame: warningEndFrame - dodgeWindowFrames,
+      warningEndFrame,
+      holdUntilFrame: warningEndFrame + liveFrames,
+      lock,
+      telegraphId: telegraph.id
     };
+    const fadeOutFrames = Math.max(4, Math.min(10, Math.floor(warningFrames * 0.18)));
+    const reappearFrames = Math.max(10, Math.round(GAME_CONFIG.FPS * 0.2));
     const vanishing = this.beginUmbraVanishReentry(
       boss,
       warningFrames,
       lock.bossX,
       lock.bossY,
       lock.targetX,
-      lock.targetY
+      lock.targetY,
+      {
+        // Attack 3 is a disembodied locked line: the structural boss remains
+        // hidden through the complete live beam, then rematerializes cleanly.
+        durations: {
+          fadeOutFrames,
+          hiddenFrames: Math.max(1, warningFrames + liveFrames - fadeOutFrames),
+          reentryWarningFrames: 4,
+          reappearFrames,
+          recoveryFrames: 6
+        }
+      }
     );
     if (!vanishing) {
       boss.x = lock.bossX;
@@ -14988,7 +15202,6 @@ export class GameEngine {
     boss.vx = 0;
     boss.vy = 0;
     boss.isCharging = true;
-    this.spawnBossCornerAmbushBeamEntity(boss, lock, true, warningFrames);
     this.playSound('siren', 0.72);
   }
 
@@ -15046,6 +15259,11 @@ export class GameEngine {
         * GAME_CONFIG.FPS
       )
     );
+    const continuingFromHiddenExit = Boolean(boss.bossVanishReentryState)
+      || boss.x + boss.width < 0
+      || boss.x > this.width
+      || boss.y + boss.height < 0
+      || boss.y > this.height;
     boss.bossCornerAmbushBeamState = undefined;
     this.removeBossCornerAmbushBeams(boss);
     boss.bossCornerAmbushRamState = {
@@ -15061,7 +15279,8 @@ export class GameEngine {
       lock.startX,
       lock.startY,
       lock.targetX,
-      lock.targetY
+      lock.targetY,
+      { startHidden: continuingFromHiddenExit }
     );
     if (!vanishing) {
       boss.x = lock.startX;
@@ -15071,7 +15290,9 @@ export class GameEngine {
     boss.vy = 0;
     boss.isCharging = true;
     boss.bossPresentationBankRadians = lock.angleRadians - Math.PI / 2;
-    this.spawnRingEffect(lock.targetX, lock.targetY, '#ef4444');
+    if (!this.isUmbraNeedlewing(boss)) {
+      this.spawnRingEffect(lock.targetX, lock.targetY, '#ef4444');
+    }
     this.playSound('siren', 0.78);
   }
 
@@ -15128,6 +15349,14 @@ export class GameEngine {
       sequence,
       direction
     });
+    if (this.isUmbraNeedlewing(boss)) {
+      // Umbra's authored wing posture is the warning. The moving safe route is
+      // encoded by the missing shard lane itself, so production must not draw
+      // a synthetic guide line, endpoint circle, or SAFE GAP label.
+      boss.isCharging = true;
+      this.playSound('siren', 0.62);
+      return;
+    }
     const warningLeadSeconds = Math.max(
       cue.clip.durationSeconds,
       Number(cue.clip.parameters?.warningSeconds) || 0,
@@ -15236,6 +15465,17 @@ export class GameEngine {
       1,
       Math.round(warningLeadSeconds * GAME_CONFIG.FPS)
     );
+    if (
+      this.isUmbraNeedlewing(boss)
+      && linkedAction.parameters?.motionCue === 'umbra-needle-lattice'
+    ) {
+      // The animated wing-node charge is Umbra's warning. Keep the target and
+      // muzzle locks above, but do not draw a production trajectory or target
+      // marker that solves the dodge for the player.
+      boss.isCharging = true;
+      this.playSound('siren', 0.58);
+      return;
+    }
     origins.forEach((origin, originIndex) => {
       const color = gatlingBarrage
         ? originIndex < (portState?.origins.length ?? 0) ? '#fb7185' : '#facc15'
@@ -19030,6 +19270,20 @@ export class GameEngine {
       linkedAction ?? cue.clip
     );
     if (
+      this.isUmbraNeedlewing(boss)
+      && linkedAction?.primitiveId === 'effect-cue'
+    ) {
+      // Umbra's transition posture, dissolving body, and rematerialization are
+      // their own telegraphs. Generic rings and text would expose internal
+      // authoring beats in normal gameplay.
+      if (linkedAction.id.includes('shadow-dissolve')) {
+        boss.bossUmbraBlackoutHuntActive = true;
+      }
+      boss.isCharging = true;
+      this.playSound('siren', 0.46);
+      return;
+    }
+    if (
       linkedAction
       && this.showSingularityTelegraph(boss, cue, linkedAction)
     ) {
@@ -19462,6 +19716,28 @@ export class GameEngine {
           if (sourceClip) {
             this.setBossActionPresentation(boss, cue, 'recovery', sourceClip);
           }
+          if (
+            !recoveryVariant
+            && this.isUmbraNeedlewing(boss)
+            && parameters?.motionCue === 'umbra-needle-lattice'
+          ) {
+            const anchor = this.getBossUpperCombatAnchor(boss);
+            boss.x = anchor.x;
+            boss.y = anchor.y;
+            boss.vx = 0;
+            boss.vy = 0;
+            boss.bossMovementPathId = undefined;
+            boss.bossMovementPathStartFrame = -1;
+            boss.bossMovementPathDurationFrames = 0;
+            boss.bossPresentationBankRadians = 0;
+          }
+          if (this.isUmbraNeedlewing(boss)) {
+            if (cue.clip.id.includes('shadow-dissolve')) {
+              boss.bossUmbraBlackoutHuntActive = true;
+            } else if (cue.clip.id.includes('upper-anchor-materialize')) {
+              boss.bossUmbraBlackoutHuntActive = false;
+            }
+          }
           boss.isCharging = false;
         }
         if (this.isSandboxPrismMoth(boss)) {
@@ -19474,7 +19750,7 @@ export class GameEngine {
             2.4,
             2
           );
-        } else {
+        } else if (!this.isUmbraNeedlewing(boss)) {
           this.spawnRingEffect(
             boss.x + boss.width / 2,
             boss.y + boss.height / 2,
@@ -19745,6 +20021,7 @@ export class GameEngine {
     }
     getBossTimelineCuesAtFrame(timeline, boss.attackTimer, phaseId, GAME_CONFIG.FPS)
       .forEach((cue) => this.dispatchBossTimelineCue(boss, cue, phase));
+    this.updateBossCornerAmbushBeamTracking(boss);
     if (
       boss.bossActionPresentation?.primitiveId === 'rotor-hazard-sentence'
       && boss.bossActionPresentation.stage === 'fire'
@@ -20045,6 +20322,32 @@ export class GameEngine {
       if (rawProgress < 1) return;
       boss.bossCornerAmbushRamState = undefined;
       boss.bossPresentationBankRadians = 0;
+      boss.isCharging = false;
+      if (this.isUmbraNeedlewing(boss)) {
+        const anchor = this.getBossUpperCombatAnchor(boss);
+        this.beginUmbraVanishReentry(
+          boss,
+          30,
+          anchor.x,
+          anchor.y,
+          this.player.x + this.player.width / 2,
+          this.player.y + this.player.height / 2,
+          {
+            startHidden: true,
+            durations: {
+              fadeOutFrames: 1,
+              hiddenFrames: 8,
+              reentryWarningFrames: 5,
+              reappearFrames: 12,
+              recoveryFrames: 6
+            }
+          }
+        );
+        // The completed charge really leaves the arena. The lifecycle sampler
+        // takes over invisibly below and rematerializes at the upper anchor;
+        // a following authored charge may replace it without a one-frame pop.
+        return;
+      }
     }
     const cornerAmbush = boss.bossCornerAmbushBeamState;
     if (cornerAmbush && boss.attackTimer <= cornerAmbush.holdUntilFrame) {

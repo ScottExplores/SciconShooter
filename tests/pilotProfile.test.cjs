@@ -69,7 +69,10 @@ test('App separates guest-local and authenticated wallet-cloud profiles', () => 
 test('Pilot progress keeps standalone and Campaign settlement paths separate', () => {
   const app = read('App.tsx');
 
-  assert.match(app, /if \(!isCampaignRun && !isNonCompetitiveRun && summary\.bossEncounterId\) \{[\s\S]*recordBossVictory/);
+  assert.match(
+    app,
+    /if \(\s*!isCampaignRun\s*&&\s*!isNonCompetitiveRun\s*&&\s*summary\.bossEncounterId\s*&&\s*summary\.bossTerminalOutcome !== 'escaped'\s*\) \{[\s\S]*recordBossVictory/
+  );
   assert.match(app, /const unsettledLifetimeCampaignEnemies = isCampaignRun/);
   assert.match(app, /if \(isWeeklyLeaderboardRun && squadRunAppliedGameIdRef\.current !== gameId\) \{[\s\S]*applySquadRunResult/);
   assert.doesNotMatch(app, /if \(!isNonCompetitiveRun && squadRunAppliedGameIdRef\.current !== gameId\) \{/);

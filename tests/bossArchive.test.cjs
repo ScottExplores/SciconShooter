@@ -446,11 +446,13 @@ test('production integration unlocks only authored boss victories and keeps repl
 
   assert.match(engine, /bossEncounterId: defeatedMainBoss\?\.id \?\? null/);
   assert.match(engine, /event\.kind === 'boss' && isMajorBossId\(event\.bossId\)/);
-  assert.match(app, /!isNonCompetitiveRun && summary\.bossEncounterId/);
   assert.match(app, /recordBossVictory\(current, summary\.bossEncounterId as string\)/);
   assert.match(app, /pendingLaunch\.runMode === 'boss-archive'/);
   assert.match(app, /if \(isBossArchiveRun\) return null/);
-  assert.match(app, /if \(!isCampaignRun && !isNonCompetitiveRun && summary\.bossEncounterId\)/);
+  assert.match(
+    app,
+    /if \(\s*!isCampaignRun\s*&&\s*!isNonCompetitiveRun\s*&&\s*summary\.bossEncounterId\s*&&\s*summary\.bossTerminalOutcome !== 'escaped'\s*\)/
+  );
   assert.match(app, /campaign:\s*activeBossReplayCampaign\s*\?\?/);
   assert.match(app, /buildBossReplayCampaign\(\s*activeBossEncounterId,\s*activeBossArchiveRun\?\.difficultyId \?\? 'easy'/);
   assert.match(app, /beginBossArchiveFightEconomy\([\s\S]*?difficultyId: bossDifficultyId,[\s\S]*?attemptId: reservedArchiveResultId!/);
