@@ -6,6 +6,7 @@
 - Lock acquired: 2026-08-06 by explicit user transfer
 - Previous/parallel Boss Factory art work stopped: yes; this package is the only authorized Factory editing surface for this task
 - Lock release requires Gate 1–5 pass: yes
+- Lock released: 2026-08-07 after all five gates passed
 
 ## Identity
 
@@ -28,9 +29,9 @@
 ## Locked art contract
 
 - Canonical reference path/hash: `umbra-needlewing-reference.png` / `2db71f4a183415e9851be2363b2224b8d7912e272922b55c7cfb8c1043e0ac21`
-- Neutral/charged/damaged reference roles: neutral is the complete locked pose; charged uses `core.open`, eye overlays, and anatomy motion; damaged uses the integrated `damage.spark` and rooted component reactions, pending human visual acceptance
-- Logical canvas and gameplay display size: `512 × 320` authoring canvas; the live modular runtime preserves this package's uniform scale and short/wide aspect, with final Sandbox overlay acceptance still pending
-- Palette limit: source palette retained; packer removes magenta chroma and forces binary alpha; final palette-count review is pending
+- Neutral/charged/damaged reference roles: neutral is the complete locked pose; charged uses `core.open`, eye overlays, and anatomy motion; damaged uses the integrated `damage.spark` and rooted component reactions. All three roles passed the 2026-08-07 gameplay review.
+- Logical canvas and gameplay display size: `512 × 320` authoring canvas; the live modular runtime preserves uniform scale and the short/wide aspect in the canonical `390 × 844` arena. Phone-width and wide-host overlays passed.
+- Palette limit: source palette retained; the packer removes magenta chroma and forces binary alpha. High-zoom review accepted the coherent pixel-styled palette, hard clusters, and authored dark-purple shadow contour.
 - Structural outline: dark near-black outline, navy armor, silver edges, cyan wing-edge light, red eyes/spine/core
 - Lighting/material: hard pixel clusters with cool metallic highlights and emissive red/cyan accents
 - Required authoritative parts: `body.shell`, `core.closed`, `core.open`, eight authored `wing.*` frames, two authored needle mounts, `needle.launcher`, and `escape.module`
@@ -41,14 +42,14 @@
 ## Required package artifacts
 
 - Canonical complete reference pose: `umbra-needlewing-reference.png`
-- Modular neutral-pose screenshot: `umbra-needlewing-neutral.png` (packer preview complete; actual Sandbox capture pending)
+- Modular neutral-pose screenshot: `umbra-needlewing-neutral.png` plus actual Sandbox `evidence/modular-neutral.png`
 - Asset-usage inventory: `umbra-needlewing.asset-usage.json` plus the template audit bridge `umbra-needlewing.asset-usage-inventory.json`
 - Rig and pivot manifest: `rig.source.json`, generated `umbra-needlewing.rig.json`, and `umbra-needlewing-atlas.json`
 - Attack-to-sprite mapping: `umbra-needlewing.attack-sprite-map.json`
-- Key-pose review contact sheet: rig is integrated; required contact-sheet capture remains pending
-- Mobile gameplay screenshot with debug presentation off: runtime is integrated; clean capture remains pending
-- Visual-verification result: `evidence/visual-verification.md` (starter; gates pending)
-- Per-attack five-capture folder: paths reserved by the attack map; captures pending
+- Key-pose review contact sheet: `evidence/key-pose-contact-sheet.png`
+- Mobile gameplay screenshot with debug presentation off: `evidence/mobile-gameplay.png` and `evidence/phone-gameplay-shell.png`
+- Visual-verification result: `evidence/visual-verification.md` (Gates 1–5 passed)
+- Per-attack five-capture folder: all 20 required captures exist below `evidence/attacks/`
 
 ## Lifecycle
 
@@ -56,7 +57,7 @@
 - Idle: restrained root drift and low-amplitude transform-driven breathing across all eight wing mounts; no frame or scale drift
 - Large hit: local `damage.spark`, brief core recoil, and delayed wing catch-up without whole-body flash spam
 - Stagger: whole hierarchy recoils; outer wings flare while inner wings droop and the core remains readable
-- Persistent damage: late damage stages use the registered `damage.spark` and rooted component reactions; final visual acceptance remains pending
+- Persistent damage: late damage stages use the registered `damage.spark` and rooted component reactions; the phone-scale visual review passed
 - Phase transition: core opens, eye overlays engage, re-entry animation flashes, and wing mounts take a visibly broader pose
 - Destruction: attack sockets disable, wings collapse in rooted order, escape module exposes, and `escape.flame` follows its named thrust sockets
 
@@ -66,18 +67,18 @@
 - Generated neutral visible bounds: `419 × 218`, ratio `1.9220`
 - Ratio delta: approximately `0.87%`; the package preserves the locked short/wide silhouette
 - Readability: four distinct wings are visible on each side; body, segmented red spine, and core remain centered and in front of the wing roots
-- Remaining visual note: the authored left wing crops produce a roughly 10 px left-heavy total envelope on the `512 × 320` preview even though body and bilateral joints are centered. Gate 2 overlay review must decide whether to preserve that authored asymmetry or compensate in runtime presentation.
+- Accepted visual note: the authored left wing crops produce a roughly 10 px left-heavy total envelope on the `512 × 320` preview while the body and bilateral joints remain centered. The 25/50/75% live overlays confirmed that preserving this slight authored asymmetry reads naturally and keeps every joint connected.
 
 ## Verification evidence
 
-- Gate 1 — Reference Lock result: pending human edge/palette review; reference path/hash, source coverage, binary-alpha build, and zero silent-unused-frame checks are complete
-- Gate 2 — Neutral-Pose Match result: packer preview visually tuned; actual Boss Sandbox centered/equal-height opacity comparison pending
-- Gate 3 — Motion-Range Review result: modular rig and deterministic pose runtime are integrated; required contact sheet and human motion review remain pending
-- Gate 4 — Attack-to-Sprite Review result: current moving-socket attack mapping is recorded; actual five-stage capture review remains pending
-- Gate 5 — Actual Gameplay Review result: canonical runtime integration and route replay are complete; clean mobile, phone-width, and wide-host visual captures remain pending
-- Fixed seed and configuration hash: `umbra-needlewing-boss-factory-v1`; generated asset-manifest SHA-256 `3f9ae7b808f0bd1b42934b2fc815bb39a0049a7009a431d22d12660f6b201104`
+- Gate 1 — Reference Lock result: pass; high-zoom edge/palette review, source coverage, binary alpha, nearest sampling, and zero silent-unused-frame checks are complete
+- Gate 2 — Neutral-Pose Match result: pass; actual Sandbox 25/50/75% overlays preserve center, height, short/wide silhouette, core, and eight connected wing roots
+- Gate 3 — Motion-Range Review result: pass; all eight joints have validated ranges and the 11-pose contact sheet shows stable connections, sockets, handedness, and uniform scale
+- Gate 4 — Attack-to-Sprite Review result: pass; all 20 gameplay captures show anatomy-owned telegraphs, damage, recoil, and recovery
+- Gate 5 — Actual Gameplay Review result: pass; canonical mobile, phone-width, wide-host, cleanup, low-health, and terminal escape presentation were reviewed
+- Fixed seed and configuration hash: `umbra-needlewing-boss-factory-v1`; generated asset-manifest SHA-256 `6660fa585e355e7e8463e6087d1f37509fc3112b9d8fad4ad6a5c9e9f6dee506`
 - Canonical mobile route proof: all 12 attack-by-phase witnesses pass at `390 x 844` with fixed seed `0x0b1ac0de`; the minimum is `6.075921547 px` after the standard 3 px uncertainty. The current evidence SHA-256 is `a6d3c97303e7b444c01fe9160e8bd8d0c1f4a40626c8cc6273b4557608c1f427`; full configuration and route hashes are recorded in `evidence/umbra-needlewing-safe-route-evidence.json` and the attack map.
-- Wide-host route geometry: the gameplay arena must remain the same letterboxed `390 x 844` logical viewport; phone-width and wide-host visual confirmation remain pending.
-- Normal gameplay attack text/guide lines absent: runtime presentation policy keeps attack/state text and guides debug-only and off by default; clean capture confirmation remains pending
-- Remaining constraints/blockers: human reference/pixel review, actual Sandbox reference-overlay review, motion contact sheet, five gameplay captures per attack, clean mobile capture, and phone-width/wide-host visual confirmation
-- One-boss lock released: no
+- Wide-host route geometry: phone and wide-host captures preserve the same letterboxed `390 x 844` logical viewport.
+- Normal gameplay attack text/guide lines absent: pass; attack/state text and developer guides remain outside the arena or behind debug toggles that default off.
+- Remaining constraints/blockers: none for the Umbra package.
+- One-boss lock released: yes

@@ -3,7 +3,8 @@
   "artifactType": "boss-reference-lock",
   "bossId": "umbra-needlewing",
   "lockDate": "2026-08-06",
-  "status": "locked-runtime-integrated-human-gate-review-pending",
+  "status": "locked-runtime-integrated-gate-1-passed",
+  "reviewDate": "2026-08-07",
   "canonicalCompleteReference": {
     "path": "director-data/prototype-assets/umbra-needlewing/umbra-needlewing-reference.png",
     "chromaSourcePath": "director-data/prototype-assets/umbra-needlewing/umbra-needlewing-reference-chroma.png",
@@ -40,8 +41,8 @@
   "referenceRoles": {
     "neutral": "canonicalCompleteReference",
     "chargedPhaseTwo": "core.open plus registered reentry-cycle and transform-driven wing spread",
-    "damaged": "damage.spark and rooted component reactions are runtime-integrated; human visual review remains pending",
-    "death": "escape.module plus escape.flame and staged hierarchy cleanup are runtime-integrated; human visual review remains pending"
+    "damaged": "damage.spark and rooted component reactions are runtime-integrated and passed phone-scale visual review",
+    "death": "escape.module plus escape.flame and staged hierarchy cleanup are runtime-integrated and passed terminal-lifecycle visual review"
   },
   "neutralComparison": {
     "actualBossSandboxRequired": true,
@@ -63,11 +64,15 @@
       "layer-order",
       "pixel-density",
       "visual-balance"
+    ],
+    "reviewStatus": "passed-2026-08-07",
+    "evidence": [
+      "evidence/modular-neutral.png",
+      "evidence/reference-overlays/25-percent.png",
+      "evidence/reference-overlays/50-percent.png",
+      "evidence/reference-overlays/75-percent.png"
     ]
   },
-  "gate1Pass": false,
-  "remainingGate1Work": [
-    "Human zoom review of every generated component edge and palette.",
-    "Record the accepted Gate 1 verdict in evidence/visual-verification.md."
-  ]
+  "gate1Pass": true,
+  "remainingGate1Work": []
 }

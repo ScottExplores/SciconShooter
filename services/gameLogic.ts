@@ -19735,7 +19735,12 @@ export class GameEngine {
             if (cue.clip.id.includes('shadow-dissolve')) {
               boss.bossUmbraBlackoutHuntActive = true;
             } else if (cue.clip.id.includes('upper-anchor-materialize')) {
-              boss.bossUmbraBlackoutHuntActive = false;
+              // The authored materialization is the definitive cancellation
+              // boundary for the whole hunt. A completed ram may leave Umbra
+              // beyond a viewport edge, so merely clearing the blackout layer
+              // can reveal an empty arena. Restore the canonical anchor and
+              // remove every transient hunt lock before recovery begins.
+              this.restoreUmbraCombatRuntime(boss);
             }
           }
           boss.isCharging = false;
@@ -19977,6 +19982,14 @@ export class GameEngine {
         && boss.bossFrontierCrownclawState
         && boss.bossActionPresentation?.actionClipId
           === boss.bossFrontierCrownclawState.actionClipId
+      )
+      || (
+        this.isUmbraNeedlewing(boss)
+        && (
+          boss.bossUmbraBlackoutHuntActive
+          || Boolean(boss.bossCornerAmbushRamState)
+          || Boolean(boss.bossVanishReentryState)
+        )
       )
       || this.isSingularityCommander(boss)
     );

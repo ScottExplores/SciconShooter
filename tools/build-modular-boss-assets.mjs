@@ -27,10 +27,33 @@ const ASSET_USAGE_CLASSIFICATIONS = new Set([
   'archived',
   'forbidden'
 ]);
+const RIG_CONTRACT_FIELDS_BEFORE_ID = Object.freeze([
+  'artifactType'
+]);
+const RIG_CONTRACT_FIELDS_AFTER_ID = Object.freeze([
+  'canonicalReference',
+  'coordinateSystem',
+  'sourceIntegrity',
+  'rootPartId',
+  'atlases',
+  'articulationJoints',
+  'collisionParts',
+  'collisionSource',
+  'layerOrderBackToFront',
+  'referenceComparison',
+  'destruction',
+  'unverifiedRigContractFields'
+]);
 
 const sha256 = (value) => createHash('sha256').update(value).digest('hex');
 const stableJson = (value) => `${JSON.stringify(value, null, 2)}\n`;
 const isFiniteNumber = (value) => Number.isFinite(value);
+
+const pickDefinedFields = (source, fieldNames) => Object.fromEntries(
+  fieldNames
+    .filter((fieldName) => Object.hasOwn(source, fieldName))
+    .map((fieldName) => [fieldName, source[fieldName]])
+);
 
 const readJson = async (filePath) => JSON.parse(await readFile(filePath, 'utf8'));
 
@@ -486,6 +509,66 @@ export const validateRigSource = (rig, frameIds, forbiddenIds) => {
       throw new Error(`${animation.id}.fps must be between 0 and 60`);
     }
   }
+
+  if (rig.rootPartId !== undefined && !partIds.has(rig.rootPartId)) {
+    throw new Error(`rig rootPartId references missing part ${rig.rootPartId}`);
+  }
+  for (const [label, referencedPartIds] of Object.entries({
+    collisionParts: rig.collisionParts,
+    layerOrderBackToFront: rig.layerOrderBackToFront
+  })) {
+    if (referencedPartIds === undefined) continue;
+    if (!Array.isArray(referencedPartIds)) {
+      throw new Error(`rig ${label} must be an array`);
+    }
+    for (const partId of referencedPartIds) {
+      if (!partIds.has(partId)) {
+        throw new Error(`rig ${label} references missing part ${partId}`);
+      }
+    }
+  }
+
+  if (rig.articulationJoints !== undefined) {
+    if (!Array.isArray(rig.articulationJoints)) {
+      throw new Error('rig articulationJoints must be an array');
+    }
+    assertUniqueIds(rig.articulationJoints, 'articulation joint');
+    for (const joint of rig.articulationJoints) {
+      if (!partIds.has(joint.partId)) {
+        throw new Error(`${joint.id} references missing joint part ${joint.partId}`);
+      }
+      if (!partIds.has(joint.parentId)) {
+        throw new Error(`${joint.id} references missing joint parent ${joint.parentId}`);
+      }
+      if (!Array.isArray(joint.drivenParts) || joint.drivenParts.length === 0) {
+        throw new Error(`${joint.id}.drivenParts must be a non-empty array`);
+      }
+      for (const partId of joint.drivenParts) {
+        if (!partIds.has(partId)) {
+          throw new Error(`${joint.id} references missing driven part ${partId}`);
+        }
+      }
+      const motionRange = joint.validatedMotionRangeRadians;
+      if (
+        !isFiniteNumber(motionRange?.minimum)
+        || !isFiniteNumber(motionRange?.maximum)
+        || motionRange.minimum > motionRange.maximum
+      ) {
+        throw new Error(
+          `${joint.id}.validatedMotionRangeRadians must contain an ordered finite minimum/maximum`
+        );
+      }
+      if (!isFiniteNumber(joint.requiredOverlapPx) || joint.requiredOverlapPx < 0) {
+        throw new Error(`${joint.id}.requiredOverlapPx must be a non-negative finite number`);
+      }
+    }
+  }
+
+  for (const fragment of rig.destruction?.fragments ?? []) {
+    if (!partIds.has(fragment.partId)) {
+      throw new Error(`rig destruction references missing part ${fragment.partId}`);
+    }
+  }
   return { partIds, socketNames, animationIds };
 };
 
@@ -740,8 +823,10 @@ export const buildModularBossAssets = async ({ layoutPath, rigSourcePath, output
 
   const rig = {
     schemaVersion: 1,
+    ...pickDefinedFields(rigSource, RIG_CONTRACT_FIELDS_BEFORE_ID),
     format: 'modular-hierarchy-v1',
     bossId: layout.bossId,
+    ...pickDefinedFields(rigSource, RIG_CONTRACT_FIELDS_AFTER_ID),
     canvas: rigSource.canvas,
     atlas: {
       file: atlasFile,

@@ -1,7 +1,431 @@
 {
   "schemaVersion": 1,
+  "artifactType": "boss-rig-pivot-manifest",
   "format": "modular-hierarchy-v1",
   "bossId": "umbra-needlewing",
+  "canonicalReference": {
+    "path": "umbra-needlewing-reference.png",
+    "sha256": "2db71f4a183415e9851be2363b2224b8d7912e272922b55c7cfb8c1043e0ac21",
+    "width": 1511,
+    "height": 1041,
+    "neutralLandmarks": [
+      {
+        "id": "umbra-core",
+        "label": "Lower core aperture",
+        "reference": {
+          "xRatio": 0.5,
+          "yRatio": 0.672
+        },
+        "rig": {
+          "kind": "socket",
+          "socketId": "core.emitter"
+        }
+      },
+      {
+        "id": "upper-wing-port",
+        "label": "Upper port wing joint",
+        "reference": {
+          "xRatio": 0.319,
+          "yRatio": 0.368
+        },
+        "rig": {
+          "kind": "socket",
+          "socketId": "wing.port.0.joint"
+        }
+      },
+      {
+        "id": "upper-wing-starboard",
+        "label": "Upper starboard wing joint",
+        "reference": {
+          "xRatio": 0.681,
+          "yRatio": 0.368
+        },
+        "rig": {
+          "kind": "socket",
+          "socketId": "wing.starboard.0.joint"
+        }
+      },
+      {
+        "id": "needle-port",
+        "label": "Port needle muzzle",
+        "reference": {
+          "xRatio": 0.323,
+          "yRatio": 0.576
+        },
+        "rig": {
+          "kind": "socket",
+          "socketId": "needle.port.muzzle"
+        }
+      },
+      {
+        "id": "needle-starboard",
+        "label": "Starboard needle muzzle",
+        "reference": {
+          "xRatio": 0.677,
+          "yRatio": 0.576
+        },
+        "rig": {
+          "kind": "socket",
+          "socketId": "needle.starboard.muzzle"
+        }
+      }
+    ]
+  },
+  "coordinateSystem": {
+    "canvas": {
+      "width": 512,
+      "height": 320
+    },
+    "xAxis": "right",
+    "yAxis": "down",
+    "rotationUnit": "degrees",
+    "rootNeutral": {
+      "x": 256,
+      "y": 156
+    },
+    "runtimeRotationUnit": "radians",
+    "runtimeNormalizer": "services/pixi/boss-rigs/UmbraNeedlewingArtwork.ts"
+  },
+  "sourceIntegrity": {
+    "sourceLayout": {
+      "path": "source-layout.json",
+      "sha256": "ede3dcac21415a37e1cc40f1fda9732d7474e612cff804ab56398a573052a8e0"
+    },
+    "reference": {
+      "path": "umbra-needlewing-reference.png",
+      "sha256": "2db71f4a183415e9851be2363b2224b8d7912e272922b55c7cfb8c1043e0ac21"
+    },
+    "components": {
+      "path": "umbra-needlewing-components.png",
+      "sha256": "79989b7edce63af8529fbaaf3e4eec5b657fb143809a00e5c12d6c339b6f9eb5"
+    },
+    "vfx": {
+      "path": "umbra-needlewing-vfx.png",
+      "sha256": "b215555430f39fbdc939cecaab80ac1a5cc9ba97f34cd7a31b0568859259d9fa"
+    },
+    "atlas": {
+      "path": "umbra-needlewing-atlas.png",
+      "sha256": "c98290efd065277225b9d64bbcf06f23e5013cd29ca9ae501f404c18750321d1"
+    },
+    "atlasMetadata": {
+      "path": "umbra-needlewing-atlas.json",
+      "sha256": "f1a1f3faffd40db2aa8fa0d8b6a206896c6966fa2aa11402d40cce8a699c2969"
+    },
+    "neutralPreview": {
+      "path": "umbra-needlewing-neutral.png",
+      "sha256": "a1635e616add1b99336c366bc51499311f130ce62fbecd8d4a8956e1c9b2aba2"
+    }
+  },
+  "rootPartId": "root",
+  "atlases": [
+    {
+      "id": "primary",
+      "imagePath": "umbra-needlewing-atlas.png",
+      "metadataPath": "umbra-needlewing-atlas.json",
+      "sha256": "c98290efd065277225b9d64bbcf06f23e5013cd29ca9ae501f404c18750321d1",
+      "metadataSha256": "f1a1f3faffd40db2aa8fa0d8b6a206896c6966fa2aa11402d40cce8a699c2969",
+      "width": 2048,
+      "height": 1024
+    }
+  ],
+  "articulationJoints": [
+    {
+      "id": "wing.port.0.joint",
+      "partId": "wing.port.0.mount",
+      "parentId": "root",
+      "role": "moving-wing-joint",
+      "neutralTransform": {
+        "x": -87,
+        "y": -39,
+        "rotationDegrees": 0,
+        "scaleX": 1,
+        "scaleY": 1
+      },
+      "drivenParts": [
+        "wing.port.0"
+      ],
+      "validatedMotionRangeRadians": {
+        "minimum": -0.4,
+        "maximum": 0.6
+      },
+      "requiredOverlapPx": 9
+    },
+    {
+      "id": "wing.starboard.0.joint",
+      "partId": "wing.starboard.0.mount",
+      "parentId": "root",
+      "role": "moving-wing-joint",
+      "neutralTransform": {
+        "x": 87,
+        "y": -39,
+        "rotationDegrees": 0,
+        "scaleX": 1,
+        "scaleY": 1
+      },
+      "drivenParts": [
+        "wing.starboard.0"
+      ],
+      "validatedMotionRangeRadians": {
+        "minimum": -0.6,
+        "maximum": 0.4
+      },
+      "requiredOverlapPx": 9
+    },
+    {
+      "id": "wing.port.1.joint",
+      "partId": "wing.port.1.mount",
+      "parentId": "root",
+      "role": "moving-wing-joint",
+      "neutralTransform": {
+        "x": -99,
+        "y": -5,
+        "rotationDegrees": -5,
+        "scaleX": 1,
+        "scaleY": 1
+      },
+      "drivenParts": [
+        "wing.port.1"
+      ],
+      "validatedMotionRangeRadians": {
+        "minimum": -0.5,
+        "maximum": 0.5
+      },
+      "requiredOverlapPx": 10
+    },
+    {
+      "id": "wing.starboard.1.joint",
+      "partId": "wing.starboard.1.mount",
+      "parentId": "root",
+      "role": "moving-wing-joint",
+      "neutralTransform": {
+        "x": 99,
+        "y": -5,
+        "rotationDegrees": 5,
+        "scaleX": 1,
+        "scaleY": 1
+      },
+      "drivenParts": [
+        "wing.starboard.1"
+      ],
+      "validatedMotionRangeRadians": {
+        "minimum": -0.5,
+        "maximum": 0.5
+      },
+      "requiredOverlapPx": 10
+    },
+    {
+      "id": "wing.port.2.joint",
+      "partId": "wing.port.2.mount",
+      "parentId": "root",
+      "role": "moving-wing-joint",
+      "neutralTransform": {
+        "x": -88,
+        "y": 31,
+        "rotationDegrees": -18,
+        "scaleX": 1,
+        "scaleY": 1
+      },
+      "drivenParts": [
+        "wing.port.2"
+      ],
+      "validatedMotionRangeRadians": {
+        "minimum": -0.75,
+        "maximum": 0.25
+      },
+      "requiredOverlapPx": 10
+    },
+    {
+      "id": "wing.starboard.2.joint",
+      "partId": "wing.starboard.2.mount",
+      "parentId": "root",
+      "role": "moving-wing-joint",
+      "neutralTransform": {
+        "x": 88,
+        "y": 31,
+        "rotationDegrees": 18,
+        "scaleX": 1,
+        "scaleY": 1
+      },
+      "drivenParts": [
+        "wing.starboard.2"
+      ],
+      "validatedMotionRangeRadians": {
+        "minimum": -0.25,
+        "maximum": 0.75
+      },
+      "requiredOverlapPx": 10
+    },
+    {
+      "id": "wing.port.3.joint",
+      "partId": "wing.port.3.mount",
+      "parentId": "root",
+      "role": "moving-wing-joint",
+      "neutralTransform": {
+        "x": -54,
+        "y": 72,
+        "rotationDegrees": -25,
+        "scaleX": 1,
+        "scaleY": 1
+      },
+      "drivenParts": [
+        "wing.port.3"
+      ],
+      "validatedMotionRangeRadians": {
+        "minimum": -0.85,
+        "maximum": 0.1
+      },
+      "requiredOverlapPx": 8
+    },
+    {
+      "id": "wing.starboard.3.joint",
+      "partId": "wing.starboard.3.mount",
+      "parentId": "root",
+      "role": "moving-wing-joint",
+      "neutralTransform": {
+        "x": 54,
+        "y": 72,
+        "rotationDegrees": 25,
+        "scaleX": 1,
+        "scaleY": 1
+      },
+      "drivenParts": [
+        "wing.starboard.3"
+      ],
+      "validatedMotionRangeRadians": {
+        "minimum": -0.1,
+        "maximum": 0.85
+      },
+      "requiredOverlapPx": 8
+    }
+  ],
+  "collisionParts": [
+    "wing.port.0",
+    "wing.starboard.0",
+    "wing.port.1",
+    "wing.starboard.1",
+    "wing.port.2",
+    "wing.starboard.2",
+    "wing.port.3",
+    "wing.starboard.3",
+    "body",
+    "core"
+  ],
+  "collisionSource": "assembled-neutral-alpha-mask",
+  "layerOrderBackToFront": [
+    "vfx.dash-trail",
+    "wing.port.0",
+    "wing.starboard.0",
+    "wing.port.1",
+    "wing.starboard.1",
+    "wing.port.2",
+    "wing.starboard.2",
+    "wing.port.3",
+    "wing.starboard.3",
+    "body",
+    "core",
+    "eye.port",
+    "eye.starboard",
+    "needle.mount.port",
+    "needle.mount.starboard",
+    "vfx.escape-flame",
+    "needle.launcher",
+    "escape.module",
+    "vfx.reticle",
+    "projectile.needle",
+    "projectile.shard",
+    "vfx.reentry",
+    "vfx.damage-spark"
+  ],
+  "referenceComparison": {
+    "sameCenter": true,
+    "sameOverallHeight": true,
+    "adjustableOpacity": true,
+    "requiredLandmarkIds": [
+      "umbra-core",
+      "upper-wing-port",
+      "upper-wing-starboard",
+      "needle-port",
+      "needle-starboard"
+    ],
+    "status": "passed-boss-sandbox-overlay-2026-08-07"
+  },
+  "destruction": {
+    "durationFrames": 108,
+    "runtimeSource": "services/pixi/boss-rigs/UmbraNeedlewingArtwork.ts",
+    "fragments": [
+      {
+        "partId": "wing.port.0",
+        "delayFrames": 0,
+        "travelX": -170,
+        "travelY": 130,
+        "rotationRadians": -2.2
+      },
+      {
+        "partId": "wing.starboard.0",
+        "delayFrames": 0,
+        "travelX": 170,
+        "travelY": 130,
+        "rotationRadians": 2.2
+      },
+      {
+        "partId": "wing.port.1",
+        "delayFrames": 7,
+        "travelX": -148,
+        "travelY": 165,
+        "rotationRadians": -2.5
+      },
+      {
+        "partId": "wing.starboard.1",
+        "delayFrames": 7,
+        "travelX": 148,
+        "travelY": 165,
+        "rotationRadians": 2.5
+      },
+      {
+        "partId": "wing.port.2",
+        "delayFrames": 14,
+        "travelX": -118,
+        "travelY": 196,
+        "rotationRadians": -2.8
+      },
+      {
+        "partId": "wing.starboard.2",
+        "delayFrames": 14,
+        "travelX": 118,
+        "travelY": 196,
+        "rotationRadians": 2.8
+      },
+      {
+        "partId": "wing.port.3",
+        "delayFrames": 20,
+        "travelX": -82,
+        "travelY": 220,
+        "rotationRadians": -2.1
+      },
+      {
+        "partId": "wing.starboard.3",
+        "delayFrames": 20,
+        "travelX": 82,
+        "travelY": 220,
+        "rotationRadians": 2.1
+      },
+      {
+        "partId": "core",
+        "delayFrames": 30,
+        "travelX": 12,
+        "travelY": 160,
+        "rotationRadians": 1.7
+      },
+      {
+        "partId": "body",
+        "delayFrames": 38,
+        "travelX": 0,
+        "travelY": 230,
+        "rotationRadians": -0.42
+      }
+    ]
+  },
+  "unverifiedRigContractFields": [],
   "canvas": {
     "width": 512,
     "height": 320,
@@ -877,7 +1301,7 @@
     }
   },
   "provenance": {
-    "rigSourceSha256": "838e9c493243a70690fbd3cc560686e941bf49b7cd6de8b202169ced1671d820",
+    "rigSourceSha256": "38266d44569f545bb0995cd27efd7378228d96b6c7e7e0930a1ca2820089a3bb",
     "sourceLayoutSha256": "ede3dcac21415a37e1cc40f1fda9732d7474e612cff804ab56398a573052a8e0"
   }
 }

@@ -104,14 +104,15 @@
   "audit": {
     "allAcceptedExportsListed": true,
     "magentaAndGuidePixelsRemoved": true,
-    "transparentEdgesClean": false,
+    "transparentEdgesClean": true,
     "alternateFramesEqualCanvasAndRegistered": true,
     "textureSmoothingDisabled": true,
     "structuralScalingUniform": true,
     "silentUnusedAssetCount": 0,
-    "pendingNotes": [
-      "Human zoom review must approve generated transparent edges before Gate 1 passes.",
-      "The shared live-game and Director texture loaders set nearest-neighbor sampling; final gameplay pixel-quality capture remains pending."
+    "pendingNotes": [],
+    "acceptedNotes": [
+      "2026-08-07 high-zoom review approved the binary-alpha component, VFX, atlas, neutral, and live Sandbox edges. The restrained dark-purple contour is authored shadow color rather than retained chroma fringe.",
+      "The shared live-game and Director texture loaders use nearest-neighbor sampling, and the canonical-phone plus wide-host captures preserve crisp, uniform pixel density."
     ]
   }
 }

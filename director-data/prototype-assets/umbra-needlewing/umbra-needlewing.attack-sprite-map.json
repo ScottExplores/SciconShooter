@@ -3,7 +3,7 @@
   "artifactType": "boss-attack-to-sprite-map",
   "bossId": "umbra-needlewing",
   "fixedSeed": "umbra-needlewing-boss-factory-v1",
-  "implementationStatus": "runtime-integrated-route-proven-captures-pending",
+  "implementationStatus": "runtime-integrated-route-proven-captures-reviewed",
   "requiredCaptureStages": [
     "preparation",
     "telegraph",
@@ -18,6 +18,35 @@
     "debugGuidesVisible": false,
     "debugTogglesDefaultOn": false
   },
+  "projectilePresentation": {
+    "runtimeSource": "services/pixi/boss-rigs/UmbraNeedlewingArtwork.ts",
+    "rotationFormula": "atan2(velocityY, velocityX) + orientationOffsetRadians",
+    "visualKinds": {
+      "boss-umbra-needle": {
+        "frameIds": ["needle.0", "needle.1", "needle.2", "needle.3"],
+        "frameHoldFrames": 4,
+        "minimumVisualHeight": 30,
+        "entityHeightScale": 1.7,
+        "orientationOffsetRadians": -1.5707963267948966
+      },
+      "boss-umbra-wing-shard": {
+        "frameIds": ["shard.0", "shard.1", "shard.2", "shard.3"],
+        "frameHoldFrames": 5,
+        "minimumVisualHeight": 34,
+        "entityHeightScale": 1.55,
+        "orientationOffsetRadians": 0
+      }
+    }
+  },
+  "reticlePresentation": {
+    "partId": "vfx.reticle",
+    "frameId": "reticle",
+    "role": "target-reticle",
+    "runtimeSource": "services/pixi/boss-rigs/UmbraNeedlewingModularPose.ts",
+    "usedDuringAttackWarnings": ["corner-needle-lock", "blackout-ambush"],
+    "normalGameplayPolicy": "authored warning sprite only; never a debug guide or persistent aiming line",
+    "visualAcceptanceStatus": "passed-phone-and-wide-host-2026-08-07"
+  },
   "routeProof": {
     "canonicalLogicalViewport": "mobile-390x844",
     "hostShellsRequiringVisualReview": ["phone-width", "wide-letterboxed"],
@@ -29,20 +58,20 @@
     "evidence": "evidence/umbra-needlewing-safe-route-evidence.json",
     "evidenceSha256": "a6d3c97303e7b444c01fe9160e8bd8d0c1f4a40626c8cc6273b4557608c1f427",
     "witnessHashes": [
-      { "phaseId": "Wing Survey", "attackId": "wing-shear-crossfire", "configurationHash": "415fcf6b", "routeHash": "d274a207" },
-      { "phaseId": "Wing Survey", "attackId": "orbit-gap-thread", "configurationHash": "878af29e", "routeHash": "7d75922f" },
-      { "phaseId": "Wing Survey", "attackId": "corner-needle-lock", "configurationHash": "572ad5b4", "routeHash": "6e550432" },
-      { "phaseId": "Wing Survey", "attackId": "blackout-ambush", "configurationHash": "3a360ea6", "routeHash": "6913d15c" },
-      { "phaseId": "Blackout Hunt", "attackId": "wing-shear-crossfire", "configurationHash": "5851ce25", "routeHash": "62f644d0" },
-      { "phaseId": "Blackout Hunt", "attackId": "orbit-gap-thread", "configurationHash": "8909de50", "routeHash": "a9109c52" },
-      { "phaseId": "Blackout Hunt", "attackId": "corner-needle-lock", "configurationHash": "276db699", "routeHash": "26ff88d3" },
-      { "phaseId": "Blackout Hunt", "attackId": "blackout-ambush", "configurationHash": "128fccdb", "routeHash": "8628669c" },
-      { "phaseId": "Broken Compass", "attackId": "wing-shear-crossfire", "configurationHash": "3fc38c5e", "routeHash": "b9802af4" },
-      { "phaseId": "Broken Compass", "attackId": "orbit-gap-thread", "configurationHash": "4730664d", "routeHash": "6a1124ea" },
-      { "phaseId": "Broken Compass", "attackId": "corner-needle-lock", "configurationHash": "3083bcde", "routeHash": "79eb13e3" },
-      { "phaseId": "Broken Compass", "attackId": "blackout-ambush", "configurationHash": "e6e1b0b5", "routeHash": "e59015c4" }
+      { "phaseId": "sandbox-umbra-wing-survey", "attackId": "wing-shear-crossfire", "configurationHash": "2a6f1846", "routeHash": "9e94ab4f" },
+      { "phaseId": "sandbox-umbra-wing-survey", "attackId": "orbit-gap-thread", "configurationHash": "d4b4b7ea", "routeHash": "a1d5ace5" },
+      { "phaseId": "sandbox-umbra-wing-survey", "attackId": "corner-needle-lock", "configurationHash": "58b88d0b", "routeHash": "cf4e0812" },
+      { "phaseId": "sandbox-umbra-wing-survey", "attackId": "blackout-ambush", "configurationHash": "3e69cd38", "routeHash": "210707a7" },
+      { "phaseId": "sandbox-umbra-blackout-hunt", "attackId": "wing-shear-crossfire", "configurationHash": "f50f0490", "routeHash": "e744e313" },
+      { "phaseId": "sandbox-umbra-blackout-hunt", "attackId": "orbit-gap-thread", "configurationHash": "f93661d6", "routeHash": "65d55e88" },
+      { "phaseId": "sandbox-umbra-blackout-hunt", "attackId": "corner-needle-lock", "configurationHash": "61f79654", "routeHash": "897620dc" },
+      { "phaseId": "sandbox-umbra-blackout-hunt", "attackId": "blackout-ambush", "configurationHash": "1221bda0", "routeHash": "083e3bb6" },
+      { "phaseId": "sandbox-umbra-broken-compass", "attackId": "wing-shear-crossfire", "configurationHash": "3d82164c", "routeHash": "d7cef2ba" },
+      { "phaseId": "sandbox-umbra-broken-compass", "attackId": "orbit-gap-thread", "configurationHash": "cd4d9984", "routeHash": "3c82bea7" },
+      { "phaseId": "sandbox-umbra-broken-compass", "attackId": "corner-needle-lock", "configurationHash": "abe8c6d9", "routeHash": "6eda59b5" },
+      { "phaseId": "sandbox-umbra-broken-compass", "attackId": "blackout-ambush", "configurationHash": "222228c3", "routeHash": "f47d0ae3" }
     ],
-    "status": "proven-canonical-mobile-logical-arena-host-review-pending"
+    "status": "proven-canonical-mobile-logical-arena-phone-and-wide-host-reviewed"
   },
   "attacks": [
     {
@@ -51,7 +80,7 @@
       "playerSkill": "read and reverse a committed port-starboard firing rhythm",
       "movingParts": ["wing.port.0.mount", "wing.port.1.mount", "wing.starboard.0.mount", "wing.starboard.1.mount", "needle.mount.port", "needle.mount.starboard", "eye.port", "eye.starboard"],
       "spriteAnimations": ["needle-cycle"],
-      "sockets": ["needle.port.muzzle", "needle.starboard.muzzle", "wing.port.0.tip", "wing.starboard.0.tip"],
+      "sockets": ["needle.port.muzzle", "needle.starboard.muzzle"],
       "recognitionCue": "paired eye and wing-root flares step visibly from port to starboard before each committed needle lane",
       "telegraph": "the firing-side wings brace and its authored needle mount becomes visible before the damaging needle leaves the moving muzzle",
       "boundedVariation": "fixed port-then-starboard rhythm with phase-scaled five, six, or seven needle lanes per side",
@@ -93,9 +122,9 @@
       "id": "corner-needle-lock",
       "kind": "core",
       "playerSkill": "read a detached eye pair and leave each committed blackout laser lane after it locks",
-      "movingParts": ["root", "body", "core", "eye.port", "eye.starboard", "wing.port.0.mount", "wing.starboard.0.mount"],
+      "movingParts": ["root", "body", "core", "eye.port", "eye.starboard", "wing.port.0.mount", "wing.starboard.0.mount", "vfx.reticle"],
       "spriteAnimations": ["reentry-cycle", "core-cycle"],
-      "sockets": ["needle.launcher.muzzle", "core.emitter"],
+      "sockets": ["needle.launcher.muzzle"],
       "recognitionCue": "the arena becomes pure black while detached red eyes mark one committed laser lane",
       "telegraph": "a thin red line tracks briefly, locks in place, then becomes the stationary damaging beam; the hidden structural body does not supply a second guide",
       "boundedVariation": "two sequential warning-locked beam strikes in each phase, using authored side choices and phase timing",
@@ -115,9 +144,9 @@
       "id": "blackout-ambush",
       "kind": "signature",
       "playerSkill": "read each locked corner appearance and vacate the committed physical ram lane",
-      "movingParts": ["root", "body", "core", "wing.port.0.mount", "wing.port.1.mount", "wing.port.2.mount", "wing.port.3.mount", "wing.starboard.0.mount", "wing.starboard.1.mount", "wing.starboard.2.mount", "wing.starboard.3.mount", "vfx.dash-trail", "vfx.reentry"],
+      "movingParts": ["root", "body", "core", "wing.port.0.mount", "wing.port.1.mount", "wing.port.2.mount", "wing.port.3.mount", "wing.starboard.0.mount", "wing.starboard.1.mount", "wing.starboard.2.mount", "wing.starboard.3.mount", "vfx.reticle", "vfx.dash-trail", "vfx.reentry"],
       "spriteAnimations": ["reentry-cycle", "core-cycle"],
-      "sockets": ["core.emitter", "wing.port.0.joint", "wing.starboard.0.joint"],
+      "sockets": ["needle.launcher.muzzle"],
       "recognitionCue": "the arena blacks out as all eight wings fold into a unique pursuit silhouette and Umbra dissolves through the re-entry frames",
       "telegraph": "registered materialization frames, folded anatomy, dash trail, eye/core light, and corner pose reveal the committed ram without a guide line",
       "boundedVariation": "two authored rams in phase one, four in phase two, and six in phase three, alternating lower and middle corner entries",
@@ -140,6 +169,6 @@
     "behaviorChange": "wing banks coordinate with faster corner relocation and the taught core opening is combined with needle pressure",
     "remixedRules": ["wing-shear-crossfire", "orbit-gap-thread", "blackout-ambush"],
     "numericOnlyChangeForbidden": true,
-    "status": "runtime-integrated-visual-review-pending"
+    "status": "runtime-integrated-visual-review-passed"
   }
 }

@@ -478,7 +478,34 @@ test('Blackout Hunt stays dark between physical rams and clears only at final ma
     executionIndex: 0,
     timelineFrame: 240
   }, 1);
+  const anchor = getUpperCombatAnchor(engine, boss);
   assert.equal(boss.bossUmbraBlackoutHuntActive, false);
+  assert.equal(boss.x, anchor.x);
+  assert.equal(boss.y, anchor.y);
+  assert.equal(boss.bossVanishOpacity, 1);
+});
+
+test('Blackout Hunt keeps advancing while Umbra is deliberately offscreen', () => {
+  const engine = createEngine();
+  const boss = spawnUmbra(engine);
+  boss.bossTimeline = {
+    durationSeconds: 8,
+    loop: false,
+    clips: []
+  };
+  boss.activeBossPhaseId = 'umbra-offscreen-hunt';
+  boss.bossTimelinePhaseId = 'umbra-offscreen-hunt';
+  boss.bossTimelineLastPhaseId = 'umbra-offscreen-hunt';
+  boss.attackTimer = 123;
+  boss.y = -boss.height - 48;
+  boss.bossUmbraBlackoutHuntActive = true;
+
+  assert.equal(engine.updateConfiguredBossTimeline(boss, 3), true);
+  assert.equal(
+    boss.attackTimer,
+    123,
+    'the entrance guard must not rewind an authored offscreen ram to frame zero'
+  );
 });
 
 test('manual attack, phase jump, restart, and life loss share the Umbra interruption cleanup boundary', () => {

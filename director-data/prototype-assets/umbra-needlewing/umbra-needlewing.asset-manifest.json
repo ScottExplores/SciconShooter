@@ -9,7 +9,7 @@
     },
     "rigSource": {
       "file": "rig.source.json",
-      "sha256": "838e9c493243a70690fbd3cc560686e941bf49b7cd6de8b202169ced1671d820"
+      "sha256": "38266d44569f545bb0995cd27efd7378228d96b6c7e7e0930a1ca2820089a3bb"
     },
     "sources": {
       "locked-reference": {
@@ -58,7 +58,7 @@
     },
     "rig": {
       "file": "umbra-needlewing.rig.json",
-      "sha256": "f35162e996fc2c37c4f195dbaf913c5739563b22e9a11510d397a738a2978e0f"
+      "sha256": "fa70eed4bac1871135083a814f0593a53042e30ab093fdba3405409e609291b4"
     },
     "neutralPreview": {
       "file": "umbra-needlewing-neutral.png",
