@@ -56,9 +56,13 @@ export const resolveCornerAmbushRamLock = (
   const startX = side === 'lower-left'
     ? sideMargin
     : Math.max(sideMargin, arenaWidth - bossWidth - sideMargin);
-  const startY = Math.max(
-    arenaHeight * 0.62,
-    arenaHeight - bossHeight * (input.mobileProfile ? 0.72 : 0.78)
+  const startY = clamp(
+    Math.max(
+      arenaHeight * 0.62,
+      arenaHeight - bossHeight * (input.mobileProfile ? 0.72 : 0.78)
+    ),
+    0,
+    Math.max(0, arenaHeight - bossHeight)
   );
   const targetMargin = Math.max(input.mobileProfile ? 28 : 42, arenaWidth * 0.045);
   const targetX = clamp(

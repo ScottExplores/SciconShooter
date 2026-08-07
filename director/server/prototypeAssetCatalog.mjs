@@ -141,20 +141,29 @@ export const PROTOTYPE_ASSET_DEFINITIONS = Object.freeze([
   asset({
     prototypeId: 'umbra-needlewing',
     variant: 'assembled',
-    fileName: 'umbra-needlewing-assembled.png',
-    sha256: 'd483e20d0f8f4b89c68d8e73536a9e37a9b35f5a2df640ca8a6189196785a100',
-    width: 363,
-    height: 257,
-    label: 'Umbra Needlewing assembled preview'
+    fileName: 'umbra-needlewing/umbra-needlewing-neutral.png',
+    sha256: 'a1635e616add1b99336c366bc51499311f130ce62fbecd8d4a8956e1c9b2aba2',
+    width: 512,
+    height: 320,
+    label: 'Umbra Needlewing modular neutral preview'
   }),
   asset({
     prototypeId: 'umbra-needlewing',
     variant: 'sheet',
-    fileName: 'umbra-needlewing-modular-sheet.png',
-    sha256: 'ac06e289345bcddacde0e0a7dc84bd35d9b9baa556178999b2522a890279ddb8',
-    width: 1254,
-    height: 1254,
-    label: 'Umbra Needlewing modular sheet'
+    fileName: 'umbra-needlewing/umbra-needlewing-atlas.png',
+    sha256: 'c98290efd065277225b9d64bbcf06f23e5013cd29ca9ae501f404c18750321d1',
+    width: 2048,
+    height: 1024,
+    label: 'Umbra Needlewing modular and lifecycle atlas'
+  }),
+  asset({
+    prototypeId: 'umbra-needlewing',
+    variant: 'reference',
+    fileName: 'umbra-needlewing/umbra-needlewing-reference.png',
+    sha256: '2db71f4a183415e9851be2363b2224b8d7912e272922b55c7cfb8c1043e0ac21',
+    width: 1511,
+    height: 1041,
+    label: 'Umbra Needlewing locked canonical neutral comparison reference'
   }),
   asset({
     prototypeId: 'cinderjaw-siege-beetle',

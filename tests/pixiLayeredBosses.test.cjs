@@ -19,7 +19,7 @@ test('campaign boss slots use registered damage art and Gatekeeper Prime retains
     [35, { bossId: 'singularity-crab', spriteKey: 'CAMPAIGN_BOSS_SINGULARITY_CRAB' }],
     [40, { bossId: 'orbit-gyroscope', spriteKey: 'CAMPAIGN_BOSS_ORBIT_GYROSCOPE' }],
     [45, { bossId: 'hammerhead-siege', spriteKey: 'CAMPAIGN_BOSS_HAMMERHEAD_SIEGE' }],
-    [50, { bossId: 'frontier-crownclaw', spriteKey: 'CAMPAIGN_BOSS_FRONTIER_CROWNCLAW' }]
+    [50, { bossId: 'umbra-needlewing', spriteKey: 'CAMPAIGN_BOSS_UMBRA_NEEDLEWING' }]
   ]);
   for (const [missionOrder, expected] of expectedByMissionOrder) {
     const level = campaign.levels.find((candidate) => candidate.order === missionOrder);
@@ -331,11 +331,11 @@ test('M05 Gatekeeper Prime uses its stronger hull and exact one-third cannon bud
   assert.equal(openingBoss.shieldCount, 0);
 });
 
-test('both Frontier Crownclaw Campaign slots use the animated six-leg rig with destructible claws', () => {
+test('M20 Frontier Crownclaw uses the animated six-leg rig with destructible claws', () => {
   const campaign = JSON.parse(read('game-config/campaign.json'));
   const engine = read('services/gameLogic.ts');
   const renderer = read('services/pixi/PixiGameRenderer.ts');
-  const crownEvents = [20, 50].map((missionOrder) => {
+  const crownEvents = [20].map((missionOrder) => {
     const mission = campaign.levels.find((level) => level.order === missionOrder);
     const event = mission.waves.flatMap((wave) => wave.events).find((candidate) => candidate.kind === 'boss');
     assert.equal(event.bossId, 'frontier-crownclaw', `M${missionOrder} boss identity`);
@@ -344,7 +344,7 @@ test('both Frontier Crownclaw Campaign slots use the animated six-leg rig with d
     return event;
   });
 
-  assert.equal(crownEvents.length, 2);
+  assert.equal(crownEvents.length, 1);
   assert.match(engine, /boss\.bossRigId === 'crown-claw'/);
   assert.match(engine, /spawnCrownClawStrike\(boss: Entity, component: BossComponentState/);
   assert.match(engine, /updateCrownClawBoss\(boss: Entity\)/);

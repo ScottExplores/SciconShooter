@@ -57,7 +57,7 @@ test('the revision-24 Campaign roster resolves through generated or dedicated bo
     [20, 'frontier-crownclaw'],
     [25, 'helios-clawcarrier'],
     [30, 'nullwake-revenant'],
-    [50, 'frontier-crownclaw']
+    [50, 'umbra-needlewing']
   ]);
   for (const [missionOrder, bossId] of dedicatedBossSlots) {
     const slot = sectorBosses.find((candidate) => candidate.missionOrder === missionOrder);

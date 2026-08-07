@@ -185,6 +185,35 @@ export interface PreviewBossModularActionPresentation {
   readonly motionCue?: string | null;
 }
 
+export type PreviewBossVanishReentryStage =
+  | 'fade-out'
+  | 'hidden'
+  | 'reentry-warning'
+  | 'reappear'
+  | 'recovery';
+
+/** Presentation-only snapshot of the generic vanish/re-entry lifecycle. */
+export interface PreviewBossVanishReentryPresentation {
+  readonly stage: PreviewBossVanishReentryStage;
+  readonly progress: number;
+  readonly opacity: number;
+}
+
+export type PreviewBossEscapeStage =
+  | 'damaged-stagger'
+  | 'false-finish'
+  | 'escape-charge'
+  | 'escaping'
+  | 'complete';
+
+/** Presentation-only snapshot of the terminal non-explosive escape lifecycle. */
+export interface PreviewBossEscapePresentation {
+  readonly stage: PreviewBossEscapeStage;
+  readonly progress: number;
+  readonly opacity: number;
+  readonly trailIntensity: number;
+}
+
 export interface PreviewBossModularPoseInput {
   readonly frameCount: number;
   readonly reducedMotion: boolean;
@@ -197,6 +226,8 @@ export interface PreviewBossModularPoseInput {
   readonly revivalStage?: 'none' | 'armed' | 'shutdown' | 'rebooting' | 'complete' | null;
   readonly revivalProgress?: number | null;
   readonly revived?: boolean;
+  readonly vanishReentry?: PreviewBossVanishReentryPresentation | null;
+  readonly escape?: PreviewBossEscapePresentation | null;
   readonly reaction?: {
     readonly kind: 'impact' | 'stagger';
     readonly progress: number;

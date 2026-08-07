@@ -221,6 +221,12 @@ const sandboxMasks = [
         'helios-clawcarrier-v2',
         'helios-clawcarrier-v2-neutral.png'
       )
+    : key === 'umbra-needlewing'
+      ? path.join(
+        sandboxDirectory,
+        'umbra-needlewing',
+        'umbra-needlewing-neutral.png'
+      )
       : path.join(sandboxDirectory, `${key}-assembled.png`)
 }));
 

@@ -213,6 +213,7 @@ export const ASSETS = {
   CAMPAIGN_BOSS_HELIX_LEVIATHAN: "/game-art/generated/scicon-stage20-expansion-v1/bosses/frames/helix-leviathan.png",
   CAMPAIGN_BOSS_ORBIT_GYROSCOPE: "/game-art/generated/bosses/campaign-packages/orbit-gyroscope/assembled.png",
   CAMPAIGN_BOSS_NULLWAKE_REVENANT: "/game-art/generated/bosses/campaign-packages/nullwake-revenant/assembled.png",
+  CAMPAIGN_BOSS_UMBRA_NEEDLEWING: "/game-art/generated/bosses/campaign-packages/umbra-needlewing/assembled.png",
   CAMPAIGN_BOSS_PRISM_MOTH: "/game-art/generated/bosses/campaign-packages/prism-moth/assembled.png",
   CAMPAIGN_BOSS_RAIL_SERPENT: "/game-art/generated/scicon-stage20-expansion-v1/bosses/frames/rail-serpent.png",
   PIXI_BOSS_RAIL_SERPENT_RIG: {

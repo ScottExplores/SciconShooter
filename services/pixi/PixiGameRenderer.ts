@@ -4836,7 +4836,24 @@ export class PixiGameRenderer {
       revivalStage: entity.bossRevivalStage,
       revivalProgress: entity.bossRevivalProgress,
       revived: entity.bossRevivalConsumed,
-      reaction: this.getPreviewBossPoseReaction(entity, engine),
+      vanishReentry: entity.bossVanishReentryStage
+        ? {
+            stage: entity.bossVanishReentryStage,
+            progress: entity.bossVanishReentryProgress,
+            opacity: entity.bossVanishOpacity
+          }
+        : null,
+      escape: entity.bossEscapeStage
+        ? {
+            stage: entity.bossEscapeStage,
+            progress: entity.bossEscapeProgress,
+            opacity: entity.bossEscapeOpacity,
+            trailIntensity: entity.bossEscapeTrailIntensity
+          }
+        : null,
+      reaction: entity.bossEscapeState
+        ? null
+        : this.getPreviewBossPoseReaction(entity, engine),
       action
     });
     const hierarchy = resolveModularBossRigHierarchy(registration, partOverrides);
@@ -5737,8 +5754,20 @@ export class PixiGameRenderer {
       this.bossDeathAge = -1;
       this.bossDeathRoot.visible = false;
       this.clearBossDeathFragments();
-    } else if (engine.mainBossDefeated && engine.waveTransitionPending && this.lastBossSnapshot && !this.bossDeathHandled) {
+    } else if (
+      engine.mainBossDefeated
+      && engine.lastBossTerminalOutcome !== 'escaped'
+      && engine.waveTransitionPending
+      && this.lastBossSnapshot
+      && !this.bossDeathHandled
+    ) {
       this.startBossDeath(this.lastBossSnapshot);
+    } else if (engine.lastBossTerminalOutcome === 'escaped') {
+      this.bossDeathHandled = true;
+      this.bossDeathAge = -1;
+      this.bossDeathRoot.visible = false;
+      this.clearBossDeathFragments();
+      this.lastBossSnapshot = null;
     } else if (!engine.mainBossDefeated && this.bossDeathAge < 0) {
       this.lastBossSnapshot = null;
       this.bossDeathHandled = false;
@@ -6334,7 +6363,32 @@ export class PixiGameRenderer {
       view.aura.clear();
     }
 
-    this.syncDamageRecoil(view, entity, engine);
+    if (!entity.bossEscapeState) {
+      this.syncDamageRecoil(view, entity, engine);
+    }
+    if (entity.type === EntityType.BOSS) {
+      const modularPoseOwnsLifecycleAlpha = Boolean(
+        this.modularPreviewBossReady
+        && this.previewBossArtwork?.modularRig?.manifest.id === 'umbra-needlewing'
+        && String(entity.sourceItemId ?? '').endsWith('umbra-needlewing')
+      );
+      if (!modularPoseOwnsLifecycleAlpha) {
+        view.root.alpha *= clamp(
+          entity.bossVanishOpacity * entity.bossEscapeOpacity,
+          0,
+          1
+        );
+      }
+      if (entity.bossEscapeState) {
+        view.root.position.x += entity.bossEscapePoseOffsetX;
+        view.root.position.y += entity.bossEscapePoseOffsetY;
+        view.root.rotation += entity.bossEscapePoseRotation;
+        view.root.scale.set(
+          entity.bossEscapePoseScaleX,
+          entity.bossEscapePoseScaleY
+        );
+      }
+    }
 
     if (entity.isElite && isEnemyType(entity.type)) {
       const pulse = 0.74 + Math.sin((engine.frameCount + entity.variant) * 0.09) * 0.16;
@@ -6422,7 +6476,13 @@ export class PixiGameRenderer {
 
     for (const [id, view] of this.views) {
       if (id.startsWith('__') || view.seenFrame === this.renderFrame) continue;
-      if (isEnemyType(view.type) && view.lastHp <= 0 && view.root.y > -80 && view.root.y < this.height + 80) {
+      if (
+        isEnemyType(view.type)
+        && view.lastHp <= 0
+        && view.root.y > -80
+        && view.root.y < this.height + 80
+        && !(view.type === EntityType.BOSS && engine.lastBossTerminalOutcome === 'escaped')
+      ) {
         const size = view.type === EntityType.BOSS ? 180 : view.type === EntityType.MINI_BOSS ? 110 : 46;
         if (view.type === EntityType.BOSS) this.effectPool.spawnBossExplosion(view.root.x, view.root.y, size, 2.2);
         else if (view.type === EntityType.MINI_BOSS) this.effectPool.spawnExplosion(view.root.x, view.root.y, size, '#67e8f9', 0.85);

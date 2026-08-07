@@ -28,7 +28,9 @@ export const BOSS_MODULAR_PROJECTILE_VISUAL_KINDS = [
   'boss-singularity-claw',
   'boss-singularity-bolt',
   'boss-singularity-pulse',
-  'boss-singularity-collapse'
+  'boss-singularity-collapse',
+  'boss-umbra-needle',
+  'boss-umbra-wing-shard'
 ] as const;
 
 export type BossModularProjectileVisualKind =

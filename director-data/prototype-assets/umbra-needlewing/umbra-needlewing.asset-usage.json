@@ -1,0 +1,1670 @@
+{
+  "schemaVersion": 1,
+  "bossId": "umbra-needlewing",
+  "format": "scicon-boss-asset-usage-v1",
+  "classificationCounts": {
+    "frames": {
+      "used": 33,
+      "future": 0,
+      "archived": 1,
+      "forbidden": 0
+    },
+    "sourceCells": {
+      "used": 32,
+      "future": 0,
+      "archived": 1,
+      "forbidden": 0
+    }
+  },
+  "sourceCoverage": {
+    "complete": true,
+    "totalCells": 33,
+    "classifiedCells": 33,
+    "unclassifiedCells": []
+  },
+  "validation": {
+    "allUsedFramesHaveConsumers": true,
+    "unreferencedUsedFrames": []
+  },
+  "sourceCells": [
+    {
+      "sourceId": "components",
+      "cell": [
+        0,
+        0
+      ],
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 382,
+        "height": 258
+      },
+      "classification": "used",
+      "frameIds": [
+        "body.shell"
+      ],
+      "dispositions": [
+        "runtime"
+      ],
+      "statuses": [
+        "neutral"
+      ],
+      "usedBy": [
+        "rig-part:body"
+      ],
+      "reasons": []
+    },
+    {
+      "sourceId": "components",
+      "cell": [
+        0,
+        1
+      ],
+      "rect": {
+        "x": 382,
+        "y": 0,
+        "width": 382,
+        "height": 258
+      },
+      "classification": "used",
+      "frameIds": [
+        "eye.port.glow",
+        "eye.starboard.glow"
+      ],
+      "dispositions": [
+        "runtime"
+      ],
+      "statuses": [
+        "animation"
+      ],
+      "usedBy": [
+        "rig-part:eye.port",
+        "rig-part:eye.starboard"
+      ],
+      "reasons": []
+    },
+    {
+      "sourceId": "components",
+      "cell": [
+        0,
+        2
+      ],
+      "rect": {
+        "x": 764,
+        "y": 0,
+        "width": 381,
+        "height": 258
+      },
+      "classification": "used",
+      "frameIds": [
+        "core.closed"
+      ],
+      "dispositions": [
+        "runtime"
+      ],
+      "statuses": [
+        "neutral"
+      ],
+      "usedBy": [
+        "animation:core-cycle",
+        "rig-part:core"
+      ],
+      "reasons": []
+    },
+    {
+      "sourceId": "components",
+      "cell": [
+        0,
+        3
+      ],
+      "rect": {
+        "x": 1145,
+        "y": 0,
+        "width": 382,
+        "height": 258
+      },
+      "classification": "used",
+      "frameIds": [
+        "core.open"
+      ],
+      "dispositions": [
+        "runtime"
+      ],
+      "statuses": [
+        "phase2"
+      ],
+      "usedBy": [
+        "animation:core-cycle"
+      ],
+      "reasons": []
+    },
+    {
+      "sourceId": "components",
+      "cell": [
+        1,
+        0
+      ],
+      "rect": {
+        "x": 0,
+        "y": 258,
+        "width": 382,
+        "height": 257
+      },
+      "classification": "used",
+      "frameIds": [
+        "wing.port.0"
+      ],
+      "dispositions": [
+        "runtime"
+      ],
+      "statuses": [
+        "neutral"
+      ],
+      "usedBy": [
+        "rig-part:wing.port.0"
+      ],
+      "reasons": []
+    },
+    {
+      "sourceId": "components",
+      "cell": [
+        1,
+        1
+      ],
+      "rect": {
+        "x": 382,
+        "y": 258,
+        "width": 382,
+        "height": 257
+      },
+      "classification": "used",
+      "frameIds": [
+        "wing.port.1"
+      ],
+      "dispositions": [
+        "runtime"
+      ],
+      "statuses": [
+        "neutral"
+      ],
+      "usedBy": [
+        "rig-part:wing.port.1"
+      ],
+      "reasons": []
+    },
+    {
+      "sourceId": "components",
+      "cell": [
+        1,
+        2
+      ],
+      "rect": {
+        "x": 764,
+        "y": 258,
+        "width": 381,
+        "height": 257
+      },
+      "classification": "used",
+      "frameIds": [
+        "wing.port.2"
+      ],
+      "dispositions": [
+        "runtime"
+      ],
+      "statuses": [
+        "neutral"
+      ],
+      "usedBy": [
+        "rig-part:wing.port.2"
+      ],
+      "reasons": []
+    },
+    {
+      "sourceId": "components",
+      "cell": [
+        1,
+        3
+      ],
+      "rect": {
+        "x": 1145,
+        "y": 258,
+        "width": 382,
+        "height": 257
+      },
+      "classification": "used",
+      "frameIds": [
+        "wing.port.3"
+      ],
+      "dispositions": [
+        "runtime"
+      ],
+      "statuses": [
+        "neutral"
+      ],
+      "usedBy": [
+        "rig-part:wing.port.3"
+      ],
+      "reasons": []
+    },
+    {
+      "sourceId": "components",
+      "cell": [
+        2,
+        0
+      ],
+      "rect": {
+        "x": 0,
+        "y": 515,
+        "width": 382,
+        "height": 258
+      },
+      "classification": "used",
+      "frameIds": [
+        "wing.starboard.0"
+      ],
+      "dispositions": [
+        "runtime"
+      ],
+      "statuses": [
+        "neutral"
+      ],
+      "usedBy": [
+        "rig-part:wing.starboard.0"
+      ],
+      "reasons": []
+    },
+    {
+      "sourceId": "components",
+      "cell": [
+        2,
+        1
+      ],
+      "rect": {
+        "x": 382,
+        "y": 515,
+        "width": 382,
+        "height": 258
+      },
+      "classification": "used",
+      "frameIds": [
+        "wing.starboard.1"
+      ],
+      "dispositions": [
+        "runtime"
+      ],
+      "statuses": [
+        "neutral"
+      ],
+      "usedBy": [
+        "rig-part:wing.starboard.1"
+      ],
+      "reasons": []
+    },
+    {
+      "sourceId": "components",
+      "cell": [
+        2,
+        2
+      ],
+      "rect": {
+        "x": 764,
+        "y": 515,
+        "width": 381,
+        "height": 258
+      },
+      "classification": "used",
+      "frameIds": [
+        "wing.starboard.2"
+      ],
+      "dispositions": [
+        "runtime"
+      ],
+      "statuses": [
+        "neutral"
+      ],
+      "usedBy": [
+        "rig-part:wing.starboard.2"
+      ],
+      "reasons": []
+    },
+    {
+      "sourceId": "components",
+      "cell": [
+        2,
+        3
+      ],
+      "rect": {
+        "x": 1145,
+        "y": 515,
+        "width": 382,
+        "height": 258
+      },
+      "classification": "used",
+      "frameIds": [
+        "wing.starboard.3"
+      ],
+      "dispositions": [
+        "runtime"
+      ],
+      "statuses": [
+        "neutral"
+      ],
+      "usedBy": [
+        "rig-part:wing.starboard.3"
+      ],
+      "reasons": []
+    },
+    {
+      "sourceId": "components",
+      "cell": [
+        3,
+        0
+      ],
+      "rect": {
+        "x": 0,
+        "y": 773,
+        "width": 382,
+        "height": 257
+      },
+      "classification": "used",
+      "frameIds": [
+        "needle.mount.port"
+      ],
+      "dispositions": [
+        "runtime"
+      ],
+      "statuses": [
+        "attack"
+      ],
+      "usedBy": [
+        "rig-part:needle.mount.port"
+      ],
+      "reasons": []
+    },
+    {
+      "sourceId": "components",
+      "cell": [
+        3,
+        1
+      ],
+      "rect": {
+        "x": 382,
+        "y": 773,
+        "width": 382,
+        "height": 257
+      },
+      "classification": "used",
+      "frameIds": [
+        "needle.mount.starboard"
+      ],
+      "dispositions": [
+        "runtime"
+      ],
+      "statuses": [
+        "attack"
+      ],
+      "usedBy": [
+        "rig-part:needle.mount.starboard"
+      ],
+      "reasons": []
+    },
+    {
+      "sourceId": "components",
+      "cell": [
+        3,
+        2
+      ],
+      "rect": {
+        "x": 764,
+        "y": 773,
+        "width": 381,
+        "height": 257
+      },
+      "classification": "used",
+      "frameIds": [
+        "needle.launcher"
+      ],
+      "dispositions": [
+        "runtime"
+      ],
+      "statuses": [
+        "attack"
+      ],
+      "usedBy": [
+        "rig-part:needle.launcher"
+      ],
+      "reasons": []
+    },
+    {
+      "sourceId": "components",
+      "cell": [
+        3,
+        3
+      ],
+      "rect": {
+        "x": 1145,
+        "y": 773,
+        "width": 382,
+        "height": 257
+      },
+      "classification": "used",
+      "frameIds": [
+        "escape.module"
+      ],
+      "dispositions": [
+        "runtime"
+      ],
+      "statuses": [
+        "death"
+      ],
+      "usedBy": [
+        "rig-part:escape.module"
+      ],
+      "reasons": []
+    },
+    {
+      "sourceId": "locked-reference",
+      "cell": [
+        0,
+        0
+      ],
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 1511,
+        "height": 1041
+      },
+      "classification": "archived",
+      "frameIds": [
+        "reference.locked"
+      ],
+      "dispositions": [
+        "forbidden"
+      ],
+      "statuses": [
+        "archived"
+      ],
+      "usedBy": [],
+      "reasons": [
+        "Canonical comparison reference only; the modular rig must be assembled from authored component crops."
+      ]
+    },
+    {
+      "sourceId": "vfx",
+      "cell": [
+        0,
+        0
+      ],
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 261,
+        "height": 376
+      },
+      "classification": "used",
+      "frameIds": [
+        "needle.0"
+      ],
+      "dispositions": [
+        "runtime"
+      ],
+      "statuses": [
+        "attack"
+      ],
+      "usedBy": [
+        "animation:needle-cycle",
+        "preview-projectile:boss-umbra-needle",
+        "rig-part:projectile.needle"
+      ],
+      "reasons": []
+    },
+    {
+      "sourceId": "vfx",
+      "cell": [
+        0,
+        1
+      ],
+      "rect": {
+        "x": 261,
+        "y": 0,
+        "width": 262,
+        "height": 376
+      },
+      "classification": "used",
+      "frameIds": [
+        "needle.1"
+      ],
+      "dispositions": [
+        "runtime"
+      ],
+      "statuses": [
+        "attack"
+      ],
+      "usedBy": [
+        "animation:needle-cycle",
+        "preview-projectile:boss-umbra-needle"
+      ],
+      "reasons": []
+    },
+    {
+      "sourceId": "vfx",
+      "cell": [
+        0,
+        2
+      ],
+      "rect": {
+        "x": 523,
+        "y": 0,
+        "width": 261,
+        "height": 376
+      },
+      "classification": "used",
+      "frameIds": [
+        "needle.2"
+      ],
+      "dispositions": [
+        "runtime"
+      ],
+      "statuses": [
+        "attack"
+      ],
+      "usedBy": [
+        "animation:needle-cycle",
+        "preview-projectile:boss-umbra-needle"
+      ],
+      "reasons": []
+    },
+    {
+      "sourceId": "vfx",
+      "cell": [
+        0,
+        3
+      ],
+      "rect": {
+        "x": 784,
+        "y": 0,
+        "width": 261,
+        "height": 376
+      },
+      "classification": "used",
+      "frameIds": [
+        "needle.3"
+      ],
+      "dispositions": [
+        "runtime"
+      ],
+      "statuses": [
+        "attack"
+      ],
+      "usedBy": [
+        "animation:needle-cycle",
+        "preview-projectile:boss-umbra-needle"
+      ],
+      "reasons": []
+    },
+    {
+      "sourceId": "vfx",
+      "cell": [
+        1,
+        0
+      ],
+      "rect": {
+        "x": 0,
+        "y": 376,
+        "width": 261,
+        "height": 377
+      },
+      "classification": "used",
+      "frameIds": [
+        "shard.0"
+      ],
+      "dispositions": [
+        "runtime"
+      ],
+      "statuses": [
+        "attack"
+      ],
+      "usedBy": [
+        "animation:shard-cycle",
+        "preview-projectile:boss-umbra-shard",
+        "rig-part:projectile.shard"
+      ],
+      "reasons": []
+    },
+    {
+      "sourceId": "vfx",
+      "cell": [
+        1,
+        1
+      ],
+      "rect": {
+        "x": 261,
+        "y": 376,
+        "width": 262,
+        "height": 377
+      },
+      "classification": "used",
+      "frameIds": [
+        "shard.1"
+      ],
+      "dispositions": [
+        "runtime"
+      ],
+      "statuses": [
+        "attack"
+      ],
+      "usedBy": [
+        "animation:shard-cycle",
+        "preview-projectile:boss-umbra-shard"
+      ],
+      "reasons": []
+    },
+    {
+      "sourceId": "vfx",
+      "cell": [
+        1,
+        2
+      ],
+      "rect": {
+        "x": 523,
+        "y": 376,
+        "width": 261,
+        "height": 377
+      },
+      "classification": "used",
+      "frameIds": [
+        "shard.2"
+      ],
+      "dispositions": [
+        "runtime"
+      ],
+      "statuses": [
+        "attack"
+      ],
+      "usedBy": [
+        "animation:shard-cycle",
+        "preview-projectile:boss-umbra-shard"
+      ],
+      "reasons": []
+    },
+    {
+      "sourceId": "vfx",
+      "cell": [
+        1,
+        3
+      ],
+      "rect": {
+        "x": 784,
+        "y": 376,
+        "width": 261,
+        "height": 377
+      },
+      "classification": "used",
+      "frameIds": [
+        "shard.3"
+      ],
+      "dispositions": [
+        "runtime"
+      ],
+      "statuses": [
+        "attack"
+      ],
+      "usedBy": [
+        "animation:shard-cycle",
+        "preview-projectile:boss-umbra-shard"
+      ],
+      "reasons": []
+    },
+    {
+      "sourceId": "vfx",
+      "cell": [
+        2,
+        0
+      ],
+      "rect": {
+        "x": 0,
+        "y": 753,
+        "width": 261,
+        "height": 376
+      },
+      "classification": "used",
+      "frameIds": [
+        "reentry.0"
+      ],
+      "dispositions": [
+        "runtime"
+      ],
+      "statuses": [
+        "phase2"
+      ],
+      "usedBy": [
+        "animation:reentry-cycle",
+        "preview-vfx:umbra-reentry",
+        "rig-part:vfx.reentry"
+      ],
+      "reasons": []
+    },
+    {
+      "sourceId": "vfx",
+      "cell": [
+        2,
+        1
+      ],
+      "rect": {
+        "x": 261,
+        "y": 753,
+        "width": 262,
+        "height": 376
+      },
+      "classification": "used",
+      "frameIds": [
+        "reentry.1"
+      ],
+      "dispositions": [
+        "runtime"
+      ],
+      "statuses": [
+        "phase2"
+      ],
+      "usedBy": [
+        "animation:reentry-cycle",
+        "preview-vfx:umbra-reentry"
+      ],
+      "reasons": []
+    },
+    {
+      "sourceId": "vfx",
+      "cell": [
+        2,
+        2
+      ],
+      "rect": {
+        "x": 523,
+        "y": 753,
+        "width": 261,
+        "height": 376
+      },
+      "classification": "used",
+      "frameIds": [
+        "reentry.2"
+      ],
+      "dispositions": [
+        "runtime"
+      ],
+      "statuses": [
+        "phase2"
+      ],
+      "usedBy": [
+        "animation:reentry-cycle",
+        "preview-vfx:umbra-reentry"
+      ],
+      "reasons": []
+    },
+    {
+      "sourceId": "vfx",
+      "cell": [
+        2,
+        3
+      ],
+      "rect": {
+        "x": 784,
+        "y": 753,
+        "width": 261,
+        "height": 376
+      },
+      "classification": "used",
+      "frameIds": [
+        "reentry.3"
+      ],
+      "dispositions": [
+        "runtime"
+      ],
+      "statuses": [
+        "phase2"
+      ],
+      "usedBy": [
+        "animation:reentry-cycle",
+        "preview-vfx:umbra-reentry"
+      ],
+      "reasons": []
+    },
+    {
+      "sourceId": "vfx",
+      "cell": [
+        3,
+        0
+      ],
+      "rect": {
+        "x": 0,
+        "y": 1129,
+        "width": 261,
+        "height": 376
+      },
+      "classification": "used",
+      "frameIds": [
+        "reticle"
+      ],
+      "dispositions": [
+        "runtime"
+      ],
+      "statuses": [
+        "attack"
+      ],
+      "usedBy": [
+        "rig-part:vfx.reticle"
+      ],
+      "reasons": []
+    },
+    {
+      "sourceId": "vfx",
+      "cell": [
+        3,
+        1
+      ],
+      "rect": {
+        "x": 261,
+        "y": 1129,
+        "width": 262,
+        "height": 376
+      },
+      "classification": "used",
+      "frameIds": [
+        "dash.trail"
+      ],
+      "dispositions": [
+        "runtime"
+      ],
+      "statuses": [
+        "attack"
+      ],
+      "usedBy": [
+        "rig-part:vfx.dash-trail"
+      ],
+      "reasons": []
+    },
+    {
+      "sourceId": "vfx",
+      "cell": [
+        3,
+        2
+      ],
+      "rect": {
+        "x": 523,
+        "y": 1129,
+        "width": 261,
+        "height": 376
+      },
+      "classification": "used",
+      "frameIds": [
+        "damage.spark"
+      ],
+      "dispositions": [
+        "runtime"
+      ],
+      "statuses": [
+        "damage"
+      ],
+      "usedBy": [
+        "rig-part:vfx.damage-spark"
+      ],
+      "reasons": []
+    },
+    {
+      "sourceId": "vfx",
+      "cell": [
+        3,
+        3
+      ],
+      "rect": {
+        "x": 784,
+        "y": 1129,
+        "width": 261,
+        "height": 376
+      },
+      "classification": "used",
+      "frameIds": [
+        "escape.flame"
+      ],
+      "dispositions": [
+        "runtime"
+      ],
+      "statuses": [
+        "death"
+      ],
+      "usedBy": [
+        "rig-part:vfx.escape-flame"
+      ],
+      "reasons": []
+    }
+  ],
+  "frames": [
+    {
+      "frameId": "reference.locked",
+      "disposition": "forbidden",
+      "classification": "archived",
+      "status": "archived",
+      "sourceId": "locked-reference",
+      "sourceCell": [
+        0,
+        0
+      ],
+      "sourceRect": {
+        "x": 0,
+        "y": 0,
+        "width": 1511,
+        "height": 1041
+      },
+      "usedBy": [],
+      "reason": "Canonical comparison reference only; the modular rig must be assembled from authored component crops."
+    },
+    {
+      "frameId": "body.shell",
+      "disposition": "runtime",
+      "classification": "used",
+      "status": "neutral",
+      "sourceId": "components",
+      "sourceCell": [
+        0,
+        0
+      ],
+      "sourceRect": {
+        "x": 120,
+        "y": 0,
+        "width": 280,
+        "height": 350
+      },
+      "usedBy": [
+        "rig-part:body"
+      ],
+      "reason": null
+    },
+    {
+      "frameId": "eye.port.glow",
+      "disposition": "runtime",
+      "classification": "used",
+      "status": "animation",
+      "sourceId": "components",
+      "sourceCell": [
+        0,
+        1
+      ],
+      "sourceRect": {
+        "x": 515,
+        "y": 120,
+        "width": 100,
+        "height": 100
+      },
+      "usedBy": [
+        "rig-part:eye.port"
+      ],
+      "reason": null
+    },
+    {
+      "frameId": "eye.starboard.glow",
+      "disposition": "runtime",
+      "classification": "used",
+      "status": "animation",
+      "sourceId": "components",
+      "sourceCell": [
+        0,
+        1
+      ],
+      "sourceRect": {
+        "x": 585,
+        "y": 120,
+        "width": 95,
+        "height": 100
+      },
+      "usedBy": [
+        "rig-part:eye.starboard"
+      ],
+      "reason": null
+    },
+    {
+      "frameId": "core.closed",
+      "disposition": "runtime",
+      "classification": "used",
+      "status": "neutral",
+      "sourceId": "components",
+      "sourceCell": [
+        0,
+        2
+      ],
+      "sourceRect": {
+        "x": 790,
+        "y": 75,
+        "width": 250,
+        "height": 185
+      },
+      "usedBy": [
+        "animation:core-cycle",
+        "rig-part:core"
+      ],
+      "reason": null
+    },
+    {
+      "frameId": "core.open",
+      "disposition": "runtime",
+      "classification": "used",
+      "status": "phase2",
+      "sourceId": "components",
+      "sourceCell": [
+        0,
+        3
+      ],
+      "sourceRect": {
+        "x": 1120,
+        "y": 75,
+        "width": 250,
+        "height": 185
+      },
+      "usedBy": [
+        "animation:core-cycle"
+      ],
+      "reason": null
+    },
+    {
+      "frameId": "wing.port.0",
+      "disposition": "runtime",
+      "classification": "used",
+      "status": "neutral",
+      "sourceId": "components",
+      "sourceCell": [
+        1,
+        0
+      ],
+      "sourceRect": {
+        "x": 110,
+        "y": 345,
+        "width": 330,
+        "height": 225
+      },
+      "usedBy": [
+        "rig-part:wing.port.0"
+      ],
+      "reason": null
+    },
+    {
+      "frameId": "wing.port.1",
+      "disposition": "runtime",
+      "classification": "used",
+      "status": "neutral",
+      "sourceId": "components",
+      "sourceCell": [
+        1,
+        1
+      ],
+      "sourceRect": {
+        "x": 460,
+        "y": 385,
+        "width": 325,
+        "height": 185
+      },
+      "usedBy": [
+        "rig-part:wing.port.1"
+      ],
+      "reason": null
+    },
+    {
+      "frameId": "wing.port.2",
+      "disposition": "runtime",
+      "classification": "used",
+      "status": "neutral",
+      "sourceId": "components",
+      "sourceCell": [
+        1,
+        2
+      ],
+      "sourceRect": {
+        "x": 825,
+        "y": 405,
+        "width": 255,
+        "height": 160
+      },
+      "usedBy": [
+        "rig-part:wing.port.2"
+      ],
+      "reason": null
+    },
+    {
+      "frameId": "wing.port.3",
+      "disposition": "runtime",
+      "classification": "used",
+      "status": "neutral",
+      "sourceId": "components",
+      "sourceCell": [
+        1,
+        3
+      ],
+      "sourceRect": {
+        "x": 1135,
+        "y": 430,
+        "width": 220,
+        "height": 140
+      },
+      "usedBy": [
+        "rig-part:wing.port.3"
+      ],
+      "reason": null
+    },
+    {
+      "frameId": "wing.starboard.0",
+      "disposition": "runtime",
+      "classification": "used",
+      "status": "neutral",
+      "sourceId": "components",
+      "sourceCell": [
+        2,
+        0
+      ],
+      "sourceRect": {
+        "x": 115,
+        "y": 615,
+        "width": 315,
+        "height": 190
+      },
+      "usedBy": [
+        "rig-part:wing.starboard.0"
+      ],
+      "reason": null
+    },
+    {
+      "frameId": "wing.starboard.1",
+      "disposition": "runtime",
+      "classification": "used",
+      "status": "neutral",
+      "sourceId": "components",
+      "sourceCell": [
+        2,
+        1
+      ],
+      "sourceRect": {
+        "x": 475,
+        "y": 645,
+        "width": 295,
+        "height": 160
+      },
+      "usedBy": [
+        "rig-part:wing.starboard.1"
+      ],
+      "reason": null
+    },
+    {
+      "frameId": "wing.starboard.2",
+      "disposition": "runtime",
+      "classification": "used",
+      "status": "neutral",
+      "sourceId": "components",
+      "sourceCell": [
+        2,
+        2
+      ],
+      "sourceRect": {
+        "x": 825,
+        "y": 645,
+        "width": 245,
+        "height": 150
+      },
+      "usedBy": [
+        "rig-part:wing.starboard.2"
+      ],
+      "reason": null
+    },
+    {
+      "frameId": "wing.starboard.3",
+      "disposition": "runtime",
+      "classification": "used",
+      "status": "neutral",
+      "sourceId": "components",
+      "sourceCell": [
+        2,
+        3
+      ],
+      "sourceRect": {
+        "x": 1130,
+        "y": 660,
+        "width": 235,
+        "height": 140
+      },
+      "usedBy": [
+        "rig-part:wing.starboard.3"
+      ],
+      "reason": null
+    },
+    {
+      "frameId": "needle.mount.port",
+      "disposition": "runtime",
+      "classification": "used",
+      "status": "attack",
+      "sourceId": "components",
+      "sourceCell": [
+        3,
+        0
+      ],
+      "sourceRect": {
+        "x": 185,
+        "y": 825,
+        "width": 165,
+        "height": 175
+      },
+      "usedBy": [
+        "rig-part:needle.mount.port"
+      ],
+      "reason": null
+    },
+    {
+      "frameId": "needle.mount.starboard",
+      "disposition": "runtime",
+      "classification": "used",
+      "status": "attack",
+      "sourceId": "components",
+      "sourceCell": [
+        3,
+        1
+      ],
+      "sourceRect": {
+        "x": 530,
+        "y": 825,
+        "width": 165,
+        "height": 175
+      },
+      "usedBy": [
+        "rig-part:needle.mount.starboard"
+      ],
+      "reason": null
+    },
+    {
+      "frameId": "needle.launcher",
+      "disposition": "runtime",
+      "classification": "used",
+      "status": "attack",
+      "sourceId": "components",
+      "sourceCell": [
+        3,
+        2
+      ],
+      "sourceRect": {
+        "x": 830,
+        "y": 825,
+        "width": 210,
+        "height": 170
+      },
+      "usedBy": [
+        "rig-part:needle.launcher"
+      ],
+      "reason": null
+    },
+    {
+      "frameId": "escape.module",
+      "disposition": "runtime",
+      "classification": "used",
+      "status": "death",
+      "sourceId": "components",
+      "sourceCell": [
+        3,
+        3
+      ],
+      "sourceRect": {
+        "x": 1135,
+        "y": 825,
+        "width": 210,
+        "height": 175
+      },
+      "usedBy": [
+        "rig-part:escape.module"
+      ],
+      "reason": null
+    },
+    {
+      "frameId": "needle.0",
+      "disposition": "runtime",
+      "classification": "used",
+      "status": "attack",
+      "sourceId": "vfx",
+      "sourceCell": [
+        0,
+        0
+      ],
+      "sourceRect": {
+        "x": 60,
+        "y": 100,
+        "width": 125,
+        "height": 220
+      },
+      "usedBy": [
+        "animation:needle-cycle",
+        "preview-projectile:boss-umbra-needle",
+        "rig-part:projectile.needle"
+      ],
+      "reason": null
+    },
+    {
+      "frameId": "needle.1",
+      "disposition": "runtime",
+      "classification": "used",
+      "status": "attack",
+      "sourceId": "vfx",
+      "sourceCell": [
+        0,
+        1
+      ],
+      "sourceRect": {
+        "x": 320,
+        "y": 100,
+        "width": 135,
+        "height": 240
+      },
+      "usedBy": [
+        "animation:needle-cycle",
+        "preview-projectile:boss-umbra-needle"
+      ],
+      "reason": null
+    },
+    {
+      "frameId": "needle.2",
+      "disposition": "runtime",
+      "classification": "used",
+      "status": "attack",
+      "sourceId": "vfx",
+      "sourceCell": [
+        0,
+        2
+      ],
+      "sourceRect": {
+        "x": 585,
+        "y": 100,
+        "width": 140,
+        "height": 250
+      },
+      "usedBy": [
+        "animation:needle-cycle",
+        "preview-projectile:boss-umbra-needle"
+      ],
+      "reason": null
+    },
+    {
+      "frameId": "needle.3",
+      "disposition": "runtime",
+      "classification": "used",
+      "status": "attack",
+      "sourceId": "vfx",
+      "sourceCell": [
+        0,
+        3
+      ],
+      "sourceRect": {
+        "x": 855,
+        "y": 100,
+        "width": 140,
+        "height": 260
+      },
+      "usedBy": [
+        "animation:needle-cycle",
+        "preview-projectile:boss-umbra-needle"
+      ],
+      "reason": null
+    },
+    {
+      "frameId": "shard.0",
+      "disposition": "runtime",
+      "classification": "used",
+      "status": "attack",
+      "sourceId": "vfx",
+      "sourceCell": [
+        1,
+        0
+      ],
+      "sourceRect": {
+        "x": 20,
+        "y": 430,
+        "width": 210,
+        "height": 270
+      },
+      "usedBy": [
+        "animation:shard-cycle",
+        "preview-projectile:boss-umbra-shard",
+        "rig-part:projectile.shard"
+      ],
+      "reason": null
+    },
+    {
+      "frameId": "shard.1",
+      "disposition": "runtime",
+      "classification": "used",
+      "status": "attack",
+      "sourceId": "vfx",
+      "sourceCell": [
+        1,
+        1
+      ],
+      "sourceRect": {
+        "x": 270,
+        "y": 430,
+        "width": 235,
+        "height": 280
+      },
+      "usedBy": [
+        "animation:shard-cycle",
+        "preview-projectile:boss-umbra-shard"
+      ],
+      "reason": null
+    },
+    {
+      "frameId": "shard.2",
+      "disposition": "runtime",
+      "classification": "used",
+      "status": "attack",
+      "sourceId": "vfx",
+      "sourceCell": [
+        1,
+        2
+      ],
+      "sourceRect": {
+        "x": 540,
+        "y": 430,
+        "width": 230,
+        "height": 270
+      },
+      "usedBy": [
+        "animation:shard-cycle",
+        "preview-projectile:boss-umbra-shard"
+      ],
+      "reason": null
+    },
+    {
+      "frameId": "shard.3",
+      "disposition": "runtime",
+      "classification": "used",
+      "status": "attack",
+      "sourceId": "vfx",
+      "sourceCell": [
+        1,
+        3
+      ],
+      "sourceRect": {
+        "x": 820,
+        "y": 430,
+        "width": 215,
+        "height": 250
+      },
+      "usedBy": [
+        "animation:shard-cycle",
+        "preview-projectile:boss-umbra-shard"
+      ],
+      "reason": null
+    },
+    {
+      "frameId": "reentry.0",
+      "disposition": "runtime",
+      "classification": "used",
+      "status": "phase2",
+      "sourceId": "vfx",
+      "sourceCell": [
+        2,
+        0
+      ],
+      "sourceRect": {
+        "x": 30,
+        "y": 830,
+        "width": 190,
+        "height": 240
+      },
+      "usedBy": [
+        "animation:reentry-cycle",
+        "preview-vfx:umbra-reentry",
+        "rig-part:vfx.reentry"
+      ],
+      "reason": null
+    },
+    {
+      "frameId": "reentry.1",
+      "disposition": "runtime",
+      "classification": "used",
+      "status": "phase2",
+      "sourceId": "vfx",
+      "sourceCell": [
+        2,
+        1
+      ],
+      "sourceRect": {
+        "x": 300,
+        "y": 830,
+        "width": 180,
+        "height": 250
+      },
+      "usedBy": [
+        "animation:reentry-cycle",
+        "preview-vfx:umbra-reentry"
+      ],
+      "reason": null
+    },
+    {
+      "frameId": "reentry.2",
+      "disposition": "runtime",
+      "classification": "used",
+      "status": "phase2",
+      "sourceId": "vfx",
+      "sourceCell": [
+        2,
+        2
+      ],
+      "sourceRect": {
+        "x": 560,
+        "y": 830,
+        "width": 190,
+        "height": 250
+      },
+      "usedBy": [
+        "animation:reentry-cycle",
+        "preview-vfx:umbra-reentry"
+      ],
+      "reason": null
+    },
+    {
+      "frameId": "reentry.3",
+      "disposition": "runtime",
+      "classification": "used",
+      "status": "phase2",
+      "sourceId": "vfx",
+      "sourceCell": [
+        2,
+        3
+      ],
+      "sourceRect": {
+        "x": 820,
+        "y": 830,
+        "width": 210,
+        "height": 250
+      },
+      "usedBy": [
+        "animation:reentry-cycle",
+        "preview-vfx:umbra-reentry"
+      ],
+      "reason": null
+    },
+    {
+      "frameId": "reticle",
+      "disposition": "runtime",
+      "classification": "used",
+      "status": "attack",
+      "sourceId": "vfx",
+      "sourceCell": [
+        3,
+        0
+      ],
+      "sourceRect": {
+        "x": 0,
+        "y": 1180,
+        "width": 241,
+        "height": 275
+      },
+      "usedBy": [
+        "rig-part:vfx.reticle"
+      ],
+      "reason": null
+    },
+    {
+      "frameId": "dash.trail",
+      "disposition": "runtime",
+      "classification": "used",
+      "status": "attack",
+      "sourceId": "vfx",
+      "sourceCell": [
+        3,
+        1
+      ],
+      "sourceRect": {
+        "x": 275,
+        "y": 1180,
+        "width": 225,
+        "height": 300
+      },
+      "usedBy": [
+        "rig-part:vfx.dash-trail"
+      ],
+      "reason": null
+    },
+    {
+      "frameId": "damage.spark",
+      "disposition": "runtime",
+      "classification": "used",
+      "status": "damage",
+      "sourceId": "vfx",
+      "sourceCell": [
+        3,
+        2
+      ],
+      "sourceRect": {
+        "x": 545,
+        "y": 1180,
+        "width": 220,
+        "height": 275
+      },
+      "usedBy": [
+        "rig-part:vfx.damage-spark"
+      ],
+      "reason": null
+    },
+    {
+      "frameId": "escape.flame",
+      "disposition": "runtime",
+      "classification": "used",
+      "status": "death",
+      "sourceId": "vfx",
+      "sourceCell": [
+        3,
+        3
+      ],
+      "sourceRect": {
+        "x": 820,
+        "y": 1180,
+        "width": 205,
+        "height": 280
+      },
+      "usedBy": [
+        "rig-part:vfx.escape-flame"
+      ],
+      "reason": null
+    }
+  ]
+}

@@ -28,7 +28,8 @@ const CAMPAIGN_BOSS_ASSET_KEYS = [
   'CAMPAIGN_BOSS_PRISM_MOTH',
   'CAMPAIGN_BOSS_RAIL_SERPENT',
   'CAMPAIGN_BOSS_SINGULARITY_CRAB',
-  'CAMPAIGN_BOSS_TRIBUNAL_DREADNOUGHT'
+  'CAMPAIGN_BOSS_TRIBUNAL_DREADNOUGHT',
+  'CAMPAIGN_BOSS_UMBRA_NEEDLEWING'
 ];
 const CAMPAIGN_ENEMY_ASSET_KEYS = [
   'CAMPAIGN_ENEMY_BULLET_RING_EMITTER',
@@ -216,13 +217,14 @@ const BOSS_IDS = new Set([
   'aegis-convoy-captain', 'gridline-sentries', 'gatekeeper', 'gatekeeper-prime', 'paywall-decimator',
   'helios-clawcarrier', 'helix-leviathan',
   'eclipse-engine', 'research-tribunal', 'prism-moth', 'rail-serpent', 'singularity-crab',
-  'orbit-gyroscope', 'hammerhead-siege', 'frontier-crownclaw', 'nullwake-revenant'
+  'orbit-gyroscope', 'hammerhead-siege', 'frontier-crownclaw', 'nullwake-revenant',
+  'umbra-needlewing'
 ]);
 const MAJOR_BOSS_IDS = new Set([
   'gatekeeper', 'gatekeeper-prime', 'paywall-decimator', 'helios-clawcarrier', 'helix-leviathan',
   'eclipse-engine', 'research-tribunal',
   'prism-moth', 'rail-serpent', 'singularity-crab', 'orbit-gyroscope', 'hammerhead-siege',
-  'frontier-crownclaw', 'nullwake-revenant'
+  'frontier-crownclaw', 'nullwake-revenant', 'umbra-needlewing'
 ]);
 const BOSS_RIG_IDS = new Set(['open-orbit', 'citation-storm', 'paywall-siege', 'crown-claw']);
 const POWERUP_IDS = new Set(['projectile-upgrade', 'max-shot', 'magnet', 'shield', 'research-beam', 'extra-life']);
@@ -396,7 +398,12 @@ const BOSS_TIMELINE_MOTION_CUES = new Set([
   'frontier-bastion-crabwalk',
   'frontier-critical-cross-link',
   'frontier-stagger',
-  'frontier-death'
+  'frontier-death',
+  'umbra-needle-lattice',
+  'umbra-wing-shard-gate',
+  'umbra-predator-lock',
+  'umbra-blackout-ambush',
+  'umbra-escape'
 ]);
 const BOSS_TIMELINE_ROTATION_DIRECTIONS = new Set([
   'clockwise',
@@ -450,11 +457,11 @@ const FRONTIER_CROWNCLAW_SANDBOX_PRIMITIVES = new Set([
 const BOSS_TIMELINE_PRIMITIVES = new Map([
   ['telegraph', { track: 'presentation', damaging: false, supportsRepeat: true, parameterKeys: ['warningSeconds', 'telegraphStyle', 'color'] }],
   ['aimed-burst', { track: 'attack', damaging: true, supportsRepeat: true, parameterKeys: ['projectileCount'] }],
-  ['gap-ring', { track: 'attack', damaging: true, supportsRepeat: true, parameterKeys: ['projectileCount', 'sequence', 'rotationDirection'] }],
+  ['gap-ring', { track: 'attack', damaging: true, supportsRepeat: true, parameterKeys: ['projectileCount', 'sequence', 'rotationDirection', 'motionCue'] }],
   ['rotor-hazard-sentence', { track: 'attack', damaging: true, supportsRepeat: false, parameterKeys: ['projectileCount', 'sequence', 'pulseIntervalSeconds', 'motionCue'] }],
   ['radial-beam-array', { track: 'laser', damaging: true, supportsRepeat: false, parameterKeys: ['sequence', 'motionCue', 'rotationDirection'] }],
-  ['corner-ambush-beam', { track: 'laser', damaging: true, supportsRepeat: false, parameterKeys: ['sequence'] }],
-  ['corner-ambush-ram', { track: 'movement', damaging: true, supportsRepeat: false, parameterKeys: ['sequence'] }],
+  ['corner-ambush-beam', { track: 'laser', damaging: true, supportsRepeat: false, parameterKeys: ['sequence', 'motionCue'] }],
+  ['corner-ambush-ram', { track: 'movement', damaging: true, supportsRepeat: false, parameterKeys: ['sequence', 'motionCue'] }],
   ['paired-cannon-burst', {
     track: 'attack',
     damaging: true,

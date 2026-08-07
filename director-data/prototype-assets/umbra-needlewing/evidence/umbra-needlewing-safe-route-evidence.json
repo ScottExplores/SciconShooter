@@ -1,0 +1,184 @@
+{
+  "schemaVersion": 1,
+  "artifactType": "boss-safe-route-evidence",
+  "bossId": "umbra-needlewing",
+  "generatedAt": "2026-08-06",
+  "proofImplementation": "services/gameplay/bosses/UmbraNeedlewingSafeRouteProof.ts",
+  "focusedTest": "tests/umbraNeedlewingSafeRouteProof.test.cjs",
+  "timelineSource": "director/src/combat-lab/sandboxBossPrototypes.ts",
+  "fixedSeed": {
+    "hex": "0x0b1ac0de",
+    "decimal": 186302686
+  },
+  "viewport": {
+    "id": "mobile-390x844",
+    "width": 390,
+    "height": 844,
+    "mobileProfile": true
+  },
+  "player": {
+    "collisionWidth": 51.24,
+    "collisionHeight": 63.44,
+    "maximumSpeedPerFrame": 2.5,
+    "accelerationPerFrame": 0.38
+  },
+  "searchBounds": {
+    "minimumX": 28.62,
+    "maximumX": 361.38,
+    "minimumY": 410,
+    "maximumY": 809.28
+  },
+  "geometryUncertaintyPixels": 3,
+  "minimumRequiredRawClearancePixels": 9,
+  "minimumRequiredClearanceAfterUncertaintyPixels": 6,
+  "proofCount": 12,
+  "minimumObservedRawClearancePixels": 24.261279178038116,
+  "minimumObservedClearanceAfterUncertaintyPixels": 21.261279178038116,
+  "routes": [
+    {
+      "attackId": "wing-shear-crossfire",
+      "phaseId": "sandbox-umbra-wing-survey",
+      "status": "proven",
+      "reason": "proven",
+      "checkedFrames": 315,
+      "durationFrames": 315,
+      "minimumRawClearancePixels": 37.345161361134,
+      "minimumClearanceAfterUncertaintyPixels": 34.345161361134,
+      "routeHash": "58e14cd4",
+      "configurationHash": "3936d16d"
+    },
+    {
+      "attackId": "orbit-gap-thread",
+      "phaseId": "sandbox-umbra-wing-survey",
+      "status": "proven",
+      "reason": "proven",
+      "checkedFrames": 399,
+      "durationFrames": 399,
+      "minimumRawClearancePixels": 84.64228410391236,
+      "minimumClearanceAfterUncertaintyPixels": 81.64228410391236,
+      "routeHash": "40a771ee",
+      "configurationHash": "ce25e4c4"
+    },
+    {
+      "attackId": "corner-needle-lock",
+      "phaseId": "sandbox-umbra-wing-survey",
+      "status": "proven",
+      "reason": "proven",
+      "checkedFrames": 240,
+      "durationFrames": 240,
+      "minimumRawClearancePixels": 72.13967270056602,
+      "minimumClearanceAfterUncertaintyPixels": 69.13967270056602,
+      "routeHash": "6e550432",
+      "configurationHash": "8425677d"
+    },
+    {
+      "attackId": "blackout-ambush",
+      "phaseId": "sandbox-umbra-wing-survey",
+      "status": "proven",
+      "reason": "proven",
+      "checkedFrames": 621,
+      "durationFrames": 621,
+      "minimumRawClearancePixels": 51.881880186166,
+      "minimumClearanceAfterUncertaintyPixels": 48.881880186166,
+      "routeHash": "c3f52b42",
+      "configurationHash": "ecb23c0a"
+    },
+    {
+      "attackId": "wing-shear-crossfire",
+      "phaseId": "sandbox-umbra-blackout-hunt",
+      "status": "proven",
+      "reason": "proven",
+      "checkedFrames": 303,
+      "durationFrames": 303,
+      "minimumRawClearancePixels": 31.097163183473533,
+      "minimumClearanceAfterUncertaintyPixels": 28.097163183473533,
+      "routeHash": "390e591a",
+      "configurationHash": "fc79a9a7"
+    },
+    {
+      "attackId": "orbit-gap-thread",
+      "phaseId": "sandbox-umbra-blackout-hunt",
+      "status": "proven",
+      "reason": "proven",
+      "checkedFrames": 387,
+      "durationFrames": 387,
+      "minimumRawClearancePixels": 143.78574181237786,
+      "minimumClearanceAfterUncertaintyPixels": 140.78574181237786,
+      "routeHash": "2976cfd1",
+      "configurationHash": "503e17c2"
+    },
+    {
+      "attackId": "corner-needle-lock",
+      "phaseId": "sandbox-umbra-blackout-hunt",
+      "status": "proven",
+      "reason": "proven",
+      "checkedFrames": 226,
+      "durationFrames": 226,
+      "minimumRawClearancePixels": 69.8651338165186,
+      "minimumClearanceAfterUncertaintyPixels": 66.8651338165186,
+      "routeHash": "26ff88d3",
+      "configurationHash": "d4abf9e0"
+    },
+    {
+      "attackId": "blackout-ambush",
+      "phaseId": "sandbox-umbra-blackout-hunt",
+      "status": "proven",
+      "reason": "proven",
+      "checkedFrames": 763,
+      "durationFrames": 763,
+      "minimumRawClearancePixels": 50.74922406634842,
+      "minimumClearanceAfterUncertaintyPixels": 47.74922406634842,
+      "routeHash": "7c0e229a",
+      "configurationHash": "edad0882"
+    },
+    {
+      "attackId": "wing-shear-crossfire",
+      "phaseId": "sandbox-umbra-broken-compass",
+      "status": "proven",
+      "reason": "proven",
+      "checkedFrames": 290,
+      "durationFrames": 290,
+      "minimumRawClearancePixels": 24.261279178038116,
+      "minimumClearanceAfterUncertaintyPixels": 21.261279178038116,
+      "routeHash": "119f9baa",
+      "configurationHash": "e1f7856b"
+    },
+    {
+      "attackId": "orbit-gap-thread",
+      "phaseId": "sandbox-umbra-broken-compass",
+      "status": "proven",
+      "reason": "proven",
+      "checkedFrames": 374,
+      "durationFrames": 374,
+      "minimumRawClearancePixels": 143.48269397357268,
+      "minimumClearanceAfterUncertaintyPixels": 140.48269397357268,
+      "routeHash": "4fc4b0ca",
+      "configurationHash": "aa293801"
+    },
+    {
+      "attackId": "corner-needle-lock",
+      "phaseId": "sandbox-umbra-broken-compass",
+      "status": "proven",
+      "reason": "proven",
+      "checkedFrames": 207,
+      "durationFrames": 207,
+      "minimumRawClearancePixels": 67.6131870939017,
+      "minimumClearanceAfterUncertaintyPixels": 64.6131870939017,
+      "routeHash": "79eb13e3",
+      "configurationHash": "5fce6ee1"
+    },
+    {
+      "attackId": "blackout-ambush",
+      "phaseId": "sandbox-umbra-broken-compass",
+      "status": "proven",
+      "reason": "proven",
+      "checkedFrames": 894,
+      "durationFrames": 894,
+      "minimumRawClearancePixels": 39.554931514713175,
+      "minimumClearanceAfterUncertaintyPixels": 36.554931514713175,
+      "routeHash": "96baac09",
+      "configurationHash": "bdb0dc6f"
+    }
+  ],
+  "limitation": "This boss-owned replay uses the authored beat timings and the shared gap-route, corner-beam, and corner-ram locks/path samplers. The side-fan proof uses Umbra's normalized authored wing origins. Phone-width and wide-host visual review must still confirm that both hosts preserve this same 390x844 logical arena and that live animated sockets remain aligned with the visible anatomy."
+}

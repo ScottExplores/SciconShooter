@@ -11,7 +11,8 @@ import { getMiniBossEncounterDefinition } from '@game/services/gameplay/mini-bos
 import {
   compileBossAttackTimeline,
   type BossAttackBeatBlueprint,
-  type BossAttackPhaseBlueprint
+  type BossAttackPhaseBlueprint,
+  type BossAttackSentenceBlueprint
 } from '@game/game-config/bossAttackSentences';
 import { assertValidGameCampaign } from '@game/game-config/validate';
 import type { CombatLabPreviewResult } from './experimentModel';
@@ -1926,191 +1927,592 @@ const stormEngineTimeline: BossTimelineConfig = {
 const umbraWingSurvey = 'sandbox-umbra-wing-survey';
 const umbraBlackoutHunt = 'sandbox-umbra-blackout-hunt';
 const umbraBrokenCompass = 'sandbox-umbra-broken-compass';
-const umbraTimeline = serialBossTimeline([
-  {
+
+type UmbraAttackBeatBlueprint = BossAttackBeatBlueprint & {
+  /** Stable legacy clip ID retained for direct Sandbox attack deep links. */
+  readonly clipId: string;
+};
+
+type UmbraAttackSentenceBlueprint = Omit<BossAttackSentenceBlueprint, 'beats'> & {
+  readonly beats: readonly UmbraAttackBeatBlueprint[];
+};
+
+type UmbraAttackPhaseBlueprint = Omit<BossAttackPhaseBlueprint, 'attacks'> & {
+  readonly attacks: readonly UmbraAttackSentenceBlueprint[];
+};
+
+interface UmbraPhaseRoute {
+  readonly phaseId: string;
+  readonly color: string;
+  readonly cameraStrength: number;
+  readonly recoverySeconds: number;
+  readonly starts: Readonly<{
+    wingShear: number;
+    orbitGap: number;
+    cornerNeedle: number;
+    blackoutAmbush: number;
+  }>;
+  readonly wingShear: readonly UmbraAttackBeatBlueprint[];
+  readonly orbitGap: readonly UmbraAttackBeatBlueprint[];
+  readonly cornerNeedle: readonly UmbraAttackBeatBlueprint[];
+  readonly blackoutAmbush: readonly UmbraAttackBeatBlueprint[];
+}
+
+const umbraAttackMetadata = Object.freeze({
+  wingShear: Object.freeze({
+    id: 'wing-shear-crossfire',
+    label: 'Wing Shear Crossfire',
+    role: 'core',
+    skillTest: 'rhythm-dodge',
+    recognitionCue: 'The wing emitters flare in a visible port-starboard rhythm.',
+    solution: 'Cross behind each committed wing lane, then reverse with the alternating emitter.',
+    safeRouteRule: 'opposite-side-dodge',
+    sourceSocketRoles: ['port', 'starboard'] as const
+  }),
+  orbitGap: Object.freeze({
+    id: 'orbit-gap-thread',
+    label: 'Orbit Gap Thread',
+    role: 'core',
+    skillTest: 'gap-tracking',
+    recognitionCue: 'The core opens while orbit nodes mark the next ring rotation.',
+    solution: 'Enter the declared opening and follow its bounded rotation through the second ring.',
+    safeRouteRule: 'rotating-gap',
+    sourceSocketRoles: ['core'] as const
+  }),
+  cornerNeedle: Object.freeze({
+    id: 'corner-needle-lock',
+    label: 'Corner Needle Lock',
+    role: 'core',
+    skillTest: 'lane-routing',
+    recognitionCue: 'Umbra braces in one upper corner and fixes a target lock before firing.',
+    solution: 'Leave the warned sightline before commitment, then route away from the opposite corner.',
+    safeRouteRule: 'shifting-channel',
+    sourceSocketRoles: ['core'] as const
+  }),
+  blackoutAmbush: Object.freeze({
+    id: 'blackout-ambush',
+    label: 'Blackout Ambush',
+    role: 'signature',
+    skillTest: 'route-combination',
+    recognitionCue: 'The arena blacks out as a lower-corner silhouette folds its wings for pursuit.',
+    solution: 'Vacate the locked ram, read the alternating corner reveals, then take the final ring opening.',
+    safeRouteRule: 'channel-to-quadrant',
+    sourceSocketRoles: ['port', 'starboard', 'core'] as const
+  })
+} as const);
+
+const withUmbraMotionCue = (
+  beats: readonly UmbraAttackBeatBlueprint[],
+  motionCue: NonNullable<
+    NonNullable<UmbraAttackBeatBlueprint['parameters']>['motionCue']
+  >
+): readonly UmbraAttackBeatBlueprint[] => beats.map((beat) => ({
+  ...beat,
+  parameters: {
+    ...beat.parameters,
+    motionCue
+  }
+}));
+
+const buildUmbraPhase = (route: UmbraPhaseRoute): UmbraAttackPhaseBlueprint => ({
+  phaseId: route.phaseId,
+  color: route.color,
+  cameraStrength: route.cameraStrength,
+  attacks: [
+    {
+      ...umbraAttackMetadata.wingShear,
+      phaseId: route.phaseId,
+      startSeconds: route.starts.wingShear,
+      recoverySeconds: route.recoverySeconds,
+      color: route.color,
+      beats: withUmbraMotionCue(route.wingShear, 'umbra-needle-lattice')
+    },
+    {
+      ...umbraAttackMetadata.orbitGap,
+      phaseId: route.phaseId,
+      startSeconds: route.starts.orbitGap,
+      recoverySeconds: route.recoverySeconds,
+      color: route.color,
+      beats: withUmbraMotionCue(route.orbitGap, 'umbra-wing-shard-gate')
+    },
+    {
+      ...umbraAttackMetadata.cornerNeedle,
+      phaseId: route.phaseId,
+      startSeconds: route.starts.cornerNeedle,
+      recoverySeconds: route.recoverySeconds,
+      color: route.color,
+      beats: withUmbraMotionCue(route.cornerNeedle, 'umbra-predator-lock')
+    },
+    {
+      ...umbraAttackMetadata.blackoutAmbush,
+      phaseId: route.phaseId,
+      startSeconds: route.starts.blackoutAmbush,
+      recoverySeconds: route.recoverySeconds,
+      color: route.color,
+      beats: withUmbraMotionCue(route.blackoutAmbush, 'umbra-blackout-ambush')
+    }
+  ]
+});
+
+const compileUmbraTimeline = (
+  phases: readonly UmbraAttackPhaseBlueprint[]
+): BossTimelineConfig => {
+  const compiled = compileBossAttackTimeline({
+    durationSeconds: 20.8,
+    loop: true,
+    phases
+  });
+  const stableIds = new Map<string, string>();
+  phases.forEach((phase) => phase.attacks.forEach((attack) => {
+    attack.beats.forEach((beat) => {
+      const generatedId = `${phase.phaseId}-${attack.id}-${beat.id}`;
+      stableIds.set(generatedId, beat.clipId);
+      stableIds.set(`${generatedId}-warning`, `${beat.clipId}-warning`);
+    });
+  }));
+  const remapId = (id: string) => stableIds.get(id) ?? id;
+  return {
+    ...compiled,
+    clips: compiled.clips.map((timelineClip) => ({
+      ...timelineClip,
+      id: remapId(timelineClip.id),
+      ...(timelineClip.telegraphClipId
+        ? { telegraphClipId: remapId(timelineClip.telegraphClipId) }
+        : {})
+    })),
+    attacks: (compiled.attacks ?? []).map((attack) => ({
+      ...attack,
+      sourceSocketRoles: [...attack.sourceSocketRoles],
+      variants: attack.variants.map((variant) => ({
+        ...variant,
+        beatClipIds: variant.beatClipIds.map(remapId)
+      }))
+    }))
+  };
+};
+
+const umbraTimeline = compileUmbraTimeline([
+  buildUmbraPhase({
     phaseId: umbraWingSurvey,
     color: '#818cf8',
     cameraStrength: 0.7,
-    steps: [
+    recoverySeconds: 0.9,
+    starts: { wingShear: 0.25, orbitGap: 4.4, cornerNeedle: 8.55, blackoutAmbush: 13.15 },
+    wingShear: [
       {
-        id: 'sandbox-umbra-survey-port',
+        id: 'survey-port',
+        clipId: 'sandbox-umbra-survey-port',
+        label: 'Port wing survey',
         primitiveId: 'side-barrage',
-        style: 'lane',
-        parameters: { projectileCount: 5, side: 'port' },
-        actionDurationSeconds: 1
+        offsetSeconds: 0,
+        telegraphStyle: 'lane',
+        leadSeconds: 0.8,
+        actionDurationSeconds: 0.35,
+        parameters: { projectileCount: 5, side: 'port' }
       },
       {
-        id: 'sandbox-umbra-survey-starboard',
+        id: 'survey-starboard',
+        clipId: 'sandbox-umbra-survey-starboard',
+        label: 'Starboard wing answer',
         primitiveId: 'side-barrage',
-        style: 'lane',
-        parameters: { projectileCount: 5, side: 'starboard' },
-        actionDurationSeconds: 1
-      },
+        offsetSeconds: 1.3,
+        telegraphStyle: 'lane',
+        leadSeconds: 0.8,
+        actionDurationSeconds: 0.35,
+        parameters: { projectileCount: 5, side: 'starboard' }
+      }
+    ],
+    orbitGap: [
       {
-        id: 'sandbox-umbra-survey-ring-a',
+        id: 'survey-ring-a',
+        clipId: 'sandbox-umbra-survey-ring-a',
+        label: 'Clockwise survey opening',
         primitiveId: 'gap-ring',
-        style: 'ring',
-        parameters: { projectileCount: 14, sequence: 0 },
-        leadSeconds: 1
+        offsetSeconds: 0,
+        telegraphStyle: 'ring',
+        leadSeconds: 0.8,
+        actionDurationSeconds: 0.35,
+        parameters: { projectileCount: 14, sequence: 0 }
       },
       {
-        id: 'sandbox-umbra-survey-port-return',
-        primitiveId: 'side-barrage',
-        style: 'lane',
-        parameters: { projectileCount: 6, side: 'port' },
-        actionDurationSeconds: 1
-      },
-      {
-        id: 'sandbox-umbra-survey-ring-b',
+        id: 'survey-ring-b',
+        clipId: 'sandbox-umbra-survey-ring-b',
+        label: 'Counter survey opening',
         primitiveId: 'gap-ring',
-        style: 'ring',
-        parameters: { projectileCount: 16, sequence: 1 },
-        leadSeconds: 1
+        offsetSeconds: 1.3,
+        telegraphStyle: 'ring',
+        leadSeconds: 0.8,
+        actionDurationSeconds: 0.35,
+        parameters: { projectileCount: 16, sequence: 1 }
+      }
+    ],
+    cornerNeedle: [
+      {
+        id: 'survey-port-return',
+        clipId: 'sandbox-umbra-survey-port-return',
+        label: 'Upper-left needle lock',
+        primitiveId: 'corner-ambush-beam',
+        offsetSeconds: 0,
+        telegraphStyle: 'target',
+        leadSeconds: 0.9,
+        actionDurationSeconds: 0.45,
+        parameters: { sequence: 0 }
       },
       {
-        id: 'sandbox-umbra-survey-starboard-return',
-        primitiveId: 'side-barrage',
-        style: 'lane',
-        parameters: { projectileCount: 6, side: 'starboard' },
-        actionDurationSeconds: 1
+        id: 'survey-starboard-return',
+        clipId: 'sandbox-umbra-survey-starboard-return',
+        label: 'Upper-right needle lock',
+        primitiveId: 'corner-ambush-beam',
+        offsetSeconds: 1.55,
+        telegraphStyle: 'target',
+        leadSeconds: 0.9,
+        actionDurationSeconds: 0.45,
+        parameters: { sequence: 1 }
+      }
+    ],
+    blackoutAmbush: [
+      {
+        id: 'survey-lower-right-ram',
+        clipId: 'sandbox-umbra-survey-lower-right-ram',
+        label: 'Lower-right blackout ram',
+        primitiveId: 'corner-ambush-ram',
+        offsetSeconds: 0,
+        telegraphStyle: 'target',
+        leadSeconds: 1,
+        actionDurationSeconds: 0.65,
+        parameters: { sequence: 1 }
       },
       {
-        id: 'sandbox-umbra-survey-ring-c',
+        id: 'survey-left-corner',
+        clipId: 'sandbox-umbra-survey-left-corner',
+        label: 'Left blackout reveal',
+        primitiveId: 'corner-ambush-beam',
+        offsetSeconds: 1.85,
+        telegraphStyle: 'target',
+        leadSeconds: 0.9,
+        actionDurationSeconds: 0.45,
+        parameters: { sequence: 0 }
+      },
+      {
+        id: 'survey-right-corner',
+        clipId: 'sandbox-umbra-survey-right-corner',
+        label: 'Right blackout reveal',
+        primitiveId: 'corner-ambush-beam',
+        offsetSeconds: 3.4,
+        telegraphStyle: 'target',
+        leadSeconds: 0.9,
+        actionDurationSeconds: 0.45,
+        parameters: { sequence: 1 }
+      },
+      {
+        id: 'survey-ring-c',
+        clipId: 'sandbox-umbra-survey-ring-c',
+        label: 'Blackout exit opening',
         primitiveId: 'gap-ring',
-        style: 'ring',
-        parameters: { projectileCount: 14, sequence: 2 },
-        leadSeconds: 1
+        offsetSeconds: 4.95,
+        telegraphStyle: 'ring',
+        leadSeconds: 0.8,
+        actionDurationSeconds: 0.4,
+        parameters: { projectileCount: 14, sequence: 2 }
       }
     ]
-  },
-  {
+  }),
+  buildUmbraPhase({
     phaseId: umbraBlackoutHunt,
     color: '#ef4444',
     cameraStrength: 1,
-    steps: [
+    recoverySeconds: 0.7,
+    starts: { wingShear: 0.2, orbitGap: 3.7, cornerNeedle: 7.2, blackoutAmbush: 11.12 },
+    wingShear: [
       {
-        id: 'sandbox-umbra-hunt-lower-right-ram',
-        primitiveId: 'corner-ambush-ram',
-        style: 'target',
-        parameters: { sequence: 1 },
-        leadSeconds: 1.15,
-        actionDurationSeconds: 0.9,
-        recoverySeconds: 2.5
-      },
-      {
-        id: 'sandbox-umbra-hunt-left-corner',
-        primitiveId: 'corner-ambush-beam',
-        style: 'target',
-        parameters: { sequence: 0 },
-        leadSeconds: 1,
-        actionDurationSeconds: 0.7,
-        recoverySeconds: 2.2
-      },
-      {
-        id: 'sandbox-umbra-hunt-right-corner',
-        primitiveId: 'corner-ambush-beam',
-        style: 'target',
-        parameters: { sequence: 1 },
-        leadSeconds: 1,
-        actionDurationSeconds: 0.7,
-        recoverySeconds: 2.2
-      },
-      {
-        id: 'sandbox-umbra-hunt-ring',
-        primitiveId: 'gap-ring',
-        style: 'ring',
-        parameters: { projectileCount: 16, sequence: 3 },
-        leadSeconds: 1
-      },
-      {
-        id: 'sandbox-umbra-hunt-starboard',
+        id: 'hunt-port',
+        clipId: 'sandbox-umbra-hunt-port',
+        label: 'Port hunting cut',
         primitiveId: 'side-barrage',
-        style: 'lane',
-        parameters: { projectileCount: 6, side: 'starboard' },
-        actionDurationSeconds: 1
+        offsetSeconds: 0,
+        telegraphStyle: 'lane',
+        leadSeconds: 0.8,
+        actionDurationSeconds: 0.3,
+        parameters: { projectileCount: 6, side: 'port' }
       },
       {
-        id: 'sandbox-umbra-hunt-left-corner-return',
-        primitiveId: 'corner-ambush-beam',
-        style: 'target',
-        parameters: { sequence: 2 },
-        leadSeconds: 1,
-        actionDurationSeconds: 0.7,
-        recoverySeconds: 2.2
-      },
+        id: 'hunt-starboard',
+        clipId: 'sandbox-umbra-hunt-starboard',
+        label: 'Starboard hunting cut',
+        primitiveId: 'side-barrage',
+        offsetSeconds: 1.15,
+        telegraphStyle: 'lane',
+        leadSeconds: 0.8,
+        actionDurationSeconds: 0.3,
+        parameters: { projectileCount: 6, side: 'starboard' }
+      }
+    ],
+    orbitGap: [
       {
-        id: 'sandbox-umbra-hunt-exit-ring',
+        id: 'hunt-entry-ring',
+        clipId: 'sandbox-umbra-hunt-entry-ring',
+        label: 'Hunt entry opening',
         primitiveId: 'gap-ring',
-        style: 'ring',
+        offsetSeconds: 0,
+        telegraphStyle: 'ring',
+        leadSeconds: 0.8,
+        actionDurationSeconds: 0.3,
+        parameters: { projectileCount: 16, sequence: 2 }
+      },
+      {
+        id: 'hunt-ring',
+        clipId: 'sandbox-umbra-hunt-ring',
+        label: 'Hunt reversal opening',
+        primitiveId: 'gap-ring',
+        offsetSeconds: 1.15,
+        telegraphStyle: 'ring',
+        leadSeconds: 0.8,
+        actionDurationSeconds: 0.3,
+        parameters: { projectileCount: 16, sequence: 3 }
+      }
+    ],
+    cornerNeedle: [
+      {
+        id: 'hunt-left-corner',
+        clipId: 'sandbox-umbra-hunt-left-corner',
+        label: 'Left hunting lock',
+        primitiveId: 'corner-ambush-beam',
+        offsetSeconds: 0,
+        telegraphStyle: 'target',
+        leadSeconds: 0.85,
+        actionDurationSeconds: 0.42,
+        parameters: { sequence: 0 }
+      },
+      {
+        id: 'hunt-right-corner',
+        clipId: 'sandbox-umbra-hunt-right-corner',
+        label: 'Right hunting lock',
+        primitiveId: 'corner-ambush-beam',
+        offsetSeconds: 1.4,
+        telegraphStyle: 'target',
+        leadSeconds: 0.85,
+        actionDurationSeconds: 0.42,
+        parameters: { sequence: 1 }
+      }
+    ],
+    blackoutAmbush: [
+      {
+        id: 'hunt-lower-right-ram',
+        clipId: 'sandbox-umbra-hunt-lower-right-ram',
+        label: 'Lower-right hunting ram',
+        primitiveId: 'corner-ambush-ram',
+        offsetSeconds: 0,
+        telegraphStyle: 'target',
+        leadSeconds: 0.95,
+        actionDurationSeconds: 0.58,
+        parameters: { sequence: 1 }
+      },
+      {
+        id: 'hunt-left-corner-return',
+        clipId: 'sandbox-umbra-hunt-left-corner-return',
+        label: 'Left hunting return',
+        primitiveId: 'corner-ambush-beam',
+        offsetSeconds: 1.75,
+        telegraphStyle: 'target',
+        leadSeconds: 0.85,
+        actionDurationSeconds: 0.42,
+        parameters: { sequence: 2 }
+      },
+      {
+        id: 'hunt-right-corner-return',
+        clipId: 'sandbox-umbra-hunt-right-corner-return',
+        label: 'Right hunting return',
+        primitiveId: 'corner-ambush-beam',
+        offsetSeconds: 3.25,
+        telegraphStyle: 'target',
+        leadSeconds: 0.85,
+        actionDurationSeconds: 0.42,
+        parameters: { sequence: 3 }
+      },
+      {
+        id: 'hunt-exit-ring',
+        clipId: 'sandbox-umbra-hunt-exit-ring',
+        label: 'Double hunting exit',
+        primitiveId: 'gap-ring',
+        offsetSeconds: 4.75,
+        telegraphStyle: 'ring',
+        leadSeconds: 0.8,
+        actionDurationSeconds: 0.38,
         parameters: { projectileCount: 18, sequence: 4 },
-        leadSeconds: 1
+        repeat: { count: 2, intervalSeconds: 1.15 }
+      },
+      {
+        id: 'hunt-final-corner',
+        clipId: 'sandbox-umbra-hunt-final-corner',
+        label: 'Final hunting lock',
+        primitiveId: 'corner-ambush-beam',
+        offsetSeconds: 7.25,
+        telegraphStyle: 'target',
+        leadSeconds: 0.85,
+        actionDurationSeconds: 0.42,
+        parameters: { sequence: 5 }
       }
     ]
-  },
-  {
+  }),
+  buildUmbraPhase({
     phaseId: umbraBrokenCompass,
     color: '#f43f5e',
     cameraStrength: 1.2,
-    steps: [
+    recoverySeconds: 0.6,
+    starts: { wingShear: 0.15, orbitGap: 3.08, cornerNeedle: 6.01, blackoutAmbush: 9.24 },
+    wingShear: [
       {
-        id: 'sandbox-umbra-compass-right-corner',
-        primitiveId: 'corner-ambush-beam',
-        style: 'target',
-        parameters: { sequence: 1 },
-        leadSeconds: 1,
-        actionDurationSeconds: 0.7,
-        recoverySeconds: 2.2
-      },
-      {
-        id: 'sandbox-umbra-compass-ring-a',
-        primitiveId: 'gap-ring',
-        style: 'ring',
-        parameters: { projectileCount: 16, sequence: 5 },
-        leadSeconds: 1
-      },
-      {
-        id: 'sandbox-umbra-compass-left-corner',
-        primitiveId: 'corner-ambush-beam',
-        style: 'target',
-        parameters: { sequence: 0 },
-        leadSeconds: 1,
-        actionDurationSeconds: 0.7,
-        recoverySeconds: 2.2
-      },
-      {
-        id: 'sandbox-umbra-compass-right-corner-return',
-        primitiveId: 'corner-ambush-beam',
-        style: 'target',
-        parameters: { sequence: 3 },
-        leadSeconds: 1,
-        actionDurationSeconds: 0.7,
-        recoverySeconds: 2.2
-      },
-      {
-        id: 'sandbox-umbra-compass-lower-left-ram',
-        primitiveId: 'corner-ambush-ram',
-        style: 'target',
-        parameters: { sequence: 2 },
-        leadSeconds: 1,
-        actionDurationSeconds: 0.78,
-        recoverySeconds: 2.4
-      },
-      {
-        id: 'sandbox-umbra-compass-starboard',
+        id: 'compass-port',
+        clipId: 'sandbox-umbra-compass-port',
+        label: 'Broken port cut',
         primitiveId: 'side-barrage',
-        style: 'lane',
-        parameters: { projectileCount: 7, side: 'starboard' },
-        actionDurationSeconds: 1
+        offsetSeconds: 0,
+        telegraphStyle: 'lane',
+        leadSeconds: 0.8,
+        actionDurationSeconds: 0.28,
+        parameters: { projectileCount: 7, side: 'port' }
       },
       {
-        id: 'sandbox-umbra-compass-ring-b',
+        id: 'compass-starboard',
+        clipId: 'sandbox-umbra-compass-starboard',
+        label: 'Broken starboard cut',
+        primitiveId: 'side-barrage',
+        offsetSeconds: 0.95,
+        telegraphStyle: 'lane',
+        leadSeconds: 0.8,
+        actionDurationSeconds: 0.28,
+        parameters: { projectileCount: 7, side: 'starboard' }
+      }
+    ],
+    orbitGap: [
+      {
+        id: 'compass-ring-a',
+        clipId: 'sandbox-umbra-compass-ring-a',
+        label: 'Broken clockwise opening',
         primitiveId: 'gap-ring',
-        style: 'ring',
-        parameters: { projectileCount: 18, sequence: 6 },
-        leadSeconds: 1
+        offsetSeconds: 0,
+        telegraphStyle: 'ring',
+        leadSeconds: 0.8,
+        actionDurationSeconds: 0.28,
+        parameters: { projectileCount: 16, sequence: 5 }
+      },
+      {
+        id: 'compass-ring-b',
+        clipId: 'sandbox-umbra-compass-ring-b',
+        label: 'Broken reverse opening',
+        primitiveId: 'gap-ring',
+        offsetSeconds: 0.95,
+        telegraphStyle: 'ring',
+        leadSeconds: 0.8,
+        actionDurationSeconds: 0.28,
+        parameters: { projectileCount: 18, sequence: 6 }
+      }
+    ],
+    cornerNeedle: [
+      {
+        id: 'compass-right-corner',
+        clipId: 'sandbox-umbra-compass-right-corner',
+        label: 'Broken right lock',
+        primitiveId: 'corner-ambush-beam',
+        offsetSeconds: 0,
+        telegraphStyle: 'target',
+        leadSeconds: 0.82,
+        actionDurationSeconds: 0.38,
+        parameters: { sequence: 1 }
+      },
+      {
+        id: 'compass-left-corner',
+        clipId: 'sandbox-umbra-compass-left-corner',
+        label: 'Broken left lock',
+        primitiveId: 'corner-ambush-beam',
+        offsetSeconds: 1.15,
+        telegraphStyle: 'target',
+        leadSeconds: 0.82,
+        actionDurationSeconds: 0.38,
+        parameters: { sequence: 0 }
+      }
+    ],
+    blackoutAmbush: [
+      {
+        id: 'compass-right-corner-return',
+        clipId: 'sandbox-umbra-compass-right-corner-return',
+        label: 'Broken right return',
+        primitiveId: 'corner-ambush-beam',
+        offsetSeconds: 0,
+        telegraphStyle: 'target',
+        leadSeconds: 0.82,
+        actionDurationSeconds: 0.38,
+        parameters: { sequence: 3 }
+      },
+      {
+        id: 'compass-lower-left-ram',
+        clipId: 'sandbox-umbra-compass-lower-left-ram',
+        label: 'Broken lower-left ram',
+        primitiveId: 'corner-ambush-ram',
+        offsetSeconds: 1.4,
+        telegraphStyle: 'target',
+        leadSeconds: 0.85,
+        actionDurationSeconds: 0.5,
+        parameters: { sequence: 2 }
+      },
+      {
+        id: 'compass-left-corner-return',
+        clipId: 'sandbox-umbra-compass-left-corner-return',
+        label: 'Broken left return',
+        primitiveId: 'corner-ambush-beam',
+        offsetSeconds: 2.95,
+        telegraphStyle: 'target',
+        leadSeconds: 0.82,
+        actionDurationSeconds: 0.38,
+        parameters: { sequence: 4 }
+      },
+      {
+        id: 'compass-lower-right-ram',
+        clipId: 'sandbox-umbra-compass-lower-right-ram',
+        label: 'Broken lower-right ram',
+        primitiveId: 'corner-ambush-ram',
+        offsetSeconds: 4.35,
+        telegraphStyle: 'target',
+        leadSeconds: 0.85,
+        actionDurationSeconds: 0.5,
+        parameters: { sequence: 3 }
+      },
+      {
+        id: 'compass-exit-ring',
+        clipId: 'sandbox-umbra-compass-exit-ring',
+        label: 'Broken double exit',
+        primitiveId: 'gap-ring',
+        offsetSeconds: 5.9,
+        telegraphStyle: 'ring',
+        leadSeconds: 0.8,
+        actionDurationSeconds: 0.35,
+        parameters: { projectileCount: 18, sequence: 7 },
+        repeat: { count: 2, intervalSeconds: 1 }
+      },
+      {
+        id: 'compass-final-corner',
+        clipId: 'sandbox-umbra-compass-final-corner',
+        label: 'Final broken lock',
+        primitiveId: 'corner-ambush-beam',
+        offsetSeconds: 8.2,
+        telegraphStyle: 'target',
+        leadSeconds: 0.82,
+        actionDurationSeconds: 0.38,
+        parameters: { sequence: 5 }
+      },
+      {
+        id: 'compass-blackout-ring',
+        clipId: 'sandbox-umbra-compass-blackout-ring',
+        label: 'Blackout collapse opening',
+        primitiveId: 'gap-ring',
+        offsetSeconds: 9.55,
+        telegraphStyle: 'ring',
+        leadSeconds: 0.8,
+        actionDurationSeconds: 0.35,
+        parameters: { projectileCount: 18, sequence: 8 }
       }
     ]
-  }
+  })
 ]);
 
 const cinderjawSiegeStance = 'sandbox-cinderjaw-siege-stance';
@@ -3936,14 +4338,15 @@ const definitions = deepFreeze([
     shortLabel: 'Blackout corner hunter',
     description: 'A transforming-orbiter night hunter whose wing emitters trade measured side fire for a fair, fully telegraphed corner ambush while its core opens one navigable ring at a time.',
     designIntent: [
-      'Wing emitters alternate port and starboard fire instead of launching shots from the hull center',
-      'The blackout sentence preserves the player ship and HUD while one corner silhouette owns the warned beam',
-      'Corner parity, safe-gap order, and recovery placement change by phase without blanket speed inflation',
-      'Every corner beam uses an exact target warning before a short commitment and a long escape window'
+      'Wing Shear Crossfire teaches a readable port-starboard rhythm from the paired wing emitters',
+      'Orbit Gap Thread teaches the rotating core opening before later attacks combine it with corner pressure',
+      'Corner Needle Lock teaches exact target warnings and deterministic upper-corner parity',
+      'Blackout Ambush combines the ram, alternating corner reveals, exit ring, and compact recovery without blanket speed inflation'
     ],
     boss: gatekeeperBoss({
       id: 'sandbox-umbra-needlewing',
       label: 'Umbra Needlewing',
+      bossId: 'umbra-needlewing',
       rigId: 'open-orbit',
       componentMode: 'hull-only',
       spriteKey: 'CAMPAIGN_BOSS_ECLIPSE_ENGINE',

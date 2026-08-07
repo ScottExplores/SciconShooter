@@ -82,6 +82,7 @@ export const BUILT_IN_ASSET_CATALOG: Readonly<Record<BuiltInAssetKey, AssetCatal
   CAMPAIGN_BOSS_HELIX_LEVIATHAN: asset('CAMPAIGN_BOSS_HELIX_LEVIATHAN', 'Helix Leviathan', ASSETS.CAMPAIGN_BOSS_HELIX_LEVIATHAN, ['boss', 'scorecard']),
   CAMPAIGN_BOSS_ORBIT_GYROSCOPE: asset('CAMPAIGN_BOSS_ORBIT_GYROSCOPE', 'Aurora Oculus', ASSETS.CAMPAIGN_BOSS_ORBIT_GYROSCOPE, ['boss', 'scorecard']),
   CAMPAIGN_BOSS_NULLWAKE_REVENANT: asset('CAMPAIGN_BOSS_NULLWAKE_REVENANT', 'Nullwake Revenant', ASSETS.CAMPAIGN_BOSS_NULLWAKE_REVENANT, ['boss', 'scorecard']),
+  CAMPAIGN_BOSS_UMBRA_NEEDLEWING: asset('CAMPAIGN_BOSS_UMBRA_NEEDLEWING', 'Umbra Needlewing', ASSETS.CAMPAIGN_BOSS_UMBRA_NEEDLEWING, ['boss', 'scorecard']),
   CAMPAIGN_BOSS_PRISM_MOTH: asset('CAMPAIGN_BOSS_PRISM_MOTH', 'Prism Moth', ASSETS.CAMPAIGN_BOSS_PRISM_MOTH, ['boss', 'scorecard']),
   CAMPAIGN_BOSS_RAIL_SERPENT: asset('CAMPAIGN_BOSS_RAIL_SERPENT', 'Rail Serpent', ASSETS.CAMPAIGN_BOSS_RAIL_SERPENT, ['boss', 'scorecard']),
   CAMPAIGN_BOSS_SINGULARITY_CRAB: asset('CAMPAIGN_BOSS_SINGULARITY_CRAB', 'Singularity Crab', ASSETS.CAMPAIGN_BOSS_SINGULARITY_CRAB, ['boss', 'scorecard']),
@@ -535,6 +536,14 @@ export const BOSS_CATALOG: Record<BossId, BossCatalogEntry> = {
     label: 'Nullwake Revenant',
     entityType: 'BOSS',
     defaultSpriteKey: 'CAMPAIGN_BOSS_NULLWAKE_REVENANT',
+    defaultMovementPatternId: 'arena-roam',
+    allowedWeaponIds: ['burst-volley', 'lane-beam']
+  },
+  'umbra-needlewing': {
+    id: 'umbra-needlewing',
+    label: 'Umbra Needlewing',
+    entityType: 'BOSS',
+    defaultSpriteKey: 'CAMPAIGN_BOSS_UMBRA_NEEDLEWING',
     defaultMovementPatternId: 'arena-roam',
     allowedWeaponIds: ['burst-volley', 'lane-beam']
   }

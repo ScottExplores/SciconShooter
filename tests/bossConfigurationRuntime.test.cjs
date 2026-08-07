@@ -163,7 +163,7 @@ test('all ten authored sector bosses carry stable rigs and runtime prefers them 
     { missionOrder: 35, bossId: 'singularity-crab', rigId: 'crown-claw' },
     { missionOrder: 40, bossId: 'orbit-gyroscope', rigId: 'paywall-siege' },
     { missionOrder: 45, bossId: 'hammerhead-siege', rigId: 'paywall-siege' },
-    { missionOrder: 50, bossId: 'frontier-crownclaw', rigId: 'crown-claw' }
+    { missionOrder: 50, bossId: 'umbra-needlewing', rigId: 'open-orbit' }
   ]);
   rigs.map((entry) => entry.rigId).forEach((rigId) => {
     assert.ok(['open-orbit', 'citation-storm', 'paywall-siege', 'crown-claw'].includes(rigId));

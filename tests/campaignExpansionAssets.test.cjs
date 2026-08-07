@@ -66,7 +66,8 @@ test('promoted Test Bosses expose their exact assembled art through every asset 
     CAMPAIGN_BOSS_HELIOS_CLAWCARRIER: 'helios-clawcarrier',
     CAMPAIGN_BOSS_NULLWAKE_REVENANT: 'nullwake-revenant',
     CAMPAIGN_BOSS_ORBIT_GYROSCOPE: 'orbit-gyroscope',
-    CAMPAIGN_BOSS_HAMMERHEAD_SIEGE: 'hammerhead-siege'
+    CAMPAIGN_BOSS_HAMMERHEAD_SIEGE: 'hammerhead-siege',
+    CAMPAIGN_BOSS_UMBRA_NEEDLEWING: 'umbra-needlewing'
   };
 
   for (const [key, bossId] of Object.entries(promotedAssets)) {
@@ -97,7 +98,7 @@ test('every revision-24 sector ends in one authored major-boss Mission', () => {
     [35, { bossId: 'singularity-crab', spriteKey: 'CAMPAIGN_BOSS_SINGULARITY_CRAB' }],
     [40, { bossId: 'orbit-gyroscope', spriteKey: 'CAMPAIGN_BOSS_ORBIT_GYROSCOPE' }],
     [45, { bossId: 'hammerhead-siege', spriteKey: 'CAMPAIGN_BOSS_HAMMERHEAD_SIEGE' }],
-    [50, { bossId: 'frontier-crownclaw', spriteKey: 'CAMPAIGN_BOSS_FRONTIER_CROWNCLAW' }]
+    [50, { bossId: 'umbra-needlewing', spriteKey: 'CAMPAIGN_BOSS_UMBRA_NEEDLEWING' }]
   ]);
 
   assert.equal(campaign.revision, 24);

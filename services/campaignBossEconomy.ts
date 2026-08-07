@@ -24,7 +24,7 @@ const economyDefinition = (
 });
 
 /**
- * Approved Campaign boss durability for the first six sector finales.
+ * Approved Campaign boss durability for all ten sector finales.
  *
  * Test Boss choreography and artwork stay authoritative. Promotion changes only
  * these economy fields so moving a boss between Missions is a deliberate balance
@@ -99,7 +99,7 @@ export const CAMPAIGN_BOSS_ECONOMY_BY_MISSION = Object.freeze({
   }),
   50: economyDefinition({
     missionOrder: 50,
-    bossId: 'frontier-crownclaw',
+    bossId: 'umbra-needlewing',
     hullHealth: 3_400,
     fullHullBars: 1
   })

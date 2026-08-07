@@ -15,6 +15,7 @@ import { sampleGloamforgeModularPose } from './GloamforgeModularPose';
 import { sampleHeliosModularPose } from './HeliosModularPose';
 import { sampleNullwakeModularPose } from './NullwakeModularPose';
 import { samplePrismMothSandboxPose } from './PrismMothModularPose';
+import { sampleUmbraNeedlewingModularPose } from './UmbraNeedlewingModularPose';
 import {
   SINGULARITY_COMMANDER_ARTWORK_PACKAGE
 } from './SingularityCommanderArtwork';
@@ -33,7 +34,8 @@ type CampaignBossPoseKey =
   | 'helios-clawcarrier'
   | 'nullwake-revenant'
   | 'prism-moth'
-  | 'singularity-reach-commander';
+  | 'singularity-reach-commander'
+  | 'umbra-needlewing';
 
 type CompiledCampaignBossArtwork = Omit<
   PreviewBossArtwork,
@@ -74,7 +76,8 @@ const poseSamplers: Readonly<
   'helios-clawcarrier': (input) => sampleHeliosModularPose(input).partOverrides,
   'nullwake-revenant': (input) => sampleNullwakeModularPose(input).partOverrides,
   'prism-moth': samplePrismMothSandboxPose,
-  'singularity-reach-commander': sampleSingularityCommanderModularPose
+  'singularity-reach-commander': sampleSingularityCommanderModularPose,
+  'umbra-needlewing': sampleUmbraNeedlewingModularPose
 });
 
 const findBossEvent = (

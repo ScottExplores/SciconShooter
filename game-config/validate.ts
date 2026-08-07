@@ -355,7 +355,12 @@ const BOSS_TIMELINE_MOTION_CUES = new Set([
   'frontier-bastion-crabwalk',
   'frontier-critical-cross-link',
   'frontier-stagger',
-  'frontier-death'
+  'frontier-death',
+  'umbra-needle-lattice',
+  'umbra-wing-shard-gate',
+  'umbra-predator-lock',
+  'umbra-blackout-ambush',
+  'umbra-escape'
 ]);
 const BOSS_TIMELINE_ROTATION_DIRECTIONS = new Set([
   'clockwise',

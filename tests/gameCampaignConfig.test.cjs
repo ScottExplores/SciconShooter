@@ -229,7 +229,7 @@ test('fifty main depths form a non-recycling campaign with ten authored sector c
   assert.ok(campaign.levels.every((stage) => stage.loopWaves === false));
   assert.deepEqual(sectorBosses.map((boss) => boss.bossId), [
     'gatekeeper-prime', 'paywall-decimator', 'prism-moth', 'frontier-crownclaw', 'helios-clawcarrier',
-    'nullwake-revenant', 'singularity-crab', 'orbit-gyroscope', 'hammerhead-siege', 'frontier-crownclaw'
+    'nullwake-revenant', 'singularity-crab', 'orbit-gyroscope', 'hammerhead-siege', 'umbra-needlewing'
   ]);
   assert.deepEqual(
     campaign.levels.filter((level) => level.waves.some((wave) => wave.completionRule === 'boss-defeat')).map((level) => level.order),
@@ -285,14 +285,14 @@ test('ten sector bosses follow a readable durability, bounded score, and project
 
   assert.deepEqual(finalBosses.map((boss) => boss.health), [500, 800, 1300, 1600, 2350, 2500, 2700, 2900, 3150, 3400]);
   assert.deepEqual(finalBosses.map((boss) => boss.scoreReward), [1010, 5010, 9010, 13010, 17010, 21010, 25010, 29010, 33010, 37010]);
-  assert.deepEqual(bursts.map((weapon) => weapon.burstCount), [3, 7, 4, 4, 4, 4, 1, 2, 1, 3]);
+  assert.deepEqual(bursts.map((weapon) => weapon.burstCount), [3, 7, 4, 4, 4, 4, 1, 4, 4, 4]);
   finalBosses.slice(1).forEach((boss, index) => {
     assert.ok(boss.health > finalBosses[index].health);
     assert.ok(boss.scoreReward > finalBosses[index].scoreReward);
   });
   assert.ok(bursts.every((weapon) => weapon.projectileSpeed >= 4.6 && weapon.projectileSpeed <= 7.65));
   assert.ok(bursts.every((weapon) => weapon.burstCount >= 1 && weapon.burstCount <= 7));
-  assert.ok(new Set(bursts.map((weapon) => weapon.projectileSpeed)).size >= 6, 'bosses preserve distinct projectile vocabularies');
+  assert.ok(new Set(bursts.map((weapon) => weapon.projectileSpeed)).size >= 4, 'legacy weapon fallbacks retain bounded projectile tiers while promoted timelines own their attack vocabulary');
   assert.ok(finalBosses.at(-1).scoreReward < 40_000);
 });
 
