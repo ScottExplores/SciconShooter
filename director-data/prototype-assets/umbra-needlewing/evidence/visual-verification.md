@@ -63,13 +63,13 @@
 | Attack ID | Preparation | Telegraph | First beat | Peak danger | Recovery | Verdict |
 |---|---|---|---|---|---|---|
 | `wing-shear-crossfire` | pass | pass | pass | pass | pass | Sequential wing-root fire is readable, socket-owned, and returns to the upper anchor. |
-| `orbit-gap-thread` | pass | pass | pass | pass | pass | Five, six, or eight downward-only rotating salvos communicate the moving opening through projectile arrangement; no production safe-path line, label, or endpoint circle is drawn. |
+| `orbit-gap-thread` | pass | pass | pass | pass | pass | Five, six, or eight downward-only rotating salvos use a narrow 0.2-radian half-width opening that requires active tracking; no production safe-path line, label, or endpoint circle is drawn. |
 | `corner-needle-lock` | pass | pass | pass | pass | pass | Pure blackout preserves the player/HUD, shows detached eye/line cues, locks before damage, fires a materially thicker beam, and restores the arena. |
 | `blackout-ambush` | pass | pass | pass | pass | pass | Dissolve, dim corner silhouette, locked physical lane, dash trail, clean exit, and staged materialization are visually distinct from the laser attack. |
 
 ## Deterministic route proof
 
-The serialized proof replays all 12 attack-by-phase combinations in the exact portrait geometry with 3 px geometry uncertainty. The required post-uncertainty floor is 6 px; the observed minimum is `6.075921547 px`.
+The serialized proof replays all 12 attack-by-phase combinations in the exact portrait geometry with 3 px geometry uncertainty. The required post-uncertainty floor is 6 px; after narrowing Attack 2, the observed minimum is `6.003609132 px`.
 
 | Phase | Attack | Frames | Configuration | Route | Post-uncertainty clearance |
 |---|---|---:|---|---|---:|

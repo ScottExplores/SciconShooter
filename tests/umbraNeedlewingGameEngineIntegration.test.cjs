@@ -755,7 +755,8 @@ test('Umbra projectiles carry the registered animated needle and wing-shard pres
     (largest, angle, index) => Math.max(largest, angle - forwardAngles[index]),
     0
   );
-  assert.ok(largestOpening >= 0.58, 'the rotating opening remains physically navigable');
+  assert.ok(largestOpening >= 0.34, 'the rotating opening remains physically navigable');
+  assert.ok(largestOpening <= 0.75, 'Attack 2 keeps a narrow opening that requires active tracking');
 });
 
 test('terminal escape cleans owned hazards, grants one escape reward, and produces an escaped summary', () => {

@@ -20,7 +20,7 @@
 ## Player learning arc
 
 - Skill A: alternate across visibly committed port/starboard wing fire in Wing Shear Crossfire
-- Skill B: track the missing wedge through five, six, or eight sequential downward rotating salvos in Broken Clockwise Opening
+- Skill B: actively track the narrow missing wedge through five, six, or eight sequential downward rotating salvos in Broken Clockwise Opening
 - Skill C: read detached red eyes and leave each warning-locked lane before the stationary Blackout Laser fires
 - Signature puzzle: read the pure-black re-entry corners and vacate two, four, or six committed physical ram lanes in Blackout Hunt
 - Phase-two visual/behavioral remix: core aperture opens, eye overlays flare, wings spread/fold more aggressively, and the registered re-entry family makes disappearance/reappearance physical

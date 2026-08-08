@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "artifactType": "boss-safe-route-evidence",
   "bossId": "umbra-needlewing",
-  "generatedAt": "2026-08-07",
+  "generatedAt": "2026-08-08",
   "proofImplementation": "services/gameplay/bosses/UmbraNeedlewingSafeRouteProof.ts",
   "focusedTest": "tests/umbraNeedlewingSafeRouteProof.test.cjs",
   "timelineSource": "director/src/combat-lab/sandboxBossPrototypes.ts",
@@ -32,8 +32,8 @@
   "minimumRequiredRawClearancePixels": 9,
   "minimumRequiredClearanceAfterUncertaintyPixels": 6,
   "proofCount": 12,
-  "minimumObservedRawClearancePixels": 9.075921547,
-  "minimumObservedClearanceAfterUncertaintyPixels": 6.075921547,
+  "minimumObservedRawClearancePixels": 9.003609132,
+  "minimumObservedClearanceAfterUncertaintyPixels": 6.003609132,
   "routes": [
     {
       "attackId": "wing-shear-crossfire",
@@ -54,9 +54,9 @@
       "reason": "proven",
       "checkedFrames": 387,
       "durationFrames": 387,
-      "minimumRawClearancePixels": 108.703212146,
-      "minimumClearanceAfterUncertaintyPixels": 105.703212146,
-      "routeHash": "a1d5ace5",
+      "minimumRawClearancePixels": 16.048796845,
+      "minimumClearanceAfterUncertaintyPixels": 13.048796845,
+      "routeHash": "e9ded1be",
       "configurationHash": "d4b4b7ea"
     },
     {
@@ -102,9 +102,9 @@
       "reason": "proven",
       "checkedFrames": 348,
       "durationFrames": 348,
-      "minimumRawClearancePixels": 114.894444158,
-      "minimumClearanceAfterUncertaintyPixels": 111.894444158,
-      "routeHash": "65d55e88",
+      "minimumRawClearancePixels": 9.118946363,
+      "minimumClearanceAfterUncertaintyPixels": 6.118946363,
+      "routeHash": "976a4bb7",
       "configurationHash": "f93661d6"
     },
     {
@@ -150,9 +150,9 @@
       "reason": "proven",
       "checkedFrames": 310,
       "durationFrames": 310,
-      "minimumRawClearancePixels": 23.340185173,
-      "minimumClearanceAfterUncertaintyPixels": 20.340185173,
-      "routeHash": "3c82bea7",
+      "minimumRawClearancePixels": 9.003609132,
+      "minimumClearanceAfterUncertaintyPixels": 6.003609132,
+      "routeHash": "1e73752e",
       "configurationHash": "cd4d9984"
     },
     {
