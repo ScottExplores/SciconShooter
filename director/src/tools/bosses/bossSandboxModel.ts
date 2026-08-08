@@ -48,6 +48,18 @@ import {
   samplePrismMothSandboxPose,
   validatePrismMothRigCompatibility
 } from '@game/services/pixi/boss-rigs/PrismMothModularPose';
+import {
+  UMBRA_NEEDLEWING_ARTWORK_PACKAGE,
+  UMBRA_NEEDLEWING_ATLAS_SHA256,
+  UMBRA_NEEDLEWING_ATLAS_URL,
+  UMBRA_NEEDLEWING_MODULAR_RIG,
+  UMBRA_NEEDLEWING_NEUTRAL_SHA256,
+  UMBRA_NEEDLEWING_NEUTRAL_SIZE,
+  UMBRA_NEEDLEWING_NEUTRAL_URL,
+  UMBRA_NEEDLEWING_REFERENCE_COMPARISON,
+  UMBRA_NEEDLEWING_REFERENCE_SHA256,
+  UMBRA_NEEDLEWING_REFERENCE_URL
+} from '@game/services/pixi/boss-rigs/UmbraNeedlewingArtwork';
 import { getSandboxBossCollisionMask } from './generatedSandboxBossCollisionMasks';
 import {
   createFocusedPreviewCampaign,
@@ -70,7 +82,7 @@ import heliosRigSource from '../../../../director-data/prototype-assets/helios-c
 import prismMothAtlasSource from '../../../../director-data/prototype-assets/prism-moth-broodkeeper/prism-moth-broodkeeper-atlas.json';
 import prismMothRigSource from '../../../../director-data/prototype-assets/prism-moth-broodkeeper/prism-moth-broodkeeper.rig.json';
 
-export const BOSS_SANDBOX_VERSION = 'V 0.33' as const;
+export const BOSS_SANDBOX_VERSION = 'V 0.34' as const;
 
 export const BOSS_SANDBOX_RAIL_MIN_WIDTH = 236;
 export const BOSS_SANDBOX_RAIL_MAX_WIDTH = 420;
@@ -219,13 +231,17 @@ export const AURORA_STORM_ENGINE_ART_URL =
 export const AURORA_STORM_ENGINE_SHEET_URL =
   `/__director/api/v1/prototype-assets/aurora-storm-engine/${AURORA_STORM_ENGINE_SHEET_SHA256}/sheet.png`;
 export const UMBRA_NEEDLEWING_ART_SHA256 =
-  'd483e20d0f8f4b89c68d8e73536a9e37a9b35f5a2df640ca8a6189196785a100';
+  UMBRA_NEEDLEWING_NEUTRAL_SHA256;
 export const UMBRA_NEEDLEWING_SHEET_SHA256 =
-  'ac06e289345bcddacde0e0a7dc84bd35d9b9baa556178999b2522a890279ddb8';
+  UMBRA_NEEDLEWING_ATLAS_SHA256;
+export const UMBRA_NEEDLEWING_REFERENCE_ART_SHA256 =
+  UMBRA_NEEDLEWING_REFERENCE_SHA256;
 export const UMBRA_NEEDLEWING_ART_URL =
-  `/__director/api/v1/prototype-assets/umbra-needlewing/${UMBRA_NEEDLEWING_ART_SHA256}/assembled.png`;
+  UMBRA_NEEDLEWING_NEUTRAL_URL;
 export const UMBRA_NEEDLEWING_SHEET_URL =
-  `/__director/api/v1/prototype-assets/umbra-needlewing/${UMBRA_NEEDLEWING_SHEET_SHA256}/sheet.png`;
+  UMBRA_NEEDLEWING_ATLAS_URL;
+export const UMBRA_NEEDLEWING_REFERENCE_ART_URL =
+  UMBRA_NEEDLEWING_REFERENCE_URL;
 export const CINDERJAW_SIEGE_BEETLE_ART_SHA256 =
   '133b11009ad6ccb6f1b31252d10ee90554a31aaa56f0a6769e51f47f31744611';
 export const CINDERJAW_SIEGE_BEETLE_SHEET_SHA256 =
@@ -1066,37 +1082,6 @@ const AURORA_STORM_ENGINE_ATLAS_FRAMES = Object.freeze({
   height: number;
 }>>>;
 
-const UMBRA_NEEDLEWING_ATLAS_FRAMES = Object.freeze({
-  coreClosed: Object.freeze({ x: 403, y: 61, width: 132, height: 242 }),
-  coreOpen: Object.freeze({ x: 606, y: 61, width: 131, height: 242 }),
-  leftWing: Object.freeze({ x: 806, y: 72, width: 182, height: 199 }),
-  rightWing: Object.freeze({ x: 1029, y: 72, width: 182, height: 199 }),
-  leftEmitter: Object.freeze({ x: 45, y: 369, width: 162, height: 135 }),
-  rightEmitter: Object.freeze({ x: 296, y: 370, width: 163, height: 134 }),
-  finTop: Object.freeze({ x: 564, y: 333, width: 85, height: 198 }),
-  finRight: Object.freeze({ x: 771, y: 368, width: 159, height: 138 }),
-  finBottom: Object.freeze({ x: 1032, y: 373, width: 126, height: 147 }),
-  finLeft: Object.freeze({ x: 54, y: 584, width: 159, height: 138 }),
-  nodeA: Object.freeze({ x: 305, y: 578, width: 135, height: 134 }),
-  nodeB: Object.freeze({ x: 538, y: 578, width: 135, height: 134 }),
-  nodeC: Object.freeze({ x: 777, y: 578, width: 135, height: 134 }),
-  nodeD: Object.freeze({ x: 1029, y: 578, width: 135, height: 134 }),
-  haloSmall: Object.freeze({ x: 50, y: 809, width: 124, height: 123 }),
-  haloMedium: Object.freeze({ x: 249, y: 780, width: 184, height: 180 }),
-  haloLarge: Object.freeze({ x: 467, y: 755, width: 226, height: 228 }),
-  haloXL: Object.freeze({ x: 712, y: 731, width: 269, height: 265 }),
-  perimeterRing: Object.freeze({ x: 1000, y: 756, width: 222, height: 223 }),
-  laserHub: Object.freeze({ x: 66, y: 1010, width: 147, height: 195 }),
-  pulseSmall: Object.freeze({ x: 312, y: 1071, width: 70, height: 70 }),
-  pulseMedium: Object.freeze({ x: 506, y: 1049, width: 122, height: 118 }),
-  pulseLarge: Object.freeze({ x: 751, y: 1016, width: 175, height: 172 })
-}) satisfies Readonly<Record<TransformingOrbiterPartId, Readonly<{
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}>>>;
-
 const NULLWAKE_REVENANT_ATLAS_FRAMES = Object.freeze({
   coreClosed: Object.freeze({ x: 456, y: 38, width: 166, height: 275 }),
   coreOpen: Object.freeze({ x: 669, y: 73, width: 143, height: 227 }),
@@ -1604,15 +1589,15 @@ const AURORA_STORM_ENGINE_SHEET_ASSET = Object.freeze({
 const UMBRA_NEEDLEWING_ASSEMBLED_ASSET = Object.freeze({
   url: UMBRA_NEEDLEWING_ART_URL,
   contentHash: UMBRA_NEEDLEWING_ART_SHA256,
-  width: 363,
-  height: 257
+  width: UMBRA_NEEDLEWING_NEUTRAL_SIZE.width,
+  height: UMBRA_NEEDLEWING_NEUTRAL_SIZE.height
 }) satisfies SandboxBossArtworkAsset;
 
 const UMBRA_NEEDLEWING_SHEET_ASSET = Object.freeze({
   url: UMBRA_NEEDLEWING_SHEET_URL,
   contentHash: UMBRA_NEEDLEWING_SHEET_SHA256,
-  width: 1254,
-  height: 1254
+  width: UMBRA_NEEDLEWING_MODULAR_RIG.manifest.atlas.width,
+  height: UMBRA_NEEDLEWING_MODULAR_RIG.manifest.atlas.height
 }) satisfies SandboxBossArtworkAsset;
 
 const CINDERJAW_SIEGE_BEETLE_ASSEMBLED_ASSET = Object.freeze({
@@ -1971,13 +1956,12 @@ export const SANDBOX_BOSS_ARTWORK_REGISTRATIONS: Readonly<
     prototypeId: 'umbra-needlewing',
     assembled: UMBRA_NEEDLEWING_ASSEMBLED_ASSET,
     sheet: UMBRA_NEEDLEWING_SHEET_ASSET,
-    renderMode: 'assembled',
-    assembledMotionProfile: 'wingbeat-hover',
-    articulatedAtlas: Object.freeze({
-      kind: 'transforming-orbiter-v1',
-      ...UMBRA_NEEDLEWING_SHEET_ASSET,
-      frames: UMBRA_NEEDLEWING_ATLAS_FRAMES
-    }),
+    renderMode: 'articulated',
+    weaponSockets: UMBRA_NEEDLEWING_ARTWORK_PACKAGE.artwork.weaponSockets!,
+    modularRig: UMBRA_NEEDLEWING_MODULAR_RIG,
+    sampleModularPose: UMBRA_NEEDLEWING_ARTWORK_PACKAGE.artwork.sampleModularPose!,
+    modularReferenceComparison: UMBRA_NEEDLEWING_REFERENCE_COMPARISON,
+    projectileAnimations: UMBRA_NEEDLEWING_ARTWORK_PACKAGE.artwork.projectileAnimations!,
     vfxAtlas: Object.freeze({
       ...SANDBOX_BOSS_VFX_SHEET_ASSET,
       frames: SANDBOX_BOSS_VFX_ATLAS_FRAMES

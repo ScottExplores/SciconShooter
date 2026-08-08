@@ -64,6 +64,13 @@ const expectedBossSlots = [
     health: 3150,
     eventId: 'stage-hammerhead-line-commander-major-boss',
     encounterAssetKey: 'CAMPAIGN_BOSS_HAMMERHEAD_SIEGE'
+  },
+  {
+    order: 50,
+    bossId: 'umbra-needlewing',
+    health: 3400,
+    eventId: 'stage-crownclaw-frontier-commander-major-boss',
+    encounterAssetKey: 'CAMPAIGN_BOSS_UMBRA_NEEDLEWING'
   }
 ];
 
@@ -113,6 +120,7 @@ test('promoted Test Bosses keep their exact authored timelines and Mission-scale
   const nullwake = getBossSlot(30).event;
   const aurora = getBossSlot(40).event;
   const gloamforge = getBossSlot(45).event;
+  const umbra = getBossSlot(50).event;
 
   assert.equal(prism.componentMode, 'hull-only');
   assert.equal(prism.timeline.clips.length, 41);
@@ -144,6 +152,11 @@ test('promoted Test Bosses keep their exact authored timelines and Mission-scale
   assert.equal(gloamforge.componentMode, 'hull-only');
   assert.equal(gloamforge.componentHealth, undefined);
   assert.equal(gloamforge.timeline.clips.length, 46);
+  assert.equal(umbra.label, 'Umbra Needlewing');
+  assert.equal(umbra.rigId, 'open-orbit');
+  assert.equal(umbra.componentMode, 'hull-only');
+  assert.equal(umbra.componentHealth, undefined);
+  assert.equal(umbra.timeline.clips.length, 96);
 });
 
 test('authored Campaign hull health remains monotonic after the Revenant promotion', () => {

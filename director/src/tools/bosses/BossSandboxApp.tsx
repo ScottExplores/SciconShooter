@@ -288,6 +288,9 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
   const [railWidths, setRailWidths] = useState<BossSandboxRailWidths>(
     readBossSandboxRailWidths
   );
+  const [collapsedRails, setCollapsedRails] = useState<
+    Record<BossSandboxRailSide, boolean>
+  >({ left: false, right: false });
   const [workspaceWidth, setWorkspaceWidth] = useState(() => (
     typeof window === 'undefined' ? 0 : window.innerWidth
   ));
@@ -297,9 +300,14 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
   const railResizeSession = useRef<BossSandboxRailResizeSession | null>(null);
 
   const sandboxStyle = useMemo(() => ({
-    '--bs-left-rail-width': `${railWidths.left}px`,
-    '--bs-right-rail-width': `${railWidths.right}px`
-  } as CSSProperties), [railWidths.left, railWidths.right]);
+    '--bs-left-rail-width': collapsedRails.left ? '0px' : `${railWidths.left}px`,
+    '--bs-right-rail-width': collapsedRails.right ? '0px' : `${railWidths.right}px`
+  } as CSSProperties), [
+    collapsedRails.left,
+    collapsedRails.right,
+    railWidths.left,
+    railWidths.right
+  ]);
   const leftRailMaximum = clampBossSandboxRailWidth({
     requestedWidth: BOSS_SANDBOX_RAIL_MAX_WIDTH,
     otherRailWidth: railWidths.right,
@@ -595,6 +603,13 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
     resizeRail(side, nextWidth);
     setNotice('Panel width saved for this browser');
   }, [railWidths, resizeRail]);
+
+  const toggleRailCollapsed = useCallback((side: BossSandboxRailSide) => {
+    setCollapsedRails((current) => ({
+      ...current,
+      [side]: !current[side]
+    }));
+  }, []);
 
   const sendCommand = useCallback((command: PreviewCommandInput) => {
     commandNonce.current += 1;
@@ -937,14 +952,40 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
       className="boss-sandbox"
       ref={sandboxRef}
       style={sandboxStyle}
+      data-left-panel={collapsedRails.left ? 'collapsed' : 'open'}
+      data-right-panel={collapsedRails.right ? 'collapsed' : 'open'}
     >
       <header className="boss-sandbox__header">
-        <div>
+        <div className="boss-sandbox__brand">
           <span aria-hidden="true">BS</span>
           <div>
             <strong>Boss Sandbox</strong>
             <small>Choose a boss, fight it, then tell Codex what to change.</small>
           </div>
+        </div>
+        <div className="boss-sandbox__panel-actions" aria-label="Panel visibility">
+          <button
+            type="button"
+            aria-controls="boss-sandbox-picker"
+            aria-expanded={!collapsedRails.left}
+            aria-label={collapsedRails.left ? 'Show boss panel' : 'Hide boss panel'}
+            title={collapsedRails.left ? 'Show boss panel' : 'Hide boss panel'}
+            onClick={() => toggleRailCollapsed('left')}
+          >
+            <span aria-hidden="true">{collapsedRails.left ? '›' : '‹'}</span>
+            <span>Boss panel</span>
+          </button>
+          <button
+            type="button"
+            aria-controls="boss-sandbox-loadout"
+            aria-expanded={!collapsedRails.right}
+            aria-label={collapsedRails.right ? 'Show ship panel' : 'Hide ship panel'}
+            title={collapsedRails.right ? 'Show ship panel' : 'Hide ship panel'}
+            onClick={() => toggleRailCollapsed('right')}
+          >
+            <span aria-hidden="true">{collapsedRails.right ? '‹' : '›'}</span>
+            <span>Ship panel</span>
+          </button>
         </div>
         <nav aria-label="Boss Sandbox links">
           <span className="boss-sandbox__version">{BOSS_SANDBOX_VERSION}</span>

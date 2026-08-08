@@ -59,14 +59,17 @@ const artworkFixtures = Object.freeze([
   }),
   Object.freeze({
     prototypeId: 'umbra-needlewing',
-    kind: 'transforming-orbiter-v1',
-    renderMode: 'assembled',
-    assembledMotionProfile: 'wingbeat-hover',
-    frameCount: 23,
-    assembledDimensions: Object.freeze({ width: 363, height: 257 }),
-    sheetDimensions: Object.freeze({ width: 1254, height: 1254 }),
+    modular: true,
+    renderMode: 'articulated',
+    frameCount: 33,
+    assembledDimensions: Object.freeze({ width: 512, height: 320 }),
+    sheetDimensions: Object.freeze({ width: 2048, height: 1024 }),
     binaryAlpha: true,
-    sheetPath: path.join(prototypeAssetRoot, 'umbra-needlewing-modular-sheet.png')
+    sheetPath: path.join(
+      prototypeAssetRoot,
+      'umbra-needlewing',
+      'umbra-needlewing-atlas.png'
+    )
   }),
   Object.freeze({
     prototypeId: 'cinderjaw-siege-beetle',

@@ -30,7 +30,7 @@
   pointer-events: none;
 }
 
-.boss-sandbox__header > div {
+.boss-sandbox__brand {
   display: flex;
   min-width: 0;
   height: 64px;
@@ -43,7 +43,7 @@
   pointer-events: auto;
 }
 
-.boss-sandbox__header > div > span {
+.boss-sandbox__brand > span {
   display: grid;
   width: 38px;
   height: 38px;
@@ -55,6 +55,63 @@
   background: rgba(8, 145, 178, .09);
   font-family: var(--font-mono);
   font-size: 10px;
+}
+
+.boss-sandbox__panel-actions {
+  position: absolute;
+  z-index: 70;
+  inset: 0;
+  height: 100dvh;
+  pointer-events: none;
+}
+
+.boss-sandbox__panel-actions button {
+  position: absolute;
+  top: 50%;
+  display: grid;
+  width: 30px;
+  height: 64px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(103, 232, 249, .28);
+  border-radius: 7px;
+  color: #b8cbd8;
+  background: rgba(2, 12, 24, .9);
+  box-shadow: 0 0 14px rgba(2, 8, 17, .7);
+  font-size: 18px;
+  font-weight: 800;
+  cursor: pointer;
+  pointer-events: auto;
+  transform: translateY(-50%);
+}
+
+.boss-sandbox__panel-actions button:first-child {
+  left: max(3px, calc(var(--bs-left-rail-width) - 34px));
+}
+
+.boss-sandbox__panel-actions button:last-child {
+  right: max(3px, calc(var(--bs-right-rail-width) - 34px));
+}
+
+.boss-sandbox__panel-actions button span:last-child {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.boss-sandbox__panel-actions button:hover,
+.boss-sandbox__panel-actions button:focus-visible {
+  border-color: #67e8f9;
+  color: #ecfeff;
+  background: rgba(8, 145, 178, .2);
+}
+
+.boss-sandbox__panel-actions button:focus-visible {
+  outline: 2px solid #fde047;
+  outline-offset: 2px;
 }
 
 .boss-sandbox__header strong {
@@ -122,6 +179,7 @@
 
 .boss-sandbox__picker {
   display: flex;
+  grid-column: 1;
   min-height: 0;
   overflow-y: auto;
   flex-direction: column;
@@ -582,6 +640,7 @@
 .boss-sandbox__play {
   position: relative;
   display: block;
+  grid-column: 2;
   height: 100dvh;
   min-width: 0;
   min-height: 0;
@@ -589,6 +648,7 @@
 }
 
 .boss-sandbox__loadout {
+  grid-column: 3;
   min-width: 0;
   min-height: 0;
   overflow-y: auto;
@@ -599,6 +659,15 @@
   scrollbar-color: rgba(103, 232, 249, .28) transparent;
   scrollbar-width: thin;
   container: ship-loadout / inline-size;
+}
+
+.boss-sandbox[data-left-panel='collapsed'] .boss-sandbox__brand,
+.boss-sandbox[data-left-panel='collapsed'] .boss-sandbox__picker,
+.boss-sandbox[data-left-panel='collapsed'] .boss-sandbox__rail-resizer--left,
+.boss-sandbox[data-right-panel='collapsed'] .boss-sandbox__header > nav,
+.boss-sandbox[data-right-panel='collapsed'] .boss-sandbox__loadout,
+.boss-sandbox[data-right-panel='collapsed'] .boss-sandbox__rail-resizer--right {
+  display: none;
 }
 
 .boss-sandbox__stage {
@@ -1174,7 +1243,7 @@
     padding-left: 10px;
   }
 
-  .boss-sandbox__header > div {
+  .boss-sandbox__brand {
     padding-right: 10px;
     padding-left: 10px;
   }
@@ -1253,12 +1322,44 @@
     pointer-events: auto;
   }
 
-  .boss-sandbox__header > div,
+  .boss-sandbox__brand,
+  .boss-sandbox__panel-actions,
   .boss-sandbox__header nav {
     height: auto;
     padding: 0;
     border: 0;
     background: transparent;
+  }
+
+  .boss-sandbox__panel-actions {
+    position: static;
+    display: flex;
+    height: auto;
+    flex: 1 1 auto;
+    justify-content: center;
+    gap: 5px;
+  }
+
+  .boss-sandbox__panel-actions button {
+    position: static;
+    display: inline-flex;
+    width: auto;
+    height: auto;
+    min-height: 38px;
+    align-items: center;
+    gap: 5px;
+    padding: 7px 9px;
+    font-size: 10px;
+    transform: none;
+  }
+
+  .boss-sandbox__panel-actions button span:last-child {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip-path: none;
+    white-space: normal;
   }
 
   .boss-sandbox__header small {
@@ -1279,6 +1380,7 @@
   }
 
   .boss-sandbox__picker {
+    grid-column: 1;
     gap: 10px;
     padding: 12px;
     border-right: 0;
@@ -1322,12 +1424,14 @@
   }
 
   .boss-sandbox__play {
+    grid-column: 1;
     height: 100dvh;
     min-height: 640px;
     padding: 0;
   }
 
   .boss-sandbox__loadout {
+    grid-column: 1;
     overflow: visible;
     padding: 12px;
     border-top: 1px solid var(--bs-border);
@@ -1372,4 +1476,62 @@
   .boss-sandbox * {
     scroll-behavior: auto !important;
   }
+}
+
+/* Readability floor: the Sandbox is a working tool, so labels remain legible at a glance. */
+.boss-sandbox__categories button,
+.boss-sandbox__artwork-strip button > span:last-child,
+.boss-sandbox__choice-class,
+.boss-sandbox__weekly-lineup summary,
+.boss-sandbox__weekly-lineup summary small,
+.boss-sandbox__weekly-lineup li,
+.boss-sandbox__weekly-lineup li strong,
+.boss-sandbox__picker section > span,
+.boss-sandbox__picker section small,
+.boss-sandbox__category-chips span,
+.boss-sandbox__encounter-details dt,
+.boss-sandbox__encounter-details dd,
+.boss-sandbox__encounter-details .boss-sandbox__test-only-note,
+.boss-sandbox__picker .boss-sandbox__art-status,
+.boss-sandbox__picker footer,
+.boss-sandbox__mini-lab > span,
+.boss-sandbox__mini-lab button,
+.boss-sandbox__mini-lab-segment > span,
+.boss-sandbox__phases > span,
+.boss-sandbox__attacks > span,
+.boss-sandbox__attack-status,
+.boss-sandbox__mechanics-status,
+.boss-sandbox__ship-tuning > span,
+.boss-sandbox__stepper strong,
+.boss-sandbox__support-select > span,
+.boss-sandbox__main-ships button,
+.boss-sandbox__support-select select,
+.boss-sandbox__prism-tuning > summary,
+.boss-sandbox__frontier-tuning > summary,
+.boss-sandbox__prism-tuning > p,
+.boss-sandbox__frontier-tuning > p,
+.boss-sandbox__prism-tuning > button,
+.boss-sandbox__frontier-tuning > button,
+.prism-moth-attack-tuning legend,
+.frontier-crownclaw-attack-tuning legend,
+.prism-moth-attack-tuning__control,
+.frontier-crownclaw-attack-tuning__control,
+.prism-moth-attack-tuning__control input,
+.prism-moth-attack-tuning__control select,
+.frontier-crownclaw-attack-tuning__control input,
+.boss-sandbox__notice {
+  font-size: 10px;
+}
+
+.boss-sandbox__picker p,
+.boss-sandbox__picker > div:first-child > p,
+.boss-sandbox__picker select,
+.boss-sandbox__codex-note strong,
+.boss-sandbox__controls button,
+.boss-sandbox__phases button,
+.boss-sandbox__attacks button,
+.boss-sandbox__preview-state span,
+.boss-sandbox__preview-state button,
+.boss-sandbox__stepper output {
+  font-size: 11px;
 }

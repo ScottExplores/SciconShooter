@@ -252,7 +252,7 @@ test('all canonical major boss IDs satisfy boss-defeat classification', () => {
       'singularity-crab',
       'orbit-gyroscope',
       'hammerhead-siege',
-      'frontier-crownclaw'
+      'umbra-needlewing'
     ]
   );
   assert.equal(validateServerCampaign(campaign).valid, true);

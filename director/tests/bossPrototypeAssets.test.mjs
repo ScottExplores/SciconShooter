@@ -150,6 +150,42 @@ test('Prism Moth generated collision mask is bound to the assembled-neutral hash
   assert.ok(rowWords.every((value) => Number.isInteger(value) && value >= 0 && value <= 0xffffffff));
 });
 
+test('Umbra Needlewing catalog pins its neutral, lifecycle atlas, and locked reference', () => {
+  const definitions = PROTOTYPE_ASSET_DEFINITIONS
+    .filter((asset) => asset.prototypeId === 'umbra-needlewing')
+    .map(({ variant, fileName, sha256, width, height }) => ({
+      variant,
+      fileName,
+      sha256,
+      width,
+      height
+    }));
+
+  assert.deepEqual(definitions, [
+    {
+      variant: 'assembled',
+      fileName: 'umbra-needlewing/umbra-needlewing-neutral.png',
+      sha256: 'a1635e616add1b99336c366bc51499311f130ce62fbecd8d4a8956e1c9b2aba2',
+      width: 512,
+      height: 320
+    },
+    {
+      variant: 'sheet',
+      fileName: 'umbra-needlewing/umbra-needlewing-atlas.png',
+      sha256: 'c98290efd065277225b9d64bbcf06f23e5013cd29ca9ae501f404c18750321d1',
+      width: 2048,
+      height: 1024
+    },
+    {
+      variant: 'reference',
+      fileName: 'umbra-needlewing/umbra-needlewing-reference.png',
+      sha256: '2db71f4a183415e9851be2363b2224b8d7912e272922b55c7cfb8c1043e0ac21',
+      width: 1511,
+      height: 1041
+    }
+  ]);
+});
+
 test('Nullwake catalog pins its supplemental factory animation atlas', () => {
   const factoryAtlas = PROTOTYPE_ASSET_DEFINITIONS.find((asset) => (
     asset.prototypeId === 'nullwake-revenant'
@@ -178,7 +214,7 @@ test('fixed content-addressed prototype routes serve only hash-verified PNG asse
     prototypeAssets: localPrototypeAssets
   });
 
-  assert.equal(PROTOTYPE_ASSET_DEFINITIONS.length, 29);
+  assert.equal(PROTOTYPE_ASSET_DEFINITIONS.length, 30);
   for (const asset of PROTOTYPE_ASSET_DEFINITIONS) {
     const response = await requestBuffer(port, `/__director${asset.route}`);
     assert.equal(response.status, 200);

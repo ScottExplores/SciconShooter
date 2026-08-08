@@ -260,7 +260,7 @@ test('desktop Boss Sandbox gives the permanent mobile game the full-height cente
   );
   assert.match(
     styles,
-    /\.boss-sandbox__header > div\s*\{[\s\S]*?grid-column:\s*1;[\s\S]*?pointer-events:\s*auto;/
+    /\.boss-sandbox__brand\s*\{[\s\S]*?grid-column:\s*1;[\s\S]*?pointer-events:\s*auto;/
   );
   assert.match(
     styles,
@@ -284,6 +284,29 @@ test('desktop Boss Sandbox gives the permanent mobile game the full-height cente
     compactStyles,
     /\.boss-sandbox__play\s*\{[\s\S]*?height:\s*100dvh;[\s\S]*?min-height:\s*640px;[\s\S]*?padding:\s*0;/
   );
+});
+
+test('Boss Sandbox panels minimize independently and use a readable text floor', () => {
+  assert.match(source, /Record<BossSandboxRailSide, boolean>/);
+  assert.match(source, /data-left-panel=\{collapsedRails\.left \? 'collapsed' : 'open'\}/);
+  assert.match(source, /data-right-panel=\{collapsedRails\.right \? 'collapsed' : 'open'\}/);
+  assert.match(source, /aria-controls="boss-sandbox-picker"/);
+  assert.match(source, /aria-controls="boss-sandbox-loadout"/);
+  assert.match(source, /Show boss panel/);
+  assert.match(source, /Hide boss panel/);
+  assert.match(source, /Show ship panel/);
+  assert.match(source, /Hide ship panel/);
+  assert.match(styles, /\.boss-sandbox__panel-actions/);
+  assert.match(
+    styles,
+    /\.boss-sandbox\[data-left-panel='collapsed'\] \.boss-sandbox__picker/
+  );
+  assert.match(
+    styles,
+    /\.boss-sandbox\[data-right-panel='collapsed'\] \.boss-sandbox__loadout/
+  );
+  assert.match(styles, /Readability floor:[\s\S]*?font-size:\s*10px;/);
+  assert.match(styles, /\.boss-sandbox__controls button,[\s\S]*?font-size:\s*11px;/);
 });
 
 test('Boss Sandbox exposes the canonical weekly lineup and accessible saved rail resizing', () => {

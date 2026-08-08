@@ -38,6 +38,11 @@ const promotionTargets = Object.freeze([
     missionOrder: 45,
     prototypeId: 'gloamforge-mantis',
     spriteKey: 'CAMPAIGN_BOSS_HAMMERHEAD_SIEGE'
+  }),
+  Object.freeze({
+    missionOrder: 50,
+    prototypeId: 'umbra-needlewing',
+    spriteKey: 'CAMPAIGN_BOSS_UMBRA_NEEDLEWING'
   })
 ]);
 
@@ -112,7 +117,7 @@ const buildPromotedCampaign = async (sourceCampaign) => {
 
     // These encounters keep their existing authored behavior while receiving
     // the same monotonic Mission-economy hull treatment as promoted Test Bosses.
-    for (const missionOrder of [5, 10, 35, 50]) {
+    for (const missionOrder of [5, 10, 35]) {
       const economy = economyByMission[missionOrder];
       const located = findCampaignBoss(campaign, missionOrder);
       if (located.event.bossId !== economy.bossId) {
@@ -173,15 +178,6 @@ const buildPromotedCampaign = async (sourceCampaign) => {
       synchronizeCampaignRosterReferences(campaign, located.level, economy.bossId);
     }
 
-    // Frontier also appears in the later M50 finale. It keeps that encounter's
-    // authored behavior, but every Campaign fallback/card uses the same approved
-    // assembled Test Boss package instead of the retired Astral art.
-    const laterFrontier = findCampaignBoss(campaign, 50);
-    if (laterFrontier.event.bossId === 'frontier-crownclaw') {
-      laterFrontier.event.spriteKey = 'CAMPAIGN_BOSS_FRONTIER_CROWNCLAW';
-      laterFrontier.level.scorecard.encounterAssetKey = 'CAMPAIGN_BOSS_FRONTIER_CROWNCLAW';
-    }
-
     return campaign;
   } finally {
     await vite.close();
@@ -206,5 +202,5 @@ if (checkOnly) {
     `${JSON.stringify(promotedCampaign, null, 2)}\n`,
     'utf8'
   );
-  console.log('Promoted Test Boss packages into Campaign Missions 15, 20, 25, 30, 40, and 45.');
+  console.log('Promoted Test Boss packages into Campaign Missions 15, 20, 25, 30, 40, 45, and 50.');
 }

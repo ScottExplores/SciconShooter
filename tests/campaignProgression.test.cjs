@@ -131,7 +131,8 @@ const TEST_MAJOR_BOSS_IDS = [
   'orbit-gyroscope',
   'hammerhead-siege',
   'frontier-crownclaw',
-  'nullwake-revenant'
+  'nullwake-revenant',
+  'umbra-needlewing'
 ];
 
 const progression = compileService('campaignProgression.ts', {

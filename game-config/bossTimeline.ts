@@ -52,7 +52,7 @@ export const BOSS_TIMELINE_PRIMITIVES: Readonly<Record<
     'Fire a radial ring whose exact opening follows an authored clockwise or counterclockwise route.',
     true,
     true,
-    ['projectileCount', 'sequence', 'rotationDirection']
+    ['projectileCount', 'sequence', 'rotationDirection', 'motionCue']
   ),
   'rotor-hazard-sentence': primitive(
     'rotor-hazard-sentence',
@@ -79,7 +79,7 @@ export const BOSS_TIMELINE_PRIMITIVES: Readonly<Record<
     'Hold in a deterministic upper corner, lock the warned player position, and fire one beam on that exact geometry.',
     true,
     false,
-    ['sequence']
+    ['sequence', 'motionCue']
   ),
   'corner-ambush-ram': primitive(
     'corner-ambush-ram',
@@ -88,7 +88,7 @@ export const BOSS_TIMELINE_PRIMITIVES: Readonly<Record<
     'Black out the arena, reveal the boss in a deterministic lower corner, then charge its warned body lane.',
     true,
     false,
-    ['sequence']
+    ['sequence', 'motionCue']
   ),
   'paired-cannon-burst': primitive(
     'paired-cannon-burst',

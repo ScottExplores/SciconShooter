@@ -5114,7 +5114,7 @@
     "hammerhead-siege": {
       "bossId": "hammerhead-siege",
       "prototypeId": "gloamforge-mantis",
-      "prototypeHash": "sandbox-fnv1a64:26bf95ac7549e396",
+      "prototypeHash": "sandbox-fnv1a64:32a40e55facc4c89",
       "poseKey": "gloamforge-mantis",
       "artwork": {
         "url": "/game-art/generated/bosses/campaign-packages/hammerhead-siege/assembled.png",
@@ -5995,6 +5995,1407 @@
               "rotation": 0
             }
           ]
+        },
+        "vfxAtlas": {
+          "url": "/game-art/generated/bosses/campaign-packages/shared/boss-vfx-atlas-v1.png",
+          "contentHash": "09bcf6e00e0a3d6d96b4a64f73f09a3b7a59b890219169bcf433ebfea2b7e8b1",
+          "width": 1254,
+          "height": 1254,
+          "frames": {
+            "pinkDrop0": {
+              "x": 130,
+              "y": 110,
+              "width": 100,
+              "height": 198
+            },
+            "pinkDrop1": {
+              "x": 436,
+              "y": 56,
+              "width": 89,
+              "height": 252
+            },
+            "pinkDrop2": {
+              "x": 735,
+              "y": 51,
+              "width": 78,
+              "height": 257
+            },
+            "pinkDrop3": {
+              "x": 1039,
+              "y": 48,
+              "width": 72,
+              "height": 260
+            },
+            "goldDrop0": {
+              "x": 121,
+              "y": 403,
+              "width": 117,
+              "height": 198
+            },
+            "goldDrop1": {
+              "x": 424,
+              "y": 369,
+              "width": 114,
+              "height": 232
+            },
+            "goldDrop2": {
+              "x": 718,
+              "y": 352,
+              "width": 112,
+              "height": 250
+            },
+            "goldDrop3": {
+              "x": 1020,
+              "y": 340,
+              "width": 110,
+              "height": 262
+            },
+            "prismDrop0": {
+              "x": 135,
+              "y": 703,
+              "width": 92,
+              "height": 186
+            },
+            "prismDrop1": {
+              "x": 436,
+              "y": 667,
+              "width": 91,
+              "height": 273
+            },
+            "prismDrop2": {
+              "x": 729,
+              "y": 658,
+              "width": 91,
+              "height": 239
+            },
+            "prismDrop3": {
+              "x": 1033,
+              "y": 653,
+              "width": 89,
+              "height": 244
+            },
+            "orbCharge": {
+              "x": 99,
+              "y": 1021,
+              "width": 160,
+              "height": 159
+            },
+            "orbMuzzle": {
+              "x": 408,
+              "y": 940,
+              "width": 146,
+              "height": 244
+            },
+            "beamLive": {
+              "x": 743,
+              "y": 940,
+              "width": 64,
+              "height": 265
+            },
+            "beamImpact": {
+              "x": 977,
+              "y": 1013,
+              "width": 191,
+              "height": 184
+            }
+          }
+        }
+      }
+    },
+    "umbra-needlewing": {
+      "bossId": "umbra-needlewing",
+      "prototypeId": "umbra-needlewing",
+      "prototypeHash": "sandbox-fnv1a64:195e4da04f2f0194",
+      "poseKey": "umbra-needlewing",
+      "artwork": {
+        "url": "/game-art/generated/bosses/campaign-packages/umbra-needlewing/assembled.png",
+        "contentHash": "a1635e616add1b99336c366bc51499311f130ce62fbecd8d4a8956e1c9b2aba2",
+        "collisionMask": {
+          "width": 64,
+          "height": 64,
+          "rowWords": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            134218176,
+            16,
+            201328576,
+            48,
+            469770176,
+            56,
+            469778368,
+            56,
+            469827520,
+            15728696,
+            4227989376,
+            16646207,
+            4228382592,
+            16744511,
+            4229955456,
+            16760895,
+            4164943616,
+            16769055,
+            4164943616,
+            16773151,
+            4236246528,
+            8387647,
+            4236246016,
+            8387647,
+            4269797376,
+            4193919,
+            4269785136,
+            2097023,
+            4269737968,
+            524159,
+            4269703152,
+            1965951,
+            4286578656,
+            33554175,
+            4287627232,
+            33553919,
+            4288675808,
+            33552895,
+            4290772928,
+            33553919,
+            4290772928,
+            33553919,
+            4294967168,
+            16776703,
+            4294967168,
+            8388607,
+            4292869888,
+            8387583,
+            4292861952,
+            2096127,
+            4294966272,
+            524287,
+            4294966784,
+            2097151,
+            4294966784,
+            2097151,
+            4294966272,
+            2097151,
+            4294966272,
+            2097151,
+            4294965248,
+            1048575,
+            4288671744,
+            1047039,
+            4291813376,
+            492031,
+            4293443584,
+            69631,
+            4294705152,
+            16383,
+            4294901760,
+            32767,
+            4294950912,
+            262143,
+            4294959104,
+            524287,
+            4294959104,
+            1048575,
+            4294950912,
+            1048575,
+            4294950912,
+            1048575,
+            4177494016,
+            524063,
+            4030660608,
+            260111,
+            3758882816,
+            61447,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "weaponSockets": {
+          "kind": "normalized-boss-sockets-v1",
+          "sockets": [
+            {
+              "id": "needle.port.muzzle",
+              "role": "port",
+              "xRatio": 0.365,
+              "yRatio": 0.65
+            },
+            {
+              "id": "needle.starboard.muzzle",
+              "role": "starboard",
+              "xRatio": 0.635,
+              "yRatio": 0.65
+            },
+            {
+              "id": "core.emitter",
+              "role": "core",
+              "xRatio": 0.5,
+              "yRatio": 0.687
+            }
+          ]
+        },
+        "renderMode": "articulated",
+        "modularRigManifest": {
+          "kind": "modular-hierarchy-v1",
+          "id": "umbra-needlewing",
+          "designSize": {
+            "width": 512,
+            "height": 320
+          },
+          "preserveAspectRatio": true,
+          "atlas": {
+            "url": "/game-art/generated/bosses/campaign-packages/umbra-needlewing/atlas.png",
+            "contentHash": "c98290efd065277225b9d64bbcf06f23e5013cd29ca9ae501f404c18750321d1",
+            "width": 2048,
+            "height": 1024,
+            "frames": {
+              "body.shell": {
+                "x": 3,
+                "y": 3,
+                "width": 229,
+                "height": 317
+              },
+              "core.closed": {
+                "x": 3,
+                "y": 541,
+                "width": 196,
+                "height": 144
+              },
+              "core.open": {
+                "x": 202,
+                "y": 541,
+                "width": 196,
+                "height": 144
+              },
+              "damage.spark": {
+                "x": 168,
+                "y": 323,
+                "width": 198,
+                "height": 211
+              },
+              "dash.trail": {
+                "x": 235,
+                "y": 3,
+                "width": 177,
+                "height": 260
+              },
+              "escape.flame": {
+                "x": 3,
+                "y": 323,
+                "width": 162,
+                "height": 215
+              },
+              "escape.module": {
+                "x": 1139,
+                "y": 541,
+                "width": 156,
+                "height": 118
+              },
+              "eye.port.glow": {
+                "x": 3,
+                "y": 688,
+                "width": 63,
+                "height": 63
+              },
+              "eye.starboard.glow": {
+                "x": 69,
+                "y": 688,
+                "width": 62,
+                "height": 63
+              },
+              "needle.0": {
+                "x": 1545,
+                "y": 3,
+                "width": 82,
+                "height": 220
+              },
+              "needle.1": {
+                "x": 1630,
+                "y": 3,
+                "width": 82,
+                "height": 220
+              },
+              "needle.2": {
+                "x": 1715,
+                "y": 3,
+                "width": 82,
+                "height": 220
+              },
+              "needle.3": {
+                "x": 1800,
+                "y": 3,
+                "width": 82,
+                "height": 220
+              },
+              "needle.launcher": {
+                "x": 1298,
+                "y": 541,
+                "width": 159,
+                "height": 113
+              },
+              "needle.mount.port": {
+                "x": 401,
+                "y": 541,
+                "width": 127,
+                "height": 126
+              },
+              "needle.mount.starboard": {
+                "x": 531,
+                "y": 541,
+                "width": 127,
+                "height": 126
+              },
+              "reentry.0": {
+                "x": 670,
+                "y": 323,
+                "width": 178,
+                "height": 176
+              },
+              "reentry.1": {
+                "x": 851,
+                "y": 323,
+                "width": 178,
+                "height": 176
+              },
+              "reentry.2": {
+                "x": 1032,
+                "y": 323,
+                "width": 178,
+                "height": 176
+              },
+              "reentry.3": {
+                "x": 1213,
+                "y": 323,
+                "width": 178,
+                "height": 176
+              },
+              "reticle": {
+                "x": 415,
+                "y": 3,
+                "width": 239,
+                "height": 235
+              },
+              "shard.0": {
+                "x": 657,
+                "y": 3,
+                "width": 219,
+                "height": 230
+              },
+              "shard.1": {
+                "x": 879,
+                "y": 3,
+                "width": 219,
+                "height": 230
+              },
+              "shard.2": {
+                "x": 1101,
+                "y": 3,
+                "width": 219,
+                "height": 230
+              },
+              "shard.3": {
+                "x": 1323,
+                "y": 3,
+                "width": 219,
+                "height": 230
+              },
+              "wing.port.0": {
+                "x": 369,
+                "y": 323,
+                "width": 298,
+                "height": 196
+              },
+              "wing.port.1": {
+                "x": 1674,
+                "y": 323,
+                "width": 291,
+                "height": 151
+              },
+              "wing.port.2": {
+                "x": 661,
+                "y": 541,
+                "width": 218,
+                "height": 124
+              },
+              "wing.port.3": {
+                "x": 1664,
+                "y": 541,
+                "width": 180,
+                "height": 100
+              },
+              "wing.starboard.0": {
+                "x": 1394,
+                "y": 323,
+                "width": 277,
+                "height": 155
+              },
+              "wing.starboard.1": {
+                "x": 882,
+                "y": 541,
+                "width": 254,
+                "height": 120
+              },
+              "wing.starboard.2": {
+                "x": 1460,
+                "y": 541,
+                "width": 201,
+                "height": 105
+              },
+              "wing.starboard.3": {
+                "x": 1847,
+                "y": 541,
+                "width": 196,
+                "height": 96
+              }
+            }
+          },
+          "parts": [
+            {
+              "id": "root",
+              "role": "joint",
+              "parentId": null,
+              "frameId": null,
+              "transform": {
+                "x": 0,
+                "y": -4,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1
+              },
+              "anchor": null,
+              "layer": 0,
+              "visible": false
+            },
+            {
+              "id": "wing.port.0.mount",
+              "role": "joint",
+              "parentId": "root",
+              "frameId": null,
+              "transform": {
+                "x": -87,
+                "y": -39,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1
+              },
+              "anchor": null,
+              "layer": 1,
+              "visible": false
+            },
+            {
+              "id": "wing.port.0",
+              "role": "arm",
+              "parentId": "wing.port.0.mount",
+              "frameId": "wing.port.0",
+              "transform": {
+                "x": 0,
+                "y": 0,
+                "rotation": 0,
+                "scaleX": 0.46,
+                "scaleY": 0.46
+              },
+              "anchor": {
+                "x": 0.872483,
+                "y": 0.821429
+              },
+              "layer": 1,
+              "visible": true
+            },
+            {
+              "id": "wing.starboard.0.mount",
+              "role": "joint",
+              "parentId": "root",
+              "frameId": null,
+              "transform": {
+                "x": 87,
+                "y": -39,
+                "rotation": 0,
+                "scaleX": 1,
+                "scaleY": 1
+              },
+              "anchor": null,
+              "layer": 1,
+              "visible": false
+            },
+            {
+              "id": "wing.starboard.0",
+              "role": "arm",
+              "parentId": "wing.starboard.0.mount",
+              "frameId": "wing.starboard.0",
+              "transform": {
+                "x": 0,
+                "y": 0,
+                "rotation": 0,
+                "scaleX": 0.46,
+                "scaleY": 0.46
+              },
+              "anchor": {
+                "x": 0.151625,
+                "y": 0.767742
+              },
+              "layer": 1,
+              "visible": true
+            },
+            {
+              "id": "wing.port.1.mount",
+              "role": "joint",
+              "parentId": "root",
+              "frameId": null,
+              "transform": {
+                "x": -99,
+                "y": -5,
+                "rotation": -0.08726646259971647,
+                "scaleX": 1,
+                "scaleY": 1
+              },
+              "anchor": null,
+              "layer": 2,
+              "visible": false
+            },
+            {
+              "id": "wing.port.1",
+              "role": "arm",
+              "parentId": "wing.port.1.mount",
+              "frameId": "wing.port.1",
+              "transform": {
+                "x": 0,
+                "y": 0,
+                "rotation": 0,
+                "scaleX": 0.46,
+                "scaleY": 0.46
+              },
+              "anchor": {
+                "x": 0.886598,
+                "y": 0.715232
+              },
+              "layer": 2,
+              "visible": true
+            },
+            {
+              "id": "wing.starboard.1.mount",
+              "role": "joint",
+              "parentId": "root",
+              "frameId": null,
+              "transform": {
+                "x": 99,
+                "y": -5,
+                "rotation": 0.08726646259971647,
+                "scaleX": 1,
+                "scaleY": 1
+              },
+              "anchor": null,
+              "layer": 2,
+              "visible": false
+            },
+            {
+              "id": "wing.starboard.1",
+              "role": "arm",
+              "parentId": "wing.starboard.1.mount",
+              "frameId": "wing.starboard.1",
+              "transform": {
+                "x": 0,
+                "y": 0,
+                "rotation": 0,
+                "scaleX": 0.46,
+                "scaleY": 0.46
+              },
+              "anchor": {
+                "x": 0.129921,
+                "y": 0.633333
+              },
+              "layer": 2,
+              "visible": true
+            },
+            {
+              "id": "wing.port.2.mount",
+              "role": "joint",
+              "parentId": "root",
+              "frameId": null,
+              "transform": {
+                "x": -88,
+                "y": 31,
+                "rotation": -0.3141592653589793,
+                "scaleX": 1,
+                "scaleY": 1
+              },
+              "anchor": null,
+              "layer": 3,
+              "visible": false
+            },
+            {
+              "id": "wing.port.2",
+              "role": "arm",
+              "parentId": "wing.port.2.mount",
+              "frameId": "wing.port.2",
+              "transform": {
+                "x": 0,
+                "y": 0,
+                "rotation": 0,
+                "scaleX": 0.46,
+                "scaleY": 0.46
+              },
+              "anchor": {
+                "x": 0.848624,
+                "y": 0.717742
+              },
+              "layer": 3,
+              "visible": true
+            },
+            {
+              "id": "wing.starboard.2.mount",
+              "role": "joint",
+              "parentId": "root",
+              "frameId": null,
+              "transform": {
+                "x": 88,
+                "y": 31,
+                "rotation": 0.3141592653589793,
+                "scaleX": 1,
+                "scaleY": 1
+              },
+              "anchor": null,
+              "layer": 3,
+              "visible": false
+            },
+            {
+              "id": "wing.starboard.2",
+              "role": "arm",
+              "parentId": "wing.starboard.2.mount",
+              "frameId": "wing.starboard.2",
+              "transform": {
+                "x": 0,
+                "y": 0,
+                "rotation": 0,
+                "scaleX": 0.46,
+                "scaleY": 0.46
+              },
+              "anchor": {
+                "x": 0.159204,
+                "y": 0.67619
+              },
+              "layer": 3,
+              "visible": true
+            },
+            {
+              "id": "wing.port.3.mount",
+              "role": "joint",
+              "parentId": "root",
+              "frameId": null,
+              "transform": {
+                "x": -54,
+                "y": 72,
+                "rotation": -0.4363323129985824,
+                "scaleX": 1,
+                "scaleY": 1
+              },
+              "anchor": null,
+              "layer": 4,
+              "visible": false
+            },
+            {
+              "id": "wing.port.3",
+              "role": "arm",
+              "parentId": "wing.port.3.mount",
+              "frameId": "wing.port.3",
+              "transform": {
+                "x": 0,
+                "y": 0,
+                "rotation": 0,
+                "scaleX": 0.62,
+                "scaleY": 0.62
+              },
+              "anchor": {
+                "x": 0.811111,
+                "y": 0.65
+              },
+              "layer": 4,
+              "visible": true
+            },
+            {
+              "id": "wing.starboard.3.mount",
+              "role": "joint",
+              "parentId": "root",
+              "frameId": null,
+              "transform": {
+                "x": 54,
+                "y": 72,
+                "rotation": 0.4363323129985824,
+                "scaleX": 1,
+                "scaleY": 1
+              },
+              "anchor": null,
+              "layer": 4,
+              "visible": false
+            },
+            {
+              "id": "wing.starboard.3",
+              "role": "arm",
+              "parentId": "wing.starboard.3.mount",
+              "frameId": "wing.starboard.3",
+              "transform": {
+                "x": 0,
+                "y": 0,
+                "rotation": 0,
+                "scaleX": 0.62,
+                "scaleY": 0.62
+              },
+              "anchor": {
+                "x": 0.163265,
+                "y": 0.645833
+              },
+              "layer": 4,
+              "visible": true
+            },
+            {
+              "id": "body",
+              "role": "body",
+              "parentId": "root",
+              "frameId": "body.shell",
+              "transform": {
+                "x": 0,
+                "y": 0,
+                "rotation": 0,
+                "scaleX": 0.7,
+                "scaleY": 0.7
+              },
+              "anchor": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "layer": 10,
+              "visible": true
+            },
+            {
+              "id": "eye.port",
+              "role": "effect",
+              "parentId": "body",
+              "frameId": "eye.port.glow",
+              "transform": {
+                "x": -18,
+                "y": -47,
+                "rotation": 0,
+                "scaleX": 0.52,
+                "scaleY": 0.52
+              },
+              "anchor": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "layer": 13,
+              "visible": false
+            },
+            {
+              "id": "eye.starboard",
+              "role": "effect",
+              "parentId": "body",
+              "frameId": "eye.starboard.glow",
+              "transform": {
+                "x": 18,
+                "y": -47,
+                "rotation": 0,
+                "scaleX": 0.52,
+                "scaleY": 0.52
+              },
+              "anchor": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "layer": 13,
+              "visible": false
+            },
+            {
+              "id": "core",
+              "role": "phase-attachment",
+              "parentId": "body",
+              "frameId": "core.closed",
+              "transform": {
+                "x": 0,
+                "y": 91,
+                "rotation": 0,
+                "scaleX": 0.45,
+                "scaleY": 0.45
+              },
+              "anchor": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "layer": 12,
+              "visible": true
+            },
+            {
+              "id": "needle.mount.port",
+              "role": "weapon",
+              "parentId": "body",
+              "frameId": "needle.mount.port",
+              "transform": {
+                "x": -96,
+                "y": 46,
+                "rotation": 0.13962634015954636,
+                "scaleX": 0.46,
+                "scaleY": 0.46
+              },
+              "anchor": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "layer": 14,
+              "visible": false
+            },
+            {
+              "id": "needle.mount.starboard",
+              "role": "weapon",
+              "parentId": "body",
+              "frameId": "needle.mount.starboard",
+              "transform": {
+                "x": 96,
+                "y": 46,
+                "rotation": -0.13962634015954636,
+                "scaleX": 0.46,
+                "scaleY": 0.46
+              },
+              "anchor": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "layer": 14,
+              "visible": false
+            },
+            {
+              "id": "needle.launcher",
+              "role": "weapon",
+              "parentId": "core",
+              "frameId": "needle.launcher",
+              "transform": {
+                "x": 0,
+                "y": 44,
+                "rotation": 1.5707963267948966,
+                "scaleX": 0.7,
+                "scaleY": 0.7
+              },
+              "anchor": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "layer": 15,
+              "visible": false
+            },
+            {
+              "id": "escape.module",
+              "role": "exhaust",
+              "parentId": "body",
+              "frameId": "escape.module",
+              "transform": {
+                "x": 0,
+                "y": 122,
+                "rotation": 0,
+                "scaleX": 0.48,
+                "scaleY": 0.48
+              },
+              "anchor": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "layer": 15,
+              "visible": false
+            },
+            {
+              "id": "projectile.needle",
+              "role": "effect",
+              "parentId": "needle.launcher",
+              "frameId": "needle.0",
+              "transform": {
+                "x": 0,
+                "y": 88,
+                "rotation": 0,
+                "scaleX": 0.34,
+                "scaleY": 0.34
+              },
+              "anchor": {
+                "x": 0.49390243902439024,
+                "y": 0.23636363636363636
+              },
+              "layer": 20,
+              "visible": false
+            },
+            {
+              "id": "projectile.shard",
+              "role": "effect",
+              "parentId": "core",
+              "frameId": "shard.0",
+              "transform": {
+                "x": 0,
+                "y": 110,
+                "rotation": 0,
+                "scaleX": 0.3,
+                "scaleY": 0.3
+              },
+              "anchor": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "layer": 20,
+              "visible": false
+            },
+            {
+              "id": "vfx.reentry",
+              "role": "effect",
+              "parentId": "root",
+              "frameId": "reentry.0",
+              "transform": {
+                "x": 0,
+                "y": 0,
+                "rotation": 0,
+                "scaleX": 0.72,
+                "scaleY": 0.72
+              },
+              "anchor": {
+                "x": 0.5,
+                "y": 0.5284090909090909
+              },
+              "layer": 24,
+              "visible": false
+            },
+            {
+              "id": "vfx.reticle",
+              "role": "effect",
+              "parentId": "root",
+              "frameId": "reticle",
+              "transform": {
+                "x": 0,
+                "y": 128,
+                "rotation": 0,
+                "scaleX": 0.34,
+                "scaleY": 0.34
+              },
+              "anchor": {
+                "x": 0.5,
+                "y": 0.5
+              },
+              "layer": 19,
+              "visible": false
+            },
+            {
+              "id": "vfx.dash-trail",
+              "role": "effect",
+              "parentId": "root",
+              "frameId": "dash.trail",
+              "transform": {
+                "x": 0,
+                "y": 0,
+                "rotation": 0,
+                "scaleX": 0.42,
+                "scaleY": 0.42
+              },
+              "anchor": {
+                "x": 0.5112994350282486,
+                "y": 0.5192307692307693
+              },
+              "layer": -1,
+              "visible": false
+            },
+            {
+              "id": "vfx.damage-spark",
+              "role": "effect",
+              "parentId": "body",
+              "frameId": "damage.spark",
+              "transform": {
+                "x": 0,
+                "y": 0,
+                "rotation": 0,
+                "scaleX": 0.28,
+                "scaleY": 0.28
+              },
+              "anchor": {
+                "x": 0.5353535353535354,
+                "y": 0.5023696682464455
+              },
+              "layer": 25,
+              "visible": false
+            },
+            {
+              "id": "vfx.escape-flame",
+              "role": "effect",
+              "parentId": "escape.module",
+              "frameId": "escape.flame",
+              "transform": {
+                "x": 0,
+                "y": 90,
+                "rotation": 0,
+                "scaleX": 0.55,
+                "scaleY": 0.55
+              },
+              "anchor": {
+                "x": 0.5,
+                "y": 0.2372093023255814
+              },
+              "layer": 14,
+              "visible": false
+            }
+          ],
+          "animations": [
+            {
+              "kind": "fixed-frame-sequence-v1",
+              "id": "core-cycle",
+              "partId": "core",
+              "frameIds": [
+                "core.closed",
+                "core.open"
+              ],
+              "frameHold": 12,
+              "loop": false
+            },
+            {
+              "kind": "fixed-frame-sequence-v1",
+              "id": "needle-cycle",
+              "partId": "projectile.needle",
+              "frameIds": [
+                "needle.0",
+                "needle.1",
+                "needle.2",
+                "needle.3"
+              ],
+              "frameHold": 4,
+              "loop": false
+            },
+            {
+              "kind": "fixed-frame-sequence-v1",
+              "id": "shard-cycle",
+              "partId": "projectile.shard",
+              "frameIds": [
+                "shard.0",
+                "shard.1",
+                "shard.2",
+                "shard.3"
+              ],
+              "frameHold": 5,
+              "loop": true
+            },
+            {
+              "kind": "fixed-frame-sequence-v1",
+              "id": "reentry-cycle",
+              "partId": "vfx.reentry",
+              "frameIds": [
+                "reentry.0",
+                "reentry.1",
+                "reentry.2",
+                "reentry.3"
+              ],
+              "frameHold": 7,
+              "loop": false
+            }
+          ],
+          "sockets": [
+            {
+              "id": "wing.port.0.joint",
+              "role": "effect-origin",
+              "partId": "wing.port.0.mount",
+              "x": 0,
+              "y": 0,
+              "rotation": 0
+            },
+            {
+              "id": "wing.port.1.joint",
+              "role": "effect-origin",
+              "partId": "wing.port.1.mount",
+              "x": 0,
+              "y": 0,
+              "rotation": 0
+            },
+            {
+              "id": "wing.port.2.joint",
+              "role": "effect-origin",
+              "partId": "wing.port.2.mount",
+              "x": 0,
+              "y": 0,
+              "rotation": 0
+            },
+            {
+              "id": "wing.port.3.joint",
+              "role": "effect-origin",
+              "partId": "wing.port.3.mount",
+              "x": 0,
+              "y": 0,
+              "rotation": 0
+            },
+            {
+              "id": "wing.starboard.0.joint",
+              "role": "effect-origin",
+              "partId": "wing.starboard.0.mount",
+              "x": 0,
+              "y": 0,
+              "rotation": 0
+            },
+            {
+              "id": "wing.starboard.1.joint",
+              "role": "effect-origin",
+              "partId": "wing.starboard.1.mount",
+              "x": 0,
+              "y": 0,
+              "rotation": 0
+            },
+            {
+              "id": "wing.starboard.2.joint",
+              "role": "effect-origin",
+              "partId": "wing.starboard.2.mount",
+              "x": 0,
+              "y": 0,
+              "rotation": 0
+            },
+            {
+              "id": "wing.starboard.3.joint",
+              "role": "effect-origin",
+              "partId": "wing.starboard.3.mount",
+              "x": 0,
+              "y": 0,
+              "rotation": 0
+            },
+            {
+              "id": "wing.port.0.tip",
+              "role": "effect-origin",
+              "partId": "wing.port.0",
+              "x": -250,
+              "y": -130,
+              "rotation": 0
+            },
+            {
+              "id": "wing.port.1.tip",
+              "role": "effect-origin",
+              "partId": "wing.port.1",
+              "x": -245,
+              "y": -75,
+              "rotation": 0
+            },
+            {
+              "id": "wing.port.2.tip",
+              "role": "effect-origin",
+              "partId": "wing.port.2",
+              "x": -170,
+              "y": -60,
+              "rotation": 0
+            },
+            {
+              "id": "wing.port.3.tip",
+              "role": "effect-origin",
+              "partId": "wing.port.3",
+              "x": -130,
+              "y": -45,
+              "rotation": 0
+            },
+            {
+              "id": "wing.starboard.0.tip",
+              "role": "effect-origin",
+              "partId": "wing.starboard.0",
+              "x": 235,
+              "y": -110,
+              "rotation": 0
+            },
+            {
+              "id": "wing.starboard.1.tip",
+              "role": "effect-origin",
+              "partId": "wing.starboard.1",
+              "x": 220,
+              "y": -65,
+              "rotation": 0
+            },
+            {
+              "id": "wing.starboard.2.tip",
+              "role": "effect-origin",
+              "partId": "wing.starboard.2",
+              "x": 160,
+              "y": -55,
+              "rotation": 0
+            },
+            {
+              "id": "wing.starboard.3.tip",
+              "role": "effect-origin",
+              "partId": "wing.starboard.3",
+              "x": 145,
+              "y": -40,
+              "rotation": 0
+            },
+            {
+              "id": "needle.port.muzzle",
+              "role": "projectile-muzzle",
+              "partId": "needle.mount.port",
+              "x": 0,
+              "y": 48,
+              "rotation": 0
+            },
+            {
+              "id": "needle.starboard.muzzle",
+              "role": "projectile-muzzle",
+              "partId": "needle.mount.starboard",
+              "x": 0,
+              "y": 48,
+              "rotation": 0
+            },
+            {
+              "id": "needle.launcher.muzzle",
+              "role": "beam-origin",
+              "partId": "needle.launcher",
+              "x": 0,
+              "y": 72,
+              "rotation": 0
+            },
+            {
+              "id": "core.emitter",
+              "role": "core-origin",
+              "partId": "core",
+              "x": 0,
+              "y": 0,
+              "rotation": 0
+            },
+            {
+              "id": "escape.thrust.port",
+              "role": "effect-origin",
+              "partId": "escape.module",
+              "x": -35,
+              "y": 52,
+              "rotation": 0
+            },
+            {
+              "id": "escape.thrust.starboard",
+              "role": "effect-origin",
+              "partId": "escape.module",
+              "x": 35,
+              "y": 52,
+              "rotation": 0
+            }
+          ],
+          "destruction": {
+            "durationFrames": 108,
+            "fragments": [
+              {
+                "partId": "wing.port.0",
+                "delayFrames": 0,
+                "travelX": -170,
+                "travelY": 130,
+                "rotationRadians": -2.2
+              },
+              {
+                "partId": "wing.starboard.0",
+                "delayFrames": 0,
+                "travelX": 170,
+                "travelY": 130,
+                "rotationRadians": 2.2
+              },
+              {
+                "partId": "wing.port.1",
+                "delayFrames": 7,
+                "travelX": -148,
+                "travelY": 165,
+                "rotationRadians": -2.5
+              },
+              {
+                "partId": "wing.starboard.1",
+                "delayFrames": 7,
+                "travelX": 148,
+                "travelY": 165,
+                "rotationRadians": 2.5
+              },
+              {
+                "partId": "wing.port.2",
+                "delayFrames": 14,
+                "travelX": -118,
+                "travelY": 196,
+                "rotationRadians": -2.8
+              },
+              {
+                "partId": "wing.starboard.2",
+                "delayFrames": 14,
+                "travelX": 118,
+                "travelY": 196,
+                "rotationRadians": 2.8
+              },
+              {
+                "partId": "wing.port.3",
+                "delayFrames": 20,
+                "travelX": -82,
+                "travelY": 220,
+                "rotationRadians": -2.1
+              },
+              {
+                "partId": "wing.starboard.3",
+                "delayFrames": 20,
+                "travelX": 82,
+                "travelY": 220,
+                "rotationRadians": 2.1
+              },
+              {
+                "partId": "core",
+                "delayFrames": 30,
+                "travelX": 12,
+                "travelY": 160,
+                "rotationRadians": 1.7
+              },
+              {
+                "partId": "body",
+                "delayFrames": 38,
+                "travelX": 0,
+                "travelY": 230,
+                "rotationRadians": -0.42
+              }
+            ]
+          }
+        },
+        "projectileAnimations": {
+          "boss-umbra-needle": {
+            "frameIds": [
+              "needle.0",
+              "needle.1",
+              "needle.2",
+              "needle.3"
+            ],
+            "frameHoldFrames": 4,
+            "minimumVisualHeight": 30,
+            "entityHeightScale": 1.7,
+            "orientationOffsetRadians": -1.5707963267948966
+          },
+          "boss-umbra-wing-shard": {
+            "frameIds": [
+              "shard.0",
+              "shard.1",
+              "shard.2",
+              "shard.3"
+            ],
+            "frameHoldFrames": 5,
+            "minimumVisualHeight": 34,
+            "entityHeightScale": 1.55,
+            "orientationOffsetRadians": 0
+          }
         },
         "vfxAtlas": {
           "url": "/game-art/generated/bosses/campaign-packages/shared/boss-vfx-atlas-v1.png",

@@ -4,9 +4,10 @@
 
 | Event | Trigger | Useful properties |
 | --- | --- | --- |
-| `app_opened` | First app render per session | display mode, compact/wide viewport, coarse connection class, data-saver state, navigation time |
-| `mission_started` | Start Mission begins | none |
-| `mission_completed` | Game reaches game over | score, wave |
+| `app_opened` | First app render per session | display mode, compact/wide viewport, coarse connection class, data-saver state, navigation time, new/returning status |
+| `session_activity` | Approximately once per visible minute, plus visibility/page-exit flushes | monotonic foreground seconds for the current session and flush reason |
+| `mission_started` | Start Mission begins | run mode, Mission number |
+| `mission_completed` | A run reaches game over | score, wave, run mode, result, duration |
 | `score_submitted` | Verified leaderboard write confirms | score, wave, integrity |
 | `returning_player` | Browser has a prior first-seen timestamp | days since first seen |
 | `wallet_connected` | Base Account becomes available | none |
@@ -16,6 +17,30 @@
 | `proposal_selected` | Eligible proposal choice locks | week key |
 | `funding_transaction_confirmed` | Allocation receipt confirms | week key |
 | `share_action_used` | Native share or copy succeeds | record type, method |
+
+## Player activity dashboard
+
+The product-events route supports a privacy-conscious estimate of active players and
+play time. The browser creates a random device-local UUID; it is not a wallet,
+account, advertising identifier, or fingerprint. The server validates it and stores
+only a keyed HMAC as `visitor_hash`. The raw UUID never enters the database. Event
+rows do not include wallet addresses, player names, proposal text, or raw IP
+addresses.
+
+Foreground time is sampled only while the page is visible. `session_activity` sends
+a monotonic `active_seconds_total`, so retries and duplicate heartbeats are
+deduplicated by taking the maximum value for each session instead of summing every
+sample. The owner dashboard reports aggregate new/returning devices, sessions,
+foreground play time, Mission starts and finishes, score submissions, and run-mode
+breakdowns. It does not expose raw session IDs or visitor hashes.
+
+The dashboard is a local owner tool, not a public analytics endpoint. Its generated
+HTML contains aggregates only. Server credentials remain in the ignored root
+`.env.local`, are used by the local Node reader, and are never embedded in the page
+or sent to a browser. Base Dashboard is useful for Base Account/onchain activity and
+Vercel is useful for traffic and delivery health, but neither knows the game's
+Mission funnel or foreground play time. See `docs/OWNER_CONTROL_CENTER.md` for the
+desktop shortcut and one-time connection.
 
 ## Player reports and crash diagnostics
 
@@ -38,7 +63,11 @@ server-only review credentials to the ignored root `.env.local`. Report content 
 untrusted player input and must never be executed or treated as instructions. See
 `docs/OWNER_CONTROL_CENTER.md` for the exact owner workflow.
 
-Events use an anonymous per-tab session UUID. Wallet addresses, names, raw IP addresses, and proposal text are not analytics properties. Reporting and receipt abuse controls use separate keyed, non-reversible IP identifiers.
+Events use an anonymous per-tab session UUID. Activity events may also include the
+server-HMAC of a random device-local UUID so returning-device counts survive a new
+tab; the raw device UUID is never stored. Wallet addresses, names, raw IP addresses,
+and proposal text are not analytics properties. Reporting and receipt abuse controls
+use separate keyed, non-reversible IP identifiers.
 
 ## Security controls
 

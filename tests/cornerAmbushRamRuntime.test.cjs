@@ -48,6 +48,54 @@ test('corner ram locks opposite lower corners and crosses the warned player poin
   assert.ok(right.exitY < right.startY);
 });
 
+test('later corner ram sequences alternate mid-edge entries and preserve one nonhoming crossing lock', () => {
+  const { resolveCornerAmbushRamLock } = loadRuntime();
+  const input = {
+    arenaWidth: 390,
+    arenaHeight: 844,
+    bossWidth: 190,
+    bossHeight: 170,
+    playerCenterX: 248,
+    playerCenterY: 704,
+    mobileProfile: true
+  };
+  const midLeft = resolveCornerAmbushRamLock({ ...input, sequence: 2 });
+  const midRight = resolveCornerAmbushRamLock({ ...input, sequence: 3 });
+
+  assert.equal(midLeft.side, 'mid-left');
+  assert.equal(midRight.side, 'mid-right');
+  assert.ok(midLeft.startX < midRight.startX);
+  assert.ok(midLeft.startY < input.arenaHeight * 0.55);
+  assert.ok(midRight.startY < input.arenaHeight * 0.55);
+
+  for (const lock of [midLeft, midRight]) {
+    assert.equal(lock.targetX, input.playerCenterX);
+    assert.equal(lock.targetY, input.playerCenterY);
+    const startCenterX = lock.startX + input.bossWidth / 2;
+    const startCenterY = lock.startY + input.bossHeight / 2;
+    const exitCenterX = lock.exitX + input.bossWidth / 2;
+    const exitCenterY = lock.exitY + input.bossHeight / 2;
+    const targetVectorX = lock.targetX - startCenterX;
+    const targetVectorY = lock.targetY - startCenterY;
+    const exitVectorX = exitCenterX - startCenterX;
+    const exitVectorY = exitCenterY - startCenterY;
+    const cross = targetVectorX * exitVectorY - targetVectorY * exitVectorX;
+    const along = (
+      targetVectorX * exitVectorX + targetVectorY * exitVectorY
+    ) / (exitVectorX * exitVectorX + exitVectorY * exitVectorY);
+
+    assert.ok(Math.abs(cross) < 1e-6, 'the warned player point stays on the fixed charge line');
+    assert.ok(along > 0 && along < 1, 'the charge crosses the lock before its full arena exit');
+    assert.ok(
+      lock.exitX + input.bossWidth < 0
+        || lock.exitX > input.arenaWidth
+        || lock.exitY + input.bossHeight < 0
+        || lock.exitY > input.arenaHeight,
+      'the fixed charge ends with the complete boss body outside the arena'
+    );
+  }
+});
+
 test('corner ram acceleration is bounded, deterministic, and monotonic', () => {
   const { sampleCornerAmbushRamProgress } = loadRuntime();
   const samples = [0, 0.1, 0.25, 0.5, 0.75, 1].map(sampleCornerAmbushRamProgress);

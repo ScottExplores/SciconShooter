@@ -1428,6 +1428,7 @@ export class PixiGameRenderer {
   private previewBossRuntimeEntityId: string | null = null;
   private readonly previewBossRuntimeEntityIds = new Set<string>();
   private cornerAmbushBossId: string | null = null;
+  private cornerAmbushPlayerLayerRaised = false;
   private previewDebugOverlays: PreviewDebugOverlayState = DEFAULT_PREVIEW_DEBUG_OVERLAYS;
   private previewBossReferenceComparison: PreviewBossReferenceComparisonState =
     DEFAULT_PREVIEW_BOSS_REFERENCE_COMPARISON;
@@ -1781,15 +1782,17 @@ export class PixiGameRenderer {
     host.replaceChildren(this.app.canvas);
 
     this.app.stage.eventMode = 'none';
-    // The cinematic layer lives above the entire camera/world but below the
-    // Pixi HUD. GameStage's React HUD is a separate z-10 sibling, so hearts,
-    // score, pause, bombs, and ship actions also remain bright and interactive.
+    // Ordinary world overlays remain below the blackout. The boss-health HUD
+    // is promoted to its own stage child, while GameStage's React HUD is a
+    // separate z-10 sibling, so only essential combat information remains
+    // visible during Umbra's total-darkness attacks.
     this.app.stage.addChild(
       this.layers.background,
       this.camera,
+      this.layers.overlay,
       this.cornerAmbushShade,
       this.cornerAmbushGuide,
-      this.layers.overlay
+      this.bossHealthRoot
     );
     this.camera.addChild(this.world);
     this.world.addChild(
@@ -1925,7 +1928,6 @@ export class PixiGameRenderer {
 
     this.layers.overlay.addChild(
       this.maxShotScreenGlow,
-      this.bossHealthRoot,
       this.waveIntroRoot,
       this.warningShade,
       this.warningFrame,
@@ -4836,7 +4838,24 @@ export class PixiGameRenderer {
       revivalStage: entity.bossRevivalStage,
       revivalProgress: entity.bossRevivalProgress,
       revived: entity.bossRevivalConsumed,
-      reaction: this.getPreviewBossPoseReaction(entity, engine),
+      vanishReentry: entity.bossVanishReentryStage
+        ? {
+            stage: entity.bossVanishReentryStage,
+            progress: entity.bossVanishReentryProgress,
+            opacity: entity.bossVanishOpacity
+          }
+        : null,
+      escape: entity.bossEscapeStage
+        ? {
+            stage: entity.bossEscapeStage,
+            progress: entity.bossEscapeProgress,
+            opacity: entity.bossEscapeOpacity,
+            trailIntensity: entity.bossEscapeTrailIntensity
+          }
+        : null,
+      reaction: entity.bossEscapeState
+        ? null
+        : this.getPreviewBossPoseReaction(entity, engine),
       action
     });
     const hierarchy = resolveModularBossRigHierarchy(registration, partOverrides);
@@ -5737,8 +5756,20 @@ export class PixiGameRenderer {
       this.bossDeathAge = -1;
       this.bossDeathRoot.visible = false;
       this.clearBossDeathFragments();
-    } else if (engine.mainBossDefeated && engine.waveTransitionPending && this.lastBossSnapshot && !this.bossDeathHandled) {
+    } else if (
+      engine.mainBossDefeated
+      && engine.lastBossTerminalOutcome !== 'escaped'
+      && engine.waveTransitionPending
+      && this.lastBossSnapshot
+      && !this.bossDeathHandled
+    ) {
       this.startBossDeath(this.lastBossSnapshot);
+    } else if (engine.lastBossTerminalOutcome === 'escaped') {
+      this.bossDeathHandled = true;
+      this.bossDeathAge = -1;
+      this.bossDeathRoot.visible = false;
+      this.clearBossDeathFragments();
+      this.lastBossSnapshot = null;
     } else if (!engine.mainBossDefeated && this.bossDeathAge < 0) {
       this.lastBossSnapshot = null;
       this.bossDeathHandled = false;
@@ -6334,7 +6365,32 @@ export class PixiGameRenderer {
       view.aura.clear();
     }
 
-    this.syncDamageRecoil(view, entity, engine);
+    if (!entity.bossEscapeState) {
+      this.syncDamageRecoil(view, entity, engine);
+    }
+    if (entity.type === EntityType.BOSS) {
+      const modularPoseOwnsLifecycleAlpha = Boolean(
+        this.modularPreviewBossReady
+        && this.previewBossArtwork?.modularRig?.manifest.id === 'umbra-needlewing'
+        && String(entity.sourceItemId ?? '').endsWith('umbra-needlewing')
+      );
+      if (!modularPoseOwnsLifecycleAlpha) {
+        view.root.alpha *= clamp(
+          entity.bossVanishOpacity * entity.bossEscapeOpacity,
+          0,
+          1
+        );
+      }
+      if (entity.bossEscapeState) {
+        view.root.position.x += entity.bossEscapePoseOffsetX;
+        view.root.position.y += entity.bossEscapePoseOffsetY;
+        view.root.rotation += entity.bossEscapePoseRotation;
+        view.root.scale.set(
+          entity.bossEscapePoseScaleX,
+          entity.bossEscapePoseScaleY
+        );
+      }
+    }
 
     if (entity.isElite && isEnemyType(entity.type)) {
       const pulse = 0.74 + Math.sin((engine.frameCount + entity.variant) * 0.09) * 0.16;
@@ -6422,7 +6478,13 @@ export class PixiGameRenderer {
 
     for (const [id, view] of this.views) {
       if (id.startsWith('__') || view.seenFrame === this.renderFrame) continue;
-      if (isEnemyType(view.type) && view.lastHp <= 0 && view.root.y > -80 && view.root.y < this.height + 80) {
+      if (
+        isEnemyType(view.type)
+        && view.lastHp <= 0
+        && view.root.y > -80
+        && view.root.y < this.height + 80
+        && !(view.type === EntityType.BOSS && engine.lastBossTerminalOutcome === 'escaped')
+      ) {
         const size = view.type === EntityType.BOSS ? 180 : view.type === EntityType.MINI_BOSS ? 110 : 46;
         if (view.type === EntityType.BOSS) this.effectPool.spawnBossExplosion(view.root.x, view.root.y, size, 2.2);
         else if (view.type === EntityType.MINI_BOSS) this.effectPool.spawnExplosion(view.root.x, view.root.y, size, '#67e8f9', 0.85);
@@ -6757,19 +6819,437 @@ export class PixiGameRenderer {
     view.body.rect(centerX - width * 0.08, 0, width * 0.16, endY).fill({ color: '#ffffff', alpha: 0.95 });
   }
 
+  private isUmbraNeedlewingBlackoutBoss(entity: Entity) {
+    return entity.type === EntityType.BOSS
+      && String(entity.sourceItemId ?? '').endsWith('umbra-needlewing');
+  }
+
+  private setCornerAmbushPlayerLayerRaised(raised: boolean, engine?: GameEngine) {
+    const playerLayer = this.layers.player;
+    if (raised) {
+      if (!this.cornerAmbushPlayerLayerRaised) {
+        const guideIndex = this.app.stage.children.indexOf(this.cornerAmbushGuide);
+        this.app.stage.addChildAt(playerLayer, Math.max(0, guideIndex));
+        this.cornerAmbushPlayerLayerRaised = true;
+      }
+      playerLayer.position.set(engine?.shakeX ?? 0, engine?.shakeY ?? 0);
+      return;
+    }
+
+    if (this.cornerAmbushPlayerLayerRaised) {
+      const projectileIndex = this.world.children.indexOf(this.layers.projectile);
+      this.world.addChildAt(playerLayer, Math.max(0, projectileIndex));
+      this.cornerAmbushPlayerLayerRaised = false;
+    }
+    playerLayer.position.set(0, 0);
+  }
+
+  private drawUmbraBlackoutEyes(
+    originX: number,
+    originY: number,
+    attackAngle: number,
+    intensity: number
+  ) {
+    const alpha = clamp(intensity, 0, 1);
+    const normalX = -Math.sin(attackAngle);
+    const normalY = Math.cos(attackAngle);
+    const spacing = this.width < 520 ? 8 : 11;
+    const eyeSize = this.width < 520 ? 4 : 5;
+    for (const side of [-1, 1]) {
+      const eyeX = originX + normalX * spacing * side;
+      const eyeY = originY + normalY * spacing * side;
+      this.cornerAmbushGuide
+        .rect(
+          Math.round(eyeX - eyeSize * 0.75),
+          Math.round(eyeY - eyeSize * 0.5),
+          Math.max(2, Math.round(eyeSize * 1.5)),
+          Math.max(2, Math.round(eyeSize))
+        )
+        .fill({
+          color: '#ef233c',
+          alpha: (0.42 + alpha * 0.5) * alpha
+        });
+      this.cornerAmbushGuide
+        .rect(
+          Math.round(eyeX - 1),
+          Math.round(eyeY - 1),
+          2,
+          2
+        )
+        .fill({
+          color: '#fff1f2',
+          alpha: (0.55 + alpha * 0.45) * alpha
+        });
+    }
+  }
+
+  private drawUmbraBlackoutDashSilhouette(
+    boss: Entity,
+    angle: number,
+    shakeX: number,
+    shakeY: number,
+    intensity: number
+  ) {
+    const directionX = Math.cos(angle);
+    const directionY = Math.sin(angle);
+    const normalX = -directionY;
+    const normalY = directionX;
+    const centerX = boss.x + boss.width / 2 + shakeX;
+    const centerY = boss.y + boss.height / 2 + shakeY;
+    const halfLength = clamp(boss.height * 0.34, 24, 62);
+    const halfSpan = clamp(boss.width * 0.4, 34, 88);
+    const tailX = centerX - directionX * halfLength;
+    const tailY = centerY - directionY * halfLength;
+    const noseX = centerX + directionX * halfLength;
+    const noseY = centerY + directionY * halfLength;
+    const pulse = clamp(intensity, 0, 1);
+
+    for (let echo = 3; echo >= 1; echo -= 1) {
+      const distance = echo * Math.max(11, Math.hypot(boss.vx, boss.vy) * 1.8);
+      const echoCenterX = centerX - directionX * distance;
+      const echoCenterY = centerY - directionY * distance;
+      this.cornerAmbushGuide
+        .moveTo(echoCenterX, echoCenterY)
+        .lineTo(
+          echoCenterX - directionX * halfLength * 0.9,
+          echoCenterY - directionY * halfLength * 0.9
+        )
+        .stroke({
+          color: '#ef233c',
+          width: Math.max(2, 6 - echo),
+          alpha: (0.28 - echo * 0.05) * pulse
+        });
+    }
+
+    this.cornerAmbushGuide
+      .poly([
+        noseX,
+        noseY,
+        tailX + normalX * halfSpan,
+        tailY + normalY * halfSpan,
+        centerX - directionX * halfLength * 0.48,
+        centerY - directionY * halfLength * 0.48,
+        tailX - normalX * halfSpan,
+        tailY - normalY * halfSpan
+      ])
+      .fill({ color: '#100006', alpha: 0.72 * pulse })
+      .stroke({
+        color: '#ff3348',
+        width: 3,
+        alpha: (0.68 + pulse * 0.3) * pulse
+      });
+    this.cornerAmbushGuide
+      .moveTo(tailX + normalX * halfSpan, tailY + normalY * halfSpan)
+      .lineTo(noseX, noseY)
+      .lineTo(tailX - normalX * halfSpan, tailY - normalY * halfSpan)
+      .stroke({
+        color: '#fda4af',
+        width: 1.5,
+        alpha: (0.42 + pulse * 0.42) * pulse
+      });
+    this.drawUmbraBlackoutEyes(
+      centerX + directionX * halfLength * 0.28,
+      centerY + directionY * halfLength * 0.28,
+      angle,
+      pulse
+    );
+  }
+
+  private drawUmbraBlackoutReentrySilhouette(
+    boss: Entity,
+    angle: number,
+    shakeX: number,
+    shakeY: number,
+    intensity: number
+  ) {
+    const directionX = Math.cos(angle);
+    const directionY = Math.sin(angle);
+    const normalX = -directionY;
+    const normalY = directionX;
+    const centerX = boss.x + boss.width / 2 + shakeX;
+    const centerY = boss.y + boss.height / 2 + shakeY;
+    const halfLength = clamp(boss.height * 0.31, 22, 58);
+    const halfSpan = clamp(boss.width * 0.37, 32, 82);
+    const tailX = centerX - directionX * halfLength;
+    const tailY = centerY - directionY * halfLength;
+    const noseX = centerX + directionX * halfLength;
+    const noseY = centerY + directionY * halfLength;
+    const reveal = clamp(intensity, 0, 1);
+
+    this.cornerAmbushGuide
+      .poly([
+        noseX,
+        noseY,
+        tailX + normalX * halfSpan,
+        tailY + normalY * halfSpan,
+        centerX - directionX * halfLength * 0.42,
+        centerY - directionY * halfLength * 0.42,
+        tailX - normalX * halfSpan,
+        tailY - normalY * halfSpan
+      ])
+      .fill({ color: '#080005', alpha: 0.72 * reveal })
+      .stroke({
+        color: '#ff3348',
+        width: 2.5,
+        alpha: (0.18 + reveal * 0.72) * reveal
+      });
+    this.cornerAmbushGuide
+      .moveTo(tailX + normalX * halfSpan, tailY + normalY * halfSpan)
+      .lineTo(noseX, noseY)
+      .lineTo(tailX - normalX * halfSpan, tailY - normalY * halfSpan)
+      .stroke({
+        color: '#fda4af',
+        width: 1,
+        alpha: (0.16 + reveal * 0.5) * reveal
+      });
+    this.drawUmbraBlackoutEyes(
+      centerX + directionX * halfLength * 0.26,
+      centerY + directionY * halfLength * 0.26,
+      angle,
+      reveal
+    );
+  }
+
+  private syncUmbraBlackoutPresentation(
+    engine: GameEngine,
+    boss: Entity,
+    presentation: Entity['bossActionPresentation']
+  ) {
+    this.setCornerAmbushPlayerLayerRaised(true, engine);
+    const overscan = Math.max(this.width, this.height) * 2;
+    const shakeX = engine.shakeX;
+    const shakeY = engine.shakeY;
+    const actionDuration = Math.max(
+      1,
+      (presentation?.endFrame ?? boss.attackTimer + 1)
+        - (presentation?.startFrame ?? boss.attackTimer)
+    );
+    const actionProgress = clamp(
+      (boss.attackTimer - (presentation?.startFrame ?? boss.attackTimer)) / actionDuration,
+      0,
+      1
+    );
+    const vanishReentry = boss.bossVanishReentryState;
+    const vanishStage = boss.bossVanishReentryStage;
+    const vanishProgress = clamp(boss.bossVanishReentryProgress, 0, 1);
+    const huntDissolving = boss.bossUmbraBlackoutHuntActive
+      && presentation?.actionClipId.includes('shadow-dissolve');
+    const huntMaterializing = boss.bossUmbraBlackoutHuntActive
+      && presentation?.actionClipId.includes('upper-anchor-materialize');
+    const blackoutAlpha = huntDissolving
+      ? 0.998 * smoothstep(actionProgress)
+      : huntMaterializing
+        ? 0.998 * (1 - smoothstep(actionProgress))
+        : vanishStage === 'fade-out'
+      ? 0.998 * smoothstep(vanishProgress)
+      : vanishStage === 'recovery'
+        ? 0.998 * (1 - smoothstep(vanishProgress))
+        : 0.998;
+    const cueReveal = !vanishReentry
+      ? 1
+      : vanishStage === 'fade-out'
+        ? smoothstep((vanishProgress - 0.68) / 0.32)
+        : vanishStage === 'recovery'
+          ? 1 - smoothstep(vanishProgress)
+          : 1;
+
+    // Umbra's signature attacks fade the world and structural boss art under
+    // the blackout instead of toggling them. The real player layer, authored
+    // threat cue, and HUD remain above it throughout disappearance and return.
+    // Unlike the generic compatibility presentation, this blackout has no
+    // circular spotlights and never punches a hole through to the pooled beam.
+    this.cornerAmbushShade
+      .rect(
+        -overscan,
+        -overscan,
+        this.width + overscan * 2,
+        this.height + overscan * 2
+      )
+      .fill({ color: '#000002', alpha: blackoutAlpha });
+    this.cornerAmbushGuide.visible = true;
+
+    const ram = boss.bossCornerAmbushRamState;
+    const isRam = Boolean(ram)
+      || String(presentation?.primitiveId) === CORNER_AMBUSH_RAM_PRIMITIVE_ID;
+    if (isRam && ram) {
+      const lock = ram.lock;
+      const startX = lock.startX + boss.width / 2 + shakeX;
+      const startY = lock.startY + boss.height / 2 + shakeY;
+      const targetX = lock.targetX + shakeX;
+      const targetY = lock.targetY + shakeY;
+      const warning = ram.stage === 'warning';
+      const pulse = 0.72 + Math.sin(engine.frameCount * 0.34) * 0.24;
+
+      if (warning) {
+        this.drawUmbraBlackoutEyes(
+          startX,
+          startY,
+          lock.angleRadians,
+          pulse * cueReveal
+        );
+        if (this.previewDebugOverlays.safeRegions) {
+          this.cornerAmbushGuide
+            .moveTo(startX, startY)
+            .lineTo(targetX, targetY)
+            .stroke({ color: '#fde047', width: 1, alpha: 0.72 });
+          this.cornerAmbushGuide
+            .circle(targetX, targetY, 18)
+            .stroke({ color: '#fde047', width: 1, alpha: 0.72 });
+        }
+      } else {
+        this.drawUmbraBlackoutDashSilhouette(
+          boss,
+          lock.angleRadians,
+          shakeX,
+          shakeY,
+          (0.72 + actionProgress * 0.28) * cueReveal
+        );
+      }
+      return;
+    }
+
+    if (vanishReentry && !boss.bossCornerAmbushBeamState) {
+      const reentryX = vanishReentry.lock.reentry.x + shakeX;
+      const reentryY = vanishReentry.lock.reentry.y + shakeY;
+      if (vanishStage === 'reentry-warning') {
+        this.drawUmbraBlackoutEyes(
+          reentryX,
+          reentryY,
+          vanishReentry.lock.reentryAngleRadians,
+          (0.48 + vanishProgress * 0.5) * cueReveal
+        );
+      } else if (vanishStage === 'reappear' || vanishStage === 'recovery') {
+        this.drawUmbraBlackoutReentrySilhouette(
+          boss,
+          vanishReentry.lock.reentryAngleRadians,
+          shakeX,
+          shakeY,
+          vanishStage === 'reappear'
+            ? 0.24 + vanishProgress * 0.54
+            : 0.78 * (1 - smoothstep(vanishProgress))
+        );
+      }
+      return;
+    }
+
+    let beam: Entity | null = null;
+    let fallbackBeam: Entity | null = null;
+    for (const candidate of engine.entities) {
+      if (
+        candidate.markedForDeletion
+        || !candidate.isBeam
+        || !candidate.isCornerAmbushBeam
+        || candidate.bossOwnerId !== boss.id
+      ) {
+        continue;
+      }
+      fallbackBeam ??= candidate;
+      if (candidate.isTelegraph === (presentation?.stage === 'warning')) {
+        beam = candidate;
+        break;
+      }
+    }
+    beam ??= fallbackBeam;
+    if (!beam) return;
+
+    const angled = beam.beamAngleRadians !== null;
+    const horizontal = !angled && beam.beamAxis === 'horizontal';
+    const beamAngle = angled
+      ? Number(beam.beamAngleRadians)
+      : horizontal
+        ? 0
+        : Math.PI / 2;
+    const beamLength = angled || horizontal ? beam.width : beam.height;
+    const beamThickness = angled || horizontal ? beam.height : beam.width;
+    const beamCenterX = beam.x + beam.width / 2 + shakeX;
+    const beamCenterY = beam.y + beam.height / 2 + shakeY;
+    const tangentX = Math.cos(beamAngle);
+    const tangentY = Math.sin(beamAngle);
+    const halfLength = beamLength / 2;
+    const startX = beamCenterX - tangentX * halfLength;
+    const startY = beamCenterY - tangentY * halfLength;
+    const endX = beamCenterX + tangentX * halfLength;
+    const endY = beamCenterY + tangentY * halfLength;
+    const originX = Number.isFinite(beam.beamOriginX)
+      ? Number(beam.beamOriginX) + shakeX
+      : startX;
+    const originY = Number.isFinite(beam.beamOriginY)
+      ? Number(beam.beamOriginY) + shakeY
+      : startY;
+    const warning = beam.isTelegraph;
+    const pulse = 0.78 + Math.sin(engine.frameCount * 0.36) * 0.2;
+
+    this.drawUmbraBlackoutEyes(
+      originX,
+      originY,
+      beamAngle,
+      pulse * cueReveal
+    );
+    if (warning) {
+      this.cornerAmbushGuide
+        .moveTo(startX, startY)
+        .lineTo(endX, endY)
+        .stroke({ color: '#ef233c', width: 1.5, alpha: pulse * cueReveal });
+      if (this.previewDebugOverlays.safeRegions) {
+        this.cornerAmbushGuide
+          .circle(originX, originY, 12)
+          .stroke({ color: '#fde047', width: 1, alpha: 0.72 });
+      }
+      return;
+    }
+
+    // The active strike is deliberately redrawn above the blackout using the
+    // exact collision-aligned beam geometry. No old world sprites leak through.
+    this.cornerAmbushGuide
+      .moveTo(startX, startY)
+      .lineTo(endX, endY)
+      .stroke({
+        color: '#7f0017',
+        width: Math.max(12, beamThickness * 1.45),
+        alpha: (0.5 + pulse * 0.18) * cueReveal
+      });
+    this.cornerAmbushGuide
+      .moveTo(startX, startY)
+      .lineTo(endX, endY)
+      .stroke({
+        color: '#ef233c',
+        width: Math.max(7, beamThickness * 0.9),
+        alpha: 0.92 * cueReveal
+      });
+    this.cornerAmbushGuide
+      .moveTo(startX, startY)
+      .lineTo(endX, endY)
+      .stroke({
+        color: '#fff1f2',
+        width: Math.max(2, beamThickness * 0.2),
+        alpha: 0.96 * cueReveal
+      });
+  }
+
   private syncCornerAmbushPresentation(engine: GameEngine) {
     let boss: Entity | null = null;
     for (const candidate of engine.entities) {
       const presentation = candidate.bossActionPresentation;
-      if (
-        candidate.type === EntityType.BOSS
-        && !candidate.markedForDeletion
-        && presentation
+      const activePresentation = Boolean(
+        presentation
         && (
           String(presentation.primitiveId) === CORNER_AMBUSH_BEAM_PRIMITIVE_ID
           || String(presentation.primitiveId) === CORNER_AMBUSH_RAM_PRIMITIVE_ID
         )
         && (presentation.stage === 'warning' || presentation.stage === 'fire')
+      );
+      const umbraRuntime = this.isUmbraNeedlewingBlackoutBoss(candidate)
+        && Boolean(
+          candidate.bossUmbraBlackoutHuntActive
+          ||
+          candidate.bossCornerAmbushBeamState
+          || candidate.bossCornerAmbushRamState
+          || candidate.bossVanishReentryState
+        );
+      if (
+        candidate.type === EntityType.BOSS
+        && !candidate.markedForDeletion
+        && (activePresentation || umbraRuntime)
       ) {
         boss = candidate;
         break;
@@ -6781,9 +7261,17 @@ export class PixiGameRenderer {
     this.cornerAmbushGuide.clear();
     this.cornerAmbushShade.visible = Boolean(boss);
     this.cornerAmbushGuide.visible = false;
-    if (!boss) return;
+    if (!boss) {
+      this.setCornerAmbushPlayerLayerRaised(false);
+      return;
+    }
 
     const presentation = boss.bossActionPresentation;
+    if (this.isUmbraNeedlewingBlackoutBoss(boss)) {
+      this.syncUmbraBlackoutPresentation(engine, boss, presentation);
+      return;
+    }
+    this.setCornerAmbushPlayerLayerRaised(false);
     if (!presentation) return;
     const isRam = String(presentation.primitiveId) === CORNER_AMBUSH_RAM_PRIMITIVE_ID;
     const warning = presentation.stage === 'warning';
@@ -7126,6 +7614,7 @@ export class PixiGameRenderer {
 
   destroy() {
     if (this.destroyed) return;
+    this.setCornerAmbushPlayerLayerRaised(false);
     this.destroyed = true;
     this.initialized = false;
     this.effectPool.destroy();

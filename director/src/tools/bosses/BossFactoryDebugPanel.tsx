@@ -164,6 +164,25 @@ export function BossFactoryDebugPanel({
               />
               <output>{Math.round(referenceComparison.opacity * 100)}%</output>
             </label>
+            <div
+              className="boss-factory-debug__button-row"
+              aria-label="Reference comparison opacity presets"
+            >
+              {([0.25, 0.5, 0.75] as const).map((opacity) => (
+                <button
+                  type="button"
+                  key={opacity}
+                  aria-pressed={referenceComparison.opacity === opacity}
+                  disabled={!referenceComparison.enabled}
+                  onClick={() => onReferenceComparisonChange({
+                    ...referenceComparison,
+                    opacity
+                  })}
+                >
+                  {Math.round(opacity * 100)}%
+                </button>
+              ))}
+            </div>
             <div className="boss-factory-debug__button-row">
               {(['under', 'over'] as const).map((layer) => (
                 <button

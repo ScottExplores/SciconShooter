@@ -1,0 +1,542 @@
+{
+  "schemaVersion": 1,
+  "artifactType": "boss-rig-pivot-manifest",
+  "format": "modular-hierarchy-v1",
+  "bossId": "umbra-needlewing",
+  "canonicalReference": {
+    "path": "umbra-needlewing-reference.png",
+    "sha256": "2db71f4a183415e9851be2363b2224b8d7912e272922b55c7cfb8c1043e0ac21",
+    "width": 1511,
+    "height": 1041,
+    "neutralLandmarks": [
+      { "id": "umbra-core", "label": "Lower core aperture", "reference": { "xRatio": 0.5, "yRatio": 0.672 }, "rig": { "kind": "socket", "socketId": "core.emitter" } },
+      { "id": "upper-wing-port", "label": "Upper port wing joint", "reference": { "xRatio": 0.319, "yRatio": 0.368 }, "rig": { "kind": "socket", "socketId": "wing.port.0.joint" } },
+      { "id": "upper-wing-starboard", "label": "Upper starboard wing joint", "reference": { "xRatio": 0.681, "yRatio": 0.368 }, "rig": { "kind": "socket", "socketId": "wing.starboard.0.joint" } },
+      { "id": "needle-port", "label": "Port needle muzzle", "reference": { "xRatio": 0.323, "yRatio": 0.576 }, "rig": { "kind": "socket", "socketId": "needle.port.muzzle" } },
+      { "id": "needle-starboard", "label": "Starboard needle muzzle", "reference": { "xRatio": 0.677, "yRatio": 0.576 }, "rig": { "kind": "socket", "socketId": "needle.starboard.muzzle" } }
+    ]
+  },
+  "coordinateSystem": {
+    "canvas": { "width": 512, "height": 320 },
+    "xAxis": "right",
+    "yAxis": "down",
+    "rotationUnit": "degrees",
+    "rootNeutral": { "x": 256, "y": 156 },
+    "runtimeRotationUnit": "radians",
+    "runtimeNormalizer": "services/pixi/boss-rigs/UmbraNeedlewingArtwork.ts"
+  },
+  "sourceIntegrity": {
+    "sourceLayout": { "path": "source-layout.json", "sha256": "ede3dcac21415a37e1cc40f1fda9732d7474e612cff804ab56398a573052a8e0" },
+    "reference": { "path": "umbra-needlewing-reference.png", "sha256": "2db71f4a183415e9851be2363b2224b8d7912e272922b55c7cfb8c1043e0ac21" },
+    "components": { "path": "umbra-needlewing-components.png", "sha256": "79989b7edce63af8529fbaaf3e4eec5b657fb143809a00e5c12d6c339b6f9eb5" },
+    "vfx": { "path": "umbra-needlewing-vfx.png", "sha256": "b215555430f39fbdc939cecaab80ac1a5cc9ba97f34cd7a31b0568859259d9fa" },
+    "atlas": { "path": "umbra-needlewing-atlas.png", "sha256": "c98290efd065277225b9d64bbcf06f23e5013cd29ca9ae501f404c18750321d1" },
+    "atlasMetadata": { "path": "umbra-needlewing-atlas.json", "sha256": "f1a1f3faffd40db2aa8fa0d8b6a206896c6966fa2aa11402d40cce8a699c2969" },
+    "neutralPreview": { "path": "umbra-needlewing-neutral.png", "sha256": "a1635e616add1b99336c366bc51499311f130ce62fbecd8d4a8956e1c9b2aba2" }
+  },
+  "rootPartId": "root",
+  "atlases": [
+    {
+      "id": "primary",
+      "imagePath": "umbra-needlewing-atlas.png",
+      "metadataPath": "umbra-needlewing-atlas.json",
+      "sha256": "c98290efd065277225b9d64bbcf06f23e5013cd29ca9ae501f404c18750321d1",
+      "metadataSha256": "f1a1f3faffd40db2aa8fa0d8b6a206896c6966fa2aa11402d40cce8a699c2969",
+      "width": 2048,
+      "height": 1024
+    }
+  ],
+  "articulationJoints": [
+    { "id": "wing.port.0.joint", "partId": "wing.port.0.mount", "parentId": "root", "role": "moving-wing-joint", "neutralTransform": { "x": -87, "y": -39, "rotationDegrees": 0, "scaleX": 1, "scaleY": 1 }, "drivenParts": ["wing.port.0"], "validatedMotionRangeRadians": { "minimum": -0.4, "maximum": 0.6 }, "requiredOverlapPx": 9 },
+    { "id": "wing.starboard.0.joint", "partId": "wing.starboard.0.mount", "parentId": "root", "role": "moving-wing-joint", "neutralTransform": { "x": 87, "y": -39, "rotationDegrees": 0, "scaleX": 1, "scaleY": 1 }, "drivenParts": ["wing.starboard.0"], "validatedMotionRangeRadians": { "minimum": -0.6, "maximum": 0.4 }, "requiredOverlapPx": 9 },
+    { "id": "wing.port.1.joint", "partId": "wing.port.1.mount", "parentId": "root", "role": "moving-wing-joint", "neutralTransform": { "x": -99, "y": -5, "rotationDegrees": -5, "scaleX": 1, "scaleY": 1 }, "drivenParts": ["wing.port.1"], "validatedMotionRangeRadians": { "minimum": -0.5, "maximum": 0.5 }, "requiredOverlapPx": 10 },
+    { "id": "wing.starboard.1.joint", "partId": "wing.starboard.1.mount", "parentId": "root", "role": "moving-wing-joint", "neutralTransform": { "x": 99, "y": -5, "rotationDegrees": 5, "scaleX": 1, "scaleY": 1 }, "drivenParts": ["wing.starboard.1"], "validatedMotionRangeRadians": { "minimum": -0.5, "maximum": 0.5 }, "requiredOverlapPx": 10 },
+    { "id": "wing.port.2.joint", "partId": "wing.port.2.mount", "parentId": "root", "role": "moving-wing-joint", "neutralTransform": { "x": -88, "y": 31, "rotationDegrees": -18, "scaleX": 1, "scaleY": 1 }, "drivenParts": ["wing.port.2"], "validatedMotionRangeRadians": { "minimum": -0.75, "maximum": 0.25 }, "requiredOverlapPx": 10 },
+    { "id": "wing.starboard.2.joint", "partId": "wing.starboard.2.mount", "parentId": "root", "role": "moving-wing-joint", "neutralTransform": { "x": 88, "y": 31, "rotationDegrees": 18, "scaleX": 1, "scaleY": 1 }, "drivenParts": ["wing.starboard.2"], "validatedMotionRangeRadians": { "minimum": -0.25, "maximum": 0.75 }, "requiredOverlapPx": 10 },
+    { "id": "wing.port.3.joint", "partId": "wing.port.3.mount", "parentId": "root", "role": "moving-wing-joint", "neutralTransform": { "x": -54, "y": 72, "rotationDegrees": -25, "scaleX": 1, "scaleY": 1 }, "drivenParts": ["wing.port.3"], "validatedMotionRangeRadians": { "minimum": -0.85, "maximum": 0.1 }, "requiredOverlapPx": 8 },
+    { "id": "wing.starboard.3.joint", "partId": "wing.starboard.3.mount", "parentId": "root", "role": "moving-wing-joint", "neutralTransform": { "x": 54, "y": 72, "rotationDegrees": 25, "scaleX": 1, "scaleY": 1 }, "drivenParts": ["wing.starboard.3"], "validatedMotionRangeRadians": { "minimum": -0.1, "maximum": 0.85 }, "requiredOverlapPx": 8 }
+  ],
+  "collisionParts": ["wing.port.0", "wing.starboard.0", "wing.port.1", "wing.starboard.1", "wing.port.2", "wing.starboard.2", "wing.port.3", "wing.starboard.3", "body", "core"],
+  "collisionSource": "assembled-neutral-alpha-mask",
+  "layerOrderBackToFront": ["vfx.dash-trail", "wing.port.0", "wing.starboard.0", "wing.port.1", "wing.starboard.1", "wing.port.2", "wing.starboard.2", "wing.port.3", "wing.starboard.3", "body", "core", "eye.port", "eye.starboard", "needle.mount.port", "needle.mount.starboard", "vfx.escape-flame", "needle.launcher", "escape.module", "vfx.reticle", "projectile.needle", "projectile.shard", "vfx.reentry", "vfx.damage-spark"],
+  "referenceComparison": {
+    "sameCenter": true,
+    "sameOverallHeight": true,
+    "adjustableOpacity": true,
+    "requiredLandmarkIds": ["umbra-core", "upper-wing-port", "upper-wing-starboard", "needle-port", "needle-starboard"],
+    "status": "passed-boss-sandbox-overlay-2026-08-07"
+  },
+  "destruction": {
+    "durationFrames": 108,
+    "runtimeSource": "services/pixi/boss-rigs/UmbraNeedlewingArtwork.ts",
+    "fragments": [
+      { "partId": "wing.port.0", "delayFrames": 0, "travelX": -170, "travelY": 130, "rotationRadians": -2.2 },
+      { "partId": "wing.starboard.0", "delayFrames": 0, "travelX": 170, "travelY": 130, "rotationRadians": 2.2 },
+      { "partId": "wing.port.1", "delayFrames": 7, "travelX": -148, "travelY": 165, "rotationRadians": -2.5 },
+      { "partId": "wing.starboard.1", "delayFrames": 7, "travelX": 148, "travelY": 165, "rotationRadians": 2.5 },
+      { "partId": "wing.port.2", "delayFrames": 14, "travelX": -118, "travelY": 196, "rotationRadians": -2.8 },
+      { "partId": "wing.starboard.2", "delayFrames": 14, "travelX": 118, "travelY": 196, "rotationRadians": 2.8 },
+      { "partId": "wing.port.3", "delayFrames": 20, "travelX": -82, "travelY": 220, "rotationRadians": -2.1 },
+      { "partId": "wing.starboard.3", "delayFrames": 20, "travelX": 82, "travelY": 220, "rotationRadians": 2.1 },
+      { "partId": "core", "delayFrames": 30, "travelX": 12, "travelY": 160, "rotationRadians": 1.7 },
+      { "partId": "body", "delayFrames": 38, "travelX": 0, "travelY": 230, "rotationRadians": -0.42 }
+    ]
+  },
+  "unverifiedRigContractFields": [],
+  "canvas": {
+    "width": 512,
+    "height": 320,
+    "designUnits": "pixels-at-neutral-preview"
+  },
+  "parts": [
+    {
+      "id": "root",
+      "role": "encounter-root",
+      "parentId": null,
+      "frameId": null,
+      "transform": { "x": 256, "y": 156, "rotationDegrees": 0, "scaleX": 1, "scaleY": 1 },
+      "layer": 0,
+      "neutralVisible": false
+    },
+    {
+      "id": "wing.port.0.mount",
+      "role": "moving-wing-joint",
+      "parentId": "root",
+      "frameId": null,
+      "transform": { "x": -87, "y": -39, "rotationDegrees": 0, "scaleX": 1, "scaleY": 1 },
+      "layer": 1,
+      "neutralVisible": false,
+      "requiredOverlapPx": 9
+    },
+    {
+      "id": "wing.port.0",
+      "role": "authored-port-wing",
+      "parentId": "wing.port.0.mount",
+      "frameId": "wing.port.0",
+      "anchor": { "x": 0.872483, "y": 0.821429 },
+      "transform": { "x": 0, "y": 0, "rotationDegrees": 0, "scaleX": 0.46, "scaleY": 0.46 },
+      "layer": 1,
+      "neutralVisible": true,
+      "requiredOverlapPx": 9,
+      "structuralScaleMustRemainUniform": true
+    },
+    {
+      "id": "wing.starboard.0.mount",
+      "role": "moving-wing-joint",
+      "parentId": "root",
+      "frameId": null,
+      "transform": { "x": 87, "y": -39, "rotationDegrees": 0, "scaleX": 1, "scaleY": 1 },
+      "layer": 1,
+      "neutralVisible": false,
+      "requiredOverlapPx": 9
+    },
+    {
+      "id": "wing.starboard.0",
+      "role": "authored-starboard-wing",
+      "parentId": "wing.starboard.0.mount",
+      "frameId": "wing.starboard.0",
+      "anchor": { "x": 0.151625, "y": 0.767742 },
+      "transform": { "x": 0, "y": 0, "rotationDegrees": 0, "scaleX": 0.46, "scaleY": 0.46 },
+      "layer": 1,
+      "neutralVisible": true,
+      "requiredOverlapPx": 9,
+      "structuralScaleMustRemainUniform": true
+    },
+    {
+      "id": "wing.port.1.mount",
+      "role": "moving-wing-joint",
+      "parentId": "root",
+      "frameId": null,
+      "transform": { "x": -99, "y": -5, "rotationDegrees": -5, "scaleX": 1, "scaleY": 1 },
+      "layer": 2,
+      "neutralVisible": false,
+      "requiredOverlapPx": 10
+    },
+    {
+      "id": "wing.port.1",
+      "role": "authored-port-wing",
+      "parentId": "wing.port.1.mount",
+      "frameId": "wing.port.1",
+      "anchor": { "x": 0.886598, "y": 0.715232 },
+      "transform": { "x": 0, "y": 0, "rotationDegrees": 0, "scaleX": 0.46, "scaleY": 0.46 },
+      "layer": 2,
+      "neutralVisible": true,
+      "requiredOverlapPx": 10,
+      "structuralScaleMustRemainUniform": true
+    },
+    {
+      "id": "wing.starboard.1.mount",
+      "role": "moving-wing-joint",
+      "parentId": "root",
+      "frameId": null,
+      "transform": { "x": 99, "y": -5, "rotationDegrees": 5, "scaleX": 1, "scaleY": 1 },
+      "layer": 2,
+      "neutralVisible": false,
+      "requiredOverlapPx": 10
+    },
+    {
+      "id": "wing.starboard.1",
+      "role": "authored-starboard-wing",
+      "parentId": "wing.starboard.1.mount",
+      "frameId": "wing.starboard.1",
+      "anchor": { "x": 0.129921, "y": 0.633333 },
+      "transform": { "x": 0, "y": 0, "rotationDegrees": 0, "scaleX": 0.46, "scaleY": 0.46 },
+      "layer": 2,
+      "neutralVisible": true,
+      "requiredOverlapPx": 10,
+      "structuralScaleMustRemainUniform": true
+    },
+    {
+      "id": "wing.port.2.mount",
+      "role": "moving-wing-joint",
+      "parentId": "root",
+      "frameId": null,
+      "transform": { "x": -88, "y": 31, "rotationDegrees": -18, "scaleX": 1, "scaleY": 1 },
+      "layer": 3,
+      "neutralVisible": false,
+      "requiredOverlapPx": 10
+    },
+    {
+      "id": "wing.port.2",
+      "role": "authored-port-wing",
+      "parentId": "wing.port.2.mount",
+      "frameId": "wing.port.2",
+      "anchor": { "x": 0.848624, "y": 0.717742 },
+      "transform": { "x": 0, "y": 0, "rotationDegrees": 0, "scaleX": 0.46, "scaleY": 0.46 },
+      "layer": 3,
+      "neutralVisible": true,
+      "requiredOverlapPx": 10,
+      "structuralScaleMustRemainUniform": true
+    },
+    {
+      "id": "wing.starboard.2.mount",
+      "role": "moving-wing-joint",
+      "parentId": "root",
+      "frameId": null,
+      "transform": { "x": 88, "y": 31, "rotationDegrees": 18, "scaleX": 1, "scaleY": 1 },
+      "layer": 3,
+      "neutralVisible": false,
+      "requiredOverlapPx": 10
+    },
+    {
+      "id": "wing.starboard.2",
+      "role": "authored-starboard-wing",
+      "parentId": "wing.starboard.2.mount",
+      "frameId": "wing.starboard.2",
+      "anchor": { "x": 0.159204, "y": 0.67619 },
+      "transform": { "x": 0, "y": 0, "rotationDegrees": 0, "scaleX": 0.46, "scaleY": 0.46 },
+      "layer": 3,
+      "neutralVisible": true,
+      "requiredOverlapPx": 10,
+      "structuralScaleMustRemainUniform": true
+    },
+    {
+      "id": "wing.port.3.mount",
+      "role": "moving-wing-joint",
+      "parentId": "root",
+      "frameId": null,
+      "transform": { "x": -54, "y": 72, "rotationDegrees": -25, "scaleX": 1, "scaleY": 1 },
+      "layer": 4,
+      "neutralVisible": false,
+      "requiredOverlapPx": 8
+    },
+    {
+      "id": "wing.port.3",
+      "role": "authored-port-wing",
+      "parentId": "wing.port.3.mount",
+      "frameId": "wing.port.3",
+      "anchor": { "x": 0.811111, "y": 0.65 },
+      "transform": { "x": 0, "y": 0, "rotationDegrees": 0, "scaleX": 0.62, "scaleY": 0.62 },
+      "layer": 4,
+      "neutralVisible": true,
+      "requiredOverlapPx": 8,
+      "structuralScaleMustRemainUniform": true
+    },
+    {
+      "id": "wing.starboard.3.mount",
+      "role": "moving-wing-joint",
+      "parentId": "root",
+      "frameId": null,
+      "transform": { "x": 54, "y": 72, "rotationDegrees": 25, "scaleX": 1, "scaleY": 1 },
+      "layer": 4,
+      "neutralVisible": false,
+      "requiredOverlapPx": 8
+    },
+    {
+      "id": "wing.starboard.3",
+      "role": "authored-starboard-wing",
+      "parentId": "wing.starboard.3.mount",
+      "frameId": "wing.starboard.3",
+      "anchor": { "x": 0.163265, "y": 0.645833 },
+      "transform": { "x": 0, "y": 0, "rotationDegrees": 0, "scaleX": 0.62, "scaleY": 0.62 },
+      "layer": 4,
+      "neutralVisible": true,
+      "requiredOverlapPx": 8,
+      "structuralScaleMustRemainUniform": true
+    },
+    {
+      "id": "body",
+      "role": "primary-hull",
+      "parentId": "root",
+      "frameId": "body.shell",
+      "anchor": { "x": 0.5, "y": 0.5 },
+      "transform": { "x": 0, "y": 0, "rotationDegrees": 0, "scaleX": 0.7, "scaleY": 0.7 },
+      "layer": 10,
+      "neutralVisible": true,
+      "structuralScaleMustRemainUniform": true
+    },
+    {
+      "id": "eye.port",
+      "role": "charge-eye-overlay",
+      "parentId": "body",
+      "frameId": "eye.port.glow",
+      "anchor": { "x": 0.5, "y": 0.5 },
+      "transform": { "x": -18, "y": -47, "rotationDegrees": 0, "scaleX": 0.52, "scaleY": 0.52 },
+      "layer": 13,
+      "neutralVisible": false,
+      "structuralScaleMustRemainUniform": true
+    },
+    {
+      "id": "eye.starboard",
+      "role": "charge-eye-overlay",
+      "parentId": "body",
+      "frameId": "eye.starboard.glow",
+      "anchor": { "x": 0.5, "y": 0.5 },
+      "transform": { "x": 18, "y": -47, "rotationDegrees": 0, "scaleX": 0.52, "scaleY": 0.52 },
+      "layer": 13,
+      "neutralVisible": false,
+      "structuralScaleMustRemainUniform": true
+    },
+    {
+      "id": "core",
+      "role": "moving-core-aperture",
+      "parentId": "body",
+      "frameId": "core.closed",
+      "anchor": { "x": 0.5, "y": 0.5 },
+      "transform": { "x": 0, "y": 91, "rotationDegrees": 0, "scaleX": 0.45, "scaleY": 0.45 },
+      "layer": 12,
+      "neutralVisible": true,
+      "requiredOverlapPx": 6,
+      "structuralScaleMustRemainUniform": true
+    },
+    {
+      "id": "needle.mount.port",
+      "role": "moving-needle-mount",
+      "parentId": "body",
+      "frameId": "needle.mount.port",
+      "anchor": { "x": 0.5, "y": 0.5 },
+      "transform": { "x": -96, "y": 46, "rotationDegrees": 8, "scaleX": 0.46, "scaleY": 0.46 },
+      "layer": 14,
+      "neutralVisible": false,
+      "requiredOverlapPx": 6,
+      "structuralScaleMustRemainUniform": true
+    },
+    {
+      "id": "needle.mount.starboard",
+      "role": "moving-needle-mount",
+      "parentId": "body",
+      "frameId": "needle.mount.starboard",
+      "anchor": { "x": 0.5, "y": 0.5 },
+      "transform": { "x": 96, "y": 46, "rotationDegrees": -8, "scaleX": 0.46, "scaleY": 0.46 },
+      "layer": 14,
+      "neutralVisible": false,
+      "requiredOverlapPx": 6,
+      "structuralScaleMustRemainUniform": true
+    },
+    {
+      "id": "needle.launcher",
+      "role": "moving-needle-launcher",
+      "parentId": "core",
+      "frameId": "needle.launcher",
+      "anchor": { "x": 0.5, "y": 0.5 },
+      "transform": { "x": 0, "y": 44, "rotationDegrees": 90, "scaleX": 0.7, "scaleY": 0.7 },
+      "layer": 15,
+      "neutralVisible": false,
+      "structuralScaleMustRemainUniform": true
+    },
+    {
+      "id": "escape.module",
+      "role": "moving-escape-module",
+      "parentId": "body",
+      "frameId": "escape.module",
+      "anchor": { "x": 0.5, "y": 0.5 },
+      "transform": { "x": 0, "y": 122, "rotationDegrees": 0, "scaleX": 0.48, "scaleY": 0.48 },
+      "layer": 15,
+      "neutralVisible": false,
+      "structuralScaleMustRemainUniform": true
+    },
+    {
+      "id": "projectile.needle",
+      "role": "needle-projectile-animation",
+      "parentId": "needle.launcher",
+      "frameId": "needle.0",
+      "anchor": { "x": 0.49390243902439024, "y": 0.23636363636363636 },
+      "transform": { "x": 0, "y": 88, "rotationDegrees": 0, "scaleX": 0.34, "scaleY": 0.34 },
+      "layer": 20,
+      "neutralVisible": false,
+      "structuralScaleMustRemainUniform": true
+    },
+    {
+      "id": "projectile.shard",
+      "role": "shard-projectile-animation",
+      "parentId": "core",
+      "frameId": "shard.0",
+      "anchor": { "x": 0.5, "y": 0.5 },
+      "transform": { "x": 0, "y": 110, "rotationDegrees": 0, "scaleX": 0.3, "scaleY": 0.3 },
+      "layer": 20,
+      "neutralVisible": false,
+      "structuralScaleMustRemainUniform": true
+    },
+    {
+      "id": "vfx.reentry",
+      "role": "phase-reentry-animation",
+      "parentId": "root",
+      "frameId": "reentry.0",
+      "anchor": { "x": 0.5, "y": 0.5284090909090909 },
+      "transform": { "x": 0, "y": 0, "rotationDegrees": 0, "scaleX": 0.72, "scaleY": 0.72 },
+      "layer": 24,
+      "neutralVisible": false,
+      "structuralScaleMustRemainUniform": true
+    },
+    {
+      "id": "vfx.reticle",
+      "role": "target-reticle",
+      "parentId": "root",
+      "frameId": "reticle",
+      "anchor": { "x": 0.5, "y": 0.5 },
+      "transform": { "x": 0, "y": 128, "rotationDegrees": 0, "scaleX": 0.34, "scaleY": 0.34 },
+      "layer": 19,
+      "neutralVisible": false,
+      "structuralScaleMustRemainUniform": true
+    },
+    {
+      "id": "vfx.dash-trail",
+      "role": "dash-trail",
+      "parentId": "root",
+      "frameId": "dash.trail",
+      "anchor": { "x": 0.5112994350282486, "y": 0.5192307692307693 },
+      "transform": { "x": 0, "y": 0, "rotationDegrees": 0, "scaleX": 0.42, "scaleY": 0.42 },
+      "layer": -1,
+      "neutralVisible": false,
+      "structuralScaleMustRemainUniform": true
+    },
+    {
+      "id": "vfx.damage-spark",
+      "role": "damage-spark",
+      "parentId": "body",
+      "frameId": "damage.spark",
+      "anchor": { "x": 0.5353535353535354, "y": 0.5023696682464455 },
+      "transform": { "x": 0, "y": 0, "rotationDegrees": 0, "scaleX": 0.28, "scaleY": 0.28 },
+      "layer": 25,
+      "neutralVisible": false,
+      "structuralScaleMustRemainUniform": true
+    },
+    {
+      "id": "vfx.escape-flame",
+      "role": "escape-thrust",
+      "parentId": "escape.module",
+      "frameId": "escape.flame",
+      "anchor": { "x": 0.5, "y": 0.2372093023255814 },
+      "transform": { "x": 0, "y": 90, "rotationDegrees": 0, "scaleX": 0.55, "scaleY": 0.55 },
+      "layer": 14,
+      "neutralVisible": false,
+      "structuralScaleMustRemainUniform": true
+    }
+  ],
+  "sockets": [
+    { "id": "wing.port.0.joint", "role": "moving-wing-joint", "partId": "wing.port.0.mount", "x": 0, "y": 0 },
+    { "id": "wing.port.1.joint", "role": "moving-wing-joint", "partId": "wing.port.1.mount", "x": 0, "y": 0 },
+    { "id": "wing.port.2.joint", "role": "moving-wing-joint", "partId": "wing.port.2.mount", "x": 0, "y": 0 },
+    { "id": "wing.port.3.joint", "role": "moving-wing-joint", "partId": "wing.port.3.mount", "x": 0, "y": 0 },
+    { "id": "wing.starboard.0.joint", "role": "moving-wing-joint", "partId": "wing.starboard.0.mount", "x": 0, "y": 0 },
+    { "id": "wing.starboard.1.joint", "role": "moving-wing-joint", "partId": "wing.starboard.1.mount", "x": 0, "y": 0 },
+    { "id": "wing.starboard.2.joint", "role": "moving-wing-joint", "partId": "wing.starboard.2.mount", "x": 0, "y": 0 },
+    { "id": "wing.starboard.3.joint", "role": "moving-wing-joint", "partId": "wing.starboard.3.mount", "x": 0, "y": 0 },
+    { "id": "wing.port.0.tip", "role": "moving-wing-tip", "partId": "wing.port.0", "x": -250, "y": -130 },
+    { "id": "wing.port.1.tip", "role": "moving-wing-tip", "partId": "wing.port.1", "x": -245, "y": -75 },
+    { "id": "wing.port.2.tip", "role": "moving-wing-tip", "partId": "wing.port.2", "x": -170, "y": -60 },
+    { "id": "wing.port.3.tip", "role": "moving-wing-tip", "partId": "wing.port.3", "x": -130, "y": -45 },
+    { "id": "wing.starboard.0.tip", "role": "moving-wing-tip", "partId": "wing.starboard.0", "x": 235, "y": -110 },
+    { "id": "wing.starboard.1.tip", "role": "moving-wing-tip", "partId": "wing.starboard.1", "x": 220, "y": -65 },
+    { "id": "wing.starboard.2.tip", "role": "moving-wing-tip", "partId": "wing.starboard.2", "x": 160, "y": -55 },
+    { "id": "wing.starboard.3.tip", "role": "moving-wing-tip", "partId": "wing.starboard.3", "x": 145, "y": -40 },
+    { "id": "needle.port.muzzle", "role": "moving-projectile-origin", "partId": "needle.mount.port", "x": 0, "y": 48 },
+    { "id": "needle.starboard.muzzle", "role": "moving-projectile-origin", "partId": "needle.mount.starboard", "x": 0, "y": 48 },
+    { "id": "needle.launcher.muzzle", "role": "moving-projectile-origin", "partId": "needle.launcher", "x": 0, "y": 72 },
+    { "id": "core.emitter", "role": "moving-projectile-origin", "partId": "core", "x": 0, "y": 0 },
+    { "id": "escape.thrust.port", "role": "moving-thrust-origin", "partId": "escape.module", "x": -35, "y": 52 },
+    { "id": "escape.thrust.starboard", "role": "moving-thrust-origin", "partId": "escape.module", "x": 35, "y": 52 }
+  ],
+  "animations": [
+    {
+      "id": "core-cycle",
+      "partId": "core",
+      "frameIds": ["core.closed", "core.open"],
+      "fps": 5,
+      "loop": false
+    },
+    {
+      "id": "needle-cycle",
+      "partId": "projectile.needle",
+      "frameIds": ["needle.0", "needle.1", "needle.2", "needle.3"],
+      "fps": 14,
+      "loop": false
+    },
+    {
+      "id": "shard-cycle",
+      "partId": "projectile.shard",
+      "frameIds": ["shard.0", "shard.1", "shard.2", "shard.3"],
+      "fps": 12,
+      "loop": true
+    },
+    {
+      "id": "reentry-cycle",
+      "partId": "vfx.reentry",
+      "frameIds": ["reentry.0", "reentry.1", "reentry.2", "reentry.3"],
+      "fps": 9,
+      "loop": false
+    }
+  ],
+  "states": {
+    "intro": {
+      "bodyVisible": false,
+      "reentryAnimation": "reentry-cycle",
+      "socketsEnabled": false
+    },
+    "idle": {
+      "bodyVisible": true,
+      "fourWingsPerSide": true,
+      "wingBreathingTransformDriven": true,
+      "coreFrame": "core.closed"
+    },
+    "telegraph": {
+      "eyesVisible": true,
+      "reticleVisible": true,
+      "warningSocketsFollowPose": true
+    },
+    "attack": {
+      "needleMountsVisibleWhenUsed": true,
+      "projectilesFollowNamedMovingSockets": true,
+      "wingRecoilTransformDriven": true
+    },
+    "recovery": {
+      "coreFrame": "core.open",
+      "wingsDroopTransformDriven": true
+    },
+    "stagger": {
+      "damageSparkVisible": true,
+      "wholeRigReaction": true
+    },
+    "phase-transition": {
+      "coreAnimation": "core-cycle",
+      "reentryAnimation": "reentry-cycle",
+      "wingSpreadTransformDriven": true
+    },
+    "death": {
+      "attackSocketsEnabled": false,
+      "escapeModuleVisible": true,
+      "escapeFlameVisible": true,
+      "collapseHierarchy": true
+    }
+  }
+}

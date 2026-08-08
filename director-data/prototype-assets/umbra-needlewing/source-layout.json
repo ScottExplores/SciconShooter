@@ -1,0 +1,414 @@
+{
+  "schemaVersion": 1,
+  "bossId": "umbra-needlewing",
+  "atlas": {
+    "gutter": 3,
+    "maxSize": 2048
+  },
+  "assetUsage": {
+    "requireCompleteSourceGrid": true,
+    "requireConsumerForUsed": true
+  },
+  "sources": [
+    {
+      "id": "locked-reference",
+      "file": "umbra-needlewing-reference.png",
+      "grid": { "columns": 1, "rows": 1 },
+      "provenance": "Locked complete short/wide Umbra Needlewing reference; comparison-only and never packed into runtime anatomy."
+    },
+    {
+      "id": "components",
+      "file": "umbra-needlewing-components.png",
+      "grid": { "columns": 4, "rows": 4 },
+      "provenance": "Cleaned authored left/right anatomy and mechanism board generated for the locked Umbra reference."
+    },
+    {
+      "id": "vfx",
+      "file": "umbra-needlewing-vfx.png",
+      "grid": { "columns": 4, "rows": 4 },
+      "provenance": "Cleaned Umbra projectile, re-entry, targeting, damage, dash, and escape VFX board."
+    }
+  ],
+  "cells": [
+    {
+      "id": "reference.locked",
+      "sourceId": "locked-reference",
+      "cell": [0, 0],
+      "rect": { "x": 0, "y": 0, "width": 1511, "height": 1041 },
+      "disposition": "forbidden",
+      "usageStatus": "archived",
+      "usageClassification": "archived",
+      "reason": "Canonical comparison reference only; the modular rig must be assembled from authored component crops."
+    },
+    {
+      "id": "body.shell",
+      "sourceId": "components",
+      "cell": [0, 0],
+      "rect": { "x": 120, "y": 0, "width": 280, "height": 350 },
+      "registration": { "x": 144.5, "y": 179.5, "unit": "pixels" },
+      "isolation": "largest-component",
+      "padding": 6,
+      "disposition": "runtime",
+      "usageStatus": "neutral"
+    },
+    {
+      "id": "eye.port.glow",
+      "sourceId": "components",
+      "cell": [0, 1],
+      "rect": { "x": 515, "y": 120, "width": 100, "height": 100 },
+      "registration": { "x": 51.5, "y": 50.5, "unit": "pixels" },
+      "isolation": "largest-component",
+      "padding": 4,
+      "disposition": "runtime",
+      "usageStatus": "animation"
+    },
+    {
+      "id": "eye.starboard.glow",
+      "sourceId": "components",
+      "cell": [0, 1],
+      "rect": { "x": 585, "y": 120, "width": 95, "height": 100 },
+      "registration": { "x": 45.5, "y": 50.5, "unit": "pixels" },
+      "isolation": "largest-component",
+      "padding": 4,
+      "disposition": "runtime",
+      "usageStatus": "animation"
+    },
+    {
+      "id": "core.closed",
+      "sourceId": "components",
+      "cell": [0, 2],
+      "rect": { "x": 790, "y": 75, "width": 250, "height": 185 },
+      "registration": { "x": 127.5, "y": 90.5, "unit": "pixels" },
+      "isolation": "largest-component",
+      "disposition": "runtime",
+      "usageStatus": "neutral"
+    },
+    {
+      "id": "core.open",
+      "sourceId": "components",
+      "cell": [0, 3],
+      "rect": { "x": 1120, "y": 75, "width": 250, "height": 185 },
+      "registration": { "x": 120.5, "y": 90.5, "unit": "pixels" },
+      "isolation": "largest-component",
+      "disposition": "runtime",
+      "usageStatus": "phase2"
+    },
+    {
+      "id": "wing.port.0",
+      "sourceId": "components",
+      "cell": [1, 0],
+      "rect": { "x": 110, "y": 345, "width": 330, "height": 225 },
+      "registration": { "x": 276, "y": 175, "unit": "pixels" },
+      "isolation": "largest-component",
+      "padding": 6,
+      "disposition": "runtime",
+      "usageStatus": "neutral"
+    },
+    {
+      "id": "wing.port.1",
+      "sourceId": "components",
+      "cell": [1, 1],
+      "rect": { "x": 460, "y": 385, "width": 325, "height": 185 },
+      "registration": { "x": 276, "y": 123, "unit": "pixels" },
+      "isolation": "largest-component",
+      "padding": 6,
+      "disposition": "runtime",
+      "usageStatus": "neutral"
+    },
+    {
+      "id": "wing.port.2",
+      "sourceId": "components",
+      "cell": [1, 2],
+      "rect": { "x": 825, "y": 405, "width": 255, "height": 160 },
+      "registration": { "x": 203, "y": 107, "unit": "pixels" },
+      "isolation": "largest-component",
+      "padding": 6,
+      "disposition": "runtime",
+      "usageStatus": "neutral"
+    },
+    {
+      "id": "wing.port.3",
+      "sourceId": "components",
+      "cell": [1, 3],
+      "rect": { "x": 1135, "y": 430, "width": 220, "height": 140 },
+      "registration": { "x": 164, "y": 83, "unit": "pixels" },
+      "isolation": "largest-component",
+      "padding": 6,
+      "disposition": "runtime",
+      "usageStatus": "neutral"
+    },
+    {
+      "id": "wing.starboard.0",
+      "sourceId": "components",
+      "cell": [2, 0],
+      "rect": { "x": 115, "y": 615, "width": 315, "height": 190 },
+      "registration": { "x": 62, "y": 136, "unit": "pixels" },
+      "isolation": "largest-component",
+      "padding": 6,
+      "disposition": "runtime",
+      "usageStatus": "neutral"
+    },
+    {
+      "id": "wing.starboard.1",
+      "sourceId": "components",
+      "cell": [2, 1],
+      "rect": { "x": 475, "y": 645, "width": 295, "height": 160 },
+      "registration": { "x": 55, "y": 95, "unit": "pixels" },
+      "isolation": "largest-component",
+      "padding": 6,
+      "disposition": "runtime",
+      "usageStatus": "neutral"
+    },
+    {
+      "id": "wing.starboard.2",
+      "sourceId": "components",
+      "cell": [2, 2],
+      "rect": { "x": 825, "y": 645, "width": 245, "height": 150 },
+      "registration": { "x": 54, "y": 92, "unit": "pixels" },
+      "isolation": "largest-component",
+      "padding": 6,
+      "disposition": "runtime",
+      "usageStatus": "neutral"
+    },
+    {
+      "id": "wing.starboard.3",
+      "sourceId": "components",
+      "cell": [2, 3],
+      "rect": { "x": 1130, "y": 660, "width": 235, "height": 140 },
+      "registration": { "x": 52, "y": 84, "unit": "pixels" },
+      "isolation": "largest-component",
+      "padding": 6,
+      "disposition": "runtime",
+      "usageStatus": "neutral"
+    },
+    {
+      "id": "needle.mount.port",
+      "sourceId": "components",
+      "cell": [3, 0],
+      "rect": { "x": 185, "y": 825, "width": 165, "height": 175 },
+      "registration": { "x": 82.5, "y": 85, "unit": "pixels" },
+      "isolation": "largest-component",
+      "padding": 6,
+      "disposition": "runtime",
+      "usageStatus": "attack"
+    },
+    {
+      "id": "needle.mount.starboard",
+      "sourceId": "components",
+      "cell": [3, 1],
+      "rect": { "x": 530, "y": 825, "width": 165, "height": 175 },
+      "registration": { "x": 83.5, "y": 85, "unit": "pixels" },
+      "isolation": "largest-component",
+      "padding": 6,
+      "disposition": "runtime",
+      "usageStatus": "attack"
+    },
+    {
+      "id": "needle.launcher",
+      "sourceId": "components",
+      "cell": [3, 2],
+      "rect": { "x": 830, "y": 825, "width": 210, "height": 170 },
+      "registration": { "x": 103.5, "y": 82.5, "unit": "pixels" },
+      "isolation": "largest-component",
+      "padding": 6,
+      "disposition": "runtime",
+      "usageStatus": "attack"
+    },
+    {
+      "id": "escape.module",
+      "sourceId": "components",
+      "cell": [3, 3],
+      "rect": { "x": 1135, "y": 825, "width": 210, "height": 175 },
+      "registration": { "x": 104.5, "y": 80.5, "unit": "pixels" },
+      "isolation": "largest-component",
+      "padding": 6,
+      "disposition": "runtime",
+      "usageStatus": "death"
+    },
+    {
+      "id": "needle.0",
+      "sourceId": "vfx",
+      "cell": [0, 0],
+      "rect": { "x": 60, "y": 100, "width": 125, "height": 220 },
+      "registration": { "x": 61.5, "y": 80, "unit": "pixels" },
+      "isolation": "largest-component",
+      "disposition": "runtime",
+      "usageStatus": "attack"
+    },
+    {
+      "id": "needle.1",
+      "sourceId": "vfx",
+      "cell": [0, 1],
+      "rect": { "x": 320, "y": 100, "width": 135, "height": 240 },
+      "registration": { "x": 64, "y": 80, "unit": "pixels" },
+      "isolation": "largest-component",
+      "disposition": "runtime",
+      "usageStatus": "attack"
+    },
+    {
+      "id": "needle.2",
+      "sourceId": "vfx",
+      "cell": [0, 2],
+      "rect": { "x": 585, "y": 100, "width": 140, "height": 250 },
+      "registration": { "x": 68.5, "y": 80, "unit": "pixels" },
+      "isolation": "largest-component",
+      "disposition": "runtime",
+      "usageStatus": "attack"
+    },
+    {
+      "id": "needle.3",
+      "sourceId": "vfx",
+      "cell": [0, 3],
+      "rect": { "x": 855, "y": 100, "width": 140, "height": 260 },
+      "registration": { "x": 69, "y": 80, "unit": "pixels" },
+      "isolation": "largest-component",
+      "disposition": "runtime",
+      "usageStatus": "attack"
+    },
+    {
+      "id": "shard.0",
+      "sourceId": "vfx",
+      "cell": [1, 0],
+      "rect": { "x": 20, "y": 430, "width": 210, "height": 270 },
+      "registration": { "x": 104, "y": 138, "unit": "pixels" },
+      "isolation": "largest-component",
+      "disposition": "runtime",
+      "usageStatus": "attack"
+    },
+    {
+      "id": "shard.1",
+      "sourceId": "vfx",
+      "cell": [1, 1],
+      "rect": { "x": 270, "y": 430, "width": 235, "height": 280 },
+      "registration": { "x": 118, "y": 139, "unit": "pixels" },
+      "isolation": "largest-component",
+      "disposition": "runtime",
+      "usageStatus": "attack"
+    },
+    {
+      "id": "shard.2",
+      "sourceId": "vfx",
+      "cell": [1, 2],
+      "rect": { "x": 540, "y": 430, "width": 230, "height": 270 },
+      "registration": { "x": 114, "y": 139, "unit": "pixels" },
+      "isolation": "largest-component",
+      "disposition": "runtime",
+      "usageStatus": "attack"
+    },
+    {
+      "id": "shard.3",
+      "sourceId": "vfx",
+      "cell": [1, 3],
+      "rect": { "x": 820, "y": 430, "width": 215, "height": 250 },
+      "registration": { "x": 108, "y": 138, "unit": "pixels" },
+      "isolation": "largest-component",
+      "disposition": "runtime",
+      "usageStatus": "attack"
+    },
+    {
+      "id": "reentry.0",
+      "sourceId": "vfx",
+      "cell": [2, 0],
+      "rect": { "x": 30, "y": 830, "width": 190, "height": 240 },
+      "registration": { "x": 91, "y": 130, "unit": "pixels" },
+      "padding": 5,
+      "disposition": "runtime",
+      "usageStatus": "phase2"
+    },
+    {
+      "id": "reentry.1",
+      "sourceId": "vfx",
+      "cell": [2, 1],
+      "rect": { "x": 300, "y": 830, "width": 180, "height": 250 },
+      "registration": { "x": 88, "y": 130, "unit": "pixels" },
+      "padding": 5,
+      "disposition": "runtime",
+      "usageStatus": "phase2"
+    },
+    {
+      "id": "reentry.2",
+      "sourceId": "vfx",
+      "cell": [2, 2],
+      "rect": { "x": 560, "y": 830, "width": 190, "height": 250 },
+      "registration": { "x": 94, "y": 130, "unit": "pixels" },
+      "padding": 5,
+      "disposition": "runtime",
+      "usageStatus": "phase2"
+    },
+    {
+      "id": "reentry.3",
+      "sourceId": "vfx",
+      "cell": [2, 3],
+      "rect": { "x": 820, "y": 830, "width": 210, "height": 250 },
+      "registration": { "x": 97, "y": 130, "unit": "pixels" },
+      "padding": 5,
+      "disposition": "runtime",
+      "usageStatus": "phase2"
+    },
+    {
+      "id": "reticle",
+      "sourceId": "vfx",
+      "cell": [3, 0],
+      "rect": { "x": 0, "y": 1180, "width": 241, "height": 275 },
+      "registration": { "x": 120, "y": 136, "unit": "pixels" },
+      "padding": 5,
+      "disposition": "runtime",
+      "usageStatus": "attack"
+    },
+    {
+      "id": "dash.trail",
+      "sourceId": "vfx",
+      "cell": [3, 1],
+      "rect": { "x": 275, "y": 1180, "width": 225, "height": 300 },
+      "registration": { "x": 113.5, "y": 154, "unit": "pixels" },
+      "padding": 5,
+      "disposition": "runtime",
+      "usageStatus": "attack"
+    },
+    {
+      "id": "damage.spark",
+      "sourceId": "vfx",
+      "cell": [3, 2],
+      "rect": { "x": 545, "y": 1180, "width": 220, "height": 275 },
+      "registration": { "x": 109, "y": 140, "unit": "pixels" },
+      "padding": 5,
+      "disposition": "runtime",
+      "usageStatus": "damage"
+    },
+    {
+      "id": "escape.flame",
+      "sourceId": "vfx",
+      "cell": [3, 3],
+      "rect": { "x": 820, "y": 1180, "width": 205, "height": 280 },
+      "registration": { "x": 99, "y": 95, "unit": "pixels" },
+      "padding": 5,
+      "disposition": "runtime",
+      "usageStatus": "death"
+    }
+  ],
+  "registrationGroups": [
+    {
+      "id": "core-cycle",
+      "frames": ["core.closed", "core.open"],
+      "padding": 6
+    },
+    {
+      "id": "needle-cycle",
+      "frames": ["needle.0", "needle.1", "needle.2", "needle.3"],
+      "padding": 5,
+      "usedBy": ["preview-projectile:boss-umbra-needle"]
+    },
+    {
+      "id": "shard-cycle",
+      "frames": ["shard.0", "shard.1", "shard.2", "shard.3"],
+      "padding": 5,
+      "usedBy": ["preview-projectile:boss-umbra-shard"]
+    },
+    {
+      "id": "reentry-cycle",
+      "frames": ["reentry.0", "reentry.1", "reentry.2", "reentry.3"],
+      "padding": 5,
+      "usedBy": ["preview-vfx:umbra-reentry"]
+    }
+  ]
+}

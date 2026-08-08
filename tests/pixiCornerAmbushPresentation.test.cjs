@@ -8,6 +8,10 @@ const renderer = fs.readFileSync(
   path.join(root, 'services', 'pixi', 'PixiGameRenderer.ts'),
   'utf8'
 );
+const previewSession = fs.readFileSync(
+  path.join(root, 'services', 'gameplay', 'previewSession.ts'),
+  'utf8'
+);
 
 const sliceMethod = (start, end) => {
   const startIndex = renderer.indexOf(start);
@@ -17,27 +21,103 @@ const sliceMethod = (start, end) => {
   return renderer.slice(startIndex, endIndex);
 };
 
-test('corner ambush blackout is a pooled world-only layer below the Pixi HUD', () => {
+test('corner ambush blackout covers world overlays while preserving the real player and boss HUD', () => {
   assert.match(renderer, /private readonly cornerAmbushShade = new Graphics\(\)/);
   assert.match(renderer, /private readonly cornerAmbushGuide = new Graphics\(\)/);
   assert.match(
     renderer,
-    /this\.app\.stage\.addChild\([\s\S]*?this\.layers\.background,[\s\S]*?this\.camera,[\s\S]*?this\.cornerAmbushShade,[\s\S]*?this\.cornerAmbushGuide,[\s\S]*?this\.layers\.overlay/
+    /this\.app\.stage\.addChild\([\s\S]*?this\.layers\.background,[\s\S]*?this\.camera,[\s\S]*?this\.layers\.overlay,[\s\S]*?this\.cornerAmbushShade,[\s\S]*?this\.cornerAmbushGuide,[\s\S]*?this\.bossHealthRoot/
   );
-  assert.match(
-    renderer,
-    /this\.layers\.overlay\.addChild\([\s\S]*?this\.bossHealthRoot/
+  const overlayRegistration = sliceMethod(
+    'this.layers.overlay.addChild(',
+    'this.warningShade.visible = false;'
   );
+  assert.doesNotMatch(overlayRegistration, /this\.bossHealthRoot/);
   assert.match(renderer, /this\.cornerAmbushShade\.eventMode = 'none'/);
   assert.match(renderer, /this\.cornerAmbushGuide\.eventMode = 'none'/);
+  assert.match(renderer, /private cornerAmbushPlayerLayerRaised = false/);
+  assert.match(renderer, /candidate\.bossUmbraBlackoutHuntActive/);
+  assert.match(renderer, /this\.app\.stage\.addChildAt\(playerLayer/);
+  assert.match(renderer, /this\.world\.addChildAt\(playerLayer/);
 });
 
-test('corner ambush presentation spotlights the real boss and player around exact beam geometry', () => {
+test('Umbra blackout hides the world without spotlights and draws exact threats above it', () => {
+  const eyes = sliceMethod(
+    'private drawUmbraBlackoutEyes(',
+    'private drawUmbraBlackoutDashSilhouette('
+  );
+  const dash = sliceMethod(
+    'private drawUmbraBlackoutDashSilhouette(',
+    'private drawUmbraBlackoutReentrySilhouette('
+  );
+  const reentry = sliceMethod(
+    'private drawUmbraBlackoutReentrySilhouette(',
+    'private syncUmbraBlackoutPresentation('
+  );
+  const umbra = sliceMethod(
+    'private syncUmbraBlackoutPresentation(',
+    'private syncCornerAmbushPresentation(engine: GameEngine)'
+  );
   const presentation = sliceMethod(
     'private syncCornerAmbushPresentation(engine: GameEngine)',
     'private updateWarnings(engine: GameEngine)'
   );
 
+  assert.match(umbra, /this\.setCornerAmbushPlayerLayerRaised\(true, engine\)/);
+  assert.match(umbra, /vanishStage === 'fade-out'/);
+  assert.match(umbra, /0\.998 \* smoothstep\(vanishProgress\)/);
+  assert.match(umbra, /vanishStage === 'recovery'/);
+  assert.match(umbra, /0\.998 \* \(1 - smoothstep\(vanishProgress\)\)/);
+  assert.match(umbra, /smoothstep\(\(vanishProgress - 0\.68\) \/ 0\.32\)/);
+  assert.match(umbra, /fill\(\{ color: '#000002', alpha: blackoutAlpha \}\)/);
+  assert.match(umbra, /this\.drawUmbraBlackoutEyes\(/);
+  assert.match(umbra, /this\.drawUmbraBlackoutDashSilhouette\(/);
+  assert.match(umbra, /const vanishReentry = boss\.bossVanishReentryState/);
+  assert.match(umbra, /vanishStage === 'reentry-warning'/);
+  assert.match(umbra, /vanishStage === 'reappear' \|\| vanishStage === 'recovery'/);
+  assert.match(umbra, /0\.78 \* \(1 - smoothstep\(vanishProgress\)\)/);
+  assert.match(umbra, /this\.drawUmbraBlackoutReentrySilhouette\(/);
+  assert.match(umbra, /const warning = ram\.stage === 'warning'/);
+  assert.match(umbra, /const warning = beam\.isTelegraph/);
+  assert.match(umbra, /candidate\.bossOwnerId !== boss\.id/);
+  assert.match(umbra, /!candidate\.isCornerAmbushBeam/);
+  assert.match(umbra, /const startX = beamCenterX - tangentX \* halfLength/);
+  assert.match(umbra, /const endX = beamCenterX \+ tangentX \* halfLength/);
+  assert.match(umbra, /color: '#7f0017'/);
+  assert.match(umbra, /color: '#ef233c'/);
+  assert.match(umbra, /color: '#fff1f2'/);
+  assert.match(umbra, /this\.previewDebugOverlays\.safeRegions/);
+  assert.doesNotMatch(umbra, /\.cut\(\)|\.ellipse\(/);
+  assert.doesNotMatch(umbra, /Math\.random|new (?:Graphics|Container|Sprite)/);
+  assert.match(eyes, /\(0\.42 \+ alpha \* 0\.5\) \* alpha/);
+  assert.match(eyes, /\(0\.55 \+ alpha \* 0\.45\) \* alpha/);
+  assert.match(dash, /\(0\.68 \+ pulse \* 0\.3\) \* pulse/);
+  assert.match(dash, /\(0\.42 \+ pulse \* 0\.42\) \* pulse/);
+  assert.match(reentry, /this\.drawUmbraBlackoutEyes\(/);
+  assert.match(reentry, /\(0\.18 \+ reveal \* 0\.72\) \* reveal/);
+  assert.match(reentry, /\(0\.16 \+ reveal \* 0\.5\) \* reveal/);
+  assert.doesNotMatch(reentry, /\.cut\(\)|\.ellipse\(/);
+  assert.doesNotMatch(reentry, /Math\.random|new (?:Graphics|Container|Sprite)/);
+
+  const ramPresentation = umbra.slice(
+    umbra.indexOf('if (isRam && ram)'),
+    umbra.indexOf('let beam: Entity | null')
+  );
+  const ramDebugStart = ramPresentation.indexOf(
+    'if (this.previewDebugOverlays.safeRegions)'
+  );
+  assert.ok(ramDebugStart >= 0, 'Umbra ram route has an explicit debug gate');
+  assert.match(ramPresentation.slice(0, ramDebugStart), /this\.drawUmbraBlackoutEyes\(/);
+  assert.doesNotMatch(ramPresentation.slice(0, ramDebugStart), /lineTo\(targetX, targetY\)/);
+  assert.match(ramPresentation.slice(ramDebugStart), /lineTo\(targetX, targetY\)/);
+  assert.match(previewSession, /safeRegions: false/);
+
+  assert.match(presentation, /const umbraRuntime = this\.isUmbraNeedlewingBlackoutBoss\(candidate\)/);
+  assert.match(presentation, /candidate\.bossCornerAmbushBeamState/);
+  assert.match(presentation, /candidate\.bossCornerAmbushRamState/);
+  assert.match(presentation, /candidate\.bossVanishReentryState/);
+  assert.match(presentation, /this\.syncUmbraBlackoutPresentation\(engine, boss, presentation\)/);
+  assert.match(presentation, /this\.setCornerAmbushPlayerLayerRaised\(false\)/);
   assert.match(presentation, /String\(presentation\.primitiveId\) === CORNER_AMBUSH_BEAM_PRIMITIVE_ID/);
   assert.match(presentation, /String\(presentation\.primitiveId\) === CORNER_AMBUSH_RAM_PRIMITIVE_ID/);
   assert.match(presentation, /presentation\.stage === 'warning' \|\| presentation\.stage === 'fire'/);
@@ -45,7 +125,7 @@ test('corner ambush presentation spotlights the real boss and player around exac
   assert.match(presentation, /boss\.x \+ boss\.width \/ 2 \+ shakeX/);
   assert.ok(
     (presentation.match(/\.cut\(\)/g) || []).length >= 3,
-    'player, boss, and live beam all cut through the world shade'
+    'generic bosses retain their existing player, boss, and beam reveals'
   );
   assert.match(presentation, /candidate\.bossOwnerId !== boss\.id/);
   assert.match(presentation, /!candidate\.isCornerAmbushBeam/);

@@ -13,7 +13,8 @@ local-only tools, warms the canonical local game preview, and opens the dashboar
 
 The desktop folder **Scicon Shooter Tools** contains direct shortcuts for the report
 inbox, Boss Sandbox, Mission Builder, Combat Lab, Project Guide, local and live games,
-project folder, and Sprite Gallery. Existing loose desktop shortcuts are preserved.
+project folder, Sprite Gallery, and **Player Analytics**. Existing loose desktop
+shortcuts are preserved.
 
 If the shortcuts ever disappear, reinstall them from the canonical project folder:
 
@@ -58,12 +59,41 @@ The legacy `SUPABASE_SERVICE_ROLE_KEY` name remains supported. New `sb_secret_` 
 are sent only through Supabase's `apikey` header, and no key is copied into the
 Director cache or returned to the browser.
 
+## Where to review player activity
+
+Double-click **Scicon Player Analytics** on the desktop, or use **Scicon Shooter
+Tools → Player Analytics**. The shortcut refreshes a private local HTML dashboard
+from `scicon_product_events` and then opens it. It shows aggregate new and returning
+devices, sessions, foreground play time, Mission starts and finishes, submitted
+scores, daily trends, and run-mode usage. Base Dashboard and Vercel remain useful
+for onchain/account activity and site traffic, but they cannot provide this gameplay
+funnel by themselves.
+
+The first launch may show **One-time connection needed**. Add the same server-only
+Supabase values shown above to the ignored repository-root `.env.local`, then reopen
+the shortcut. `SUPABASE_SERVICE_ROLE_KEY` remains a supported legacy key name.
+
+```text
+SUPABASE_URL=https://ktdruljunithwopizorq.supabase.co
+SUPABASE_SECRET_KEY=your_server_only_secret_key
+PRODUCT_ANALYTICS_HASH_SECRET=a-long-random-server-only-secret
+```
+
+Never add a `VITE_` prefix, paste these values into browser storage, or share the
+generated dashboard. The browser sends a random device-local UUID, the server stores
+only its keyed HMAC, and the dashboard HTML contains aggregates—not raw visitor
+hashes, session IDs, wallet addresses, player names, or raw IP addresses. Foreground
+time and stable new/returning-device measurements begin only after the corresponding
+game build is deployed; older event rows still contribute to legacy session and
+Mission counts.
+
 ## Project map
 
 | Need | Open | Purpose |
 | --- | --- | --- |
 | See current project state | Project Guide | Branch, commit, local changes, and return checklist |
 | Review player problems | Player Reports | Bugs, feedback, crash context, and “Copy for Codex” |
+| See whether people are playing | Player Analytics | New/returning devices, play time, Mission funnel, and run modes |
 | Build or tune a boss | Boss Sandbox | Boss visuals, rigs, attacks, and encounter testing |
 | Edit Campaign content | Mission Builder | Missions, Waves, routes, and authored progression |
 | Experiment with gameplay | Combat Lab | Deterministic local gameplay testing |

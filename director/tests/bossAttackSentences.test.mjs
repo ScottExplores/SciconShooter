@@ -324,6 +324,27 @@ test('Boss Factory compiler produces one deterministic three-core/one-signature 
   assertAcceptedByBoth(candidate);
 });
 
+test('Boss Factory attack variants may end with a typed non-damaging posture transition', () => {
+  const { candidate, boss } = benchmarkBossFixture();
+  const phaseIds = boss.phases.map((phase) => phase.id);
+  const blueprint = createBlueprint(phaseIds);
+  blueprint.phases.forEach((phase) => {
+    const transition = phase.attacks[0].beats.at(-1);
+    transition.primitiveId = 'effect-cue';
+    transition.label = 'Return to upper combat anchor';
+    transition.parameters = { motionCue: 'umbra-needle-lattice' };
+  });
+
+  boss.timeline = compileBossAttackTimeline(blueprint);
+  const variants = boss.timeline.attacks.find((attack) => attack.id === 'claw-corridor').variants;
+  variants.forEach((variant) => {
+    const transition = boss.timeline.clips.find((clip) => clip.id === variant.beatClipIds.at(-1));
+    assert.equal(transition?.primitiveId, 'effect-cue');
+    assert.equal(transition?.trigger, 'time');
+  });
+  assertAcceptedByBoth(candidate);
+});
+
 test('Boss Factory compiler preserves six global attack identities while phases expose bounded subsets', () => {
   const { candidate, boss } = benchmarkBossFixture();
   const phaseIds = boss.phases.map((phase) => phase.id);

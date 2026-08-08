@@ -4,6 +4,7 @@ import { recordPlayerReportBreadcrumb } from './playerReportService';
 
 export type ProductEventName =
   | 'app_opened'
+  | 'session_activity'
   | 'mission_started'
   | 'mission_completed'
   | 'score_submitted'
@@ -17,6 +18,42 @@ export type ProductEventName =
   | 'share_action_used';
 
 const SEEN_KEY = 'scicon_first_seen_at';
+const ANONYMOUS_PLAYER_KEY = 'scicon_anonymous_player_id';
+const ACTIVITY_INTERVAL_MS = 60_000;
+
+let memoryAnonymousPlayerId = '';
+
+const createAnonymousPlayerId = () => {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  return `00000000-0000-4000-8000-${Math.random().toString(16).slice(2).padEnd(12, '0').slice(0, 12)}`;
+};
+
+/**
+ * A random device-local identifier used only to estimate new and returning
+ * players. It is not derived from a wallet, account, name, IP address, or other
+ * personal value. The server stores only a keyed hash of this identifier.
+ */
+export const getAnonymousPlayerId = () => {
+  if (memoryAnonymousPlayerId) return memoryAnonymousPlayerId;
+
+  try {
+    const existing = globalThis.localStorage?.getItem(ANONYMOUS_PLAYER_KEY);
+    if (existing && /^[0-9a-f-]{36}$/i.test(existing)) {
+      memoryAnonymousPlayerId = existing;
+      return memoryAnonymousPlayerId;
+    }
+  } catch {
+    // Embedded and private browser modes may deny local storage.
+  }
+
+  memoryAnonymousPlayerId = createAnonymousPlayerId();
+  try {
+    globalThis.localStorage?.setItem(ANONYMOUS_PLAYER_KEY, memoryAnonymousPlayerId);
+  } catch {
+    // The in-memory identifier remains valid for this tab.
+  }
+  return memoryAnonymousPlayerId;
+};
 
 export const trackEvent = (
   eventName: ProductEventName,
@@ -25,6 +62,7 @@ export const trackEvent = (
   const payload = JSON.stringify({
     eventName,
     sessionId: getClientSessionId(),
+    anonymousPlayerId: getAnonymousPlayerId(),
     gameVersion: GAME_VERSION,
     properties
   });
@@ -38,8 +76,18 @@ export const trackEvent = (
   });
 };
 
+/**
+ * Starts one bounded foreground-time sampler for the app lifetime. Activity is
+ * sampled once per minute and whenever the tab hides or closes; no telemetry is
+ * emitted from the Pixi frame loop.
+ */
 export const trackInitialVisit = () => {
-  const firstSeen = localStorage.getItem(SEEN_KEY);
+  let firstSeen: string | null = null;
+  try {
+    firstSeen = localStorage.getItem(SEEN_KEY);
+  } catch {
+    // A first-seen timestamp is optional in restricted browser modes.
+  }
   const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
   const connection = (navigator as Navigator & {
     connection?: { effectiveType?: string; saveData?: boolean };
@@ -49,11 +97,60 @@ export const trackInitialVisit = () => {
     viewport: window.innerWidth < 560 ? 'compact' : 'wide',
     connection: String(connection?.effectiveType || 'unknown').slice(0, 24),
     save_data: Boolean(connection?.saveData),
-    navigation_ms: navigation ? Math.max(0, Math.round(navigation.duration)) : 0
+    navigation_ms: navigation ? Math.max(0, Math.round(navigation.duration)) : 0,
+    player_status: firstSeen ? 'returning' : 'new'
   });
   if (firstSeen) {
-    trackEvent('returning_player', { days_since_first_seen: Math.max(0, Math.floor((Date.now() - Number(firstSeen)) / 86400000)) });
+    trackEvent('returning_player', {
+      days_since_first_seen: Math.max(0, Math.floor((Date.now() - Number(firstSeen)) / 86400000))
+    });
   } else {
-    localStorage.setItem(SEEN_KEY, String(Date.now()));
+    try {
+      localStorage.setItem(SEEN_KEY, String(Date.now()));
+    } catch {
+      // The app remains playable without persistent browser storage.
+    }
   }
+
+  let visible = document.visibilityState === 'visible';
+  let lastSampleAt = Date.now();
+  let activeSecondsTotal = 0;
+  let lastEmittedSeconds = 0;
+  let stopped = false;
+
+  const flushActivity = (reason: 'interval' | 'visibility' | 'pagehide' | 'unmount') => {
+    const sampledAt = Date.now();
+    if (visible) {
+      activeSecondsTotal += Math.max(
+        0,
+        Math.min(75, Math.floor((sampledAt - lastSampleAt) / 1000))
+      );
+    }
+    lastSampleAt = sampledAt;
+    if (activeSecondsTotal < 1 || activeSecondsTotal === lastEmittedSeconds) return;
+    lastEmittedSeconds = activeSecondsTotal;
+    trackEvent('session_activity', {
+      active_seconds_total: activeSecondsTotal,
+      reason
+    });
+  };
+
+  const handleVisibilityChange = () => {
+    flushActivity('visibility');
+    visible = document.visibilityState === 'visible';
+    lastSampleAt = Date.now();
+  };
+  const handlePageHide = () => flushActivity('pagehide');
+  const activityTimer = window.setInterval(() => flushActivity('interval'), ACTIVITY_INTERVAL_MS);
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+  window.addEventListener('pagehide', handlePageHide);
+
+  return () => {
+    if (stopped) return;
+    stopped = true;
+    flushActivity('unmount');
+    window.clearInterval(activityTimer);
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+    window.removeEventListener('pagehide', handlePageHide);
+  };
 };

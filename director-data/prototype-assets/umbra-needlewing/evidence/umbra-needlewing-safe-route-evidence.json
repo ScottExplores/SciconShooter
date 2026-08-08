@@ -1,0 +1,184 @@
+{
+  "schemaVersion": 1,
+  "artifactType": "boss-safe-route-evidence",
+  "bossId": "umbra-needlewing",
+  "generatedAt": "2026-08-08",
+  "proofImplementation": "services/gameplay/bosses/UmbraNeedlewingSafeRouteProof.ts",
+  "focusedTest": "tests/umbraNeedlewingSafeRouteProof.test.cjs",
+  "timelineSource": "director/src/combat-lab/sandboxBossPrototypes.ts",
+  "fixedSeed": {
+    "hex": "0x0b1ac0de",
+    "decimal": 186302686
+  },
+  "viewport": {
+    "id": "mobile-390x844",
+    "width": 390,
+    "height": 844,
+    "mobileProfile": true
+  },
+  "player": {
+    "collisionWidth": 51.24,
+    "collisionHeight": 63.44,
+    "maximumSpeedPerFrame": 2.5,
+    "accelerationPerFrame": 0.38
+  },
+  "searchBounds": {
+    "minimumX": 28.62,
+    "maximumX": 361.38,
+    "minimumY": 410,
+    "maximumY": 809.28
+  },
+  "geometryUncertaintyPixels": 3,
+  "minimumRequiredRawClearancePixels": 9,
+  "minimumRequiredClearanceAfterUncertaintyPixels": 6,
+  "proofCount": 12,
+  "minimumObservedRawClearancePixels": 9.003609132,
+  "minimumObservedClearanceAfterUncertaintyPixels": 6.003609132,
+  "routes": [
+    {
+      "attackId": "wing-shear-crossfire",
+      "phaseId": "sandbox-umbra-wing-survey",
+      "status": "proven",
+      "reason": "proven",
+      "checkedFrames": 261,
+      "durationFrames": 261,
+      "minimumRawClearancePixels": 9.208027383,
+      "minimumClearanceAfterUncertaintyPixels": 6.208027383,
+      "routeHash": "9e94ab4f",
+      "configurationHash": "2a6f1846"
+    },
+    {
+      "attackId": "orbit-gap-thread",
+      "phaseId": "sandbox-umbra-wing-survey",
+      "status": "proven",
+      "reason": "proven",
+      "checkedFrames": 387,
+      "durationFrames": 387,
+      "minimumRawClearancePixels": 16.048796845,
+      "minimumClearanceAfterUncertaintyPixels": 13.048796845,
+      "routeHash": "e9ded1be",
+      "configurationHash": "d4b4b7ea"
+    },
+    {
+      "attackId": "corner-needle-lock",
+      "phaseId": "sandbox-umbra-wing-survey",
+      "status": "proven",
+      "reason": "proven",
+      "checkedFrames": 228,
+      "durationFrames": 228,
+      "minimumRawClearancePixels": 72.139672701,
+      "minimumClearanceAfterUncertaintyPixels": 69.139672701,
+      "routeHash": "cf4e0812",
+      "configurationHash": "58b88d0b"
+    },
+    {
+      "attackId": "blackout-ambush",
+      "phaseId": "sandbox-umbra-wing-survey",
+      "status": "proven",
+      "reason": "proven",
+      "checkedFrames": 378,
+      "durationFrames": 378,
+      "minimumRawClearancePixels": 44.241684079,
+      "minimumClearanceAfterUncertaintyPixels": 41.241684079,
+      "routeHash": "210707a7",
+      "configurationHash": "3e69cd38"
+    },
+    {
+      "attackId": "wing-shear-crossfire",
+      "phaseId": "sandbox-umbra-blackout-hunt",
+      "status": "proven",
+      "reason": "proven",
+      "checkedFrames": 231,
+      "durationFrames": 231,
+      "minimumRawClearancePixels": 9.386875919,
+      "minimumClearanceAfterUncertaintyPixels": 6.386875919,
+      "routeHash": "e744e313",
+      "configurationHash": "f50f0490"
+    },
+    {
+      "attackId": "orbit-gap-thread",
+      "phaseId": "sandbox-umbra-blackout-hunt",
+      "status": "proven",
+      "reason": "proven",
+      "checkedFrames": 348,
+      "durationFrames": 348,
+      "minimumRawClearancePixels": 9.118946363,
+      "minimumClearanceAfterUncertaintyPixels": 6.118946363,
+      "routeHash": "976a4bb7",
+      "configurationHash": "f93661d6"
+    },
+    {
+      "attackId": "corner-needle-lock",
+      "phaseId": "sandbox-umbra-blackout-hunt",
+      "status": "proven",
+      "reason": "proven",
+      "checkedFrames": 202,
+      "durationFrames": 202,
+      "minimumRawClearancePixels": 69.865133817,
+      "minimumClearanceAfterUncertaintyPixels": 66.865133817,
+      "routeHash": "897620dc",
+      "configurationHash": "61f79654"
+    },
+    {
+      "attackId": "blackout-ambush",
+      "phaseId": "sandbox-umbra-blackout-hunt",
+      "status": "proven",
+      "reason": "proven",
+      "checkedFrames": 547,
+      "durationFrames": 547,
+      "minimumRawClearancePixels": 40.406662522,
+      "minimumClearanceAfterUncertaintyPixels": 37.406662522,
+      "routeHash": "083e3bb6",
+      "configurationHash": "1221bda0"
+    },
+    {
+      "attackId": "wing-shear-crossfire",
+      "phaseId": "sandbox-umbra-broken-compass",
+      "status": "proven",
+      "reason": "proven",
+      "checkedFrames": 204,
+      "durationFrames": 204,
+      "minimumRawClearancePixels": 9.075921547,
+      "minimumClearanceAfterUncertaintyPixels": 6.075921547,
+      "routeHash": "d7cef2ba",
+      "configurationHash": "3d82164c"
+    },
+    {
+      "attackId": "orbit-gap-thread",
+      "phaseId": "sandbox-umbra-broken-compass",
+      "status": "proven",
+      "reason": "proven",
+      "checkedFrames": 310,
+      "durationFrames": 310,
+      "minimumRawClearancePixels": 9.003609132,
+      "minimumClearanceAfterUncertaintyPixels": 6.003609132,
+      "routeHash": "1e73752e",
+      "configurationHash": "cd4d9984"
+    },
+    {
+      "attackId": "corner-needle-lock",
+      "phaseId": "sandbox-umbra-broken-compass",
+      "status": "proven",
+      "reason": "proven",
+      "checkedFrames": 177,
+      "durationFrames": 177,
+      "minimumRawClearancePixels": 67.613187094,
+      "minimumClearanceAfterUncertaintyPixels": 64.613187094,
+      "routeHash": "6eda59b5",
+      "configurationHash": "abe8c6d9"
+    },
+    {
+      "attackId": "blackout-ambush",
+      "phaseId": "sandbox-umbra-broken-compass",
+      "status": "proven",
+      "reason": "proven",
+      "checkedFrames": 664,
+      "durationFrames": 664,
+      "minimumRawClearancePixels": 37.161974733,
+      "minimumClearanceAfterUncertaintyPixels": 34.161974733,
+      "routeHash": "f47d0ae3",
+      "configurationHash": "222228c3"
+    }
+  ],
+  "limitation": "This deterministic boss-owned replay uses the exact authored timings plus the shared gap-route, corner-beam, corner-ram, and mobile projectile geometry. Browser review still confirms Pixi layer ownership, visible socket alignment, and the canonical 390x844 presentation."
+}

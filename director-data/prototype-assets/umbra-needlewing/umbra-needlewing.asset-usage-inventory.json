@@ -1,0 +1,118 @@
+{
+  "schemaVersion": 1,
+  "artifactType": "boss-asset-usage-inventory",
+  "bossId": "umbra-needlewing",
+  "allowedStatuses": [
+    "used-neutral",
+    "used-animation",
+    "used-attack",
+    "used-phase-two",
+    "used-damage",
+    "used-death",
+    "retained-future-alternate",
+    "archived-redundant-or-inconsistent"
+  ],
+  "authoritativeFrameInventory": {
+    "path": "umbra-needlewing.asset-usage.json",
+    "sha256": "325e89c555008687920db45ac9ce010c0cd724161e6f9a7845ff6dae1a7aaaf0",
+    "runtimeFrameCount": 33,
+    "archivedFrameCount": 1,
+    "sourceCellCount": 33,
+    "sourceCoverageComplete": true,
+    "allUsedFramesHaveConsumers": true,
+    "silentUnusedAssetCount": 0
+  },
+  "assets": [
+    {
+      "id": "reference.cleaned",
+      "path": "umbra-needlewing-reference.png",
+      "sha256": "2db71f4a183415e9851be2363b2224b8d7912e272922b55c7cfb8c1043e0ac21",
+      "kind": "canonical-reference",
+      "status": "used-neutral",
+      "owners": ["umbra-needlewing.reference-lock.json", "umbra-needlewing.design.md"],
+      "decision": "Locked comparison-only complete pose; explicitly forbidden as a runtime atlas frame.",
+      "structuralAlphaBinary": true,
+      "registrationGroup": null
+    },
+    {
+      "id": "reference.chroma",
+      "path": "umbra-needlewing-reference-chroma.png",
+      "sha256": "b3ce8cc4fd096e3c350b47b58c525208e9040957d8081ff5676135c84e420250",
+      "kind": "generation-source",
+      "status": "archived-redundant-or-inconsistent",
+      "owners": ["reference provenance"],
+      "decision": "Retained to prove source lineage; never used by the runtime packer.",
+      "structuralAlphaBinary": true,
+      "registrationGroup": null
+    },
+    {
+      "id": "components.cleaned",
+      "path": "umbra-needlewing-components.png",
+      "sha256": "79989b7edce63af8529fbaaf3e4eec5b657fb143809a00e5c12d6c339b6f9eb5",
+      "kind": "structural-source-sheet",
+      "status": "used-neutral",
+      "owners": ["source-layout.json", "rig.source.json"],
+      "decision": "All 16 conceptual source cells are explicitly classified; two authored eye crops share the eye cell without conflicting disposition.",
+      "structuralAlphaBinary": true,
+      "registrationGroup": null
+    },
+    {
+      "id": "components.chroma",
+      "path": "umbra-needlewing-components-chroma.png",
+      "sha256": "ab1ead911ca540b7d6ef8e59597208484937c84a74c2a94476687b8007197e17",
+      "kind": "generation-source",
+      "status": "archived-redundant-or-inconsistent",
+      "owners": ["component provenance"],
+      "decision": "Retained as original chroma-board provenance; cleaned board is authoritative for explicit crops.",
+      "structuralAlphaBinary": true,
+      "registrationGroup": null
+    },
+    {
+      "id": "vfx.cleaned",
+      "path": "umbra-needlewing-vfx.png",
+      "sha256": "b215555430f39fbdc939cecaab80ac1a5cc9ba97f34cd7a31b0568859259d9fa",
+      "kind": "animation-source-sheet",
+      "status": "used-animation",
+      "owners": ["needle-cycle", "shard-cycle", "reentry-cycle", "reticle", "dash.trail", "damage.spark", "escape.flame"],
+      "decision": "Every 4×4 source cell is explicitly cropped and consumed; multi-component re-entry and spark/trail cells intentionally skip largest-component isolation.",
+      "structuralAlphaBinary": true,
+      "registrationGroup": "needle-cycle, shard-cycle, reentry-cycle"
+    },
+    {
+      "id": "vfx.chroma",
+      "path": "umbra-needlewing-vfx-chroma.png",
+      "sha256": "75ec2c0dd71955bee4922ca4a0e3d15ccbb22fdc83f5340626c4f2d660a8bdd3",
+      "kind": "generation-source",
+      "status": "archived-redundant-or-inconsistent",
+      "owners": ["VFX provenance"],
+      "decision": "Retained as original chroma-board provenance; cleaned VFX board is authoritative.",
+      "structuralAlphaBinary": true,
+      "registrationGroup": null
+    },
+    {
+      "id": "runtime.component-set",
+      "path": "components/",
+      "sha256": "per-frame hashes recorded by umbra-needlewing.asset-manifest.json",
+      "kind": "generated-runtime-component-set",
+      "status": "used-animation",
+      "owners": ["umbra-needlewing.rig.json", "umbra-needlewing-atlas.json", "umbra-needlewing.attack-sprite-map.json"],
+      "decision": "Thirty-three runtime frames were generated with binary alpha, explicit consumers, and no silent-unused frame.",
+      "structuralAlphaBinary": true,
+      "registrationGroup": "see umbra-needlewing-atlas.json"
+    }
+  ],
+  "audit": {
+    "allAcceptedExportsListed": true,
+    "magentaAndGuidePixelsRemoved": true,
+    "transparentEdgesClean": true,
+    "alternateFramesEqualCanvasAndRegistered": true,
+    "textureSmoothingDisabled": true,
+    "structuralScalingUniform": true,
+    "silentUnusedAssetCount": 0,
+    "pendingNotes": [],
+    "acceptedNotes": [
+      "2026-08-07 high-zoom review approved the binary-alpha component, VFX, atlas, neutral, and live Sandbox edges. The restrained dark-purple contour is authored shadow color rather than retained chroma fringe.",
+      "The shared live-game and Director texture loaders use nearest-neighbor sampling, and the canonical-phone plus wide-host captures preserve crisp, uniform pixel density."
+    ]
+  }
+}

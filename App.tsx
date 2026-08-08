@@ -1072,9 +1072,7 @@ const App: React.FC = () => {
     clearWeeklyProposalTransition();
   }, []);
 
-  useEffect(() => {
-    trackInitialVisit();
-  }, []);
+  useEffect(() => trackInitialVisit(), []);
 
   useEffect(() => {
     if (proposalStatus === 'loading' || gameplayPreloadReady || gameplayPreloadPromise) {
@@ -3386,11 +3384,16 @@ const App: React.FC = () => {
       game_id: runtimeGameId,
       run_mode: pendingLaunch.runMode
     });
+    if (!pendingLaunch.startInTestMode) {
+      trackEvent('mission_started', {
+        run_mode: pendingLaunch.runMode,
+        mission_number: pendingLaunch.missionNumber
+      });
+    }
     if (pendingLaunch.runMode === 'boss-archive' || pendingLaunch.runMode === 'campaign-branch') {
       setIntroMissionLocked(false);
       return;
     }
-    trackEvent('mission_started');
     emitSquadDomainEvent('run_started', {
       profileId: pendingLaunch.squadLoadout.profileId,
       weekKey: pendingLaunch.squadLoadout.weekKey,
@@ -5154,7 +5157,12 @@ const App: React.FC = () => {
       },
       updatedAt: new Date().toISOString()
     };
-    if (!completion.settlement.duplicate && summary.stageComplete && summary.bossEncounterId) {
+    if (
+      !completion.settlement.duplicate
+      && summary.stageComplete
+      && summary.bossEncounterId
+      && summary.bossTerminalOutcome !== 'escaped'
+    ) {
       nextPermanent = recordBossVictory(nextPermanent, summary.bossEncounterId);
     }
 
@@ -5332,7 +5340,12 @@ const App: React.FC = () => {
     if (isCampaignRun) {
       finalizeCampaignCollectedCoins(summary);
     }
-    if (!isCampaignRun && !isNonCompetitiveRun && summary.bossEncounterId) {
+    if (
+      !isCampaignRun
+      && !isNonCompetitiveRun
+      && summary.bossEncounterId
+      && summary.bossTerminalOutcome !== 'escaped'
+    ) {
       const victoryKey = `${gameId}:${summary.id}`;
       if (!permanentBossAppliedKeysRef.current.has(victoryKey)) {
         permanentBossAppliedKeysRef.current.add(victoryKey);
@@ -6344,11 +6357,19 @@ const App: React.FC = () => {
       throw new Error('Weekly Streak proof must be finalized before leaderboard verification.');
     }
 
-    trackEvent('mission_completed', { score: stats.score, wave: stats.wave });
     finalizedRunGameIdRef.current = gameId;
     setRunReceiptStatus('finalizing');
     const gameplayStartedAt = runStartedAtRef.current ?? Date.now();
     runStartedAtRef.current = gameplayStartedAt;
+    if (!isOwnerTestRun && !isCampaignLabRun) {
+      trackEvent('mission_completed', {
+        score: stats.score,
+        wave: stats.wave,
+        run_mode: activeRunMode,
+        duration_seconds: Math.max(0, Math.round((Date.now() - gameplayStartedAt) / 1000)),
+        result: stats.lives > 0 ? 'completed' : 'defeated'
+      });
+    }
     const sessionPromise = runSessionPromiseRef.current ?? startRunSession({
       testRun: isOwnerTestRun,
       playerShipId: activeRunShipIdRef.current,

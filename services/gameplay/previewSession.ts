@@ -205,6 +205,11 @@ export interface PreviewBossSnapshot {
   readonly invincible: boolean;
   readonly activeWells: number;
   readonly hazardCount: number;
+  readonly lifecycle: Readonly<{
+    kind: 'vanish-reentry' | 'escape';
+    stage: string;
+    progress: number;
+  }> | null;
   readonly state: 'idle' | 'warning' | 'fire' | 'transition' | 'recovery' | 'phase-enter' | 'death';
   readonly nextAttack: Readonly<{ id: string; label: string }> | null;
   readonly recoveryFrames: number;

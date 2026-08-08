@@ -186,6 +186,31 @@ const packages = Object.freeze([
         registrationPath: 'sheet'
       })
     ])
+  }),
+  Object.freeze({
+    bossId: 'umbra-needlewing',
+    prototypeId: 'umbra-needlewing',
+    poseKey: 'umbra-needlewing',
+    assets: Object.freeze([
+      Object.freeze({
+        source: path.join(
+          prototypeAssetRoot,
+          'umbra-needlewing',
+          'umbra-needlewing-neutral.png'
+        ),
+        output: 'umbra-needlewing/assembled.png',
+        registrationPath: 'assembled'
+      }),
+      Object.freeze({
+        source: path.join(
+          prototypeAssetRoot,
+          'umbra-needlewing',
+          'umbra-needlewing-atlas.png'
+        ),
+        output: 'umbra-needlewing/atlas.png',
+        registrationPath: 'sheet'
+      })
+    ])
   })
 ]);
 

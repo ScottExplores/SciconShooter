@@ -27,7 +27,14 @@ const socketMatchesAction = (
   role: BossWeaponSocketRole,
   action: Parameters<BossWeaponSocketPoseSampler>[0]['action']
 ) => {
-  if (!action) return true;
+  if (!action) {
+    if (rigId === 'umbra-needlewing') {
+      return id === 'needle.port.muzzle'
+        || id === 'needle.starboard.muzzle'
+        || id === 'core.emitter';
+    }
+    return true;
+  }
   if (rigId === 'singularity-reach-commander') {
     if (action.primitiveId === 'singularity-gravity-well-genesis') {
       return id === 'gravity-seed-origin' || id === 'singularity-core';
@@ -58,6 +65,37 @@ const socketMatchesAction = (
     if (action.primitiveId === 'bastion-crabwalk-barrage') {
       return id.startsWith('bastion-port-') || id.startsWith('rear-bastion-');
     }
+  }
+  if (rigId === 'umbra-needlewing') {
+    if (
+      action.primitiveId === 'side-barrage'
+      || action.motionCue === 'umbra-needle-lattice'
+    ) {
+      if (action.side === 'port' || action.side === 'left') {
+        return id === 'needle.port.muzzle';
+      }
+      if (action.side === 'starboard' || action.side === 'right') {
+        return id === 'needle.starboard.muzzle';
+      }
+      return id === 'needle.port.muzzle' || id === 'needle.starboard.muzzle';
+    }
+    if (
+      action.primitiveId === 'gap-ring'
+      || action.motionCue === 'umbra-wing-shard-gate'
+    ) {
+      return id === 'core.emitter';
+    }
+    if (
+      action.primitiveId === 'corner-ambush-beam'
+      || action.primitiveId === 'corner-ambush-ram'
+      || action.motionCue === 'umbra-predator-lock'
+      || action.motionCue === 'umbra-blackout-ambush'
+    ) {
+      return id === 'needle.launcher.muzzle';
+    }
+    return id === 'needle.port.muzzle'
+      || id === 'needle.starboard.muzzle'
+      || id === 'core.emitter';
   }
   if (action.primitiveId === 'reactor-aperture-pattern') return role === 'core';
   if (action.primitiveId === 'prism-wingbeat-weave') {

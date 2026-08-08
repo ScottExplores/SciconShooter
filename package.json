@@ -11,6 +11,8 @@
     "director:dev": "npm --prefix director run dev",
     "director:check": "npm --prefix director run check",
     "director:shortcuts": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/install-scicon-director-shortcuts.ps1",
+    "analytics:dashboard": "node --use-system-ca --env-file-if-exists=.env.local tools/build-player-analytics-dashboard.mjs",
+    "analytics:shortcut": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/install-scicon-player-analytics-shortcut.ps1",
     "compile:campaign-boss-artwork": "node tools/compile-campaign-boss-artwork.mjs",
     "promote:campaign-bosses": "node tools/promote-test-bosses-to-campaign.mjs",
     "check:campaign-bosses": "node tools/promote-test-bosses-to-campaign.mjs --check",

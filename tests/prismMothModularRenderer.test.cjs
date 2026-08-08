@@ -75,7 +75,10 @@ test('Prism modular preview receives the complete live pose/action presentation 
   assert.match(modular, /phaseIndex: Math\.max\(1, entity\.activeBossPhaseIndex \+ 1\)/);
   assert.match(modular, /entranceProgress,/);
   assert.match(modular, /phaseProgress: action\?\.stage === 'phase-enter'/);
-  assert.match(modular, /reaction: this\.getPreviewBossPoseReaction\(entity, engine\)/);
+  assert.match(
+    modular,
+    /reaction: entity\.bossEscapeState\s*\? null\s*:\s*this\.getPreviewBossPoseReaction\(entity, engine\)/
+  );
   assert.match(modular, /action\s*\n\s*\}\);/);
   assert.match(modular, /registration\.manifest\.destruction/);
 });

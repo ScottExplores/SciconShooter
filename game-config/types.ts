@@ -38,6 +38,7 @@ export type BuiltInAssetKey =
   | 'CAMPAIGN_BOSS_RAIL_SERPENT'
   | 'CAMPAIGN_BOSS_SINGULARITY_CRAB'
   | 'CAMPAIGN_BOSS_TRIBUNAL_DREADNOUGHT'
+  | 'CAMPAIGN_BOSS_UMBRA_NEEDLEWING'
   | 'CAMPAIGN_ENEMY_BULLET_RING_EMITTER'
   | 'CAMPAIGN_ENEMY_CRESCENT_MINELAYER'
   | 'CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL'
@@ -125,7 +126,8 @@ export type BossId =
   | 'orbit-gyroscope'
   | 'hammerhead-siege'
   | 'frontier-crownclaw'
-  | 'nullwake-revenant';
+  | 'nullwake-revenant'
+  | 'umbra-needlewing';
 
 export type CampaignMiniBossId = Extract<
   BossId,
@@ -1084,7 +1086,12 @@ export type BossTimelineMotionCue =
   | 'frontier-bastion-crabwalk'
   | 'frontier-critical-cross-link'
   | 'frontier-stagger'
-  | 'frontier-death';
+  | 'frontier-death'
+  | 'umbra-needle-lattice'
+  | 'umbra-wing-shard-gate'
+  | 'umbra-predator-lock'
+  | 'umbra-blackout-ambush'
+  | 'umbra-escape';
 
 /**
  * Explicit rotation policy for authored radial beam arrays. Seeded random

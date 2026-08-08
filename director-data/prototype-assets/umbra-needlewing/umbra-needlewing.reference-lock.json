@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "artifactType": "boss-reference-lock",
+  "bossId": "umbra-needlewing",
+  "lockDate": "2026-08-06",
+  "status": "locked-runtime-integrated-gate-1-passed",
+  "reviewDate": "2026-08-07",
+  "canonicalCompleteReference": {
+    "path": "director-data/prototype-assets/umbra-needlewing/umbra-needlewing-reference.png",
+    "chromaSourcePath": "director-data/prototype-assets/umbra-needlewing/umbra-needlewing-reference-chroma.png",
+    "sha256": "2db71f4a183415e9851be2363b2224b8d7912e272922b55c7cfb8c1043e0ac21",
+    "width": 1511,
+    "height": 1041,
+    "sanitizedVisibleBounds": { "x": 91, "y": 156, "width": 1328, "height": 697 },
+    "role": "gate-1-complete-neutral-reference",
+    "completeStructuralReference": true,
+    "requiredComparisonFeatures": [
+      "compact-short-wide-silhouette",
+      "four-authored-wings-per-side",
+      "dark-navy-hull-with-cyan-wing-edges",
+      "paired-red-eyes-and-red-segmented-spine",
+      "central-red-core",
+      "balanced-wing-root-overlap",
+      "no-horizontal-mirroring"
+    ]
+  },
+  "derivationSources": [
+    {
+      "path": "director-data/prototype-assets/umbra-needlewing/umbra-needlewing-components.png",
+      "sha256": "79989b7edce63af8529fbaaf3e4eec5b657fb143809a00e5c12d6c339b6f9eb5",
+      "role": "cleaned-structural-component-source",
+      "runtimeAllowed": false
+    },
+    {
+      "path": "director-data/prototype-assets/umbra-needlewing/umbra-needlewing-vfx.png",
+      "sha256": "b215555430f39fbdc939cecaab80ac1a5cc9ba97f34cd7a31b0568859259d9fa",
+      "role": "cleaned-projectile-and-vfx-source",
+      "runtimeAllowed": false
+    }
+  ],
+  "referenceRoles": {
+    "neutral": "canonicalCompleteReference",
+    "chargedPhaseTwo": "core.open plus registered reentry-cycle and transform-driven wing spread",
+    "damaged": "damage.spark and rooted component reactions are runtime-integrated and passed phone-scale visual review",
+    "death": "escape.module plus escape.flame and staged hierarchy cleanup are runtime-integrated and passed terminal-lifecycle visual review"
+  },
+  "neutralComparison": {
+    "actualBossSandboxRequired": true,
+    "sameCenterRequired": true,
+    "sameOverallHeightRequired": true,
+    "opacityLevels": [0.25, 0.5, 0.75],
+    "packerPreview": {
+      "path": "director-data/prototype-assets/umbra-needlewing/umbra-needlewing-neutral.png",
+      "sha256": "a1635e616add1b99336c366bc51499311f130ce62fbecd8d4a8956e1c9b2aba2",
+      "canvas": { "width": 512, "height": 320 },
+      "visibleBounds": { "x": 37, "y": 46, "width": 419, "height": 218 }
+    },
+    "compare": [
+      "overall-width-to-height-ratio",
+      "four-wing-per-side-readability",
+      "body-height-and-center",
+      "wing-joint-roots",
+      "core-position",
+      "layer-order",
+      "pixel-density",
+      "visual-balance"
+    ],
+    "reviewStatus": "passed-2026-08-07",
+    "evidence": [
+      "evidence/modular-neutral.png",
+      "evidence/reference-overlays/25-percent.png",
+      "evidence/reference-overlays/50-percent.png",
+      "evidence/reference-overlays/75-percent.png"
+    ]
+  },
+  "gate1Pass": true,
+  "remainingGate1Work": []
+}
