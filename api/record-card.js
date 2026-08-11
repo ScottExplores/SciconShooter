@@ -68,7 +68,7 @@ const BUILT_IN_CARD_ASSET_PATHS = {
   SCICON_ENEMY_JOURNAL_RAIDER_FRAMES: '/game-art/generated/scicon-enemy-squadron-v1/frames/journal-raider-02.png',
   SCICON_ENEMY_HELIX_CONDUCTOR_FRAMES: '/game-art/generated/scicon-enemy-squadron-v1/frames/rift-skimmer-02.png',
   SCICON_ENEMY_PRISM_ARTILLERY_FRAMES: '/game-art/generated/scicon-enemy-squadron-v1/frames/pulse-interceptor-02.png',
-  MINI_BOSS: '/game-art/bosses/mini-boss-drone.png',
+  MINI_BOSS: '/game-art/generated/elite-enemies/bottleneck-drone-v3/frames/bottleneck-drone-01-neutral.png',
   WALL_BOSS_SEGMENT: '/game-art/bosses/wall-segment.png',
   FINAL_BOSS: '/game-art/bosses/final-boss-sentinel.png'
 };

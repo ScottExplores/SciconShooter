@@ -47,6 +47,10 @@ import { PixiTextureBank } from './PixiTextureBank';
 import { sampleFormationEnemyPresentation } from './FormationEnemyPresentation';
 import { resolveKamikazeSpinnerFrameIndex } from '../gameplay/enemies/KamikazeSpinnerRuntime';
 import {
+  BOTTLENECK_DRONE_BOSS_ID,
+  resolveBottleneckDroneFrameIndex
+} from '../gameplay/bosses/BottleneckDronePresentation';
+import {
   createSoftRadialLight,
   hideSoftRadialLight,
   showSoftRadialLight
@@ -961,6 +965,7 @@ export const PIXI_GAMEPLAY_STARTUP_TEXTURE_URLS = Object.freeze([
   ...ASSETS.ENEMY_SWARM_FRAMES,
   ...ASSETS.ENEMY_BRICK_FRAMES,
   ...ASSETS.ENEMY_JOURNAL_FRAMES,
+  ...ASSETS.BOTTLENECK_DRONE_FRAMES,
   ...ASSETS.SCICON_ENEMY_REDLINE_SKIRMISHER_FRAMES,
   ...ASSETS.SCICON_ENEMY_CROSSCUT_RAIDER_FRAMES,
   ...ASSETS.SCICON_ENEMY_AUDIT_BULWARK_FRAMES,
@@ -998,6 +1003,7 @@ export const PIXI_GAMEPLAY_PREVIEW_STARTUP_TEXTURE_URLS = Object.freeze([
   ...ASSETS.PIXI_THRUSTER_FRAMES,
   ...ASSETS.PIXI_EXPLOSION_FRAMES,
   ...ASSETS.PIXI_BOSS_DAMAGE_EXPLOSION_FRAMES,
+  ...ASSETS.BOTTLENECK_DRONE_FRAMES,
   ASSETS.POWERUP_MAX_SHOT_AURA,
   ASSETS.POWERUP_MAX_SHOT_AURA_FRAMES[0],
   ASSETS.RSC_TOKEN
@@ -1181,6 +1187,18 @@ const getDefaultEntityTexture = (engine: GameEngine, entity: Entity) => {
   if (entity.spriteFrames?.length) {
     if (entity.type === EntityType.BOSS) {
       return entity.spriteFrames[clamp(entity.bossDecayStage, 0, entity.spriteFrames.length - 1)];
+    }
+    if (
+      entity.type === EntityType.MINI_BOSS
+      && entity.sourceItemId === BOTTLENECK_DRONE_BOSS_ID
+      && entity.spriteFrames.length >= 5
+    ) {
+      return entity.spriteFrames[resolveBottleneckDroneFrameIndex({
+        frameCount: engine.frameCount,
+        lastFireFrame: entity.campaignLastFireFrame,
+        isCharging: entity.isCharging,
+        variant: entity.variant
+      })];
     }
     // Protocol Vanguard art encodes simulation states rather than a looping
     // idle animation: neutral, charge, fire, damage. Never cycle the damage

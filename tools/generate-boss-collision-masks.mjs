@@ -107,7 +107,7 @@ const campaignMasks = [
     key: '/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/wall-sniper-right.png'
   },
   {
-    key: '/game-art/bosses/mini-boss-drone.png'
+    key: '/game-art/generated/elite-enemies/bottleneck-drone-v3/frames/bottleneck-drone-01-neutral.png'
   },
   {
     key: '/game-art/generated/scicon-flight-motion-pack-v1/bosses/bottleneck-harvester/frames/bottleneck-harvester-01-idle.png'

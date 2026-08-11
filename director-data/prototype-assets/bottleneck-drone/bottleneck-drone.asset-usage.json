@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "artifactType": "boss-asset-usage-inventory",
+  "bossId": "bottleneck-drone",
+  "allowedStatuses": [
+    "used-neutral",
+    "used-animation",
+    "used-attack",
+    "used-phase-two",
+    "used-damage",
+    "used-death",
+    "retained-future-alternate",
+    "archived-redundant-or-inconsistent"
+  ],
+  "assets": [
+    {
+      "id": "neutral",
+      "path": "public/game-art/generated/elite-enemies/bottleneck-drone-v3/frames/bottleneck-drone-01-neutral.png",
+      "sha256": "8550348a10b139c9ebb41a6de71ef914d0ed272f1657b726155cc30a3c1c4b2a",
+      "kind": "structural-sprite",
+      "status": "used-neutral",
+      "owners": ["body.shell", "idle"],
+      "decision": "Canonical runtime, archive, scorecard, and collision-mask image.",
+      "structuralAlphaBinary": true,
+      "registrationGroup": "bottleneck-drone-v3"
+    },
+    {
+      "id": "idle",
+      "path": "public/game-art/generated/elite-enemies/bottleneck-drone-v3/frames/bottleneck-drone-02-idle.png",
+      "sha256": "b6c0e4379badceea28ddb556de1fb87200e2d8c0e2c049e206447e4f6bccf51f",
+      "kind": "structural-sprite",
+      "status": "used-animation",
+      "owners": ["body.shell", "idle"],
+      "decision": "Dorsal sensor scan and indicator step; the hull and clamps do not squash.",
+      "structuralAlphaBinary": true,
+      "registrationGroup": "bottleneck-drone-v3"
+    },
+    {
+      "id": "charge",
+      "path": "public/game-art/generated/elite-enemies/bottleneck-drone-v3/frames/bottleneck-drone-03-charge.png",
+      "sha256": "449a32d4d9d15a6feea8ae4f5538efdf1e4ea82baecde0b3f312311afb7537f6",
+      "kind": "structural-sprite",
+      "status": "used-attack",
+      "owners": ["mini-aimed-shot", "body.calipers", "core.aperture"],
+      "decision": "Twenty-four-frame jointed clamp closure and aperture focus for the unchanged cadence.",
+      "structuralAlphaBinary": true,
+      "registrationGroup": "bottleneck-drone-v3"
+    },
+    {
+      "id": "fire",
+      "path": "public/game-art/generated/elite-enemies/bottleneck-drone-v3/frames/bottleneck-drone-04-fire.png",
+      "sha256": "8e8c9118712703ddcfb4b6349beddc6a6d92a34c37a2fa2fe3933fd691e4f489",
+      "kind": "structural-sprite",
+      "status": "used-attack",
+      "owners": ["mini-aimed-shot", "core.muzzle"],
+      "decision": "Seven-frame emitter extension and recoil synchronized to the existing projectile spawn.",
+      "structuralAlphaBinary": true,
+      "registrationGroup": "bottleneck-drone-v3"
+    },
+    {
+      "id": "recovery",
+      "path": "public/game-art/generated/elite-enemies/bottleneck-drone-v3/frames/bottleneck-drone-05-recovery.png",
+      "sha256": "3b8ed3a9b76bc349611da22e5fa567f049d93eb520c2513084d6d7c2463ec71b",
+      "kind": "structural-sprite",
+      "status": "used-animation",
+      "owners": ["mini-aimed-shot", "recovery"],
+      "decision": "Twelve-frame vent and joint reset before returning to the identical neutral registration.",
+      "structuralAlphaBinary": true,
+      "registrationGroup": "bottleneck-drone-v3"
+    },
+    {
+      "id": "contact-sheet",
+      "path": "public/game-art/generated/elite-enemies/bottleneck-drone-v3/bottleneck-drone-sprite-sheet.png",
+      "sha256": "98dfc79a6f4922d6059a6969345368e740b103d8bc551e204f812ca219d62573",
+      "kind": "qa-sprite-sheet",
+      "status": "retained-future-alternate",
+      "owners": ["Sprite Gallery", "visual QA"],
+      "decision": "Gallery and registration QA only; runtime consumes the individual frames.",
+      "structuralAlphaBinary": true,
+      "registrationGroup": "bottleneck-drone-v3"
+    }
+  ],
+  "audit": {
+    "allAcceptedExportsListed": true,
+    "magentaAndGuidePixelsRemoved": true,
+    "transparentEdgesClean": true,
+    "alternateFramesEqualCanvasAndRegistered": true,
+    "textureSmoothingDisabled": true,
+    "structuralScalingUniform": true,
+    "detachedStructuralComponentsRemoved": true,
+    "transparentFrameMarginValidated": true,
+    "silentUnusedAssetCount": 0
+  }
+}

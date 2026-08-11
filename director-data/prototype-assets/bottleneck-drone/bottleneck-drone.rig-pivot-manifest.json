@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "artifactType": "boss-rig-pivot-manifest",
+  "bossId": "bottleneck-drone",
+  "canonicalReference": {
+    "path": "evidence/canonical-reference.png",
+    "sha256": "8550348a10b139c9ebb41a6de71ef914d0ed272f1657b726155cc30a3c1c4b2a",
+    "width": 140,
+    "height": 160,
+    "neutralLandmarks": ["dorsal.sensor", "core.aperture", "caliper.left", "caliper.right", "core.muzzle"]
+  },
+  "coordinateSystem": {
+    "canvas": { "width": 140, "height": 160 },
+    "xAxis": "right",
+    "yAxis": "down",
+    "rotationUnit": "radians",
+    "rootNeutral": { "x": 70, "y": 80 }
+  },
+  "sourceIntegrity": {
+    "sharedPaletteSize": 32,
+    "binaryAlpha": true,
+    "equalCanvasRegistration": true,
+    "contentSafetyBox": { "x": 6, "y": 7, "width": 128, "height": 146 },
+    "nearestNeighbor": true,
+    "singleConnectedStructuralComponent": true
+  },
+  "rootPartId": "body.shell",
+  "atlases": [],
+  "parts": [
+    {
+      "id": "body.shell",
+      "role": "flattened-elite-body",
+      "atlasId": null,
+      "neutralFrameId": "neutral",
+      "parentId": null,
+      "authoringAnchor": { "x": 0.5, "y": 0.5 },
+      "atlasRegistrationAnchor": { "x": 0.5, "y": 0.5 },
+      "neutralTransform": { "x": 70, "y": 80, "rotationRadians": 0, "scaleX": 1, "scaleY": 1 },
+      "layer": 0,
+      "neutralVisible": true,
+      "structuralScaleMustRemainUniform": true
+    }
+  ],
+  "articulationJoints": [],
+  "sockets": [
+    {
+      "id": "core.muzzle",
+      "role": "projectile-origin",
+      "partId": "body.shell",
+      "local": { "x": 70, "y": 145 },
+      "runtimeLogicalOrigin": { "x": 70, "y": 160 },
+      "forwardRadians": 1.5707963267948966
+    }
+  ],
+  "animations": [
+    { "id": "idle", "frames": ["neutral", "idle"], "frameDuration": 30, "loop": true },
+    { "id": "attack", "frames": ["charge", "fire", "recovery", "neutral"], "frameDurations": [24, 7, 12, 1], "loop": false }
+  ],
+  "collisionParts": ["body.shell"],
+  "layerOrderBackToFront": ["body.shell"],
+  "referenceComparison": {
+    "sameCenter": true,
+    "sameOverallHeight": true,
+    "adjustableOpacity": false,
+    "requiredLandmarkIds": ["core.aperture", "caliper.left", "caliper.right", "core.muzzle"]
+  },
+  "destruction": {
+    "durationFrames": 0,
+    "fragments": [],
+    "note": "Existing elite destruction presentation remains unchanged by this visual-only package."
+  }
+}

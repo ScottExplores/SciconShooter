@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "artifactType": "boss-attack-to-sprite-map",
+  "bossId": "bottleneck-drone",
+  "fixedSeed": "bottleneck-drone-v3-visual-proof",
+  "scope": "Visual-only mapping for the existing M03 elite attack; no new attack behavior.",
+  "normalGameplayPresentation": {
+    "attackNamesVisible": false,
+    "internalStateTextVisible": false,
+    "aimingOrPredictionLinesVisible": false,
+    "debugGuidesVisible": false,
+    "debugTogglesDefaultOn": false
+  },
+  "attacks": [
+    {
+      "id": "mini-aimed-shot",
+      "kind": "retained-core",
+      "playerSkill": "follow the lateral tracker and sidestep the committed shot",
+      "movingParts": ["body.sensorProngs", "body.regulatorClamps", "core.aperture", "core.muzzle", "core.vents"],
+      "spriteAnimations": ["charge", "fire", "recovery"],
+      "sockets": ["core.muzzle"],
+      "recognitionCue": "sensor prongs finish scanning, paired regulator clamps rotate inward at their joints, the cyan aperture tightens, and the lower emitter extends",
+      "telegraph": "24-frame state animation before the existing cadence fires",
+      "movementRule": "unchanged track-player movement",
+      "beats": ["charge", "fire", "recovery", "neutral"],
+      "recoil": "emitter remains extended for seven frames",
+      "recovery": "vent lights open while the emitter retracts and the clamps return to their exact neutral joints for twelve frames",
+      "capturePaths": {
+        "preparation": "evidence/attacks/mini-aimed-shot/preparation.png",
+        "telegraph": "evidence/attacks/mini-aimed-shot/telegraph.png",
+        "firstBeat": "evidence/attacks/mini-aimed-shot/first-beat.png",
+        "peakDanger": "evidence/attacks/mini-aimed-shot/peak-danger.png",
+        "recovery": "evidence/attacks/mini-aimed-shot/recovery.png"
+      }
+    }
+  ],
+  "mechanicsLock": {
+    "campaignEventId": "stage-paywall-siege-wave-5-checkpoint",
+    "health": 111,
+    "speed": 2,
+    "damage": 1,
+    "attackIntervalSeconds": 3.2,
+    "projectileSpeed": 4.4,
+    "burstCount": 1,
+    "movementPatternId": "track-player",
+    "phaseIds": ["mini-standard"]
+  }
+}

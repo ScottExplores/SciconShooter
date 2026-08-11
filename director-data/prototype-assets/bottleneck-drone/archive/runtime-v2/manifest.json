@@ -1,0 +1,188 @@
+{
+  "schemaVersion": 1,
+  "id": "bottleneck-drone-v2",
+  "source": {
+    "path": "director-data/prototype-assets/bottleneck-drone/bottleneck-drone-animation-sheet.png",
+    "sha256": "c2d3e3fe1f9c56eb7506f8f8858e6604aaba3008be6242de3b92c81251755a5d",
+    "width": 1774,
+    "height": 887,
+    "frameCells": [
+      {
+        "name": "neutral",
+        "left": 0,
+        "right": 353,
+        "width": 354,
+        "bounds": {
+          "x": 9,
+          "y": 219,
+          "width": 345,
+          "height": 414
+        },
+        "opaquePixelCount": 88782
+      },
+      {
+        "name": "idle",
+        "left": 354,
+        "right": 708,
+        "width": 355,
+        "bounds": {
+          "x": 354,
+          "y": 232,
+          "width": 355,
+          "height": 389
+        },
+        "opaquePixelCount": 85224
+      },
+      {
+        "name": "charge",
+        "left": 709,
+        "right": 1063,
+        "width": 355,
+        "bounds": {
+          "x": 709,
+          "y": 219,
+          "width": 337,
+          "height": 405
+        },
+        "opaquePixelCount": 83116
+      },
+      {
+        "name": "fire",
+        "left": 1064,
+        "right": 1418,
+        "width": 355,
+        "bounds": {
+          "x": 1072,
+          "y": 216,
+          "width": 347,
+          "height": 391
+        },
+        "opaquePixelCount": 83430
+      },
+      {
+        "name": "recovery",
+        "left": 1419,
+        "right": 1773,
+        "width": 355,
+        "bounds": {
+          "x": 1419,
+          "y": 219,
+          "width": 327,
+          "height": 414
+        },
+        "opaquePixelCount": 87500
+      }
+    ]
+  },
+  "processing": {
+    "frameOrder": [
+      "neutral",
+      "idle",
+      "charge",
+      "fire",
+      "recovery"
+    ],
+    "commonCrop": {
+      "width": 365,
+      "height": 417,
+      "top": 216,
+      "bottom": 632
+    },
+    "targetFrame": {
+      "width": 140,
+      "height": 160
+    },
+    "contentBox": {
+      "x": 6,
+      "y": 7,
+      "width": 128,
+      "height": 146
+    },
+    "paletteLimit": 32,
+    "sharedPaletteSize": 32,
+    "alpha": "binary",
+    "scaling": "nearest-neighbor"
+  },
+  "runtime": {
+    "canvasWidth": 140,
+    "canvasHeight": 160,
+    "anchor": {
+      "x": 0.5,
+      "y": 0.5
+    },
+    "projectileSocket": {
+      "x": 0.5,
+      "y": 1
+    },
+    "stateOrder": [
+      "neutral",
+      "idle",
+      "charge",
+      "fire",
+      "recovery"
+    ]
+  },
+  "frames": [
+    {
+      "id": "neutral",
+      "path": "frames/bottleneck-drone-01-neutral.png",
+      "analysis": {
+        "width": 140,
+        "height": 160,
+        "opaquePixels": 10915,
+        "transparentPixels": 11485,
+        "semitransparentPixels": 0,
+        "opaquePaletteSize": 32
+      }
+    },
+    {
+      "id": "idle",
+      "path": "frames/bottleneck-drone-02-idle.png",
+      "analysis": {
+        "width": 140,
+        "height": 160,
+        "opaquePixels": 10444,
+        "transparentPixels": 11956,
+        "semitransparentPixels": 0,
+        "opaquePaletteSize": 32
+      }
+    },
+    {
+      "id": "charge",
+      "path": "frames/bottleneck-drone-03-charge.png",
+      "analysis": {
+        "width": 140,
+        "height": 160,
+        "opaquePixels": 10187,
+        "transparentPixels": 12213,
+        "semitransparentPixels": 0,
+        "opaquePaletteSize": 32
+      }
+    },
+    {
+      "id": "fire",
+      "path": "frames/bottleneck-drone-04-fire.png",
+      "analysis": {
+        "width": 140,
+        "height": 160,
+        "opaquePixels": 10244,
+        "transparentPixels": 12156,
+        "semitransparentPixels": 0,
+        "opaquePaletteSize": 32
+      }
+    },
+    {
+      "id": "recovery",
+      "path": "frames/bottleneck-drone-05-recovery.png",
+      "analysis": {
+        "width": 140,
+        "height": 160,
+        "opaquePixels": 10751,
+        "transparentPixels": 11649,
+        "semitransparentPixels": 0,
+        "opaquePaletteSize": 32
+      }
+    }
+  ],
+  "spriteSheet": "bottleneck-drone-sprite-sheet.png"
+}

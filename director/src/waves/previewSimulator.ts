@@ -48,7 +48,7 @@ const ASTEROID_ASSETS = [
 ] as const;
 
 const BOSS_ASSETS = {
-  'mini-boss': '/game-art/bosses/mini-boss-drone.png',
+  'mini-boss': '/game-art/generated/elite-enemies/bottleneck-drone-v3/frames/bottleneck-drone-01-neutral.png',
   wall: '/game-art/bosses/wall-segment.png',
   'asteroid-belt': '/game-art/enemies/asteroid-5.png',
   gatekeeper: '/game-art/bosses/final-boss-sentinel.png'
