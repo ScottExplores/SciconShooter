@@ -981,7 +981,11 @@
 /* Standalone Weekly Run control. It uses a dedicated low-profile drawer
    sprite rather than shrinking a second copy of the upper funding frame. */
 .sci-weekly-run-entry {
+  --sci-weekly-entry-accent: 52 211 153;
+  --sci-weekly-entry-bright: 209 250 229;
+  --sci-weekly-entry-deep: 4 120 87;
   position: relative;
+  isolation: isolate;
   display: grid;
   /* Deliberately not width:100% -- justify-self stretches it, and a fixed
      100% would ignore the side insets and hang off the right edge. */
@@ -994,7 +998,9 @@
   align-self: start;
   justify-self: stretch;
   padding: 0.1rem 0.15rem;
-  filter: drop-shadow(0 0.35rem 0.6rem rgb(0 0 0 / 0.45));
+  filter:
+    drop-shadow(0 0.35rem 0.6rem rgb(0 0 0 / 0.45))
+    drop-shadow(0 0 0.28rem rgb(var(--sci-weekly-entry-accent) / 0.28));
   /* Reads as a drawer hanging off the funding panel rather than a second
      identical box: it tucks up under the panel, insets slightly at the sides,
      and drops a connector into the gap. */
@@ -1011,6 +1017,7 @@
   text-align: left;
   image-rendering: pixelated;
   transition: filter 140ms ease, transform 120ms ease;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Connector tab bridging the gap up into the funding panel. */
@@ -1033,29 +1040,74 @@
   clip-path: polygon(10% 0, 90% 0, 76% 100%, 24% 100%);
 }
 
+/* The frame art supplies the hardware; this clipped face supplies the live
+   quota color so the drawer reads as an action instead of a status strip. */
+.sci-weekly-run-entry::after {
+  position: absolute;
+  inset: -0.08rem -0.1rem;
+  z-index: 0;
+  border: 1px solid rgb(var(--sci-weekly-entry-accent) / 0.72);
+  background:
+    radial-gradient(circle at 82% 35%, rgb(var(--sci-weekly-entry-bright) / 0.2), transparent 32%),
+    linear-gradient(90deg, rgb(2 20 27 / 0.96), rgb(var(--sci-weekly-entry-deep) / 0.86));
+  box-shadow:
+    inset 0 0 0.65rem rgb(var(--sci-weekly-entry-accent) / 0.2),
+    0 0 0.45rem rgb(var(--sci-weekly-entry-accent) / 0.24);
+  clip-path: polygon(5px 0, calc(100% - 5px) 0, 100% 5px, 100% calc(100% - 5px), calc(100% - 5px) 100%, 5px 100%, 0 calc(100% - 5px), 0 5px);
+  content: '';
+  pointer-events: none;
+}
+
+.sci-weekly-run-entry[data-state='checking'] {
+  --sci-weekly-entry-accent: 34 211 238;
+  --sci-weekly-entry-bright: 207 250 254;
+  --sci-weekly-entry-deep: 14 116 144;
+}
+
+.sci-weekly-run-entry[data-state='exhausted'] {
+  --sci-weekly-entry-accent: 248 113 113;
+  --sci-weekly-entry-bright: 254 226 226;
+  --sci-weekly-entry-deep: 153 27 27;
+}
+
+.sci-weekly-run-entry[data-attention='true']::after {
+  animation: sci-weekly-run-face-pulse 1.65s ease-in-out infinite;
+}
+
 .sci-weekly-run-entry:hover,
 .sci-weekly-run-entry:focus-visible {
   filter: saturate(1.16) brightness(1.14);
 }
 
-.sci-weekly-run-entry:active { transform: translateY(1px); }
-
-/* A live run brightens its green LEDs rather than shifting hue, so it stays
-   inside the navy/grey/green palette instead of drifting toward gold. */
-.sci-weekly-run-entry[data-active='true'] {
-  filter: saturate(1.25) brightness(1.12);
+.sci-weekly-run-entry:focus-visible {
+  outline: 3px solid rgb(var(--sci-weekly-entry-bright));
+  outline-offset: 2px;
 }
+
+.sci-weekly-run-entry:active { transform: translateY(1px); }
 
 .sci-weekly-run-entry:disabled {
   cursor: not-allowed;
-  filter: grayscale(0.62) saturate(0.55) brightness(0.72);
+  filter:
+    saturate(0.94)
+    brightness(0.9)
+    drop-shadow(0 0.35rem 0.6rem rgb(0 0 0 / 0.45))
+    drop-shadow(0 0 0.28rem rgb(var(--sci-weekly-entry-accent) / 0.3));
 }
 
 .sci-weekly-run-entry:disabled:hover {
-  filter: grayscale(0.62) saturate(0.55) brightness(0.72);
+  filter:
+    saturate(0.94)
+    brightness(0.9)
+    drop-shadow(0 0.35rem 0.6rem rgb(0 0 0 / 0.45))
+    drop-shadow(0 0 0.28rem rgb(var(--sci-weekly-entry-accent) / 0.3));
 }
 
-.sci-weekly-run-entry__copy { min-width: 0; }
+.sci-weekly-run-entry__copy {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+}
 
 .sci-weekly-run-entry__title {
   display: block;
@@ -1070,36 +1122,44 @@
 .sci-weekly-run-entry__sub {
   display: block;
   margin-top: 0.1rem;
-  color: rgb(125 211 252);
+  color: rgb(var(--sci-weekly-entry-bright));
   font: 800 0.54rem/1.2 inherit;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   white-space: nowrap;
 }
 
-.sci-weekly-run-entry__best {
-  display: grid;
-  justify-items: end;
-  gap: 0;
-  padding-left: 0.3rem;
-}
-
-.sci-weekly-run-entry__best b {
-  color: rgb(253 224 71);
-  font: 900 1.05rem/1 inherit;
-  text-shadow: 0 0 0.5rem rgb(250 204 21 / 0.5);
-}
-
-.sci-weekly-run-entry__best small {
-  color: rgb(148 163 184);
-  font: 800 0.46rem/1 inherit;
-  letter-spacing: 0.09em;
+.sci-weekly-run-entry__action {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  min-height: 1.65rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  padding: 0.28rem 0.42rem;
+  border: 1px solid rgb(var(--sci-weekly-entry-bright) / 0.82);
+  background: linear-gradient(180deg, rgb(var(--sci-weekly-entry-accent) / 0.94), rgb(var(--sci-weekly-entry-deep) / 0.96));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.28),
+    0 0 0.48rem rgb(var(--sci-weekly-entry-accent) / 0.38);
+  color: rgb(255 255 255);
+  clip-path: polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px);
+  font: 900 0.5rem/1 inherit;
+  letter-spacing: 0.06em;
+  text-shadow: 0 1px 0 rgb(2 6 23 / 0.88);
   text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.sci-weekly-run-entry[data-attention='true'] .sci-weekly-run-entry__action {
+  animation: sci-weekly-run-cta-pulse 1.65s ease-in-out infinite;
 }
 
 @media (max-width: 360px) {
   .sci-weekly-run-entry { border-width: 0.8rem 1rem; }
   .sci-weekly-run-entry__title { font-size: 0.8rem; }
+  .sci-weekly-run-entry__action { padding-inline: 0.4rem; font-size: 0.48rem; }
 }
 
 .sci-weekly-winner-card__track {
@@ -1385,6 +1445,36 @@
 @keyframes sci-weekly-fixture-pulse-b {
   0%, 100% { opacity: 0.5; }
   52% { opacity: 0.94; }
+}
+
+@keyframes sci-weekly-run-face-pulse {
+  0%, 100% {
+    border-color: rgb(var(--sci-weekly-entry-accent) / 0.68);
+    box-shadow:
+      inset 0 0 0.65rem rgb(var(--sci-weekly-entry-accent) / 0.2),
+      0 0 0.35rem rgb(var(--sci-weekly-entry-accent) / 0.2);
+  }
+  50% {
+    border-color: rgb(var(--sci-weekly-entry-bright) / 0.96);
+    box-shadow:
+      inset 0 0 1rem rgb(var(--sci-weekly-entry-accent) / 0.38),
+      0 0 0.8rem rgb(var(--sci-weekly-entry-accent) / 0.62);
+  }
+}
+
+@keyframes sci-weekly-run-cta-pulse {
+  0%, 100% {
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.28),
+      0 0 0.4rem rgb(var(--sci-weekly-entry-accent) / 0.34);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.42),
+      0 0 0.75rem rgb(var(--sci-weekly-entry-accent) / 0.76);
+    transform: scale(1.055);
+  }
 }
 
 @keyframes sci-home-backdrop-breathe {
@@ -1700,6 +1790,11 @@
   .sci-weekly-winner-card__track,
   .sci-weekly-winner-card__pager button {
     transition: none;
+  }
+
+  .sci-weekly-run-entry[data-attention='true']::after,
+  .sci-weekly-run-entry[data-attention='true'] .sci-weekly-run-entry__action {
+    animation: none;
   }
 
   .sci-weekly-funding-shell::before,
