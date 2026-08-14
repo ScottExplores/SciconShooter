@@ -32,7 +32,7 @@ test('Home offers the Campaign entry point and the Weekly Run as separate contro
   assert.match(source, /weeklyRunAttemptsRemaining/);
   assert.match(source, /disabled=\{attemptsExhausted\}/);
   assert.match(source, /needsServerVerification = weeklyRunAttemptQuotaUnknown[\s\S]*weeklyRunAttemptsRemaining <= 0/);
-  assert.match(source, /WEEKLY_RUN_STARTING_LIVES\} Lives · \$\{weeklyRunAttemptsRemaining\} Attempt/);
+  assert.match(source, /Play Weekly Run\. \$\{weeklyRunAttemptsRemaining\} attempt/);
   assert.match(appSource, /weeklyRunAttemptsRemaining=\{weeklyRunAttemptQuotaOwner === activeWalletAddress\?\.toLowerCase\(\)[\s\S]*weeklyRunAttemptQuota\.attemptsRemaining[\s\S]*getWeeklyRunAttemptsRemaining\(weeklySquadState\)\}/);
   assert.match(appSource, /weeklyRunAttemptQuotaUnknown=\{Boolean\([\s\S]*walletProfileStatus === 'ready'/);
   assert.match(source, /onClick=\{onStart\}/);
@@ -63,9 +63,31 @@ test('the Weekly Run drawer omits the ship thumbnail and keeps its quota copy co
   assert.match(entry, /onPurchaseWithRsc\(weeklyAttemptSkuId\)/);
   assert.doesNotMatch(entry, /Free\/Week/);
   assert.doesNotMatch(entry, /free attempts each week/);
+  assert.doesNotMatch(entry, /WEEKLY_RUN_STARTING_LIVES|\bLives\b/i);
   assert.doesNotMatch(entry, /weeklyRunAttemptsRemaining\}\/\$\{WEEKLY_RUN_ATTEMPT_LIMIT/);
+  assert.match(entry, /const attemptLabel = `\$\{weeklyRunAttemptsRemaining\} Attempt/);
   assert.match(entry, /\+1 Attempt/);
   assert.match(entry, /3 RSC/);
+});
+
+test('the Weekly Run drawer advertises play with quota-driven color and localized attention', () => {
+  const entry = source.slice(
+    source.indexOf('const renderWeeklyRunEntry'),
+    source.indexOf('const renderWeeklyFundingCard')
+  );
+
+  assert.match(entry, /const weeklyRunEntryState = attemptsExhausted[\s\S]*'exhausted'[\s\S]*needsServerVerification[\s\S]*'checking'[\s\S]*'available'/);
+  assert.match(entry, /weeklySquadState\.weeklyStats\.weeklyRunAttempts <= 0/);
+  assert.match(entry, /data-state=\{weeklyRunEntryState\}/);
+  assert.match(entry, /data-attention=\{weeklyRunNeedsAttention \? 'true' : 'false'\}/);
+  assert.match(entry, /weeklyRunNeedsAttention \? 'Try Your Luck' : 'Play'/);
+  assert.match(entry, /sci-weekly-run-entry__action/);
+  assert.match(stylesSource, /\.sci-weekly-run-entry\[data-state='checking'\]/);
+  assert.match(stylesSource, /\.sci-weekly-run-entry\[data-state='exhausted'\][\s\S]*--sci-weekly-entry-accent: 248 113 113/);
+  assert.match(stylesSource, /\.sci-weekly-run-entry\[data-attention='true'\]::after[\s\S]*sci-weekly-run-face-pulse/);
+  assert.match(stylesSource, /data-attention='true'\] \.sci-weekly-run-entry__action[\s\S]*sci-weekly-run-cta-pulse/);
+  assert.doesNotMatch(stylesSource, /\.sci-weekly-run-entry\[data-attention='true'\] \{\s*animation:/);
+  assert.match(stylesSource, /prefers-reduced-motion: reduce[\s\S]*sci-weekly-run-entry\[data-attention='true'\]::after[\s\S]*animation: none/);
 });
 
 test('Weekly Run home entry always starts a fresh flight and presents only the saved best score', () => {
@@ -80,7 +102,7 @@ test('Weekly Run home entry always starts a fresh flight and presents only the s
   );
 
   assert.doesNotMatch(entry, /weeklyRunActive|Resume Run|Resume Weekly Run|In Progress/);
-  assert.match(entry, /<small>Best<\/small>/);
+  assert.match(entry, /Best this week \$\{formatNumber\(weeklyRunBestScore \?\? 0\)\}/);
   assert.match(appSource, /weeklyRunBestScore=\{weeklySquadState\.weeklyStats\.score\}/);
   assert.doesNotMatch(appSource, /weeklyRunActive=/);
   assert.match(launch, /const staleStreak = weeklySquadStateRef\.current\.weeklyCampaignStreak/);

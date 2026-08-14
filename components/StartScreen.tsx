@@ -46,7 +46,6 @@ import AudioSettingsControls from './AudioSettingsControls';
 import PlayerReportDialog from './PlayerReportDialog';
 import type { MatchMusicTrackId } from '../services/audioService';
 import type { PlayerReportKind } from '../services/playerReportService';
-import { WEEKLY_RUN_STARTING_LIVES } from '../services/weeklyRunGenerator';
 import ShipCarousel from './ShipCarousel';
 import BossArchive, {
   type BossArchiveDeveloperControls,
@@ -1490,6 +1489,14 @@ const StartScreen: React.FC<StartScreenProps> = ({
     const attemptsExhausted = weeklyRunAttemptsRemaining <= 0
       && !needsServerVerification;
     const showAttemptPurchase = attemptsExhausted;
+    const weeklyRunEntryState = attemptsExhausted
+      ? 'exhausted'
+      : needsServerVerification
+        ? 'checking'
+        : 'available';
+    const weeklyRunNeedsAttention = weeklyRunEntryState === 'available'
+      && weeklySquadState.weeklyStats.weeklyRunAttempts <= 0;
+    const attemptLabel = `${weeklyRunAttemptsRemaining} Attempt${weeklyRunAttemptsRemaining === 1 ? '' : 's'} Left`;
 
     return onStartWeeklyRun ? (
       <>
@@ -1497,34 +1504,36 @@ const StartScreen: React.FC<StartScreenProps> = ({
           type="button"
           className="sci-weekly-run-entry"
           data-onboarding-target="weekly-run"
+          data-state={weeklyRunEntryState}
+          data-attention={weeklyRunNeedsAttention ? 'true' : 'false'}
           data-attempts-remaining={weeklyRunAttemptsRemaining}
           onClick={onStartWeeklyRun}
           disabled={attemptsExhausted}
           aria-label={weeklyRunAttemptsRemaining > 0
-            ? `Start Weekly Run. ${WEEKLY_RUN_STARTING_LIVES} lives, ${weeklyRunAttemptsRemaining} attempt${weeklyRunAttemptsRemaining === 1 ? '' : 's'} remain, endless escalating waves and bosses, scored on the weekly board. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`
+            ? `Play Weekly Run. ${weeklyRunAttemptsRemaining} attempt${weeklyRunAttemptsRemaining === 1 ? '' : 's'} remain, with endless escalating waves and bosses scored on the weekly board. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`
             : needsServerVerification
               ? `Verify any purchased Weekly Run attempts with the server. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`
               : `Weekly Run attempts used. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`}
         >
           <span className="sci-weekly-run-entry__copy">
             <span className="sci-weekly-run-entry__title">
-              {weeklyRunAttemptsRemaining > 0
-                ? 'Weekly Run'
-                : needsServerVerification
-                  ? 'Verify Entry'
-                  : 'Attempts Used'}
+              Weekly Run
             </span>
             <span className="sci-weekly-run-entry__sub">
               {weeklyRunAttemptsRemaining > 0
-                ? `${WEEKLY_RUN_STARTING_LIVES} Lives · ${weeklyRunAttemptsRemaining} Attempt${weeklyRunAttemptsRemaining === 1 ? '' : 's'} Left`
+                ? attemptLabel
                 : needsServerVerification
                   ? 'Checking Wallet Attempts'
-                  : 'Extra Attempts Available'}
+                  : 'No Attempts Left'}
             </span>
           </span>
-          <span className="sci-weekly-run-entry__best" aria-hidden="true">
-            <b>{formatNumber(weeklyRunBestScore ?? 0)}</b>
-            <small>Best</small>
+          <span className="sci-weekly-run-entry__action" aria-hidden="true">
+            <span>{weeklyRunEntryState === 'available'
+              ? weeklyRunNeedsAttention ? 'Try Your Luck' : 'Play'
+              : weeklyRunEntryState === 'checking'
+                ? 'Check Entry'
+                : 'No Attempts'}</span>
+            {weeklyRunEntryState === 'available' ? <Icon name="play" className="h-3 w-3" /> : null}
           </span>
         </button>
         {showAttemptPurchase ? (
