@@ -672,16 +672,27 @@ export const requestWeeklyCampaignAdvance = (
     return { kind: 'blocked', state: cloneState(stateInput), reason: 'prerequisites-not-met' };
   }
 
+  // A stage-clear score and the automatic route advance happen synchronously.
+  // Date.now() can therefore return the same millisecond for both transitions,
+  // but a canonical server proof requires the commitment to follow the score.
+  const committedAtMs = Math.max(
+    Math.floor(nowMs),
+    Math.floor(stateInput.updatedAtMs) + 1
+  );
+  if (committedAtMs >= stateInput.resetAtMs) {
+    return { kind: 'blocked', state: cloneState(stateInput), reason: 'weekly-reset' };
+  }
+
   const state = cloneState(stateInput);
   state.revision += 1;
-  state.updatedAtMs = Math.floor(nowMs);
+  state.updatedAtMs = committedAtMs;
   state.committedRoutes.push({
     edgeId: edge.edgeId,
     fromNodeId: stateInput.currentNodeId,
     toNodeId: targetNodeId,
     routeId: edge.routeId,
     risk: edge.risk,
-    committedAtMs: Math.floor(nowMs)
+    committedAtMs
   });
   state.visitedNodeIds.push(targetNodeId);
   state.currentNodeId = targetNodeId;
