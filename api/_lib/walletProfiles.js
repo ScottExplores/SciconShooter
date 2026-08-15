@@ -1995,6 +1995,14 @@ const canonicalizeWeeklyCampaignStreakServer = (
   const weeklyGraphNodeIds = graphContext.nodeIds;
   const weeklyGraphNodeById = graphContext.nodeById;
   const weeklyGraphEdgeById = graphContext.edgeById;
+  // The deployed endless-run client records a cleared depth and its automatic
+  // route advance in one synchronous handler. Its millisecond clock can stamp
+  // those ordered transitions equally. Preserve that narrow compatibility for
+  // generated runs while still rejecting a commitment before its source score.
+  const routeCommitmentFollowsScore = (committedAtMs, scoredAtMs) => (
+    committedAtMs > scoredAtMs
+    || (graphContext.kind === 'generated-weekly-run' && committedAtMs === scoredAtMs)
+  );
   if (value.schemaVersion !== 1) return fail('weekly_schema_invalid');
   const revision = strictWeeklyInteger(value.revision, 1, Number.MAX_SAFE_INTEGER);
   if (revision === null) return fail('weekly_revision_invalid');
@@ -2213,7 +2221,10 @@ const canonicalizeWeeklyCampaignStreakServer = (
 
     const incoming = index > 0 ? committedRoutes[index - 1] : null;
     const edge = incoming ? weeklyGraphEdgeById.get(incoming.edgeId) : null;
-    if (incoming && incoming.committedAtMs <= previousEventTimestamp) {
+    if (incoming && !routeCommitmentFollowsScore(
+      incoming.committedAtMs,
+      previousEventTimestamp
+    )) {
       return fail('weekly_timestamps_invalid');
     }
     if (incoming && occurredAtMs <= incoming.committedAtMs) {
@@ -2302,7 +2313,10 @@ const canonicalizeWeeklyCampaignStreakServer = (
   // Every route commitment requires the source Mission to have been scored.
   if (scoreEvents.length < committedRoutes.length) return fail('weekly_unscored_route_advance');
   for (let index = 0; index < committedRoutes.length; index += 1) {
-    if (committedRoutes[index].committedAtMs <= scoreEvents[index].occurredAtMs) {
+    if (!routeCommitmentFollowsScore(
+      committedRoutes[index].committedAtMs,
+      scoreEvents[index].occurredAtMs
+    )) {
       return fail('weekly_timestamps_invalid');
     }
   }

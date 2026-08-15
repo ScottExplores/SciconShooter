@@ -267,6 +267,71 @@ test('generated Weekly Run receipt proof is canonical and rejects route, outcome
   }, 'weekly_finalization_invalid');
 });
 
+test('a guest Weekly Run proof survives score and automatic advance in the same clock tick', async () => {
+  clearWeeklyRunAttemptMemoryForTests();
+  const issuedAt = Date.now() - 100_000;
+  const boundary = getWeeklyBoundaryMeta(new Date(issuedAt));
+  const run = browser.generator.buildWeeklyRunCampaign(boundary.weekKey, undefined, 2);
+  const graph = browser.graph.createCampaignGraphIndex(run);
+  const nodes = graph.definition.nodes.slice(0, 2);
+  let state = browser.streak.startWeeklyCampaignStreak(graph, {
+    weeklyId: boundary.weekKey,
+    resetAtMs: boundary.endsAt.getTime(),
+    startNodeId: nodes[0].nodeId,
+    unlockedNodeIds: graph.definition.nodes.map((node) => node.nodeId),
+    nowMs: issuedAt - 1_000
+  });
+  const session = await createReservedRunStart('weekly-guest-clock-tick-test', {
+    runMode: 'weekly-streak',
+    profileId: 'pilot:weekly-guest-clock-tick',
+    weeklyCampaignProof: state,
+    nowMs: issuedAt
+  });
+  assert.equal(session.identity.kind, 'guest');
+
+  const sharedTransitionTime = issuedAt + 40_000;
+  state = browser.streak.recordWeeklyCampaignNodeScore(state, graph, {
+    eventId: 'weekly-guest-depth-1',
+    nodeId: nodes[0].nodeId,
+    occurredAtMs: sharedTransitionTime,
+    outcome: outcomeForNode(run, nodes[0])
+  });
+  const advance = browser.streak.requestWeeklyCampaignAdvance(
+    state,
+    graph,
+    nodes[1].nodeId,
+    sharedTransitionTime
+  );
+  assert.equal(advance.kind, 'advanced');
+  assert.equal(advance.state.committedRoutes[0].committedAtMs, sharedTransitionTime + 1);
+  state = advance.state;
+  // A proof already produced by the deployed pre-fix client keeps the shared
+  // timestamp. The API must accept this exact legacy collision so a score on
+  // an existing defeat screen is not stranded while new clients emit +1 ms.
+  state.committedRoutes[0].committedAtMs = sharedTransitionTime;
+  state = browser.streak.recordWeeklyCampaignNodeScore(state, graph, {
+    eventId: 'weekly-guest-depth-2',
+    nodeId: nodes[1].nodeId,
+    occurredAtMs: issuedAt + 80_000,
+    outcome: outcomeForNode(run, nodes[1])
+  });
+  state = browser.streak.finalizeWeeklyCampaignLoss(state, issuedAt + 81_000);
+
+  const originalNow = Date.now;
+  Date.now = () => issuedAt + 90_000;
+  try {
+    const receipt = await finishRun(session.startToken, {
+      playerShipId: 'researchhub',
+      weeklyCampaignProof: state
+    }, { headers: {}, socket: { remoteAddress: '127.0.0.1' } });
+    assert.equal(receipt.identity.kind, 'guest');
+    assert.equal(receipt.integrity, 'server-verified');
+    assert.deepEqual(receipt.anomalies, []);
+  } finally {
+    Date.now = originalNow;
+  }
+});
+
 test('a deep generated Weekly Run receipt is not capped by authored Campaign mission count', async () => {
   const issuedAt = Date.now();
   const generated = activeGeneratedStreak({ now: issuedAt, depth: 30 });
