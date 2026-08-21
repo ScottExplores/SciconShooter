@@ -310,3 +310,12 @@ Intended posting time: Tuesday, September 1 at 9:00 AM Pacific.
 - Proposal URL: `https://www.researchhub.com/proposal/32342/precision-phenotyping-of-an-autism-model-unbiased-discovery-of-fmr1-related-brain-phenotypes-from-whole-brain-dynamics-in-fmr1-zebrafish`
 - Game URL: intentionally omitted so the proposal receives the visible link preview.
 - Reply goal: proposal reactions and science questions.
+
+### Partial-day refill safeguard
+
+PR #27 merged as `bd432b16` and production deployment `sciconshooter-f9oydb5bd` is ready. Evergreen refill now begins on the queue horizon's Pacific calendar date and filters against the exact queued timestamp, so the September 1 morning proposal spotlight does not suppress that day's 4:00 PM slot.
+
+- Expected next refill behavior: when the horizon enters the three-day threshold, September 1 at 4:00 PM Pacific is the first eligible generated slot.
+- Existing boundary: the proposal spotlight remains queued for September 1 at 9:00 AM Pacific with its full ResearchHub URL; generated posts continue to use the official game URL with attributed campaign parameters.
+- Verification: all 20 focused social-agent tests passed, including a morning-only horizon regression; TypeScript passed and ESLint reported zero errors with 19 pre-existing warnings.
+- Production boundary: the deployment is ready and the public social endpoint returned `401 Unauthorized` at August 21, 11:03 AM Pacific.
