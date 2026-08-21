@@ -25,7 +25,27 @@ test('social health summary reports blockers and aggregate conversion without se
         metadata: { claims_verified: false }
       }
     ],
-    actions: [{ status: 'published' }, { status: 'failed' }],
+    actions: [
+      {
+        status: 'published',
+        action_type: 'original',
+        reason: 'challenge',
+        x_post_id: '1234567890',
+        published_at: '2026-08-21T19:30:00.000Z',
+        metadata: {
+          contentKind: 'challenge',
+          campaignContent: 'score-challenge',
+          latestMetrics: {
+            impression_count: 120,
+            like_count: 3,
+            reply_count: 2,
+            retweet_count: 1,
+            quote_count: 1
+          }
+        }
+      },
+      { status: 'failed' }
+    ],
     events: [
       {
         event_name: 'app_opened',
@@ -55,6 +75,15 @@ test('social health summary reports blockers and aggregate conversion without se
   assert.equal(summary.queue.queued, 2);
   assert.deepEqual(summary.queue.blockers, [{ contentKey: 'blocked', reason: 'claims_not_verified' }]);
   assert.deepEqual(summary.actions.byStatus, { published: 1, failed: 1 });
+  assert.deepEqual(summary.actions.recentPublished, [{
+    postId: '1234567890',
+    url: 'https://x.com/SciconShooter/status/1234567890',
+    publishedAt: '2026-08-21T19:30:00.000Z',
+    actionType: 'original',
+    contentKind: 'challenge',
+    campaignContent: 'score-challenge',
+    metrics: { impressions: 120, likes: 3, replies: 2, reposts: 1, quotes: 1 }
+  }]);
   assert.equal(summary.conversion.sessions, 1);
   assert.equal(summary.conversion.xSessions, 1);
   assert.deepEqual(summary.conversion.campaigns, [{
