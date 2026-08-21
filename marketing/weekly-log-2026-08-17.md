@@ -417,8 +417,14 @@ PR #34 merged as `959bae66` and production deployment `dpl_DNZm1VKSByDXCPBo8qZPq
 - Asset path: `marketing/campaign-assets/scicon-boss-archive-lineup-2026-08.png`; deployed copy: `public/social-assets/scicon-boss-archive-lineup-2026-08.png`.
 - Image URL: `https://www.sciconshooter.xyz/social-assets/scicon-boss-archive-lineup-2026-08.png`; 929,257 bytes; SHA-256 `E1D514F26DE972F4C151A837872F141BDB9112FDA6616EFC4F14F2AF5FBCDCA4`.
 - Queue entry: `boss-archive-runback-v1`, scheduled for Tuesday, August 25 at 9:00 AM Pacific with the existing attributed game URL.
-- Validation: public HTTP 200 `image/png` with an exact hash match; final copy is 206 weighted X characters; post and media validation both pass.
-- Reply goal: boss names, runback results, and the encounter players still cannot solve consistently.
+- Visual correction: the asset is explicitly labeled `Boss Preview`, `Incoming Threats`, and `Work in Progress`, so the queued copy now acknowledges its origin before describing the current Boss Archive unlock/rematch flow.
+- Final copy:
+
+> These four started as a work-in-progress boss lineup. Now they are Boss Archive problems.
+>
+> Beat one in Campaign, unlock the rematch, and learn the pattern the hard way. Which one keeps farming you?
+- Validation: public HTTP 200 `image/png` with an exact hash match; final copy is 221 weighted X characters; post and media validation both pass. The 2:05 PM Pacific live audit remained 19 queued posts with zero blockers.
+- Reply goal: boss names, rematch stories, and difficulty feedback.
 
 ## Canonical branch consistency
 
