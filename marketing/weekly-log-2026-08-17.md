@@ -383,3 +383,17 @@ Production evidence checked August 21 between 11:35 AM and 11:52 AM Pacific show
 - Intended post content key: `score-means-something-v1`.
 - Intended game URL: `https://www.sciconshooter.xyz/?utm_source=x&utm_medium=social&utm_campaign=growth-sprint-2026-08&utm_content=meaningful-score`.
 - Reply goal: verified score replies and first-run reactions after the repaired submission path is live.
+
+## Verified native image publishing
+
+PR #32 merged as `0ad62de2` and production deployment `dpl_76XuE41vwXgjBAvLtxGupqto9Q2q` became ready August 21 at 12:05 PM Pacific. The social worker can now attach images through the official X media API only when the queue entry supplies a bounded first-party asset and required alt text.
+
+- Safety boundary: accepted sources are HTTPS files under `https://www.sciconshooter.xyz/social-assets/`; arbitrary hosts, redirects, query strings, missing alt text, images over 5 MB, more than four images, and poll-plus-media posts are rejected.
+- Verification: 24/24 focused social-agent tests, TypeScript, targeted ESLint, and the production build passed. The public asset returned HTTP 200 as `image/png`, 703,515 bytes, with SHA-256 `B3FE38B44CC45FD079C03F29547E5640E15CAB0A47BAD47F9FD942F8269D9827`.
+- Asset path: `marketing/campaign-assets/scicon-home-hangar-upgrade-2026-08.png` (deployed copy: `public/social-assets/scicon-home-hangar-upgrade-2026-08.png`).
+- Queued post: `desktop-browser-score-share-v1`, still scheduled for Saturday, August 22 at 4:00 PM Pacific. It is 202 weighted X characters and passed both post and media validation.
+- Image URL: `https://www.sciconshooter.xyz/social-assets/scicon-home-hangar-upgrade-2026-08.png`.
+- Game URL: `https://www.sciconshooter.xyz/?utm_source=x&utm_medium=social&utm_campaign=growth-sprint-2026-08&utm_content=browser-score-share`.
+- Alt text: `Scicon Shooter redesigned home screen with the RSC ship, Start Mission button, and navigation for Proposals, Trophies, Hangar, and more.`
+- Reply goal: desktop scores and first-run reactions.
+- Runtime boundary: no media was uploaded to X during verification. The first live media upload will occur only when the already-approved Saturday queue entry reaches its publishing window. Friday's 4:00 PM text post remains unchanged.
