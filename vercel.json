@@ -75,8 +75,24 @@
       "schedule": "0 16 * * *"
     },
     {
+      "path": "/api/social-agent?mode=daily",
+      "schedule": "0 17 * * *"
+    },
+    {
+      "path": "/api/social-agent?mode=daily",
+      "schedule": "0 23 * * *"
+    },
+    {
+      "path": "/api/social-agent?mode=daily",
+      "schedule": "0 0 * * *"
+    },
+    {
       "path": "/api/social-agent?mode=weekly",
       "schedule": "15 21 * * 0"
+    },
+    {
+      "path": "/api/social-agent?mode=weekly",
+      "schedule": "15 22 * * 0"
     }
   ],
   "rewrites": [

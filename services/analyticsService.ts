@@ -1,9 +1,12 @@
 import { GAME_VERSION } from './runReceiptService';
 import { getClientSessionId } from './clientSession';
 import { recordPlayerReportBreadcrumb } from './playerReportService';
+import { readSocialCampaignAttribution } from '../shared/socialCampaignAttribution.mjs';
 
 export type ProductEventName =
   | 'app_opened'
+  | 'desktop_launch_viewed'
+  | 'desktop_launch_selected'
   | 'session_activity'
   | 'mission_started'
   | 'mission_completed'
@@ -98,7 +101,8 @@ export const trackInitialVisit = () => {
     connection: String(connection?.effectiveType || 'unknown').slice(0, 24),
     save_data: Boolean(connection?.saveData),
     navigation_ms: navigation ? Math.max(0, Math.round(navigation.duration)) : 0,
-    player_status: firstSeen ? 'returning' : 'new'
+    player_status: firstSeen ? 'returning' : 'new',
+    ...readSocialCampaignAttribution(window.location.search)
   });
   if (firstSeen) {
     trackEvent('returning_player', {

@@ -140,6 +140,24 @@ test('browser and server Weekly formulas stay identical and clamp proof runway l
   }
 });
 
+test('Weekly outcome timing accepts real early clears instead of requiring wave timeouts', () => {
+  const stages = serverPlan.buildWeeklyRunStagePlans('2026-08-16', {
+    eliteBossIds: orderedEliteBossIds,
+    majorBossIds: orderedMajorBossIds,
+    stageCount: 8
+  });
+
+  for (const stage of stages) {
+    const serverLimits = serverPlan.getWeeklyRunOutcomeLimits(stage);
+    const browserLimits = browserPlan.getWeeklyRunOutcomeLimits(stage);
+    const combatWaveCount = stage.waveCount - 1;
+
+    assert.deepEqual(serverLimits, browserLimits);
+    assert.equal(serverLimits.minimumElapsedMs, Math.max(1_500, combatWaveCount * 1_500));
+    assert.ok(serverLimits.minimumElapsedMs <= 4_500, 'a fast three-wave depth remains valid');
+  }
+});
+
 test('the Weekly Run materializes stable runway and never stops escalating', () => {
   const run = generator.buildWeeklyRunCampaign('2026-W31', campaign);
   const extended = generator.buildWeeklyRunCampaign(

@@ -1,6 +1,12 @@
 const { createHmac, randomBytes } = require('node:crypto');
 
 const X_API_BASE_URL = 'https://api.x.com/2';
+const X_MEDIA_UPLOAD_URL = 'https://upload.twitter.com/1.1/media/upload.json';
+const X_MEDIA_METADATA_URL = 'https://upload.twitter.com/1.1/media/metadata/create.json';
+const X_MEDIA_SOURCE_HOST = 'www.sciconshooter.xyz';
+const X_MEDIA_SOURCE_PREFIX = '/social-assets/';
+const MAX_X_IMAGE_BYTES = 5 * 1024 * 1024;
+const X_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
 const encode = (value) => encodeURIComponent(String(value))
   .replace(/[!'()*]/g, (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`);
@@ -63,8 +69,8 @@ const createXClient = ({
 } = {}) => {
   const credentials = readCredentials(environment);
 
-  const request = async (path, { method = 'GET', query, body } = {}) => {
-    const url = new URL(`${X_API_BASE_URL}${path}`);
+  const requestUrl = async (inputUrl, { method = 'GET', query, body, rawBody } = {}) => {
+    const url = new URL(inputUrl);
     for (const [key, value] of Object.entries(query || {})) {
       if (value !== undefined && value !== null && value !== '') url.searchParams.set(key, String(value));
     }
@@ -83,7 +89,9 @@ const createXClient = ({
     const response = await fetchImpl(url, {
       method,
       headers,
-      body: body === undefined ? undefined : JSON.stringify(body)
+      body: rawBody === undefined
+        ? body === undefined ? undefined : JSON.stringify(body)
+        : rawBody
     });
     const responseText = await response.text();
     const payload = responseText ? JSON.parse(responseText) : null;
@@ -92,6 +100,28 @@ const createXClient = ({
       throw new Error(`X API request failed (${response.status}): ${details}`);
     }
     return payload;
+  };
+
+  const request = (path, options) => requestUrl(`${X_API_BASE_URL}${path}`, options);
+
+  const uploadImageBytes = async ({ bytes, mediaType, altText }) => {
+    if (!Buffer.isBuffer(bytes) || bytes.length < 1 || bytes.length > MAX_X_IMAGE_BYTES) {
+      throw new Error('X media image size is invalid.');
+    }
+    if (!X_IMAGE_TYPES.has(mediaType)) throw new Error('X media image type is not allowed.');
+    const extension = mediaType === 'image/jpeg' ? 'jpg' : mediaType.split('/')[1];
+    const form = new FormData();
+    form.append('media', new Blob([bytes], { type: mediaType }), `scicon-social.${extension}`);
+    const payload = await requestUrl(X_MEDIA_UPLOAD_URL, { method: 'POST', rawBody: form });
+    const mediaId = String(payload?.media_id_string || payload?.media_id || payload?.data?.id || '').trim();
+    if (!/^\d{1,19}$/.test(mediaId)) throw new Error('X did not return a valid media ID.');
+    if (altText) {
+      await requestUrl(X_MEDIA_METADATA_URL, {
+        method: 'POST',
+        body: { media_id: mediaId, alt_text: { text: altText } }
+      });
+    }
+    return mediaId;
   };
 
   return {
@@ -118,14 +148,51 @@ const createXClient = ({
       return request(`/users/${encode(userId)}/tweets`, {
         query: {
           max_results: Math.max(5, Math.min(100, Number(maxResults) || 100)),
-          'tweet.fields': 'conversation_id,created_at,public_metrics'
+          expansions: 'attachments.poll_ids',
+          'tweet.fields': 'attachments,conversation_id,created_at,public_metrics',
+          'poll.fields': 'duration_minutes,end_datetime,id,options,voting_status'
         }
       });
     },
 
-    async createPost({ text, replyToId }) {
+    async uploadImageFromUrl({ sourceUrl, altText }) {
+      const source = new URL(sourceUrl);
+      if (
+        source.protocol !== 'https:'
+        || source.hostname !== X_MEDIA_SOURCE_HOST
+        || !source.pathname.startsWith(X_MEDIA_SOURCE_PREFIX)
+        || source.search
+        || source.hash
+      ) {
+        throw new Error('X media source URL is not allowed.');
+      }
+      const response = await fetchImpl(source, {
+        method: 'GET',
+        redirect: 'error',
+        headers: { Accept: 'image/png,image/jpeg,image/webp' }
+      });
+      if (!response.ok) throw new Error(`X media source fetch failed (${response.status}).`);
+      const mediaType = String(response.headers?.get?.('content-type') || '').split(';')[0].trim().toLowerCase();
+      if (!X_IMAGE_TYPES.has(mediaType)) throw new Error('X media source returned an unsupported image type.');
+      const declaredBytes = Number(response.headers?.get?.('content-length'));
+      if (Number.isFinite(declaredBytes) && declaredBytes > MAX_X_IMAGE_BYTES) {
+        throw new Error('X media source exceeds the image size limit.');
+      }
+      const bytes = Buffer.from(await response.arrayBuffer());
+      return uploadImageBytes({ bytes, mediaType, altText });
+    },
+
+    async createPost({ text, replyToId, poll, mediaIds }) {
       const body = { text };
       if (replyToId) body.reply = { in_reply_to_tweet_id: String(replyToId) };
+      if (poll) body.poll = poll;
+      if (Array.isArray(mediaIds) && mediaIds.length > 0) {
+        if (poll) throw new Error('X posts cannot combine a poll with media.');
+        if (mediaIds.length > 4 || mediaIds.some((id) => !/^\d{1,19}$/.test(String(id)))) {
+          throw new Error('X media IDs are invalid.');
+        }
+        body.media = { media_ids: mediaIds.map(String) };
+      }
       const payload = await request('/tweets', { method: 'POST', body });
       return payload?.data || null;
     }
@@ -134,6 +201,8 @@ const createXClient = ({
 
 module.exports = {
   X_API_BASE_URL,
+  X_MEDIA_METADATA_URL,
+  X_MEDIA_UPLOAD_URL,
   createOAuthHeader,
   createXClient,
   encode,
