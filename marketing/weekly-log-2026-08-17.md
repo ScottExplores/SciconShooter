@@ -354,3 +354,13 @@ PR #29 merged as `68616aeb` and production deployment `sciconshooter-ju6qq3qhp` 
 - Conversion learning treats `desktop_launch_viewed` and `app_opened` as equivalent campaign touches and deduplicates them by session. A desktop visitor who continues into the game counts once; a visitor who leaves at the launcher remains visible in the denominator.
 - Existing outcomes remain `mission_started` and `score_submitted`, with a minimum of three attributed sessions before evidence can influence queue selection.
 - Verification: 25 focused desktop and social-agent tests, TypeScript, ESLint with zero errors, and production build passed. The production deployment is ready and the unauthenticated social endpoint remains `401 Unauthorized`.
+
+## Player-generated score sharing
+
+PR #30 merged as `3dbc0860` and production deployment `sciconshooter-hvb6rpr4s` became live August 21 at 11:34 AM Pacific.
+
+- Mission Records now place a full-width `Post score on X` action above the existing image-share and optional mint controls.
+- Prefilled copy states the player's actual score and wave and challenges others to beat it; it does not claim a weekly win or funding completion.
+- Shared game URL: `https://www.sciconshooter.xyz/?utm_source=x&utm_medium=social&utm_campaign=player-score-share&utm_content=mission-record`
+- Measurement: the existing bounded `share_action_used` event records method `x_intent` and whether the browser opened the intent window.
+- Verification: intent URL and UI wiring tests, existing image-share test, TypeScript, ESLint with zero errors, and production build passed. The live production mission-record asset contains the X action, campaign URL, and `x.com/intent/post`; the unauthenticated social endpoint remains `401 Unauthorized`.
