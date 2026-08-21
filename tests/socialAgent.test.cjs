@@ -13,6 +13,7 @@ const {
   weightedLength
 } = require('../api/_lib/socialAgentPolicy');
 const {
+  buildConversionLearningSummary,
   buildLearningSummary,
   buildWeeklyThread,
   chooseQueuedPost,
@@ -24,6 +25,7 @@ const {
   runSocialAgent,
   syncPublishedMetrics
 } = require('../api/_lib/socialAgent');
+const { createSocialStore } = require('../api/_lib/socialAgentStore');
 
 const TEST_X_ENV = {
   X_API_KEY: 'api-key',
@@ -158,6 +160,92 @@ test('learning waits for enough samples and only reorders similarly prioritized 
     { content_key: 'upgrade', content_kind: 'upgrade', priority: 18 }
   ], learning);
   assert.equal(protectedPriority.content_key, 'question');
+});
+
+test('conversion learning favors themes that produce real play after enough attributed sessions', () => {
+  const actions = [
+    {
+      reason: 'upgrade',
+      metadata: { contentKind: 'upgrade', campaignContent: 'hangar' }
+    },
+    {
+      reason: 'challenge',
+      metadata: { contentKind: 'challenge', campaignContent: 'beat-score' }
+    }
+  ];
+  const appOpen = (sessionId, content) => ({
+    event_name: 'app_opened',
+    session_id: sessionId,
+    properties: {
+      campaign_source: 'x',
+      campaign_medium: 'social',
+      campaign_content: content
+    }
+  });
+  const events = [
+    appOpen('upgrade-1', 'hangar'),
+    appOpen('upgrade-2', 'hangar'),
+    appOpen('upgrade-3', 'hangar'),
+    { event_name: 'mission_started', session_id: 'upgrade-1', properties: {} },
+    appOpen('challenge-1', 'beat-score'),
+    appOpen('challenge-2', 'beat-score'),
+    appOpen('challenge-3', 'beat-score'),
+    { event_name: 'mission_started', session_id: 'challenge-1', properties: {} },
+    { event_name: 'mission_started', session_id: 'challenge-2', properties: {} },
+    { event_name: 'score_submitted', session_id: 'challenge-2', properties: {} },
+    // Duplicate outcomes and owner tests must not inflate conversion evidence.
+    { event_name: 'mission_started', session_id: 'challenge-2', properties: {} },
+    appOpen('owner-1', 'beat-score'),
+    { event_name: 'mission_started', session_id: 'owner-1', properties: { run_mode: 'owner-test' } },
+    appOpen('unattributed-1', 'unknown')
+  ];
+  const learning = buildConversionLearningSummary(actions, events);
+  assert.equal(learning[0].kind, 'challenge');
+  assert.deepEqual(learning[0], {
+    kind: 'challenge',
+    attributedSessions: 3,
+    missionStartedSessions: 2,
+    scoreSubmittedSessions: 1,
+    conversionScore: 4 / 3,
+    eligible: true
+  });
+  assert.equal(learning[1].conversionScore, 1 / 3);
+
+  const selected = chooseQueuedPost([
+    { content_key: 'upgrade-next', content_kind: 'upgrade', priority: 30 },
+    { content_key: 'challenge-next', content_kind: 'challenge', priority: 27 }
+  ], [{ kind: 'upgrade', eligible: true }], learning);
+  assert.equal(selected.content_key, 'challenge-next');
+
+  const protectedPriority = chooseQueuedPost([
+    { content_key: 'upgrade-now', content_kind: 'upgrade', priority: 40 },
+    { content_key: 'challenge-later', content_kind: 'challenge', priority: 27 }
+  ], [], learning);
+  assert.equal(protectedPriority.content_key, 'upgrade-now');
+});
+
+test('conversion learning reads only bounded product-funnel events', async () => {
+  const calls = [];
+  const previousKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key';
+  try {
+    const store = createSocialStore({
+      async fetchJson(path, options) {
+        calls.push({ path, options });
+        return [];
+      }
+    });
+    await store.getProductEventsSince('2026-08-01T00:00:00.000Z', 99_999);
+    assert.equal(calls.length, 1);
+    assert.match(calls[0].path, /^scicon_product_events\?select=event_name,session_id,properties,occurred_at&/);
+    assert.match(calls[0].path, /event_name=in\.\(app_opened,mission_started,score_submitted\)/);
+    assert.match(calls[0].path, /occurred_at=gte\.2026-08-01T00%3A00%3A00\.000Z/);
+    assert.match(calls[0].path, /order=occurred_at\.desc/);
+    assert.match(calls[0].path, /limit=5000$/);
+  } finally {
+    if (previousKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    else process.env.SUPABASE_SERVICE_ROLE_KEY = previousKey;
+  }
 });
 
 test('metrics sync records public performance without mutating post content', async () => {
@@ -298,7 +386,7 @@ test('queued original posts require verified claims and publish at most once', a
     link_url: 'https://www.sciconshooter.xyz/',
     status: 'queued',
     requires_media: false,
-    metadata: { claims_verified: true }
+    metadata: { claims_verified: true, campaign_content: 'verified-upgrade' }
   };
   const store = createMemoryStore({ queuedPost: queueEntry });
   const posts = [];
@@ -314,6 +402,8 @@ test('queued original posts require verified claims and publish at most once', a
   assert.equal(first.published, true);
   assert.equal(posts.length, 1);
   assert.equal(store.publishedContent.length, 1);
+  assert.equal(store.actions.get('queue:verified-upgrade').metadata.campaignContent, 'verified-upgrade');
+  assert.equal(store.actions.get('queue:verified-upgrade').metadata.learningSource, 'none');
 
   const second = await processQueuedOriginal({
     client,

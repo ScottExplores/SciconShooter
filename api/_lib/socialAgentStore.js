@@ -3,6 +3,7 @@ const { fetchSupabaseJson, supabaseHeaders } = require('./supabase');
 const ACTIONS_TABLE = process.env.SUPABASE_SOCIAL_ACTIONS_TABLE || 'scicon_social_actions';
 const CONTENT_TABLE = process.env.SUPABASE_SOCIAL_CONTENT_TABLE || 'scicon_social_content_queue';
 const COMPETITIONS_TABLE = process.env.SUPABASE_WEEKLY_COMPETITIONS_TABLE || 'scicon_weekly_competitions';
+const PRODUCT_EVENTS_TABLE = process.env.SUPABASE_PRODUCT_EVENTS_TABLE || 'scicon_product_events';
 
 const encode = (value) => encodeURIComponent(String(value));
 
@@ -82,6 +83,18 @@ const createSocialStore = ({ fetchJson = fetchSupabaseJson } = {}) => ({
     return Array.isArray(rows) ? rows : [];
   },
 
+  async getProductEventsSince(sinceIso, limit = 2_000) {
+    const rows = await fetchJson([
+      `${PRODUCT_EVENTS_TABLE}?select=event_name,session_id,properties,occurred_at`,
+      'event_name=in.(app_opened,mission_started,score_submitted)',
+      `occurred_at=gte.${encode(sinceIso)}`,
+      // Descending order keeps the current campaign window when the bounded row cap is reached.
+      'order=occurred_at.desc',
+      `limit=${Math.max(1, Math.min(5_000, Number(limit) || 2_000))}`
+    ].join('&'), { headers: supabaseHeaders() });
+    return Array.isArray(rows) ? rows : [];
+  },
+
   async markQueuedPostPublished(contentKey, actionId) {
     const rows = await fetchJson(`${CONTENT_TABLE}?content_key=eq.${encode(contentKey)}&status=eq.queued`, {
       method: 'PATCH',
@@ -110,5 +123,6 @@ const createSocialStore = ({ fetchJson = fetchSupabaseJson } = {}) => ({
 module.exports = {
   ACTIONS_TABLE,
   CONTENT_TABLE,
+  PRODUCT_EVENTS_TABLE,
   createSocialStore
 };
