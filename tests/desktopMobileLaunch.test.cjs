@@ -120,6 +120,7 @@ test('entrypoint wraps the existing canonical App instead of creating a second g
   );
   assert.match(componentSource, /trackEvent\('desktop_launch_viewed'/);
   assert.match(componentSource, /trackEvent\('desktop_launch_selected'/);
+  assert.match(componentSource, /readSocialCampaignAttribution\(window\.location\.search\)/);
   assert.match(eventsSource, /'desktop_launch_viewed'/);
   assert.match(eventsSource, /'desktop_launch_selected'/);
   assert.doesNotMatch(componentSource, /GameEngine|GameCanvas|GameStage|campaign\.json/);
