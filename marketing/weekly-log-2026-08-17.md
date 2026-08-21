@@ -77,10 +77,11 @@ All entries are under 280 weighted X characters, contain no hashtags, use the of
 
 > Guest play first. Wallet optional. The bullets are not optional.
 >
-> Scicon Shooter is a browser arcade game, community-built on Base. Play one run and reply with the exact moment it got unfair.
+> Scicon Shooter is a browser arcade game, community-built on Base. @buildonbase pilots: play one run and tell us the exact moment it got unfair.
 > https://www.sciconshooter.xyz/
 
 - Content key: `guest-bullets-optional-wallet-v1`
+- Tagged account: `@buildonbase`, verified through Base's official builder blog.
 - Verification: production guest-first flow and README.
 - Reply goal: exact friction points from first runs.
 
