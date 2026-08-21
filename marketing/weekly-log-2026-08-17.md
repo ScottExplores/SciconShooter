@@ -369,3 +369,17 @@ PR #30 merged as `3dbc0860` and production deployment `sciconshooter-hvb6rpr4s` 
 - Shared game URL: `https://www.sciconshooter.xyz/?utm_source=x&utm_medium=social&utm_campaign=player-score-share&utm_content=mission-record`
 - Measurement: the existing bounded `share_action_used` event records method `x_intent` and whether the browser opened the intent window.
 - Verification: intent URL and UI wiring tests, existing image-share test, TypeScript, ESLint with zero errors, and production build passed. The live production mission-record asset contains the X action, campaign URL, and `x.com/intent/post`; the unauthenticated social endpoint remains `401 Unauthorized`.
+
+## Weekly score-save repair
+
+Production evidence checked August 21 between 11:35 AM and 11:52 AM Pacific showed that the seven-day funnel contained 18 app-open sessions, three mission-start sessions, two mission-completion sessions, and no score submissions. Both completed runs generated duplicate finalization attempts but no receipt or leaderboard row. A player report stated that Weekly play did not save, and Vercel grouped all four `/api/run-receipts` failures from the two affected players as `weekly_outcome_impossible`.
+
+- Root cause: the server treated each generated wave's 16-second timeout as a mandatory minimum clear time. Live gameplay correctly ends a wave when its enemies are defeated; observed early depths cleared in roughly 9-11 seconds while the validator required 25.6-38.4 seconds.
+- Repair: PR #31 merged as `407c1eb5` and production deployment `dpl_AU7XBTdV4GEEnKWE2H9n9VBij1La` became ready on all public domains. Generated-run timing now uses a conservative 1.5-second floor per combat wave while retaining exact proof binding, route, wave, kill, boss, total-duration, and settlement checks.
+- Verification: 40/40 focused receipt, persistence, and generator tests passed; TypeScript, targeted ESLint, and the production build passed. A live non-leaderboard QA run then produced a persisted `server-verified` Wave 1 receipt from a 6.7-second clear.
+- Data hygiene: the exact QA receipt and attempt rows were deleted immediately after verification; one receipt and one attempt were removed, and no leaderboard entry was created.
+- Measurement interpretation: the pre-fix zero score-submission baseline is not valid evidence that players rejected score submission or the social message. Future conversion learning should use post-fix traffic.
+- Runtime boundary: the unauthenticated social endpoint still returns `401`. The first official X runtime remains scheduled for Friday, August 21 at 4:00 PM Pacific.
+- Intended post content key: `score-means-something-v1`.
+- Intended game URL: `https://www.sciconshooter.xyz/?utm_source=x&utm_medium=social&utm_campaign=growth-sprint-2026-08&utm_content=meaningful-score`.
+- Reply goal: verified score replies and first-run reactions after the repaired submission path is live.
