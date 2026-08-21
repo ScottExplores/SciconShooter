@@ -510,6 +510,10 @@ test('deployment configuration keeps the worker private, scheduled, and disabled
     path.join(root, 'supabase', 'migrations', '20260806060000_harden_social_agent_tables.sql'),
     'utf8'
   );
+  const taxonomyMigration = fs.readFileSync(
+    path.join(root, 'supabase', 'migrations', '20260821103000_expand_social_content_taxonomy.sql'),
+    'utf8'
+  );
   const xClientSource = fs.readFileSync(path.join(root, 'api', '_lib', 'xApi.js'), 'utf8');
 
   const dailyCrons = vercel.crons.filter((entry) => entry.path === '/api/social-agent?mode=daily');
@@ -520,5 +524,8 @@ test('deployment configuration keeps the worker private, scheduled, and disabled
   assert.match(installMigration, /revoke all on table public\.scicon_social_actions from public, anon, authenticated/i);
   assert.match(installMigration, /grant select, insert, update, delete on table public\.scicon_social_actions to service_role/i);
   assert.match(hardeningMigration, /to service_role[\s\S]*using \(true\)[\s\S]*with check \(true\)/i);
+  for (const kind of ['funding', 'competition', 'challenge', 'boss', 'loadout', 'progression', 'onboarding']) {
+    assert.match(taxonomyMigration, new RegExp(`'${kind}'`));
+  }
   assert.doesNotMatch(xClientSource, /\/likes|\/following|\/dm_conversations|\/retweets|DELETE/);
 });
