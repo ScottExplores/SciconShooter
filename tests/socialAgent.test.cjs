@@ -18,6 +18,7 @@ const {
   buildWeeklyThread,
   chooseQueuedPost,
   ensureEvergreenQueue,
+  isWeeklyPostingWindow,
   processMentions,
   processQueuedOriginal,
   processWeeklyWinner,
@@ -562,6 +563,15 @@ test('original publication follows Pacific hours across daylight-saving boundari
   assert.equal(posts.length, 1);
 });
 
+test('weekly publication stays at 2:15 PM Pacific across daylight-saving boundaries', () => {
+  const environment = { X_AGENT_WEEKLY_HOUR: '14', X_AGENT_WEEKLY_MINUTE: '15' };
+  assert.equal(isWeeklyPostingWindow(environment, new Date('2026-08-23T21:15:00.000Z')), true);
+  assert.equal(isWeeklyPostingWindow(environment, new Date('2026-08-23T22:15:00.000Z')), false);
+  assert.equal(isWeeklyPostingWindow(environment, new Date('2026-11-08T21:15:00.000Z')), false);
+  assert.equal(isWeeklyPostingWindow(environment, new Date('2026-11-08T22:15:00.000Z')), true);
+  assert.equal(isWeeklyPostingWindow(environment, new Date('2026-11-09T22:15:00.000Z')), false);
+});
+
 test('queued polls require bounded unique options and publish through the audited original-post path', async () => {
   assert.deepEqual(readQueuePoll({ metadata: {} }), { ok: true, poll: null });
   assert.equal(readQueuePoll({ metadata: { poll: { options: ['Damage'], duration_minutes: 60 } } }).reason, 'option_count');
@@ -668,7 +678,13 @@ test('deployment configuration keeps the worker private, scheduled, and disabled
     dailyCrons.map((entry) => entry.schedule).sort(),
     ['0 0 * * *', '0 16 * * *', '0 17 * * *', '0 23 * * *'].sort()
   );
-  assert.ok(vercel.crons.some((entry) => entry.path === '/api/social-agent?mode=weekly'));
+  assert.deepEqual(
+    vercel.crons
+      .filter((entry) => entry.path === '/api/social-agent?mode=weekly')
+      .map((entry) => entry.schedule)
+      .sort(),
+    ['15 21 * * 0', '15 22 * * 0'].sort()
+  );
   assert.match(environment, /^X_AUTONOMY_ENABLED=false$/m);
   assert.match(installMigration, /alter table public\.scicon_social_actions enable row level security/i);
   assert.match(installMigration, /revoke all on table public\.scicon_social_actions from public, anon, authenticated/i);

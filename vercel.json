@@ -89,6 +89,10 @@
     {
       "path": "/api/social-agent?mode=weekly",
       "schedule": "15 21 * * 0"
+    },
+    {
+      "path": "/api/social-agent?mode=weekly",
+      "schedule": "15 22 * * 0"
     }
   ],
   "rewrites": [
