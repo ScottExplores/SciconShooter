@@ -47,11 +47,24 @@ const getPacificWeekday = (date) => new Intl.DateTimeFormat('en-US', {
   weekday: 'short'
 }).format(date);
 
+const getPacificHour = (date) => Number(new Intl.DateTimeFormat('en-US', {
+  timeZone: 'America/Los_Angeles',
+  hour: '2-digit',
+  hourCycle: 'h23'
+}).format(date));
+
 const configuredOriginalDays = (environment) => new Set(
   String(environment.X_AGENT_ORIGINAL_DAYS || 'Tue,Wed,Thu')
     .split(',')
     .map((value) => value.trim().slice(0, 3))
     .filter(Boolean)
+);
+
+const configuredOriginalHours = (environment) => new Set(
+  String(environment.X_AGENT_ORIGINAL_HOURS || '9,16')
+    .split(',')
+    .map((value) => Number(value.trim()))
+    .filter((value) => Number.isInteger(value) && value >= 0 && value <= 23)
 );
 
 const buildQueuedPostText = (entry) => {
@@ -507,6 +520,9 @@ const processMentions = async ({
 const processQueuedOriginal = async ({ client, store, environment = process.env, now = new Date() }) => {
   if (!configuredOriginalDays(environment).has(getPacificWeekday(now))) {
     return { published: false, reason: 'not_an_original_post_day' };
+  }
+  if (!configuredOriginalHours(environment).has(getPacificHour(now))) {
+    return { published: false, reason: 'not_an_original_post_hour' };
   }
   const lookback = new Date(now.getTime() - METRICS_LOOKBACK_MS).toISOString();
   const [entries, history, productEvents] = await Promise.all([

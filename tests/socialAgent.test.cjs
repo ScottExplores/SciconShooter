@@ -527,6 +527,41 @@ test('queued original posts require verified claims and publish at most once', a
   assert.equal(posts.length, 1);
 });
 
+test('original publication follows Pacific hours across daylight-saving boundaries', async () => {
+  const queueEntry = {
+    content_key: 'dst-safe-post',
+    content_kind: 'challenge',
+    post_text: 'DST-safe arcade challenge.',
+    link_url: 'https://www.sciconshooter.xyz/',
+    status: 'queued',
+    requires_media: false,
+    metadata: { claims_verified: true }
+  };
+  const earlyStore = createMemoryStore({ queuedPost: { ...queueEntry } });
+  const posts = [];
+  const client = {
+    async createPost(input) { posts.push(input); return { id: `post-${posts.length}`, text: input.text }; }
+  };
+  const early = await processQueuedOriginal({
+    client,
+    store: earlyStore,
+    environment: { X_AGENT_ORIGINAL_DAYS: 'Mon', X_AGENT_ORIGINAL_HOURS: '9,16' },
+    now: new Date('2026-11-02T16:00:00.000Z')
+  });
+  assert.equal(early.reason, 'not_an_original_post_hour');
+  assert.equal(posts.length, 0);
+
+  const onTimeStore = createMemoryStore({ queuedPost: { ...queueEntry } });
+  const onTime = await processQueuedOriginal({
+    client,
+    store: onTimeStore,
+    environment: { X_AGENT_ORIGINAL_DAYS: 'Mon', X_AGENT_ORIGINAL_HOURS: '9,16' },
+    now: new Date('2026-11-02T17:00:00.000Z')
+  });
+  assert.equal(onTime.published, true);
+  assert.equal(posts.length, 1);
+});
+
 test('queued polls require bounded unique options and publish through the audited original-post path', async () => {
   assert.deepEqual(readQueuePoll({ metadata: {} }), { ok: true, poll: null });
   assert.equal(readQueuePoll({ metadata: { poll: { options: ['Damage'], duration_minutes: 60 } } }).reason, 'option_count');
@@ -629,7 +664,10 @@ test('deployment configuration keeps the worker private, scheduled, and disabled
   const xClientSource = fs.readFileSync(path.join(root, 'api', '_lib', 'xApi.js'), 'utf8');
 
   const dailyCrons = vercel.crons.filter((entry) => entry.path === '/api/social-agent?mode=daily');
-  assert.deepEqual(dailyCrons.map((entry) => entry.schedule), ['0 16 * * *', '0 23 * * *']);
+  assert.deepEqual(
+    dailyCrons.map((entry) => entry.schedule).sort(),
+    ['0 0 * * *', '0 16 * * *', '0 17 * * *', '0 23 * * *'].sort()
+  );
   assert.ok(vercel.crons.some((entry) => entry.path === '/api/social-agent?mode=weekly'));
   assert.match(environment, /^X_AUTONOMY_ENABLED=false$/m);
   assert.match(installMigration, /alter table public\.scicon_social_actions enable row level security/i);

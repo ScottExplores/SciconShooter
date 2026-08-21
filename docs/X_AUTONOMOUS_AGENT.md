@@ -68,6 +68,8 @@ When the remaining queue horizon falls within three days, the daily worker seeds
 
 Unused candidates expire within their slot and are moved to `paused` on the next daily run. Content keys and first-party `utm_content` values are date-, slot-, theme-, and variant-specific, so retries are idempotent and conversion evidence remains attributable. Set `X_AGENT_EVERGREEN_ENABLED=false` to disable refill without disabling direct replies or manually queued posts.
 
+Vercel probes the daily worker at both daylight and standard-time UTC equivalents. `X_AGENT_ORIGINAL_HOURS=9,16` gates original publication by the actual Pacific hour, so the extra probe can process mentions and metrics but cannot publish another original.
+
 ## Activation checklist
 
 1. Apply the social-agent migrations under `supabase/migrations` and run Supabase security and performance advisors.

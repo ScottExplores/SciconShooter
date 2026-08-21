@@ -76,7 +76,15 @@
     },
     {
       "path": "/api/social-agent?mode=daily",
+      "schedule": "0 17 * * *"
+    },
+    {
+      "path": "/api/social-agent?mode=daily",
       "schedule": "0 23 * * *"
+    },
+    {
+      "path": "/api/social-agent?mode=daily",
+      "schedule": "0 0 * * *"
     },
     {
       "path": "/api/social-agent?mode=weekly",
