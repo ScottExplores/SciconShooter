@@ -481,3 +481,7 @@ PR #38 merged as `bef0156f` and production deployment `dpl_5aFWGMCMH2Ak4E3EYiWVK
 The read-only social health audit now verifies every structurally valid queued media URL with a bounded `HEAD` request. HTTP failures, redirects, HTML fallbacks, unexpected MIME types, missing or zero content lengths, and files beyond the configured image or video cap are reported as queue blockers without downloading or exposing media content. The first live run at 1:24 PM Pacific checked all three queued media posts and reported zero blockers; all referenced assets are live bounded PNGs.
 
 PR #39 merged as `ecbb5765` and production deployment `dpl_2j9PMc4hQdNRTyDGj2uHmrSYVKjY` became ready August 21 at 1:28 PM Pacific. Verification remained 30/30 focused social and audit tests with zero targeted ESLint errors.
+
+### Public X account baseline
+
+A read-only browser check at 1:30 PM Pacific verified the public `@SciconShooter` profile before the first automated runtime: 12 posts, 4 followers, 38 following, branded avatar and header, verified-account badge, live game URL, and the bio `DeSci-inspired arcade shooter, community-built on Base. Play games. Fund science. New ships, squad upgrades, bosses and weekly competition.` The pinned August 5 launch post showed 37 views and one like; later August 11-13 originals showed 3-7 views. Existing short replies had views but no visible replies, so they do not prove conversation quality or player conversion. No profile or X state was changed during this audit.
