@@ -505,3 +505,7 @@ The audit now returns up to ten recent published actions with only the public po
 ### Conversion evidence threshold
 
 Each campaign readout now includes mission-start rate, score-submission rate, the worker-compatible weighted conversion score, and an eligibility flag. A campaign remains ineligible until it has at least three real attributed sessions, preventing one click from being treated as a content winner. Focused verification passed 3/3 tests with zero targeted ESLint errors; the 1:37 PM Pacific live baseline remained empty before publication.
+
+### Default cadence hardening
+
+The worker's code-level original-post default now matches the intended Monday-Saturday cadence at 9:00 AM and 4:00 PM Pacific; Sunday remains reserved for the verified winner workflow. This removes dependence on the production `X_AGENT_ORIGINAL_DAYS` override and prevents a missing value from silently reverting to Tuesday-Thursday. Verification passed 32 focused social tests, targeted ESLint, and TypeScript, including a Friday-publication/Sunday-reservation regression test.

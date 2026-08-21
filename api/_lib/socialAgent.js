@@ -67,7 +67,7 @@ const isWeeklyPostingWindow = (environment, date) => (
 );
 
 const configuredOriginalDays = (environment) => new Set(
-  String(environment.X_AGENT_ORIGINAL_DAYS || 'Tue,Wed,Thu')
+  String(environment.X_AGENT_ORIGINAL_DAYS || 'Mon,Tue,Wed,Thu,Fri,Sat')
     .split(',')
     .map((value) => value.trim().slice(0, 3))
     .filter(Boolean)
