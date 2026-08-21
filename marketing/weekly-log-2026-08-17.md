@@ -565,3 +565,7 @@ The local social audit's bounded `recentPublished` output now includes the actio
 ### Native image claim-audit gate
 
 The same per-item `claims_audited=true` requirement previously enforced for video now applies to every queued image. Missing evidence fails closed as `media_validation:image_claims` before upload or action reservation. All four PNGs across `desktop-browser-score-share-v1`, `boss-archive-runback-v1`, and `squad-bad-decisions-v1` were manually inspected first; only those three unchanged queued rows were then marked audited. Verification passed 33/33 focused social and audit tests, targeted ESLint, and TypeScript. The 2:08 PM Pacific live audit reported 19 queued posts with zero blockers, proving every active media row carries the new evidence.
+
+### Proposal spotlight live-link verification
+
+At 2:11 PM Pacific, the full queued ResearchHub proposal URL returned HTTP 200 as `text/html` with no redirect. Page metadata identifies the article as `Precision phenotyping of an autism model: unbiased discovery of fmr1-related brain phenotypes from whole-brain dynamics in fmr1 zebrafish`, describes the same FMR1 whole-brain zebrafish study summarized in the queued post, and exposes a 1200x630 zebrafish preview image. The public page did not expose an authoritative current open/closed eligibility field, so availability is not treated as eligibility evidence. The September 1 post remains historical: prior selection verified, completed funding unconfirmed, with no claim that the proposal is currently open or newly funded.
