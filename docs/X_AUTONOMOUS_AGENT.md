@@ -47,7 +47,7 @@ Optional controls:
 
 - `X_AGENT_MODEL=gpt-5-mini`
 - `X_AGENT_MAX_REPLIES_PER_DAY=3`
-- `X_AGENT_ORIGINAL_DAYS=Tue,Wed,Thu`
+- `X_AGENT_ORIGINAL_DAYS=Mon,Tue,Wed,Thu,Fri,Sat`
 
 ## Schedule
 

@@ -10,7 +10,9 @@ const MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
 const MAX_MEDIA_SOURCE_CHECKS = 32;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 15 * 1024 * 1024;
+const MIN_ATTRIBUTED_SESSIONS = 3;
 const IMAGE_MEDIA_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const ATTRIBUTION_EVENT_NAMES = new Set(['app_opened', 'desktop_launch_viewed']);
 
 const objectValue = (value) => (
   value && typeof value === 'object' && !Array.isArray(value) ? value : {}
@@ -20,6 +22,122 @@ const boundedText = (value, maximum = 120) => String(value || '')
   .replace(/[\u0000-\u001f\u007f]/g, '')
   .trim()
   .slice(0, maximum);
+
+const safeCampaignContent = (value) => {
+  const content = String(value || '').trim();
+  return /^[a-z0-9][a-z0-9_-]{0,79}$/i.test(content) ? content : '';
+};
+
+const safeXPostId = (value) => {
+  const id = String(value || '').trim();
+  return /^\d{1,30}$/.test(id) ? id : '';
+};
+
+const metricCount = (metrics, key) => Math.max(0, Math.floor(Number(metrics?.[key]) || 0));
+
+const readPublicMetrics = (action) => {
+  const metrics = objectValue(action?.metadata?.latestMetrics);
+  return {
+    impressions: metricCount(metrics, 'impression_count'),
+    likes: metricCount(metrics, 'like_count'),
+    replies: metricCount(metrics, 'reply_count'),
+    reposts: metricCount(metrics, 'retweet_count'),
+    quotes: metricCount(metrics, 'quote_count')
+  };
+};
+
+const buildRecentPublishedSummary = (actions) => actions
+  .filter((action) => action?.status === 'published' && safeXPostId(action?.x_post_id))
+  .slice(0, 10)
+  .map((action) => {
+    const postId = safeXPostId(action.x_post_id);
+    return {
+      postId,
+      url: `https://x.com/SciconShooter/status/${postId}`,
+      publishedAt: Number.isFinite(Date.parse(String(action?.published_at || '')))
+        ? new Date(action.published_at).toISOString()
+        : null,
+      actionType: boundedText(action?.action_type, 24) || 'unknown',
+      contentKind: boundedText(action?.metadata?.contentKind || action?.reason, 32) || 'unknown',
+      campaignContent: safeCampaignContent(action?.metadata?.campaignContent) || null,
+      metrics: readPublicMetrics(action)
+    };
+  });
+
+const isTestProductEvent = (event) => {
+  const properties = objectValue(event?.properties);
+  return properties.test_run === true
+    || properties.owner_test === true
+    || properties.test_mode === true
+    || /(?:^|[-_ ])(?:test|owner|sandbox|preview|director|lab)(?:$|[-_ ])/i.test(
+      String(properties.run_mode || properties.mode || '')
+    );
+};
+
+const buildCampaignConversionSummary = (events) => {
+  const testSessions = new Set(events.filter(isTestProductEvent).map((event) => (
+    boundedText(event?.session_id, 100)
+  )).filter(Boolean));
+  const attributionBySession = new Map();
+  for (const event of events) {
+    if (!ATTRIBUTION_EVENT_NAMES.has(event?.event_name) || isTestProductEvent(event)) continue;
+    const properties = objectValue(event?.properties);
+    const sessionId = boundedText(event?.session_id, 100);
+    const content = safeCampaignContent(properties.campaign_content);
+    if (
+      !sessionId
+      || testSessions.has(sessionId)
+      || attributionBySession.has(sessionId)
+      || properties.campaign_source !== 'x'
+      || properties.campaign_medium !== 'social'
+      || !content
+    ) continue;
+    attributionBySession.set(sessionId, content);
+  }
+
+  const campaigns = new Map();
+  for (const content of attributionBySession.values()) {
+    const current = campaigns.get(content) || {
+      content,
+      attributedSessions: 0,
+      missionStartedSessions: new Set(),
+      scoreSubmittedSessions: new Set()
+    };
+    current.attributedSessions += 1;
+    campaigns.set(content, current);
+  }
+  for (const event of events) {
+    if (isTestProductEvent(event)) continue;
+    const sessionId = boundedText(event?.session_id, 100);
+    const campaign = campaigns.get(attributionBySession.get(sessionId));
+    if (!campaign) continue;
+    if (event.event_name === 'mission_started') campaign.missionStartedSessions.add(sessionId);
+    if (event.event_name === 'score_submitted') campaign.scoreSubmittedSessions.add(sessionId);
+  }
+
+  return [...campaigns.values()].map((campaign) => {
+    const attributedSessions = campaign.attributedSessions;
+    const missionStartedSessions = campaign.missionStartedSessions.size;
+    const scoreSubmittedSessions = campaign.scoreSubmittedSessions.size;
+    return {
+      content: campaign.content,
+      attributedSessions,
+      missionStartedSessions,
+      scoreSubmittedSessions,
+      missionStartRate: attributedSessions > 0 ? missionStartedSessions / attributedSessions : 0,
+      scoreSubmissionRate: attributedSessions > 0 ? scoreSubmittedSessions / attributedSessions : 0,
+      conversionScore: attributedSessions > 0
+        ? (missionStartedSessions + (2 * scoreSubmittedSessions)) / attributedSessions
+        : 0,
+      eligible: attributedSessions >= MIN_ATTRIBUTED_SESSIONS
+    };
+  }).sort((left, right) => (
+    right.scoreSubmittedSessions - left.scoreSubmittedSessions
+    || right.missionStartedSessions - left.missionStartedSessions
+    || right.attributedSessions - left.attributedSessions
+    || left.content.localeCompare(right.content)
+  ));
+};
 
 const readSinceHours = (argv = process.argv.slice(2)) => {
   const argument = argv.find((value) => value.startsWith('--hours='));
@@ -54,7 +172,19 @@ const fetchJson = async (url, { headers = {}, fetchImpl = fetch } = {}) => {
   return payload;
 };
 
-const queueBlocker = (entry) => {
+const queueScheduleBlocker = (entry, checkedAt) => {
+  const notBefore = Date.parse(String(entry?.not_before || ''));
+  const notAfter = Date.parse(String(entry?.not_after || ''));
+  if (!Number.isFinite(notBefore)) return 'schedule_window:invalid_not_before';
+  if (!Number.isFinite(notAfter)) return 'schedule_window:invalid_not_after';
+  if (notAfter <= notBefore) return 'schedule_window:inverted';
+  if (notAfter < checkedAt.getTime()) return 'schedule_window:expired';
+  return '';
+};
+
+const queueBlocker = (entry, checkedAt) => {
+  const scheduleBlocker = queueScheduleBlocker(entry, checkedAt);
+  if (scheduleBlocker) return scheduleBlocker;
   if (entry?.metadata?.claims_verified !== true) return 'claims_not_verified';
   const poll = readQueuePoll(entry);
   if (!poll.ok) return `poll_validation:${poll.reason}`;
@@ -134,7 +264,7 @@ export const buildSocialHealthSummary = ({
 } = {}) => {
   const blockers = queue.map((entry) => ({
     contentKey: boundedText(entry?.content_key, 100),
-    reason: queueBlocker(entry)
+    reason: queueBlocker(entry, checkedAt)
   })).filter((entry) => entry.reason).concat(mediaSourceBlockers.map((entry) => ({
     contentKey: boundedText(entry?.contentKey, 100),
     reason: boundedText(entry?.reason, 100)
@@ -147,9 +277,13 @@ export const buildSocialHealthSummary = ({
   const eventCounts = {};
   const sessions = new Set();
   const xSessions = new Set();
+  const testSessions = new Set(events.filter(isTestProductEvent).map((event) => (
+    boundedText(event?.session_id, 100)
+  )).filter(Boolean));
   for (const event of events) {
-    const eventName = boundedText(event?.event_name, 48) || 'unknown';
     const sessionId = boundedText(event?.session_id, 100);
+    if (isTestProductEvent(event) || testSessions.has(sessionId)) continue;
+    const eventName = boundedText(event?.event_name, 48) || 'unknown';
     const properties = objectValue(event?.properties);
     eventCounts[eventName] = (eventCounts[eventName] || 0) + 1;
     if (sessionId) sessions.add(sessionId);
@@ -171,12 +305,14 @@ export const buildSocialHealthSummary = ({
     },
     actions: {
       total: actions.length,
-      byStatus: actionStatuses
+      byStatus: actionStatuses,
+      recentPublished: buildRecentPublishedSummary(actions)
     },
     conversion: {
       sessions: sessions.size,
       xSessions: xSessions.size,
-      eventCounts
+      eventCounts,
+      campaigns: buildCampaignConversionSummary(events)
     },
     weeklyLeaderboard: {
       entries: weeklyScores.length,
@@ -212,7 +348,7 @@ export const readSocialHealth = async ({
   const rest = `${origin}/rest/v1`;
   const [queue, actions, events, leaderboard] = await Promise.all([
     fetchJson(`${rest}/scicon_social_content_queue?select=*&status=eq.queued&order=priority.desc,not_before.asc&limit=100`, { headers, fetchImpl }),
-    fetchJson(`${rest}/scicon_social_actions?select=status,reason,published_at,created_at&created_at=gte.${encodeURIComponent(since.toISOString())}&order=created_at.desc&limit=500`, { headers, fetchImpl }),
+    fetchJson(`${rest}/scicon_social_actions?select=status,reason,action_type,x_post_id,published_at,created_at,metadata&created_at=gte.${encodeURIComponent(since.toISOString())}&order=created_at.desc&limit=500`, { headers, fetchImpl }),
     fetchJson(`${rest}/scicon_product_events?select=event_name,session_id,properties,occurred_at&occurred_at=gte.${encodeURIComponent(since.toISOString())}&order=occurred_at.asc&limit=5000`, { headers, fetchImpl }),
     fetchJson('https://www.sciconshooter.xyz/api/leaderboard', { fetchImpl })
   ]);
