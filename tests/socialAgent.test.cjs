@@ -17,6 +17,7 @@ const {
   buildLearningSummary,
   buildWeeklyThread,
   chooseQueuedPost,
+  ensureEvergreenQueue,
   processMentions,
   processQueuedOriginal,
   processWeeklyWinner,
@@ -26,6 +27,10 @@ const {
   syncPublishedMetrics
 } = require('../api/_lib/socialAgent');
 const { createSocialStore } = require('../api/_lib/socialAgentStore');
+const {
+  buildEvergreenCandidates,
+  pacificDateTimeToUtc
+} = require('../api/_lib/socialAgentEvergreen');
 
 const TEST_X_ENV = {
   X_API_KEY: 'api-key',
@@ -242,6 +247,95 @@ test('conversion learning reads only bounded product-funnel events', async () =>
     assert.match(calls[0].path, /occurred_at=gte\.2026-08-01T00%3A00%3A00\.000Z/);
     assert.match(calls[0].path, /order=occurred_at\.desc/);
     assert.match(calls[0].path, /limit=5000$/);
+  } finally {
+    if (previousKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    else process.env.SUPABASE_SERVICE_ROLE_KEY = previousKey;
+  }
+});
+
+test('evergreen candidates cover two Pacific slots with verified bounded alternatives', () => {
+  const entries = buildEvergreenCandidates({ startDateKey: '2026-08-31', days: 8 });
+  assert.equal(entries.length, 42);
+  assert.equal(new Set(entries.map((entry) => entry.content_key)).size, entries.length);
+  assert.equal(new Set(entries.map((entry) => entry.metadata.campaign_content)).size, entries.length);
+  assert.deepEqual(
+    entries.slice(0, 3).map((entry) => entry.not_before),
+    Array(3).fill('2026-08-31T16:00:00.000Z')
+  );
+  assert.deepEqual(entries.slice(0, 3).map((entry) => entry.priority), [10, 9, 8]);
+  assert.deepEqual(
+    entries.slice(3, 6).map((entry) => entry.not_before),
+    Array(3).fill('2026-08-31T23:00:00.000Z')
+  );
+  assert.ok(entries.every((entry) => entry.metadata.claims_verified === true));
+  assert.ok(entries.every((entry) => validateOriginalPost(`${entry.post_text}\n${entry.link_url}`).ok));
+  assert.ok(entries.every((entry) => new Date(entry.not_after) > new Date(entry.not_before)));
+  assert.equal(pacificDateTimeToUtc('2026-08-31', 9).toISOString(), '2026-08-31T16:00:00.000Z');
+  assert.equal(pacificDateTimeToUtc('2026-11-02', 9).toISOString(), '2026-11-02T17:00:00.000Z');
+});
+
+test('evergreen refill respects a healthy horizon and seeds only after a low horizon', async () => {
+  const calls = { paused: 0, inserted: [] };
+  const store = {
+    async pauseExpiredQueuedPosts() { calls.paused += 1; return 2; },
+    async getQueueHorizon() { return { not_before: '2026-08-31T23:00:00.000Z' }; },
+    async insertQueuedPosts(entries) { calls.inserted = entries; return entries; }
+  };
+  const healthy = await ensureEvergreenQueue({
+    store,
+    now: new Date('2026-08-21T17:00:00.000Z')
+  });
+  assert.equal(healthy.reason, 'horizon_healthy');
+  assert.equal(calls.inserted.length, 0);
+
+  const refilled = await ensureEvergreenQueue({
+    store,
+    now: new Date('2026-08-29T17:00:00.000Z')
+  });
+  assert.equal(refilled.reason, 'refilled');
+  assert.equal(refilled.startDateKey, '2026-09-01');
+  assert.equal(refilled.inserted, calls.inserted.length);
+  assert.ok(calls.inserted.length > 0);
+  assert.ok(calls.inserted.every((entry) => entry.not_before >= '2026-09-01'));
+
+  const disabled = await ensureEvergreenQueue({
+    store,
+    environment: { X_AGENT_EVERGREEN_ENABLED: 'false' },
+    now: new Date('2026-08-29T17:00:00.000Z')
+  });
+  assert.equal(disabled.reason, 'disabled');
+});
+
+test('evergreen store operations stay service-only, bounded, and idempotent', async () => {
+  const calls = [];
+  const previousKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key';
+  try {
+    const store = createSocialStore({
+      async fetchJson(path, options = {}) {
+        calls.push({ path, options });
+        if (options.method === 'POST') return JSON.parse(options.body);
+        if (options.method === 'PATCH') return [{ content_key: 'expired' }];
+        return [{ not_before: '2026-09-01T16:00:00.000Z', not_after: '2026-09-01T21:59:00.000Z' }];
+      }
+    });
+    const horizon = await store.getQueueHorizon('2026-08-29T17:00:00.000Z');
+    assert.equal(horizon.not_before, '2026-09-01T16:00:00.000Z');
+    assert.match(calls[0].path, /status=eq\.queued/);
+    assert.match(calls[0].path, /order=not_before\.desc/);
+
+    const paused = await store.pauseExpiredQueuedPosts('2026-08-29T17:00:00.000Z');
+    assert.equal(paused, 1);
+    assert.equal(calls[1].options.method, 'PATCH');
+    assert.match(calls[1].path, /not_after=lt\.2026-08-29T17%3A00%3A00\.000Z/);
+    assert.deepEqual(JSON.parse(calls[1].options.body).status, 'paused');
+
+    const candidate = buildEvergreenCandidates({ startDateKey: '2026-09-01', days: 1 })[0];
+    const inserted = await store.insertQueuedPosts([candidate]);
+    assert.equal(inserted.length, 1);
+    assert.equal(calls[2].options.method, 'POST');
+    assert.match(calls[2].path, /on_conflict=content_key/);
+    assert.match(calls[2].options.headers.Prefer, /resolution=ignore-duplicates/);
   } finally {
     if (previousKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
     else process.env.SUPABASE_SERVICE_ROLE_KEY = previousKey;

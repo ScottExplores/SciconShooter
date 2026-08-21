@@ -2,6 +2,11 @@ const { isAuthorized, sendJson } = require('./weeklyCompetitionService');
 const { createXClient } = require('./xApi');
 const { generateReply } = require('./socialAgentModel');
 const {
+  addDateKeyDays,
+  buildEvergreenCandidates,
+  pacificParts
+} = require('./socialAgentEvergreen');
+const {
   classifyMention,
   deterministicReply,
   validateOriginalPost,
@@ -18,6 +23,8 @@ const MIN_ATTRIBUTED_SESSIONS = 3;
 const MIN_POLL_DURATION_MINUTES = 5;
 const MAX_POLL_DURATION_MINUTES = 10_080;
 const MAX_POLL_OPTION_LENGTH = 25;
+const EVERGREEN_REFILL_THRESHOLD_MS = 3 * 24 * 60 * 60 * 1000;
+const EVERGREEN_REFILL_DAYS = 8;
 
 const comparePostIds = (left, right) => {
   try {
@@ -293,6 +300,60 @@ const buildWeeklyThread = (competition) => {
       proposalUrl
     ].join('\n\n'),
     reply: `Think you can beat ${formattedScore}?\n\nPlay Scicon Shooter and reply with your score:\n${GAME_URL}`
+  };
+};
+
+const ensureEvergreenQueue = async ({ store, environment = process.env, now = new Date() }) => {
+  if (String(environment.X_AGENT_EVERGREEN_ENABLED || 'true').toLowerCase() === 'false') {
+    return { enabled: false, inserted: 0, paused: 0, reason: 'disabled' };
+  }
+  if (
+    typeof store?.getQueueHorizon !== 'function'
+    || typeof store?.pauseExpiredQueuedPosts !== 'function'
+    || typeof store?.insertQueuedPosts !== 'function'
+  ) {
+    return { enabled: false, inserted: 0, paused: 0, reason: 'store_unsupported' };
+  }
+
+  const nowIso = now.toISOString();
+  const paused = await store.pauseExpiredQueuedPosts(nowIso);
+  const horizon = await store.getQueueHorizon(nowIso);
+  const horizonTime = Date.parse(horizon?.not_before || '');
+  if (
+    Number.isFinite(horizonTime)
+    && horizonTime > now.getTime() + EVERGREEN_REFILL_THRESHOLD_MS
+  ) {
+    return {
+      enabled: true,
+      inserted: 0,
+      paused,
+      reason: 'horizon_healthy',
+      horizon: new Date(horizonTime).toISOString()
+    };
+  }
+
+  const startParts = pacificParts(Number.isFinite(horizonTime) ? new Date(horizonTime) : now);
+  const baseDateKey = `${startParts.year}-${startParts.month}-${startParts.day}`;
+  const startDateKey = Number.isFinite(horizonTime) ? addDateKeyDays(baseDateKey, 1) : baseDateKey;
+  const candidates = buildEvergreenCandidates({
+    startDateKey,
+    days: EVERGREEN_REFILL_DAYS
+  });
+  const invalidCandidate = candidates.find((candidate) => (
+    candidate?.metadata?.claims_verified !== true
+    || !validateOriginalPost(buildQueuedPostText(candidate)).ok
+  ));
+  if (invalidCandidate) {
+    throw new Error(`Evergreen candidate failed validation: ${invalidCandidate.content_key || 'unknown'}`);
+  }
+  const inserted = await store.insertQueuedPosts(candidates);
+  return {
+    enabled: true,
+    inserted: inserted.length,
+    attempted: candidates.length,
+    paused,
+    reason: inserted.length > 0 ? 'refilled' : 'already_seeded',
+    startDateKey
   };
 };
 
@@ -664,6 +725,12 @@ const runSocialAgent = async ({
   const activeStore = store || createSocialStore();
   const output = { enabled: true, mode };
   if (mode === 'daily' || mode === 'all') {
+    try {
+      output.refill = await ensureEvergreenQueue({ store: activeStore, environment, now });
+    } catch (error) {
+      console.error('X evergreen refill failed; continuing with the existing queue:', error);
+      output.refill = { enabled: true, inserted: 0, reason: 'refill_failed' };
+    }
     output.mentions = await processMentions({ client: activeClient, store: activeStore, environment, now });
     output.original = await processQueuedOriginal({ client: activeClient, store: activeStore, environment, now });
     output.metrics = await syncPublishedMetrics({ client: activeClient, store: activeStore, environment, now });
@@ -696,6 +763,7 @@ module.exports = {
   buildLearningSummary,
   buildWeeklyThread,
   chooseQueuedPost,
+  ensureEvergreenQueue,
   processMentions,
   processQueuedOriginal,
   processWeeklyWinner,
