@@ -261,3 +261,14 @@ PR #22 merged as `d30d82bd` and deployed as `sciconshooter-rf6nmw97n`. Migration
 - `competition`, `boss`, `loadout`, `progression`, and `onboarding`: 2 queued posts each.
 - Post copy, URLs, schedules, priorities, claim verification, and publishing status were not changed.
 - Supabase security and performance advisors reported no new issue tied to this migration; existing informational RLS-with-no-policy and index notices remain outside this social taxonomy change.
+
+## Direct-mention reply readiness
+
+Production environment inspection on August 21 confirmed the X credentials, autonomy flag, reply cap, account ID, and model name are attached as encrypted variables. `OPENAI_API_KEY` is not attached, so PR #23 added context-aware deterministic replies rather than leaving direct contacts with generic fallback copy.
+
+- Play-link questions receive the official game URL and a score challenge.
+- Funding questions receive the verified weekly 100 RSC Funding Credits mechanism without claiming a prize or partnership.
+- Funding-status questions explicitly separate proposal selection from transaction-confirmed completion.
+- Boss, controls, loadout, and bug feedback receive one specific follow-up question.
+- Existing limits remain: direct mentions/replies only, maximum configured replies per day, no hashtags, no unapproved URLs, no secret requests, and no unsupported claims.
+- Verification: 14 focused social tests, ESLint, and TypeScript passed. PR #23 merged as `45ce55a4` and production deployment `sciconshooter-8fkvbzi9m` is ready; the public endpoint still returns `401`.
