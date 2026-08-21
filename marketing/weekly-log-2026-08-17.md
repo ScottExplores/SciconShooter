@@ -485,3 +485,7 @@ PR #39 merged as `ecbb5765` and production deployment `dpl_2j9PMc4hQdNRTyDGj2uHm
 ### Public X account baseline
 
 A read-only browser check at 1:30 PM Pacific verified the public `@SciconShooter` profile before the first automated runtime: 12 posts, 4 followers, 38 following, branded avatar and header, verified-account badge, live game URL, and the bio `DeSci-inspired arcade shooter, community-built on Base. Play games. Fund science. New ships, squad upgrades, bosses and weekly competition.` The pinned August 5 launch post showed 37 views and one like; later August 11-13 originals showed 3-7 views. Existing short replies had views but no visible replies, so they do not prove conversation quality or player conversion. No profile or X state was changed during this audit.
+
+### Morning queue expiry bounds
+
+Eight manually seeded 9:00 AM Pacific rows had no `not_after` value and could have drifted into later slots after a missed runtime. At 1:31 PM Pacific each was bounded to 3:59 PM on its intended day: `weekly-board-reset-v1`, `rsc-allocation-explainer-v1`, `boss-archive-runback-v1`, `squad-bad-decisions-v1`, `campaign-meet-enormous-v1`, `guest-bullets-optional-wallet-v1`, `third-run-personal-v1`, and `weekly-science-loop-v1`. Copy, links, priorities, and publication status were unchanged. The immediate live audit remained 19 queued posts with zero policy or media-source blockers.
