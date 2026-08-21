@@ -561,3 +561,7 @@ PR #41 opened from clean release commit `604864d7`. Clean-release verification p
 ### Exact runtime-row evidence
 
 The local social audit's bounded `recentPublished` output now includes the action metadata's queue `contentKey` alongside the public post ID, URL, campaign, type, timestamp, and public metrics. This allows the 4:00 PM verification to prove `score-means-something-v1` itself published instead of inferring a match from copy or UTM. Focused verification passed 3/3 tests with zero targeted ESLint errors. The 2:03 PM Pacific baseline remained 19 queued posts, zero blockers, and no recent published action.
+
+### Native image claim-audit gate
+
+The same per-item `claims_audited=true` requirement previously enforced for video now applies to every queued image. Missing evidence fails closed as `media_validation:image_claims` before upload or action reservation. All four PNGs across `desktop-browser-score-share-v1`, `boss-archive-runback-v1`, and `squad-bad-decisions-v1` were manually inspected first; only those three unchanged queued rows were then marked audited. Verification passed 33/33 focused social and audit tests, targeted ESLint, and TypeScript. The 2:08 PM Pacific live audit reported 19 queued posts with zero blockers, proving every active media row carries the new evidence.

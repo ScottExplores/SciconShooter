@@ -288,12 +288,22 @@ test('queue media accepts only bounded first-party images or one MP4 with alt te
   assert.deepEqual(readQueueMedia({ requires_media: false }), { ok: true, media: [] });
   assert.equal(readQueueMedia({
     requires_media: true,
-    metadata: { media: { source_url: 'https://example.com/image.png', alt_text: 'Nope' } }
+    metadata: { media: { claims_audited: true, source_url: 'https://example.com/image.png', alt_text: 'Nope' } }
   }).reason, 'source_url');
   assert.equal(readQueueMedia({
     requires_media: true,
-    metadata: { media: { source_url: 'https://www.sciconshooter.xyz/social-assets/hangar.png' } }
+    metadata: { media: { claims_audited: true, source_url: 'https://www.sciconshooter.xyz/social-assets/hangar.png' } }
   }).reason, 'alt_text');
+  assert.equal(readQueueMedia({
+    requires_media: true,
+    metadata: {
+      media: {
+        claims_audited: true,
+        source_url: 'https://www.sciconshooter.xyz/social-assets/hangar.png',
+        alt_text: 'Scicon Shooter Hangar'
+      }
+    }
+  }).ok, true);
   assert.equal(readQueueMedia({
     requires_media: true,
     metadata: {
@@ -302,7 +312,7 @@ test('queue media accepts only bounded first-party images or one MP4 with alt te
         alt_text: 'Scicon Shooter Hangar'
       }
     }
-  }).ok, true);
+  }).reason, 'image_claims');
   const video = readQueueMedia({
     requires_media: true,
     metadata: {
@@ -338,7 +348,7 @@ test('queue media accepts only bounded first-party images or one MP4 with alt te
     metadata: {
       media: [
         { kind: 'video', claims_audited: true, source_url: 'https://www.sciconshooter.xyz/social-assets/gameplay.mp4', alt_text: 'Gameplay' },
-        { source_url: 'https://www.sciconshooter.xyz/social-assets/hangar.png', alt_text: 'Hangar' }
+        { claims_audited: true, source_url: 'https://www.sciconshooter.xyz/social-assets/hangar.png', alt_text: 'Hangar' }
       ]
     }
   }).reason, 'video_count');
@@ -878,6 +888,7 @@ test('queued originals upload verified native media before publishing', async ()
     metadata: {
       claims_verified: true,
       media: {
+        claims_audited: true,
         source_url: 'https://www.sciconshooter.xyz/social-assets/hangar.png',
         alt_text: 'Scicon Shooter Hangar'
       }
