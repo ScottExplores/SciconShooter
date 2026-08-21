@@ -167,12 +167,14 @@ The live queue was also corrected before publication: literal `\n` escape text i
 
 ### Wednesday, August 26 at 4:00 PM Pacific
 
-> Squad draft: damage, speed, or survival? You get one main ship and two mini-ships. Reply with the build you trust when the screen fills with bullets.
+> Squad draft. You get one main ship and two mini-ships. What are you optimizing when the screen fills with bullets?
 
 - Content key: `squad-draft-v1`
-- URL: none; this is a link-free conversation test.
+- Native poll options: `Damage`, `Speed`, `Survival`, `Maximum chaos`.
+- Poll duration: 1,440 minutes (24 hours).
+- URL: none; voting is the single requested action.
 - Verification: production `SquadHangar` implementation.
-- Reply goal: ship builds and player priorities.
+- Response goal: votes, ship-build replies, and player priorities.
 
 ### Thursday, August 27 at 4:00 PM Pacific
 
@@ -210,3 +212,7 @@ The live queue was also corrected before publication: literal `\n` escape text i
 - Verification: production README and weekly competition records with `allocation_rsc=100`.
 - Funding status wording: selection right and allocation mechanism only; no completed-funding claim.
 - Reply goal: questions and reactions to the game-to-science mechanism.
+
+## Native poll capability
+
+PR #19 added bounded native-poll support through the existing official X create-post endpoint. Production deployment `dpl_W3enT4vPBDaC9NAEFDzvuKz1ZJAy` is ready on August 21, 2026. Queue-authored polls must contain two to four unique string options of at most 25 characters and run for 5 to 10,080 minutes. Invalid poll metadata stops before action reservation or publication, and accepted poll choices are retained in the social audit metadata.
