@@ -2,7 +2,6 @@ const { isAuthorized, sendJson } = require('./weeklyCompetitionService');
 const { createXClient } = require('./xApi');
 const { generateReply } = require('./socialAgentModel');
 const {
-  addDateKeyDays,
   buildEvergreenCandidates,
   pacificParts
 } = require('./socialAgentEvergreen');
@@ -358,11 +357,18 @@ const ensureEvergreenQueue = async ({ store, environment = process.env, now = ne
 
   const startParts = pacificParts(Number.isFinite(horizonTime) ? new Date(horizonTime) : now);
   const baseDateKey = `${startParts.year}-${startParts.month}-${startParts.day}`;
-  const startDateKey = Number.isFinite(horizonTime) ? addDateKeyDays(baseDateKey, 1) : baseDateKey;
   const candidates = buildEvergreenCandidates({
-    startDateKey,
+    startDateKey: baseDateKey,
     days: EVERGREEN_REFILL_DAYS
+  }).filter((candidate) => {
+    const notBefore = Date.parse(candidate.not_before);
+    const notAfter = Date.parse(candidate.not_after);
+    return Number.isFinite(horizonTime)
+      ? notBefore > horizonTime
+      : notAfter >= now.getTime();
   });
+  const firstCandidateParts = pacificParts(new Date(candidates[0]?.not_before || now));
+  const startDateKey = `${firstCandidateParts.year}-${firstCandidateParts.month}-${firstCandidateParts.day}`;
   const invalidCandidate = candidates.find((candidate) => (
     candidate?.metadata?.claims_verified !== true
     || !validateOriginalPost(buildQueuedPostText(candidate)).ok

@@ -300,6 +300,16 @@ test('evergreen refill respects a healthy horizon and seeds only after a low hor
   assert.ok(calls.inserted.length > 0);
   assert.ok(calls.inserted.every((entry) => entry.not_before >= '2026-09-01'));
 
+  store.getQueueHorizon = async () => ({ not_before: '2026-09-01T16:00:00.000Z' });
+  const partialDay = await ensureEvergreenQueue({
+    store,
+    now: new Date('2026-08-30T17:00:00.000Z')
+  });
+  assert.equal(partialDay.reason, 'refilled');
+  assert.equal(partialDay.startDateKey, '2026-09-01');
+  assert.equal(calls.inserted[0].not_before, '2026-09-01T23:00:00.000Z');
+  assert.ok(calls.inserted.every((entry) => entry.not_before > '2026-09-01T16:00:00.000Z'));
+
   const disabled = await ensureEvergreenQueue({
     store,
     environment: { X_AGENT_EVERGREEN_ENABLED: 'false' },
