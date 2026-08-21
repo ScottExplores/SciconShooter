@@ -224,7 +224,9 @@ const getWeeklyRunOutcomeLimits = (stage) => {
     eliteKillCeiling: nonBossKillCeiling,
     miniBossKillCeiling: stage.kind === 'elite' && stage.bossId ? 1 : 0,
     majorBossKillCeiling: stage.kind === 'major' && stage.bossId ? 1 : 0,
-    minimumElapsedMs: Math.max(1_000, Math.floor(combatWaveCount * 16_000 * 0.8)),
+    // Generated waves can clear as soon as every spawned enemy is defeated.
+    // Their 16-second duration is a timeout, not a minimum play time.
+    minimumElapsedMs: Math.max(1_500, combatWaveCount * 1_500),
     parTimeMs: null,
     masteryObjectives: []
   };
