@@ -185,12 +185,13 @@ The live queue was also corrected before publication: literal `\n` escape text i
 
 ### Wednesday, August 26 at 4:00 PM Pacific
 
-> Squad draft. You get one main ship and two mini-ships. What are you optimizing when the screen fills with bullets?
+> Squad draft: one main ship, two mini-ships. What are you optimizing when the screen fills with bullets?
+> https://www.sciconshooter.xyz/?utm_source=x&utm_medium=social&utm_campaign=growth-sprint-2026-08&utm_content=squad-draft
 
 - Content key: `squad-draft-v1`
 - Native poll options: `Damage`, `Speed`, `Survival`, `Maximum chaos`.
 - Poll duration: 1,440 minutes (24 hours).
-- URL: none; voting is the single requested action.
+- URL: `https://www.sciconshooter.xyz/?utm_source=x&utm_medium=social&utm_campaign=growth-sprint-2026-08&utm_content=squad-draft`
 - Verification: production `SquadHangar` implementation.
 - Response goal: votes, ship-build replies, and player priorities.
 
@@ -319,3 +320,15 @@ PR #27 merged as `bd432b16` and production deployment `sciconshooter-f9oydb5bd` 
 - Existing boundary: the proposal spotlight remains queued for September 1 at 9:00 AM Pacific with its full ResearchHub URL; generated posts continue to use the official game URL with attributed campaign parameters.
 - Verification: all 20 focused social-agent tests passed, including a morning-only horizon regression; TypeScript passed and ESLint reported zero errors with 19 pre-existing warnings.
 - Production boundary: the deployment is ready and the public social endpoint returned `401 Unauthorized` at August 21, 11:03 AM Pacific.
+
+## Pre-publication live audit
+
+Live production evidence checked August 21 at 11:04 AM Pacific:
+
+- Social actions: no published, failed, or skipped actions yet; the 4:00 PM Pacific post remains the first credentialed runtime attempt.
+- X attribution: no attributed sessions yet, so no content-performance conclusion is available.
+- Seven-day product baseline: 17 app-open sessions, three mission-start sessions, and no score submissions. These totals are directional and include all traffic sources.
+- Active August 16-23 competition: zero eligible leaderboard runs at audit time. The leaderboard is awaiting finalization; no winner or champion claim is permitted.
+- Queue correction: `third-run-personal-v1` and `weekly-science-loop-v1` now contain real paragraph breaks rather than visible backslash escapes.
+- Poll experiment: `squad-draft-v1` is a 24-hour native poll scheduled for Wednesday, August 26 at 4:00 PM Pacific with `Damage`, `Speed`, `Survival`, and `Maximum chaos` options plus its attributed game URL.
+- Browser note: the signed-in X tab displayed X's privacy-extension error, so account inspection remains API-led rather than browser-led.
