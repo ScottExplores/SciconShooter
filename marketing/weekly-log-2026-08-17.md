@@ -205,10 +205,11 @@ The live queue was also corrected before publication: literal `\n` escape text i
 
 ### Monday, August 31 at 4:00 PM Pacific
 
-> Top the verified weekly board and you can choose an eligible ResearchHub proposal for the round's 100 RSC funding-credit allocation. An objectively strange machine. Good. Test it.
+> Top the verified weekly board and you can choose an eligible @ResearchHub proposal for the round's 100 RSC funding-credit allocation. An objectively strange machine. Good. Test it.
 > https://www.sciconshooter.xyz/?utm_source=x&utm_medium=social&utm_campaign=growth-sprint-2026-08&utm_content=strange-machine
 
 - Content key: `strange-science-machine-v1`
+- Tagged account: `@ResearchHub`, verified through ResearchHub's official documentation links page.
 - Verification: production README and weekly competition records with `allocation_rsc=100`.
 - Funding status wording: selection right and allocation mechanism only; no completed-funding claim.
 - Reply goal: questions and reactions to the game-to-science mechanism.
