@@ -332,6 +332,47 @@ test('a guest Weekly Run proof survives score and automatic advance in the same 
   }
 });
 
+test('a fast legitimate Weekly Run clear can create a verified receipt', async () => {
+  clearWeeklyRunAttemptMemoryForTests();
+  const issuedAt = Date.now() - 15_000;
+  const boundary = getWeeklyBoundaryMeta(new Date(issuedAt));
+  const run = browser.generator.buildWeeklyRunCampaign(boundary.weekKey, undefined, 1);
+  const graph = browser.graph.createCampaignGraphIndex(run);
+  const entryNode = graph.nodeById.get(graph.definition.entryNodeId);
+  let state = browser.streak.startWeeklyCampaignStreak(graph, {
+    weeklyId: boundary.weekKey,
+    resetAtMs: boundary.endsAt.getTime(),
+    startNodeId: entryNode.nodeId,
+    unlockedNodeIds: [entryNode.nodeId],
+    nowMs: issuedAt - 1_000
+  });
+  const session = await createReservedRunStart('weekly-fast-clear-test', {
+    runMode: 'weekly-streak',
+    profileId: 'pilot:weekly-fast-clear',
+    weeklyCampaignProof: state,
+    nowMs: issuedAt
+  });
+  state = browser.streak.recordWeeklyCampaignNodeScore(state, graph, {
+    eventId: 'weekly-fast-clear-depth-1',
+    nodeId: entryNode.nodeId,
+    occurredAtMs: issuedAt + 9_000,
+    outcome: {
+      ...outcomeForNode(run, entryNode),
+      elapsedMs: 9_000
+    }
+  });
+  state = browser.streak.finalizeWeeklyCampaignLoss(state, issuedAt + 9_001);
+
+  const receipt = await finishRun(session.startToken, {
+    playerShipId: 'researchhub',
+    weeklyCampaignProof: state
+  }, { headers: {}, socket: { remoteAddress: '127.0.0.1' } });
+
+  assert.equal(receipt.integrity, 'server-verified');
+  assert.deepEqual(receipt.anomalies, []);
+  assert.equal(receipt.metrics.wave, 1);
+});
+
 test('a deep generated Weekly Run receipt is not capped by authored Campaign mission count', async () => {
   const issuedAt = Date.now();
   const generated = activeGeneratedStreak({ now: issuedAt, depth: 30 });
