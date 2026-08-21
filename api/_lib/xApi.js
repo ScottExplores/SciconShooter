@@ -123,9 +123,10 @@ const createXClient = ({
       });
     },
 
-    async createPost({ text, replyToId }) {
+    async createPost({ text, replyToId, poll }) {
       const body = { text };
       if (replyToId) body.reply = { in_reply_to_tweet_id: String(replyToId) };
+      if (poll) body.poll = poll;
       const payload = await request('/tweets', { method: 'POST', body });
       return payload?.data || null;
     }
