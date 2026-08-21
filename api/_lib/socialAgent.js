@@ -22,6 +22,8 @@ const MIN_ATTRIBUTED_SESSIONS = 3;
 const MIN_POLL_DURATION_MINUTES = 5;
 const MAX_POLL_DURATION_MINUTES = 10_080;
 const MAX_POLL_OPTION_LENGTH = 25;
+const MAX_MEDIA_ALT_TEXT_LENGTH = 1_000;
+const MAX_MEDIA_IMAGES = 4;
 const ATTRIBUTION_EVENT_NAMES = new Set(['app_opened', 'desktop_launch_viewed']);
 const EVERGREEN_REFILL_THRESHOLD_MS = 3 * 24 * 60 * 60 * 1000;
 const EVERGREEN_REFILL_DAYS = 8;
@@ -109,6 +111,40 @@ const readQueuePoll = (entry) => {
     return { ok: false, reason: 'duration' };
   }
   return { ok: true, poll: { options, duration_minutes: durationMinutes } };
+};
+
+const readQueueMedia = (entry) => {
+  if (!entry?.requires_media) return { ok: true, media: [] };
+  const raw = entry?.metadata?.media;
+  const items = Array.isArray(raw) ? raw : raw ? [raw] : [];
+  if (items.length < 1 || items.length > MAX_MEDIA_IMAGES) {
+    return { ok: false, reason: 'image_count' };
+  }
+  const media = [];
+  for (const item of items) {
+    const sourceUrl = String(item?.source_url || '').trim();
+    const altText = String(item?.alt_text || '').trim();
+    let source;
+    try {
+      source = new URL(sourceUrl);
+    } catch {
+      return { ok: false, reason: 'source_url' };
+    }
+    if (
+      source.protocol !== 'https:'
+      || source.hostname !== 'www.sciconshooter.xyz'
+      || !source.pathname.startsWith('/social-assets/')
+      || source.search
+      || source.hash
+    ) {
+      return { ok: false, reason: 'source_url' };
+    }
+    if (!altText || altText.length > MAX_MEDIA_ALT_TEXT_LENGTH) {
+      return { ok: false, reason: 'alt_text' };
+    }
+    media.push({ sourceUrl: source.toString(), altText });
+  }
+  return { ok: true, media };
 };
 
 const metricNumber = (metrics, key) => Math.max(0, Number(metrics?.[key]) || 0);
@@ -388,9 +424,13 @@ const ensureEvergreenQueue = async ({ store, environment = process.env, now = ne
   };
 };
 
-const publishReservedAction = async ({ client, store, key, text, replyToId, poll, metadata }) => {
+const publishReservedAction = async ({ client, store, key, text, replyToId, poll, media, metadata }) => {
   try {
-    const post = await client.createPost({ text, replyToId, poll });
+    const mediaIds = [];
+    for (const image of media || []) {
+      mediaIds.push(await client.uploadImageFromUrl(image));
+    }
+    const post = await client.createPost({ text, replyToId, poll, mediaIds });
     if (!post?.id) throw new Error('X did not return a post ID.');
     const action = await store.updateAction(key, {
       status: 'published',
@@ -560,12 +600,16 @@ const processQueuedOriginal = async ({ client, store, environment = process.env,
   if (entry?.metadata?.claims_verified !== true) {
     return { published: false, reason: 'claims_not_verified', contentKey: entry.content_key };
   }
-  if (entry.requires_media) {
-    return { published: false, reason: 'media_requires_review', contentKey: entry.content_key };
-  }
   const pollValidation = readQueuePoll(entry);
   if (!pollValidation.ok) {
     return { published: false, reason: `poll_validation:${pollValidation.reason}`, contentKey: entry.content_key };
+  }
+  const mediaValidation = readQueueMedia(entry);
+  if (!mediaValidation.ok) {
+    return { published: false, reason: `media_validation:${mediaValidation.reason}`, contentKey: entry.content_key };
+  }
+  if (pollValidation.poll && mediaValidation.media.length > 0) {
+    return { published: false, reason: 'media_validation:poll_conflict', contentKey: entry.content_key };
   }
   const text = buildQueuedPostText(entry);
   const allowResearchHubProposal = entry?.metadata?.allow_researchhub_proposal === true;
@@ -594,7 +638,8 @@ const processQueuedOriginal = async ({ client, store, environment = process.env,
       learningSource: conversionLearning.some((item) => item.eligible)
         ? 'product_conversion'
         : learning.some((item) => item.eligible) ? 'x_engagement' : 'none',
-      poll: pollValidation.poll
+      poll: pollValidation.poll,
+      nativeMediaCount: mediaValidation.media.length
     }
   });
   if (!reserved) return { published: false, reason: 'duplicate_reservation', contentKey: entry.content_key };
@@ -605,6 +650,7 @@ const processQueuedOriginal = async ({ client, store, environment = process.env,
     key,
     text: validation.text,
     poll: pollValidation.poll,
+    media: mediaValidation.media,
     metadata: reserved.metadata
   });
   await store.markQueuedPostPublished(entry.content_key, published.action?.id || reserved.id);
@@ -810,6 +856,7 @@ module.exports = {
   processQueuedOriginal,
   processWeeklyWinner,
   readPollSnapshot,
+  readQueueMedia,
   readQueuePoll,
   runSocialAgent,
   socialAgentHandler,

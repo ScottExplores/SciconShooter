@@ -3,7 +3,12 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { createOAuthHeader, createXClient } = require('../api/_lib/xApi');
+const {
+  X_MEDIA_METADATA_URL,
+  X_MEDIA_UPLOAD_URL,
+  createOAuthHeader,
+  createXClient
+} = require('../api/_lib/xApi');
 const {
   classifyMention,
   deterministicReply,
@@ -24,6 +29,7 @@ const {
   processQueuedOriginal,
   processWeeklyWinner,
   readPollSnapshot,
+  readQueueMedia,
   readQueuePoll,
   runSocialAgent,
   syncPublishedMetrics
@@ -147,6 +153,102 @@ test('X client uses the official API with OAuth user context and creates replies
   assert.equal(timelineUrl.searchParams.get('expansions'), 'attachments.poll_ids');
   assert.match(timelineUrl.searchParams.get('tweet.fields'), /attachments/);
   assert.match(timelineUrl.searchParams.get('poll.fields'), /options/);
+});
+
+test('X client uploads an allowlisted image with alt text and attaches its media ID', async () => {
+  const calls = [];
+  const responses = [
+    {
+      ok: true,
+      status: 200,
+      headers: { get: (name) => name === 'content-type' ? 'image/png' : name === 'content-length' ? '4' : null },
+      async arrayBuffer() { return Uint8Array.from([1, 2, 3, 4]).buffer; }
+    },
+    {
+      ok: true,
+      status: 200,
+      async text() { return JSON.stringify({ media_id_string: '1234567890' }); }
+    },
+    { ok: true, status: 200, async text() { return ''; } },
+    {
+      ok: true,
+      status: 201,
+      async text() { return JSON.stringify({ data: { id: 'post-with-media', text: 'Hangar update' } }); }
+    }
+  ];
+  const client = createXClient({
+    environment: TEST_X_ENV,
+    nonceFactory: () => 'nonce',
+    now: () => 1_700_000_000_000,
+    fetchImpl: async (url, options) => {
+      calls.push({ url: String(url), options });
+      return responses.shift();
+    }
+  });
+
+  const mediaId = await client.uploadImageFromUrl({
+    sourceUrl: 'https://www.sciconshooter.xyz/social-assets/hangar.png',
+    altText: 'Scicon Shooter Hangar showing the RSC ship and mini-ship slots.'
+  });
+  await client.createPost({ text: 'Hangar update', mediaIds: [mediaId] });
+
+  assert.equal(mediaId, '1234567890');
+  assert.equal(calls[1].url, X_MEDIA_UPLOAD_URL);
+  assert.equal(calls[1].options.body instanceof FormData, true);
+  assert.match(calls[1].options.headers.Authorization, /^OAuth /);
+  assert.equal(calls[2].url, X_MEDIA_METADATA_URL);
+  assert.deepEqual(JSON.parse(calls[2].options.body), {
+    media_id: '1234567890',
+    alt_text: { text: 'Scicon Shooter Hangar showing the RSC ship and mini-ship slots.' }
+  });
+  assert.deepEqual(JSON.parse(calls[3].options.body), {
+    text: 'Hangar update',
+    media: { media_ids: ['1234567890'] }
+  });
+});
+
+test('queue media accepts only bounded first-party images with alt text', () => {
+  assert.deepEqual(readQueueMedia({ requires_media: false }), { ok: true, media: [] });
+  assert.equal(readQueueMedia({
+    requires_media: true,
+    metadata: { media: { source_url: 'https://example.com/image.png', alt_text: 'Nope' } }
+  }).reason, 'source_url');
+  assert.equal(readQueueMedia({
+    requires_media: true,
+    metadata: { media: { source_url: 'https://www.sciconshooter.xyz/social-assets/hangar.png' } }
+  }).reason, 'alt_text');
+  assert.equal(readQueueMedia({
+    requires_media: true,
+    metadata: {
+      media: {
+        source_url: 'https://www.sciconshooter.xyz/social-assets/hangar.png',
+        alt_text: 'Scicon Shooter Hangar'
+      }
+    }
+  }).ok, true);
+});
+
+test('the queued hangar screenshot is a bounded PNG campaign asset', () => {
+  const publicAsset = path.join(
+    __dirname,
+    '..',
+    'public',
+    'social-assets',
+    'scicon-home-hangar-upgrade-2026-08.png'
+  );
+  const archiveAsset = path.join(
+    __dirname,
+    '..',
+    'marketing',
+    'campaign-assets',
+    'scicon-home-hangar-upgrade-2026-08.png'
+  );
+  const publicBytes = fs.readFileSync(publicAsset);
+  const archiveBytes = fs.readFileSync(archiveAsset);
+
+  assert.deepEqual(publicBytes.subarray(0, 8), Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+  assert.ok(publicBytes.length > 0 && publicBytes.length <= 5 * 1024 * 1024);
+  assert.deepEqual(publicBytes, archiveBytes);
 });
 
 test('learning waits for enough samples and only reorders similarly prioritized content', () => {
@@ -548,6 +650,42 @@ test('queued original posts require verified claims and publish at most once', a
   });
   assert.equal(second.published, false);
   assert.equal(posts.length, 1);
+});
+
+test('queued originals upload verified native media before publishing', async () => {
+  const queueEntry = {
+    content_key: 'verified-media-upgrade',
+    content_kind: 'upgrade',
+    post_text: 'The Hangar is open. Pick a ship and bring two mini-ships:',
+    link_url: 'https://www.sciconshooter.xyz/',
+    status: 'queued',
+    requires_media: true,
+    metadata: {
+      claims_verified: true,
+      media: {
+        source_url: 'https://www.sciconshooter.xyz/social-assets/hangar.png',
+        alt_text: 'Scicon Shooter Hangar'
+      }
+    }
+  };
+  const store = createMemoryStore({ queuedPost: queueEntry });
+  const uploads = [];
+  const posts = [];
+  const client = {
+    async uploadImageFromUrl(input) { uploads.push(input); return '1234567890'; },
+    async createPost(input) { posts.push(input); return { id: 'media-post', text: input.text }; }
+  };
+  const result = await processQueuedOriginal({
+    client,
+    store,
+    environment: { X_AGENT_ORIGINAL_DAYS: 'Thu', X_AGENT_ORIGINAL_HOURS: '9' },
+    now: new Date('2026-08-06T16:00:00.000Z')
+  });
+
+  assert.equal(result.published, true);
+  assert.equal(uploads.length, 1);
+  assert.deepEqual(posts[0].mediaIds, ['1234567890']);
+  assert.equal(store.actions.get('queue:verified-media-upgrade').metadata.nativeMediaCount, 1);
 });
 
 test('original publication follows Pacific hours across daylight-saving boundaries', async () => {
