@@ -85,7 +85,8 @@ test('social health summary reports blockers and aggregate conversion without se
     campaignContent: 'verified-score',
     priority: 90,
     mediaCount: 0,
-    alternatives: 0
+    alternatives: 0,
+    alternativeKeys: []
   }]);
   assert.deepEqual(summary.actions.byStatus, { published: 1, failed: 1 });
   assert.deepEqual(summary.actions.recentPublished, [{

@@ -230,7 +230,10 @@ export const buildUpcomingQueueSummary = (queue = [], checkedAt = new Date(), ma
         campaignContent: safeCampaignContent(entry?.metadata?.campaign_content) || null,
         priority: Math.max(-100, Math.min(100, Math.floor(Number(entry?.priority) || 0))),
         mediaCount: media.ok ? media.media.length : 0,
-        alternatives: Math.max(0, ordered.length - 1)
+        alternatives: Math.max(0, ordered.length - 1),
+        alternativeKeys: ordered.slice(1, 5)
+          .map((alternative) => boundedText(alternative?.content_key, 100))
+          .filter(Boolean)
       };
     });
 };
