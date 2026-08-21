@@ -5,6 +5,8 @@ import { readSocialCampaignAttribution } from '../shared/socialCampaignAttributi
 
 export type ProductEventName =
   | 'app_opened'
+  | 'desktop_launch_viewed'
+  | 'desktop_launch_selected'
   | 'session_activity'
   | 'mission_started'
   | 'mission_completed'

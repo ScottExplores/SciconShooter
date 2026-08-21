@@ -34,6 +34,7 @@ const componentSource = fs.readFileSync(
 );
 const indexSource = fs.readFileSync(path.join(root, 'index.tsx'), 'utf8');
 const constantsSource = fs.readFileSync(path.join(root, 'constants.ts'), 'utf8');
+const eventsSource = fs.readFileSync(path.join(root, 'api', 'events.js'), 'utf8');
 const assetRoot = path.join(
   root,
   'public',
@@ -112,7 +113,15 @@ test('entrypoint wraps the existing canonical App instead of creating a second g
   assert.match(componentSource, /<iframe[\s\S]*?src=\{frameUrl\}[\s\S]*?title="Scicon Shooter mobile game"/);
   assert.match(componentSource, /DONATION_CONFIG\.BASE_APP_INVITE_URL/);
   assert.match(componentSource, /window\.sessionStorage\.setItem\(DESKTOP_LAUNCH_SESSION_KEY, 'true'\)/);
-  assert.match(componentSource, />\s*Play Here\s*</);
+  assert.match(componentSource, />\s*Start Browser Run\s*</);
+  assert.match(
+    componentSource,
+    /scicon-desktop-mobile-launch__actions[\s\S]*?scicon-desktop-mobile-launch__play-action[\s\S]*?Start Browser Run[\s\S]*?scicon-desktop-mobile-launch__base-action[\s\S]*?Open in Base App/
+  );
+  assert.match(componentSource, /trackEvent\('desktop_launch_viewed'/);
+  assert.match(componentSource, /trackEvent\('desktop_launch_selected'/);
+  assert.match(eventsSource, /'desktop_launch_viewed'/);
+  assert.match(eventsSource, /'desktop_launch_selected'/);
   assert.doesNotMatch(componentSource, /GameEngine|GameCanvas|GameStage|campaign\.json/);
 });
 

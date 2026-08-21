@@ -121,14 +121,14 @@
   transition: filter 120ms ease, transform 120ms ease;
 }
 
-.scicon-desktop-mobile-launch__base-action {
+.scicon-desktop-mobile-launch__play-action {
   border-color: #a7f3d0;
   background: linear-gradient(180deg, #a7f3d0, #10b981 65%, #047857);
   color: #022c22;
   box-shadow: 0 0 1.25rem rgb(16 185 129 / 0.28);
 }
 
-.scicon-desktop-mobile-launch__play-action,
+.scicon-desktop-mobile-launch__base-action,
 .scicon-desktop-mobile-launch__side-link {
   border-color: rgb(165 243 252 / 0.58);
   background: rgb(8 47 73 / 0.86);
