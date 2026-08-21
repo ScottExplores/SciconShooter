@@ -460,3 +460,5 @@ The existing project gameplay clip was inspected locally before enabling any vid
 - Publishing status: no media was uploaded to X and no video post was queued during implementation. A live video post remains gated on production deployment and a verified first upload.
 - Intended posting time: not scheduled.
 - Reply goal: gameplay run reactions and score replies once a clip-specific post is approved for the queue.
+
+PR #37 merged as `17d82bfe` and production deployment `dpl_7SNaC5M9JoSLNsE6RgxFmbi94HtM` became ready August 21 at 1:04 PM Pacific. The public MP4 returned HTTP 200 as `video/mp4`, exactly 4,374,893 bytes, with the audited SHA-256. The unauthenticated social endpoint remained `401 Unauthorized`; no X upload or post was triggered during production verification.
