@@ -143,6 +143,23 @@ const createSocialStore = ({ fetchJson = fetchSupabaseJson } = {}) => ({
     return Array.isArray(rows) ? (rows[0] || null) : null;
   },
 
+  async markQueuedPostPaused(contentKey, metadata, reason) {
+    const rows = await fetchJson(`${CONTENT_TABLE}?content_key=eq.${encode(contentKey)}&status=eq.queued`, {
+      method: 'PATCH',
+      headers: supabaseHeaders({ Prefer: 'return=representation' }),
+      body: JSON.stringify({
+        status: 'paused',
+        metadata: {
+          ...(metadata && typeof metadata === 'object' ? metadata : {}),
+          automation_pause_reason: String(reason || 'worker_recovery').slice(0, 200),
+          automation_paused_at: new Date().toISOString()
+        },
+        updated_at: new Date().toISOString()
+      })
+    });
+    return Array.isArray(rows) ? (rows[0] || null) : null;
+  },
+
   async getLatestFinalizedCompetition() {
     const rows = await fetchJson([
       `${COMPETITIONS_TABLE}?select=*`,

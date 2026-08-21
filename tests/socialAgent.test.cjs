@@ -47,13 +47,16 @@ const TEST_X_ENV = {
   X_ACCESS_TOKEN_SECRET: 'access-secret'
 };
 
-const createMemoryStore = ({ queuedPost, competition } = {}) => {
+const createMemoryStore = ({ queuedPost, queuedPosts, competition } = {}) => {
   const actions = new Map();
+  const queue = queuedPosts || (queuedPost ? [queuedPost] : []);
   return {
     actions,
     queuedPost,
+    queuedPosts: queue,
     competition,
     publishedContent: [],
+    pausedContent: [],
     async getLatestProcessedMentionId() { return null; },
     async countPublishedRepliesSince() {
       return [...actions.values()].filter((action) => action.action_type === 'reply' && action.status === 'published').length;
@@ -82,14 +85,24 @@ const createMemoryStore = ({ queuedPost, competition } = {}) => {
       return action;
     },
     async getNextQueuedPost() { return this.queuedPost || null; },
-    async getQueuedPosts() { return this.queuedPost ? [this.queuedPost] : []; },
+    async getQueuedPosts() { return this.queuedPosts.filter((entry) => entry.status === 'queued'); },
     async getPublishedActionsSince() {
       return [...actions.values()].filter((action) => action.status === 'published');
     },
     async markQueuedPostPublished(contentKey, actionId) {
       this.publishedContent.push({ contentKey, actionId });
-      if (this.queuedPost?.content_key === contentKey) this.queuedPost.status = 'published';
-      return this.queuedPost;
+      const entry = this.queuedPosts.find((candidate) => candidate.content_key === contentKey) || null;
+      if (entry) entry.status = 'published';
+      return entry;
+    },
+    async markQueuedPostPaused(contentKey, metadata, reason) {
+      const entry = this.queuedPosts.find((candidate) => candidate.content_key === contentKey) || null;
+      if (entry) {
+        entry.status = 'paused';
+        entry.metadata = { ...(metadata || {}), automation_pause_reason: reason };
+      }
+      this.pausedContent.push({ contentKey, reason });
+      return entry;
     },
     async getLatestFinalizedCompetition() { return this.competition || null; }
   };
@@ -448,6 +461,15 @@ test('evergreen store operations stay service-only, bounded, and idempotent', as
     assert.equal(calls[2].options.method, 'POST');
     assert.match(calls[2].path, /on_conflict=content_key/);
     assert.match(calls[2].options.headers.Prefer, /resolution=ignore-duplicates/);
+
+    await store.markQueuedPostPaused('bad-post', { claims_verified: false }, 'claims_not_verified');
+    assert.equal(calls[3].options.method, 'PATCH');
+    assert.match(calls[3].path, /content_key=eq\.bad-post&status=eq\.queued/);
+    assert.deepEqual(JSON.parse(calls[3].options.body).metadata.claims_verified, false);
+    assert.equal(
+      JSON.parse(calls[3].options.body).metadata.automation_pause_reason,
+      'claims_not_verified'
+    );
   } finally {
     if (previousKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
     else process.env.SUPABASE_SERVICE_ROLE_KEY = previousKey;
@@ -647,6 +669,88 @@ test('queued original posts require verified claims and publish at most once', a
   });
   assert.equal(second.published, false);
   assert.equal(posts.length, 1);
+});
+
+test('invalid or previously failed queue rows cannot starve the next verified post', async () => {
+  const invalid = {
+    content_key: 'invalid-high-priority',
+    content_kind: 'upgrade',
+    post_text: 'Unverified claim.',
+    link_url: 'https://www.sciconshooter.xyz/',
+    status: 'queued',
+    priority: 90,
+    requires_media: false,
+    metadata: { claims_verified: false }
+  };
+  const previouslyFailed = {
+    content_key: 'failed-high-priority',
+    content_kind: 'challenge',
+    post_text: 'Previously failed challenge.',
+    link_url: 'https://www.sciconshooter.xyz/',
+    status: 'queued',
+    priority: 80,
+    requires_media: false,
+    metadata: { claims_verified: true }
+  };
+  const verified = {
+    content_key: 'verified-fallback',
+    content_kind: 'challenge',
+    post_text: 'Beat this run and reply with your score:',
+    link_url: 'https://www.sciconshooter.xyz/',
+    status: 'queued',
+    priority: 70,
+    requires_media: false,
+    metadata: { claims_verified: true }
+  };
+  const store = createMemoryStore({ queuedPosts: [invalid, previouslyFailed, verified] });
+  await store.reserveAction({
+    idempotencyKey: 'queue:failed-high-priority',
+    actionType: 'original',
+    status: 'failed'
+  });
+  const posts = [];
+  const result = await processQueuedOriginal({
+    client: {
+      async createPost(input) { posts.push(input); return { id: 'fallback-post', text: input.text }; }
+    },
+    store,
+    environment: { X_AGENT_ORIGINAL_DAYS: 'Thu', X_AGENT_ORIGINAL_HOURS: '9' },
+    now: new Date('2026-08-06T16:00:00.000Z')
+  });
+
+  assert.equal(result.published, true);
+  assert.equal(result.contentKey, 'verified-fallback');
+  assert.equal(posts.length, 1);
+  assert.deepEqual(store.pausedContent.map((entry) => entry.contentKey), [
+    'invalid-high-priority',
+    'failed-high-priority'
+  ]);
+  assert.equal(invalid.metadata.automation_pause_reason, 'claims_not_verified');
+  assert.equal(previouslyFailed.metadata.automation_pause_reason, 'action_failed');
+});
+
+test('a publish failure pauses its queue row before surfacing the error', async () => {
+  const queueEntry = {
+    content_key: 'publish-failure',
+    content_kind: 'challenge',
+    post_text: 'Reply with your score:',
+    link_url: 'https://www.sciconshooter.xyz/',
+    status: 'queued',
+    priority: 50,
+    requires_media: false,
+    metadata: { claims_verified: true }
+  };
+  const store = createMemoryStore({ queuedPost: queueEntry });
+
+  await assert.rejects(processQueuedOriginal({
+    client: { async createPost() { throw new Error('temporary X outage'); } },
+    store,
+    environment: { X_AGENT_ORIGINAL_DAYS: 'Thu', X_AGENT_ORIGINAL_HOURS: '9' },
+    now: new Date('2026-08-06T16:00:00.000Z')
+  }), /temporary X outage/);
+  assert.equal(queueEntry.status, 'paused');
+  assert.match(queueEntry.metadata.automation_pause_reason, /^publish_failed:temporary X outage/);
+  assert.equal(store.actions.get('queue:publish-failure').status, 'failed');
 });
 
 test('queued originals upload verified native media before publishing', async () => {
