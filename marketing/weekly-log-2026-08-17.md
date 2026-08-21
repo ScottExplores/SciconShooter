@@ -443,3 +443,7 @@ PR #35 merged as `4f82d56c` and production deployment `dpl_BdfHR8S3sN9i8YVTDa2gK
 ### Post-fix player baseline
 
 Live production evidence checked August 21 at 12:40 PM Pacific showed zero product events after the 11:52 AM score-save verification boundary and zero entries on the active weekly leaderboard. No X-attributed session exists yet. Until real traffic arrives, queued copy must invite the first verified scores and must not imply current player traction, a score to beat, or a finalized weekly leader.
+
+## Read-only social health audit
+
+`npm run social:audit` now provides one bounded, repeatable production readout for queued-content validation, recent action statuses, aggregate conversion events, and the public current-week leaderboard. It excludes session IDs, wallet addresses, visitor hashes, event properties, and credentials from output. The first live run at 12:42 PM Pacific reported 19 queued posts, zero blockers, three media posts, one proposal spotlight, no recent social actions, one non-X session in the preceding 24 hours, and no current weekly leader.
