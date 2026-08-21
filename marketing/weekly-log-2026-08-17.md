@@ -391,11 +391,11 @@ PR #32 merged as `0ad62de2` and production deployment `dpl_76XuE41vwXgjBAvLtxGup
 - Safety boundary: accepted sources are HTTPS files under `https://www.sciconshooter.xyz/social-assets/`; arbitrary hosts, redirects, query strings, missing alt text, images over 5 MB, more than four images, and poll-plus-media posts are rejected.
 - Verification: 24/24 focused social-agent tests, TypeScript, targeted ESLint, and the production build passed. The public asset returned HTTP 200 as `image/png`, 703,515 bytes, with SHA-256 `B3FE38B44CC45FD079C03F29547E5640E15CAB0A47BAD47F9FD942F8269D9827`.
 - Asset path: `marketing/campaign-assets/scicon-home-hangar-upgrade-2026-08.png` (deployed copy: `public/social-assets/scicon-home-hangar-upgrade-2026-08.png`).
-- Queued post: `desktop-browser-score-share-v1`, still scheduled for Saturday, August 22 at 4:00 PM Pacific. It is 202 weighted X characters and passed both post and media validation.
+- Queued post: `desktop-browser-score-share-v1`, still scheduled for Saturday, August 22 at 4:00 PM Pacific. Its final asset-aligned copy is 189 weighted X characters and passed both post and media validation.
 - Image URL: `https://www.sciconshooter.xyz/social-assets/scicon-home-hangar-upgrade-2026-08.png`.
-- Game URL: `https://www.sciconshooter.xyz/?utm_source=x&utm_medium=social&utm_campaign=growth-sprint-2026-08&utm_content=browser-score-share`.
+- Game URL: `https://www.sciconshooter.xyz/?utm_source=x&utm_medium=social&utm_campaign=growth-sprint-2026-08&utm_content=home-screen-upgrade`.
 - Alt text: `Scicon Shooter redesigned home screen with the RSC ship, Start Mission button, and navigation for Proposals, Trophies, Hangar, and more.`
-- Reply goal: desktop scores and first-run reactions.
+- Reply goal: scores and ship reactions.
 - Runtime boundary: no media was uploaded to X during verification. The first live media upload will occur only when the already-approved Saturday queue entry reaches its publishing window. Friday's 4:00 PM text post remains unchanged.
 
 ### Hangar gallery
@@ -515,3 +515,14 @@ PR #40 merged as `32b6af4d` at 1:44 PM Pacific. Vercel production deployment `89
 ### August 21 live-row preflight
 
 At 1:47 PM Pacific, a direct read of the live queue confirmed `score-means-something-v1` is the sole eligible 4:00 PM row. It is priority 90, claim-verified, scheduled from 4:00 PM through 11:59 PM Pacific, uses content kind `funding`, campaign content `meaningful-score`, and requires no media. At 1:48 PM, a fail-closed update added the single relevant `@ResearchHub` mention only after confirming the row was still queued and its copy was unchanged. The final assembled post passes the production validator at 225 weighted X characters. Its only URL is `https://www.sciconshooter.xyz/?utm_source=x&utm_medium=social&utm_campaign=growth-sprint-2026-08&utm_content=meaningful-score`; funding wording describes the verified weekly mechanism only and makes no winner, champion, cash-prize, partnership, or completed-funding claim. The immediate live audit remained 19 queued posts with zero blockers.
+
+### August 22 visual-package correction
+
+A frame-level preflight found that the queued home-screen image did not show the desktop launcher or Mission Record score-share action described by the original copy. A fresh launcher capture was attempted but its saved PNG contained only the background, so both unapproved local copies were deleted and never deployed or queued. The live row was then updated fail-closed while unchanged and queued to describe only what the verified image shows:
+
+> Scicon Shooter got a cleaner home screen, quick ship switching, and the Hangar one tap away.
+>
+> Pick a ship, start a mission, and bring back a score. No wallet needed:
+> https://www.sciconshooter.xyz/?utm_source=x&utm_medium=social&utm_campaign=growth-sprint-2026-08&utm_content=home-screen-upgrade
+
+The metadata campaign content, reply goal, and evidence note now match the revised post. Archive and deployable images remain byte-identical with SHA-256 `B3FE38B44CC45FD079C03F29547E5640E15CAB0A47BAD47F9FD942F8269D9827`. The production browser check created one `desktop_launch_viewed` event at 1:50:23 PM Pacific; that exact event alone was deleted after matching its timestamp and `desktop_shell` surface. No app event existed in the same ten-second window, so subsequent non-X app activity was preserved. The 1:54 PM audit reported 19 queued posts, zero blockers, no X-attributed session, and no current weekly leader.
