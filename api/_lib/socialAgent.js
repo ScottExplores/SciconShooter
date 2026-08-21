@@ -122,6 +122,8 @@ const readQueueMedia = (entry) => {
   }
   const media = [];
   for (const item of items) {
+    const kind = String(item?.kind || 'image').trim().toLowerCase();
+    if (!['image', 'video'].includes(kind)) return { ok: false, reason: 'kind' };
     const sourceUrl = String(item?.source_url || '').trim();
     const altText = String(item?.alt_text || '').trim();
     let source;
@@ -134,6 +136,8 @@ const readQueueMedia = (entry) => {
       source.protocol !== 'https:'
       || source.hostname !== 'www.sciconshooter.xyz'
       || !source.pathname.startsWith('/social-assets/')
+      || (kind === 'video' && !source.pathname.toLowerCase().endsWith('.mp4'))
+      || (kind === 'image' && !/\.(?:jpe?g|png|webp)$/i.test(source.pathname))
       || source.search
       || source.hash
     ) {
@@ -142,7 +146,12 @@ const readQueueMedia = (entry) => {
     if (!altText || altText.length > MAX_MEDIA_ALT_TEXT_LENGTH) {
       return { ok: false, reason: 'alt_text' };
     }
-    media.push({ sourceUrl: source.toString(), altText });
+    media.push(kind === 'video'
+      ? { kind, sourceUrl: source.toString(), altText }
+      : { sourceUrl: source.toString(), altText });
+  }
+  if (media.some((item) => item.kind === 'video') && media.length !== 1) {
+    return { ok: false, reason: 'video_count' };
   }
   return { ok: true, media };
 };
@@ -427,8 +436,10 @@ const ensureEvergreenQueue = async ({ store, environment = process.env, now = ne
 const publishReservedAction = async ({ client, store, key, text, replyToId, poll, media, metadata }) => {
   try {
     const mediaIds = [];
-    for (const image of media || []) {
-      mediaIds.push(await client.uploadImageFromUrl(image));
+    for (const item of media || []) {
+      mediaIds.push(item.kind === 'video'
+        ? await client.uploadVideoFromUrl(item)
+        : await client.uploadImageFromUrl(item));
     }
     const post = await client.createPost({ text, replyToId, poll, mediaIds });
     if (!post?.id) throw new Error('X did not return a post ID.');
@@ -671,7 +682,8 @@ const processQueuedOriginal = async ({ client, store, environment = process.env,
           ? 'product_conversion'
           : learning.some((item) => item.eligible) ? 'x_engagement' : 'none',
         poll: entryValidation.poll,
-        nativeMediaCount: entryValidation.media.length
+        nativeMediaCount: entryValidation.media.length,
+        nativeVideo: entryValidation.media.some((item) => item.kind === 'video')
       }
     });
     if (!reserved) return { published: false, reason: 'duplicate_reservation', contentKey: entry.content_key };
