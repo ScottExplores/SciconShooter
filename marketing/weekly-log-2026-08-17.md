@@ -158,12 +158,17 @@ The live queue was also corrected before publication: literal `\n` escape text i
 
 ### Saturday, August 22 at 4:00 PM Pacific
 
-> Weekend flight rule: one run to learn it, one run to blame the ship, one run to admit the bullets won. Which run are you on?
-> https://www.sciconshooter.xyz/?utm_source=x&utm_medium=social&utm_campaign=growth-sprint-2026-08&utm_content=weekend-run
+> Desktop pilots: browser play is now the big green button. No install. No wallet. Finish a run and your Mission Record can open a score challenge on X.
+>
+> Try it and post the score:
+> https://www.sciconshooter.xyz/?utm_source=x&utm_medium=social&utm_campaign=growth-sprint-2026-08&utm_content=browser-score-share
 
-- Content key: `weekend-three-runs-v1`
-- Verification: non-claim gameplay challenge.
-- Reply goal: repeat-run stage and score conversation.
+- Content key: `desktop-browser-score-share-v1`
+- Content kind: `upgrade`.
+- Weighted X length: 202 characters.
+- Verification: production PRs #28 and #30, live browser-first CTA, and live Mission Record X-share asset.
+- Reply goal: desktop scores and first-run reactions.
+- Queue behavior: priority 85 makes this the intended afternoon selection. `weekend-three-runs-v1` remains a lower-priority backup and expires after the same slot if unused.
 
 ### Monday, August 24 at 4:00 PM Pacific
 
