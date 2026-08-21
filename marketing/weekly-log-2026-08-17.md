@@ -405,9 +405,15 @@ PR #33 merged as `4fda56d7` and production deployment `dpl_GQi7mcx53wbN6fyz4Yarm
 - Current-code evidence: `SquadHangar` and squad progression implement one main ship, left/right mini-ship support slots, four named mini-ships, and tiered upgrades. No unreleased feature or roadmap-date claim was added.
 - Main-ship asset: `marketing/campaign-assets/scicon-hangar-main-ships-2026-08.png`; public URL `https://www.sciconshooter.xyz/social-assets/scicon-hangar-main-ships-2026-08.png`; 274,363 bytes; SHA-256 `74A4F4693D69CA16069D4951090DB9E6E039E4304F2A4F3B17BF1CB9B4EC3224`.
 - Mini-ship asset: `marketing/campaign-assets/scicon-hangar-mini-ships-2026-08.png`; public URL `https://www.sciconshooter.xyz/social-assets/scicon-hangar-mini-ships-2026-08.png`; 237,805 bytes; SHA-256 `F2BE11CB9C7BCD126251623E2174A810D8CB43933A4497AC151E208AF6EE17F5`.
-- Queue entry: `squad-bad-decisions-v1`, scheduled for Wednesday, August 26 at 9:00 AM Pacific with both images, specific alt text, and the existing attributed game URL.
-- Validation: 24/24 focused social-agent tests, TypeScript, targeted ESLint, and production build passed. Both public assets returned HTTP 200 as `image/png` with exact hash matches; the final post is 200 weighted X characters and media validation accepts both images.
-- Reply goal: players naming the main ship or support squad they trust when the run gets crowded.
+- Queue entry: `squad-bad-decisions-v1`, scheduled for Wednesday, August 26 at 9:00 AM Pacific with both images, specific alt text, and the existing attributed game URL. The copy and both alt texts now acknowledge the visible `Founder test loadout - changes are temporary` banner rather than implying the pictured balance is permanent.
+- Final copy:
+
+> Founder test build: one main ship, two mini-ships, and a Hangar full of bad decisions disguised as upgrades.
+>
+> Build a squad, start a run, and reply with the ship you trust when the screen gets ugly.
+
+- Validation: 24/24 focused social-agent tests, TypeScript, targeted ESLint, and production build passed. Both public assets returned HTTP 200 as `image/png` with exact hash matches; the final post is 222 weighted X characters and media validation accepts both images. The 2:06 PM Pacific live audit remained 19 queued posts with zero blockers.
+- Reply goal: ship choices, squad builds, and test-build feedback.
 
 ### Boss Archive visual
 
