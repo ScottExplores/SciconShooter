@@ -290,3 +290,23 @@ PR #24 merged as `77fdee3c` and production deployment `sciconshooter-b0woy0lwa` 
 ### Sunday posting time
 
 PR #25 merged as `707fa65d` and production deployment `sciconshooter-1q96op5gw` is ready. The weekly worker now receives both `21:15` and `22:15` UTC probes but permits publication only on Sunday at 2:15 PM Pacific. Tests cover both PDT and PST, the off-season probe exits before reading or publishing a winner, and the unauthenticated weekly endpoint returns `401`.
+
+## Verified proposal spotlight
+
+PR #26 merged as `c0ba8054` and production deployment `sciconshooter-n8diy6fs8` is ready. Explicitly flagged queue entries may now use HTTPS ResearchHub `/proposal/{id}` or `/post/{id}` links; all other external queued URLs remain blocked.
+
+Intended posting time: Tuesday, September 1 at 9:00 AM Pacific.
+
+> Three Scicon Shooter winners picked the same @ResearchHub proposal: using whole-brain zebrafish dynamics to study FMR1-related autism phenotypes.
+>
+> Selection is verified. Funding completion is not confirmed. Read it and tell us what stands out:
+> https://www.researchhub.com/proposal/32342/precision-phenotyping-of-an-autism-model-unbiased-discovery-of-fmr1-related-brain-phenotypes-from-whole-brain-dynamics-in-fmr1-zebrafish
+
+- Content key: `proposal-32342-three-rounds-v1`
+- Weighted X length: 267 characters.
+- Verification evidence: weekly competition rows ending July 12, July 19, and July 26 each record proposal `32342`, `allocation_rsc=100`, and a finalized or claimed winner selection.
+- Competition status wording: historical winner selections only; no current champion claim.
+- Funding status wording: selection verified; completed funding unconfirmed because all three records have no allocation transaction hash.
+- Proposal URL: `https://www.researchhub.com/proposal/32342/precision-phenotyping-of-an-autism-model-unbiased-discovery-of-fmr1-related-brain-phenotypes-from-whole-brain-dynamics-in-fmr1-zebrafish`
+- Game URL: intentionally omitted so the proposal receives the visible link preview.
+- Reply goal: proposal reactions and science questions.
