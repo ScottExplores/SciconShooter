@@ -11,6 +11,7 @@ import type { RunReceipt } from '../services/runReceiptService';
 import type { MissionRecordWeeklyFunding } from '../services/weeklyFundingFlow';
 import { trackEvent } from '../services/analyticsService';
 import { shareScoreCardImage } from '../services/scoreCardShareService';
+import { openXScoreShare } from '../services/xScoreShareService';
 import { parsePlayerShipId, PLAYER_SHIPS } from '../services/playerShipService';
 import { getStageName } from '../services/stagePresentation';
 import { buildMissionRecordCardSvg, MissionRecordCard } from './MissionRecordCard';
@@ -132,6 +133,19 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
       if (/abort|cancel/i.test(error?.message || '')) setShareStatus('');
       else setShareStatus('Score card image is unavailable');
     }
+  };
+
+  const shareScoreToX = () => {
+    const opened = openXScoreShare({
+      score: receipt.metrics.score,
+      wave: receipt.metrics.wave
+    });
+    setShareStatus(opened ? 'X score post opened' : 'X share window was blocked');
+    trackEvent('share_action_used', {
+      record_type: 'mission',
+      method: 'x_intent',
+      opened
+    });
   };
 
   return (
@@ -266,6 +280,13 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
           {!weeklyChoiceRequired ? (
             <>
               <div className="mt-3 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={shareScoreToX}
+                  className="col-span-2 min-h-12 rounded-[8px] border border-emerald-100/35 bg-emerald-300/18 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-emerald-50 transition hover:bg-emerald-300/28"
+                >
+                  Post score on X
+                </button>
                 <button type="button" onClick={() => void shareRecord()} className="min-h-11 rounded-[8px] border border-cyan-100/25 bg-cyan-300/10 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-cyan-50 transition hover:bg-cyan-300/20">Share image</button>
                 <button type="button" onClick={onMint} disabled={!walletAddress || !mintConfigured || mintStatus === 'authorizing' || mintStatus === 'confirming' || mintStatus === 'confirmed'} className="min-h-11 rounded-[8px] border border-yellow-100/30 bg-yellow-300/15 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-yellow-50 transition hover:bg-yellow-300/25 disabled:cursor-not-allowed disabled:opacity-55">
                   {mintStatus === 'confirmed'
