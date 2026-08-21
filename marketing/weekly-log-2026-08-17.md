@@ -537,3 +537,9 @@ A copy-level review of all 19 queued posts found one avoidable repetition: Augus
 > https://www.sciconshooter.xyz/?utm_source=x&utm_medium=social&utm_campaign=growth-sprint-2026-08&utm_content=current-build
 
 The 231-weighted-character post uses only features verified in current code, makes no roadmap promise, and asks for specific beta feedback. Its August 31 4:00 PM Pacific window and priority remain unchanged. The immediate live audit remained 19 queued posts with zero blockers, no X-attributed session, and no current weekly leader.
+
+### Evergreen community rotation
+
+The post-refill generator now includes the existing `community` content type alongside competition, challenge, boss, loadout, progression, onboarding, and funding. Four bounded variants invite indie developers, arcade rivals, game testers, and small communities to play, compare scores, and give specific build feedback without cold-tagging accounts or claiming traction.
+
+Generation review also found that theme and variant arithmetic were correlated, preventing some copy variants from ever appearing. Variant selection now uses a deterministic independent hash while preserving stable idempotency keys and campaign attribution. A 14-day regression proves that all eight themes use all four verified variants; all generated posts remain policy-valid and bounded to their Pacific slot. Verification passed 30/30 focused social tests, targeted ESLint, and TypeScript.
