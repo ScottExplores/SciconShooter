@@ -447,3 +447,16 @@ Live production evidence checked August 21 at 12:40 PM Pacific showed zero produ
 ## Read-only social health audit
 
 `npm run social:audit` now provides one bounded, repeatable production readout for queued-content validation, recent action statuses, aggregate conversion events, and the public current-week leaderboard. It excludes session IDs, wallet addresses, visitor hashes, event properties, and credentials from output. The first live run at 12:42 PM Pacific reported 19 queued posts, zero blockers, three media posts, one proposal spotlight, no recent social actions, one non-X session in the preceding 24 hours, and no current weekly leader. PR #36 merged as `786d36f4`; production deployment `dpl_A2M8wBqfsiHM5yXyWKx6BGZufqVF` became ready at 12:46 PM Pacific on all public domains.
+
+## Audited native video path
+
+The existing project gameplay clip was inspected locally before enabling any video queue support. It is an unprotected 55-second MP4, 4,374,893 bytes, H.264 High Profile level 3.1, 1280x720, progressive 8-bit 4:2:0, 12 fps, with no audio track. SHA-256: `6A72407C36163F87937C4BA15176BB5743994FEEA1628A9E93E6DE5D14A05B97`.
+
+- Archived asset: `marketing/campaign-assets/scicon-shooter-base-demo-55s.mp4`.
+- Public asset path: `public/social-assets/scicon-shooter-base-demo-55s.mp4`.
+- Intended public URL after deployment: `https://www.sciconshooter.xyz/social-assets/scicon-shooter-base-demo-55s.mp4`.
+- Safety boundary: one video per post, first-party HTTPS MP4 only, 15 MB configured cap, required bounded alt text, chunked INIT/APPEND/FINALIZE upload, bounded STATUS polling, and no poll-plus-media posts.
+- Verification: 30/30 focused social and audit tests, TypeScript, ESLint with zero errors in changed files, exact public/archive hash match, and the full production build passed.
+- Publishing status: no media was uploaded to X and no video post was queued during implementation. A live video post remains gated on production deployment and a verified first upload.
+- Intended posting time: not scheduled.
+- Reply goal: gameplay run reactions and score replies once a clip-specific post is approved for the queue.
