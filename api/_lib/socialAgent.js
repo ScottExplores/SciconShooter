@@ -81,21 +81,43 @@ const readQueuePoll = (entry) => {
 
 const metricNumber = (metrics, key) => Math.max(0, Number(metrics?.[key]) || 0);
 
-const engagementRate = (metrics) => {
+const engagementRate = (metrics, pollVotes = 0) => {
   const impressions = metricNumber(metrics, 'impression_count');
   if (impressions === 0) return null;
   const weightedEngagement = metricNumber(metrics, 'like_count')
     + (2 * metricNumber(metrics, 'reply_count'))
     + (3 * metricNumber(metrics, 'retweet_count'))
-    + (3 * metricNumber(metrics, 'quote_count'));
+    + (3 * metricNumber(metrics, 'quote_count'))
+    + Math.max(0, Math.floor(Number(pollVotes) || 0));
   return weightedEngagement / impressions;
+};
+
+const readPollSnapshot = (post, pollsById) => {
+  const pollId = String(post?.attachments?.poll_ids?.[0] || '');
+  const poll = pollId ? pollsById.get(pollId) : null;
+  if (!poll) return null;
+  const options = Array.isArray(poll.options)
+    ? poll.options.slice(0, 4).map((option, index) => ({
+      position: Math.max(1, Math.floor(Number(option?.position) || index + 1)),
+      label: String(option?.label || '').trim().slice(0, MAX_POLL_OPTION_LENGTH),
+      votes: Math.max(0, Math.floor(Number(option?.votes) || 0))
+    })).filter((option) => option.label)
+    : [];
+  return {
+    id: pollId,
+    durationMinutes: Math.max(0, Math.floor(Number(poll.duration_minutes) || 0)),
+    endDatetime: String(poll.end_datetime || '').slice(0, 40) || null,
+    votingStatus: ['active', 'closed'].includes(poll.voting_status) ? poll.voting_status : 'unknown',
+    options,
+    totalVotes: options.reduce((total, option) => total + option.votes, 0)
+  };
 };
 
 const buildLearningSummary = (actions = []) => {
   const groups = new Map();
   for (const action of actions) {
     const metrics = action?.metadata?.latestMetrics;
-    const rate = engagementRate(metrics);
+    const rate = engagementRate(metrics, action?.metadata?.latestPoll?.totalVotes);
     if (rate === null) continue;
     const kind = String(action?.metadata?.contentKind || action?.reason || action?.action_type || 'unknown');
     const current = groups.get(kind) || { kind, samples: 0, totalRate: 0 };
@@ -367,28 +389,42 @@ const syncPublishedMetrics = async ({ client, store, environment = process.env, 
   const sinceIso = new Date(now.getTime() - METRICS_LOOKBACK_MS).toISOString();
   const actions = await store.getPublishedActionsSince(sinceIso);
   if (actions.length === 0) return { checked: 0, updated: 0, learning: [] };
-  const timeline = await client.getOwnPosts(account.id, { maxResults: 100 });
-  const posts = new Map((timeline?.data || []).map((post) => [String(post.id), post]));
+    const timeline = await client.getOwnPosts(account.id, { maxResults: 100 });
+    const posts = new Map((timeline?.data || []).map((post) => [String(post.id), post]));
+    const polls = new Map((timeline?.includes?.polls || []).map((poll) => [String(poll.id), poll]));
   let updated = 0;
   const observedAt = now.toISOString();
   for (const action of actions) {
-    const post = posts.get(String(action.x_post_id || ''));
-    if (!post?.public_metrics) continue;
-    await store.updateAction(action.idempotency_key, {
-      metadata: {
-        ...(action.metadata || {}),
-        latestMetrics: post.public_metrics,
-        metricsObservedAt: observedAt,
-        engagementRate: engagementRate(post.public_metrics)
+      const post = posts.get(String(action.x_post_id || ''));
+      if (!post?.public_metrics) continue;
+      const latestPoll = readPollSnapshot(post, polls);
+      await store.updateAction(action.idempotency_key, {
+        metadata: {
+          ...(action.metadata || {}),
+          latestMetrics: post.public_metrics,
+          ...(latestPoll ? { latestPoll } : {}),
+          metricsObservedAt: observedAt,
+          engagementRate: engagementRate(
+            post.public_metrics,
+            latestPoll?.totalVotes || action?.metadata?.latestPoll?.totalVotes
+          )
       }
     });
     updated += 1;
   }
-  const refreshed = actions.map((action) => {
-    const post = posts.get(String(action.x_post_id || ''));
-    return post?.public_metrics
-      ? { ...action, metadata: { ...(action.metadata || {}), latestMetrics: post.public_metrics } }
-      : action;
+    const refreshed = actions.map((action) => {
+      const post = posts.get(String(action.x_post_id || ''));
+      const latestPoll = readPollSnapshot(post, polls);
+      return post?.public_metrics
+        ? {
+          ...action,
+          metadata: {
+            ...(action.metadata || {}),
+            latestMetrics: post.public_metrics,
+            ...(latestPoll ? { latestPoll } : {})
+          }
+        }
+        : action;
   });
   return { checked: actions.length, updated, learning: buildLearningSummary(refreshed) };
 };
@@ -532,6 +568,7 @@ module.exports = {
   processMentions,
   processQueuedOriginal,
   processWeeklyWinner,
+  readPollSnapshot,
   readQueuePoll,
   runSocialAgent,
   socialAgentHandler,
