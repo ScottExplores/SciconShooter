@@ -56,6 +56,12 @@ Optional controls:
 
 The worker shares the existing `api/events.js` function through `/api/social-agent`, preserving the 12-function Hobby deployment limit. Vercel authenticates cron calls with `CRON_SECRET`.
 
+## Learning from real play
+
+Queued posts can carry a first-party `utm_content` value in `metadata.campaign_content`. The worker records that value with the published action, then reads a bounded 30-day window of `app_opened`, `mission_started`, and `score_submitted` events. It joins outcomes by anonymous session, removes sessions marked as owner or test activity, and requires at least three attributed opens before a content theme can influence selection.
+
+Conversion evidence ranks ahead of X engagement only among posts within five priority points of the editorial leader. If analytics is unavailable or the sample is too small, the worker falls back to engagement learning and then queue order. The learner does not use names, wallet addresses, visitor hashes, or post text.
+
 ## Activation checklist
 
 1. Apply the social-agent migrations under `supabase/migrations` and run Supabase security and performance advisors.

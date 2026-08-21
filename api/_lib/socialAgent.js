@@ -14,6 +14,7 @@ const GAME_URL = 'https://www.sciconshooter.xyz/';
 const MAX_WEEKLY_POST_AGE_MS = 72 * 60 * 60 * 1000;
 const METRICS_LOOKBACK_MS = 30 * 24 * 60 * 60 * 1000;
 const MIN_LEARNING_SAMPLES = 3;
+const MIN_ATTRIBUTED_SESSIONS = 3;
 const MIN_POLL_DURATION_MINUTES = 5;
 const MAX_POLL_DURATION_MINUTES = 10_080;
 const MAX_POLL_OPTION_LENGTH = 25;
@@ -135,18 +136,135 @@ const buildLearningSummary = (actions = []) => {
     .sort((left, right) => right.averageEngagementRate - left.averageEngagementRate);
 };
 
-const chooseQueuedPost = (entries = [], learning = []) => {
+const safeCampaignContent = (value) => {
+  const content = String(value || '').trim();
+  return /^[a-z0-9][a-z0-9_-]{0,79}$/i.test(content) ? content : '';
+};
+
+const readCampaignContent = (entry) => {
+  const configured = safeCampaignContent(entry?.metadata?.campaign_content);
+  if (configured) return configured;
+  try {
+    return safeCampaignContent(new URL(String(entry?.link_url || '')).searchParams.get('utm_content'));
+  } catch {
+    return '';
+  }
+};
+
+const isTestProductEvent = (event) => {
+  const properties = event?.properties && typeof event.properties === 'object'
+    ? event.properties
+    : {};
+  return properties.test_run === true
+    || properties.owner_test === true
+    || properties.test_mode === true
+    || /(?:^|[-_ ])(?:test|owner|sandbox|preview|director|lab)(?:$|[-_ ])/i.test(
+      String(properties.run_mode || properties.mode || '')
+    );
+};
+
+const buildConversionLearningSummary = (actions = [], events = []) => {
+  const contentKinds = new Map();
+  for (const action of actions) {
+    const content = safeCampaignContent(action?.metadata?.campaignContent);
+    if (!content) continue;
+    contentKinds.set(
+      content,
+      String(action?.metadata?.contentKind || action?.reason || action?.action_type || 'unknown')
+    );
+  }
+  if (contentKinds.size === 0) return [];
+
+  const testSessions = new Set(events.filter(isTestProductEvent).map((event) => (
+    String(event?.session_id || '').trim()
+  )).filter(Boolean));
+  const attributedSessions = new Map();
+  for (const event of events) {
+    if (event?.event_name !== 'app_opened' || isTestProductEvent(event)) continue;
+    const properties = event?.properties && typeof event.properties === 'object'
+      ? event.properties
+      : {};
+    const content = safeCampaignContent(properties.campaign_content);
+    const sessionId = String(event?.session_id || '').trim();
+    if (
+      !sessionId
+      || testSessions.has(sessionId)
+      || attributedSessions.has(sessionId)
+      || properties.campaign_source !== 'x'
+      || properties.campaign_medium !== 'social'
+      || !contentKinds.has(content)
+    ) continue;
+    attributedSessions.set(sessionId, { content, kind: contentKinds.get(content) });
+  }
+
+  const groups = new Map();
+  for (const attribution of attributedSessions.values()) {
+    const current = groups.get(attribution.kind) || {
+      kind: attribution.kind,
+      attributedSessions: new Set(),
+      missionStartedSessions: new Set(),
+      scoreSubmittedSessions: new Set()
+    };
+    groups.set(attribution.kind, current);
+  }
+  for (const [sessionId, attribution] of attributedSessions) {
+    groups.get(attribution.kind).attributedSessions.add(sessionId);
+  }
+  for (const event of events) {
+    if (isTestProductEvent(event)) continue;
+    const sessionId = String(event?.session_id || '').trim();
+    const attribution = attributedSessions.get(sessionId);
+    if (!attribution) continue;
+    const group = groups.get(attribution.kind);
+    if (event.event_name === 'mission_started') group.missionStartedSessions.add(sessionId);
+    if (event.event_name === 'score_submitted') group.scoreSubmittedSessions.add(sessionId);
+  }
+
+  return [...groups.values()].map((group) => {
+    const sessions = group.attributedSessions.size;
+    const missionStarts = group.missionStartedSessions.size;
+    const scoreSubmissions = group.scoreSubmittedSessions.size;
+    return {
+      kind: group.kind,
+      attributedSessions: sessions,
+      missionStartedSessions: missionStarts,
+      scoreSubmittedSessions: scoreSubmissions,
+      conversionScore: sessions > 0 ? (missionStarts + (2 * scoreSubmissions)) / sessions : 0,
+      eligible: sessions >= MIN_ATTRIBUTED_SESSIONS
+    };
+  }).sort((left, right) => (
+    right.conversionScore - left.conversionScore
+    || right.scoreSubmittedSessions - left.scoreSubmittedSessions
+    || right.missionStartedSessions - left.missionStartedSessions
+    || right.attributedSessions - left.attributedSessions
+  ));
+};
+
+const chooseQueuedPost = (entries = [], learning = [], conversionLearning = []) => {
   if (entries.length < 2) return entries[0] || null;
-  const eligibleRanks = new Map(
+  const engagementRanks = new Map(
     learning.filter((item) => item.eligible).map((item, index) => [item.kind, index])
   );
-  if (eligibleRanks.size === 0) return entries[0];
+  const conversionRanks = new Map(
+    conversionLearning.filter((item) => item.eligible).map((item, index) => [item.kind, index])
+  );
+  if (engagementRanks.size === 0 && conversionRanks.size === 0) return entries[0];
   const topPriority = Number(entries[0]?.priority) || 0;
   const candidates = entries.filter((entry) => topPriority - (Number(entry?.priority) || 0) <= 5);
   return [...candidates].sort((left, right) => {
-    const leftRank = eligibleRanks.get(String(left?.content_kind || '')) ?? Number.MAX_SAFE_INTEGER;
-    const rightRank = eligibleRanks.get(String(right?.content_kind || '')) ?? Number.MAX_SAFE_INTEGER;
-    return leftRank - rightRank;
+    const leftKind = String(left?.content_kind || '');
+    const rightKind = String(right?.content_kind || '');
+    const conversionDifference = (
+      conversionRanks.get(leftKind) ?? Number.MAX_SAFE_INTEGER
+    ) - (
+      conversionRanks.get(rightKind) ?? Number.MAX_SAFE_INTEGER
+    );
+    if (conversionDifference !== 0) return conversionDifference;
+    return (
+      engagementRanks.get(leftKind) ?? Number.MAX_SAFE_INTEGER
+    ) - (
+      engagementRanks.get(rightKind) ?? Number.MAX_SAFE_INTEGER
+    );
   })[0] || entries[0];
 };
 
@@ -330,12 +448,19 @@ const processQueuedOriginal = async ({ client, store, environment = process.env,
     return { published: false, reason: 'not_an_original_post_day' };
   }
   const lookback = new Date(now.getTime() - METRICS_LOOKBACK_MS).toISOString();
-  const [entries, history] = await Promise.all([
+  const [entries, history, productEvents] = await Promise.all([
     store.getQueuedPosts(now.toISOString()),
-    store.getPublishedActionsSince(lookback)
+    store.getPublishedActionsSince(lookback),
+    typeof store.getProductEventsSince === 'function'
+      ? store.getProductEventsSince(lookback).catch((error) => {
+        console.error('X conversion learning failed; using engagement-only selection:', error);
+        return [];
+      })
+      : []
   ]);
   const learning = buildLearningSummary(history);
-  const entry = chooseQueuedPost(entries, learning);
+  const conversionLearning = buildConversionLearningSummary(history, productEvents);
+  const entry = chooseQueuedPost(entries, learning, conversionLearning);
   if (!entry) return { published: false, reason: 'queue_empty' };
   if (entry?.metadata?.claims_verified !== true) {
     return { published: false, reason: 'claims_not_verified', contentKey: entry.content_key };
@@ -363,7 +488,12 @@ const processQueuedOriginal = async ({ client, store, environment = process.env,
     metadata: {
       contentKey: entry.content_key,
       contentKind: entry.content_kind || 'queued_update',
-      learningApplied: learning.some((item) => item.eligible),
+      campaignContent: readCampaignContent(entry) || null,
+      learningApplied: conversionLearning.some((item) => item.eligible)
+        || learning.some((item) => item.eligible),
+      learningSource: conversionLearning.some((item) => item.eligible)
+        ? 'product_conversion'
+        : learning.some((item) => item.eligible) ? 'x_engagement' : 'none',
       poll: pollValidation.poll
     }
   });
@@ -561,6 +691,7 @@ const socialAgentHandler = async (req, res) => {
 module.exports = {
   ACCOUNT_HANDLE,
   GAME_URL,
+  buildConversionLearningSummary,
   buildQueuedPostText,
   buildLearningSummary,
   buildWeeklyThread,
