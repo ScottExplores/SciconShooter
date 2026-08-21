@@ -36,6 +36,7 @@ const {
 } = require('../api/_lib/socialAgent');
 const { createSocialStore } = require('../api/_lib/socialAgentStore');
 const {
+  THEMES,
   buildEvergreenCandidates,
   pacificDateTimeToUtc
 } = require('../api/_lib/socialAgentEvergreen');
@@ -487,8 +488,19 @@ test('evergreen candidates cover two Pacific slots with verified bounded alterna
   assert.ok(entries.every((entry) => entry.metadata.claims_verified === true));
   assert.ok(entries.every((entry) => validateOriginalPost(`${entry.post_text}\n${entry.link_url}`).ok));
   assert.ok(entries.every((entry) => new Date(entry.not_after) > new Date(entry.not_before)));
+  assert.ok(entries.some((entry) => entry.content_kind === 'community'));
   assert.equal(pacificDateTimeToUtc('2026-08-31', 9).toISOString(), '2026-08-31T16:00:00.000Z');
   assert.equal(pacificDateTimeToUtc('2026-11-02', 9).toISOString(), '2026-11-02T17:00:00.000Z');
+});
+
+test('evergreen variant selection covers every verified angle without correlated repetition', () => {
+  const entries = buildEvergreenCandidates({ startDateKey: '2026-09-01', days: 14 });
+  for (const theme of THEMES) {
+    const variants = new Set(entries
+      .filter((entry) => entry.content_kind === theme)
+      .map((entry) => Number(entry.content_key.split(':').at(-1))));
+    assert.deepEqual([...variants].sort(), [1, 2, 3, 4], `${theme} should use all four variants`);
+  }
 });
 
 test('evergreen refill respects a healthy horizon and seeds only after a low horizon', async () => {
