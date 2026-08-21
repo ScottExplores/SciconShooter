@@ -186,3 +186,36 @@ test('social health audit verifies queued media response type and bounded length
 
   assert.deepEqual(blockers, [{ contentKey: 'stale-video', reason: 'media_source:content_type' }]);
 });
+
+test('social health audit verifies explicitly allowed proposal links without downloading them', async () => {
+  const { checkQueueExternalLinks } = await import('../tools/social-health-audit.mjs');
+  const queue = [
+    {
+      content_key: 'live-proposal',
+      link_url: 'https://www.researchhub.com/proposal/32342/precision-phenotyping',
+      metadata: { allow_researchhub_proposal: true }
+    },
+    {
+      content_key: 'game-post',
+      link_url: 'https://www.sciconshooter.xyz/',
+      metadata: { claims_verified: true }
+    }
+  ];
+  const calls = [];
+  const blockers = await checkQueueExternalLinks(queue, {
+    fetchImpl: async (url, options) => {
+      calls.push({ url, options });
+      return {
+        ok: true,
+        status: 200,
+        headers: { get: (name) => (name === 'content-type' ? 'text/html; charset=utf-8' : null) }
+      };
+    }
+  });
+
+  assert.deepEqual(blockers, []);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].options.method, 'HEAD');
+  assert.equal(calls[0].options.redirect, 'error');
+  assert.match(calls[0].url, /^https:\/\/www\.researchhub\.com\/proposal\/32342\//);
+});

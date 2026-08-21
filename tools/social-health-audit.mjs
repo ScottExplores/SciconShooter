@@ -8,6 +8,7 @@ const { validateOriginalPost } = require('../api/_lib/socialAgentPolicy');
 const DEFAULT_SINCE_HOURS = 24;
 const MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
 const MAX_MEDIA_SOURCE_CHECKS = 32;
+const MAX_EXTERNAL_LINK_CHECKS = 8;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 15 * 1024 * 1024;
 const MIN_ATTRIBUTED_SESSIONS = 3;
@@ -254,12 +255,42 @@ export const checkQueueMediaSources = async (queue = [], { fetchImpl = fetch } =
   })).filter((item) => item.reason);
 };
 
+export const checkQueueExternalLinks = async (queue = [], { fetchImpl = fetch } = {}) => {
+  const references = queue.filter((entry) => (
+    entry?.metadata?.allow_researchhub_proposal === true
+  )).map((entry) => ({
+    contentKey: boundedText(entry?.content_key, 100),
+    sourceUrl: String(entry?.link_url || '').trim()
+  }));
+  if (references.length > MAX_EXTERNAL_LINK_CHECKS) {
+    return [{ contentKey: 'queue', reason: 'external_source:check_limit' }];
+  }
+  return (await Promise.all(references.map(async ({ contentKey, sourceUrl }) => {
+    try {
+      const response = await fetchImpl(sourceUrl, {
+        method: 'HEAD',
+        headers: { Accept: 'text/html' },
+        redirect: 'error',
+        signal: AbortSignal.timeout(12_000)
+      });
+      if (!response.ok) return { contentKey, reason: `external_source:http_${response.status}` };
+      const mediaType = String(response.headers?.get?.('content-type') || '')
+        .split(';')[0].trim().toLowerCase();
+      if (mediaType !== 'text/html') return { contentKey, reason: 'external_source:content_type' };
+      return { contentKey, reason: '' };
+    } catch {
+      return { contentKey, reason: 'external_source:request_failed' };
+    }
+  }))).filter((item) => item.reason);
+};
+
 export const buildSocialHealthSummary = ({
   queue = [],
   actions = [],
   events = [],
   leaderboard = {},
   mediaSourceBlockers = [],
+  externalLinkBlockers = [],
   checkedAt = new Date(),
   since = new Date(checkedAt.getTime() - DEFAULT_SINCE_HOURS * 3_600_000)
 } = {}) => {
@@ -267,6 +298,9 @@ export const buildSocialHealthSummary = ({
     contentKey: boundedText(entry?.content_key, 100),
     reason: queueBlocker(entry, checkedAt)
   })).filter((entry) => entry.reason).concat(mediaSourceBlockers.map((entry) => ({
+    contentKey: boundedText(entry?.contentKey, 100),
+    reason: boundedText(entry?.reason, 100)
+  })).filter((entry) => entry.contentKey && entry.reason), externalLinkBlockers.map((entry) => ({
     contentKey: boundedText(entry?.contentKey, 100),
     reason: boundedText(entry?.reason, 100)
   })).filter((entry) => entry.contentKey && entry.reason));
@@ -353,13 +387,17 @@ export const readSocialHealth = async ({
     fetchJson(`${rest}/scicon_product_events?select=event_name,session_id,properties,occurred_at&occurred_at=gte.${encodeURIComponent(since.toISOString())}&order=occurred_at.asc&limit=5000`, { headers, fetchImpl }),
     fetchJson('https://www.sciconshooter.xyz/api/leaderboard', { fetchImpl })
   ]);
-  const mediaSourceBlockers = await checkQueueMediaSources(queue, { fetchImpl });
+  const [mediaSourceBlockers, externalLinkBlockers] = await Promise.all([
+    checkQueueMediaSources(queue, { fetchImpl }),
+    checkQueueExternalLinks(queue, { fetchImpl })
+  ]);
   return buildSocialHealthSummary({
     queue,
     actions,
     events,
     leaderboard,
     mediaSourceBlockers,
+    externalLinkBlockers,
     checkedAt: now,
     since
   });
