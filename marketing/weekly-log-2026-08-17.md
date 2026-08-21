@@ -216,3 +216,5 @@ The live queue was also corrected before publication: literal `\n` escape text i
 ## Native poll capability
 
 PR #19 added bounded native-poll support through the existing official X create-post endpoint. Production deployment `dpl_W3enT4vPBDaC9NAEFDzvuKz1ZJAy` is ready on August 21, 2026. Queue-authored polls must contain two to four unique string options of at most 25 characters and run for 5 to 10,080 minutes. Invalid poll metadata stops before action reservation or publication, and accepted poll choices are retained in the social audit metadata.
+
+PR #20 added read-only poll-result collection through the account timeline's official `attachments.poll_ids` expansion. Production deployment `dpl_F4RUeAxbQtRFPt9XUjNGF37ot4nK` is live on the public domains. Bounded option labels, vote totals, voting status, and end time are saved with each post's metrics; votes contribute to the existing engagement calculation without bypassing the three-sample learning threshold.
