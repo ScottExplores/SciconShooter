@@ -19,6 +19,7 @@ const {
   processMentions,
   processQueuedOriginal,
   processWeeklyWinner,
+  readQueuePoll,
   runSocialAgent,
   syncPublishedMetrics
 } = require('../api/_lib/socialAgent');
@@ -99,7 +100,7 @@ test('X OAuth signatures are deterministic for fixed nonce and timestamp and cov
   assert.doesNotMatch(first, /secret|token-secret/);
 });
 
-test('X client uses the official API with OAuth user context and creates replies', async () => {
+test('X client uses the official API with OAuth user context and creates replies and polls', async () => {
   const calls = [];
   const client = createXClient({
     environment: TEST_X_ENV,
@@ -122,6 +123,14 @@ test('X client uses the official API with OAuth user context and creates replies
   assert.deepEqual(JSON.parse(calls[0].options.body), {
     text: 'A safe reply',
     reply: { in_reply_to_tweet_id: 'post-1' }
+  });
+  await client.createPost({
+    text: 'Pick a build',
+    poll: { options: ['Damage', 'Speed'], duration_minutes: 1_440 }
+  });
+  assert.deepEqual(JSON.parse(calls[1].options.body), {
+    text: 'Pick a build',
+    poll: { options: ['Damage', 'Speed'], duration_minutes: 1_440 }
   });
 });
 
@@ -272,6 +281,41 @@ test('queued original posts require verified claims and publish at most once', a
   });
   assert.equal(second.published, false);
   assert.equal(posts.length, 1);
+});
+
+test('queued polls require bounded unique options and publish through the audited original-post path', async () => {
+  assert.deepEqual(readQueuePoll({ metadata: {} }), { ok: true, poll: null });
+  assert.equal(readQueuePoll({ metadata: { poll: { options: ['Damage'], duration_minutes: 60 } } }).reason, 'option_count');
+  assert.equal(readQueuePoll({ metadata: { poll: { options: ['Damage', 2], duration_minutes: 60 } } }).reason, 'option_type');
+  assert.equal(readQueuePoll({ metadata: { poll: { options: ['Damage', 'damage'], duration_minutes: 60 } } }).reason, 'duplicate_options');
+  assert.equal(readQueuePoll({ metadata: { poll: { options: ['Damage', 'Speed'], duration_minutes: 1 } } }).reason, 'duration');
+
+  const queueEntry = {
+    content_key: 'squad-poll',
+    content_kind: 'gameplay',
+    post_text: 'Squad draft. What are you optimizing?',
+    link_url: null,
+    status: 'queued',
+    requires_media: false,
+    metadata: {
+      claims_verified: true,
+      poll: { options: ['Damage', 'Speed', 'Survival', 'Maximum chaos'], duration_minutes: 1_440 }
+    }
+  };
+  const store = createMemoryStore({ queuedPost: queueEntry });
+  const posts = [];
+  const client = {
+    async createPost(input) { posts.push(input); return { id: 'poll-post', text: input.text }; }
+  };
+  const result = await processQueuedOriginal({
+    client,
+    store,
+    environment: { X_AGENT_ORIGINAL_DAYS: 'Wed' },
+    now: new Date('2026-08-26T23:00:00.000Z')
+  });
+  assert.equal(result.published, true);
+  assert.deepEqual(posts[0].poll, queueEntry.metadata.poll);
+  assert.deepEqual(store.actions.get('queue:squad-poll').metadata.poll, queueEntry.metadata.poll);
 });
 
 test('weekly worker publishes a verified winner post and its direct score-challenge reply', async () => {

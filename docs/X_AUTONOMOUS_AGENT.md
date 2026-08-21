@@ -5,6 +5,7 @@
 The production worker uses the official X API. It can perform only these actions:
 
 - Publish at most one verified queued original post per scheduled invocation on configured weekdays.
+- Publish a native poll only when the queue supplies two to four unique, bounded options and a valid duration.
 - Read mentions of `@SciconShooter` and reply inside conversations that directly contacted the account.
 - Publish the finalized weekly winner thread only when the winner, score, wave, and ResearchHub proposal selection are present in the competition record.
 - Save every attempted action, decision, source post, final copy, status, and X post ID in Supabase.
@@ -25,6 +26,7 @@ Performance learning is deliberately slow. A content category needs at least thr
 - Generated replies are treated as untrusted until they pass URL, length, secret-request, hashtag, and claim validation.
 - A failed or interrupted action keeps its idempotency reservation and is not automatically retried, preventing duplicate posts.
 - Queued original posts require `metadata.claims_verified=true`. Media-required entries stop for review.
+- Poll options are queue-authored and strictly validated; the model cannot invent or alter poll choices at publication time.
 - Funding is never described as completed from proposal selection alone. The weekly thread records `selection_only` unless an allocation transaction hash exists.
 
 ## Required production secrets

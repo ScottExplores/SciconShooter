@@ -14,6 +14,9 @@ const GAME_URL = 'https://www.sciconshooter.xyz/';
 const MAX_WEEKLY_POST_AGE_MS = 72 * 60 * 60 * 1000;
 const METRICS_LOOKBACK_MS = 30 * 24 * 60 * 60 * 1000;
 const MIN_LEARNING_SAMPLES = 3;
+const MIN_POLL_DURATION_MINUTES = 5;
+const MAX_POLL_DURATION_MINUTES = 10_080;
+const MAX_POLL_OPTION_LENGTH = 25;
 
 const comparePostIds = (left, right) => {
   try {
@@ -47,6 +50,33 @@ const buildQueuedPostText = (entry) => {
   const text = String(entry?.post_text || '').trim();
   const link = String(entry?.link_url || '').trim();
   return link && !text.includes(link) ? `${text}\n${link}` : text;
+};
+
+const readQueuePoll = (entry) => {
+  const raw = entry?.metadata?.poll;
+  if (raw === undefined || raw === null) return { ok: true, poll: null };
+  if (!Array.isArray(raw.options) || raw.options.length < 2 || raw.options.length > 4) {
+    return { ok: false, reason: 'option_count' };
+  }
+  if (raw.options.some((option) => typeof option !== 'string')) {
+    return { ok: false, reason: 'option_type' };
+  }
+  const options = raw.options.map((option) => option.trim());
+  if (options.some((option) => !option || option.length > MAX_POLL_OPTION_LENGTH)) {
+    return { ok: false, reason: 'option_length' };
+  }
+  if (new Set(options.map((option) => option.toLowerCase())).size !== options.length) {
+    return { ok: false, reason: 'duplicate_options' };
+  }
+  const durationMinutes = Number(raw.duration_minutes);
+  if (
+    !Number.isInteger(durationMinutes)
+    || durationMinutes < MIN_POLL_DURATION_MINUTES
+    || durationMinutes > MAX_POLL_DURATION_MINUTES
+  ) {
+    return { ok: false, reason: 'duration' };
+  }
+  return { ok: true, poll: { options, duration_minutes: durationMinutes } };
 };
 
 const metricNumber = (metrics, key) => Math.max(0, Number(metrics?.[key]) || 0);
@@ -126,9 +156,9 @@ const buildWeeklyThread = (competition) => {
   };
 };
 
-const publishReservedAction = async ({ client, store, key, text, replyToId, metadata }) => {
+const publishReservedAction = async ({ client, store, key, text, replyToId, poll, metadata }) => {
   try {
-    const post = await client.createPost({ text, replyToId });
+    const post = await client.createPost({ text, replyToId, poll });
     if (!post?.id) throw new Error('X did not return a post ID.');
     const action = await store.updateAction(key, {
       status: 'published',
@@ -291,6 +321,10 @@ const processQueuedOriginal = async ({ client, store, environment = process.env,
   if (entry.requires_media) {
     return { published: false, reason: 'media_requires_review', contentKey: entry.content_key };
   }
+  const pollValidation = readQueuePoll(entry);
+  if (!pollValidation.ok) {
+    return { published: false, reason: `poll_validation:${pollValidation.reason}`, contentKey: entry.content_key };
+  }
   const text = buildQueuedPostText(entry);
   const validation = validateOriginalPost(text);
   if (!validation.ok) {
@@ -307,7 +341,8 @@ const processQueuedOriginal = async ({ client, store, environment = process.env,
     metadata: {
       contentKey: entry.content_key,
       contentKind: entry.content_kind || 'queued_update',
-      learningApplied: learning.some((item) => item.eligible)
+      learningApplied: learning.some((item) => item.eligible),
+      poll: pollValidation.poll
     }
   });
   if (!reserved) return { published: false, reason: 'duplicate_reservation', contentKey: entry.content_key };
@@ -317,6 +352,7 @@ const processQueuedOriginal = async ({ client, store, environment = process.env,
     store,
     key,
     text: validation.text,
+    poll: pollValidation.poll,
     metadata: reserved.metadata
   });
   await store.markQueuedPostPublished(entry.content_key, published.action?.id || reserved.id);
@@ -496,6 +532,7 @@ module.exports = {
   processMentions,
   processQueuedOriginal,
   processWeeklyWinner,
+  readQueuePoll,
   runSocialAgent,
   socialAgentHandler,
   syncPublishedMetrics
