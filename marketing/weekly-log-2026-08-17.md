@@ -114,3 +114,20 @@ All entries are under 280 weighted X characters, contain no hashtags, use the of
 - Sunday remains reserved for the verified competition result workflow.
 - No automated likes, follows, DMs, trend posting, cold replies, or bulk engagement were enabled.
 - Production redeployed after the environment change on August 21, 2026.
+
+## X campaign attribution rollout
+
+On August 21, 2026, PR #17 added privacy-safe X campaign attribution to the initial `app_opened` event and restricted autonomous posts to approved first-party UTM parameters. Production deployment `dpl_GzLhAxyhPuDiUz86jsRXaGax2b9o` is ready on `www.sciconshooter.xyz`; the private social endpoint still returns `401` without authorization.
+
+The eight queued growth-sprint posts retain their planned 9:00 AM Pacific posting times. Their live queue URLs are:
+
+- `weekly-board-reset-v1`: `https://www.sciconshooter.xyz/?utm_source=x&utm_medium=social&utm_campaign=growth-sprint-2026-08&utm_content=weekly-board`
+- `rsc-allocation-explainer-v1`: `https://www.sciconshooter.xyz/?utm_source=x&utm_medium=social&utm_campaign=growth-sprint-2026-08&utm_content=rsc-explainer`
+- `boss-archive-runback-v1`: `https://www.sciconshooter.xyz/?utm_source=x&utm_medium=social&utm_campaign=growth-sprint-2026-08&utm_content=boss-archive`
+- `squad-bad-decisions-v1`: `https://www.sciconshooter.xyz/?utm_source=x&utm_medium=social&utm_campaign=growth-sprint-2026-08&utm_content=squad-build`
+- `campaign-meet-enormous-v1`: `https://www.sciconshooter.xyz/?utm_source=x&utm_medium=social&utm_campaign=growth-sprint-2026-08&utm_content=campaign-map`
+- `guest-bullets-optional-wallet-v1`: `https://www.sciconshooter.xyz/?utm_source=x&utm_medium=social&utm_campaign=growth-sprint-2026-08&utm_content=guest-play`
+- `third-run-personal-v1`: `https://www.sciconshooter.xyz/?utm_source=x&utm_medium=social&utm_campaign=growth-sprint-2026-08&utm_content=repeat-run`
+- `weekly-science-loop-v1`: `https://www.sciconshooter.xyz/?utm_source=x&utm_medium=social&utm_campaign=growth-sprint-2026-08&utm_content=science-loop`
+
+Each URL remains within the worker's approved first-party boundary, and each assembled post remains under 280 weighted X characters. Evaluation will join attributed `app_opened` sessions to later `mission_started`, `score_submitted`, and verified leaderboard activity by session ID. No synthetic production visit was generated to test attribution, so the first real campaign event should come from a player click.
