@@ -37,3 +37,49 @@ test('social health summary reports blockers and aggregate conversion without se
   assert.equal(summary.weeklyLeaderboard.leader.score, 1234);
   assert.doesNotMatch(JSON.stringify(summary), /secret-session/);
 });
+
+test('social health audit verifies queued media response type and bounded length', async () => {
+  const { checkQueueMediaSources } = await import('../tools/social-health-audit.mjs');
+  const queue = [
+    {
+      content_key: 'live-image',
+      requires_media: true,
+      metadata: {
+        media: {
+          source_url: 'https://www.sciconshooter.xyz/social-assets/live.png',
+          alt_text: 'Current game screen'
+        }
+      }
+    },
+    {
+      content_key: 'stale-video',
+      requires_media: true,
+      metadata: {
+        media: {
+          kind: 'video',
+          claims_audited: true,
+          source_url: 'https://www.sciconshooter.xyz/social-assets/stale.mp4',
+          alt_text: 'Current product demo'
+        }
+      }
+    }
+  ];
+  const blockers = await checkQueueMediaSources(queue, {
+    fetchImpl: async (url, options) => {
+      assert.equal(options.method, 'HEAD');
+      return {
+        ok: true,
+        status: 200,
+        headers: {
+          get(name) {
+            if (name === 'content-type') return String(url).endsWith('.mp4') ? 'text/html; charset=utf-8' : 'image/png';
+            if (name === 'content-length') return String(url).endsWith('.mp4') ? '1000' : '2000';
+            return null;
+          }
+        }
+      };
+    }
+  });
+
+  assert.deepEqual(blockers, [{ contentKey: 'stale-video', reason: 'media_source:content_type' }]);
+});
