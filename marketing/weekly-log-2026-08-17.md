@@ -110,7 +110,7 @@ All entries are under 280 weighted X characters, contain no hashtags, use the of
 ## Cadence change
 
 - Production `X_AGENT_ORIGINAL_DAYS`: `Mon,Tue,Wed,Thu,Fri,Sat`.
-- Original-post ceiling for this test: one per day.
+- Original-post ceiling for this test: two per configured day, one per scheduled invocation.
 - Sunday remains reserved for the verified competition result workflow.
 - No automated likes, follows, DMs, trend posting, cold replies, or bulk engagement were enabled.
 - Production redeployed after the environment change on August 21, 2026.
@@ -131,3 +131,82 @@ The eight queued growth-sprint posts retain their planned 9:00 AM Pacific postin
 - `weekly-science-loop-v1`: `https://www.sciconshooter.xyz/?utm_source=x&utm_medium=social&utm_campaign=growth-sprint-2026-08&utm_content=science-loop`
 
 Each URL remains within the worker's approved first-party boundary, and each assembled post remains under 280 weighted X characters. Evaluation will join attributed `app_opened` sessions to later `mission_started`, `score_submitted`, and verified leaderboard activity by session ID. No synthetic production visit was generated to test attribution, so the first real campaign event should come from a player click.
+
+## Afternoon growth lane
+
+PR #18 added a second daily worker invocation at 4:00 PM Pacific. Production deployment `dpl_AZosErhhwZS2fpv6yPEjKtqD3GzE` is ready on August 21, 2026. The worker still publishes at most one verified queue item per invocation. Each afternoon entry expires before the next Pacific day so a missed secondary post cannot displace a morning primary post.
+
+The live queue was also corrected before publication: literal `\n` escape text in three morning drafts was replaced with real line breaks. A full queue audit confirmed 16 verified posts, weighted lengths from 107 to 217 characters, approved first-party URLs, and no remaining literal line-break escapes.
+
+### Saturday, August 22 at 4:00 PM Pacific
+
+> Weekend flight rule: one run to learn it, one run to blame the ship, one run to admit the bullets won. Which run are you on?
+> https://www.sciconshooter.xyz/?utm_source=x&utm_medium=social&utm_campaign=growth-sprint-2026-08&utm_content=weekend-run
+
+- Content key: `weekend-three-runs-v1`
+- Verification: non-claim gameplay challenge.
+- Reply goal: repeat-run stage and score conversation.
+
+### Monday, August 24 at 4:00 PM Pacific
+
+> The weekly competition needs a villain. Put up a score early enough that everyone else has to stare at it all week. Reply when somebody takes it from you.
+> https://www.sciconshooter.xyz/?utm_source=x&utm_medium=social&utm_campaign=growth-sprint-2026-08&utm_content=villain-score
+
+- Content key: `weekly-villain-score-v1`
+- Verification: weekly competition flow.
+- Reply goal: early scores and competitive runbacks.
+
+### Tuesday, August 25 at 4:00 PM Pacific
+
+> Boss Archive math: losing once is research. Losing twice is a pattern. Losing three times means the boss has tenure. Which encounter keeps farming you?
+> https://www.sciconshooter.xyz/?utm_source=x&utm_medium=social&utm_campaign=growth-sprint-2026-08&utm_content=boss-tenure
+
+- Content key: `boss-tenure-v1`
+- Verification: production `BossArchive` implementation.
+- Reply goal: named boss difficulty feedback.
+
+### Wednesday, August 26 at 4:00 PM Pacific
+
+> Squad draft: damage, speed, or survival? You get one main ship and two mini-ships. Reply with the build you trust when the screen fills with bullets.
+
+- Content key: `squad-draft-v1`
+- URL: none; this is a link-free conversation test.
+- Verification: production `SquadHangar` implementation.
+- Reply goal: ship builds and player priorities.
+
+### Thursday, August 27 at 4:00 PM Pacific
+
+> Campaign route check: take the safer path and stack upgrades, or choose the route that looks like a terrible idea? I know what arcade players are picking.
+> https://www.sciconshooter.xyz/?utm_source=x&utm_medium=social&utm_campaign=growth-sprint-2026-08&utm_content=route-choice
+
+- Content key: `campaign-route-choice-v1`
+- Verification: production `CampaignMap` implementation.
+- Reply goal: route-selection behavior.
+
+### Friday, August 28 at 4:00 PM Pacific
+
+> Wallet optional. Dodging is not. The first thing Scicon Shooter asks from you is whether you can survive the opening run. Everything else comes later.
+> https://www.sciconshooter.xyz/?utm_source=x&utm_medium=social&utm_campaign=growth-sprint-2026-08&utm_content=dodge-first
+
+- Content key: `wallet-dodge-first-v1`
+- Verification: production guest-first flow.
+- Reply goal: first-run survival and wallet-friction questions.
+
+### Saturday, August 29 at 4:00 PM Pacific
+
+> Post-run honesty check: score, wave, and what killed you. Screenshots encouraged. Excuses reviewed harshly.
+
+- Content key: `post-run-honesty-v1`
+- URL: none; this is a link-free conversation test.
+- Verification: non-claim score conversation prompt.
+- Reply goal: score screenshots, waves, and death causes.
+
+### Monday, August 31 at 4:00 PM Pacific
+
+> Top the verified weekly board and you can choose an eligible ResearchHub proposal for the round's 100 RSC funding-credit allocation. An objectively strange machine. Good. Test it.
+> https://www.sciconshooter.xyz/?utm_source=x&utm_medium=social&utm_campaign=growth-sprint-2026-08&utm_content=strange-machine
+
+- Content key: `strange-science-machine-v1`
+- Verification: production README and weekly competition records with `allocation_rsc=100`.
+- Funding status wording: selection right and allocation mechanism only; no completed-funding claim.
+- Reply goal: questions and reactions to the game-to-science mechanism.
