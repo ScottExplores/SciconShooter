@@ -575,6 +575,34 @@ const processMentions = async ({
   return result;
 };
 
+const validateQueuedOriginalEntry = (entry) => {
+  if (entry?.metadata?.claims_verified !== true) {
+    return { ok: false, reason: 'claims_not_verified' };
+  }
+  const pollValidation = readQueuePoll(entry);
+  if (!pollValidation.ok) return { ok: false, reason: `poll_validation:${pollValidation.reason}` };
+  const mediaValidation = readQueueMedia(entry);
+  if (!mediaValidation.ok) return { ok: false, reason: `media_validation:${mediaValidation.reason}` };
+  if (pollValidation.poll && mediaValidation.media.length > 0) {
+    return { ok: false, reason: 'media_validation:poll_conflict' };
+  }
+  const allowResearchHubProposal = entry?.metadata?.allow_researchhub_proposal === true;
+  const validation = validateOriginalPost(buildQueuedPostText(entry), { allowResearchHubProposal });
+  if (!validation.ok) return { ok: false, reason: `post_validation:${validation.reason}` };
+  return {
+    ok: true,
+    text: validation.text,
+    poll: pollValidation.poll,
+    media: mediaValidation.media,
+    allowResearchHubProposal
+  };
+};
+
+const pauseQueuedEntry = async (store, entry, reason) => {
+  if (typeof store?.markQueuedPostPaused !== 'function') return null;
+  return store.markQueuedPostPaused(entry.content_key, entry.metadata, reason);
+};
+
 const processQueuedOriginal = async ({ client, store, environment = process.env, now = new Date() }) => {
   if (!configuredOriginalDays(environment).has(getPacificWeekday(now))) {
     return { published: false, reason: 'not_an_original_post_day' };
@@ -595,66 +623,78 @@ const processQueuedOriginal = async ({ client, store, environment = process.env,
   ]);
   const learning = buildLearningSummary(history);
   const conversionLearning = buildConversionLearningSummary(history, productEvents);
-  const entry = chooseQueuedPost(entries, learning, conversionLearning);
-  if (!entry) return { published: false, reason: 'queue_empty' };
-  if (entry?.metadata?.claims_verified !== true) {
-    return { published: false, reason: 'claims_not_verified', contentKey: entry.content_key };
-  }
-  const pollValidation = readQueuePoll(entry);
-  if (!pollValidation.ok) {
-    return { published: false, reason: `poll_validation:${pollValidation.reason}`, contentKey: entry.content_key };
-  }
-  const mediaValidation = readQueueMedia(entry);
-  if (!mediaValidation.ok) {
-    return { published: false, reason: `media_validation:${mediaValidation.reason}`, contentKey: entry.content_key };
-  }
-  if (pollValidation.poll && mediaValidation.media.length > 0) {
-    return { published: false, reason: 'media_validation:poll_conflict', contentKey: entry.content_key };
-  }
-  const text = buildQueuedPostText(entry);
-  const allowResearchHubProposal = entry?.metadata?.allow_researchhub_proposal === true;
-  const validation = validateOriginalPost(text, { allowResearchHubProposal });
-  if (!validation.ok) {
-    return { published: false, reason: `post_validation:${validation.reason}`, contentKey: entry.content_key };
-  }
-  const key = `queue:${entry.content_key}`;
-  const existing = await store.getAction(key);
-  if (existing) return { published: false, reason: `already_${existing.status}`, contentKey: entry.content_key };
-  const reserved = await store.reserveAction({
-    idempotencyKey: key,
-    actionType: 'original',
-    content: validation.text,
-    reason: entry.content_kind || 'queued_update',
-    metadata: {
-      contentKey: entry.content_key,
-      contentKind: entry.content_kind || 'queued_update',
-      campaignContent: readCampaignContent(entry) || null,
-      proposalSpotlight: allowResearchHubProposal,
-      fundingStatus: allowResearchHubProposal
-        ? String(entry?.metadata?.funding_status_wording || 'selection_only').slice(0, 40)
-        : null,
-      learningApplied: conversionLearning.some((item) => item.eligible)
-        || learning.some((item) => item.eligible),
-      learningSource: conversionLearning.some((item) => item.eligible)
-        ? 'product_conversion'
-        : learning.some((item) => item.eligible) ? 'x_engagement' : 'none',
-      poll: pollValidation.poll,
-      nativeMediaCount: mediaValidation.media.length
-    }
-  });
-  if (!reserved) return { published: false, reason: 'duplicate_reservation', contentKey: entry.content_key };
+  const candidates = [...entries];
+  let exhaustedReason = entries.length > 0 ? 'queue_exhausted' : 'queue_empty';
+  while (candidates.length > 0) {
+    const entry = chooseQueuedPost(candidates, learning, conversionLearning);
+    if (!entry) break;
+    candidates.splice(candidates.indexOf(entry), 1);
 
-  const published = await publishReservedAction({
-    client,
-    store,
-    key,
-    text: validation.text,
-    poll: pollValidation.poll,
-    media: mediaValidation.media,
-    metadata: reserved.metadata
-  });
-  await store.markQueuedPostPublished(entry.content_key, published.action?.id || reserved.id);
-  return { published: true, postId: published.postId, contentKey: entry.content_key };
+    const entryValidation = validateQueuedOriginalEntry(entry);
+    if (!entryValidation.ok) {
+      exhaustedReason = entryValidation.reason;
+      await pauseQueuedEntry(store, entry, entryValidation.reason);
+      continue;
+    }
+
+    const key = `queue:${entry.content_key}`;
+    const existing = await store.getAction(key);
+    if (existing?.status === 'published') {
+      await store.markQueuedPostPublished(entry.content_key, existing.id || null);
+      return { published: false, reason: 'reconciled_published', contentKey: entry.content_key };
+    }
+    if (existing?.status === 'reserved') {
+      return { published: false, reason: 'already_reserved', contentKey: entry.content_key };
+    }
+    if (existing) {
+      exhaustedReason = `already_${String(existing.status || 'unknown').slice(0, 40)}`;
+      await pauseQueuedEntry(store, entry, `action_${String(existing.status || 'unknown').slice(0, 40)}`);
+      continue;
+    }
+
+    const reserved = await store.reserveAction({
+      idempotencyKey: key,
+      actionType: 'original',
+      content: entryValidation.text,
+      reason: entry.content_kind || 'queued_update',
+      metadata: {
+        contentKey: entry.content_key,
+        contentKind: entry.content_kind || 'queued_update',
+        campaignContent: readCampaignContent(entry) || null,
+        proposalSpotlight: entryValidation.allowResearchHubProposal,
+        fundingStatus: entryValidation.allowResearchHubProposal
+          ? String(entry?.metadata?.funding_status_wording || 'selection_only').slice(0, 40)
+          : null,
+        learningApplied: conversionLearning.some((item) => item.eligible)
+          || learning.some((item) => item.eligible),
+        learningSource: conversionLearning.some((item) => item.eligible)
+          ? 'product_conversion'
+          : learning.some((item) => item.eligible) ? 'x_engagement' : 'none',
+        poll: entryValidation.poll,
+        nativeMediaCount: entryValidation.media.length
+      }
+    });
+    if (!reserved) return { published: false, reason: 'duplicate_reservation', contentKey: entry.content_key };
+
+    try {
+      const published = await publishReservedAction({
+        client,
+        store,
+        key,
+        text: entryValidation.text,
+        poll: entryValidation.poll,
+        media: entryValidation.media,
+        metadata: reserved.metadata
+      });
+      await store.markQueuedPostPublished(entry.content_key, published.action?.id || reserved.id);
+      return { published: true, postId: published.postId, contentKey: entry.content_key };
+    } catch (error) {
+      await pauseQueuedEntry(store, entry, `publish_failed:${String(error?.message || error).slice(0, 150)}`)
+        .catch(() => null);
+      throw error;
+    }
+  }
+  return { published: false, reason: exhaustedReason };
 };
 
 const syncPublishedMetrics = async ({ client, store, environment = process.env, now = new Date() }) => {
