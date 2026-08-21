@@ -345,3 +345,12 @@ PR #28 merged as `7e6ef0dc` and production deployment `sciconshooter-8yx6a4pkx` 
 - Measurement: bounded `desktop_launch_viewed` and `desktop_launch_selected` events record only the chosen surface (`browser` or `base_app`) and placement. Existing session, request-size, property, and rate limits still apply.
 - Verification: five focused launch-shell tests, TypeScript, ESLint with zero errors, production build, and local browser launch passed. The public production page shows the revised CTA and the social endpoint remains `401 Unauthorized` without credentials.
 - Data hygiene: the single `desktop_launch_viewed` event created by production verification at 11:19:41 AM Pacific was identified by exact ID and timestamp and removed; launch-choice measurement therefore begins with real visitors.
+
+### Desktop campaign attribution
+
+PR #29 merged as `68616aeb` and production deployment `sciconshooter-ju6qq3qhp` became live August 21 at 11:26 AM Pacific.
+
+- Desktop launch views and browser/Base choices now retain only approved `utm_source=x`, `utm_medium=social`, bounded campaign, and bounded content values from the landing URL.
+- Conversion learning treats `desktop_launch_viewed` and `app_opened` as equivalent campaign touches and deduplicates them by session. A desktop visitor who continues into the game counts once; a visitor who leaves at the launcher remains visible in the denominator.
+- Existing outcomes remain `mission_started` and `score_submitted`, with a minimum of three attributed sessions before evidence can influence queue selection.
+- Verification: 25 focused desktop and social-agent tests, TypeScript, ESLint with zero errors, and production build passed. The production deployment is ready and the unauthenticated social endpoint remains `401 Unauthorized`.
