@@ -561,7 +561,8 @@ const processQueuedOriginal = async ({ client, store, environment = process.env,
     return { published: false, reason: `poll_validation:${pollValidation.reason}`, contentKey: entry.content_key };
   }
   const text = buildQueuedPostText(entry);
-  const validation = validateOriginalPost(text);
+  const allowResearchHubProposal = entry?.metadata?.allow_researchhub_proposal === true;
+  const validation = validateOriginalPost(text, { allowResearchHubProposal });
   if (!validation.ok) {
     return { published: false, reason: `post_validation:${validation.reason}`, contentKey: entry.content_key };
   }
@@ -577,6 +578,10 @@ const processQueuedOriginal = async ({ client, store, environment = process.env,
       contentKey: entry.content_key,
       contentKind: entry.content_kind || 'queued_update',
       campaignContent: readCampaignContent(entry) || null,
+      proposalSpotlight: allowResearchHubProposal,
+      fundingStatus: allowResearchHubProposal
+        ? String(entry?.metadata?.funding_status_wording || 'selection_only').slice(0, 40)
+        : null,
       learningApplied: conversionLearning.some((item) => item.eligible)
         || learning.some((item) => item.eligible),
       learningSource: conversionLearning.some((item) => item.eligible)

@@ -42,6 +42,27 @@ const isApprovedOfficialUrl = (value) => {
   }
 };
 
+const isApprovedResearchHubProposalUrl = (value) => {
+  try {
+    const url = new URL(String(value || '').replace(/[),.!?]+$/, ''));
+    if (
+      url.protocol !== 'https:'
+      || url.hostname !== 'www.researchhub.com'
+      || url.port
+      || url.username
+      || url.password
+      || url.hash
+      || !/^\/(?:proposal|post)\/\d+(?:\/|$)/.test(url.pathname)
+    ) return false;
+    if ([...url.searchParams.keys()].some((key) => !['utm_source', 'utm_medium'].includes(key))) {
+      return false;
+    }
+    return [...url.searchParams.values()].every((parameter) => CAMPAIGN_VALUE_PATTERN.test(parameter));
+  } catch {
+    return false;
+  }
+};
+
 const weightedLength = (text) => {
   const source = String(text || '');
   let length = 0;
@@ -144,13 +165,7 @@ const validateOriginalPost = (text, { allowResearchHubProposal = false } = {}) =
   const invalidUrl = urls.find((rawUrl) => {
     const url = rawUrl.replace(/[),.!?]+$/, '');
     if (isApprovedOfficialUrl(url)) return false;
-    if (allowResearchHubProposal) {
-      try {
-        return new URL(url).hostname !== 'www.researchhub.com';
-      } catch {
-        return true;
-      }
-    }
+    if (allowResearchHubProposal) return !isApprovedResearchHubProposalUrl(url);
     return true;
   });
   return invalidUrl ? { ok: false, reason: 'unapproved_url' } : { ok: true, text: value };
@@ -160,6 +175,7 @@ module.exports = {
   classifyMention,
   deterministicReply,
   isApprovedOfficialUrl,
+  isApprovedResearchHubProposalUrl,
   validateOriginalPost,
   validateReply,
   weightedLength
