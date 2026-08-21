@@ -89,13 +89,13 @@ Attach `marketing/campaign-assets/pilots-wanted-feedback.png`.
 
 ### Thursday, July 23 — BIO ship explainer
 
-Explain the loop precisely: a player may optionally mint a verified Mission Record on Base, and confirmed ownership unlocks the playable BIO ship for that connected wallet. A Mission Record does not claim the player won the week.
+Explain the loops separately: a player may optionally mint a verified Mission Record on Base. The playable BIO ship unlocks only when the game verifies that the connected wallet holds at least 100 BIO on Base. A Mission Record neither unlocks BIO nor claims the player won the week.
 
 Manual-post draft:
 
 > We added a BIO-inspired ship to Scicon Shooter.
 >
-> Play is still free and no wallet is required. If a player chooses to mint a verified Mission Record on Base, confirmed ownership unlocks the BIO ship for that connected wallet.
+> Play is still free and no wallet is required. A verified Mission Record can be minted optionally. The BIO ship is a separate unlock for connected wallets holding at least 100 BIO on Base.
 >
 > What should make the BIO ship feel different in gameplay: movement, weapon pattern, or a science-themed ability?
 >
