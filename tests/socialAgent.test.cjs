@@ -232,7 +232,8 @@ test('queued social screenshots are bounded PNG campaign assets', () => {
   const assetNames = [
     'scicon-home-hangar-upgrade-2026-08.png',
     'scicon-hangar-main-ships-2026-08.png',
-    'scicon-hangar-mini-ships-2026-08.png'
+    'scicon-hangar-mini-ships-2026-08.png',
+    'scicon-boss-archive-lineup-2026-08.png'
   ];
 
   for (const assetName of assetNames) {
