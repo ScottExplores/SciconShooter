@@ -27,16 +27,16 @@ Success is measured by:
 
 Intended posting time: 4:00 PM Pacific through the production afternoon cron.
 
-> Most browser shooters ask for reflexes. Scicon Shooter asks which proposal should receive funding credits.
+> Most browser shooters ask for reflexes. Scicon Shooter asks which eligible ResearchHub proposal should receive the round's 100 RSC Funding Credits.
 >
-> Top the verified weekly board. Choose an eligible ResearchHub proposal for 100 RSC in Funding Credits. Make the score mean something.
+> No wallet needed to play. Put a score on the board:
 > https://www.sciconshooter.xyz/?utm_source=x&utm_medium=social&utm_campaign=growth-sprint-2026-08&utm_content=meaningful-score
 
 - Content key: `score-means-something-v1`
 - Verification: production README and weekly competition records with `allocation_rsc=100`.
 - Competition wording: general mechanism only; no current winner or score claim.
 - Funding status wording: proposal selection and funding-credit mechanism only; no completed-funding claim.
-- Reply goal: questions about the game-to-science loop and competitive intent.
+- Reply goal: score replies and first-run reactions.
 - Runtime goal: verify the deployed afternoon cron, X credentials, audit row, X post ID, and campaign attribution before the Saturday pair.
 - Expiry: 11:59 PM Pacific on August 21 so a failed runtime check cannot displace Saturday's primary post.
 
@@ -331,4 +331,5 @@ Live production evidence checked August 21 at 11:04 AM Pacific:
 - Active August 16-23 competition: zero eligible leaderboard runs at audit time. The leaderboard is awaiting finalization; no winner or champion claim is permitted.
 - Queue correction: `third-run-personal-v1` and `weekly-science-loop-v1` now contain real paragraph breaks rather than visible backslash escapes.
 - Poll experiment: `squad-draft-v1` is a 24-hour native poll scheduled for Wednesday, August 26 at 4:00 PM Pacific with `Damage`, `Speed`, `Survival`, and `Maximum chaos` options plus its attributed game URL.
+- Policy verification: production `validateOriginalPost` accepts the revised August 21 copy and attributed URL; production `readQueuePoll` accepts the poll options and duration.
 - Browser note: the signed-in X tab displayed X's privacy-extension error, so account inspection remains API-led rather than browser-led.
