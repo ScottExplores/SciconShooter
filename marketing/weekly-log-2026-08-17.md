@@ -473,3 +473,5 @@ A frame-by-frame visual review after the codec audit established that `scicon-sh
 - Marketing correction: `marketing/social-calendar.md`, the July launch pack, and the Base funding draft now separate optional Mission Record minting from the verified BIO-balance ship unlock.
 - Intended posting time: none.
 - Reply goal: none; this reel is not approved for social use.
+
+PR #38 merged as `bef0156f` and production deployment `dpl_5aFWGMCMH2Ak4E3EYiWVKj8vcEHk` became ready August 21 at 1:22 PM Pacific. The former asset URL now resolves only to the site's HTML fallback rather than `video/mp4`, proving the stale reel is no longer deployable media. The worker remained `401 Unauthorized` without credentials, and the live queue still contained no video row.
