@@ -344,3 +344,4 @@ PR #28 merged as `7e6ef0dc` and production deployment `sciconshooter-8yx6a4pkx` 
 - Promise alignment: the page now states that no install or wallet is required.
 - Measurement: bounded `desktop_launch_viewed` and `desktop_launch_selected` events record only the chosen surface (`browser` or `base_app`) and placement. Existing session, request-size, property, and rate limits still apply.
 - Verification: five focused launch-shell tests, TypeScript, ESLint with zero errors, production build, and local browser launch passed. The public production page shows the revised CTA and the social endpoint remains `401 Unauthorized` without credentials.
+- Data hygiene: the single `desktop_launch_viewed` event created by production verification at 11:19:41 AM Pacific was identified by exact ID and timestamp and removed; launch-choice measurement therefore begins with real visitors.
