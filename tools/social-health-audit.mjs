@@ -199,6 +199,42 @@ const queueBlocker = (entry, checkedAt) => {
   return post.ok ? '' : `post_validation:${post.reason}`;
 };
 
+export const buildUpcomingQueueSummary = (queue = [], checkedAt = new Date(), maximum = 5) => {
+  const groups = new Map();
+  for (const entry of queue) {
+    if (queueBlocker(entry, checkedAt)) continue;
+    const notBefore = Date.parse(String(entry?.not_before || ''));
+    const notAfter = Date.parse(String(entry?.not_after || ''));
+    if (!Number.isFinite(notBefore) || !Number.isFinite(notAfter) || notAfter < checkedAt.getTime()) continue;
+    const key = new Date(notBefore).toISOString();
+    const group = groups.get(key) || [];
+    group.push(entry);
+    groups.set(key, group);
+  }
+
+  return [...groups.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .slice(0, Math.max(1, Math.min(10, Math.floor(Number(maximum) || 5))))
+    .map(([slotStart, entries]) => {
+      const ordered = entries.sort((left, right) => (
+        (Number(right?.priority) || 0) - (Number(left?.priority) || 0)
+        || boundedText(left?.content_key, 100).localeCompare(boundedText(right?.content_key, 100))
+      ));
+      const entry = ordered[0];
+      const media = readQueueMedia(entry);
+      return {
+        slotStart,
+        slotEnd: new Date(entry.not_after).toISOString(),
+        contentKey: boundedText(entry?.content_key, 100),
+        contentKind: boundedText(entry?.content_kind, 32) || 'unknown',
+        campaignContent: safeCampaignContent(entry?.metadata?.campaign_content) || null,
+        priority: Math.max(-100, Math.min(100, Math.floor(Number(entry?.priority) || 0))),
+        mediaCount: media.ok ? media.media.length : 0,
+        alternatives: Math.max(0, ordered.length - 1)
+      };
+    });
+};
+
 export const checkQueueMediaSources = async (queue = [], { fetchImpl = fetch } = {}) => {
   const references = [];
   for (const entry of queue) {
@@ -336,7 +372,8 @@ export const buildSocialHealthSummary = ({
       queued: queue.length,
       blockers,
       mediaPosts: queue.filter((entry) => entry?.requires_media === true).length,
-      proposalPosts: queue.filter((entry) => entry?.metadata?.allow_researchhub_proposal === true).length
+      proposalPosts: queue.filter((entry) => entry?.metadata?.allow_researchhub_proposal === true).length,
+      upcoming: buildUpcomingQueueSummary(queue, checkedAt)
     },
     actions: {
       total: actions.length,

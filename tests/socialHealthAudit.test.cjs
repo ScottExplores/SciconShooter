@@ -13,8 +13,10 @@ test('social health summary reports blockers and aggregate conversion without se
         link_url: 'https://www.sciconshooter.xyz/',
         not_before: '2026-08-21T20:15:00.000Z',
         not_after: '2026-08-21T20:45:00.000Z',
+        content_kind: 'challenge',
+        priority: 90,
         requires_media: false,
-        metadata: { claims_verified: true }
+        metadata: { claims_verified: true, campaign_content: 'verified-score' }
       },
       {
         content_key: 'blocked',
@@ -75,6 +77,16 @@ test('social health summary reports blockers and aggregate conversion without se
 
   assert.equal(summary.queue.queued, 2);
   assert.deepEqual(summary.queue.blockers, [{ contentKey: 'blocked', reason: 'claims_not_verified' }]);
+  assert.deepEqual(summary.queue.upcoming, [{
+    slotStart: '2026-08-21T20:15:00.000Z',
+    slotEnd: '2026-08-21T20:45:00.000Z',
+    contentKey: 'verified',
+    contentKind: 'challenge',
+    campaignContent: 'verified-score',
+    priority: 90,
+    mediaCount: 0,
+    alternatives: 0
+  }]);
   assert.deepEqual(summary.actions.byStatus, { published: 1, failed: 1 });
   assert.deepEqual(summary.actions.recentPublished, [{
     postId: '1234567890',
