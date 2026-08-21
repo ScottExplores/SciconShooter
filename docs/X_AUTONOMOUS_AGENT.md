@@ -4,7 +4,7 @@
 
 The production worker uses the official X API. It can perform only these actions:
 
-- Publish one verified queued original post on configured weekdays.
+- Publish at most one verified queued original post per scheduled invocation on configured weekdays.
 - Read mentions of `@SciconShooter` and reply inside conversations that directly contacted the account.
 - Publish the finalized weekly winner thread only when the winner, score, wave, and ResearchHub proposal selection are present in the competition record.
 - Save every attempted action, decision, source post, final copy, status, and X post ID in Supabase.
@@ -47,7 +47,9 @@ Optional controls:
 
 ## Schedule
 
-- Daily mentions and queued content: `16:00 UTC`, which is 9:00 AM Pacific during daylight saving time. Vercel Hobby may execute anywhere within that hour.
+- Daily mentions and queued content: `16:00 UTC` and `23:00 UTC`, which are 9:00 AM and 4:00 PM Pacific during daylight saving time. Vercel Hobby may execute anywhere within each scheduled hour.
+- The morning slot is the primary conversion post. The afternoon slot is a distinct gameplay or community post, not a rewrite of the morning copy.
+- Afternoon queue entries should expire before the next Pacific day so a missed secondary post cannot displace the next morning's primary post.
 - Weekly finalized result: Sunday at `21:15 UTC`, after the existing competition-finalization jobs. Vercel Hobby may execute anywhere within that hour.
 
 The worker shares the existing `api/events.js` function through `/api/social-agent`, preserving the 12-function Hobby deployment limit. Vercel authenticates cron calls with `CRON_SECRET`.
