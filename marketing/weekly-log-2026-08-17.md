@@ -272,3 +272,17 @@ Production environment inspection on August 21 confirmed the X credentials, auto
 - Boss, controls, loadout, and bug feedback receive one specific follow-up question.
 - Existing limits remain: direct mentions/replies only, maximum configured replies per day, no hashtags, no unapproved URLs, no secret requests, and no unsupported claims.
 - Verification: 14 focused social tests, ESLint, and TypeScript passed. PR #23 merged as `45ce55a4` and production deployment `sciconshooter-8fkvbzi9m` is ready; the public endpoint still returns `401`.
+
+## Evergreen queue continuity
+
+PR #24 merged as `77fdee3c` and production deployment `sciconshooter-b0woy0lwa` is ready. The daily worker now checks the queue horizon before each run and begins an eight-calendar-day refill only when fewer than three days remain.
+
+- Cadence: 9:00 AM and 4:00 PM Pacific, Monday-Saturday; Sunday remains reserved for the verified competition workflow.
+- Candidate pool: three verified alternatives per slot across `funding`, `competition`, `challenge`, `boss`, `loadout`, `progression`, and `onboarding`.
+- Learning behavior: candidates stay within a two-point priority band so product conversion can override the deterministic default; manually scheduled campaigns retain higher editorial priority.
+- Expiry behavior: unselected candidates expire inside their slot and are moved to `paused` on the next daily invocation.
+- Idempotency: date-, slot-, theme-, and variant-specific content keys and `utm_content` values prevent duplicate inserts and preserve attribution.
+- DST behavior: Vercel probes `00:00`, `16:00`, `17:00`, and `23:00` UTC; a Pacific-hour gate permits originals only at local hours 9 and 16, preventing duplicate PDT/PST posts.
+- Kill switch: `X_AGENT_EVERGREEN_ENABLED=false` disables refill independently; the existing global autonomy switch still disables all activity.
+- Verification: 18 focused tests, ESLint, TypeScript, and Vercel passed. Generated candidate lengths range from 113 to 171 weighted X characters.
+- Live boundary: current horizon remains August 31 at 4:00 PM Pacific with 17 manually queued posts and zero evergreen inserts, so the refill correctly made no early changes. The unauthenticated endpoint still returns `401`.
