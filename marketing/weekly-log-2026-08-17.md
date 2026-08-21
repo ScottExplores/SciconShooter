@@ -489,3 +489,7 @@ A read-only browser check at 1:30 PM Pacific verified the public `@SciconShooter
 ### Morning queue expiry bounds
 
 Eight manually seeded 9:00 AM Pacific rows had no `not_after` value and could have drifted into later slots after a missed runtime. At 1:31 PM Pacific each was bounded to 3:59 PM on its intended day: `weekly-board-reset-v1`, `rsc-allocation-explainer-v1`, `boss-archive-runback-v1`, `squad-bad-decisions-v1`, `campaign-meet-enormous-v1`, `guest-bullets-optional-wallet-v1`, `third-run-personal-v1`, and `weekly-science-loop-v1`. Copy, links, priorities, and publication status were unchanged. The immediate live audit remained 19 queued posts with zero policy or media-source blockers.
+
+### Queue schedule-window audit
+
+The read-only social audit now reports queued rows with a missing or invalid boundary, an end time that is not after the start, or a window that has already expired. Focused verification passed 3/3 tests with zero targeted ESLint errors. The first live run at 1:33 PM Pacific reported 19 queued posts and zero schedule, policy, or media-source blockers, confirming the active queue is bounded before the 4:00 PM runtime.
