@@ -19,6 +19,7 @@ const {
   processMentions,
   processQueuedOriginal,
   processWeeklyWinner,
+  readPollSnapshot,
   readQueuePoll,
   runSocialAgent,
   syncPublishedMetrics
@@ -132,6 +133,11 @@ test('X client uses the official API with OAuth user context and creates replies
     text: 'Pick a build',
     poll: { options: ['Damage', 'Speed'], duration_minutes: 1_440 }
   });
+  await client.getOwnPosts('123');
+  const timelineUrl = new URL(calls[2].url);
+  assert.equal(timelineUrl.searchParams.get('expansions'), 'attachments.poll_ids');
+  assert.match(timelineUrl.searchParams.get('tweet.fields'), /attachments/);
+  assert.match(timelineUrl.searchParams.get('poll.fields'), /options/);
 });
 
 test('learning waits for enough samples and only reorders similarly prioritized content', () => {
@@ -167,7 +173,25 @@ test('metrics sync records public performance without mutating post content', as
   const result = await syncPublishedMetrics({
     client: {
       async getOwnPosts() {
-        return { data: [{ id: 'post-1', public_metrics: { impression_count: 200, like_count: 8, reply_count: 2 } }] };
+        return {
+          data: [{
+            id: 'post-1',
+            attachments: { poll_ids: ['poll-1'] },
+            public_metrics: { impression_count: 200, like_count: 8, reply_count: 2 }
+          }],
+          includes: {
+            polls: [{
+              id: 'poll-1',
+              duration_minutes: 1_440,
+              end_datetime: '2026-08-27T23:00:00.000Z',
+              voting_status: 'active',
+              options: [
+                { position: 1, label: 'Damage', votes: 7 },
+                { position: 2, label: 'Speed', votes: 5 }
+              ]
+            }]
+          }
+        };
       }
     },
     store,
@@ -176,7 +200,25 @@ test('metrics sync records public performance without mutating post content', as
   });
   assert.equal(result.updated, 1);
   assert.equal(store.actions.get('queue:upgrade').metadata.latestMetrics.impression_count, 200);
+  assert.equal(store.actions.get('queue:upgrade').metadata.latestPoll.totalVotes, 12);
+  assert.equal(store.actions.get('queue:upgrade').metadata.latestPoll.options[0].label, 'Damage');
+  assert.equal(store.actions.get('queue:upgrade').metadata.engagementRate, 0.12);
   assert.equal(store.actions.get('queue:upgrade').content, null);
+});
+
+test('poll snapshots bound external labels and vote totals', () => {
+  const snapshot = readPollSnapshot(
+    { attachments: { poll_ids: ['poll-1'] } },
+    new Map([['poll-1', {
+      id: 'poll-1',
+      voting_status: 'unexpected',
+      options: [{ position: 1, label: 'x'.repeat(100), votes: -5 }]
+    }]])
+  );
+  assert.equal(snapshot.votingStatus, 'unknown');
+  assert.equal(snapshot.options[0].label.length, 25);
+  assert.equal(snapshot.options[0].votes, 0);
+  assert.equal(snapshot.totalVotes, 0);
 });
 
 test('policy routes sensitive support, ignores hostility, and validates X length rules', () => {

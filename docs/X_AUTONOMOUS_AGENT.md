@@ -9,7 +9,7 @@ The production worker uses the official X API. It can perform only these actions
 - Read mentions of `@SciconShooter` and reply inside conversations that directly contacted the account.
 - Publish the finalized weekly winner thread only when the winner, score, wave, and ResearchHub proposal selection are present in the competition record.
 - Save every attempted action, decision, source post, final copy, status, and X post ID in Supabase.
-- Record public performance metrics for the account's own posts and use them to improve queued-content selection.
+- Record public performance metrics and bounded native-poll vote totals for the account's own posts, then use them to improve queued-content selection.
 
 The worker has no implementation for likes, follows, unfollows, reposts, quotes, Direct Messages, deleting posts, trend searches, or cold outreach.
 

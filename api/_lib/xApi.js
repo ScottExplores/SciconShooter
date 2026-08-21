@@ -118,7 +118,9 @@ const createXClient = ({
       return request(`/users/${encode(userId)}/tweets`, {
         query: {
           max_results: Math.max(5, Math.min(100, Number(maxResults) || 100)),
-          'tweet.fields': 'conversation_id,created_at,public_metrics'
+          expansions: 'attachments.poll_ids',
+          'tweet.fields': 'attachments,conversation_id,created_at,public_metrics',
+          'poll.fields': 'duration_minutes,end_datetime,id,options,voting_status'
         }
       });
     },
