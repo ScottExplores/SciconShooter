@@ -493,3 +493,7 @@ Eight manually seeded 9:00 AM Pacific rows had no `not_after` value and could ha
 ### Queue schedule-window audit
 
 The read-only social audit now reports queued rows with a missing or invalid boundary, an end time that is not after the start, or a window that has already expired. Focused verification passed 3/3 tests with zero targeted ESLint errors. The first live run at 1:33 PM Pacific reported 19 queued posts and zero schedule, policy, or media-source blockers, confirming the active queue is bounded before the 4:00 PM runtime.
+
+### Campaign-level conversion readout
+
+The social audit now reports privacy-safe conversion outcomes by bounded `utm_content`: unique attributed X sessions, mission-start sessions, and score-submission sessions. It excludes owner/test sessions and never emits session identifiers or player data. Focused verification passed 3/3 tests with zero targeted ESLint errors. The 1:35 PM Pacific live baseline contained no attributed X campaign session, so no content winner is inferred before the first scheduled post.

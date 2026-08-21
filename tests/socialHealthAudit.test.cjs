@@ -27,8 +27,27 @@ test('social health summary reports blockers and aggregate conversion without se
     ],
     actions: [{ status: 'published' }, { status: 'failed' }],
     events: [
-      { event_name: 'app_opened', session_id: 'secret-session', properties: { campaign_source: 'x' } },
-      { event_name: 'mission_started', session_id: 'secret-session', properties: {} }
+      {
+        event_name: 'app_opened',
+        session_id: 'secret-session',
+        properties: {
+          campaign_source: 'x',
+          campaign_medium: 'social',
+          campaign_content: 'score-challenge'
+        }
+      },
+      { event_name: 'mission_started', session_id: 'secret-session', properties: {} },
+      { event_name: 'score_submitted', session_id: 'secret-session', properties: {} },
+      {
+        event_name: 'app_opened',
+        session_id: 'owner-session',
+        properties: {
+          campaign_source: 'x',
+          campaign_medium: 'social',
+          campaign_content: 'score-challenge',
+          owner_test: true
+        }
+      }
     ],
     leaderboard: { monthlyScores: [{ name: 'PILOT', score: 1234, wave: 3 }] }
   });
@@ -38,6 +57,12 @@ test('social health summary reports blockers and aggregate conversion without se
   assert.deepEqual(summary.actions.byStatus, { published: 1, failed: 1 });
   assert.equal(summary.conversion.sessions, 1);
   assert.equal(summary.conversion.xSessions, 1);
+  assert.deepEqual(summary.conversion.campaigns, [{
+    content: 'score-challenge',
+    attributedSessions: 1,
+    missionStartedSessions: 1,
+    scoreSubmittedSessions: 1
+  }]);
   assert.equal(summary.weeklyLeaderboard.leader.score, 1234);
   assert.doesNotMatch(JSON.stringify(summary), /secret-session/);
 });

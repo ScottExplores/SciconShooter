@@ -11,6 +11,7 @@ const MAX_MEDIA_SOURCE_CHECKS = 32;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 15 * 1024 * 1024;
 const IMAGE_MEDIA_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const ATTRIBUTION_EVENT_NAMES = new Set(['app_opened', 'desktop_launch_viewed']);
 
 const objectValue = (value) => (
   value && typeof value === 'object' && !Array.isArray(value) ? value : {}
@@ -20,6 +21,75 @@ const boundedText = (value, maximum = 120) => String(value || '')
   .replace(/[\u0000-\u001f\u007f]/g, '')
   .trim()
   .slice(0, maximum);
+
+const safeCampaignContent = (value) => {
+  const content = String(value || '').trim();
+  return /^[a-z0-9][a-z0-9_-]{0,79}$/i.test(content) ? content : '';
+};
+
+const isTestProductEvent = (event) => {
+  const properties = objectValue(event?.properties);
+  return properties.test_run === true
+    || properties.owner_test === true
+    || properties.test_mode === true
+    || /(?:^|[-_ ])(?:test|owner|sandbox|preview|director|lab)(?:$|[-_ ])/i.test(
+      String(properties.run_mode || properties.mode || '')
+    );
+};
+
+const buildCampaignConversionSummary = (events) => {
+  const testSessions = new Set(events.filter(isTestProductEvent).map((event) => (
+    boundedText(event?.session_id, 100)
+  )).filter(Boolean));
+  const attributionBySession = new Map();
+  for (const event of events) {
+    if (!ATTRIBUTION_EVENT_NAMES.has(event?.event_name) || isTestProductEvent(event)) continue;
+    const properties = objectValue(event?.properties);
+    const sessionId = boundedText(event?.session_id, 100);
+    const content = safeCampaignContent(properties.campaign_content);
+    if (
+      !sessionId
+      || testSessions.has(sessionId)
+      || attributionBySession.has(sessionId)
+      || properties.campaign_source !== 'x'
+      || properties.campaign_medium !== 'social'
+      || !content
+    ) continue;
+    attributionBySession.set(sessionId, content);
+  }
+
+  const campaigns = new Map();
+  for (const content of attributionBySession.values()) {
+    const current = campaigns.get(content) || {
+      content,
+      attributedSessions: 0,
+      missionStartedSessions: new Set(),
+      scoreSubmittedSessions: new Set()
+    };
+    current.attributedSessions += 1;
+    campaigns.set(content, current);
+  }
+  for (const event of events) {
+    if (isTestProductEvent(event)) continue;
+    const sessionId = boundedText(event?.session_id, 100);
+    const campaign = campaigns.get(attributionBySession.get(sessionId));
+    if (!campaign) continue;
+    if (event.event_name === 'mission_started') campaign.missionStartedSessions.add(sessionId);
+    if (event.event_name === 'score_submitted') campaign.scoreSubmittedSessions.add(sessionId);
+  }
+
+  return [...campaigns.values()].map((campaign) => ({
+    content: campaign.content,
+    attributedSessions: campaign.attributedSessions,
+    missionStartedSessions: campaign.missionStartedSessions.size,
+    scoreSubmittedSessions: campaign.scoreSubmittedSessions.size
+  })).sort((left, right) => (
+    right.scoreSubmittedSessions - left.scoreSubmittedSessions
+    || right.missionStartedSessions - left.missionStartedSessions
+    || right.attributedSessions - left.attributedSessions
+    || left.content.localeCompare(right.content)
+  ));
+};
 
 const readSinceHours = (argv = process.argv.slice(2)) => {
   const argument = argv.find((value) => value.startsWith('--hours='));
@@ -159,9 +229,13 @@ export const buildSocialHealthSummary = ({
   const eventCounts = {};
   const sessions = new Set();
   const xSessions = new Set();
+  const testSessions = new Set(events.filter(isTestProductEvent).map((event) => (
+    boundedText(event?.session_id, 100)
+  )).filter(Boolean));
   for (const event of events) {
-    const eventName = boundedText(event?.event_name, 48) || 'unknown';
     const sessionId = boundedText(event?.session_id, 100);
+    if (isTestProductEvent(event) || testSessions.has(sessionId)) continue;
+    const eventName = boundedText(event?.event_name, 48) || 'unknown';
     const properties = objectValue(event?.properties);
     eventCounts[eventName] = (eventCounts[eventName] || 0) + 1;
     if (sessionId) sessions.add(sessionId);
@@ -188,7 +262,8 @@ export const buildSocialHealthSummary = ({
     conversion: {
       sessions: sessions.size,
       xSessions: xSessions.size,
-      eventCounts
+      eventCounts,
+      campaigns: buildCampaignConversionSummary(events)
     },
     weeklyLeaderboard: {
       entries: weeklyScores.length,
