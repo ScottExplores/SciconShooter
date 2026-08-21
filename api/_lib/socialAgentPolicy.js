@@ -13,6 +13,10 @@ const SENSITIVE_PATTERN = /\b(?:wallet|transaction|tx hash|payment|purchase|refu
 const SCORE_PATTERN = /\b(?:score|points?|wave|high score|leaderboard|beat)\b|\b\d{3,}\b/i;
 const FEEDBACK_PATTERN = /\b(?:feedback|bug|issue|broken|controls?|movement|boss|ship|upgrade|hangar|gameplay|fun|difficult|hard|easy)\b/i;
 const QUESTION_PATTERN = /\?|\b(?:how|what|when|where|why|can|does|is|are)\b/i;
+const PLAY_QUESTION_PATTERN = /\b(?:how|where|can)\b.{0,32}\b(?:play|start|try)\b|\b(?:play|game)\s+link\b/i;
+const FUNDING_QUESTION_PATTERN = /\b(?:rsc|researchhub|funding credits?|proposal|fund science)\b/i;
+const COMPETITION_QUESTION_PATTERN = /\b(?:weekly|cutoff|reset|leaderboard|high score|score to beat)\b/i;
+const FUNDING_STATUS_PATTERN = /\b(?:funding sent|funded|transaction|allocation complete)\b/i;
 const SECRET_REQUEST_PATTERN = /\b(?:send|share|provide|post|dm)\b.{0,24}\b(?:password|private key|seed phrase|recovery phrase|one[- ]time code)\b/i;
 const UNVERIFIED_CLAIM_PATTERN = /\b(?:official (?:researchhub|base)|partner(?:ed|ship)? with (?:researchhub|base)|guaranteed prize|funding (?:was )?sent|funded successfully|you(?:'re| are) (?:the )?(?:winner|champion)|weekly (?:winner|champion))\b/i;
 
@@ -56,24 +60,58 @@ const classifyMention = (text) => {
     return { action: 'skip', reason: 'hostile_or_spam' };
   }
   if (SENSITIVE_PATTERN.test(value)) return { action: 'route_support', reason: 'sensitive_support' };
+  if (QUESTION_PATTERN.test(value) && PLAY_QUESTION_PATTERN.test(value)) {
+    return { action: 'reply', reason: 'play_question' };
+  }
+  if (QUESTION_PATTERN.test(value) && FUNDING_QUESTION_PATTERN.test(value)) {
+    return { action: 'reply', reason: 'funding_question' };
+  }
+  if (QUESTION_PATTERN.test(value) && COMPETITION_QUESTION_PATTERN.test(value)) {
+    return { action: 'reply', reason: 'competition_question' };
+  }
   if (SCORE_PATTERN.test(value)) return { action: 'reply', reason: 'score' };
   if (FEEDBACK_PATTERN.test(value)) return { action: 'reply', reason: 'feedback' };
   if (QUESTION_PATTERN.test(value)) return { action: 'reply', reason: 'question' };
   return { action: 'skip', reason: 'no_clear_player_intent' };
 };
 
-const deterministicReply = (reason) => {
+const deterministicReply = (reason, mentionText = '') => {
+  const value = String(mentionText || '');
   if (reason === 'sensitive_support') {
+    if (FUNDING_STATUS_PATTERN.test(value)) {
+      return 'Proposal selection and completed funding are separate. We only call an allocation complete after its transaction evidence is verified.';
+    }
     return 'For wallet or transaction help, submit More -> Report a Bug in Scicon Shooter and keep the Report ID. Never send anyone a recovery phrase or private key.';
   }
+  if (reason === 'play_question') {
+    return 'One click, no wallet required: https://www.sciconshooter.xyz/ Bring back a score.';
+  }
+  if (reason === 'funding_question') {
+    return 'The weekly top verified score chooses an eligible ResearchHub proposal for that round\'s 100 RSC Funding Credits. What part should we unpack?';
+  }
+  if (reason === 'competition_question') {
+    return 'The weekly board closes Sunday at noon Pacific. Put up a verified score before the cutoff: https://www.sciconshooter.xyz/';
+  }
   if (reason === 'score') {
-    return 'Nice run. Which ship did you use, and where did the run start getting difficult?';
+    return 'Score received. Which ship did you use, and where did the run start getting ugly?';
   }
   if (reason === 'feedback') {
-    return 'Thanks for the feedback. What device were you playing on, and what should we change first?';
+    if (/\b(?:boss|attack|bullet|pattern)\b/i.test(value)) {
+      return 'Which boss or attack caused it, and what made the pattern feel wrong?';
+    }
+    if (/\b(?:controls?|movement|move|drag|keyboard|touch)\b/i.test(value)) {
+      return 'What device and control method were you using when movement felt wrong?';
+    }
+    if (/\b(?:ship|upgrade|hangar|loadout|mini-ship)\b/i.test(value)) {
+      return 'Which ship or loadout were you using, and what felt off?';
+    }
+    if (/\b(?:bug|issue|broken|crash|stuck)\b/i.test(value)) {
+      return 'What device, browser, and exact step reproduced it?';
+    }
+    return 'What happened, and what single change would improve the next run?';
   }
   if (reason === 'question') {
-    return 'Thanks for checking out Scicon Shooter. Which part of the game are you asking about?';
+    return 'Ask it straight. Is this about the run, the weekly board, ships, or the science-funding loop?';
   }
   return '';
 };
