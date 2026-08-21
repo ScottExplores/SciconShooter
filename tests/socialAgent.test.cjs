@@ -8,6 +8,7 @@ const {
   classifyMention,
   deterministicReply,
   isApprovedOfficialUrl,
+  isApprovedResearchHubProposalUrl,
   validateOriginalPost,
   validateReply,
   weightedLength
@@ -438,6 +439,16 @@ test('policy routes sensitive support, ignores hostility, and validates X length
   assert.equal(validateOriginalPost('Play https://www.sciconshooter.xyz/?utm_source=x&utm_medium=social&utm_campaign=growth-sprint-2026-08&utm_content=boss-archive').ok, true);
   assert.equal(isApprovedOfficialUrl('https://www.sciconshooter.xyz/?utm_source=x&utm_medium=social&redirect=https://example.com'), false);
   assert.equal(isApprovedOfficialUrl('https://www.sciconshooter.xyz.evil.example/?utm_source=x&utm_medium=social'), false);
+  assert.equal(
+    isApprovedResearchHubProposalUrl('https://www.researchhub.com/proposal/32342/precision-phenotyping'),
+    true
+  );
+  assert.equal(
+    isApprovedResearchHubProposalUrl('https://www.researchhub.com/post/32342/precision-phenotyping'),
+    true
+  );
+  assert.equal(isApprovedResearchHubProposalUrl('https://www.researchhub.com/organization/example'), false);
+  assert.equal(isApprovedResearchHubProposalUrl('https://researchhub.com/proposal/32342/example'), false);
 });
 
 test('mention worker replies only to direct player contact and records idempotency', async () => {
@@ -605,6 +616,50 @@ test('queued polls require bounded unique options and publish through the audite
   assert.equal(result.published, true);
   assert.deepEqual(posts[0].poll, queueEntry.metadata.poll);
   assert.deepEqual(store.actions.get('queue:squad-poll').metadata.poll, queueEntry.metadata.poll);
+});
+
+test('verified proposal spotlights require an explicit ResearchHub queue flag', async () => {
+  const proposalUrl = 'https://www.researchhub.com/proposal/32342/precision-phenotyping';
+  const baseEntry = {
+    content_key: 'proposal-spotlight',
+    content_kind: 'funding',
+    post_text: 'A prior Scicon Shooter winner selected this proposal. Completed funding is not confirmed. What stands out?',
+    link_url: proposalUrl,
+    status: 'queued',
+    requires_media: false,
+    metadata: { claims_verified: true, funding_status_wording: 'selection_only' }
+  };
+  const blockedPosts = [];
+  const blocked = await processQueuedOriginal({
+    client: {
+      async createPost(input) { blockedPosts.push(input); return { id: 'blocked', text: input.text }; }
+    },
+    store: createMemoryStore({ queuedPost: { ...baseEntry } }),
+    environment: { X_AGENT_ORIGINAL_DAYS: 'Tue', X_AGENT_ORIGINAL_HOURS: '9' },
+    now: new Date('2026-09-01T16:00:00.000Z')
+  });
+  assert.equal(blocked.reason, 'post_validation:unapproved_url');
+  assert.equal(blockedPosts.length, 0);
+
+  const allowedStore = createMemoryStore({
+    queuedPost: {
+      ...baseEntry,
+      metadata: { ...baseEntry.metadata, allow_researchhub_proposal: true }
+    }
+  });
+  const allowedPosts = [];
+  const allowed = await processQueuedOriginal({
+    client: {
+      async createPost(input) { allowedPosts.push(input); return { id: 'proposal-post', text: input.text }; }
+    },
+    store: allowedStore,
+    environment: { X_AGENT_ORIGINAL_DAYS: 'Tue', X_AGENT_ORIGINAL_HOURS: '9' },
+    now: new Date('2026-09-01T16:00:00.000Z')
+  });
+  assert.equal(allowed.published, true);
+  assert.equal(allowedPosts.length, 1);
+  assert.equal(allowedStore.actions.get('queue:proposal-spotlight').metadata.proposalSpotlight, true);
+  assert.equal(allowedStore.actions.get('queue:proposal-spotlight').metadata.fundingStatus, 'selection_only');
 });
 
 test('weekly worker publishes a verified winner post and its direct score-challenge reply', async () => {
