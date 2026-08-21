@@ -3,6 +3,9 @@ const OFFICIAL_URLS = new Set([
   'https://sciconshooter.xyz/',
   'https://x.com/SciconShooter'
 ]);
+const OFFICIAL_GAME_HOSTS = new Set(['www.sciconshooter.xyz', 'sciconshooter.xyz']);
+const ALLOWED_GAME_QUERY_KEYS = new Set(['utm_source', 'utm_medium', 'utm_campaign', 'utm_content']);
+const CAMPAIGN_VALUE_PATTERN = /^[a-z0-9][a-z0-9_-]{0,79}$/i;
 const URL_PATTERN = /https?:\/\/[^\s]+/gi;
 const HOSTILE_PATTERN = /\b(?:fuck|fucking|shit|bitch|cunt|retard|kys|kill yourself)\b/i;
 const SPAM_PATTERN = /\b(?:guaranteed followers|free crypto|airdrop|send me crypto|promo service|dm for promo)\b/i;
@@ -12,6 +15,28 @@ const FEEDBACK_PATTERN = /\b(?:feedback|bug|issue|broken|controls?|movement|boss
 const QUESTION_PATTERN = /\?|\b(?:how|what|when|where|why|can|does|is|are)\b/i;
 const SECRET_REQUEST_PATTERN = /\b(?:send|share|provide|post|dm)\b.{0,24}\b(?:password|private key|seed phrase|recovery phrase|one[- ]time code)\b/i;
 const UNVERIFIED_CLAIM_PATTERN = /\b(?:official (?:researchhub|base)|partner(?:ed|ship)? with (?:researchhub|base)|guaranteed prize|funding (?:was )?sent|funded successfully|you(?:'re| are) (?:the )?(?:winner|champion)|weekly (?:winner|champion))\b/i;
+
+const isApprovedOfficialUrl = (value) => {
+  const raw = String(value || '').replace(/[),.!?]+$/, '');
+  if (OFFICIAL_URLS.has(raw)) return true;
+  try {
+    const url = new URL(raw);
+    if (
+      url.protocol !== 'https:'
+      || !OFFICIAL_GAME_HOSTS.has(url.hostname)
+      || url.port
+      || url.username
+      || url.password
+      || url.hash
+      || url.pathname !== '/'
+    ) return false;
+    if ([...url.searchParams.keys()].some((key) => !ALLOWED_GAME_QUERY_KEYS.has(key))) return false;
+    if (url.searchParams.get('utm_source') !== 'x' || url.searchParams.get('utm_medium') !== 'social') return false;
+    return [...url.searchParams.entries()].every(([, parameter]) => CAMPAIGN_VALUE_PATTERN.test(parameter));
+  } catch {
+    return false;
+  }
+};
 
 const weightedLength = (text) => {
   const source = String(text || '');
@@ -62,7 +87,7 @@ const validateReply = (text) => {
   if (SECRET_REQUEST_PATTERN.test(value)) return { ok: false, reason: 'requests_secret' };
   if (UNVERIFIED_CLAIM_PATTERN.test(value)) return { ok: false, reason: 'unverified_claim' };
   const urls = value.match(URL_PATTERN) || [];
-  if (urls.some((url) => !OFFICIAL_URLS.has(url.replace(/[),.!?]+$/, '')))) {
+  if (urls.some((url) => !isApprovedOfficialUrl(url))) {
     return { ok: false, reason: 'unapproved_url' };
   }
   return { ok: true, text: value };
@@ -80,7 +105,7 @@ const validateOriginalPost = (text, { allowResearchHubProposal = false } = {}) =
   const urls = value.match(URL_PATTERN) || [];
   const invalidUrl = urls.find((rawUrl) => {
     const url = rawUrl.replace(/[),.!?]+$/, '');
-    if (OFFICIAL_URLS.has(url)) return false;
+    if (isApprovedOfficialUrl(url)) return false;
     if (allowResearchHubProposal) {
       try {
         return new URL(url).hostname !== 'www.researchhub.com';
@@ -96,6 +121,7 @@ const validateOriginalPost = (text, { allowResearchHubProposal = false } = {}) =
 module.exports = {
   classifyMention,
   deterministicReply,
+  isApprovedOfficialUrl,
   validateOriginalPost,
   validateReply,
   weightedLength

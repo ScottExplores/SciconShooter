@@ -7,6 +7,7 @@ const { createOAuthHeader, createXClient } = require('../api/_lib/xApi');
 const {
   classifyMention,
   deterministicReply,
+  isApprovedOfficialUrl,
   validateOriginalPost,
   validateReply,
   weightedLength
@@ -181,6 +182,10 @@ test('policy routes sensitive support, ignores hostility, and validates X length
   assert.equal(validateReply('Send me your private key').ok, false);
   assert.equal(validateReply('Play https://www.sciconshooter.xyz/').ok, true);
   assert.equal(validateOriginalPost('Generic post https://example.com/').ok, false);
+  assert.equal(isApprovedOfficialUrl('https://www.sciconshooter.xyz/?utm_source=x&utm_medium=social&utm_campaign=growth-sprint-2026-08&utm_content=boss-archive'), true);
+  assert.equal(validateOriginalPost('Play https://www.sciconshooter.xyz/?utm_source=x&utm_medium=social&utm_campaign=growth-sprint-2026-08&utm_content=boss-archive').ok, true);
+  assert.equal(isApprovedOfficialUrl('https://www.sciconshooter.xyz/?utm_source=x&utm_medium=social&redirect=https://example.com'), false);
+  assert.equal(isApprovedOfficialUrl('https://www.sciconshooter.xyz.evil.example/?utm_source=x&utm_medium=social'), false);
 });
 
 test('mention worker replies only to direct player contact and records idempotency', async () => {
