@@ -428,3 +428,14 @@ The released social-growth stack had been deployed from isolated `origin/main` w
 - TypeScript, targeted ESLint, Tailwind regeneration, and the full experimental production build passed.
 - The local Director remained excluded from the production build.
 - Existing gameplay, boss-runtime, Director, generated proof, and user-owned untracked changes were not staged, overwritten, rebased, or reverted.
+
+## Queue failure recovery
+
+PR #35 merged as `4f82d56c` and production deployment `dpl_BdfHR8S3sN9i8YVTDa2gKBABY2b1` became ready August 21 at 12:37 PM Pacific. Invalid or previously failed queue rows can no longer remain the highest-priority candidate and starve all later content.
+
+- Invalid rows are paused with their exact bounded validation reason before the worker evaluates the next candidate.
+- Previously failed or skipped action rows are paused and bypassed; an active reservation stops the run rather than risking concurrent duplicate posts.
+- A new publication failure marks the action failed and pauses the exact queue row before returning the error, allowing the next scheduled runtime to continue with later content.
+- Verification: 26/26 focused social tests, TypeScript, targeted ESLint, and production build passed in both the canonical and isolated release worktrees.
+- Live audit: 19 queued rows, zero failed/reserved/skipped action rows, and zero queued claim, poll, media, URL, or existing-action blockers.
+- Runtime boundary: no X post or reply was created during recovery testing. The August 21 4:00 PM Pacific post remains the next intended original.
