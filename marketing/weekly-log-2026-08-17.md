@@ -509,3 +509,5 @@ Each campaign readout now includes mission-start rate, score-submission rate, th
 ### Default cadence hardening
 
 The worker's code-level original-post default now matches the intended Monday-Saturday cadence at 9:00 AM and 4:00 PM Pacific; Sunday remains reserved for the verified winner workflow. This removes dependence on the production `X_AGENT_ORIGINAL_DAYS` override and prevents a missing value from silently reverting to Tuesday-Thursday. Verification passed 32 focused social tests, targeted ESLint, and TypeScript, including a Friday-publication/Sunday-reservation regression test.
+
+PR #40 merged as `32b6af4d` at 1:44 PM Pacific. Vercel production deployment `89NJzvJQkJctNfoYCxosYXzycKnC` completed successfully before the 4:00 PM posting window. Clean-release verification passed 32/32 focused tests, targeted ESLint, TypeScript, and the production build. The deployed worker returned `401 Unauthorized` without credentials, and the 1:46 PM live audit reported 19 queued posts, zero blockers, no recent published action, no X-attributed campaign session, and no current weekly leader.
