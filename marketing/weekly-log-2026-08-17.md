@@ -497,3 +497,7 @@ The read-only social audit now reports queued rows with a missing or invalid bou
 ### Campaign-level conversion readout
 
 The social audit now reports privacy-safe conversion outcomes by bounded `utm_content`: unique attributed X sessions, mission-start sessions, and score-submission sessions. It excludes owner/test sessions and never emits session identifiers or player data. Focused verification passed 3/3 tests with zero targeted ESLint errors. The 1:35 PM Pacific live baseline contained no attributed X campaign session, so no content winner is inferred before the first scheduled post.
+
+### Published-post evidence readout
+
+The audit now returns up to ten recent published actions with only the public post ID and canonical `@SciconShooter` URL, publication time, bounded action/content/campaign labels, and public impression, like, reply, repost, and quote counts. It omits post copy, source-user IDs, and raw metadata. Focused verification passed 3/3 tests with zero targeted ESLint errors. The 1:36 PM Pacific baseline correctly returned no recent published action before the first scheduled runtime.

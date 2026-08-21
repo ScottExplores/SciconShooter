@@ -27,6 +27,42 @@ const safeCampaignContent = (value) => {
   return /^[a-z0-9][a-z0-9_-]{0,79}$/i.test(content) ? content : '';
 };
 
+const safeXPostId = (value) => {
+  const id = String(value || '').trim();
+  return /^\d{1,30}$/.test(id) ? id : '';
+};
+
+const metricCount = (metrics, key) => Math.max(0, Math.floor(Number(metrics?.[key]) || 0));
+
+const readPublicMetrics = (action) => {
+  const metrics = objectValue(action?.metadata?.latestMetrics);
+  return {
+    impressions: metricCount(metrics, 'impression_count'),
+    likes: metricCount(metrics, 'like_count'),
+    replies: metricCount(metrics, 'reply_count'),
+    reposts: metricCount(metrics, 'retweet_count'),
+    quotes: metricCount(metrics, 'quote_count')
+  };
+};
+
+const buildRecentPublishedSummary = (actions) => actions
+  .filter((action) => action?.status === 'published' && safeXPostId(action?.x_post_id))
+  .slice(0, 10)
+  .map((action) => {
+    const postId = safeXPostId(action.x_post_id);
+    return {
+      postId,
+      url: `https://x.com/SciconShooter/status/${postId}`,
+      publishedAt: Number.isFinite(Date.parse(String(action?.published_at || '')))
+        ? new Date(action.published_at).toISOString()
+        : null,
+      actionType: boundedText(action?.action_type, 24) || 'unknown',
+      contentKind: boundedText(action?.metadata?.contentKind || action?.reason, 32) || 'unknown',
+      campaignContent: safeCampaignContent(action?.metadata?.campaignContent) || null,
+      metrics: readPublicMetrics(action)
+    };
+  });
+
 const isTestProductEvent = (event) => {
   const properties = objectValue(event?.properties);
   return properties.test_run === true
@@ -257,7 +293,8 @@ export const buildSocialHealthSummary = ({
     },
     actions: {
       total: actions.length,
-      byStatus: actionStatuses
+      byStatus: actionStatuses,
+      recentPublished: buildRecentPublishedSummary(actions)
     },
     conversion: {
       sessions: sessions.size,
@@ -299,7 +336,7 @@ export const readSocialHealth = async ({
   const rest = `${origin}/rest/v1`;
   const [queue, actions, events, leaderboard] = await Promise.all([
     fetchJson(`${rest}/scicon_social_content_queue?select=*&status=eq.queued&order=priority.desc,not_before.asc&limit=100`, { headers, fetchImpl }),
-    fetchJson(`${rest}/scicon_social_actions?select=status,reason,published_at,created_at&created_at=gte.${encodeURIComponent(since.toISOString())}&order=created_at.desc&limit=500`, { headers, fetchImpl }),
+    fetchJson(`${rest}/scicon_social_actions?select=status,reason,action_type,x_post_id,published_at,created_at,metadata&created_at=gte.${encodeURIComponent(since.toISOString())}&order=created_at.desc&limit=500`, { headers, fetchImpl }),
     fetchJson(`${rest}/scicon_product_events?select=event_name,session_id,properties,occurred_at&occurred_at=gte.${encodeURIComponent(since.toISOString())}&order=occurred_at.asc&limit=5000`, { headers, fetchImpl }),
     fetchJson('https://www.sciconshooter.xyz/api/leaderboard', { fetchImpl })
   ]);
