@@ -222,6 +222,7 @@ export const buildUpcomingQueueSummary = (queue = [], checkedAt = new Date(), ma
       ));
       const entry = ordered[0];
       const media = readQueueMedia(entry);
+      const topPriority = Number(entry?.priority) || 0;
       return {
         slotStart,
         slotEnd: new Date(entry.not_after).toISOString(),
@@ -230,8 +231,13 @@ export const buildUpcomingQueueSummary = (queue = [], checkedAt = new Date(), ma
         campaignContent: safeCampaignContent(entry?.metadata?.campaign_content) || null,
         priority: Math.max(-100, Math.min(100, Math.floor(Number(entry?.priority) || 0))),
         mediaCount: media.ok ? media.media.length : 0,
-        alternatives: Math.max(0, ordered.length - 1),
+        slotAlternatives: Math.max(0, ordered.length - 1),
         alternativeKeys: ordered.slice(1, 5)
+          .map((alternative) => boundedText(alternative?.content_key, 100))
+          .filter(Boolean),
+        learningEligibleAlternativeKeys: ordered.slice(1)
+          .filter((alternative) => (Number(alternative?.priority) || 0) >= topPriority - 5)
+          .slice(0, 4)
           .map((alternative) => boundedText(alternative?.content_key, 100))
           .filter(Boolean)
       };

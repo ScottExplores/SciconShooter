@@ -25,6 +25,17 @@ test('social health summary reports blockers and aggregate conversion without se
         not_after: '2026-08-21T20:45:00.000Z',
         requires_media: false,
         metadata: { claims_verified: false }
+      },
+      {
+        content_key: 'backup',
+        post_text: 'Bring back a score:',
+        link_url: 'https://www.sciconshooter.xyz/',
+        not_before: '2026-08-21T20:15:00.000Z',
+        not_after: '2026-08-21T20:45:00.000Z',
+        content_kind: 'competition',
+        priority: 87,
+        requires_media: false,
+        metadata: { claims_verified: true, campaign_content: 'backup-score' }
       }
     ],
     actions: [
@@ -75,7 +86,7 @@ test('social health summary reports blockers and aggregate conversion without se
     leaderboard: { monthlyScores: [{ name: 'PILOT', score: 1234, wave: 3 }] }
   });
 
-  assert.equal(summary.queue.queued, 2);
+  assert.equal(summary.queue.queued, 3);
   assert.deepEqual(summary.queue.blockers, [{ contentKey: 'blocked', reason: 'claims_not_verified' }]);
   assert.deepEqual(summary.queue.upcoming, [{
     slotStart: '2026-08-21T20:15:00.000Z',
@@ -85,8 +96,9 @@ test('social health summary reports blockers and aggregate conversion without se
     campaignContent: 'verified-score',
     priority: 90,
     mediaCount: 0,
-    alternatives: 0,
-    alternativeKeys: []
+    slotAlternatives: 1,
+    alternativeKeys: ['backup'],
+    learningEligibleAlternativeKeys: ['backup']
   }]);
   assert.deepEqual(summary.actions.byStatus, { published: 1, failed: 1 });
   assert.deepEqual(summary.actions.recentPublished, [{
