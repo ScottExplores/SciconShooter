@@ -10,6 +10,7 @@ const MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
 const MAX_MEDIA_SOURCE_CHECKS = 32;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 15 * 1024 * 1024;
+const MIN_ATTRIBUTED_SESSIONS = 3;
 const IMAGE_MEDIA_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const ATTRIBUTION_EVENT_NAMES = new Set(['app_opened', 'desktop_launch_viewed']);
 
@@ -114,12 +115,23 @@ const buildCampaignConversionSummary = (events) => {
     if (event.event_name === 'score_submitted') campaign.scoreSubmittedSessions.add(sessionId);
   }
 
-  return [...campaigns.values()].map((campaign) => ({
-    content: campaign.content,
-    attributedSessions: campaign.attributedSessions,
-    missionStartedSessions: campaign.missionStartedSessions.size,
-    scoreSubmittedSessions: campaign.scoreSubmittedSessions.size
-  })).sort((left, right) => (
+  return [...campaigns.values()].map((campaign) => {
+    const attributedSessions = campaign.attributedSessions;
+    const missionStartedSessions = campaign.missionStartedSessions.size;
+    const scoreSubmittedSessions = campaign.scoreSubmittedSessions.size;
+    return {
+      content: campaign.content,
+      attributedSessions,
+      missionStartedSessions,
+      scoreSubmittedSessions,
+      missionStartRate: attributedSessions > 0 ? missionStartedSessions / attributedSessions : 0,
+      scoreSubmissionRate: attributedSessions > 0 ? scoreSubmittedSessions / attributedSessions : 0,
+      conversionScore: attributedSessions > 0
+        ? (missionStartedSessions + (2 * scoreSubmittedSessions)) / attributedSessions
+        : 0,
+      eligible: attributedSessions >= MIN_ATTRIBUTED_SESSIONS
+    };
+  }).sort((left, right) => (
     right.scoreSubmittedSessions - left.scoreSubmittedSessions
     || right.missionStartedSessions - left.missionStartedSessions
     || right.attributedSessions - left.attributedSessions
