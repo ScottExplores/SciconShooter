@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { DONATION_CONFIG } from '../constants';
+import { trackEvent } from '../services/analyticsService';
 import {
   buildMobileFrameUrl,
   DESKTOP_LAUNCH_MEDIA_QUERY,
@@ -12,6 +13,7 @@ import './desktop-mobile-launch-shell.css';
 
 const DESKTOP_LAUNCH_ASSET_ROOT = '/game-art/generated/ui/scicon-desktop-mobile-launch-v1';
 const BASE_APP_INVITE_QR = `${DESKTOP_LAUNCH_ASSET_ROOT}/base-app-invite-qr.png`;
+const DESKTOP_LAUNCH_VIEWED_KEY = `${DESKTOP_LAUNCH_SESSION_KEY}:viewed`;
 
 const readPlayHereSession = () => {
   try {
@@ -29,6 +31,21 @@ const rememberPlayHereSession = () => {
     // in-memory choice still works for this page load.
   }
 };
+
+const trackDesktopLaunchView = () => {
+  try {
+    if (window.sessionStorage.getItem(DESKTOP_LAUNCH_VIEWED_KEY) === 'true') return;
+    window.sessionStorage.setItem(DESKTOP_LAUNCH_VIEWED_KEY, 'true');
+  } catch {
+    // A blocked storage write should not block the launch screen or telemetry.
+  }
+  trackEvent('desktop_launch_viewed', { surface: 'desktop_shell' });
+};
+
+const trackDesktopLaunchChoice = (
+  choice: 'browser' | 'base_app',
+  placement: 'landing' | 'qr' | 'side_link'
+) => trackEvent('desktop_launch_selected', { choice, placement });
 
 const readDesktopMediaMatch = () => window.matchMedia(DESKTOP_LAUNCH_MEDIA_QUERY).matches;
 
@@ -78,6 +95,10 @@ const DesktopMobileLaunchShell: React.FC<DesktopMobileLaunchShellProps> = ({ chi
     };
   }, [useDesktopShell]);
 
+  useEffect(() => {
+    if (useDesktopShell && !playHereSelected) trackDesktopLaunchView();
+  }, [playHereSelected, useDesktopShell]);
+
   if (!useDesktopShell) return <>{children}</>;
 
   const frameStyle = {
@@ -111,8 +132,9 @@ const DesktopMobileLaunchShell: React.FC<DesktopMobileLaunchShellProps> = ({ chi
             href={DONATION_CONFIG.BASE_APP_INVITE_URL}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={() => trackDesktopLaunchChoice('base_app', 'side_link')}
           >
-            Get the Base App
+            Open in Base App
           </a>
         </section>
       ) : (
@@ -124,36 +146,38 @@ const DesktopMobileLaunchShell: React.FC<DesktopMobileLaunchShellProps> = ({ chi
           aria-describedby="desktop-mobile-launch-description"
         >
           <div className="scicon-desktop-mobile-launch__copy">
-            <span className="scicon-desktop-mobile-launch__eyebrow">Desktop detected</span>
+            <span className="scicon-desktop-mobile-launch__eyebrow">Browser mission ready</span>
             <img
               className="scicon-desktop-mobile-launch__icon"
               src="/icon.png"
               alt=""
               aria-hidden="true"
             />
-            <h1 id="desktop-mobile-launch-title">Scicon Shooter plays best on mobile</h1>
+            <h1 id="desktop-mobile-launch-title">Start a run. Your browser is enough.</h1>
             <p id="desktop-mobile-launch-description">
-              Fly in portrait on your phone, preferably in the Base App. The mobile battlefield keeps every boss pattern, safe lane, and control exactly where it was designed to be.
+              Play here in a mobile-sized flight deck. No install or wallet required. For the full portrait experience, open it on your phone or in the Base App.
             </p>
             <div className="scicon-desktop-mobile-launch__actions">
+              <button
+                type="button"
+                className="scicon-desktop-mobile-launch__play-action"
+                onClick={() => {
+                  trackDesktopLaunchChoice('browser', 'landing');
+                  rememberPlayHereSession();
+                  setPlayHereSelected(true);
+                }}
+              >
+                Start Browser Run
+              </button>
               <a
                 className="scicon-desktop-mobile-launch__base-action"
                 href={DONATION_CONFIG.BASE_APP_INVITE_URL}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() => trackDesktopLaunchChoice('base_app', 'landing')}
               >
-                Get the Base App
+                Open in Base App
               </a>
-              <button
-                type="button"
-                className="scicon-desktop-mobile-launch__play-action"
-                onClick={() => {
-                  rememberPlayHereSession();
-                  setPlayHereSelected(true);
-                }}
-              >
-                Play Here
-              </button>
             </div>
           </div>
 
@@ -163,8 +187,9 @@ const DesktopMobileLaunchShell: React.FC<DesktopMobileLaunchShellProps> = ({ chi
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Open the Scicon Shooter Base App invite"
+            onClick={() => trackDesktopLaunchChoice('base_app', 'qr')}
           >
-            <span>Scan the Base invite</span>
+            <span>Or scan for Base App</span>
             <img src={BASE_APP_INVITE_QR} alt="QR code for the Scicon Shooter Base App invite" />
             <small>ScottExplores / Base</small>
           </a>

@@ -8,6 +8,8 @@ const { assertSameOrigin } = require('./_lib/walletProfileAuth');
 const EVENTS_TABLE = process.env.SUPABASE_PRODUCT_EVENTS_TABLE || 'scicon_product_events';
 const ALLOWED_EVENTS = new Set([
   'app_opened',
+  'desktop_launch_viewed',
+  'desktop_launch_selected',
   'session_activity',
   'mission_started',
   'mission_completed',
