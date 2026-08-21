@@ -33,6 +33,7 @@ test('social health summary reports blockers and aggregate conversion without se
         x_post_id: '1234567890',
         published_at: '2026-08-21T19:30:00.000Z',
         metadata: {
+          contentKey: 'score-means-something-v1',
           contentKind: 'challenge',
           campaignContent: 'score-challenge',
           latestMetrics: {
@@ -80,6 +81,7 @@ test('social health summary reports blockers and aggregate conversion without se
     url: 'https://x.com/SciconShooter/status/1234567890',
     publishedAt: '2026-08-21T19:30:00.000Z',
     actionType: 'original',
+    contentKey: 'score-means-something-v1',
     contentKind: 'challenge',
     campaignContent: 'score-challenge',
     metrics: { impressions: 120, likes: 3, replies: 2, reposts: 1, quotes: 1 }

@@ -58,6 +58,7 @@ const buildRecentPublishedSummary = (actions) => actions
         ? new Date(action.published_at).toISOString()
         : null,
       actionType: boundedText(action?.action_type, 24) || 'unknown',
+      contentKey: boundedText(action?.metadata?.contentKey, 100) || null,
       contentKind: boundedText(action?.metadata?.contentKind || action?.reason, 32) || 'unknown',
       campaignContent: safeCampaignContent(action?.metadata?.campaignContent) || null,
       metrics: readPublicMetrics(action)
