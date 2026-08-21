@@ -54,7 +54,19 @@ const fetchJson = async (url, { headers = {}, fetchImpl = fetch } = {}) => {
   return payload;
 };
 
-const queueBlocker = (entry) => {
+const queueScheduleBlocker = (entry, checkedAt) => {
+  const notBefore = Date.parse(String(entry?.not_before || ''));
+  const notAfter = Date.parse(String(entry?.not_after || ''));
+  if (!Number.isFinite(notBefore)) return 'schedule_window:invalid_not_before';
+  if (!Number.isFinite(notAfter)) return 'schedule_window:invalid_not_after';
+  if (notAfter <= notBefore) return 'schedule_window:inverted';
+  if (notAfter < checkedAt.getTime()) return 'schedule_window:expired';
+  return '';
+};
+
+const queueBlocker = (entry, checkedAt) => {
+  const scheduleBlocker = queueScheduleBlocker(entry, checkedAt);
+  if (scheduleBlocker) return scheduleBlocker;
   if (entry?.metadata?.claims_verified !== true) return 'claims_not_verified';
   const poll = readQueuePoll(entry);
   if (!poll.ok) return `poll_validation:${poll.reason}`;
@@ -134,7 +146,7 @@ export const buildSocialHealthSummary = ({
 } = {}) => {
   const blockers = queue.map((entry) => ({
     contentKey: boundedText(entry?.content_key, 100),
-    reason: queueBlocker(entry)
+    reason: queueBlocker(entry, checkedAt)
   })).filter((entry) => entry.reason).concat(mediaSourceBlockers.map((entry) => ({
     contentKey: boundedText(entry?.contentKey, 100),
     reason: boundedText(entry?.reason, 100)

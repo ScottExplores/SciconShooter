@@ -11,12 +11,16 @@ test('social health summary reports blockers and aggregate conversion without se
         content_key: 'verified',
         post_text: 'Reply with your score:',
         link_url: 'https://www.sciconshooter.xyz/',
+        not_before: '2026-08-21T20:15:00.000Z',
+        not_after: '2026-08-21T20:45:00.000Z',
         requires_media: false,
         metadata: { claims_verified: true }
       },
       {
         content_key: 'blocked',
         post_text: 'Unsupported claim.',
+        not_before: '2026-08-21T20:15:00.000Z',
+        not_after: '2026-08-21T20:45:00.000Z',
         requires_media: false,
         metadata: { claims_verified: false }
       }
@@ -36,6 +40,45 @@ test('social health summary reports blockers and aggregate conversion without se
   assert.equal(summary.conversion.xSessions, 1);
   assert.equal(summary.weeklyLeaderboard.leader.score, 1234);
   assert.doesNotMatch(JSON.stringify(summary), /secret-session/);
+});
+
+test('social health summary rejects unbounded, inverted, and expired queue windows', async () => {
+  const { buildSocialHealthSummary } = await import('../tools/social-health-audit.mjs');
+  const baseEntry = {
+    post_text: 'Reply with your score:',
+    link_url: 'https://www.sciconshooter.xyz/',
+    requires_media: false,
+    metadata: { claims_verified: true }
+  };
+  const summary = buildSocialHealthSummary({
+    checkedAt: new Date('2026-08-21T20:00:00.000Z'),
+    queue: [
+      {
+        ...baseEntry,
+        content_key: 'unbounded',
+        not_before: '2026-08-21T20:15:00.000Z',
+        not_after: null
+      },
+      {
+        ...baseEntry,
+        content_key: 'inverted',
+        not_before: '2026-08-21T21:00:00.000Z',
+        not_after: '2026-08-21T20:30:00.000Z'
+      },
+      {
+        ...baseEntry,
+        content_key: 'expired',
+        not_before: '2026-08-21T18:00:00.000Z',
+        not_after: '2026-08-21T19:00:00.000Z'
+      }
+    ]
+  });
+
+  assert.deepEqual(summary.queue.blockers, [
+    { contentKey: 'unbounded', reason: 'schedule_window:invalid_not_after' },
+    { contentKey: 'inverted', reason: 'schedule_window:inverted' },
+    { contentKey: 'expired', reason: 'schedule_window:expired' }
+  ]);
 });
 
 test('social health audit verifies queued media response type and bounded length', async () => {
