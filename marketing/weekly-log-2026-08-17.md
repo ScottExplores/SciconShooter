@@ -251,3 +251,13 @@ PR #21 merged as `24084a68` on August 21 and deployed to production as `sciconsh
 - Exclusions: owner/test sessions, names, wallet addresses, visitor hashes, and post text are not used for selection.
 - Verification: 14 focused social-agent tests passed; ESLint and TypeScript passed. The full suite recorded 1,477 passes and six unrelated existing gameplay/artifact failures on `origin/main`.
 - Production boundary: the deployment is ready and the public social endpoint returned `401` without authorization after rollout.
+
+### Conversion theme taxonomy
+
+PR #22 merged as `d30d82bd` and deployed as `sciconshooter-rf6nmw97n`. Migration `expand_social_content_taxonomy` was applied before relabeling the live queue. The database check constraint now permits the original four kinds plus seven bounded growth themes.
+
+- `funding`: 4 queued posts.
+- `challenge`: 3 queued posts.
+- `competition`, `boss`, `loadout`, `progression`, and `onboarding`: 2 queued posts each.
+- Post copy, URLs, schedules, priorities, claim verification, and publishing status were not changed.
+- Supabase security and performance advisors reported no new issue tied to this migration; existing informational RLS-with-no-policy and index notices remain outside this social taxonomy change.
