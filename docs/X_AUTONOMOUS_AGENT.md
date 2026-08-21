@@ -76,7 +76,7 @@ The Sunday winner worker follows the same rule: Vercel probes at `21:15` and `22
 
 ## Read-only monitoring
 
-Run `npm run social:audit` from the canonical project checkout. The command reads `.env.local`, validates every queued post against the production worker policy, aggregates recent action statuses and conversion events, and reports the public weekly leaderboard. Output excludes session IDs, wallet addresses, visitor hashes, credentials, and event properties. Use `npm run social:audit -- --hours=72` to inspect up to seven days.
+Run `npm run social:audit` from the canonical project checkout. The command reads `.env.local`, validates every queued post against the production worker policy, verifies each queued media URL with a bounded `HEAD` request for HTTP status, MIME type, and content length, aggregates recent action statuses and conversion events, and reports the public weekly leaderboard. Output excludes session IDs, wallet addresses, visitor hashes, credentials, and event properties. Use `npm run social:audit -- --hours=72` to inspect up to seven days.
 
 ## Activation checklist
 

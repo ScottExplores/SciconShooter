@@ -475,3 +475,7 @@ A frame-by-frame visual review after the codec audit established that `scicon-sh
 - Reply goal: none; this reel is not approved for social use.
 
 PR #38 merged as `bef0156f` and production deployment `dpl_5aFWGMCMH2Ak4E3EYiWVKj8vcEHk` became ready August 21 at 1:22 PM Pacific. The former asset URL now resolves only to the site's HTML fallback rather than `video/mp4`, proving the stale reel is no longer deployable media. The worker remained `401 Unauthorized` without credentials, and the live queue still contained no video row.
+
+### Live media-source audit
+
+The read-only social health audit now verifies every structurally valid queued media URL with a bounded `HEAD` request. HTTP failures, redirects, HTML fallbacks, unexpected MIME types, missing or zero content lengths, and files beyond the configured image or video cap are reported as queue blockers without downloading or exposing media content. The first live run at 1:24 PM Pacific checked all three queued media posts and reported zero blockers; all referenced assets are live bounded PNGs.

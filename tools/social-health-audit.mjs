@@ -7,6 +7,10 @@ const { validateOriginalPost } = require('../api/_lib/socialAgentPolicy');
 
 const DEFAULT_SINCE_HOURS = 24;
 const MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
+const MAX_MEDIA_SOURCE_CHECKS = 32;
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_VIDEO_BYTES = 15 * 1024 * 1024;
+const IMAGE_MEDIA_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
 const objectValue = (value) => (
   value && typeof value === 'object' && !Array.isArray(value) ? value : {}
@@ -63,18 +67,78 @@ const queueBlocker = (entry) => {
   return post.ok ? '' : `post_validation:${post.reason}`;
 };
 
+export const checkQueueMediaSources = async (queue = [], { fetchImpl = fetch } = {}) => {
+  const references = [];
+  for (const entry of queue) {
+    const validation = readQueueMedia(entry);
+    if (!validation.ok) continue;
+    for (const media of validation.media) {
+      references.push({
+        contentKey: boundedText(entry?.content_key, 100),
+        sourceUrl: media.sourceUrl,
+        kind: media.kind === 'video' ? 'video' : 'image'
+      });
+    }
+  }
+  if (new Set(references.map((item) => item.sourceUrl)).size > MAX_MEDIA_SOURCE_CHECKS) {
+    return [{ contentKey: 'queue', reason: 'media_source:check_limit' }];
+  }
+  const results = new Map();
+  await Promise.all([...new Map(references.map((item) => [item.sourceUrl, item])).values()]
+    .map(async ({ sourceUrl, kind }) => {
+      try {
+        const response = await fetchImpl(sourceUrl, {
+          method: 'HEAD',
+          headers: { Accept: kind === 'video' ? 'video/mp4' : 'image/png,image/jpeg,image/webp' },
+          redirect: 'error',
+          signal: AbortSignal.timeout(12_000)
+        });
+        if (!response.ok) {
+          results.set(sourceUrl, `media_source:http_${response.status}`);
+          return;
+        }
+        const mediaType = String(response.headers?.get?.('content-type') || '')
+          .split(';')[0].trim().toLowerCase();
+        if (kind === 'video' ? mediaType !== 'video/mp4' : !IMAGE_MEDIA_TYPES.has(mediaType)) {
+          results.set(sourceUrl, 'media_source:content_type');
+          return;
+        }
+        const rawLength = String(response.headers?.get?.('content-length') || '').trim();
+        if (!/^\d+$/.test(rawLength) || Number(rawLength) < 1) {
+          results.set(sourceUrl, 'media_source:content_length');
+          return;
+        }
+        if (Number(rawLength) > (kind === 'video' ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES)) {
+          results.set(sourceUrl, 'media_source:size');
+          return;
+        }
+        results.set(sourceUrl, '');
+      } catch {
+        results.set(sourceUrl, 'media_source:request_failed');
+      }
+    }));
+  return references.map(({ contentKey, sourceUrl }) => ({
+    contentKey,
+    reason: results.get(sourceUrl) || ''
+  })).filter((item) => item.reason);
+};
+
 export const buildSocialHealthSummary = ({
   queue = [],
   actions = [],
   events = [],
   leaderboard = {},
+  mediaSourceBlockers = [],
   checkedAt = new Date(),
   since = new Date(checkedAt.getTime() - DEFAULT_SINCE_HOURS * 3_600_000)
 } = {}) => {
   const blockers = queue.map((entry) => ({
     contentKey: boundedText(entry?.content_key, 100),
     reason: queueBlocker(entry)
-  })).filter((entry) => entry.reason);
+  })).filter((entry) => entry.reason).concat(mediaSourceBlockers.map((entry) => ({
+    contentKey: boundedText(entry?.contentKey, 100),
+    reason: boundedText(entry?.reason, 100)
+  })).filter((entry) => entry.contentKey && entry.reason));
   const actionStatuses = {};
   for (const action of actions) {
     const status = boundedText(action?.status, 24) || 'unknown';
@@ -152,7 +216,16 @@ export const readSocialHealth = async ({
     fetchJson(`${rest}/scicon_product_events?select=event_name,session_id,properties,occurred_at&occurred_at=gte.${encodeURIComponent(since.toISOString())}&order=occurred_at.asc&limit=5000`, { headers, fetchImpl }),
     fetchJson('https://www.sciconshooter.xyz/api/leaderboard', { fetchImpl })
   ]);
-  return buildSocialHealthSummary({ queue, actions, events, leaderboard, checkedAt: now, since });
+  const mediaSourceBlockers = await checkQueueMediaSources(queue, { fetchImpl });
+  return buildSocialHealthSummary({
+    queue,
+    actions,
+    events,
+    leaderboard,
+    mediaSourceBlockers,
+    checkedAt: now,
+    since
+  });
 };
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
