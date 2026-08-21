@@ -330,7 +330,7 @@ PR #27 merged as `bd432b16` and production deployment `sciconshooter-f9oydb5bd` 
 
 Live production evidence checked August 21 at 11:04 AM Pacific:
 
-- Social actions: no published, failed, or skipped actions yet; the 4:00 PM Pacific post remains the first credentialed runtime attempt.
+- Social actions: no August 21 worker action exists yet; the 4:00 PM Pacific post remains the first runtime attempt under the current schedule. Three genuine historical posts from August 11-13 are recorded, with 15 total impressions, two likes, and no replies or reposts. Their one beta-test and two upgrade samples are below the three-sample learning threshold.
 - X attribution: no attributed sessions yet, so no content-performance conclusion is available.
 - Seven-day product baseline: 17 app-open sessions, three mission-start sessions, and no score submissions. These totals are directional and include all traffic sources.
 - Active August 16-23 competition: zero eligible leaderboard runs at audit time. The leaderboard is awaiting finalization; no winner or champion claim is permitted.
