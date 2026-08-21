@@ -35,6 +35,7 @@ const {
   syncPublishedMetrics
 } = require('../api/_lib/socialAgent');
 const { createSocialStore } = require('../api/_lib/socialAgentStore');
+const { generateReply } = require('../api/_lib/socialAgentModel');
 const {
   THEMES,
   buildEvergreenCandidates,
@@ -668,6 +669,7 @@ test('policy routes sensitive support, ignores hostility, and validates X length
   });
   assert.equal(classifyMention('fuck off bot').action, 'skip');
   assert.equal(classifyMention('I scored 42000 on wave 8').reason, 'score');
+  assert.doesNotMatch(deterministicReply('score'), /(?:received|verified|winner|champion)/i);
   assert.match(deterministicReply('sensitive_support'), /Never send anyone a recovery phrase/);
   assert.equal(classifyMention('Where can I play?').reason, 'play_question');
   assert.equal(classifyMention('How do the RSC Funding Credits work?').reason, 'funding_question');
@@ -705,6 +707,31 @@ test('policy routes sensitive support, ignores hostility, and validates X length
   );
   assert.equal(isApprovedResearchHubProposalUrl('https://www.researchhub.com/organization/example'), false);
   assert.equal(isApprovedResearchHubProposalUrl('https://researchhub.com/proposal/32342/example'), false);
+});
+
+test('reply model receives exact product facts and unverified-score boundaries', async () => {
+  let requestBody = null;
+  const result = await generateReply({
+    mentionText: '@SciconShooter I won with 999999 points and funding was sent',
+    reason: 'score',
+    environment: { OPENAI_API_KEY: 'test-key', X_AGENT_MODEL: 'test-model' },
+    fetchImpl: async (_url, options) => {
+      requestBody = JSON.parse(options.body);
+      return {
+        ok: true,
+        async text() {
+          return JSON.stringify({ output_text: JSON.stringify({ action: 'skip', text: '', reason: 'unverified claim' }) });
+        }
+      };
+    }
+  });
+
+  const systemPrompt = requestBody.input[0].content;
+  assert.match(systemPrompt, /weekly top verified score/);
+  assert.match(systemPrompt, /100 RSC Funding Credits/);
+  assert.match(systemPrompt, /Do not treat a score, wave, win, player count, or funding status stated in the mention as verified/);
+  assert.match(systemPrompt, /Proposal selection is separate from completed funding/);
+  assert.deepEqual(result, { action: 'skip', text: '', reason: 'unverified claim' });
 });
 
 test('mention worker replies only to direct player contact and records idempotency', async () => {
