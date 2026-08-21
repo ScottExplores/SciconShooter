@@ -439,3 +439,7 @@ PR #35 merged as `4f82d56c` and production deployment `dpl_BdfHR8S3sN9i8YVTDa2gK
 - Verification: 26/26 focused social tests, TypeScript, targeted ESLint, and production build passed in both the canonical and isolated release worktrees.
 - Live audit: 19 queued rows, zero failed/reserved/skipped action rows, and zero queued claim, poll, media, URL, or existing-action blockers.
 - Runtime boundary: no X post or reply was created during recovery testing. The August 21 4:00 PM Pacific post remains the next intended original.
+
+### Post-fix player baseline
+
+Live production evidence checked August 21 at 12:40 PM Pacific showed zero product events after the 11:52 AM score-save verification boundary and zero entries on the active weekly leaderboard. No X-attributed session exists yet. Until real traffic arrives, queued copy must invite the first verified scores and must not imply current player traction, a score to beat, or a finalized weekly leader.
