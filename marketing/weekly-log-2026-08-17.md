@@ -397,3 +397,14 @@ PR #32 merged as `0ad62de2` and production deployment `dpl_76XuE41vwXgjBAvLtxGup
 - Alt text: `Scicon Shooter redesigned home screen with the RSC ship, Start Mission button, and navigation for Proposals, Trophies, Hangar, and more.`
 - Reply goal: desktop scores and first-run reactions.
 - Runtime boundary: no media was uploaded to X during verification. The first live media upload will occur only when the already-approved Saturday queue entry reaches its publishing window. Friday's 4:00 PM text post remains unchanged.
+
+### Hangar gallery
+
+PR #33 merged as `4fda56d7` and production deployment `dpl_GQi7mcx53wbN6fyz4Yarmtr57jEa` became ready August 21 at 12:13 PM Pacific. Two supplied in-game Hangar screenshots were added to the allowlisted first-party asset surface for the verified loadout post.
+
+- Current-code evidence: `SquadHangar` and squad progression implement one main ship, left/right mini-ship support slots, four named mini-ships, and tiered upgrades. No unreleased feature or roadmap-date claim was added.
+- Main-ship asset: `marketing/campaign-assets/scicon-hangar-main-ships-2026-08.png`; public URL `https://www.sciconshooter.xyz/social-assets/scicon-hangar-main-ships-2026-08.png`; 274,363 bytes; SHA-256 `74A4F4693D69CA16069D4951090DB9E6E039E4304F2A4F3B17BF1CB9B4EC3224`.
+- Mini-ship asset: `marketing/campaign-assets/scicon-hangar-mini-ships-2026-08.png`; public URL `https://www.sciconshooter.xyz/social-assets/scicon-hangar-mini-ships-2026-08.png`; 237,805 bytes; SHA-256 `F2BE11CB9C7BCD126251623E2174A810D8CB43933A4497AC151E208AF6EE17F5`.
+- Queue entry: `squad-bad-decisions-v1`, scheduled for Wednesday, August 26 at 9:00 AM Pacific with both images, specific alt text, and the existing attributed game URL.
+- Validation: 24/24 focused social-agent tests, TypeScript, targeted ESLint, and production build passed. Both public assets returned HTTP 200 as `image/png` with exact hash matches; the final post is 200 weighted X characters and media validation accepts both images.
+- Reply goal: players naming the main ship or support squad they trust when the run gets crowded.
