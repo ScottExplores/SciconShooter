@@ -286,3 +286,7 @@ PR #24 merged as `77fdee3c` and production deployment `sciconshooter-b0woy0lwa` 
 - Kill switch: `X_AGENT_EVERGREEN_ENABLED=false` disables refill independently; the existing global autonomy switch still disables all activity.
 - Verification: 18 focused tests, ESLint, TypeScript, and Vercel passed. Generated candidate lengths range from 113 to 171 weighted X characters.
 - Live boundary: current horizon remains August 31 at 4:00 PM Pacific with 17 manually queued posts and zero evergreen inserts, so the refill correctly made no early changes. The unauthenticated endpoint still returns `401`.
+
+### Sunday posting time
+
+PR #25 merged as `707fa65d` and production deployment `sciconshooter-1q96op5gw` is ready. The weekly worker now receives both `21:15` and `22:15` UTC probes but permits publication only on Sunday at 2:15 PM Pacific. Tests cover both PDT and PST, the off-season probe exits before reading or publishing a winner, and the unauthenticated weekly endpoint returns `401`.
