@@ -317,6 +317,24 @@ test('policy routes sensitive support, ignores hostility, and validates X length
   assert.equal(classifyMention('fuck off bot').action, 'skip');
   assert.equal(classifyMention('I scored 42000 on wave 8').reason, 'score');
   assert.match(deterministicReply('sensitive_support'), /Never send anyone a recovery phrase/);
+  assert.equal(classifyMention('Where can I play?').reason, 'play_question');
+  assert.equal(classifyMention('How do the RSC Funding Credits work?').reason, 'funding_question');
+  assert.equal(classifyMention('When does the weekly leaderboard reset?').reason, 'competition_question');
+  assert.match(deterministicReply('play_question'), /sciconshooter\.xyz/);
+  assert.match(deterministicReply('funding_question'), /100 RSC Funding Credits/);
+  assert.match(
+    deterministicReply('sensitive_support', 'Was funding sent?'),
+    /transaction evidence is verified/
+  );
+  assert.match(deterministicReply('feedback', 'The boss attack pattern felt broken'), /Which boss or attack/);
+  assert.match(deterministicReply('feedback', 'Touch movement feels slow'), /device and control method/);
+  assert.match(deterministicReply('feedback', 'The hangar ship upgrade is confusing'), /ship or loadout/);
+  for (const reply of [
+    deterministicReply('play_question'),
+    deterministicReply('funding_question'),
+    deterministicReply('competition_question'),
+    deterministicReply('sensitive_support', 'Was funding sent?')
+  ]) assert.equal(validateReply(reply).ok, true);
   assert.equal(weightedLength(`Go ${'https://example.com/'.repeat(1)}`), 26);
   assert.equal(validateReply('Send me your private key').ok, false);
   assert.equal(validateReply('Play https://www.sciconshooter.xyz/').ok, true);

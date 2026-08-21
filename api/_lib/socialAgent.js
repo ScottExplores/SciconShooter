@@ -371,7 +371,7 @@ const processMentions = async ({
       continue;
     }
 
-    let replyText = deterministicReply(classification.reason);
+    let replyText = deterministicReply(classification.reason, mention.text);
     if (classification.action === 'reply' && String(environment.OPENAI_API_KEY || '').trim()) {
       try {
         const generated = await generateReplyFn({
