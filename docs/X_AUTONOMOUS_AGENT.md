@@ -70,6 +70,8 @@ Unused candidates expire within their slot and are moved to `paused` on the next
 
 Vercel probes the daily worker at both daylight and standard-time UTC equivalents. `X_AGENT_ORIGINAL_HOURS=9,16` gates original publication by the actual Pacific hour, so the extra probe can process mentions and metrics but cannot publish another original.
 
+The Sunday winner worker follows the same rule: Vercel probes at `21:15` and `22:15` UTC, while `X_AGENT_WEEKLY_HOUR=14` and `X_AGENT_WEEKLY_MINUTE=15` permit publication only at 2:15 PM Pacific. The off-season probe exits before reading or publishing a winner.
+
 ## Activation checklist
 
 1. Apply the social-agent migrations under `supabase/migrations` and run Supabase security and performance advisors.

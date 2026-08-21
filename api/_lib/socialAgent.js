@@ -53,6 +53,17 @@ const getPacificHour = (date) => Number(new Intl.DateTimeFormat('en-US', {
   hourCycle: 'h23'
 }).format(date));
 
+const getPacificMinute = (date) => Number(new Intl.DateTimeFormat('en-US', {
+  timeZone: 'America/Los_Angeles',
+  minute: '2-digit'
+}).format(date));
+
+const isWeeklyPostingWindow = (environment, date) => (
+  getPacificWeekday(date) === 'Sun'
+  && getPacificHour(date) === Number(environment.X_AGENT_WEEKLY_HOUR || 14)
+  && getPacificMinute(date) === Number(environment.X_AGENT_WEEKLY_MINUTE || 15)
+);
+
 const configuredOriginalDays = (environment) => new Set(
   String(environment.X_AGENT_ORIGINAL_DAYS || 'Tue,Wed,Thu')
     .split(',')
@@ -752,7 +763,9 @@ const runSocialAgent = async ({
     output.metrics = await syncPublishedMetrics({ client: activeClient, store: activeStore, environment, now });
   }
   if (mode === 'weekly' || mode === 'all') {
-    output.weekly = await processWeeklyWinner({ client: activeClient, store: activeStore, now });
+    output.weekly = isWeeklyPostingWindow(environment, now)
+      ? await processWeeklyWinner({ client: activeClient, store: activeStore, now })
+      : { published: false, reason: 'not_weekly_posting_window' };
   }
   if (!['daily', 'weekly', 'all'].includes(mode)) throw Object.assign(new Error('Unknown social-agent mode.'), { statusCode: 400 });
   return output;
@@ -780,6 +793,7 @@ module.exports = {
   buildWeeklyThread,
   chooseQueuedPost,
   ensureEvergreenQueue,
+  isWeeklyPostingWindow,
   processMentions,
   processQueuedOriginal,
   processWeeklyWinner,
