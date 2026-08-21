@@ -408,3 +408,14 @@ PR #33 merged as `4fda56d7` and production deployment `dpl_GQi7mcx53wbN6fyz4Yarm
 - Queue entry: `squad-bad-decisions-v1`, scheduled for Wednesday, August 26 at 9:00 AM Pacific with both images, specific alt text, and the existing attributed game URL.
 - Validation: 24/24 focused social-agent tests, TypeScript, targeted ESLint, and production build passed. Both public assets returned HTTP 200 as `image/png` with exact hash matches; the final post is 200 weighted X characters and media validation accepts both images.
 - Reply goal: players naming the main ship or support squad they trust when the run gets crowded.
+
+### Boss Archive visual
+
+PR #34 merged as `959bae66` and production deployment `dpl_DNZm1VKSByDXCPBo8qZPqfVYbWqj` became ready August 21 at 12:19 PM Pacific. The existing production-backed boss teaser was promoted to the allowlisted social asset surface while retaining its visible work-in-progress label.
+
+- Code evidence: Open Orbit, Citation Storm, Paywall Siege, and Open Galaxy are present in the current stage catalog and Boss Archive implementation.
+- Asset path: `marketing/campaign-assets/scicon-boss-archive-lineup-2026-08.png`; deployed copy: `public/social-assets/scicon-boss-archive-lineup-2026-08.png`.
+- Image URL: `https://www.sciconshooter.xyz/social-assets/scicon-boss-archive-lineup-2026-08.png`; 929,257 bytes; SHA-256 `E1D514F26DE972F4C151A837872F141BDB9112FDA6616EFC4F14F2AF5FBCDCA4`.
+- Queue entry: `boss-archive-runback-v1`, scheduled for Tuesday, August 25 at 9:00 AM Pacific with the existing attributed game URL.
+- Validation: public HTTP 200 `image/png` with an exact hash match; final copy is 206 weighted X characters; post and media validation both pass.
+- Reply goal: boss names, runback results, and the encounter players still cannot solve consistently.
