@@ -333,3 +333,14 @@ Live production evidence checked August 21 at 11:04 AM Pacific:
 - Poll experiment: `squad-draft-v1` is a 24-hour native poll scheduled for Wednesday, August 26 at 4:00 PM Pacific with `Damage`, `Speed`, `Survival`, and `Maximum chaos` options plus its attributed game URL.
 - Policy verification: production `validateOriginalPost` accepts the revised August 21 copy and attributed URL; production `readQueuePoll` accepts the poll options and duration.
 - Browser note: the signed-in X tab displayed X's privacy-extension error, so account inspection remains API-led rather than browser-led.
+
+## Desktop conversion intervention
+
+PR #28 merged as `7e6ef0dc` and production deployment `sciconshooter-8yx6a4pkx` became live August 21 at 11:19 AM Pacific, before the first scheduled X post.
+
+- Evidence: the previous desktop interstitial visually prioritized leaving for the Base App and labeled local browser play `Play Here`, creating friction against the no-install browser-game promise.
+- Primary action: the green CTA now reads `Start Browser Run` and opens the existing 390x844 game frame on the same page.
+- Secondary action: `Open in Base App` and its QR remain available without blocking browser play.
+- Promise alignment: the page now states that no install or wallet is required.
+- Measurement: bounded `desktop_launch_viewed` and `desktop_launch_selected` events record only the chosen surface (`browser` or `base_app`) and placement. Existing session, request-size, property, and rate limits still apply.
+- Verification: five focused launch-shell tests, TypeScript, ESLint with zero errors, production build, and local browser launch passed. The public production page shows the revised CTA and the social endpoint remains `401 Unauthorized` without credentials.
