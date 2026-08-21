@@ -17,6 +17,7 @@ const {
   buildLearningSummary,
   buildWeeklyThread,
   chooseQueuedPost,
+  ensureEvergreenQueue,
   processMentions,
   processQueuedOriginal,
   processWeeklyWinner,
@@ -26,6 +27,10 @@ const {
   syncPublishedMetrics
 } = require('../api/_lib/socialAgent');
 const { createSocialStore } = require('../api/_lib/socialAgentStore');
+const {
+  buildEvergreenCandidates,
+  pacificDateTimeToUtc
+} = require('../api/_lib/socialAgentEvergreen');
 
 const TEST_X_ENV = {
   X_API_KEY: 'api-key',
@@ -248,6 +253,95 @@ test('conversion learning reads only bounded product-funnel events', async () =>
   }
 });
 
+test('evergreen candidates cover two Pacific slots with verified bounded alternatives', () => {
+  const entries = buildEvergreenCandidates({ startDateKey: '2026-08-31', days: 8 });
+  assert.equal(entries.length, 42);
+  assert.equal(new Set(entries.map((entry) => entry.content_key)).size, entries.length);
+  assert.equal(new Set(entries.map((entry) => entry.metadata.campaign_content)).size, entries.length);
+  assert.deepEqual(
+    entries.slice(0, 3).map((entry) => entry.not_before),
+    Array(3).fill('2026-08-31T16:00:00.000Z')
+  );
+  assert.deepEqual(entries.slice(0, 3).map((entry) => entry.priority), [10, 9, 8]);
+  assert.deepEqual(
+    entries.slice(3, 6).map((entry) => entry.not_before),
+    Array(3).fill('2026-08-31T23:00:00.000Z')
+  );
+  assert.ok(entries.every((entry) => entry.metadata.claims_verified === true));
+  assert.ok(entries.every((entry) => validateOriginalPost(`${entry.post_text}\n${entry.link_url}`).ok));
+  assert.ok(entries.every((entry) => new Date(entry.not_after) > new Date(entry.not_before)));
+  assert.equal(pacificDateTimeToUtc('2026-08-31', 9).toISOString(), '2026-08-31T16:00:00.000Z');
+  assert.equal(pacificDateTimeToUtc('2026-11-02', 9).toISOString(), '2026-11-02T17:00:00.000Z');
+});
+
+test('evergreen refill respects a healthy horizon and seeds only after a low horizon', async () => {
+  const calls = { paused: 0, inserted: [] };
+  const store = {
+    async pauseExpiredQueuedPosts() { calls.paused += 1; return 2; },
+    async getQueueHorizon() { return { not_before: '2026-08-31T23:00:00.000Z' }; },
+    async insertQueuedPosts(entries) { calls.inserted = entries; return entries; }
+  };
+  const healthy = await ensureEvergreenQueue({
+    store,
+    now: new Date('2026-08-21T17:00:00.000Z')
+  });
+  assert.equal(healthy.reason, 'horizon_healthy');
+  assert.equal(calls.inserted.length, 0);
+
+  const refilled = await ensureEvergreenQueue({
+    store,
+    now: new Date('2026-08-29T17:00:00.000Z')
+  });
+  assert.equal(refilled.reason, 'refilled');
+  assert.equal(refilled.startDateKey, '2026-09-01');
+  assert.equal(refilled.inserted, calls.inserted.length);
+  assert.ok(calls.inserted.length > 0);
+  assert.ok(calls.inserted.every((entry) => entry.not_before >= '2026-09-01'));
+
+  const disabled = await ensureEvergreenQueue({
+    store,
+    environment: { X_AGENT_EVERGREEN_ENABLED: 'false' },
+    now: new Date('2026-08-29T17:00:00.000Z')
+  });
+  assert.equal(disabled.reason, 'disabled');
+});
+
+test('evergreen store operations stay service-only, bounded, and idempotent', async () => {
+  const calls = [];
+  const previousKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key';
+  try {
+    const store = createSocialStore({
+      async fetchJson(path, options = {}) {
+        calls.push({ path, options });
+        if (options.method === 'POST') return JSON.parse(options.body);
+        if (options.method === 'PATCH') return [{ content_key: 'expired' }];
+        return [{ not_before: '2026-09-01T16:00:00.000Z', not_after: '2026-09-01T21:59:00.000Z' }];
+      }
+    });
+    const horizon = await store.getQueueHorizon('2026-08-29T17:00:00.000Z');
+    assert.equal(horizon.not_before, '2026-09-01T16:00:00.000Z');
+    assert.match(calls[0].path, /status=eq\.queued/);
+    assert.match(calls[0].path, /order=not_before\.desc/);
+
+    const paused = await store.pauseExpiredQueuedPosts('2026-08-29T17:00:00.000Z');
+    assert.equal(paused, 1);
+    assert.equal(calls[1].options.method, 'PATCH');
+    assert.match(calls[1].path, /not_after=lt\.2026-08-29T17%3A00%3A00\.000Z/);
+    assert.deepEqual(JSON.parse(calls[1].options.body).status, 'paused');
+
+    const candidate = buildEvergreenCandidates({ startDateKey: '2026-09-01', days: 1 })[0];
+    const inserted = await store.insertQueuedPosts([candidate]);
+    assert.equal(inserted.length, 1);
+    assert.equal(calls[2].options.method, 'POST');
+    assert.match(calls[2].path, /on_conflict=content_key/);
+    assert.match(calls[2].options.headers.Prefer, /resolution=ignore-duplicates/);
+  } finally {
+    if (previousKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    else process.env.SUPABASE_SERVICE_ROLE_KEY = previousKey;
+  }
+});
+
 test('metrics sync records public performance without mutating post content', async () => {
   const store = createMemoryStore();
   await store.reserveAction({
@@ -433,6 +527,41 @@ test('queued original posts require verified claims and publish at most once', a
   assert.equal(posts.length, 1);
 });
 
+test('original publication follows Pacific hours across daylight-saving boundaries', async () => {
+  const queueEntry = {
+    content_key: 'dst-safe-post',
+    content_kind: 'challenge',
+    post_text: 'DST-safe arcade challenge.',
+    link_url: 'https://www.sciconshooter.xyz/',
+    status: 'queued',
+    requires_media: false,
+    metadata: { claims_verified: true }
+  };
+  const earlyStore = createMemoryStore({ queuedPost: { ...queueEntry } });
+  const posts = [];
+  const client = {
+    async createPost(input) { posts.push(input); return { id: `post-${posts.length}`, text: input.text }; }
+  };
+  const early = await processQueuedOriginal({
+    client,
+    store: earlyStore,
+    environment: { X_AGENT_ORIGINAL_DAYS: 'Mon', X_AGENT_ORIGINAL_HOURS: '9,16' },
+    now: new Date('2026-11-02T16:00:00.000Z')
+  });
+  assert.equal(early.reason, 'not_an_original_post_hour');
+  assert.equal(posts.length, 0);
+
+  const onTimeStore = createMemoryStore({ queuedPost: { ...queueEntry } });
+  const onTime = await processQueuedOriginal({
+    client,
+    store: onTimeStore,
+    environment: { X_AGENT_ORIGINAL_DAYS: 'Mon', X_AGENT_ORIGINAL_HOURS: '9,16' },
+    now: new Date('2026-11-02T17:00:00.000Z')
+  });
+  assert.equal(onTime.published, true);
+  assert.equal(posts.length, 1);
+});
+
 test('queued polls require bounded unique options and publish through the audited original-post path', async () => {
   assert.deepEqual(readQueuePoll({ metadata: {} }), { ok: true, poll: null });
   assert.equal(readQueuePoll({ metadata: { poll: { options: ['Damage'], duration_minutes: 60 } } }).reason, 'option_count');
@@ -535,7 +664,10 @@ test('deployment configuration keeps the worker private, scheduled, and disabled
   const xClientSource = fs.readFileSync(path.join(root, 'api', '_lib', 'xApi.js'), 'utf8');
 
   const dailyCrons = vercel.crons.filter((entry) => entry.path === '/api/social-agent?mode=daily');
-  assert.deepEqual(dailyCrons.map((entry) => entry.schedule), ['0 16 * * *', '0 23 * * *']);
+  assert.deepEqual(
+    dailyCrons.map((entry) => entry.schedule).sort(),
+    ['0 0 * * *', '0 16 * * *', '0 17 * * *', '0 23 * * *'].sort()
+  );
   assert.ok(vercel.crons.some((entry) => entry.path === '/api/social-agent?mode=weekly'));
   assert.match(environment, /^X_AUTONOMY_ENABLED=false$/m);
   assert.match(installMigration, /alter table public\.scicon_social_actions enable row level security/i);

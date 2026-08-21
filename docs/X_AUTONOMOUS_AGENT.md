@@ -62,6 +62,14 @@ Queued posts can carry a first-party `utm_content` value in `metadata.campaign_c
 
 Conversion evidence ranks ahead of X engagement only among posts within five priority points of the editorial leader. If analytics is unavailable or the sample is too small, the worker falls back to engagement learning and then queue order. The learner does not use names, wallet addresses, visitor hashes, or post text.
 
+## Evergreen queue refill
+
+When the remaining queue horizon falls within three days, the daily worker seeds eight calendar days of verified Monday-Saturday candidates after the existing horizon. Each 9:00 AM and 4:00 PM Pacific slot receives three theme alternatives within a two-point priority band. Conversion learning can choose among them; without enough evidence, the deterministic rotation provides the default order.
+
+Unused candidates expire within their slot and are moved to `paused` on the next daily run. Content keys and first-party `utm_content` values are date-, slot-, theme-, and variant-specific, so retries are idempotent and conversion evidence remains attributable. Set `X_AGENT_EVERGREEN_ENABLED=false` to disable refill without disabling direct replies or manually queued posts.
+
+Vercel probes the daily worker at both daylight and standard-time UTC equivalents. `X_AGENT_ORIGINAL_HOURS=9,16` gates original publication by the actual Pacific hour, so the extra probe can process mentions and metrics but cannot publish another original.
+
 ## Activation checklist
 
 1. Apply the social-agent migrations under `supabase/migrations` and run Supabase security and performance advisors.

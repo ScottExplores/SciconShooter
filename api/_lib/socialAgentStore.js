@@ -71,6 +71,40 @@ const createSocialStore = ({ fetchJson = fetchSupabaseJson } = {}) => ({
     return Array.isArray(rows) ? rows : [];
   },
 
+  async getQueueHorizon(nowIso) {
+    const rows = await fetchJson([
+      `${CONTENT_TABLE}?select=not_before,not_after`,
+      'status=eq.queued',
+      `or=${encode(`(not_after.is.null,not_after.gte.${nowIso})`)}`,
+      'order=not_before.desc',
+      'limit=1'
+    ].join('&'), { headers: supabaseHeaders() });
+    return Array.isArray(rows) ? (rows[0] || null) : null;
+  },
+
+  async pauseExpiredQueuedPosts(nowIso) {
+    const rows = await fetchJson([
+      `${CONTENT_TABLE}?status=eq.queued`,
+      'not_after=not.is.null',
+      `not_after=lt.${encode(nowIso)}`
+    ].join('&'), {
+      method: 'PATCH',
+      headers: supabaseHeaders({ Prefer: 'return=representation' }),
+      body: JSON.stringify({ status: 'paused', updated_at: new Date().toISOString() })
+    });
+    return Array.isArray(rows) ? rows.length : 0;
+  },
+
+  async insertQueuedPosts(entries) {
+    if (!Array.isArray(entries) || entries.length === 0) return [];
+    const rows = await fetchJson(`${CONTENT_TABLE}?on_conflict=content_key`, {
+      method: 'POST',
+      headers: supabaseHeaders({ Prefer: 'resolution=ignore-duplicates,return=representation' }),
+      body: JSON.stringify(entries)
+    });
+    return Array.isArray(rows) ? rows : [];
+  },
+
   async getPublishedActionsSince(sinceIso) {
     const rows = await fetchJson([
       `${ACTIONS_TABLE}?select=idempotency_key,action_type,reason,x_post_id,published_at,metadata`,
