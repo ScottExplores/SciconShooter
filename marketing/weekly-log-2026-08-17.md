@@ -238,4 +238,16 @@ PR #19 added bounded native-poll support through the existing official X create-
 
 PR #20 added read-only poll-result collection through the account timeline's official `attachments.poll_ids` expansion. Production deployment `dpl_F4RUeAxbQtRFPt9XUjNGF37ot4nK` is live on the public domains. Bounded option labels, vote totals, voting status, and end time are saved with each post's metrics; votes contribute to the existing engagement calculation without bypassing the three-sample learning threshold.
 
-Vercel confirms the X variables are attached to Production as encrypted values, but its local `env pull` and `env run` paths returned empty placeholders for those secrets. No credential value was exposed or retained, and no live X write was attempted. The first scheduled campaign invocation on August 22 is therefore the authoritative credentialed runtime check; production's public social endpoint continues to return `401` without authorization.
+Vercel confirms the X variables are attached to Production as encrypted values, but its local `env pull` and `env run` paths returned empty placeholders for those secrets. No credential value was exposed or retained, and no live X write was attempted. The one-time 4:00 PM Pacific invocation on August 21 is therefore the authoritative credentialed runtime check; production's public social endpoint continues to return `401` without authorization.
+
+## Player-conversion learning
+
+PR #21 merged as `24084a68` on August 21 and deployed to production as `sciconshooter-4sk82j6ma`. The worker now retains each published post's bounded `utm_content` value and joins attributed X campaign opens to later `mission_started` and `score_submitted` events by anonymous session.
+
+- Selection evidence: deduplicated attributed sessions, mission-start sessions, and score-submission sessions by content kind.
+- Eligibility threshold: at least three attributed opens before conversion evidence can influence future selection.
+- Priority guardrail: learning can reorder only queue entries within five priority points of the editorial leader.
+- Fallback: X engagement learning, then queue order, if conversion evidence is unavailable or undersampled.
+- Exclusions: owner/test sessions, names, wallet addresses, visitor hashes, and post text are not used for selection.
+- Verification: 14 focused social-agent tests passed; ESLint and TypeScript passed. The full suite recorded 1,477 passes and six unrelated existing gameplay/artifact failures on `origin/main`.
+- Production boundary: the deployment is ready and the public social endpoint returned `401` without authorization after rollout.
