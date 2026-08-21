@@ -419,3 +419,12 @@ PR #34 merged as `959bae66` and production deployment `dpl_DNZm1VKSByDXCPBo8qZPq
 - Queue entry: `boss-archive-runback-v1`, scheduled for Tuesday, August 25 at 9:00 AM Pacific with the existing attributed game URL.
 - Validation: public HTTP 200 `image/png` with an exact hash match; final copy is 206 weighted X characters; post and media validation both pass.
 - Reply goal: boss names, runback results, and the encounter players still cannot solve consistently.
+
+## Canonical branch consistency
+
+The released social-growth stack had been deployed from isolated `origin/main` worktrees while the canonical `codex/scicon-experimental` checkout still contained an older worker that rejected media and lacked the current scheduler, polls, proposal allowlist, conversion attribution, score sharing, and weekly timing repair. Commit `53835091` synced only the clean released social, desktop-launch, score-share, weekly-plan, test, documentation, migration, environment-template, and cron files into the canonical branch.
+
+- Verification: 55/55 focused social, desktop-launch, X score-share, weekly generator, and weekly persistence tests passed.
+- TypeScript, targeted ESLint, Tailwind regeneration, and the full experimental production build passed.
+- The local Director remained excluded from the production build.
+- Existing gameplay, boss-runtime, Director, generated proof, and user-owned untracked changes were not staged, overwritten, rebased, or reverted.
