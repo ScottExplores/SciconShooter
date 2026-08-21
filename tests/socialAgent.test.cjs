@@ -964,6 +964,38 @@ test('original publication follows Pacific hours across daylight-saving boundari
   assert.equal(posts.length, 1);
 });
 
+test('original publication defaults to Monday through Saturday and reserves Sunday', async () => {
+  const queueEntry = {
+    content_key: 'default-cadence-post',
+    content_kind: 'challenge',
+    post_text: 'Default cadence arcade challenge.',
+    link_url: 'https://www.sciconshooter.xyz/',
+    status: 'queued',
+    requires_media: false,
+    metadata: { claims_verified: true }
+  };
+  const posts = [];
+  const client = {
+    async createPost(input) { posts.push(input); return { id: `post-${posts.length}`, text: input.text }; }
+  };
+  const friday = await processQueuedOriginal({
+    client,
+    store: createMemoryStore({ queuedPost: { ...queueEntry } }),
+    environment: {},
+    now: new Date('2026-08-21T23:00:00.000Z')
+  });
+  assert.equal(friday.published, true);
+
+  const sunday = await processQueuedOriginal({
+    client,
+    store: createMemoryStore({ queuedPost: { ...queueEntry, content_key: 'sunday-post' } }),
+    environment: {},
+    now: new Date('2026-08-23T23:00:00.000Z')
+  });
+  assert.equal(sunday.reason, 'not_an_original_post_day');
+  assert.equal(posts.length, 1);
+});
+
 test('weekly publication stays at 2:15 PM Pacific across daylight-saving boundaries', () => {
   const environment = { X_AGENT_WEEKLY_HOUR: '14', X_AGENT_WEEKLY_MINUTE: '15' };
   assert.equal(isWeeklyPostingWindow(environment, new Date('2026-08-23T21:15:00.000Z')), true);
