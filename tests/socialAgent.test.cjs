@@ -180,8 +180,8 @@ test('conversion learning favors themes that produce real play after enough attr
       metadata: { contentKind: 'challenge', campaignContent: 'beat-score' }
     }
   ];
-  const appOpen = (sessionId, content) => ({
-    event_name: 'app_opened',
+  const campaignTouch = (sessionId, content, eventName = 'app_opened') => ({
+    event_name: eventName,
     session_id: sessionId,
     properties: {
       campaign_source: 'x',
@@ -190,21 +190,22 @@ test('conversion learning favors themes that produce real play after enough attr
     }
   });
   const events = [
-    appOpen('upgrade-1', 'hangar'),
-    appOpen('upgrade-2', 'hangar'),
-    appOpen('upgrade-3', 'hangar'),
+    campaignTouch('upgrade-1', 'hangar'),
+    campaignTouch('upgrade-2', 'hangar'),
+    campaignTouch('upgrade-3', 'hangar'),
     { event_name: 'mission_started', session_id: 'upgrade-1', properties: {} },
-    appOpen('challenge-1', 'beat-score'),
-    appOpen('challenge-2', 'beat-score'),
-    appOpen('challenge-3', 'beat-score'),
+    campaignTouch('challenge-1', 'beat-score', 'desktop_launch_viewed'),
+    campaignTouch('challenge-2', 'beat-score', 'desktop_launch_viewed'),
+    campaignTouch('challenge-2', 'beat-score'),
+    campaignTouch('challenge-3', 'beat-score'),
     { event_name: 'mission_started', session_id: 'challenge-1', properties: {} },
     { event_name: 'mission_started', session_id: 'challenge-2', properties: {} },
     { event_name: 'score_submitted', session_id: 'challenge-2', properties: {} },
     // Duplicate outcomes and owner tests must not inflate conversion evidence.
     { event_name: 'mission_started', session_id: 'challenge-2', properties: {} },
-    appOpen('owner-1', 'beat-score'),
+    campaignTouch('owner-1', 'beat-score'),
     { event_name: 'mission_started', session_id: 'owner-1', properties: { run_mode: 'owner-test' } },
-    appOpen('unattributed-1', 'unknown')
+    campaignTouch('unattributed-1', 'unknown')
   ];
   const learning = buildConversionLearningSummary(actions, events);
   assert.equal(learning[0].kind, 'challenge');
@@ -245,7 +246,7 @@ test('conversion learning reads only bounded product-funnel events', async () =>
     await store.getProductEventsSince('2026-08-01T00:00:00.000Z', 99_999);
     assert.equal(calls.length, 1);
     assert.match(calls[0].path, /^scicon_product_events\?select=event_name,session_id,properties,occurred_at&/);
-    assert.match(calls[0].path, /event_name=in\.\(app_opened,mission_started,score_submitted\)/);
+    assert.match(calls[0].path, /event_name=in\.\(app_opened,desktop_launch_viewed,mission_started,score_submitted\)/);
     assert.match(calls[0].path, /occurred_at=gte\.2026-08-01T00%3A00%3A00\.000Z/);
     assert.match(calls[0].path, /order=occurred_at\.desc/);
     assert.match(calls[0].path, /limit=5000$/);

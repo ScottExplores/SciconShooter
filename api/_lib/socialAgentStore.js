@@ -120,7 +120,7 @@ const createSocialStore = ({ fetchJson = fetchSupabaseJson } = {}) => ({
   async getProductEventsSince(sinceIso, limit = 2_000) {
     const rows = await fetchJson([
       `${PRODUCT_EVENTS_TABLE}?select=event_name,session_id,properties,occurred_at`,
-      'event_name=in.(app_opened,mission_started,score_submitted)',
+      'event_name=in.(app_opened,desktop_launch_viewed,mission_started,score_submitted)',
       `occurred_at=gte.${encode(sinceIso)}`,
       // Descending order keeps the current campaign window when the bounded row cap is reached.
       'order=occurred_at.desc',

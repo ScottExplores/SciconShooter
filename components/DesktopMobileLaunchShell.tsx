@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { DONATION_CONFIG } from '../constants';
 import { trackEvent } from '../services/analyticsService';
+import { readSocialCampaignAttribution } from '../shared/socialCampaignAttribution.mjs';
 import {
   buildMobileFrameUrl,
   DESKTOP_LAUNCH_MEDIA_QUERY,
@@ -39,13 +40,20 @@ const trackDesktopLaunchView = () => {
   } catch {
     // A blocked storage write should not block the launch screen or telemetry.
   }
-  trackEvent('desktop_launch_viewed', { surface: 'desktop_shell' });
+  trackEvent('desktop_launch_viewed', {
+    surface: 'desktop_shell',
+    ...readSocialCampaignAttribution(window.location.search)
+  });
 };
 
 const trackDesktopLaunchChoice = (
   choice: 'browser' | 'base_app',
   placement: 'landing' | 'qr' | 'side_link'
-) => trackEvent('desktop_launch_selected', { choice, placement });
+) => trackEvent('desktop_launch_selected', {
+  choice,
+  placement,
+  ...readSocialCampaignAttribution(window.location.search)
+});
 
 const readDesktopMediaMatch = () => window.matchMedia(DESKTOP_LAUNCH_MEDIA_QUERY).matches;
 

@@ -22,6 +22,7 @@ const MIN_ATTRIBUTED_SESSIONS = 3;
 const MIN_POLL_DURATION_MINUTES = 5;
 const MAX_POLL_DURATION_MINUTES = 10_080;
 const MAX_POLL_OPTION_LENGTH = 25;
+const ATTRIBUTION_EVENT_NAMES = new Set(['app_opened', 'desktop_launch_viewed']);
 const EVERGREEN_REFILL_THRESHOLD_MS = 3 * 24 * 60 * 60 * 1000;
 const EVERGREEN_REFILL_DAYS = 8;
 
@@ -210,7 +211,7 @@ const buildConversionLearningSummary = (actions = [], events = []) => {
   )).filter(Boolean));
   const attributedSessions = new Map();
   for (const event of events) {
-    if (event?.event_name !== 'app_opened' || isTestProductEvent(event)) continue;
+      if (!ATTRIBUTION_EVENT_NAMES.has(event?.event_name) || isTestProductEvent(event)) continue;
     const properties = event?.properties && typeof event.properties === 'object'
       ? event.properties
       : {};
