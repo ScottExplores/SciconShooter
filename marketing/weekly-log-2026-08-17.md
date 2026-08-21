@@ -23,6 +23,23 @@ Success is measured by:
 - Useful replies containing a score, ship choice, difficulty observation, or concrete feedback.
 - X impressions and engagement as supporting signals, not the primary result.
 
+## Friday, August 21 production runtime post
+
+Intended posting time: 4:00 PM Pacific through the production afternoon cron.
+
+> Most browser shooters ask for reflexes. Scicon Shooter asks which proposal should receive funding credits.
+>
+> Top the verified weekly board. Choose an eligible ResearchHub proposal for 100 RSC in Funding Credits. Make the score mean something.
+> https://www.sciconshooter.xyz/?utm_source=x&utm_medium=social&utm_campaign=growth-sprint-2026-08&utm_content=meaningful-score
+
+- Content key: `score-means-something-v1`
+- Verification: production README and weekly competition records with `allocation_rsc=100`.
+- Competition wording: general mechanism only; no current winner or score claim.
+- Funding status wording: proposal selection and funding-credit mechanism only; no completed-funding claim.
+- Reply goal: questions about the game-to-science loop and competitive intent.
+- Runtime goal: verify the deployed afternoon cron, X credentials, audit row, X post ID, and campaign attribution before the Saturday pair.
+- Expiry: 11:59 PM Pacific on August 21 so a failed runtime check cannot displace Saturday's primary post.
+
 ## Verified content queue
 
 All entries are under 280 weighted X characters, contain no hashtags, use the official game URL, and have `metadata.claims_verified=true` in `scicon_social_content_queue`.
