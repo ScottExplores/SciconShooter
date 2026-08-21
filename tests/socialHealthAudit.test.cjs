@@ -90,7 +90,11 @@ test('social health summary reports blockers and aggregate conversion without se
     content: 'score-challenge',
     attributedSessions: 1,
     missionStartedSessions: 1,
-    scoreSubmittedSessions: 1
+    scoreSubmittedSessions: 1,
+    missionStartRate: 1,
+    scoreSubmissionRate: 1,
+    conversionScore: 3,
+    eligible: false
   }]);
   assert.equal(summary.weeklyLeaderboard.leader.score, 1234);
   assert.doesNotMatch(JSON.stringify(summary), /secret-session/);

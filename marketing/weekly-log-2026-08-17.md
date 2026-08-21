@@ -501,3 +501,7 @@ The social audit now reports privacy-safe conversion outcomes by bounded `utm_co
 ### Published-post evidence readout
 
 The audit now returns up to ten recent published actions with only the public post ID and canonical `@SciconShooter` URL, publication time, bounded action/content/campaign labels, and public impression, like, reply, repost, and quote counts. It omits post copy, source-user IDs, and raw metadata. Focused verification passed 3/3 tests with zero targeted ESLint errors. The 1:36 PM Pacific baseline correctly returned no recent published action before the first scheduled runtime.
+
+### Conversion evidence threshold
+
+Each campaign readout now includes mission-start rate, score-submission rate, the worker-compatible weighted conversion score, and an eligibility flag. A campaign remains ineligible until it has at least three real attributed sessions, preventing one click from being treated as a content winner. Focused verification passed 3/3 tests with zero targeted ESLint errors; the 1:37 PM Pacific live baseline remained empty before publication.
