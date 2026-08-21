@@ -1,6 +1,5 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createHash } = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -308,6 +307,7 @@ test('queue media accepts only bounded first-party images or one MP4 with alt te
     metadata: {
       media: {
         kind: 'video',
+        claims_audited: true,
         source_url: 'https://www.sciconshooter.xyz/social-assets/gameplay.mp4',
         alt_text: 'Scicon Shooter gameplay'
       }
@@ -318,14 +318,25 @@ test('queue media accepts only bounded first-party images or one MP4 with alt te
     media: [{
       kind: 'video',
       sourceUrl: 'https://www.sciconshooter.xyz/social-assets/gameplay.mp4',
-      altText: 'Scicon Shooter gameplay'
+      altText: 'Scicon Shooter gameplay',
+      claimsAudited: true
     }]
   });
   assert.equal(readQueueMedia({
     requires_media: true,
     metadata: {
+      media: {
+        kind: 'video',
+        source_url: 'https://www.sciconshooter.xyz/social-assets/gameplay.mp4',
+        alt_text: 'Scicon Shooter gameplay'
+      }
+    }
+  }).reason, 'video_claims');
+  assert.equal(readQueueMedia({
+    requires_media: true,
+    metadata: {
       media: [
-        { kind: 'video', source_url: 'https://www.sciconshooter.xyz/social-assets/gameplay.mp4', alt_text: 'Gameplay' },
+        { kind: 'video', claims_audited: true, source_url: 'https://www.sciconshooter.xyz/social-assets/gameplay.mp4', alt_text: 'Gameplay' },
         { source_url: 'https://www.sciconshooter.xyz/social-assets/hangar.png', alt_text: 'Hangar' }
       ]
     }
@@ -350,25 +361,6 @@ test('queued social screenshots are bounded PNG campaign assets', () => {
     assert.ok(publicBytes.length > 0 && publicBytes.length <= 5 * 1024 * 1024);
     assert.deepEqual(publicBytes, archiveBytes);
   }
-});
-
-test('queued gameplay clip is the audited bounded H.264 project asset', () => {
-  const assetName = 'scicon-shooter-base-demo-55s.mp4';
-  const publicBytes = fs.readFileSync(path.join(__dirname, '..', 'public', 'social-assets', assetName));
-  const archiveBytes = fs.readFileSync(path.join(__dirname, '..', 'marketing', 'campaign-assets', assetName));
-  const avc1Offset = publicBytes.indexOf(Buffer.from('avc1'), 100);
-
-  assert.deepEqual(publicBytes, archiveBytes);
-  assert.ok(publicBytes.length > 0 && publicBytes.length <= 15 * 1024 * 1024);
-  assert.equal(publicBytes.subarray(4, 8).toString('ascii'), 'ftyp');
-  assert.ok(avc1Offset > 0);
-  assert.equal(publicBytes.readUInt16BE(avc1Offset + 28), 1280);
-  assert.equal(publicBytes.readUInt16BE(avc1Offset + 30), 720);
-  assert.equal(publicBytes.includes(Buffer.from('mp4a')), false);
-  assert.equal(
-    createHash('sha256').update(publicBytes).digest('hex'),
-    '6a72407c36163f87937c4ba15176bb5743994feea1628a9e93e6de5d14a05b97'
-  );
 });
 
 test('learning waits for enough samples and only reorders similarly prioritized content', () => {
@@ -899,11 +891,11 @@ test('queued originals upload verified native media before publishing', async ()
   assert.equal(store.actions.get('queue:verified-media-upgrade').metadata.nativeMediaCount, 1);
 });
 
-test('queued originals route one verified video through native video upload', async () => {
+test('queued originals route one claim-audited video through native video upload', async () => {
   const queueEntry = {
-    content_key: 'verified-gameplay-clip',
-    content_kind: 'gameplay',
-    post_text: 'The boss room is not going to clear itself:',
+    content_key: 'verified-demo-clip',
+    content_kind: 'demo',
+    post_text: 'One browser game. One weekly board. Put up a score:',
     link_url: 'https://www.sciconshooter.xyz/',
     status: 'queued',
     requires_media: true,
@@ -911,8 +903,9 @@ test('queued originals route one verified video through native video upload', as
       claims_verified: true,
       media: {
         kind: 'video',
-        source_url: 'https://www.sciconshooter.xyz/social-assets/gameplay.mp4',
-        alt_text: 'Scicon Shooter gameplay'
+        claims_audited: true,
+        source_url: 'https://www.sciconshooter.xyz/social-assets/current-demo.mp4',
+        alt_text: 'Current Scicon Shooter product demo with verified feature claims.'
       }
     }
   };
@@ -933,7 +926,7 @@ test('queued originals route one verified video through native video upload', as
   assert.equal(result.published, true);
   assert.equal(uploads.length, 1);
   assert.deepEqual(posts[0].mediaIds, ['2234567890']);
-  assert.equal(store.actions.get('queue:verified-gameplay-clip').metadata.nativeVideo, true);
+  assert.equal(store.actions.get('queue:verified-demo-clip').metadata.nativeVideo, true);
 });
 
 test('original publication follows Pacific hours across daylight-saving boundaries', async () => {

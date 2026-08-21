@@ -124,6 +124,9 @@ const readQueueMedia = (entry) => {
   for (const item of items) {
     const kind = String(item?.kind || 'image').trim().toLowerCase();
     if (!['image', 'video'].includes(kind)) return { ok: false, reason: 'kind' };
+    if (kind === 'video' && item?.claims_audited !== true) {
+      return { ok: false, reason: 'video_claims' };
+    }
     const sourceUrl = String(item?.source_url || '').trim();
     const altText = String(item?.alt_text || '').trim();
     let source;
@@ -147,7 +150,7 @@ const readQueueMedia = (entry) => {
       return { ok: false, reason: 'alt_text' };
     }
     media.push(kind === 'video'
-      ? { kind, sourceUrl: source.toString(), altText }
+      ? { kind, sourceUrl: source.toString(), altText, claimsAudited: true }
       : { sourceUrl: source.toString(), altText });
   }
   if (media.some((item) => item.kind === 'video') && media.length !== 1) {

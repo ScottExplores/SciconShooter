@@ -27,7 +27,7 @@ Attach `scicon-new-ships-onchain-records-x.png`.
 
 > 🚀 Scicon Shooter just leveled up.
 >
-> Mint a verified Mission Record on Base → unlock the new playable BIO ship for your connected wallet.
+> Mint a verified Mission Record on Base if you want an onchain record. Hold at least 100 BIO on Base to unlock the playable BIO ship for that connected wallet.
 >
 > New formations. Boss fights. Mid-run upgrades. Top 100 weekly chase.
 >
@@ -53,7 +53,7 @@ Suggested tags: `#IndieGame #Base`
 
 > What does minting do in Scicon Shooter?
 >
-> It turns one verified run into an optional Mission Record on Base—and unlocks the playable BIO ship for that connected wallet.
+> It turns one verified run into an optional Mission Record on Base. The BIO ship is a separate unlock for connected wallets holding at least 100 BIO on Base.
 >
 > It does not claim you won the week. It records the run truthfully.
 >
@@ -84,7 +84,7 @@ Use this as an X poll with four options rather than plain text when practical.
 
 ### Builder update
 
-> This week’s Scicon Shooter build added a Top 100 weekly leaderboard, formation-driven enemy waves, boss polish, ship selection, and a BIO ship unlocked through Mission Record ownership.
+> This week’s Scicon Shooter build added a Top 100 weekly leaderboard, formation-driven enemy waves, boss polish, ship selection, and a BIO ship unlocked after a verified 100 BIO balance on Base.
 >
 > We’re building in public. What should we test hardest next?
 >
@@ -94,7 +94,7 @@ Use this as an X poll with four options rather than plain text when practical.
 
 1. `Scicon Shooter just leveled up: new ship selection, enemy formations, boss fights, mid-run upgrades, and a Top 100 weekly chase. Play instantly—no wallet required. https://sciconshooter.xyz`
 2. `Finish a verified run and you can share its Mission Record for free or optionally mint it on Base. The record captures the run; it never pretends a normal score won the week.`
-3. `Minting a verified Mission Record unlocks the new playable BIO ship for that connected wallet. Pick your ship on the mission screen, then take it into the run.`
+3. `Mission Record minting is optional. The playable BIO ship is a separate unlock for connected wallets holding at least 100 BIO on Base.`
 4. `The finalized weekly champion gets to select an eligible ResearchHub proposal for the community allocation. Selection and confirmed funding are reported as separate steps.`
 5. `Now we want pilot feedback: Which ship should come next? Which enemy pattern needs tuning? What would make you immediately start a second run? Reply—or play here: https://sciconshooter.xyz`
 
@@ -120,7 +120,7 @@ Body:
 
 > Hi! I’m helping build Scicon Shooter, a free browser arcade shooter that is community-built on Base and powered by active ResearchHub proposal data. You can play immediately without connecting a wallet.
 >
-> The latest build adds selectable ships, formation-driven waves, bosses, mid-run upgrades, a Top 100 weekly leaderboard, and an optional Mission Record mint that unlocks the playable BIO ship for the connected wallet.
+> The latest build adds selectable ships, formation-driven waves, bosses, mid-run upgrades, a Top 100 weekly leaderboard, optional Mission Record minting, and a playable BIO ship unlocked after a verified 100 BIO balance on Base.
 >
 > Play: https://sciconshooter.xyz
 >
