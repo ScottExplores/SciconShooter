@@ -462,3 +462,14 @@ The existing project gameplay clip was inspected locally before enabling any vid
 - Reply goal: gameplay run reactions and score replies once a clip-specific post is approved for the queue.
 
 PR #37 merged as `17d82bfe` and production deployment `dpl_7SNaC5M9JoSLNsE6RgxFmbi94HtM` became ready August 21 at 1:04 PM Pacific. The public MP4 returned HTTP 200 as `video/mp4`, exactly 4,374,893 bytes, with the audited SHA-256. The unauthenticated social endpoint remained `401 Unauthorized`; no X upload or post was triggered during production verification. A fresh 1:06 PM production audit reported 19 queued posts, zero blockers, zero X actions, zero X-attributed sessions, and no current weekly leader.
+
+### Demo reel claim-audit correction
+
+A frame-by-frame visual review after the codec audit established that `scicon-shooter-base-demo-55s.mp4` is a product demo reel, not raw gameplay. It also contains an illustrative player name and score, stale proposal counts, and an outdated statement that Mission Record ownership unlocks the BIO ship. Current production code instead unlocks BIO only after verifying that the connected wallet holds at least 100 BIO on Base.
+
+- Publishing status: the reel was never queued, uploaded to X, or posted.
+- Asset status: the deployable `public/social-assets` copy is removed; the original remains only in `marketing/campaign-assets` as historical source material.
+- Safety correction: queued video now requires both post-level `metadata.claims_verified=true` and frame-level `media.claims_audited=true`.
+- Marketing correction: `marketing/social-calendar.md`, the July launch pack, and the Base funding draft now separate optional Mission Record minting from the verified BIO-balance ship unlock.
+- Intended posting time: none.
+- Reply goal: none; this reel is not approved for social use.

@@ -29,7 +29,7 @@ This creates an acquisition path from gaming communities into onchain participat
 - Mainnet Scicon Records contract at `0x487a4353A2F83d10d2267DB34CFD9452Eea098AA`
 - Guest play with no wallet requirement
 - Verified scoring, Top 100 weekly leaderboard, ships, upgrades, enemy formations, and bosses
-- Optional onchain Mission Records and ownership-based BIO ship unlock
+- Optional onchain Mission Records and a separate BIO ship unlock based on a verified 100 BIO balance
 - Active ResearchHub proposal discovery and weekly champion selection flow
 - Public separation between a selected proposal and a confirmed allocation transaction
 
@@ -126,7 +126,7 @@ Keep core gameplay free. Potential revenue sources are optional cosmetic or reco
 
 ## Application answer: current traction
 
-Scicon Shooter is live on Base as a free browser game with guest play, verified weekly competition, optional onchain Mission Records, Base Account support, sponsored-transaction capability, ERC-8021 Builder Code attribution, an ownership-unlocked BIO ship, and a mainnet records contract. The product also integrates active ResearchHub proposal discovery and separates proposal selection from confirmed funding. Base Dashboard analytics are active. Before submission, replace this final sentence with confirmed 7-day and 30-day player, retention, transaction, and mint totals.
+Scicon Shooter is live on Base as a free browser game with guest play, verified weekly competition, optional onchain Mission Records, Base Account support, sponsored-transaction capability, ERC-8021 Builder Code attribution, a BIO ship unlocked after a verified 100 BIO balance, and a mainnet records contract. The product also integrates active ResearchHub proposal discovery and separates proposal selection from confirmed funding. Base Dashboard analytics are active. Before submission, replace this final sentence with confirmed 7-day and 30-day player, retention, transaction, and mint totals.
 
 ## Application answer: why this deserves a Builder Grant
 

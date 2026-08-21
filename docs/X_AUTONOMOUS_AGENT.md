@@ -5,7 +5,7 @@
 The production worker uses the official X API. It can perform only these actions:
 
 - Publish at most one verified queued original post per scheduled invocation on configured weekdays.
-- Attach up to four queue-authored first-party PNG, JPEG, or WebP images, or one audited MP4 gameplay clip, with required alt text.
+- Attach up to four queue-authored first-party PNG, JPEG, or WebP images, or one claim-audited MP4 demo or gameplay clip, with required alt text.
 - Publish a native poll only when the queue supplies two to four unique, bounded options and a valid duration.
 - Read mentions of `@SciconShooter` and reply inside conversations that directly contacted the account.
 - Publish the finalized weekly winner thread only when the winner, score, wave, and ResearchHub proposal selection are present in the competition record.
@@ -26,7 +26,7 @@ Performance learning is deliberately slow. A content category needs at least thr
 - Wallet, payment, transaction, security, legal, and confirmed-funding topics receive only the fixed support-routing response.
 - Generated replies are treated as untrusted until they pass URL, length, secret-request, hashtag, and claim validation.
 - A failed or interrupted action keeps its idempotency reservation and is not automatically retried, preventing duplicate posts. Its queue row is paused so later verified content is not starved.
-- Queued original posts require `metadata.claims_verified=true`. Native media must use HTTPS URLs under `www.sciconshooter.xyz/social-assets/` and include bounded alt text. Images remain under 5 MB each; video is limited to one audited MP4 under 15 MB and uses the bounded chunked upload flow. Polls cannot include media.
+- Queued original posts require `metadata.claims_verified=true`. Native media must use HTTPS URLs under `www.sciconshooter.xyz/social-assets/` and include bounded alt text. Images remain under 5 MB each; video is limited to one MP4 under 15 MB, requires `media.claims_audited=true`, and uses the bounded chunked upload flow. Polls cannot include media.
 - Poll options are queue-authored and strictly validated; the model cannot invent or alter poll choices at publication time.
 - Funding is never described as completed from proposal selection alone. The weekly thread records `selection_only` unless an allocation transaction hash exists.
 
