@@ -526,3 +526,14 @@ A frame-level preflight found that the queued home-screen image did not show the
 > https://www.sciconshooter.xyz/?utm_source=x&utm_medium=social&utm_campaign=growth-sprint-2026-08&utm_content=home-screen-upgrade
 
 The metadata campaign content, reply goal, and evidence note now match the revised post. Archive and deployable images remain byte-identical with SHA-256 `B3FE38B44CC45FD079C03F29547E5640E15CAB0A47BAD47F9FD942F8269D9827`. The production browser check created one `desktop_launch_viewed` event at 1:50:23 PM Pacific; that exact event alone was deleted after matching its timestamp and `desktop_shell` surface. No app event existed in the same ten-second window, so subsequent non-X app activity was preserved. The 1:54 PM audit reported 19 queued posts, zero blockers, no X-attributed session, and no current weekly leader.
+
+### Full-queue editorial pass
+
+A copy-level review of all 19 queued posts found one avoidable repetition: August 31 had two funding-mechanism explanations in the morning and afternoon slots. The lower-priority afternoon row `strange-science-machine-v1` was updated fail-closed while unchanged and queued from kind `funding`/campaign `strange-machine` to kind `upgrade`/campaign `current-build`:
+
+> Current Scicon Shooter status: campaign map, ship Hangar, mini-ship squads, replayable bosses, and a weekly board.
+>
+> It still starts with one browser run. No wallet needed. Try it and tell us what needs work:
+> https://www.sciconshooter.xyz/?utm_source=x&utm_medium=social&utm_campaign=growth-sprint-2026-08&utm_content=current-build
+
+The 231-weighted-character post uses only features verified in current code, makes no roadmap promise, and asks for specific beta feedback. Its August 31 4:00 PM Pacific window and priority remain unchanged. The immediate live audit remained 19 queued posts with zero blockers, no X-attributed session, and no current weekly leader.
