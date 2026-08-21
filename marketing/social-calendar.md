@@ -7,7 +7,7 @@ Timezone: America/Los_Angeles
 
 ## Operating principle
 
-Four strong original posts per week, plus deliberate replies, is the initial four-week test. Every original post must do at least one of three things: entertain, explain, or invite a specific response. Do not fill empty slots with generic promotion.
+The current operating cadence is up to two strong original posts per day, Monday through Saturday, plus useful replies to direct contacts. The 9:00 AM Pacific slot is the primary conversion post; the 4:00 PM slot must use a distinct hook or community angle. Every original post must entertain, explain, or invite a specific response. Do not fill a slot with generic promotion when no verified post is ready.
 
 The umbrella positioning is now **DeSci-inspired arcade gaming**: `Play games. Fund science.` ResearchHub is the current proposal-data and eligible-proposal surface, but the game should not be presented as being mainly for ResearchHub. Explain the mechanism precisely: the finalized weekly winner can choose an eligible proposal for the RSC funding-credit allocation, and confirmed funding is reported only after completion.
 
@@ -20,9 +20,9 @@ Reddit is excluded while the account is banned/security-locked. Community outrea
 - Do not use scripted browser posting, automated likes, automated follows, bulk replies, trend automation, or keyword-triggered cold outreach.
 - Autonomous replies are limited to direct mentions and replies received by `@SciconShooter`, with the policy and volume controls documented in `docs/X_AUTONOMOUS_AGENT.md`.
 - Never reuse identical or near-identical copy, replies, images, or link-only posts. Each post needs a new reason to exist.
-- Keep the normal ceiling at four original posts per week. Do not publish merely because a slot exists.
+- Keep the normal ceiling at two original posts per Pacific day. Each official worker invocation can publish at most one verified queued original.
 - Space substantive replies naturally and respond only where the game is relevant to the conversation.
-- Use zero to two relevant hashtags. Never attach the game to unrelated trends.
+- Prefer no hashtags. Use at most two only when they materially help a specific, relevant campaign; never attach the game to unrelated trends.
 - Do not repeatedly delete and repost weak-performing content.
 - Prefer native gameplay clips, screenshots, scorecards, and specific questions over repetitive promotional graphics.
 - A direct game link is optional. Some relationship or feedback posts should contain no link at all.
@@ -42,17 +42,17 @@ BIO community guidance permits sharing BIO-integrated work in its `flex-your-pos
 
 | Day | Publish time | Content pillar | Native media | Goal |
 |---|---:|---|---|---|
-| Monday | No original post | Reply to players and relevant Base, DeSci, BIO, and indie-game conversations | None required | Relationships and research |
-| Tuesday | 9:00 AM PT | Gameplay spectacle: wave, boss, upgrade, ship, or score moment | 10–25 second clip or strong screenshot | Reach and game clicks |
-| Wednesday | 1:00 PM PT | One focused feedback request or four-option poll | Feedback graphic or mechanic comparison | Replies and product learning |
-| Thursday | 10:00 AM PT | Build update, behind-the-scenes artifact, or truthful onchain explainer | Before/after, ship art, Mission Record, or code-to-game visual | Credibility and follows |
-| Friday | No scheduled original | Answer every useful reply; capture next week's clips | None required | Close the feedback loop |
-| Saturday | Quiet | Only reply if players engage | None | Avoid the weakest general X day |
-| Sunday | 2:15 PM PT | Weekly competition recap after the noon cutoff | Current leaderboard or finalized result visual | Retention and weekly narrative |
+| Monday | 9:00 AM and 4:00 PM PT | Weekly reset, challenge, current build, or onboarding | Current gameplay or product visual when verified | First runs and score submissions |
+| Tuesday | 9:00 AM and 4:00 PM PT | Bosses, ships, upgrades, or arcade challenge | Gameplay clip or strong screenshot | Game starts and score replies |
+| Wednesday | 9:00 AM and 4:00 PM PT | Focused feedback, poll, community challenge, or progression | Mechanic comparison or product visual | Replies and product learning |
+| Thursday | 9:00 AM and 4:00 PM PT | Build progress, onchain explainer, or proposal mechanism | Before/after, Mission Record, or proposal visual | Credibility and qualified clicks |
+| Friday | 9:00 AM and 4:00 PM PT | Competitive prompt, tester call, or current feature | Scorecard, gameplay, or verified build image | Weekend player starts |
+| Saturday | 9:00 AM and 4:00 PM PT | Cutoff challenge and final score push | Current leaderboard when available | Weekly competition entries |
+| Sunday | 2:15 PM PT only | Finalized winner package after the noon cutoff | Finalized result or Mission Record visual | Retention and weekly narrative |
 
-The Tuesday/Thursday morning slots test the midweek morning pattern identified by Buffer's 2026 analysis. Wednesday afternoon tests Sprout Social's larger 2026 dataset, which found Tuesday–Thursday afternoons strongest. Sunday is reserved for the product's real competition rhythm and falls inside Sprout's moderate 2–6 PM Sunday window.
+The released worker probes both daylight- and standard-time UTC equivalents, then applies the actual Pacific weekday and hour gate. Unused or missed candidates expire inside their intended slot so stale content cannot displace the next post. Sunday is reserved for the product's real competition rhythm and never receives an evergreen original.
 
-## First campaign cycle
+## Archived first campaign cycle
 
 ### Friday, July 17 - one-time Codex builder story
 
@@ -168,9 +168,10 @@ Every Monday, compare the prior week's posts by useful replies, game starts, rep
 
 ## Automation
 
-- `Scicon X content engine` prepares one approval-ready Tuesday, Wednesday, or Thursday post package at 8:45 AM PT, including a fresh or existing project-local asset when useful.
-- `Scicon Sunday competition recap` prepares a verified Sunday result package at 1:45 PM PT for the 2:15 PM posting slot.
-- Both routines stop before any external publication. X posts are published manually by the account owner; Codex does not script the X website.
+- The production worker uses only the official X API. It publishes at most one verified queue item per eligible invocation and records the action, public post ID, metrics, and bounded campaign attribution.
+- Daily probes service direct mentions, metrics, queue refill, and the 9:00 AM or 4:00 PM Pacific original slot. Cold replies, automated likes, follows, reposts, trend replies, and Direct Messages are not implemented.
+- `Scicon Sunday competition recap` prepares the approval-ready winner package after finalization. It must stop when the competition is not finalized or the selected proposal URL is unavailable, and it must keep proposal selection separate from confirmed funding.
+- Codex does not script the X website. Any browser-based post or account change remains manual and requires owner approval at action time.
 
 ## Research basis
 
