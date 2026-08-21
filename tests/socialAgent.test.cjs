@@ -1,5 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const { createHash } = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -220,7 +221,70 @@ test('X client uploads an allowlisted image with alt text and attaches its media
   });
 });
 
-test('queue media accepts only bounded first-party images with alt text', () => {
+test('X client uploads an allowlisted MP4 through the bounded chunked workflow', async () => {
+  const calls = [];
+  const waits = [];
+  const responses = [
+    {
+      ok: true,
+      status: 200,
+      headers: { get: (name) => name === 'content-type' ? 'video/mp4' : name === 'content-length' ? '4' : null },
+      async arrayBuffer() { return Uint8Array.from([1, 2, 3, 4]).buffer; }
+    },
+    { ok: true, status: 200, async text() { return JSON.stringify({ media_id_string: '2234567890' }); } },
+    { ok: true, status: 204, async text() { return ''; } },
+    {
+      ok: true,
+      status: 200,
+      async text() { return JSON.stringify({ processing_info: { state: 'pending', check_after_secs: 1 } }); }
+    },
+    {
+      ok: true,
+      status: 200,
+      async text() { return JSON.stringify({ processing_info: { state: 'succeeded' } }); }
+    },
+    { ok: true, status: 200, async text() { return ''; } },
+    {
+      ok: true,
+      status: 201,
+      async text() { return JSON.stringify({ data: { id: 'post-with-video', text: 'Boss run' } }); }
+    }
+  ];
+  const client = createXClient({
+    environment: TEST_X_ENV,
+    nonceFactory: () => 'nonce',
+    now: () => 1_700_000_000_000,
+    sleep: async (milliseconds) => waits.push(milliseconds),
+    fetchImpl: async (url, options) => {
+      calls.push({ url: String(url), options });
+      return responses.shift();
+    }
+  });
+
+  const mediaId = await client.uploadVideoFromUrl({
+    sourceUrl: 'https://www.sciconshooter.xyz/social-assets/gameplay.mp4',
+    altText: 'Scicon Shooter gameplay showing a ship fighting through an arcade wave.'
+  });
+  await client.createPost({ text: 'Boss run', mediaIds: [mediaId] });
+
+  assert.equal(mediaId, '2234567890');
+  assert.deepEqual(waits, [1_000]);
+  assert.equal(calls[1].url, X_MEDIA_UPLOAD_URL);
+  assert.equal(calls[1].options.body.get('command'), 'INIT');
+  assert.equal(calls[1].options.body.get('media_category'), 'tweet_video');
+  assert.equal(calls[2].options.body.get('command'), 'APPEND');
+  assert.equal(calls[2].options.body.get('segment_index'), '0');
+  assert.equal(calls[2].options.body instanceof FormData, true);
+  assert.equal(calls[3].options.body.get('command'), 'FINALIZE');
+  assert.equal(new URL(calls[4].url).searchParams.get('command'), 'STATUS');
+  assert.equal(calls[5].url, X_MEDIA_METADATA_URL);
+  assert.deepEqual(JSON.parse(calls[6].options.body), {
+    text: 'Boss run',
+    media: { media_ids: ['2234567890'] }
+  });
+});
+
+test('queue media accepts only bounded first-party images or one MP4 with alt text', () => {
   assert.deepEqual(readQueueMedia({ requires_media: false }), { ok: true, media: [] });
   assert.equal(readQueueMedia({
     requires_media: true,
@@ -239,6 +303,33 @@ test('queue media accepts only bounded first-party images with alt text', () => 
       }
     }
   }).ok, true);
+  const video = readQueueMedia({
+    requires_media: true,
+    metadata: {
+      media: {
+        kind: 'video',
+        source_url: 'https://www.sciconshooter.xyz/social-assets/gameplay.mp4',
+        alt_text: 'Scicon Shooter gameplay'
+      }
+    }
+  });
+  assert.deepEqual(video, {
+    ok: true,
+    media: [{
+      kind: 'video',
+      sourceUrl: 'https://www.sciconshooter.xyz/social-assets/gameplay.mp4',
+      altText: 'Scicon Shooter gameplay'
+    }]
+  });
+  assert.equal(readQueueMedia({
+    requires_media: true,
+    metadata: {
+      media: [
+        { kind: 'video', source_url: 'https://www.sciconshooter.xyz/social-assets/gameplay.mp4', alt_text: 'Gameplay' },
+        { source_url: 'https://www.sciconshooter.xyz/social-assets/hangar.png', alt_text: 'Hangar' }
+      ]
+    }
+  }).reason, 'video_count');
 });
 
 test('queued social screenshots are bounded PNG campaign assets', () => {
@@ -259,6 +350,25 @@ test('queued social screenshots are bounded PNG campaign assets', () => {
     assert.ok(publicBytes.length > 0 && publicBytes.length <= 5 * 1024 * 1024);
     assert.deepEqual(publicBytes, archiveBytes);
   }
+});
+
+test('queued gameplay clip is the audited bounded H.264 project asset', () => {
+  const assetName = 'scicon-shooter-base-demo-55s.mp4';
+  const publicBytes = fs.readFileSync(path.join(__dirname, '..', 'public', 'social-assets', assetName));
+  const archiveBytes = fs.readFileSync(path.join(__dirname, '..', 'marketing', 'campaign-assets', assetName));
+  const avc1Offset = publicBytes.indexOf(Buffer.from('avc1'), 100);
+
+  assert.deepEqual(publicBytes, archiveBytes);
+  assert.ok(publicBytes.length > 0 && publicBytes.length <= 15 * 1024 * 1024);
+  assert.equal(publicBytes.subarray(4, 8).toString('ascii'), 'ftyp');
+  assert.ok(avc1Offset > 0);
+  assert.equal(publicBytes.readUInt16BE(avc1Offset + 28), 1280);
+  assert.equal(publicBytes.readUInt16BE(avc1Offset + 30), 720);
+  assert.equal(publicBytes.includes(Buffer.from('mp4a')), false);
+  assert.equal(
+    createHash('sha256').update(publicBytes).digest('hex'),
+    '6a72407c36163f87937c4ba15176bb5743994feea1628a9e93e6de5d14a05b97'
+  );
 });
 
 test('learning waits for enough samples and only reorders similarly prioritized content', () => {
@@ -787,6 +897,43 @@ test('queued originals upload verified native media before publishing', async ()
   assert.equal(uploads.length, 1);
   assert.deepEqual(posts[0].mediaIds, ['1234567890']);
   assert.equal(store.actions.get('queue:verified-media-upgrade').metadata.nativeMediaCount, 1);
+});
+
+test('queued originals route one verified video through native video upload', async () => {
+  const queueEntry = {
+    content_key: 'verified-gameplay-clip',
+    content_kind: 'gameplay',
+    post_text: 'The boss room is not going to clear itself:',
+    link_url: 'https://www.sciconshooter.xyz/',
+    status: 'queued',
+    requires_media: true,
+    metadata: {
+      claims_verified: true,
+      media: {
+        kind: 'video',
+        source_url: 'https://www.sciconshooter.xyz/social-assets/gameplay.mp4',
+        alt_text: 'Scicon Shooter gameplay'
+      }
+    }
+  };
+  const store = createMemoryStore({ queuedPost: queueEntry });
+  const uploads = [];
+  const posts = [];
+  const client = {
+    async uploadVideoFromUrl(input) { uploads.push(input); return '2234567890'; },
+    async createPost(input) { posts.push(input); return { id: 'video-post', text: input.text }; }
+  };
+  const result = await processQueuedOriginal({
+    client,
+    store,
+    environment: { X_AGENT_ORIGINAL_DAYS: 'Thu', X_AGENT_ORIGINAL_HOURS: '9' },
+    now: new Date('2026-08-06T16:00:00.000Z')
+  });
+
+  assert.equal(result.published, true);
+  assert.equal(uploads.length, 1);
+  assert.deepEqual(posts[0].mediaIds, ['2234567890']);
+  assert.equal(store.actions.get('queue:verified-gameplay-clip').metadata.nativeVideo, true);
 });
 
 test('original publication follows Pacific hours across daylight-saving boundaries', async () => {

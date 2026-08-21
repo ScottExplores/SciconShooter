@@ -6,7 +6,11 @@ const X_MEDIA_METADATA_URL = 'https://upload.twitter.com/1.1/media/metadata/crea
 const X_MEDIA_SOURCE_HOST = 'www.sciconshooter.xyz';
 const X_MEDIA_SOURCE_PREFIX = '/social-assets/';
 const MAX_X_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_X_VIDEO_BYTES = 15 * 1024 * 1024;
+const X_VIDEO_CHUNK_BYTES = 5 * 1024 * 1024;
+const MAX_X_VIDEO_STATUS_CHECKS = 8;
 const X_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const X_VIDEO_TYPE = 'video/mp4';
 
 const encode = (value) => encodeURIComponent(String(value))
   .replace(/[!'()*]/g, (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`);
@@ -65,7 +69,8 @@ const createXClient = ({
   environment = process.env,
   fetchImpl = fetch,
   nonceFactory,
-  now = () => Date.now()
+  now = () => Date.now(),
+  sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds))
 } = {}) => {
   const credentials = readCredentials(environment);
 
@@ -115,6 +120,76 @@ const createXClient = ({
     const payload = await requestUrl(X_MEDIA_UPLOAD_URL, { method: 'POST', rawBody: form });
     const mediaId = String(payload?.media_id_string || payload?.media_id || payload?.data?.id || '').trim();
     if (!/^\d{1,19}$/.test(mediaId)) throw new Error('X did not return a valid media ID.');
+    if (altText) {
+      await requestUrl(X_MEDIA_METADATA_URL, {
+        method: 'POST',
+        body: { media_id: mediaId, alt_text: { text: altText } }
+      });
+    }
+    return mediaId;
+  };
+
+  const readMediaId = (payload) => {
+    const mediaId = String(payload?.media_id_string || payload?.media_id || payload?.data?.id || '').trim();
+    if (!/^\d{1,19}$/.test(mediaId)) throw new Error('X did not return a valid media ID.');
+    return mediaId;
+  };
+
+  const waitForVideoProcessing = async (mediaId, initialProcessingInfo) => {
+    let processingInfo = initialProcessingInfo || null;
+    for (let attempt = 0; processingInfo && attempt < MAX_X_VIDEO_STATUS_CHECKS; attempt += 1) {
+      const state = String(processingInfo.state || '').toLowerCase();
+      if (state === 'succeeded') return;
+      if (state === 'failed') {
+        const details = processingInfo?.error?.message || processingInfo?.error?.name || 'unknown processing error';
+        throw new Error(`X video processing failed: ${details}`);
+      }
+      if (!['pending', 'in_progress'].includes(state)) {
+        throw new Error(`X returned an unknown video processing state: ${state || 'missing'}`);
+      }
+      const waitSeconds = Math.max(1, Math.min(5, Number(processingInfo.check_after_secs) || 1));
+      await sleep(waitSeconds * 1_000);
+      const status = await requestUrl(X_MEDIA_UPLOAD_URL, {
+        query: { command: 'STATUS', media_id: mediaId }
+      });
+      processingInfo = status?.processing_info || null;
+    }
+    if (processingInfo) throw new Error('X video processing did not finish within the bounded wait.');
+  };
+
+  const uploadVideoBytes = async ({ bytes, altText }) => {
+    if (!Buffer.isBuffer(bytes) || bytes.length < 1 || bytes.length > MAX_X_VIDEO_BYTES) {
+      throw new Error('X media video size is invalid.');
+    }
+    const initForm = new FormData();
+    initForm.append('command', 'INIT');
+    initForm.append('total_bytes', String(bytes.length));
+    initForm.append('media_type', X_VIDEO_TYPE);
+    initForm.append('media_category', 'tweet_video');
+    const initialized = await requestUrl(X_MEDIA_UPLOAD_URL, {
+      method: 'POST',
+      rawBody: initForm
+    });
+    const mediaId = readMediaId(initialized);
+    for (let offset = 0, segmentIndex = 0; offset < bytes.length; offset += X_VIDEO_CHUNK_BYTES, segmentIndex += 1) {
+      const form = new FormData();
+      form.append('command', 'APPEND');
+      form.append('media_id', mediaId);
+      form.append('segment_index', String(segmentIndex));
+      form.append('media', new Blob([bytes.subarray(offset, offset + X_VIDEO_CHUNK_BYTES)], { type: X_VIDEO_TYPE }), 'scicon-social.mp4');
+      await requestUrl(X_MEDIA_UPLOAD_URL, {
+        method: 'POST',
+        rawBody: form
+      });
+    }
+    const finalizeForm = new FormData();
+    finalizeForm.append('command', 'FINALIZE');
+    finalizeForm.append('media_id', mediaId);
+    const finalized = await requestUrl(X_MEDIA_UPLOAD_URL, {
+      method: 'POST',
+      rawBody: finalizeForm
+    });
+    await waitForVideoProcessing(mediaId, finalized?.processing_info);
     if (altText) {
       await requestUrl(X_MEDIA_METADATA_URL, {
         method: 'POST',
@@ -180,6 +255,34 @@ const createXClient = ({
       }
       const bytes = Buffer.from(await response.arrayBuffer());
       return uploadImageBytes({ bytes, mediaType, altText });
+    },
+
+    async uploadVideoFromUrl({ sourceUrl, altText }) {
+      const source = new URL(sourceUrl);
+      if (
+        source.protocol !== 'https:'
+        || source.hostname !== X_MEDIA_SOURCE_HOST
+        || !source.pathname.startsWith(X_MEDIA_SOURCE_PREFIX)
+        || !source.pathname.toLowerCase().endsWith('.mp4')
+        || source.search
+        || source.hash
+      ) {
+        throw new Error('X video source URL is not allowed.');
+      }
+      const response = await fetchImpl(source, {
+        method: 'GET',
+        redirect: 'error',
+        headers: { Accept: X_VIDEO_TYPE }
+      });
+      if (!response.ok) throw new Error(`X video source fetch failed (${response.status}).`);
+      const mediaType = String(response.headers?.get?.('content-type') || '').split(';')[0].trim().toLowerCase();
+      if (mediaType !== X_VIDEO_TYPE) throw new Error('X video source returned an unsupported video type.');
+      const declaredBytes = Number(response.headers?.get?.('content-length'));
+      if (Number.isFinite(declaredBytes) && declaredBytes > MAX_X_VIDEO_BYTES) {
+        throw new Error('X video source exceeds the configured size limit.');
+      }
+      const bytes = Buffer.from(await response.arrayBuffer());
+      return uploadVideoBytes({ bytes, altText });
     },
 
     async createPost({ text, replyToId, poll, mediaIds }) {
