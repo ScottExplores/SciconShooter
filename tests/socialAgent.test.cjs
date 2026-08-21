@@ -228,27 +228,23 @@ test('queue media accepts only bounded first-party images with alt text', () => 
   }).ok, true);
 });
 
-test('the queued hangar screenshot is a bounded PNG campaign asset', () => {
-  const publicAsset = path.join(
-    __dirname,
-    '..',
-    'public',
-    'social-assets',
-    'scicon-home-hangar-upgrade-2026-08.png'
-  );
-  const archiveAsset = path.join(
-    __dirname,
-    '..',
-    'marketing',
-    'campaign-assets',
-    'scicon-home-hangar-upgrade-2026-08.png'
-  );
-  const publicBytes = fs.readFileSync(publicAsset);
-  const archiveBytes = fs.readFileSync(archiveAsset);
+test('queued social screenshots are bounded PNG campaign assets', () => {
+  const assetNames = [
+    'scicon-home-hangar-upgrade-2026-08.png',
+    'scicon-hangar-main-ships-2026-08.png',
+    'scicon-hangar-mini-ships-2026-08.png'
+  ];
 
-  assert.deepEqual(publicBytes.subarray(0, 8), Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
-  assert.ok(publicBytes.length > 0 && publicBytes.length <= 5 * 1024 * 1024);
-  assert.deepEqual(publicBytes, archiveBytes);
+  for (const assetName of assetNames) {
+    const publicAsset = path.join(__dirname, '..', 'public', 'social-assets', assetName);
+    const archiveAsset = path.join(__dirname, '..', 'marketing', 'campaign-assets', assetName);
+    const publicBytes = fs.readFileSync(publicAsset);
+    const archiveBytes = fs.readFileSync(archiveAsset);
+
+    assert.deepEqual(publicBytes.subarray(0, 8), Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+    assert.ok(publicBytes.length > 0 && publicBytes.length <= 5 * 1024 * 1024);
+    assert.deepEqual(publicBytes, archiveBytes);
+  }
 });
 
 test('learning waits for enough samples and only reorders similarly prioritized content', () => {
