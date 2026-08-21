@@ -66,6 +66,19 @@ const buildRecentPublishedSummary = (actions) => actions
     };
   });
 
+const buildRecentNonPublishedSummary = (actions) => actions
+  .filter((action) => action?.status !== 'published')
+  .slice(0, 10)
+  .map((action) => ({
+    status: boundedText(action?.status, 24) || 'unknown',
+    reason: boundedText(action?.reason, 160) || 'unknown',
+    actionType: boundedText(action?.action_type, 24) || 'unknown',
+    contentKey: boundedText(action?.metadata?.contentKey, 100) || null,
+    createdAt: Number.isFinite(Date.parse(String(action?.created_at || '')))
+      ? new Date(action.created_at).toISOString()
+      : null
+  }));
+
 const isTestProductEvent = (event) => {
   const properties = objectValue(event?.properties);
   return properties.test_run === true
@@ -387,7 +400,8 @@ export const buildSocialHealthSummary = ({
     actions: {
       total: actions.length,
       byStatus: actionStatuses,
-      recentPublished: buildRecentPublishedSummary(actions)
+      recentPublished: buildRecentPublishedSummary(actions),
+      recentNonPublished: buildRecentNonPublishedSummary(actions)
     },
     conversion: {
       sessions: sessions.size,

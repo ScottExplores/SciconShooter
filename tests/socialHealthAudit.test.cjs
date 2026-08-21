@@ -58,7 +58,13 @@ test('social health summary reports blockers and aggregate conversion without se
           }
         }
       },
-      { status: 'failed' }
+      {
+        status: 'failed',
+        reason: 'x_publish_failed',
+        action_type: 'original',
+        created_at: '2026-08-21T19:31:00.000Z',
+        metadata: { contentKey: 'failed-post' }
+      }
     ],
     events: [
       {
@@ -110,6 +116,13 @@ test('social health summary reports blockers and aggregate conversion without se
     contentKind: 'challenge',
     campaignContent: 'score-challenge',
     metrics: { impressions: 120, likes: 3, replies: 2, reposts: 1, quotes: 1 }
+  }]);
+  assert.deepEqual(summary.actions.recentNonPublished, [{
+    status: 'failed',
+    reason: 'x_publish_failed',
+    actionType: 'original',
+    contentKey: 'failed-post',
+    createdAt: '2026-08-21T19:31:00.000Z'
   }]);
   assert.equal(summary.conversion.sessions, 1);
   assert.equal(summary.conversion.xSessions, 1);
