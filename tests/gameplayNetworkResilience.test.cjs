@@ -85,7 +85,7 @@ test('critical gameplay art cannot time out as ready and the full catalog is not
   const rendererInit = sliceRequired(
     renderer,
     '    const selectedRuntimeTextureUrls = this.startupTextureUrls.flatMap',
-    '    if (this.destroyed) return;\n    this.initialized = true;'
+    '    this.initialized = true;'
   );
 
   assert.match(preload, /await preloadPixiGameplayTextures\(\)/);
@@ -106,7 +106,7 @@ test('preview arenas use a compact resilient startup pack while production remai
   const previewPack = sliceRequired(
     renderer,
     'export const PIXI_GAMEPLAY_PREVIEW_STARTUP_TEXTURE_URLS',
-    '/**\n * Complete runtime catalog.'
+    'export const PIXI_GAMEPLAY_TEXTURE_URLS'
   );
 
   assert.match(

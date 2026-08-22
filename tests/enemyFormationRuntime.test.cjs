@@ -132,7 +132,11 @@ test('Pixi presents formation assembly pulses and a charged pre-dive frame witho
   );
   assert.match(
     rendererSource,
-    /entity\.type === EntityType\.ENEMY_JOURNAL \|\| entity\.type === EntityType\.ENEMY_INVADER[\s\S]*?entity\.angle \+ ambientRotation \* 0\.25/
+    /entity\.type === EntityType\.ENEMY_JOURNAL[\s\S]*?entity\.angle \+ ambientRotation \* 0\.25/
+  );
+  assert.match(
+    rendererSource,
+    /entity\.type === EntityType\.ENEMY_INVADER[\s\S]*?view\.root\.rotation = 0/
   );
 });
 
