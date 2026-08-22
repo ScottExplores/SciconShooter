@@ -278,7 +278,10 @@ test('sprite frame safety removes detached sheet fragments and protects transpar
 
   const sourceSheet = PNG.sync.read(fs.readFileSync(path.join(
     root,
-    manifest.source.path
+    'director-data',
+    'prototype-assets',
+    'bottleneck-drone',
+    manifest.source.assetId
   )));
   assert.doesNotThrow(() => safetyModule.assertTransparentFrameGutters(
     sourceSheet,

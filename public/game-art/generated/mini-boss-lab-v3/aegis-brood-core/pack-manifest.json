@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "encounterId": "aegis-brood-core",
   "sourceSha256": "f6a5720ec0b885433e6def0839d55c61eabd68c60e6e64a2c1326a178b604755",
   "canvas": {
@@ -253,9 +253,40 @@
       }
     }
   ],
+  "projectileFrames": [
+    {
+      "assetId": "aegis-pulse",
+      "fileName": "aegis-pulse-01.png",
+      "sha256": "2ccde043bbc58189e256bf8d05c72bd9fa7a652de96de77fcbb26e22d5b7fbbc",
+      "width": 54,
+      "height": 60
+    },
+    {
+      "assetId": "aegis-pulse",
+      "fileName": "aegis-pulse-02.png",
+      "sha256": "b3dbe25b73dd2c6bdb5399f3f5345f3a1d1399af18876f809ccd37864051dc88",
+      "width": 54,
+      "height": 60
+    },
+    {
+      "assetId": "aegis-pulse",
+      "fileName": "aegis-pulse-03.png",
+      "sha256": "44d7ba798c75245aab3feea4abb32c4fa1d46901b9ee8966505b4188bc9d30a8",
+      "width": 54,
+      "height": 60
+    },
+    {
+      "assetId": "aegis-pulse",
+      "fileName": "aegis-pulse-04.png",
+      "sha256": "b549515bd09b30ed767da16702e84428bfe818b7619999a599ed05a19f20c07c",
+      "width": 54,
+      "height": 60
+    }
+  ],
   "sheet": {
     "fileName": "aegis-brood-core-sheet.png",
     "sha256": "e7833b4aa5dbb003e1a5db0c025f3a3e2b2b9d64be1ef2e116e89730ceef7b10",
-    "gutterPixels": 4
+    "gutterPixels": 4,
+    "usage": "review-only"
   }
 }

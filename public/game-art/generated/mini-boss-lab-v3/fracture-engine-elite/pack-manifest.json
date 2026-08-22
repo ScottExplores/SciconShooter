@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "encounterId": "fracture-engine-elite",
   "sourceSha256": "05c0ea2fb5255c0fd94be3f571544729a708c02894f0a99a982aceba6635fb35",
   "canvas": {
@@ -253,9 +253,40 @@
       }
     }
   ],
+  "projectileFrames": [
+    {
+      "assetId": "fracture-shard",
+      "fileName": "fracture-shard-01.png",
+      "sha256": "1b944396d34aff69d0e7e2372cc0a44a534aed3f6f8a599d0cd420b03eae43c8",
+      "width": 27,
+      "height": 64
+    },
+    {
+      "assetId": "fracture-shard",
+      "fileName": "fracture-shard-02.png",
+      "sha256": "e846f03aacd7d3366cbc618c12089765e834ec7bd010f0064953320971345163",
+      "width": 27,
+      "height": 64
+    },
+    {
+      "assetId": "fracture-shard",
+      "fileName": "fracture-shard-03.png",
+      "sha256": "0ccc4dd5c7f3c59b3e503e4dddaa97e211c3331c0068e6f1404ac8831d94a5b4",
+      "width": 27,
+      "height": 64
+    },
+    {
+      "assetId": "fracture-shard",
+      "fileName": "fracture-shard-04.png",
+      "sha256": "67a21cff26028b370262f06620cd3eae3413a02552516eda75136c855a230857",
+      "width": 27,
+      "height": 64
+    }
+  ],
   "sheet": {
     "fileName": "fracture-engine-elite-sheet.png",
     "sha256": "b8e35ff86ce604057684a07ff5a487ebf28b12ab9f9ddbd0aa6b2dbb0ae85352",
-    "gutterPixels": 4
+    "gutterPixels": 4,
+    "usage": "review-only"
   }
 }

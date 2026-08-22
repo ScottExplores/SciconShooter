@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "encounterId": "prism-bloom",
   "sourceSha256": "15e6e189234872ef149ff9e8d9d61aaafa81c37895b543b2c715ebb1181050f9",
   "canvas": {
@@ -253,9 +253,40 @@
       }
     }
   ],
+  "projectileFrames": [
+    {
+      "assetId": "prism-petal",
+      "fileName": "prism-petal-01.png",
+      "sha256": "409b7dabb9ea811efc7bc8b2bcfeccbac799e1ed23d840aa7475c07122d8563c",
+      "width": 34,
+      "height": 64
+    },
+    {
+      "assetId": "prism-petal",
+      "fileName": "prism-petal-02.png",
+      "sha256": "8888ced61357a98cae586621d09f5709460ebd6ffc11f1d5fbf394184d56b507",
+      "width": 34,
+      "height": 64
+    },
+    {
+      "assetId": "prism-petal",
+      "fileName": "prism-petal-03.png",
+      "sha256": "b01c8f9b0b28089da33309a3d01e0383827c4b9e8e571a814095abff7b9883cc",
+      "width": 34,
+      "height": 64
+    },
+    {
+      "assetId": "prism-petal",
+      "fileName": "prism-petal-04.png",
+      "sha256": "64724918411ff280f3b818d962bb24e6290f98079e2c4ea7d6c0e11f5ce3b6b7",
+      "width": 34,
+      "height": 64
+    }
+  ],
   "sheet": {
     "fileName": "prism-bloom-sheet.png",
     "sha256": "389b207bfc3f72d8e081e7241d379671ac4d4fee91a66f542aa32c3f9557ef8b",
-    "gutterPixels": 4
+    "gutterPixels": 4,
+    "usage": "review-only"
   }
 }

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "encounterId": "twin-meridian-sentinels",
   "sourceSha256": "d3b4dac4ef29d08935feab8f23db7ca9ccc28a8e4af98a3eaf9c4ca28e6a09f3",
   "canvas": {
@@ -253,9 +253,40 @@
       }
     }
   ],
+  "projectileFrames": [
+    {
+      "assetId": "meridian-bolt",
+      "fileName": "meridian-bolt-01.png",
+      "sha256": "aca5f2fb5d3eee22588b5040b61e6f502f3c2f36f27cc717fb729eb0d1642820",
+      "width": 22,
+      "height": 64
+    },
+    {
+      "assetId": "meridian-bolt",
+      "fileName": "meridian-bolt-02.png",
+      "sha256": "023f751b969b5e0d191a37eee9d2d03a8fda3104e93954fae7cd3bd011bd5b00",
+      "width": 22,
+      "height": 64
+    },
+    {
+      "assetId": "meridian-bolt",
+      "fileName": "meridian-bolt-03.png",
+      "sha256": "b705fa5dd893919824b776c7d881d9a17e2e1989e43ebd344ad476119103dcfc",
+      "width": 22,
+      "height": 64
+    },
+    {
+      "assetId": "meridian-bolt",
+      "fileName": "meridian-bolt-04.png",
+      "sha256": "a1a8986d2ce947e3bcc081d5e4e7290d5434d7e63a1f1b125b420e28f7bb09d3",
+      "width": 22,
+      "height": 64
+    }
+  ],
   "sheet": {
     "fileName": "twin-meridian-sentinels-sheet.png",
     "sha256": "d4eed851ed58b8692619b833523af62c79a67f57da8adbd806acc17c6c57c5a0",
-    "gutterPixels": 4
+    "gutterPixels": 4,
+    "usage": "review-only"
   }
 }

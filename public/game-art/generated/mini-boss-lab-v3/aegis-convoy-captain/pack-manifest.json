@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "encounterId": "aegis-convoy-captain",
   "sourceSha256": "d65e3ae618df1cd7f963dd4b4acb2c07efd37563a892b277928bff45078e80a8",
   "canvas": {
@@ -253,9 +253,40 @@
       }
     }
   ],
+  "projectileFrames": [
+    {
+      "assetId": "convoy-command-bolt",
+      "fileName": "convoy-command-bolt-01.png",
+      "sha256": "f735801cd6aed70ed5e25b0bd914feaa10e3e196dea03f1c332a639bd0d87fc4",
+      "width": 20,
+      "height": 58
+    },
+    {
+      "assetId": "convoy-command-bolt",
+      "fileName": "convoy-command-bolt-02.png",
+      "sha256": "77416c45cfd93f65067cde3534e29d176dea7f70b41e4f1df527870d20eac8eb",
+      "width": 20,
+      "height": 58
+    },
+    {
+      "assetId": "convoy-command-bolt",
+      "fileName": "convoy-command-bolt-03.png",
+      "sha256": "d9b688bfaaddd21a452cd847d8ec90b1ce2de2380ea69dc471d124fe84497462",
+      "width": 20,
+      "height": 58
+    },
+    {
+      "assetId": "convoy-command-bolt",
+      "fileName": "convoy-command-bolt-04.png",
+      "sha256": "0a8c48b354e0a0b3788d20b10ac09c8c49087fe4e2005524a329d3aed1d54413",
+      "width": 20,
+      "height": 58
+    }
+  ],
   "sheet": {
     "fileName": "aegis-convoy-captain-sheet.png",
     "sha256": "22a68856f4a9dce7f1d22c80f4c40d6be1c29c7551b0f61dd1dbe1a3cd6d44ac",
-    "gutterPixels": 4
+    "gutterPixels": 4,
+    "usage": "review-only"
   }
 }

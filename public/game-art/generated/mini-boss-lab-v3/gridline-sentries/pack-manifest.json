@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "encounterId": "gridline-sentries",
   "sourceSha256": "123fab1a28fa207aec8a64eda0536c2af0c83ca624b39d02acaf4b2f773a1f26",
   "canvas": {
@@ -253,9 +253,40 @@
       }
     }
   ],
+  "projectileFrames": [
+    {
+      "assetId": "gridline-bolt",
+      "fileName": "gridline-bolt-01.png",
+      "sha256": "077162a0e12831e9dc9603718f56ba4c9d9dd50ac3303457f075e62158e242c4",
+      "width": 20,
+      "height": 58
+    },
+    {
+      "assetId": "gridline-bolt",
+      "fileName": "gridline-bolt-02.png",
+      "sha256": "34298af095453250381f84e076ee63d5275d7bb3198e3ef995e15519ac4d4c0a",
+      "width": 20,
+      "height": 58
+    },
+    {
+      "assetId": "gridline-bolt",
+      "fileName": "gridline-bolt-03.png",
+      "sha256": "b6ef07cb35a72bd3015418308b73f503b06c6c269f94fc5807c74ad99c08a318",
+      "width": 20,
+      "height": 58
+    },
+    {
+      "assetId": "gridline-bolt",
+      "fileName": "gridline-bolt-04.png",
+      "sha256": "cf9b0bb3d8c52a41d72ae382480c80738878c6190a04d8ec4c64e37244e03379",
+      "width": 20,
+      "height": 58
+    }
+  ],
   "sheet": {
     "fileName": "gridline-sentries-sheet.png",
     "sha256": "722986b5bbe9649bdfc6676fb8e72f1000f8f5c7ee2a66a61a4805fd0425a33a",
-    "gutterPixels": 4
+    "gutterPixels": 4,
+    "usage": "review-only"
   }
 }

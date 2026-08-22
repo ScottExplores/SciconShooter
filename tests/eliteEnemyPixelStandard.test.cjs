@@ -18,6 +18,11 @@ const IDS = Object.freeze([
 const STATES = Object.freeze(['neutral', 'idle', 'charge', 'attack-a', 'attack-b', 'damage', 'critical']);
 
 const readPng = (filePath) => PNG.sync.read(fs.readFileSync(filePath));
+const sha256 = (bytes) => require('node:crypto').createHash('sha256').update(bytes).digest('hex');
+const registrySource = fs.readFileSync(
+  path.join(ROOT, 'services', 'gameplay', 'mini-bosses', 'MiniBossEncounterRegistry.ts'),
+  'utf8'
+);
 
 const inspectAlpha = (png) => {
   const visited = new Uint8Array(png.width * png.height);
@@ -85,6 +90,35 @@ test('all eight Mini-Boss Lab elites use the shared small-scale pixel contract',
     assert.ok(Math.max(...centroids) - Math.min(...centroids) <= 4, `${id} state pivots remain registered`);
   }
 });
+
+test('each Mini-Boss Lab manifest inventories every runtime projectile and keeps its sheet review-only', () => {
+  for (const id of IDS) {
+    const packRoot = path.join(ROOT, 'public', 'game-art', 'generated', 'mini-boss-lab-v3', id);
+    const manifest = JSON.parse(fs.readFileSync(path.join(packRoot, 'pack-manifest.json'), 'utf8'));
+    const inventoriedFiles = new Set([
+      ...manifest.frames.map((frame) => frame.fileName),
+      ...manifest.projectileFrames.map((asset) => asset.fileName),
+      manifest.sheet.fileName
+    ]);
+    const pngFiles = fs.readdirSync(packRoot).filter((fileName) => fileName.endsWith('.png')).sort();
+
+    assert.deepEqual([...inventoriedFiles].sort(), pngFiles, `${id} manifest covers every PNG`);
+    assert.equal(manifest.schemaVersion, 2, `${id} uses the complete asset-inventory schema`);
+    assert.equal(manifest.projectileFrames.length, 4, `${id} inventories four projectile frames`);
+    assert.equal(manifest.sheet.usage, 'review-only', `${id} sheet is not a runtime sprite`);
+    const projectileAssetIds = new Set(manifest.projectileFrames.map((asset) => asset.assetId));
+    assert.equal(projectileAssetIds.size, 1, `${id} projectiles share one registry asset ID`);
+    for (const asset of manifest.projectileFrames) {
+      const bytes = fs.readFileSync(path.join(packRoot, asset.fileName));
+      assert.equal(asset.sha256, sha256(bytes), `${id} ${asset.fileName} hash`);
+      const png = PNG.sync.read(bytes);
+      assert.deepEqual([asset.width, asset.height], [png.width, png.height], `${id} ${asset.fileName} dimensions`);
+      assert.ok(registrySource.includes(`'${asset.fileName}'`), `${id} ${asset.fileName} is registry-bound`);
+    }
+    assert.ok(registrySource.includes(`'${[...projectileAssetIds][0]}'`), `${id} projectile asset ID is registry-bound`);
+  }
+});
+
 test('registry and runner consume V3 while generic circular elite shield rendering is absent', () => {
   const registry = fs.readFileSync(path.join(ROOT, 'services', 'gameplay', 'mini-bosses', 'MiniBossEncounterRegistry.ts'), 'utf8');
   const renderer = fs.readFileSync(path.join(ROOT, 'services', 'pixi', 'PixiGameRenderer.ts'), 'utf8');
