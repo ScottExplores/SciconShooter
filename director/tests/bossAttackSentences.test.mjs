@@ -384,6 +384,65 @@ test('Boss Factory compiler preserves six global attack identities while phases 
   assertAcceptedByBoth(candidate);
 });
 
+test('phase-subset compiler and portable validators accept eight bounded global attacks', () => {
+  const { candidate, boss } = benchmarkBossFixture();
+  const phaseIds = boss.phases.map((phase) => phase.id);
+  const blueprint = createPhaseSubsetBlueprint(phaseIds);
+  blueprint.durationSeconds = 34;
+  const extras = [
+    {
+      id: 'tentacle-slam',
+      label: 'Tentacle Slam',
+      startSeconds: 24,
+      side: 'port'
+    },
+    {
+      id: 'needle-stab',
+      label: 'Needle Stab',
+      startSeconds: 28,
+      side: 'starboard'
+    }
+  ];
+  blueprint.attackOrder.push(...extras.map((attack) => attack.id));
+  blueprint.phases.forEach((phase) => {
+    extras.forEach((attack) => {
+      phase.attacks.push({
+        id: attack.id,
+        label: attack.label,
+        phaseId: phase.phaseId,
+        role: 'core',
+        skillTest: 'rhythm-dodge',
+        recognitionCue: `${attack.label} posture`,
+        solution: 'Read the warned limb and cross after its committed strike.',
+        safeRouteRule: 'opposite-side-dodge',
+        sourceSocketRoles: [attack.side],
+        startSeconds: attack.startSeconds,
+        recoverySeconds: 0.6,
+        color: phase.color,
+        beats: [0, 0.9].map((offsetSeconds, beatIndex) => ({
+          id: `beat-${beatIndex + 1}`,
+          label: `${attack.label} beat ${beatIndex + 1}`,
+          primitiveId: 'side-barrage',
+          offsetSeconds,
+          leadSeconds: 0.5,
+          actionDurationSeconds: 0.2,
+          telegraphStyle: 'target',
+          parameters: {
+            projectileCount: 4,
+            side: attack.side
+          }
+        }))
+      });
+    });
+  });
+
+  const timeline = compileBossAttackTimeline(blueprint);
+  assert.equal(timeline.attacks.length, 8);
+  assert.deepEqual(timeline.attacks.map((attack) => attack.id), blueprint.attackOrder);
+  boss.timeline = timeline;
+  assertAcceptedByBoth(candidate);
+});
+
 test('phase-subset compiler requires a stable complete order and at least three attacks per phase', () => {
   const { boss } = benchmarkBossFixture();
   const phaseIds = boss.phases.map((phase) => phase.id);
@@ -406,7 +465,7 @@ test('phase-subset compiler requires a stable complete order and at least three 
   sparsePhase.phases[0].attacks.splice(2);
   assert.throws(
     () => compileBossAttackTimeline(sparsePhase),
-    /between 3 and 6 attacks available/i
+    /between 3 and 8 attacks available/i
   );
 });
 

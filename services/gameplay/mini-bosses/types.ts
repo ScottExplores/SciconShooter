@@ -55,7 +55,7 @@ export interface MiniBossAssetBinding {
   readonly usage: MiniBossAssetUsage;
   readonly status: 'approved-existing' | 'approved-generated';
   readonly galleryCategory: 'Elite Enemies';
-  readonly provenance: 'existing-runtime-art' | 'generated-mini-boss-lab-v2';
+  readonly provenance: 'existing-runtime-art' | 'generated-mini-boss-lab-v3';
   readonly url?: string;
   readonly frames?: readonly string[];
   /** Authored gameplay size for animated hazards; independent from source-canvas padding. */
@@ -242,6 +242,8 @@ export interface MiniBossEncounterSampleContext {
   readonly hitMemberIds?: readonly string[];
   readonly reinforcementsSpawned?: number;
   readonly defeatElapsedFrames?: number;
+  /** Live player center used to aim pressure attacks without changing their warnings. */
+  readonly playerPosition?: Readonly<{ x: number; y: number }>;
 }
 
 export type MiniBossAnimationState =

@@ -481,7 +481,8 @@ const buildHazards = (
   viewportHeight: number,
   fps: number,
   survivorMode: boolean,
-  seedKey: string
+  seedKey: string,
+  playerPosition?: Readonly<{ x: number; y: number }>
 ): readonly MiniBossHazardCommand[] => {
   if (attackWindow.beat === 'recovery') return [];
   const warning = attackWindow.beat === 'warning';
@@ -564,12 +565,21 @@ const buildHazards = (
     if (!wall) return [];
     const emission = resolveEmission(attackWindow, attackWindow.attack.emissionIntervalFrames);
     const fromLeft = wall.x < viewportWidth / 2;
-    const target = {
-      x: fromLeft ? viewportWidth : 0,
-      y: attackWindow.kind === 'signature'
-        ? wall.y + Math.sin(attackWindow.actionFrame / Math.max(1, fps) * 2.1) * viewportHeight * 0.12
-        : viewportHeight * (0.38 + (emission.index % 3) * 0.18)
-    };
+    const safePlayer = playerPosition ?? { x: viewportWidth / 2, y: viewportHeight * 0.82 };
+    const supportLaneOffset = ((emission.index % 3) - 1) * 54;
+    const target = attackWindow.kind === 'signature'
+      ? {
+          // The warned rail owns a predictable sweep instead of tracking the
+          // player after activation. This preserves a readable escape lane.
+          x: fromLeft ? viewportWidth : 0,
+          y: clamp(wall.y + Math.sin(attackWindow.actionFrame / Math.max(1, fps) * 2.1) * 72, 120, viewportHeight - 72)
+        }
+      : {
+          // Wall Stitch now leads the live player instead of firing harmlessly
+          // out of the arena. The three announced lanes remain 54px apart.
+          x: clamp(safePlayer.x + supportLaneOffset, 28, viewportWidth - 28),
+          y: clamp(safePlayer.y, viewportHeight * 0.52, viewportHeight - 96)
+        };
     hazards.push(makeHazard({
       definition,
       attackWindow,
@@ -881,7 +891,8 @@ export const sampleMiniBossEncounter = (
         viewportHeight,
         fps,
         survivorMode,
-        seedKey
+        seedKey,
+        context.playerPosition
       );
   const reinforcements = defeated || entranceProgress < 1
     ? []

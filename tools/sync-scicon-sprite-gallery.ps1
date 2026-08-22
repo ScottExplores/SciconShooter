@@ -89,10 +89,13 @@ function Convert-AssetSlugToLabel([string]$Slug) {
 
 function Get-ProjectBossGroup([string]$RelativePath) {
   $normalized = $RelativePath.ToLowerInvariant().Replace('\', '/')
+  if ($normalized -match '^generated/bosses/test-packages/([^/]+)/') {
+    return Convert-AssetSlugToLabel ($Matches[1] -replace '-v\d+$', '')
+  }
   if ($normalized -match '^generated/elite-enemies/([^/]+)/') {
     return Convert-AssetSlugToLabel ($Matches[1] -replace '-v\d+$', '')
   }
-  if ($normalized -match '^generated/mini-boss-lab-v2/([^/]+)/') {
+  if ($normalized -match '^generated/mini-boss-lab-v[23]/([^/]+)/') {
     return Convert-AssetSlugToLabel $Matches[1]
   }
   if ($normalized -match '(^|/)bosses/frames/([^/]+)$') {
@@ -135,7 +138,7 @@ function Get-PrototypeBossGroup([string]$RelativePath) {
 function Get-ProjectCategory([string]$RelativePath) {
   $normalized = $RelativePath.ToLowerInvariant().Replace('\', '/')
   if ($normalized -match '^generated/elite-enemies/') { return 'Scicon - Elite Enemies' }
-  if ($normalized -match '^generated/mini-boss-lab-v2/') { return 'Scicon - Elite Enemies' }
+  if ($normalized -match '^generated/mini-boss-lab-v[23]/') { return 'Scicon - Elite Enemies' }
   if ($normalized -match '(^|/)animations/' -or $normalized.EndsWith('.gif')) { return 'Scicon - Animations' }
   if ($normalized -match '(^|/)(bosses|boss-weapons?)/') { return 'Scicon - Bosses & Mini-Bosses' }
   if ($normalized -match '(^|/)enemies/') { return 'Scicon - Enemies' }
@@ -205,7 +208,7 @@ function Get-SimpleSemanticCategory([string]$RelativePath) {
   $normalized = $RelativePath.ToLowerInvariant().Replace('\', '/')
 
   if ($normalized -match '^generated/elite-enemies/') { return 'Elite Enemies' }
-  if ($normalized -match '^generated/mini-boss-lab-v2/') { return 'Elite Enemies' }
+  if ($normalized -match '^generated/mini-boss-lab-v[23]/') { return 'Elite Enemies' }
   if ($normalized -match 'scicon-simple-arcade-kit-v1/(?:projectiles|effects)/') { return 'Props & Effects' }
   if ($normalized -match 'scicon-player-weapon-fx' -or $normalized -match 'biohazard-bomb') {
     return $(if ($normalized -match 'biohazard-bomb') { 'UI & Menus' } else { 'Props & Effects' })
@@ -267,9 +270,17 @@ function Get-ProjectRuntimeGalleryCategories([string]$RelativePath, [string]$Ext
     $categories.Add('Test Bosses & Prototypes')
   }
 
-  if ($normalized -match '^generated/(?:elite-enemies|mini-boss-lab-v2)/' -and
+  if ($normalized -match '^generated/(?:elite-enemies|mini-boss-lab-v[23])/' -and
       -not $categories.Contains('Elite Enemies')) {
     $categories.Add('Elite Enemies')
+  }
+
+  # Accepted runtime exports for Sandbox-only bosses live under game-art so
+  # the canonical preview can load them. Keep them discoverable beside their
+  # protected Director source package without classifying review evidence.
+  if ($normalized -match '^generated/bosses/test-packages/[^/]+/' -and
+      -not $categories.Contains('Test Bosses & Prototypes')) {
+    $categories.Add('Test Bosses & Prototypes')
   }
 
   return [string[]]$categories.ToArray()
@@ -421,7 +432,11 @@ function Get-AssetUsageIndex([string]$SourceRoot, [string]$ArtRoot) {
       Location = 'constants.ts:203'
     },
     [pscustomobject]@{
-      Pattern = '^generated/mini-boss-lab-v2/[^/]+/.+\.png$'
+      Pattern = '^generated/bosses/test-packages/abyssal-octarch-v1/(?:assembled-a9fc10f01d3d6abcb51ff00b8be1a2b6ead7c02b10e7ee697369b2c1c1b7854d|atlas-dae4d697b30ee0a7f6509022fc4273907452b7a71a02377bfe885a3523f4cf30|reference-32e3b0b8989342a8fcf1c1df3e41894b714a0e896621ebb5218a8c9f1e685831)\.png$'
+      Location = 'services/pixi/boss-rigs/AbyssalOctarchArtwork.ts'
+    },
+    [pscustomobject]@{
+      Pattern = '^generated/mini-boss-lab-v[23]/[^/]+/.+\.png$'
       Location = 'services/gameplay/mini-bosses/MiniBossEncounterRegistry.ts'
     },
     [pscustomobject]@{

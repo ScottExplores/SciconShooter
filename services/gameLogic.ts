@@ -118,6 +118,10 @@ import {
   resolveBottleneckDroneFrameIndex
 } from './gameplay/bosses/BottleneckDronePresentation';
 import {
+  resolvePaywallWallColumnCount,
+  samplePaywallWallMarchOffset
+} from './gameplay/bosses/PaywallWallRuntime';
+import {
   advanceBossRevivalRuntime,
   createBossRevivalRuntimeState,
   createCompletedBossRevivalRuntimeState,
@@ -170,6 +174,32 @@ import {
   type SingularityWellPlan
 } from './gameplay/bosses/SingularityCommanderRuntime';
 import {
+  ABYSSAL_OCTARCH_ACTION_IDS,
+  ABYSSAL_OCTARCH_EVENT_ID,
+  ABYSSAL_OCTARCH_LIMITS,
+  ABYSSAL_OCTARCH_TENTACLE_IDS,
+  ABYSSAL_OCTARCH_TENTACLES,
+  createAbyssalOctarchActionPlan,
+  getAbyssalOctarchActionId,
+  isAbyssalOctarchActionAvailable,
+  isAbyssalOctarchMotionCue,
+  resolveAbyssalOctarchPhase,
+  resolveAbyssalOctarchQueuedAttackTransition,
+  resolveAbyssalOctarchThrowVelocity,
+  sampleAbyssalOctarchAttackTip,
+  sampleAbyssalOctarchPhaseReaction,
+  sampleAbyssalOctarchThrowPath,
+  type AbyssalOctarchActionId,
+  type AbyssalOctarchActionPlan,
+  type AbyssalOctarchActionStage,
+  type AbyssalOctarchAttackTipSample,
+  type AbyssalOctarchPhase,
+  type AbyssalOctarchPhaseId,
+  type AbyssalOctarchPhaseReactionStage,
+  type AbyssalOctarchQueuedAttackTransition,
+  type AbyssalOctarchTentacleId
+} from './gameplay/bosses/AbyssalOctarchRuntime';
+import {
   resolveBossPreviewArtworkDimensions,
   type BossPreviewArtworkDesignSize
 } from './gameplay/bosses/BossPreviewArtworkGeometry';
@@ -213,6 +243,17 @@ import {
   type GameplayRandom,
   type GameplayRandomSeed
 } from './gameplay/random';
+import {
+  mapEncounterDisplayPointToWorld,
+  normalizeEncounterCameraProfile,
+  resolveEncounterVisibleWorldBounds,
+  sampleEncounterCameraRestoreTransform,
+  sampleEncounterCameraTransform,
+  type EncounterCameraMode,
+  type EncounterCameraProfile,
+  type EncounterCameraTransform,
+  type EncounterVisibleWorldBounds
+} from './gameplay/EncounterCameraRuntime';
 import {
   getMiniBossEncounterByEventId,
   getMiniBossEncounterDefinition
@@ -469,7 +510,11 @@ type EnemyFormationMode = ConfiguredFormationMode | 'orbit';
 type ConfiguredEnemyFormationMode = ConfiguredFormationMode;
 type EnemyFormationState = 'entry' | 'hold' | 'dive' | 'return';
 type PlayerWeaponKind = 'pulse' | 'bio-primary' | 'plasma' | 'ion' | 'nova' | 'singularity' | 'bio-laser' | 'eth-shard' | 'btc-hash';
-export type BossPartId = 'left-cannon' | 'right-cannon' | 'helmet';
+export type BossPartId =
+  | 'left-cannon'
+  | 'right-cannon'
+  | 'helmet'
+  | AbyssalOctarchTentacleId;
 export type BossComponentState = {
   id: BossPartId;
   label: string;
@@ -687,6 +732,47 @@ type BossSingularityRuntimeState = {
 type BossSingularityTransitionState = SingularityQueuedAttackTransition & {
   actionId: SingularityActionId;
 };
+type BossAbyssalOctarchRuntimeState = {
+  actionId: AbyssalOctarchActionId;
+  actionClipId: string;
+  executionIndex: number;
+  phaseIndex: 1 | 2 | 3 | 4;
+  plan: AbyssalOctarchActionPlan;
+  warningStartFrame: number;
+  fireStartFrame: number;
+  fireEndFrame: number;
+  recoveryEndFrame: number;
+  stage: AbyssalOctarchActionStage;
+  captured: boolean;
+  damageApplied: boolean;
+  captureStartFrame: number;
+  captureStartX: number;
+  captureStartY: number;
+  throwStartFrame: number;
+  throwStartX: number;
+  throwStartY: number;
+  throwVelocityX: number;
+  throwVelocityY: number;
+  lastEmissionIndex: number;
+};
+type BossAbyssalOctarchPhaseReactionState = {
+  phaseId: AbyssalOctarchPhaseId;
+  phaseIndex: 1 | 2 | 3 | 4;
+  durationFrames: number;
+  stage: AbyssalOctarchPhaseReactionStage;
+};
+type AbyssalOctarchDefeatStage =
+  | 'tentacles-failing'
+  | 'body-collapse'
+  | 'core-implosion'
+  | 'final-collapse'
+  | 'complete';
+const ABYSSAL_OCTARCH_DEFEAT_STAGE_END_FRAMES = Object.freeze({
+  tentaclesFailing: 34,
+  bodyCollapse: 76,
+  coreImplosion: 118,
+  finalCollapse: 166
+});
 type FrontierCrownclawArtifactKind =
   | 'harpoon-claw'
   | 'harpoon-link'
@@ -809,6 +895,19 @@ export class Entity {
   bossFrontierCrownclawState?: BossFrontierCrownclawRuntimeState;
   bossSingularityState?: BossSingularityRuntimeState;
   bossSingularityTransition?: BossSingularityTransitionState;
+  bossAbyssalOctarchState?: BossAbyssalOctarchRuntimeState;
+  bossAbyssalOctarchTransition?: AbyssalOctarchQueuedAttackTransition;
+  bossAbyssalOctarchPhaseReaction?: BossAbyssalOctarchPhaseReactionState;
+  bossAbyssalOctarchSequence: number = 0;
+  bossAbyssalGrabState: 'none' | 'reaching' | 'held' | 'throwing' | 'immunity' = 'none';
+  bossAbyssalDefeatStartFrame: number = -1;
+  bossAbyssalDefeatConsumed: boolean = false;
+  bossAbyssalDefeatStage?: AbyssalOctarchDefeatStage;
+  bossAbyssalDefeatProgress: number = 0;
+  bossAbyssalDefeatBaseCenterX: number = 0;
+  bossAbyssalDefeatBaseCenterY: number = 0;
+  bossAbyssalDefeatBaseWidth: number = 0;
+  bossAbyssalDefeatBaseHeight: number = 0;
   bossSingularityDefeatStartFrame: number = -1;
   bossSingularityDefeatConsumed: boolean = false;
   bossSingularityDeathCueDispatched: boolean = false;
@@ -1040,7 +1139,8 @@ export class Entity {
   wallLaneX?: number;
   wallRowOffset?: number;
   wallPass?: number;
-  wallSwayPhase?: number;
+  wallMarchAmplitude?: number;
+  wallMarchStartFrame?: number;
   coinBurstFrames: number = 0;
   coinGravity: number = 0;
   coinBounceFloorY?: number;
@@ -1720,6 +1820,9 @@ export interface GameEngineOptions {
   previewBossWeaponSocketEventId?: string;
   /** Preview-only semantic projectile roles supplied by the selected artwork. */
   previewBossProjectileVisualKinds?: readonly BossModularProjectileVisualKind[];
+  /** Preview-only world camera; simulation dimensions may exceed the display. */
+  previewEncounterCamera?: EncounterCameraProfile;
+  previewDisplayViewport?: Readonly<{ width: number; height: number }>;
 }
 
 export interface PreviewPlayerLoadoutUpdate {
@@ -2340,6 +2443,14 @@ interface PreviewBossAttackLoopState {
   readonly endFrame: number;
 }
 
+interface PreviewEncounterCameraRestoreState {
+  readonly startFrame: number;
+  readonly startScale: number;
+  readonly rehomePlayer: boolean;
+  readonly reprojectPlayer: boolean;
+  previousVisibleBounds: EncounterVisibleWorldBounds;
+}
+
 interface MiniBossLabPendingProjectile {
   readonly fireFrame: number;
   readonly ownerEntityId: string;
@@ -2556,6 +2667,12 @@ export class GameEngine {
   private readonly previewBossReducedMotion: boolean;
   private readonly previewBossWeaponSocketEventId?: string;
   private readonly previewBossProjectileVisualKinds: ReadonlySet<BossModularProjectileVisualKind>;
+  private readonly previewEncounterCamera?: EncounterCameraProfile;
+  private previewEncounterCameraMode: EncounterCameraMode = 'auto';
+  private previewEncounterCameraStartFrame: number = 0;
+  private previewEncounterCameraRestore: PreviewEncounterCameraRestoreState | null = null;
+  private previewDisplayWidth: number = 1;
+  private previewDisplayHeight: number = 1;
   private previewBossAttackLoop: PreviewBossAttackLoopState | null = null;
   private readonly miniBossLabEncounters = new Map<string, MiniBossLabEngineState>();
   /**
@@ -2597,6 +2714,17 @@ export class GameEngine {
     this.previewBossWeaponSocketEventId = options.previewBossWeaponSocketEventId;
     this.previewBossProjectileVisualKinds = new Set(
       options.previewBossProjectileVisualKinds ?? []
+    );
+    this.previewEncounterCamera = normalizeEncounterCameraProfile(
+      options.previewEncounterCamera
+    );
+    this.previewDisplayWidth = Math.max(
+      1,
+      Math.round(Number(options.previewDisplayViewport?.width) || 1)
+    );
+    this.previewDisplayHeight = Math.max(
+      1,
+      Math.round(Number(options.previewDisplayViewport?.height) || 1)
     );
     this.previewUnlimitedBombs = this.previewMode && Boolean(options.previewUnlimitedBombs);
     this.previewShipAbilityNoCooldown =
@@ -3128,20 +3256,56 @@ export class GameEngine {
       .find((candidate): candidate is Entity => Boolean(
         candidate
         && !candidate.markedForDeletion
-        && (candidate.hp > 0 || candidate.bossEscapeState)
+        && (
+          candidate.hp > 0
+          || candidate.bossEscapeState
+          || candidate.bossAbyssalDefeatStartFrame >= 0
+        )
       ))
       ?? this.entities.find((entity) => (
         !entity.markedForDeletion
-        && (entity.hp > 0 || entity.bossEscapeState)
+        && (
+          entity.hp > 0
+          || entity.bossEscapeState
+          || entity.bossAbyssalDefeatStartFrame >= 0
+        )
         && (entity.type === EntityType.BOSS || entity.type === EntityType.MINI_BOSS)
       ))
       ?? null;
     const activeEventIds = Object.freeze(Array.from(new Set(
       this.entities
         .filter((entity) => !entity.markedForDeletion && Boolean(entity.sourceEventId))
-        .map((entity) => entity.sourceEventId as string)
+      .map((entity) => entity.sourceEventId as string)
     )).sort());
+    const encounterCameraTransform = this.getEncounterCameraTransform();
+    const encounterCamera = this.previewEncounterCamera
+      ? Object.freeze({
+          profileEventId: this.previewEncounterCamera.eventId,
+          mode: this.previewEncounterCameraMode,
+          scale: encounterCameraTransform.scale,
+          offsetX: encounterCameraTransform.offsetX,
+          offsetY: encounterCameraTransform.offsetY,
+          progress: encounterCameraTransform.progress,
+          expanded: encounterCameraTransform.expanded,
+          displayBounds: Object.freeze({
+            width: this.previewDisplayWidth,
+            height: this.previewDisplayHeight
+          }),
+          worldBounds: Object.freeze({
+            width: this.width,
+            height: this.height
+          })
+        })
+      : null;
+    const activeBossInAbyssalDefeat = Boolean(
+      activeBoss && activeBoss.bossAbyssalDefeatStartFrame >= 0
+    );
+    const activeBossInAbyssalPhaseReaction = Boolean(
+      activeBoss?.bossAbyssalOctarchPhaseReaction
+    );
     const activeBossAttack = activeBoss?.bossTimeline
+      && !activeBossInAbyssalDefeat
+      && !activeBossInAbyssalPhaseReaction
       ? getBossTimelineActiveAttackAtFrame(
           activeBoss.bossTimeline,
           activeBoss.attackTimer,
@@ -3149,20 +3313,67 @@ export class GameEngine {
           GAME_CONFIG.FPS
         )
       : null;
-    const activeSingularityTransition = activeBoss?.bossSingularityTransition ?? null;
+    const activeQueuedAttackTransition = activeBossInAbyssalPhaseReaction
+      ? null
+      : activeBoss?.bossSingularityTransition
+        ?? activeBoss?.bossAbyssalOctarchTransition
+        ?? null;
     const recoveryFrames = activeBoss?.bossActionPresentation?.stage === 'recovery'
       ? Math.max(
           0,
           activeBoss.bossActionPresentation.endFrame - activeBoss.attackTimer
         )
       : 0;
-    const transitionFrames = activeSingularityTransition
+    const transitionFrames = activeQueuedAttackTransition
       ? Math.max(
           0,
-          activeSingularityTransition.nextAttackStartFrame - (activeBoss?.attackTimer ?? 0)
+          activeQueuedAttackTransition.nextAttackStartFrame - (activeBoss?.attackTimer ?? 0)
         )
       : 0;
-    const activePrimitiveId = activeBoss?.bossActionPresentation?.primitiveId ?? null;
+    const activePrimitiveId = activeBossInAbyssalDefeat
+      ? null
+      : activeBoss?.bossActionPresentation?.primitiveId ?? null;
+    const activeOctarchState = activeBoss && this.isAbyssalOctarch(activeBoss)
+      ? activeBoss.bossAbyssalOctarchState
+      : undefined;
+    const octarch = activeBoss && this.isAbyssalOctarch(activeBoss)
+      ? Object.freeze({
+          survivingTentacles: this.getActiveAbyssalOctarchTentacleIds(activeBoss).length,
+          selectedTentacleId: activeOctarchState?.plan.tentacleIds[0] ?? null,
+          activeActionId: activeOctarchState?.actionId
+            ?? activeBossAttack?.attack.id
+            ?? null,
+          actionStage: activeOctarchState?.stage
+            ?? activeBoss.bossActionPresentation?.stage
+            ?? activeBossAttack?.stage
+            ?? null,
+          grabState: activeBoss.bossAbyssalGrabState,
+          playerCaptured: Boolean(activeOctarchState?.captured),
+          throwVelocity: activeOctarchState && activeOctarchState.throwStartFrame >= 0
+            ? Object.freeze({
+                x: activeOctarchState.throwVelocityX,
+                y: activeOctarchState.throwVelocityY
+              })
+            : null,
+          phaseReaction: activeBoss.bossAbyssalOctarchPhaseReaction
+            ? Object.freeze({
+                phaseId: activeBoss.bossAbyssalOctarchPhaseReaction.phaseId,
+                stage: activeBoss.bossAbyssalOctarchPhaseReaction.stage,
+                progress: sampleAbyssalOctarchPhaseReaction({
+                  phaseId: activeBoss.bossAbyssalOctarchPhaseReaction.phaseId,
+                  elapsedFrames: activeBoss.attackTimer
+                }).progress,
+                remainingFrames: Math.max(
+                  0,
+                  activeBoss.bossAbyssalOctarchPhaseReaction.durationFrames
+                    - activeBoss.attackTimer
+                )
+              })
+            : null,
+          defeatStage: activeBoss.bossAbyssalDefeatStage ?? null,
+          defeatProgress: clamp(activeBoss.bossAbyssalDefeatProgress, 0, 1)
+        })
+      : null;
     const boss = activeBoss
       ? Object.freeze({
         eventId: activeBoss.sourceEventId ?? null,
@@ -3188,7 +3399,13 @@ export class GameEngine {
             || entity.singularityDamageActive
           )
         ), 0),
-        lifecycle: activeBoss.bossEscapeStage
+        lifecycle: activeBossInAbyssalDefeat
+          ? Object.freeze({
+              kind: 'abyssal-defeat' as const,
+              stage: activeBoss.bossAbyssalDefeatStage ?? 'tentacles-failing',
+              progress: clamp(activeBoss.bossAbyssalDefeatProgress, 0, 1)
+            })
+          : activeBoss.bossEscapeStage
           ? Object.freeze({
               kind: 'escape' as const,
               stage: activeBoss.bossEscapeStage,
@@ -3201,13 +3418,15 @@ export class GameEngine {
                 progress: activeBoss.bossVanishReentryProgress
               })
             : null,
-        state: activeBossAttack?.stage
+        state: activeBossInAbyssalDefeat
+          ? 'death' as const
+          : activeBossAttack?.stage
           ?? activeBoss.bossActionPresentation?.stage
           ?? 'idle',
-        nextAttack: activeSingularityTransition
+        nextAttack: activeQueuedAttackTransition
           ? Object.freeze({
-              id: activeSingularityTransition.attackId,
-              label: activeSingularityTransition.attackLabel
+              id: activeQueuedAttackTransition.attackId,
+              label: activeQueuedAttackTransition.attackLabel
             })
           : null,
         recoveryFrames,
@@ -3235,19 +3454,20 @@ export class GameEngine {
               beatCount: activeBossAttack.beatCount,
               clipId: activeBossAttack.activeClip.id
             })
-          : activeSingularityTransition
+          : activeQueuedAttackTransition
             ? Object.freeze({
-                id: activeSingularityTransition.attackId,
-                label: activeSingularityTransition.attackLabel,
-                role: activeSingularityTransition.attackRole,
+                id: activeQueuedAttackTransition.attackId,
+                label: activeQueuedAttackTransition.attackLabel,
+                role: activeQueuedAttackTransition.attackRole,
                 stage: 'transition' as const,
                 beatIndex: 1,
                 beatCount: 1,
-                clipId: activeSingularityTransition.sourceClipId
+                clipId: activeQueuedAttackTransition.sourceClipId
               })
             : null,
         activePrimitiveId,
-        safeRegionGuide: resolvePreviewSafeRegionGuide(activePrimitiveId)
+        safeRegionGuide: resolvePreviewSafeRegionGuide(activePrimitiveId),
+        octarch
       })
       : null;
     // The encounter remains inspectable while every member is in its staged
@@ -3334,6 +3554,7 @@ export class GameEngine {
         0
       ),
       activeEventIds,
+      encounterCamera,
       boss,
       miniBossEncounter
     });
@@ -3399,10 +3620,15 @@ export class GameEngine {
   private clearPreviewEventRuntime(eventId: string) {
     this.miniBossLabEncounters.delete(eventId);
     const removedEntityIds = new Set<string>();
+    let removedAbyssalOctarch = false;
     for (const entity of this.entities) {
       if (entity.sourceEventId !== eventId) continue;
       if (this.isUmbraNeedlewing(entity)) {
         this.restoreUmbraCombatRuntime(entity, true, true);
+      }
+      if (this.isAbyssalOctarch(entity)) {
+        removedAbyssalOctarch = true;
+        this.clearBossOwnedHazards(entity);
       }
       removedEntityIds.add(entity.id);
       entity.markedForDeletion = true;
@@ -3430,6 +3656,13 @@ export class GameEngine {
     this.configuredEncounterIds.delete(eventId);
     this.configuredSpawnCounts.delete(eventId);
     this.configuredSpawnFrames.delete(eventId);
+    if (removedAbyssalOctarch && this.previewEncounterCamera) {
+      this.beginPreviewEncounterCameraRestore({
+        immediate: true,
+        rehomePlayer: true,
+        reprojectPlayer: true
+      });
+    }
     const formationInstanceId = this.getCampaignFormationPackInstanceId(eventId);
     const removedFormationInstance = this.campaignFormationPackInstances.get(formationInstanceId);
     this.campaignFormationPackInstances.delete(formationInstanceId);
@@ -3638,6 +3871,29 @@ export class GameEngine {
         boss.x = centerX - boss.width / 2;
         boss.y = centerY - boss.height / 2;
       }
+      if (this.isAbyssalOctarch(boss)) {
+        this.clearAbyssalOctarchActionRuntime(boss);
+        this.clearAbyssalOctarchPhaseReaction(boss);
+        this.resetAbyssalOctarchDefeatRuntime(boss);
+        const survivingByPhase = [8, 5, 2, 0] as const;
+        const survivingCount = survivingByPhase[
+          clamp(authoredPhaseIndex, 0, survivingByPhase.length - 1)
+        ];
+        (boss.bossComponents ?? []).forEach((component, index) => {
+          const survives = index < survivingCount;
+          component.hp = survives ? component.maxHp : 0;
+          component.destroyed = !survives;
+          component.exposed = survives;
+          component.flashFrames = 0;
+        });
+        targetHealthRatio = 1;
+        if (this.previewEncounterCamera) {
+          this.cancelPreviewEncounterCameraRestore();
+          this.previewEncounterCameraMode = 'auto';
+          this.previewEncounterCameraStartFrame = this.frameCount;
+          this.setPlayerHomePosition();
+        }
+      }
       boss.hp = Math.max(0.01, boss.maxHp * targetHealthRatio);
       boss.activeBossPhaseIndex = -1;
       boss.activeBossPhaseId = undefined;
@@ -3651,7 +3907,9 @@ export class GameEngine {
       this.clearBossTimelineActionLocks(boss);
       if (boss.type === EntityType.BOSS) {
         boss.x = clamp((this.width - boss.width) / 2, 10, Math.max(10, this.width - boss.width - 10));
-        boss.y = Math.max(72, Math.min(this.height * 0.13, 116));
+        boss.y = this.isAbyssalOctarch(boss)
+          ? Math.max(16, this.height * 0.035)
+          : Math.max(72, Math.min(this.height * 0.13, 116));
       } else {
         boss.y = Math.max(64, Math.min(this.height * 0.12, 104));
       }
@@ -3688,6 +3946,22 @@ export class GameEngine {
       || boss.sourceEventId !== loop.eventId
       || boss.activeBossPhaseId !== loop.phaseId
     ) return;
+    const octarchAction = this.isAbyssalOctarch(boss)
+      ? boss.bossAbyssalOctarchState
+      : undefined;
+    if (
+      octarchAction
+      && octarchAction.stage !== 'complete'
+      && (
+        octarchAction.captured
+        || boss.attackTimer < octarchAction.recoveryEndFrame
+      )
+    ) {
+      // The authored clip window does not include the conditional hold/throw
+      // extension. Let the complete signature lifecycle finish before a
+      // selected Sandbox loop rewinds to its warning frame.
+      return;
+    }
     const loopFrame = resolvePreviewAttackLoopFrame(
       boss.attackTimer,
       loop.startFrame,
@@ -3736,6 +4010,9 @@ export class GameEngine {
     boss.bossHeliosMachineGunChannelState = undefined;
     boss.bossActionPresentation = undefined;
     boss.bossUmbraBlackoutHuntActive = false;
+    if (this.isAbyssalOctarch(boss)) {
+      this.clearAbyssalOctarchActionRuntime(boss);
+    }
     boss.isCharging = false;
     boss.attackTimer = loopFrame;
   }
@@ -3766,10 +4043,13 @@ export class GameEngine {
           requestedPhaseId ?? event.phases[0]?.id
         )
       : null;
+    const requireRequestedOctarchPhase = event.id === ABYSSAL_OCTARCH_EVENT_ID
+      && requestedPhaseId !== undefined;
     const timelineClip = event.timeline?.clips.find((clip) => (
       clip.id === attackId
       && clip.trigger === 'time'
       && isDamagingBossTimelinePrimitive(clip.primitiveId)
+      && (!requireRequestedOctarchPhase || clip.phaseId === requestedPhaseId)
     ));
     if (event.timeline && (authoredAttack || timelineClip)) {
       const phaseId = authoredAttack?.variant.phaseId
@@ -4599,6 +4879,9 @@ export class GameEngine {
     this.pendingPlayerShots = [];
     this.activePowerups.clear();
     this.frameCount = 0;
+    this.cancelPreviewEncounterCameraRestore();
+    this.previewEncounterCameraMode = 'auto';
+    this.previewEncounterCameraStartFrame = 0;
     this.lastPlayerRamFrame = -999;
     this.lastPreviewPlayerHitFeedbackFrame = -999;
     this.gameActive = true;
@@ -4625,6 +4908,16 @@ export class GameEngine {
     this.playerDrawScale = 1;
     this.playerDrawAlpha = 1;
     this.playerTilt = 0;
+    this.playerSquash = 0;
+    this.playerSquashVelocity = 0;
+    this.playerAfterimages = [];
+    this.shakeStrength = 0;
+    this.shakeX = 0;
+    this.shakeY = 0;
+    this.flashAlpha = 0;
+    this.hitStopFrames = 0;
+    this.lastPrimaryImpactShakeFrame = -999;
+    this.bioBeamCanvasVisualStartFrame = -1;
     this.playerVel = { x: 0, y: 0 };
     this.setPlayerHomePosition();
     this.refreshLoadState();
@@ -4917,9 +5210,16 @@ export class GameEngine {
   }
 
   getPlayerHomePosition() {
+    if (!this.previewEncounterCamera) {
+      return {
+        x: this.width / 2 - this.player.width / 2,
+        y: this.height - this.player.height - (this.width < 520 ? 20 : 32)
+      };
+    }
+    const bounds = this.getPlayerMovementBounds();
     return {
-      x: this.width / 2 - this.player.width / 2,
-      y: this.height - this.player.height - (this.width < 520 ? 20 : 32)
+      x: (bounds.minX + bounds.maxX) / 2,
+      y: bounds.maxY - (this.previewDisplayWidth < 520 ? 20 : 32)
     };
   }
 
@@ -5239,6 +5539,10 @@ export class GameEngine {
   init(width: number, height: number) {
     this.width = width;
     this.height = height;
+    if (!this.previewEncounterCamera) {
+      this.previewDisplayWidth = width;
+      this.previewDisplayHeight = height;
+    }
     this.refreshRenderProfile();
     this.setPlayerHomePosition();
     this.entities = [];
@@ -5668,11 +5972,20 @@ export class GameEngine {
   }
 
   getPlayerMovementBounds() {
+    const visibleBounds = this.getEncounterVisibleWorldBounds();
+    if (!this.previewEncounterCamera) {
+      return {
+        minX: -this.player.width / 2,
+        maxX: this.width - (this.player.width / 2),
+        minY: -this.player.height / 2,
+        maxY: this.height - (this.player.height / 2)
+      };
+    }
     return {
-      minX: -this.player.width / 2,
-      maxX: this.width - (this.player.width / 2),
-      minY: -this.player.height / 2,
-      maxY: this.height - (this.player.height / 2)
+      minX: visibleBounds.minX,
+      maxX: Math.max(visibleBounds.minX, visibleBounds.maxX - this.player.width),
+      minY: visibleBounds.minY,
+      maxY: Math.max(visibleBounds.minY, visibleBounds.maxY - this.player.height)
     };
   }
 
@@ -5755,9 +6068,17 @@ export class GameEngine {
     this.sectorTint = (this.sectorTint + 1) % 3;
   }
 
-  resize(width: number, height: number) {
+  resize(width: number, height: number, displayWidth?: number, displayHeight?: number) {
     this.width = width;
     this.height = height;
+    this.previewDisplayWidth = Math.max(
+      1,
+      Math.round(Number(displayWidth) || (this.previewEncounterCamera ? this.previewDisplayWidth : width))
+    );
+    this.previewDisplayHeight = Math.max(
+      1,
+      Math.round(Number(displayHeight) || (this.previewEncounterCamera ? this.previewDisplayHeight : height))
+    );
     this.refreshRenderProfile();
     for (const boss of this.entities) {
       if (boss.bossEscapeState) {
@@ -5798,6 +6119,215 @@ export class GameEngine {
             e.y = Math.max(bounds.minY, Math.min(bounds.maxY, e.y));
         }
     });
+  }
+
+  getEncounterCameraTransform(): EncounterCameraTransform {
+    const restoring = this.previewEncounterCameraRestore;
+    if (restoring) {
+      return sampleEncounterCameraRestoreTransform({
+        elapsedFrames: Math.max(0, this.frameCount - restoring.startFrame),
+        startScale: restoring.startScale,
+        displayWidth: this.previewDisplayWidth,
+        displayHeight: this.previewDisplayHeight,
+        worldWidth: this.width,
+        worldHeight: this.height,
+        profile: this.previewEncounterCamera
+      });
+    }
+    return sampleEncounterCameraTransform({
+      frame: Math.max(0, this.frameCount - this.previewEncounterCameraStartFrame),
+      displayWidth: this.previewDisplayWidth,
+      displayHeight: this.previewDisplayHeight,
+      worldWidth: this.width,
+      worldHeight: this.height,
+      profile: this.previewEncounterCamera,
+      mode: this.previewEncounterCameraMode
+    });
+  }
+
+  hasPendingPreviewEncounterCameraRestore() {
+    return this.previewMode && this.previewEncounterCameraRestore !== null;
+  }
+
+  private getEncounterVisibleWorldBounds(
+    transform: EncounterCameraTransform = this.getEncounterCameraTransform()
+  ) {
+    return resolveEncounterVisibleWorldBounds({
+      transform,
+      displayWidth: this.previewDisplayWidth,
+      displayHeight: this.previewDisplayHeight,
+      worldWidth: this.width,
+      worldHeight: this.height
+    });
+  }
+
+  private reprojectPlayerBetweenEncounterBounds(
+    previousBounds: EncounterVisibleWorldBounds,
+    nextBounds: EncounterVisibleWorldBounds
+  ) {
+    const centerX = this.player.x + this.player.width / 2;
+    const centerY = this.player.y + this.player.height / 2;
+    const ratioX = clamp(
+      (centerX - previousBounds.minX) / Math.max(1, previousBounds.width),
+      0,
+      1
+    );
+    const ratioY = clamp(
+      (centerY - previousBounds.minY) / Math.max(1, previousBounds.height),
+      0,
+      1
+    );
+    this.player.x = nextBounds.minX + nextBounds.width * ratioX - this.player.width / 2;
+    this.player.y = nextBounds.minY + nextBounds.height * ratioY - this.player.height / 2;
+  }
+
+  private clampPlayerToEncounterBounds() {
+    const bounds = this.getPlayerMovementBounds();
+    this.player.x = clamp(this.player.x, bounds.minX, bounds.maxX);
+    this.player.y = clamp(this.player.y, bounds.minY, bounds.maxY);
+  }
+
+  private cancelPreviewEncounterCameraRestore() {
+    this.previewEncounterCameraRestore = null;
+  }
+
+  private beginPreviewEncounterCameraRestore({
+    immediate = false,
+    rehomePlayer = false,
+    reprojectPlayer = false
+  }: {
+    readonly immediate?: boolean;
+    readonly rehomePlayer?: boolean;
+    readonly reprojectPlayer?: boolean;
+  } = {}) {
+    if (!this.previewEncounterCamera) return false;
+    const currentTransform = this.getEncounterCameraTransform();
+    const previousVisibleBounds = this.getEncounterVisibleWorldBounds(currentTransform);
+    this.previewEncounterCameraMode = 'normal';
+    this.previewEncounterCameraStartFrame = this.frameCount;
+    const alreadyNormal = Math.abs(
+      currentTransform.scale - this.previewEncounterCamera.normalScale
+    ) < 0.0001;
+    if (immediate || alreadyNormal) {
+      this.previewEncounterCameraRestore = null;
+      const normalBounds = this.getEncounterVisibleWorldBounds();
+      if (reprojectPlayer && !rehomePlayer) {
+        this.reprojectPlayerBetweenEncounterBounds(previousVisibleBounds, normalBounds);
+      }
+      if (rehomePlayer) {
+        this.playerVel.x = 0;
+        this.playerVel.y = 0;
+        this.setPlayerHomePosition();
+      } else {
+        this.clampPlayerToEncounterBounds();
+      }
+      return true;
+    }
+    this.previewEncounterCameraRestore = {
+      startFrame: this.frameCount,
+      startScale: currentTransform.scale,
+      rehomePlayer,
+      reprojectPlayer,
+      previousVisibleBounds
+    };
+    return true;
+  }
+
+  private updatePreviewEncounterCameraRestore() {
+    const restoring = this.previewEncounterCameraRestore;
+    if (!restoring || !this.previewEncounterCamera) return;
+    const transform = this.getEncounterCameraTransform();
+    const nextVisibleBounds = this.getEncounterVisibleWorldBounds(transform);
+    if (restoring.reprojectPlayer) {
+      this.reprojectPlayerBetweenEncounterBounds(
+        restoring.previousVisibleBounds,
+        nextVisibleBounds
+      );
+    }
+    restoring.previousVisibleBounds = nextVisibleBounds;
+    this.clampPlayerToEncounterBounds();
+    const complete = this.frameCount - restoring.startFrame
+      >= this.previewEncounterCamera.restoreDurationFrames;
+    if (!complete) return;
+    this.previewEncounterCameraRestore = null;
+    this.previewEncounterCameraMode = 'normal';
+    this.previewEncounterCameraStartFrame = this.frameCount;
+    if (restoring.rehomePlayer) {
+      this.playerVel.x = 0;
+      this.playerVel.y = 0;
+      this.setPlayerHomePosition();
+    } else {
+      this.clampPlayerToEncounterBounds();
+    }
+  }
+
+  mapDisplayPointToWorld(x: number, y: number) {
+    return mapEncounterDisplayPointToWorld({
+      x,
+      y,
+      transform: this.getEncounterCameraTransform(),
+      worldWidth: this.width,
+      worldHeight: this.height
+    });
+  }
+
+  setPreviewEncounterCameraMode(mode: EncounterCameraMode) {
+    if (!this.previewMode || !this.previewEncounterCamera) return false;
+    if (mode !== 'auto' && mode !== 'normal' && mode !== 'expanded') return false;
+    if (mode === 'normal') {
+      return this.beginPreviewEncounterCameraRestore({ reprojectPlayer: true });
+    }
+    this.cancelPreviewEncounterCameraRestore();
+    this.previewEncounterCameraMode = mode;
+    return true;
+  }
+
+  destroyPreviewBossComponent(componentId: string, eventId?: string) {
+    if (
+      !this.previewMode
+      || !componentId
+      || componentId.length > 80
+      || (eventId !== undefined && (!eventId || eventId.length > 160))
+    ) return false;
+    const boss = this.getPreviewBossTarget(eventId);
+    const component = boss?.bossComponents?.find((candidate) => candidate.id === componentId);
+    if (!boss || !component || component.destroyed) return false;
+    this.previewInvincibleBossComponents.delete(component);
+    component.hp = Math.max(1, component.hp);
+    this.damageBossComponent(boss, component, component.hp + component.maxHp + 1);
+    return component.destroyed;
+  }
+
+  restorePreviewBossComponents(eventId?: string) {
+    if (
+      !this.previewMode
+      || (eventId !== undefined && (!eventId || eventId.length > 160))
+    ) return false;
+    const boss = this.getPreviewBossTarget(eventId);
+    if (!boss?.bossComponents?.length) return false;
+    for (const component of boss.bossComponents) {
+      component.hp = component.maxHp;
+      component.destroyed = false;
+      component.exposed = true;
+      component.flashFrames = 0;
+      component.lastDamageFlashFrame = -999;
+      this.previewInvincibleBossComponents.delete(component);
+    }
+    boss.bossDecayStage = 0;
+    this.clearBossOwnedHazards(boss);
+    this.applyConfiguredBossPhase(boss);
+    return true;
+  }
+
+  replayPreviewEncounterCameraEntrance() {
+    if (!this.previewMode || !this.previewEncounterCamera) return false;
+    this.cancelPreviewEncounterCameraRestore();
+    this.previewEncounterCameraMode = 'auto';
+    this.previewEncounterCameraStartFrame = this.frameCount;
+    this.playerVel.x = 0;
+    this.playerVel.y = 0;
+    this.setPlayerHomePosition();
+    return true;
   }
 
   handleInput(keys: Record<string, boolean>, touchPos: { x: number, y: number } | null) {
@@ -6338,9 +6868,16 @@ export class GameEngine {
   }
 
   update(cinematicPause: boolean = false) {
-    if (!this.gameActive) return;
+    if (!this.gameActive) {
+      if (this.previewEncounterCameraRestore) {
+        this.frameCount++;
+        this.updatePreviewEncounterCameraRestore();
+      }
+      return;
+    }
     this.cinematicPaused = cinematicPause;
     this.frameCount++;
+    this.updatePreviewEncounterCameraRestore();
     if ((this.stats.shipAbilityCooldown || 0) > 0) {
       this.stats.shipAbilityCooldown = Math.max(0, this.stats.shipAbilityCooldown - 1);
     }
@@ -7965,7 +8502,8 @@ export class GameEngine {
     ) return false;
     return entity.bossRevivalStage !== 'shutdown'
       && entity.bossRevivalStage !== 'rebooting'
-      && entity.bossSingularityDefeatStartFrame < 0;
+      && entity.bossSingularityDefeatStartFrame < 0
+      && entity.bossAbyssalDefeatStartFrame < 0;
   }
 
   private isBossBodyDamageActive(entity: Entity) {
@@ -7994,6 +8532,45 @@ export class GameEngine {
       ) > 0;
   }
 
+  private clearAbyssalOctarchActionRuntime(boss: Entity) {
+    if (!this.isAbyssalOctarch(boss)) return false;
+    const actionClipId = boss.bossAbyssalOctarchState?.actionClipId;
+    // A completed grab intentionally transfers throw velocity to the player.
+    // Every explicit lifecycle cancellation must revoke that momentum too,
+    // even after `captured` has already returned to false.
+    this.playerVel.x = 0;
+    this.playerVel.y = 0;
+    if (boss.bossAbyssalOctarchState) {
+      boss.bossAbyssalOctarchState.captured = false;
+      boss.bossAbyssalOctarchState.stage = 'complete';
+      boss.bossAbyssalOctarchState.throwVelocityX = 0;
+      boss.bossAbyssalOctarchState.throwVelocityY = 0;
+    }
+    boss.bossAbyssalOctarchState = undefined;
+    boss.bossAbyssalOctarchTransition = undefined;
+    boss.bossAbyssalGrabState = 'none';
+    if (actionClipId && boss.bossActionPresentation?.actionClipId === actionClipId) {
+      boss.bossActionPresentation = undefined;
+    }
+    boss.isCharging = false;
+    return true;
+  }
+
+  private clearAbyssalOctarchPhaseReaction(boss: Entity) {
+    if (!this.isAbyssalOctarch(boss)) return false;
+    const reactionClipId = boss.bossAbyssalOctarchPhaseReaction
+      ? `${boss.bossAbyssalOctarchPhaseReaction.phaseId}-reaction`
+      : null;
+    boss.bossAbyssalOctarchPhaseReaction = undefined;
+    if (
+      reactionClipId
+      && boss.bossActionPresentation?.actionClipId === reactionClipId
+    ) {
+      boss.bossActionPresentation = undefined;
+    }
+    return true;
+  }
+
   private clearBossOwnedHazards(boss: Entity) {
     this.clearPrismMothRuntime(boss);
     this.pendingBossStrikes = this.pendingBossStrikes.filter((strike) => strike.bossId !== boss.id);
@@ -8020,6 +8597,8 @@ export class GameEngine {
     boss.bossTrackingPincerState = undefined;
     boss.bossHeliosCornerClampState = undefined;
     boss.bossHeliosMachineGunChannelState = undefined;
+    this.clearAbyssalOctarchActionRuntime(boss);
+    this.clearAbyssalOctarchPhaseReaction(boss);
     this.clearBossTimelineActionLocks(boss);
     this.removeBossCornerAmbushBeams(boss);
   }
@@ -8548,6 +9127,7 @@ export class GameEngine {
     }
     if (target.type === EntityType.BOSS) {
       if (!this.isBossCombatInteractive(target)) return;
+      if (this.beginAbyssalOctarchDefeat(target)) return;
       if (this.beginBossRevival(target)) return;
       if (this.beginUmbraEscape(target)) return;
       if (this.beginSingularityDefeat(target)) return;
@@ -10778,8 +11358,20 @@ export class GameEngine {
   }
 
   applyConfiguredBossPhase(boss: Entity) {
+    const octarchPhase = this.isAbyssalOctarch(boss)
+      ? resolveAbyssalOctarchPhase(
+          boss.bossComponents
+            ? boss.bossComponents.filter((component) => !component.destroyed).length
+            : ABYSSAL_OCTARCH_TENTACLE_IDS.length
+        )
+      : undefined;
+    const octarchPhaseConfig = octarchPhase
+      ? boss.bossPhaseSettings.find((phase) => phase.id === octarchPhase.id)
+      : undefined;
     const resolved = resolveBossPhaseConfig(
-      boss.hp,
+      octarchPhaseConfig
+        ? boss.maxHp * clamp(Number(octarchPhaseConfig.triggerHealthRatio) || 1, 0, 1)
+        : boss.hp,
       boss.maxHp,
       boss.bossPhaseSettings,
       boss.bossWeaponSettings,
@@ -10837,9 +11429,22 @@ export class GameEngine {
       boss.bossTrackingPincerState = undefined;
       boss.bossHeliosCornerClampState = undefined;
       boss.bossHeliosMachineGunChannelState = undefined;
+      if (this.isAbyssalOctarch(boss)) {
+        this.clearBossOwnedHazards(boss);
+        this.spawnFloatingText(
+          boss.x + boss.width / 2,
+          boss.y + boss.height * 0.72,
+          octarchPhase?.label.toUpperCase() ?? 'ABYSSAL SHIFT',
+          octarchPhase?.index === 4 ? '#fbbf24' : '#a78bfa',
+          this.mobileProfile ? 15 : 18
+        );
+      }
       this.removeBossCornerAmbushBeams(boss);
       boss.isCharging = false;
       boss.bossActionPresentation = undefined;
+      if (octarchPhase) {
+        this.beginAbyssalOctarchPhaseReaction(boss, octarchPhase);
+      }
     }
 
     const activeWeapons = resolved.weaponSettings;
@@ -11098,7 +11703,10 @@ export class GameEngine {
     const rows = configured
       ? Math.max(1, Math.min(4, Math.floor(Number(configured.count ?? 2)) || 2))
       : 2;
-    const cols = Math.min(isMobile ? 8 : 10, 4 + Math.max(1, this.wave));
+    // Six mobile nodes leave enough horizontal runway for a visible, rigid
+    // Space-Invaders march. Eight 42px nodes nearly filled the 390px arena and
+    // reduced the old motion to an unreadable per-node wobble.
+    const cols = resolvePaywallWallColumnCount({ arenaWidth: this.width, wave: this.wave });
     const blockW = isMobile ? 42 : 52;
     const blockH = isMobile ? 50 : 60;
     const gap = 4;
@@ -11111,25 +11719,62 @@ export class GameEngine {
     // Assemble immediately above the viewport so the warning resolves into
     // visible pressure instead of a second hidden descent.
     const startY = anchoredPosition?.y ?? -((blockH + gap) * rows) - 12;
+    const formationWidth = (blockW * cols) + (gap * Math.max(0, cols - 1));
+    const sideClearance = Math.max(0, Math.min(
+      startX - 8,
+      this.width - 8 - (startX + formationWidth)
+    ));
+    const marchAmplitude = Math.min(isMobile ? 48 : 64, sideClearance);
+    const marchStartFrame = this.frameCount;
 
     const segmentCount = rows * cols;
+    const legacyColumnCount = Math.min(8, 4 + this.wave);
+    const legacySegmentCount = rows * legacyColumnCount;
+    const configuredHealthBudget = configured
+      ? Math.max(
+          legacySegmentCount,
+          Math.ceil(
+            ((Number(configured.health) || legacySegmentCount) * difficultyMultiplier)
+            / legacySegmentCount
+          ) * legacySegmentCount
+        )
+      : 0;
+    const configuredScoreBudget = configured
+      ? Math.max(
+          0,
+          Math.round((Number(configured.scoreReward) || 0) / legacySegmentCount)
+          * legacySegmentCount
+        )
+      : 0;
+    const legacyDropChance = configured
+      ? clamp(Number(configured.powerupDropChance) || 0, 0, 1)
+      : 0;
+    const segmentDropChance = legacyDropChance > 0
+      ? 1 - Math.pow(1 - legacyDropChance, legacySegmentCount / segmentCount)
+      : 0;
     for (let r=0; r<rows; r++) {
         for (let c=0; c<cols; c++) {
+            const segmentIndex = (r * cols) + c;
             const e = this.createEntity(EntityType.ENEMY_INVADER, startX + c*(blockW+gap), startY + r*(blockH+gap));
             e.width = blockW;
             e.height = blockH;
             e.hp = configured
-              ? Math.max(1, Math.ceil(((Number(configured.health) || segmentCount) * difficultyMultiplier) / segmentCount))
+              ? Math.max(
+                  1,
+                  Math.floor(configuredHealthBudget / segmentCount)
+                  + (segmentIndex < configuredHealthBudget % segmentCount ? 1 : 0)
+                )
               : this.wave === 1 ? 5 : Math.round(5 + (this.wave * 3.1));
             e.maxHp = e.hp;
             e.color = '#fb7185';
             e.text = "🧱"; // UPDATED to Brick Emoji
-            e.variant = (r * cols) + c;
+            e.variant = segmentIndex;
             e.vx = 0;
             e.wallLaneX = e.x;
             e.wallRowOffset = r * (blockH + gap);
             e.wallPass = 0;
-            e.wallSwayPhase = ((r * cols + c) / Math.max(1, segmentCount)) * Math.PI * 2;
+            e.wallMarchAmplitude = marchAmplitude;
+            e.wallMarchStartFrame = marchStartFrame;
             if (configured) {
               const weapon = configured.weapons?.[0];
               e.spriteUrl = this.resolveSpriteUrl(configured.spriteKey, EntityType.ENEMY_INVADER);
@@ -11143,8 +11788,14 @@ export class GameEngine {
               ));
               e.weaponKinds = configured.weapons.map((setting) => String(setting.weaponId));
               e.configuredBurstCount = Math.max(1, Math.floor(Number(weapon?.burstCount) || 1));
-              e.scoreValue = Math.max(0, Math.round((Number(configured.scoreReward) || 0) / segmentCount));
-              e.powerupDropChance = clamp(Number(configured.powerupDropChance) || 0, 0, 1);
+              e.scoreValue = Math.max(
+                0,
+                Math.floor(configuredScoreBudget / segmentCount)
+                + (segmentIndex < configuredScoreBudget % segmentCount ? 1 : 0)
+              );
+              // Six wider-moving nodes retain the old eight-node encounter's
+              // aggregate reward probability rather than quietly nerfing M04.
+              e.powerupDropChance = segmentDropChance;
               e.configuredSpeed = Math.max(0.1, (Number(configured.speed) || 1.15) * difficultyMultiplier);
               e.sourceEventId = configured.id;
               e.sourceItemId = configured.bossId;
@@ -11271,16 +11922,19 @@ export class GameEngine {
 
       const configuredVerticalSpeed = invaders.find((invader) => Number.isFinite(invader.configuredSpeed))?.configuredSpeed;
       const descentSpeed = configuredVerticalSpeed ?? (this.wave === 1 ? 1.15 : 1.5 + (this.wave - 1));
-      const swayAmplitude = Math.min(10, Math.max(4, this.width * 0.012));
+      const marchStartFrame = invaders[0].wallMarchStartFrame ?? this.frameCount;
+      const marchAmplitude = Math.max(0, invaders[0].wallMarchAmplitude ?? 0);
+      const groupOffset = samplePaywallWallMarchOffset({
+        frameCount: this.frameCount,
+        startFrame: marchStartFrame,
+        amplitude: marchAmplitude
+      });
 
       invaders.forEach(inv => {
           const laneX = inv.wallLaneX ?? inv.x;
-          const phase = inv.wallSwayPhase ?? inv.variant * 0.37;
-          inv.x = clamp(
-            laneX + Math.sin((this.frameCount * 0.018) + phase) * swayAmplitude,
-            8,
-            this.width - inv.width - 8
-          );
+          // Every segment shares one offset. The wall remains rigid while it
+          // steps to an edge, reverses, and continues its authored descent.
+          inv.x = laneX + groupOffset;
           inv.y += descentSpeed;
           if (inv.y > this.height + inv.height + 12) {
             inv.wallPass = (inv.wallPass ?? 0) + 1;
@@ -11293,11 +11947,19 @@ export class GameEngine {
       const shootRate = configuredAttackInterval ?? (this.wave === 1 ? 42 : Math.max(8, 20 - this.wave));
       if (this.frameCount % shootRate === 0) {
           const shooter = invaders[this.gameplayRandom.integer(0, invaders.length)];
-          const b = this.createEntity(EntityType.PROJECTILE, shooter.x + shooter.width/2, shooter.y + shooter.height);
+          const projectileWidth = this.wave === 1 ? 12 : 14;
+          const projectileHeight = this.wave === 1 ? 12 : 14;
+          // Entity coordinates are top-left. Center the projectile body on the
+          // visible ventral aperture instead of placing its left edge there.
+          const b = this.createEntity(
+            EntityType.PROJECTILE,
+            shooter.x + shooter.width / 2 - projectileWidth / 2,
+            shooter.y + shooter.height
+          );
           b.vx = 0;
           b.vy = shooter.projectileSpeed ?? (this.wave === 1 ? 5.4 : 7 + (this.wave * 0.5));
-          b.width = this.wave === 1 ? 12 : 14;
-          b.height = this.wave === 1 ? 12 : 14;
+          b.width = projectileWidth;
+          b.height = projectileHeight;
           b.color = '#ff4444';
           b.damage = Math.max(1, Number(shooter.projectileDamage) || 1);
           shooter.attackTimer = 12;
@@ -11931,6 +12593,10 @@ export class GameEngine {
       members,
       hitMemberIds,
       reinforcementsSpawned: state.reinforcementsSpawned,
+      playerPosition: {
+        x: this.player.x + this.player.width / 2,
+        y: this.player.y + this.player.height / 2
+      },
       defeatElapsedFrames: state.defeatStartFrame === null
         ? 0
         : this.frameCount - state.defeatStartFrame
@@ -11985,21 +12651,18 @@ export class GameEngine {
       if (definition.choreography.kind === 'edge-rail') {
         const resolvedWallSide = state.wallSide ?? (centerX < this.width / 2 ? 'left' : 'right');
         entity.miniBossLabWallSide = resolvedWallSide;
-        const sideBinding = definition.assets.find((asset) => (
-          asset.id === (resolvedWallSide === 'left' ? 'railspine-body-left' : 'railspine-body-right')
-        ));
-        if (sideBinding?.url) entity.spriteUrl = sideBinding.url;
+        entity.miniBossLabAssetId = resolvedWallSide === 'left'
+          ? 'railspine-body-left'
+          : 'railspine-body-right';
       } else if (definition.choreography.kind === 'quadrant-grid') {
         const isHorizontalSentry = sampled.role === 'sentry-west';
         const horizontalWallSide = state.wallSide ?? 'left';
         if (isHorizontalSentry && horizontalWallSide === 'right') {
           entity.miniBossLabWallSide = 'right';
-          const mirror = definition.assets.find((asset) => asset.id === 'gridline-sentry-mirror');
-          if (mirror?.url) entity.spriteUrl = mirror.url;
+          entity.miniBossLabAssetId = 'gridline-sentry-mirror';
         } else if (isHorizontalSentry) {
           entity.miniBossLabWallSide = 'left';
-          const base = definition.assets.find((asset) => asset.id === 'gridline-sentry-body');
-          if (base?.url) entity.spriteUrl = base.url;
+          entity.miniBossLabAssetId = 'gridline-sentry-body';
         } else {
           entity.miniBossLabWallSide = undefined;
         }
@@ -12015,7 +12678,11 @@ export class GameEngine {
       entity.bossPresentationBankRadians = sampled.rotationRadians;
       entity.miniBossLabPresentationScale = sampled.scale;
       entity.miniBossLabSequence = sample.frame;
-      const activeSpriteUrl = resolveMiniBossMemberAssetUrl(definition, sampled, sample.frame);
+      const activeSpriteUrl = resolveMiniBossMemberAssetUrl(
+        definition,
+        { ...sampled, assetId: entity.miniBossLabAssetId ?? sampled.assetId },
+        sample.frame
+      );
       if (activeSpriteUrl && activeSpriteUrl !== entity.spriteUrl) {
         entity.spriteUrl = activeSpriteUrl;
         loadImage(activeSpriteUrl);
@@ -12172,7 +12839,13 @@ export class GameEngine {
     componentId: BossPartId,
     componentHealth?: BossComponentHealth
   ) {
-    const authoredHealth = Number(componentHealth?.[componentId]);
+    const authoredHealth = Number(
+      componentId === 'left-cannon'
+      || componentId === 'right-cannon'
+      || componentId === 'helmet'
+        ? componentHealth?.[componentId]
+        : Number.NaN
+    );
     if (Number.isFinite(authoredHealth) && authoredHealth > 0) {
       return Math.max(
         1,
@@ -12289,7 +12962,94 @@ export class GameEngine {
     return [];
   }
 
+  private createAbyssalOctarchComponents(boss: Entity) {
+    const durabilityScale = Math.max(0.5, boss.configuredDifficultyMultiplier || 1);
+    return ABYSSAL_OCTARCH_TENTACLES.map((tentacle) => {
+      const maxHp = Math.max(1, Math.round(tentacle.baseHealth * durabilityScale));
+      return {
+        id: tentacle.id,
+        label: tentacle.label,
+        hp: maxHp,
+        maxHp,
+        centerXRatio: tentacle.centerXRatio,
+        centerYRatio: tentacle.centerYRatio,
+        widthRatio: tentacle.widthRatio,
+        heightRatio: tentacle.heightRatio,
+        destroyed: false,
+        exposed: true,
+        flashFrames: 0,
+        lastDamageFlashFrame: -999
+      } satisfies BossComponentState;
+    });
+  }
+
+  private getAbyssalOctarchAttackingComponentGeometry(
+    boss: Entity,
+    component: BossComponentState
+  ) {
+    if (!this.isAbyssalOctarch(boss)) return null;
+    const state = boss.bossAbyssalOctarchState;
+    if (
+      !state
+      || state.plan.tentacleIds[0] !== component.id
+      || boss.attackTimer < state.fireStartFrame
+      || !['active', 'held', 'throwing'].includes(state.stage)
+      || ![
+        'grasp-and-hurl',
+        'tentacle-slam',
+        'sweeping-arm',
+        'needle-tip-stab',
+        'asteroid-hurl'
+      ].includes(state.actionId)
+    ) return null;
+    const activeFrames = Math.max(1, state.fireEndFrame - state.fireStartFrame);
+    const currentProgress = clamp(
+      (boss.attackTimer - state.fireStartFrame) / activeFrames,
+      0,
+      1
+    );
+    const previousProgress = clamp(
+      (boss.attackTimer - 1 - state.fireStartFrame) / activeFrames,
+      0,
+      1
+    );
+    const current = this.sampleAbyssalOctarchBossAttackTip(
+      boss,
+      state,
+      currentProgress
+    );
+    const previous = this.sampleAbyssalOctarchBossAttackTip(
+      boss,
+      state,
+      previousProgress
+    );
+    const neutralWidth = Math.max(18, boss.width * component.widthRatio);
+    const neutralHeight = Math.max(18, boss.height * component.heightRatio);
+    const radius = Math.max(12, Math.min(neutralWidth, neutralHeight) * 0.2);
+    return {
+      start: current.start,
+      tip: current.tip,
+      previousTip: previous.tip,
+      radius,
+      bounds: {
+        x: Math.min(current.start.x, current.tip.x, previous.tip.x) - radius,
+        y: Math.min(current.start.y, current.tip.y, previous.tip.y) - radius,
+        width: Math.max(current.start.x, current.tip.x, previous.tip.x)
+          - Math.min(current.start.x, current.tip.x, previous.tip.x)
+          + radius * 2,
+        height: Math.max(current.start.y, current.tip.y, previous.tip.y)
+          - Math.min(current.start.y, current.tip.y, previous.tip.y)
+          + radius * 2
+      } satisfies CollisionBox
+    };
+  }
+
   getBossComponentBox(boss: Entity, component: BossComponentState): CollisionBox {
+    const attackingGeometry = this.getAbyssalOctarchAttackingComponentGeometry(
+      boss,
+      component
+    );
+    if (attackingGeometry) return attackingGeometry.bounds;
     const isCannon = component.id === 'left-cannon' || component.id === 'right-cannon';
     const targetScale = isCannon
       ? boss.bossRigId === 'crown-claw' ? CROWNCLAW_ARM_HITBOX_SCALE : BOSS_CANNON_HITBOX_SCALE
@@ -12308,6 +13068,11 @@ export class GameEngine {
     boss: Entity,
     component: BossComponentState
   ): CollisionBox {
+    const attackingGeometry = this.getAbyssalOctarchAttackingComponentGeometry(
+      boss,
+      component
+    );
+    if (attackingGeometry) return attackingGeometry.bounds;
     const isCannon =
       component.id === 'left-cannon' || component.id === 'right-cannon';
     const visualScale = isCannon
@@ -12348,6 +13113,22 @@ export class GameEngine {
         y: box.y - (y - boss.y)
       };
       return this.miniBossLabCircleIntersectsBox(boss, offsetBox);
+    }
+    if (this.isAbyssalOctarch(boss)) {
+      const coreBox = {
+        x: x + boss.width * 0.3,
+        y: y + boss.height * 0.08,
+        width: boss.width * 0.4,
+        height: boss.height * 0.5
+      };
+      if (!this.boxesIntersect(box, coreBox)) return false;
+      const centerX = box.x + box.width / 2;
+      const centerY = box.y + box.height / 2;
+      const radiusX = coreBox.width * 0.5 + box.width * 0.5;
+      const radiusY = coreBox.height * 0.5 + box.height * 0.5;
+      const normalizedX = (centerX - (coreBox.x + coreBox.width / 2)) / Math.max(1, radiusX);
+      const normalizedY = (centerY - (coreBox.y + coreBox.height / 2)) / Math.max(1, radiusY);
+      return normalizedX * normalizedX + normalizedY * normalizedY <= 1;
     }
     const mask = this.getBossCollisionMask(boss);
     if (!mask) {
@@ -12470,6 +13251,45 @@ export class GameEngine {
   ) {
     const componentBox = this.getBossComponentVisualBox(boss, component);
     if (!this.boxesIntersect(box, componentBox)) return false;
+
+    if (this.isAbyssalOctarch(boss)) {
+      const attackingGeometry = this.getAbyssalOctarchAttackingComponentGeometry(
+        boss,
+        component
+      );
+      if (attackingGeometry) {
+        return this.abyssalOctarchSegmentIntersectsBox(
+          attackingGeometry.start.x,
+          attackingGeometry.start.y,
+          attackingGeometry.tip.x,
+          attackingGeometry.tip.y,
+          attackingGeometry.radius,
+          box
+        ) || this.abyssalOctarchSegmentIntersectsBox(
+          attackingGeometry.previousTip.x,
+          attackingGeometry.previousTip.y,
+          attackingGeometry.tip.x,
+          attackingGeometry.tip.y,
+          attackingGeometry.radius,
+          box
+        );
+      }
+      // Octarch limbs are articulated independently from the flattened neutral
+      // mask. Use a conservative capsule-like ellipse inside each visible arm
+      // region so transparent corners never become an invisible square while
+      // the moving limb remains reliably targetable on a phone.
+      const centerX = box.x + box.width / 2;
+      const centerY = box.y + box.height / 2;
+      const radiusX = Math.max(1, componentBox.width * 0.48 + box.width / 2);
+      const radiusY = Math.max(1, componentBox.height * 0.42 + box.height / 2);
+      const normalizedX = (
+        centerX - (componentBox.x + componentBox.width / 2)
+      ) / radiusX;
+      const normalizedY = (
+        centerY - (componentBox.y + componentBox.height / 2)
+      ) / radiusY;
+      return normalizedX * normalizedX + normalizedY * normalizedY <= 1;
+    }
 
     const isPreviewArtwork = Boolean(
       this.previewBossCollisionMask
@@ -12671,6 +13491,14 @@ export class GameEngine {
     const impactX = box.x + box.width / 2;
     const impactY = box.y + box.height / 2;
     if (damageResult.destroyedNow) {
+      if (this.isAbyssalOctarch(boss)) {
+        boss.bossAbyssalOctarchTransition = undefined;
+        if (boss.bossAbyssalOctarchState?.plan.tentacleIds.includes(
+          component.id as AbyssalOctarchTentacleId
+        )) {
+          this.clearAbyssalOctarchActionRuntime(boss);
+        }
+      }
       if (
         this.isSandboxFrontierCrownclaw(boss)
         && (component.id === 'left-cannon' || component.id === 'right-cannon')
@@ -12689,6 +13517,8 @@ export class GameEngine {
       );
       const label = component.id === 'helmet'
         ? 'CORE EXPOSED'
+        : this.isAbyssalOctarch(boss)
+          ? `${component.label} SEVERED`
         : boss.bossRigId === 'crown-claw'
           ? `${component.label} SEVERED`
           : `${component.label} DISABLED`;
@@ -12712,6 +13542,9 @@ export class GameEngine {
         this.entities.forEach((entity) => {
           if (entity.projectileVisualKind === 'boss-ray') entity.markedForDeletion = true;
         });
+      }
+      if (this.isAbyssalOctarch(boss)) {
+        this.applyConfiguredBossPhase(boss);
       }
     }
     this.updateBossDecayStage(boss);
@@ -12747,6 +13580,9 @@ export class GameEngine {
   }
 
   isBossHullProtected(boss: Entity) {
+    if (this.isAbyssalOctarch(boss)) {
+      return (boss.bossComponents ?? []).some((component) => !component.destroyed);
+    }
     return isBossHullProtectedByComponents(
       boss.bossComponents ?? [],
       boss.bossRigId === 'paywall-siege'
@@ -12898,6 +13734,19 @@ export class GameEngine {
       boss.bossComponents = configured.componentMode === 'hull-only'
         ? []
         : this.createBossComponents(boss, configured.componentHealth);
+      if (this.isAbyssalOctarch(boss)) {
+        boss.bossComponents = this.createAbyssalOctarchComponents(boss);
+        boss.bossAbyssalOctarchSequence = 0;
+        boss.bossAbyssalGrabState = 'none';
+        this.resetAbyssalOctarchDefeatRuntime(boss);
+        if (this.previewEncounterCamera) {
+          this.cancelPreviewEncounterCameraRestore();
+          this.previewEncounterCameraMode = 'auto';
+          this.previewEncounterCameraStartFrame = this.frameCount;
+          this.clampPlayerToEncounterBounds();
+        }
+        this.applyConfiguredBossPhase(boss);
+      }
       boss.bossRevivalBaseWidth = boss.width;
       boss.bossRevivalBaseHeight = boss.height;
       if (boss.spriteUrl) loadImage(boss.spriteUrl);
@@ -15562,8 +16411,13 @@ export class GameEngine {
     return boss.sourceItemId === 'frontier-crownclaw';
   }
 
+  private isAbyssalOctarch(boss: Entity) {
+    return boss.sourceEventId === ABYSSAL_OCTARCH_EVENT_ID;
+  }
+
   private isSingularityCommander(boss: Entity) {
-    return boss.sourceItemId === SINGULARITY_REACH_BOSS_ID;
+    return boss.sourceItemId === SINGULARITY_REACH_BOSS_ID
+      && !this.isAbyssalOctarch(boss);
   }
 
   private getSingularityActionId(
@@ -19278,6 +20132,1038 @@ export class GameEngine {
     return Boolean(sample?.damageActive && !mine.heliosMineState?.hitPlayer);
   }
 
+  private beginAbyssalOctarchPhaseReaction(
+    boss: Entity,
+    phase: AbyssalOctarchPhase
+  ) {
+    const sample = sampleAbyssalOctarchPhaseReaction({
+      phaseId: phase.id,
+      elapsedFrames: 0
+    });
+    boss.attackTimer = 0;
+    boss.bossAbyssalOctarchPhaseReaction = {
+      phaseId: phase.id,
+      phaseIndex: phase.index,
+      durationFrames: sample.reactionFrames,
+      stage: sample.stage
+    };
+    // This engine-owned phase-enter presentation is deliberately longer than
+    // the compiler's generic identity flash. It drives the existing
+    // phaseProgress pose channel while the attack clock is held clear.
+    boss.bossActionPresentation = {
+      actionClipId: `${phase.id}-reaction`,
+      executionIndex: 0,
+      label: phase.label,
+      primitiveId: 'effect-cue',
+      stage: 'phase-enter',
+      startFrame: 0,
+      endFrame: sample.reactionFrames,
+      sequence: phase.index - 1
+    };
+    boss.bossTimelineLastPhaseId = phase.id;
+    boss.isCharging = true;
+    boss.vx = 0;
+    boss.vy = 0;
+    const centerX = boss.x + boss.width / 2;
+    const centerY = boss.y + boss.height * 0.5;
+    this.spawnRingEffect(centerX, centerY, phase.index === 4 ? '#fbbf24' : '#a78bfa');
+    this.spawnBurst(centerX, centerY, '#f472b6', 12, 3.6, 3.5);
+    this.playSound('electricity', 0.72, {
+      pitchJitter: 0.025,
+      pitchOffset: phase.index === 4 ? -0.22 : -0.12
+    });
+    this.addShake(this.mobileProfile ? 2.4 : 3.2);
+  }
+
+  private updateAbyssalOctarchPhaseReaction(boss: Entity) {
+    const reaction = boss.bossAbyssalOctarchPhaseReaction;
+    if (!reaction) return false;
+    const sample = sampleAbyssalOctarchPhaseReaction({
+      phaseId: reaction.phaseId,
+      elapsedFrames: boss.attackTimer
+    });
+    if (sample.complete) {
+      boss.bossAbyssalOctarchPhaseReaction = undefined;
+      if (boss.bossActionPresentation?.actionClipId === `${reaction.phaseId}-reaction`) {
+        boss.bossActionPresentation = undefined;
+      }
+      boss.attackTimer = 0;
+      boss.isCharging = false;
+      boss.vx = 0;
+      boss.vy = 0;
+      boss.bossPresentationBankRadians = 0;
+      return false;
+    }
+
+    if (sample.stage !== reaction.stage) {
+      reaction.stage = sample.stage;
+      const centerX = boss.x + boss.width / 2;
+      const centerY = boss.y + boss.height * 0.48;
+      if (sample.stage === 'rage') {
+        this.spawnRingEffect(centerX, centerY, '#fb7185');
+        this.spawnBurst(centerX, centerY, '#a78bfa', 16, 4.2, 4);
+        this.playSound('impact', 0.86, { pitchJitter: 0.04, pitchOffset: -0.16 });
+        this.addShake(this.mobileProfile ? 3.2 : 4.3);
+      } else if (sample.stage === 'core-exposure') {
+        const finalCore = reaction.phaseIndex === 4;
+        this.spawnRingEffect(centerX, centerY, finalCore ? '#fbbf24' : '#22d3ee');
+        this.spawnBurst(
+          centerX,
+          centerY,
+          finalCore ? '#ffffff' : '#22d3ee',
+          finalCore ? 24 : 15,
+          finalCore ? 5.6 : 4.2,
+          4.5
+        );
+        this.playSound('siren', finalCore ? 0.82 : 0.58, {
+          pitchOffset: finalCore ? -0.18 : -0.08
+        });
+        this.addHitStop(finalCore ? 6 : 3);
+      }
+    }
+    boss.isCharging = true;
+    boss.vx = 0;
+    boss.vy = 0;
+    return true;
+  }
+
+  private getActiveAbyssalOctarchTentacleIds(boss: Entity) {
+    const active = new Set(
+      (boss.bossComponents ?? [])
+        .filter((component) => !component.destroyed)
+        .map((component) => component.id)
+    );
+    return ABYSSAL_OCTARCH_TENTACLE_IDS.filter((id) => active.has(id));
+  }
+
+  private createAbyssalOctarchRuntimeState(
+    boss: Entity,
+    cue: BossTimelineCue,
+    sourceClip: BossTimelineCue['clip'],
+    warningStartFrame: number = boss.attackTimer
+  ): BossAbyssalOctarchRuntimeState | undefined {
+    const actionId = getAbyssalOctarchActionId(sourceClip.parameters?.motionCue);
+    if (!actionId) return undefined;
+    const activeTentacleIds = this.getActiveAbyssalOctarchTentacleIds(boss);
+    const structuralPhase = resolveAbyssalOctarchPhase(activeTentacleIds.length);
+    if (!isAbyssalOctarchActionAvailable(structuralPhase.id, actionId)) {
+      return undefined;
+    }
+    const phaseIndex = structuralPhase.index;
+    const sequence = boss.bossAbyssalOctarchSequence++;
+    const leadFrames = Math.max(
+      1,
+      Math.round(Math.max(
+        cue.clip.durationSeconds,
+        sourceClip.startSeconds - cue.clip.startSeconds,
+        Number(cue.clip.parameters?.warningSeconds) || 0
+      ) * GAME_CONFIG.FPS)
+    );
+    const activeFrames = Math.max(
+      1,
+      Math.round(sourceClip.durationSeconds * GAME_CONFIG.FPS)
+    );
+    const transitionFrames = structuralPhase.transitionFrames;
+    const plan = createAbyssalOctarchActionPlan({
+      actionId,
+      activeTentacleIds,
+      sequence,
+      phaseIndex,
+      arenaWidth: this.width,
+      arenaHeight: this.height,
+      playerCenterX: this.player.x + this.player.width / 2,
+      playerCenterY: this.player.y + this.player.height / 2
+    });
+    return {
+      actionId,
+      actionClipId: sourceClip.id,
+      executionIndex: cue.executionIndex,
+      phaseIndex,
+      plan,
+      warningStartFrame,
+      fireStartFrame: warningStartFrame + leadFrames,
+      fireEndFrame: warningStartFrame + leadFrames + activeFrames,
+      recoveryEndFrame: warningStartFrame + leadFrames + activeFrames + transitionFrames,
+      stage: 'telegraph',
+      captured: false,
+      damageApplied: false,
+      captureStartFrame: -1,
+      captureStartX: 0,
+      captureStartY: 0,
+      throwStartFrame: -1,
+      throwStartX: 0,
+      throwStartY: 0,
+      throwVelocityX: 0,
+      throwVelocityY: 0,
+      lastEmissionIndex: -1
+    };
+  }
+
+  private spawnAbyssalOctarchBeam(
+    boss: Entity,
+    targetX: number,
+    targetY: number,
+    telegraph: boolean,
+    lifetimeFrames: number
+  ) {
+    const originX = boss.x + boss.width * 0.5;
+    const originY = boss.y + boss.height * 0.35;
+    const angle = Math.atan2(targetY - originY, targetX - originX);
+    const length = Math.hypot(this.width, this.height) * 1.25;
+    const thickness = telegraph ? 4 : (this.mobileProfile ? 18 : 22);
+    const endX = originX + Math.cos(angle) * length;
+    const endY = originY + Math.sin(angle) * length;
+    const beam = this.createEntity(
+      EntityType.PROJECTILE,
+      (originX + endX) / 2 - length / 2,
+      (originY + endY) / 2 - thickness / 2
+    );
+    beam.isBeam = true;
+    beam.isDetachedBeam = true;
+    beam.isTelegraph = telegraph;
+    beam.beamAngleRadians = angle;
+    beam.beamOriginX = originX;
+    beam.beamOriginY = originY;
+    beam.beamTargetX = endX;
+    beam.beamTargetY = endY;
+    beam.width = length;
+    beam.height = thickness;
+    beam.life = Math.max(1, lifetimeFrames);
+    beam.maxLife = beam.life;
+    beam.damage = telegraph ? 0 : Math.max(1, Number(boss.projectileDamage) || 1);
+    beam.color = telegraph ? '#fb7185' : '#22d3ee';
+    beam.bossOwnerId = boss.id;
+    beam.projectileVisualKind = 'boss-singularity-beam';
+    beam.weaponVisualStartFrame = this.frameCount;
+    this.entities.push(beam);
+    return beam;
+  }
+
+  private showAbyssalOctarchTelegraph(
+    boss: Entity,
+    cue: BossTimelineCue,
+    sourceClip: BossTimelineCue['clip']
+  ) {
+    const incomingActionId = getAbyssalOctarchActionId(
+      sourceClip.parameters?.motionCue
+    );
+    const activeAction = boss.bossAbyssalOctarchState;
+    if (
+      incomingActionId === 'grasp-and-hurl'
+      && activeAction?.actionId === incomingActionId
+      && (
+        activeAction.captured
+        || activeAction.stage === 'held'
+        || activeAction.stage === 'throwing'
+        || activeAction.stage === 'recovery'
+      )
+    ) {
+      // Repeated authored beats may support ordinary volleys, but a successful
+      // grab owns one uninterrupted hold -> throw -> recovery lifecycle.
+      return true;
+    }
+    const state = this.createAbyssalOctarchRuntimeState(boss, cue, sourceClip);
+    if (!state) return false;
+    boss.bossAbyssalOctarchState = state;
+    boss.bossAbyssalOctarchTransition = undefined;
+    const selectedTentacle = ABYSSAL_OCTARCH_TENTACLES.find(
+      (tentacle) => tentacle.id === state.plan.tentacleIds[0]
+    );
+    if (boss.bossActionPresentation && selectedTentacle) {
+      boss.bossActionPresentation.side = selectedTentacle.side;
+    }
+    boss.bossAbyssalGrabState = state.actionId === 'grasp-and-hurl'
+      ? 'reaching'
+      : 'none';
+    boss.isCharging = true;
+    const warningFrames = Math.max(1, state.fireStartFrame - boss.attackTimer);
+    const target = state.plan.target;
+    switch (state.actionId) {
+      case 'sweeping-arm': {
+        const guide = this.spawnEnemyLaneLaser(
+          boss.id,
+          'horizontal',
+          target.y,
+          0,
+          true,
+          warningFrames
+        );
+        guide.color = '#a78bfa';
+        break;
+      }
+      case 'abyssal-gaze':
+        this.spawnAbyssalOctarchBeam(boss, target.x, target.y, true, warningFrames);
+        break;
+      case 'constricting-ring':
+      case 'suction-current':
+        this.spawnRingEffect(
+          state.actionId === 'suction-current' ? boss.x + boss.width / 2 : target.x,
+          state.actionId === 'suction-current' ? boss.y + boss.height * 0.48 : target.y,
+          state.actionId === 'suction-current' ? '#22d3ee' : '#a78bfa'
+        );
+        break;
+      default:
+        this.spawnRingEffect(target.x, target.y, '#fbbf24');
+        break;
+    }
+    // Keep authored beat names in the preview snapshot instead of exposing
+    // internal timeline labels in the clean gameplay view. The lane, beam,
+    // ring, and siren above remain the player's actionable warning language.
+    this.playSound('siren', state.actionId === 'grasp-and-hurl' ? 0.8 : 0.62);
+    return true;
+  }
+
+  private beginAbyssalOctarchAction(boss: Entity, cue: BossTimelineCue) {
+    const actionId = getAbyssalOctarchActionId(cue.clip.parameters?.motionCue);
+    if (!actionId) return false;
+    let state = boss.bossAbyssalOctarchState;
+    if (
+      actionId === 'grasp-and-hurl'
+      && state?.actionId === actionId
+      && (
+        state.captured
+        || state.stage === 'held'
+        || state.stage === 'throwing'
+        || state.stage === 'recovery'
+      )
+    ) {
+      return true;
+    }
+    if (
+      !state
+      || state.actionId !== actionId
+      || state.actionClipId !== cue.clip.id
+      || state.executionIndex !== cue.executionIndex
+    ) {
+      state = this.createAbyssalOctarchRuntimeState(
+        boss,
+        cue,
+        cue.clip,
+        Math.max(0, boss.attackTimer - 1)
+      );
+    }
+    if (!state) return false;
+    const activeFrames = Math.max(1, Math.round(cue.clip.durationSeconds * GAME_CONFIG.FPS));
+    state.fireStartFrame = boss.attackTimer;
+    state.fireEndFrame = boss.attackTimer + activeFrames;
+    state.recoveryEndFrame = state.fireEndFrame
+      + resolveAbyssalOctarchPhase(
+        this.getActiveAbyssalOctarchTentacleIds(boss).length
+      ).transitionFrames;
+    state.stage = 'active';
+    state.damageApplied = false;
+    state.lastEmissionIndex = -1;
+    boss.bossAbyssalOctarchState = state;
+    boss.bossAbyssalOctarchTransition = undefined;
+    const selectedTentacle = ABYSSAL_OCTARCH_TENTACLES.find(
+      (tentacle) => tentacle.id === state.plan.tentacleIds[0]
+    );
+    if (boss.bossActionPresentation && selectedTentacle) {
+      boss.bossActionPresentation.side = selectedTentacle.side;
+      if (actionId === 'grasp-and-hurl') {
+        boss.bossActionPresentation.endFrame = Math.max(
+          boss.bossActionPresentation.endFrame,
+          state.recoveryEndFrame
+        );
+      }
+    }
+    boss.isCharging = false;
+    if (actionId === 'constricting-ring') {
+      this.spawnBossSafeGapRing(
+        boss,
+        state.plan.sequence,
+        state.phaseIndex,
+        false,
+        cue.clip.parameters?.projectileCount,
+        cue.clip.parameters?.rotationDirection
+      );
+    } else if (actionId === 'abyssal-gaze') {
+      this.spawnAbyssalOctarchBeam(
+        boss,
+        state.plan.target.x,
+        state.plan.target.y,
+        false,
+        activeFrames
+      );
+      this.addShake(2.6);
+    }
+    return true;
+  }
+
+  private updateAbyssalOctarchAttackFlow(boss: Entity) {
+    if (!this.isAbyssalOctarch(boss) || !boss.bossTimeline) return;
+    const structuralPhase = resolveAbyssalOctarchPhase(
+      this.getActiveAbyssalOctarchTentacleIds(boss).length
+    );
+    const selectedAttackLoop = this.previewBossAttackLoop;
+    const selectedAttackLoopActive = Boolean(
+      selectedAttackLoop
+      && selectedAttackLoop.eventId === boss.sourceEventId
+      && selectedAttackLoop.phaseId === structuralPhase.id
+    );
+    const transition = resolveAbyssalOctarchQueuedAttackTransition({
+      timeline: boss.bossTimeline,
+      phaseId: structuralPhase.id,
+      attackFrame: boss.attackTimer,
+      framesPerSecond: GAME_CONFIG.FPS,
+      selectedAttackLoopActive
+    });
+    if (!transition || boss.bossAbyssalOctarchState) {
+      if (
+        boss.bossAbyssalOctarchTransition
+        && boss.attackTimer >= boss.bossAbyssalOctarchTransition.nextAttackStartFrame
+      ) {
+        boss.bossAbyssalOctarchTransition = undefined;
+      }
+      return;
+    }
+
+    // Advance across authored empty slots only. Every attack window already
+    // includes its warning, active beat, and recovery, and manual attack loops
+    // bypass this resolver completely.
+    if (boss.attackTimer < transition.transitionStartFrame) {
+      boss.attackTimer = transition.transitionStartFrame;
+    }
+    const sourceClip = boss.bossTimeline.clips.find((clip) => (
+      clip.id === transition.sourceClipId
+    ));
+    if (
+      !sourceClip
+      || getAbyssalOctarchActionId(transition.motionCue) !== transition.attackId
+    ) return;
+    boss.bossAbyssalOctarchTransition = transition;
+    const durationFrames = Math.max(
+      1,
+      getBossTimelineDurationFrames(boss.bossTimeline, GAME_CONFIG.FPS)
+    );
+    boss.bossActionPresentation = {
+      actionClipId: sourceClip.id,
+      executionIndex: 0,
+      label: transition.attackLabel,
+      primitiveId: transition.primitiveId,
+      stage: 'transition',
+      startFrame: transition.transitionStartFrame,
+      endFrame: transition.nextAttackStartFrame,
+      sequence: resolveBossPatternSequence(
+        sourceClip.parameters?.sequence,
+        Math.floor(transition.nextAttackStartFrame / durationFrames)
+      ),
+      ...(sourceClip.parameters?.projectileCount === undefined
+        ? {}
+        : { projectileCount: sourceClip.parameters.projectileCount }),
+      motionCue: transition.motionCue,
+      side: sourceClip.parameters?.side,
+      handedness: sourceClip.parameters?.handedness,
+      rotationDirection: sourceClip.parameters?.rotationDirection
+    };
+    boss.isCharging = true;
+  }
+
+  private sampleAbyssalOctarchBossAttackTip(
+    boss: Entity,
+    state: BossAbyssalOctarchRuntimeState,
+    activeProgress: number
+  ): AbyssalOctarchAttackTipSample {
+    const descriptor = ABYSSAL_OCTARCH_TENTACLES.find(
+      (tentacle) => tentacle.id === state.plan.tentacleIds[0]
+    );
+    const start = descriptor
+      ? {
+          x: boss.x + boss.width * descriptor.centerXRatio,
+          y: boss.y + boss.height * descriptor.centerYRatio
+        }
+      : {
+          x: boss.x + boss.width / 2,
+          y: boss.y + boss.height * 0.45
+        };
+    const finalTarget = state.actionId === 'asteroid-hurl'
+      ? start
+      : state.captured
+        ? {
+            x: this.player.x + this.player.width / 2,
+            y: this.player.y + this.player.height / 2
+          }
+        : state.plan.target;
+    return sampleAbyssalOctarchAttackTip({
+      actionId: state.actionId,
+      start,
+      finalTarget,
+      sequence: state.plan.sequence,
+      activeProgress,
+      arenaWidth: this.width,
+      bossWidth: boss.width
+    });
+  }
+
+  private abyssalOctarchSegmentIntersectsBox(
+    startX: number,
+    startY: number,
+    endX: number,
+    endY: number,
+    radius: number,
+    box: CollisionBox
+  ) {
+    const px = box.x + box.width / 2;
+    const py = box.y + box.height / 2;
+    const dx = endX - startX;
+    const dy = endY - startY;
+    const lengthSquared = dx * dx + dy * dy;
+    const progress = lengthSquared <= 0.0001
+      ? 0
+      : clamp(((px - startX) * dx + (py - startY) * dy) / lengthSquared, 0, 1);
+    const closestX = startX + dx * progress;
+    const closestY = startY + dy * progress;
+    return Math.hypot(px - closestX, py - closestY)
+      <= radius + Math.max(box.width, box.height) * 0.26;
+  }
+
+  private abyssalOctarchSegmentIntersectsPlayer(
+    startX: number,
+    startY: number,
+    endX: number,
+    endY: number,
+    radius: number
+  ) {
+    return this.abyssalOctarchSegmentIntersectsBox(
+      startX,
+      startY,
+      endX,
+      endY,
+      radius,
+      this.getCollisionBox(this.player)
+    );
+  }
+
+  private applyAbyssalOctarchPlayerHit(
+    boss: Entity,
+    state: BossAbyssalOctarchRuntimeState,
+    label: string
+  ) {
+    if (state.damageApplied) return false;
+    state.damageApplied = true;
+    const shieldActive = this.isPowerupActive(PowerupType.SHIELD);
+    const protectedFromDamage = this.testMode
+      || (this.previewMode && this.previewInvincible)
+      || this.invincibleTimer > 0
+      || shieldActive
+      || this.hasMaxShotShield();
+    let fatal = false;
+    if (!protectedFromDamage) {
+      const damage = this.applyPlayerLifeDamage(Math.max(1, boss.contactDamage));
+      this.invincibleTimer = 60;
+      fatal = damage.lives <= 0;
+    } else if (shieldActive) {
+      const currentShieldTime = this.activePowerups.get(PowerupType.SHIELD) || 0;
+      this.activePowerups.set(PowerupType.SHIELD, Math.max(0, currentShieldTime - 150));
+    }
+    const centerX = this.player.x + this.player.width / 2;
+    const centerY = this.player.y + this.player.height / 2;
+    this.spawnFloatingText(centerX, centerY - 24, label, '#fb7185', 17);
+    this.spawnBurst(centerX, centerY, '#f472b6', 10, 3.4, 3);
+    this.addShake(4.2);
+    this.addHitStop(5);
+    this.playSound('impact', 1.15, { pitchJitter: 0.05, pitchOffset: -0.1 });
+    if (fatal) {
+      // A lethal grab cannot keep ownership of the player for even one more
+      // simulation step. Mutate the referenced state before dropping it so the
+      // caller cannot continue a hold/throw branch from its local reference.
+      state.captured = false;
+      state.stage = 'complete';
+      state.throwVelocityX = 0;
+      state.throwVelocityY = 0;
+      this.clearAbyssalOctarchActionRuntime(boss);
+      this.playerVel.x = 0;
+      this.playerVel.y = 0;
+      this.startDeathSequence();
+    }
+    return fatal;
+  }
+
+  private spawnAbyssalOctarchCoreFallback(
+    boss: Entity,
+    state: BossAbyssalOctarchRuntimeState
+  ) {
+    const originX = boss.x + boss.width / 2;
+    const originY = boss.y + boss.height * 0.4;
+    const targetAngle = Math.atan2(
+      state.plan.target.y - originY,
+      state.plan.target.x - originX
+    );
+    const count = state.phaseIndex >= 4 ? 7 : 5;
+    for (let index = 0; index < count; index += 1) {
+      const offset = index - (count - 1) / 2;
+      const projectile = this.spawnGeneratedBossProjectile(
+        boss,
+        originX,
+        originY,
+        targetAngle + offset * 0.13,
+        4.2 + state.phaseIndex * 0.28,
+        index % 2 === 0 ? '#22d3ee' : '#a78bfa',
+        15,
+        state.plan.sequence * 10 + index
+      );
+      projectile.projectileVisualKind = 'boss-singularity-pulse';
+    }
+  }
+
+  private updateAbyssalOctarchActionRuntime(boss: Entity) {
+    if (!this.isAbyssalOctarch(boss)) return;
+    const state = boss.bossAbyssalOctarchState;
+    if (!state) {
+      boss.bossAbyssalGrabState = 'none';
+      return;
+    }
+    if (boss.attackTimer < state.fireStartFrame) {
+      const warningFrames = Math.max(1, state.fireStartFrame - state.warningStartFrame);
+      const warningElapsed = Math.max(0, boss.attackTimer - state.warningStartFrame);
+      const preparationFrames = Math.min(
+        warningFrames - 1,
+        Math.max(10, Math.round(warningFrames * 0.34))
+      );
+      state.stage = warningElapsed < preparationFrames
+        ? 'preparation'
+        : 'telegraph';
+      return;
+    }
+
+    const hasSelectedTentacle = state.plan.tentacleIds.some((id) => (
+      this.getActiveAbyssalOctarchTentacleIds(boss).includes(id)
+    ));
+    const activeFrames = Math.max(1, state.fireEndFrame - state.fireStartFrame);
+    const activeProgress = clamp(
+      (boss.attackTimer - state.fireStartFrame) / activeFrames,
+      0,
+      1
+    );
+    const attackTip = this.sampleAbyssalOctarchBossAttackTip(
+      boss,
+      state,
+      activeProgress
+    );
+    const startX = attackTip.start.x;
+    const startY = attackTip.start.y;
+    const targetX = attackTip.target.x;
+    const targetY = attackTip.target.y;
+    const tipX = attackTip.tip.x;
+    const tipY = attackTip.tip.y;
+
+    if (
+      !hasSelectedTentacle
+      && state.actionId !== 'constricting-ring'
+      && state.actionId !== 'suction-current'
+      && state.actionId !== 'abyssal-gaze'
+      && state.lastEmissionIndex < 0
+    ) {
+      state.lastEmissionIndex = 0;
+      this.spawnAbyssalOctarchCoreFallback(boss, state);
+    }
+
+    if (state.actionId === 'grasp-and-hurl') {
+      if (!state.captured && boss.attackTimer < state.fireEndFrame) {
+        state.stage = 'active';
+        boss.bossAbyssalGrabState = 'reaching';
+        if (
+          hasSelectedTentacle
+          && activeProgress >= 0.22
+          && this.abyssalOctarchSegmentIntersectsPlayer(
+            startX,
+            startY,
+            tipX,
+            tipY,
+            Math.max(18, boss.width * 0.035)
+          )
+        ) {
+          state.captured = true;
+          state.captureStartFrame = boss.attackTimer;
+          state.captureStartX = this.player.x;
+          state.captureStartY = this.player.y;
+          state.stage = 'held';
+          boss.bossAbyssalGrabState = 'held';
+          if (this.applyAbyssalOctarchPlayerHit(boss, state, 'GRABBED')) {
+            return;
+          }
+        }
+      }
+      if (state.captured) {
+        const holdElapsed = boss.attackTimer - state.captureStartFrame;
+        if (holdElapsed < ABYSSAL_OCTARCH_LIMITS.grabHoldFrames) {
+          const progress = easeInOutCubic(
+            holdElapsed / ABYSSAL_OCTARCH_LIMITS.grabHoldFrames
+          );
+          const heldX = boss.x + boss.width * 0.5 - this.player.width / 2;
+          const heldY = boss.y + boss.height * 0.63 - this.player.height / 2;
+          this.player.x = state.captureStartX + (heldX - state.captureStartX) * progress;
+          this.player.y = state.captureStartY + (heldY - state.captureStartY) * progress;
+          this.playerVel.x = 0;
+          this.playerVel.y = 0;
+          state.stage = 'held';
+          boss.bossAbyssalGrabState = 'held';
+          return;
+        }
+        if (state.throwStartFrame < 0) {
+          state.throwStartFrame = boss.attackTimer;
+          state.throwStartX = this.player.x;
+          state.throwStartY = this.player.y;
+          const velocity = resolveAbyssalOctarchThrowVelocity({
+            from: {
+              x: this.player.x + this.player.width / 2,
+              y: this.player.y + this.player.height / 2
+            },
+            landing: state.plan.throwLanding
+          });
+          state.throwVelocityX = velocity.vx;
+          state.throwVelocityY = velocity.vy;
+        }
+        const throwElapsed = boss.attackTimer - state.throwStartFrame;
+        if (throwElapsed < ABYSSAL_OCTARCH_LIMITS.grabThrowFrames) {
+          const throwSample = sampleAbyssalOctarchThrowPath({
+            from: {
+              x: state.throwStartX + this.player.width / 2,
+              y: state.throwStartY + this.player.height / 2
+            },
+            landing: state.plan.throwLanding,
+            progress: throwElapsed / ABYSSAL_OCTARCH_LIMITS.grabThrowFrames,
+            arenaWidth: this.width,
+            arenaHeight: this.height,
+            playerWidth: this.player.width,
+            playerHeight: this.player.height
+          });
+          this.player.x = throwSample.x - this.player.width / 2;
+          this.player.y = throwSample.y - this.player.height / 2;
+          state.stage = 'throwing';
+          boss.bossAbyssalGrabState = 'throwing';
+          this.invincibleTimer = Math.max(
+            this.invincibleTimer,
+            ABYSSAL_OCTARCH_LIMITS.releaseImmunityFrames
+          );
+          return;
+        }
+        const landingSample = sampleAbyssalOctarchThrowPath({
+          from: {
+            x: state.throwStartX + this.player.width / 2,
+            y: state.throwStartY + this.player.height / 2
+          },
+          landing: state.plan.throwLanding,
+          progress: 1,
+          arenaWidth: this.width,
+          arenaHeight: this.height,
+          playerWidth: this.player.width,
+          playerHeight: this.player.height
+        });
+        this.player.x = landingSample.x - this.player.width / 2;
+        this.player.y = landingSample.y - this.player.height / 2;
+        this.playerVel.x = state.throwVelocityX;
+        this.playerVel.y = state.throwVelocityY;
+        state.captured = false;
+        state.stage = 'recovery';
+        boss.bossAbyssalGrabState = 'immunity';
+        state.recoveryEndFrame = Math.max(
+          state.recoveryEndFrame,
+          boss.attackTimer + resolveAbyssalOctarchPhase(
+            this.getActiveAbyssalOctarchTentacleIds(boss).length
+          ).transitionFrames
+        );
+      }
+    } else if (boss.attackTimer < state.fireEndFrame) {
+      state.stage = 'active';
+      if (
+        hasSelectedTentacle
+        && !state.damageApplied
+        && ['tentacle-slam', 'sweeping-arm', 'needle-tip-stab'].includes(state.actionId)
+        && activeProgress >= 0.28
+        && activeProgress <= 0.86
+        && this.abyssalOctarchSegmentIntersectsPlayer(
+          startX,
+          startY,
+          tipX,
+          tipY,
+          state.actionId === 'sweeping-arm' ? 24 : 20
+        )
+      ) {
+        if (this.applyAbyssalOctarchPlayerHit(
+          boss,
+          state,
+          state.actionId === 'tentacle-slam' ? 'SLAMMED' : 'HIT'
+        )) {
+          return;
+        }
+      }
+      if (state.actionId === 'suction-current') {
+        const mouthX = boss.x + boss.width / 2;
+        const mouthY = boss.y + boss.height * 0.48;
+        const playerX = this.player.x + this.player.width / 2;
+        const playerY = this.player.y + this.player.height / 2;
+        const dx = mouthX - playerX;
+        const dy = mouthY - playerY;
+        const distance = Math.max(1, Math.hypot(dx, dy));
+        const pull = Math.min(
+          ABYSSAL_OCTARCH_LIMITS.maximumPullPerFrame,
+          0.72 + state.phaseIndex * 0.22
+        );
+        this.player.x += dx / distance * pull;
+        this.player.y += dy / distance * pull;
+        const bounds = this.getPlayerMovementBounds();
+        this.player.x = clamp(this.player.x, bounds.minX, bounds.maxX);
+        this.player.y = clamp(this.player.y, bounds.minY, bounds.maxY);
+        const emissionIndex = Math.floor((boss.attackTimer - state.fireStartFrame) / 18);
+        if (emissionIndex > state.lastEmissionIndex) {
+          state.lastEmissionIndex = emissionIndex;
+          const cloud = this.createEntity(
+            EntityType.PROJECTILE,
+            clamp(state.plan.secondaryTarget.x - 34, 8, this.width - 76),
+            clamp(state.plan.secondaryTarget.y - 34, 72, this.height - 76)
+          );
+          cloud.width = 68;
+          cloud.height = 68;
+          cloud.life = 72;
+          cloud.maxLife = 72;
+          cloud.damage = 0;
+          cloud.isTelegraph = true;
+          cloud.bossOwnerId = boss.id;
+          cloud.projectileVisualKind = 'boss-singularity-well';
+          cloud.weaponVisualStartFrame = this.frameCount;
+          this.entities.push(cloud);
+        }
+      }
+      if (state.actionId === 'asteroid-hurl' && state.lastEmissionIndex < 0) {
+        state.lastEmissionIndex = 0;
+        const angle = Math.atan2(targetY - startY, targetX - startX);
+        const asteroid = this.spawnGeneratedBossProjectile(
+          boss,
+          startX,
+          startY,
+          angle,
+          3.2 + state.phaseIndex * 0.22,
+          '#a78bfa',
+          this.mobileProfile ? 44 : 52,
+          state.plan.sequence
+        );
+        asteroid.projectileVisualKind = 'boss-singularity-shard';
+        asteroid.maxLife = Math.max(asteroid.maxLife, 240);
+      }
+    }
+
+    if (boss.attackTimer >= state.fireEndFrame && !state.captured) {
+      state.stage = 'recovery';
+      boss.bossAbyssalGrabState = state.actionId === 'grasp-and-hurl'
+        ? 'immunity'
+        : 'none';
+    }
+    if (boss.attackTimer >= state.recoveryEndFrame && !state.captured) {
+      state.stage = 'complete';
+      boss.bossAbyssalOctarchState = undefined;
+      boss.bossAbyssalGrabState = 'none';
+    }
+  }
+
+  private resetAbyssalOctarchDefeatRuntime(boss: Entity) {
+    if (!this.isAbyssalOctarch(boss)) return;
+    this.clearAbyssalOctarchPhaseReaction(boss);
+    const restoreWidth = boss.bossAbyssalDefeatBaseWidth;
+    const restoreHeight = boss.bossAbyssalDefeatBaseHeight;
+    if (restoreWidth > 0 && restoreHeight > 0) {
+      const centerX = boss.bossAbyssalDefeatBaseCenterX;
+      const centerY = boss.bossAbyssalDefeatBaseCenterY;
+      boss.width = restoreWidth;
+      boss.height = restoreHeight;
+      boss.x = centerX - restoreWidth / 2;
+      boss.y = centerY - restoreHeight / 2;
+    }
+    boss.bossAbyssalDefeatStartFrame = -1;
+    boss.bossAbyssalDefeatConsumed = false;
+    boss.bossAbyssalDefeatStage = undefined;
+    boss.bossAbyssalDefeatProgress = 0;
+    boss.bossAbyssalDefeatBaseCenterX = 0;
+    boss.bossAbyssalDefeatBaseCenterY = 0;
+    boss.bossAbyssalDefeatBaseWidth = 0;
+    boss.bossAbyssalDefeatBaseHeight = 0;
+    boss.bossPresentationBankRadians = 0;
+  }
+
+  private beginAbyssalOctarchDefeat(boss: Entity) {
+    if (!this.isAbyssalOctarch(boss) || boss.bossAbyssalDefeatConsumed) {
+      return false;
+    }
+    boss.bossAbyssalDefeatConsumed = true;
+    boss.bossAbyssalDefeatStartFrame = this.frameCount;
+    boss.bossAbyssalDefeatStage = undefined;
+    boss.bossAbyssalDefeatProgress = 0;
+    boss.bossAbyssalDefeatBaseCenterX = boss.x + boss.width / 2;
+    boss.bossAbyssalDefeatBaseCenterY = boss.y + boss.height / 2;
+    boss.bossAbyssalDefeatBaseWidth = Math.max(1, boss.width);
+    boss.bossAbyssalDefeatBaseHeight = Math.max(1, boss.height);
+    boss.hp = 0;
+    boss.vx = 0;
+    boss.vy = 0;
+    boss.isCharging = false;
+    boss.isBeam = false;
+    boss.bossActionPresentation = undefined;
+    boss.bossAbyssalOctarchTransition = undefined;
+    boss.bossAbyssalGrabState = 'none';
+    if (this.previewBossAttackLoop?.eventId === boss.sourceEventId) {
+      this.previewBossAttackLoop = null;
+    }
+    this.clearBossOwnedHazards(boss);
+    for (const component of boss.bossComponents ?? []) {
+      component.hp = 0;
+      component.destroyed = true;
+      component.exposed = false;
+      component.flashFrames = 0;
+    }
+    if (boss.bossTimeline && !boss.bossSingularityDeathCueDispatched) {
+      const phase = Math.max(1, boss.activeBossPhaseIndex + 1);
+      getBossTimelineTriggeredCues(
+        boss.bossTimeline,
+        'death',
+        boss.bossTimelinePhaseId ?? boss.activeBossPhaseId
+      ).forEach((cue) => this.dispatchBossTimelineCue(boss, cue, phase, 'death'));
+      boss.bossSingularityDeathCueDispatched = true;
+      // Death presentation cues may animate the rig, but cannot restart a
+      // damaging sentence after the core has failed.
+      this.clearBossOwnedHazards(boss);
+    }
+    const centerX = boss.bossAbyssalDefeatBaseCenterX;
+    const centerY = boss.bossAbyssalDefeatBaseCenterY;
+    this.spawnRingEffect(centerX, centerY, '#a78bfa');
+    this.spawnBurst(centerX, centerY, '#22d3ee', 18, 4.4, 4);
+    this.playSound('electricity', 0.95, { pitchJitter: 0.02, pitchOffset: -0.2 });
+    this.addHitStop(7);
+    this.addShake(this.mobileProfile ? 3.2 : 4.4);
+    return true;
+  }
+
+  private updateAbyssalOctarchDefeatSequence(boss: Entity) {
+    if (boss.bossAbyssalDefeatStartFrame < 0) return false;
+    const elapsedFrames = Math.max(
+      0,
+      this.frameCount - boss.bossAbyssalDefeatStartFrame
+    );
+    const ends = ABYSSAL_OCTARCH_DEFEAT_STAGE_END_FRAMES;
+    let stage: AbyssalOctarchDefeatStage;
+    let stageStart = 0;
+    let stageEnd: number = ends.tentaclesFailing;
+    if (elapsedFrames < ends.tentaclesFailing) {
+      stage = 'tentacles-failing';
+    } else if (elapsedFrames < ends.bodyCollapse) {
+      stage = 'body-collapse';
+      stageStart = ends.tentaclesFailing;
+      stageEnd = ends.bodyCollapse;
+    } else if (elapsedFrames < ends.coreImplosion) {
+      stage = 'core-implosion';
+      stageStart = ends.bodyCollapse;
+      stageEnd = ends.coreImplosion;
+    } else if (elapsedFrames < ends.finalCollapse) {
+      stage = 'final-collapse';
+      stageStart = ends.coreImplosion;
+      stageEnd = ends.finalCollapse;
+    } else {
+      stage = 'complete';
+      stageStart = ends.finalCollapse;
+      stageEnd = ends.finalCollapse + 1;
+    }
+    const stageProgress = clamp(
+      (elapsedFrames - stageStart) / Math.max(1, stageEnd - stageStart),
+      0,
+      1
+    );
+    boss.bossAbyssalDefeatProgress = clamp(
+      elapsedFrames / ends.finalCollapse,
+      0,
+      1
+    );
+
+    if (stage !== boss.bossAbyssalDefeatStage) {
+      boss.bossAbyssalDefeatStage = stage;
+      boss.bossSignificantImpactFrame = this.frameCount;
+      const centerX = boss.bossAbyssalDefeatBaseCenterX;
+      const centerY = boss.bossAbyssalDefeatBaseCenterY;
+      if (stage === 'tentacles-failing') {
+        this.spawnBurst(centerX - boss.width * 0.24, centerY, '#f472b6', 12, 4, 4);
+        this.spawnBurst(centerX + boss.width * 0.24, centerY, '#f472b6', 12, 4, 4);
+      } else if (stage === 'body-collapse') {
+        this.spawnExplosion(boss.x, boss.y, '#7c3aed', 1.05);
+        this.spawnRingEffect(centerX, centerY, '#c084fc');
+        this.addShake(this.mobileProfile ? 3.6 : 4.8);
+      } else if (stage === 'core-implosion') {
+        this.spawnRingEffect(centerX, centerY, '#22d3ee');
+        this.spawnRingEffect(centerX, centerY, '#f472b6');
+        this.spawnBurst(centerX, centerY, '#ffffff', 22, 5.2, 5);
+        this.playSound('siren', 0.68, { pitchOffset: -0.12 });
+        this.addHitStop(5);
+      } else if (stage === 'final-collapse') {
+        this.spawnExplosion(boss.x, boss.y, '#0ea5e9', 1.7);
+        this.spawnBurst(centerX, centerY, '#ffffff', 30, 7.2, 6);
+        this.spawnRingEffect(centerX, centerY, '#fbbf24');
+        this.addShake(this.mobileProfile ? 6.2 : 8);
+        this.addHitStop(10);
+        this.playSound('bomb', 1, { pitchJitter: 0.02, pitchOffset: -0.2 });
+      }
+    }
+
+    boss.vx = 0;
+    boss.vy = 0;
+    boss.isCharging = false;
+    boss.bossActionPresentation = undefined;
+    const baseWidth = Math.max(1, boss.bossAbyssalDefeatBaseWidth);
+    const baseHeight = Math.max(1, boss.bossAbyssalDefeatBaseHeight);
+    let scale = 1;
+    if (stage === 'tentacles-failing') {
+      scale = 1 - stageProgress * 0.04 + Math.sin(elapsedFrames * 0.45) * 0.008;
+    } else if (stage === 'body-collapse') {
+      scale = 0.96 - stageProgress * 0.18;
+    } else if (stage === 'core-implosion') {
+      scale = 0.78 - stageProgress * 0.3;
+    } else if (stage === 'final-collapse' || stage === 'complete') {
+      scale = Math.max(0.08, 0.48 - stageProgress * 0.4);
+    }
+    const shakeStrength = stage === 'tentacles-failing'
+      ? 1.5
+      : stage === 'body-collapse'
+        ? 2.4
+        : stage === 'core-implosion'
+          ? 3.4
+          : 1.2;
+    boss.width = baseWidth * Math.max(0.08, scale);
+    boss.height = baseHeight * Math.max(0.08, scale);
+    boss.x = boss.bossAbyssalDefeatBaseCenterX - boss.width / 2
+      + Math.sin(elapsedFrames * 0.9) * shakeStrength;
+    boss.y = boss.bossAbyssalDefeatBaseCenterY - boss.height / 2
+      + Math.cos(elapsedFrames * 0.73) * shakeStrength * 0.65;
+    boss.bossPresentationBankRadians = stage === 'final-collapse'
+      ? Math.sin(elapsedFrames * 0.19) * 0.12 * (1 - stageProgress)
+      : Math.sin(elapsedFrames * 0.16) * 0.035;
+
+    if (
+      stage !== 'tentacles-failing'
+      && stage !== 'complete'
+      && elapsedFrames % 14 === 0
+    ) {
+      const sparkX = boss.bossAbyssalDefeatBaseCenterX
+        + Math.sin(elapsedFrames * 0.31) * baseWidth * 0.24 * scale;
+      const sparkY = boss.bossAbyssalDefeatBaseCenterY
+        + Math.cos(elapsedFrames * 0.27) * baseHeight * 0.2 * scale;
+      this.spawnBurst(sparkX, sparkY, stage === 'core-implosion' ? '#22d3ee' : '#f472b6', 4, 2.4, 2.6);
+    }
+
+    if (stage !== 'complete') return true;
+    boss.width = baseWidth;
+    boss.height = baseHeight;
+    boss.x = boss.bossAbyssalDefeatBaseCenterX - baseWidth / 2;
+    boss.y = boss.bossAbyssalDefeatBaseCenterY - baseHeight / 2;
+    boss.bossPresentationBankRadians = 0;
+    boss.bossAbyssalDefeatStartFrame = -1;
+    boss.bossAbyssalDefeatStage = 'complete';
+    boss.bossAbyssalDefeatProgress = 1;
+    if (this.previewEncounterCamera) {
+      this.beginPreviewEncounterCameraRestore({
+        rehomePlayer: true,
+        reprojectPlayer: true
+      });
+    }
+    this.handleEnemyDestroyed(boss);
+    return true;
+  }
+
   showBossTimelineTelegraph(boss: Entity, cue: BossTimelineCue) {
     const parameters = cue.clip.parameters;
     const style = parameters?.telegraphStyle ?? 'warning';
@@ -19299,6 +21185,20 @@ export class GameEngine {
       && this.getPrismMothActionId(linkedAction.primitiveId)
     ) {
       this.showPrismMothAnatomyTelegraph(boss, cue, linkedAction);
+      return;
+    }
+    if (
+      linkedAction
+      && this.isAbyssalOctarch(boss)
+      && isAbyssalOctarchMotionCue(linkedAction.parameters?.motionCue)
+    ) {
+      this.setBossActionPresentation(boss, cue, 'warning', linkedAction);
+      if (!this.showAbyssalOctarchTelegraph(boss, cue, linkedAction)) {
+        if (boss.bossActionPresentation?.actionClipId === linkedAction.id) {
+          boss.bossActionPresentation = undefined;
+        }
+        boss.isCharging = false;
+      }
       return;
     }
     this.setBossActionPresentation(
@@ -19532,6 +21432,20 @@ export class GameEngine {
       && isDamagingBossTimelinePrimitive(cue.clip.primitiveId)
     ) {
       this.setBossActionPresentation(boss, cue, 'fire');
+    }
+    if (
+      !triggeredStage
+      && this.isAbyssalOctarch(boss)
+      && isDamagingBossTimelinePrimitive(cue.clip.primitiveId)
+      && isAbyssalOctarchMotionCue(parameters?.motionCue)
+    ) {
+      if (!this.beginAbyssalOctarchAction(boss, cue)) {
+        if (boss.bossActionPresentation?.actionClipId === cue.clip.id) {
+          boss.bossActionPresentation = undefined;
+        }
+        boss.isCharging = false;
+      }
+      return;
     }
     switch (cue.clip.primitiveId) {
       case 'telegraph':
@@ -20029,6 +21943,7 @@ export class GameEngine {
           || Boolean(boss.bossVanishReentryState)
         )
       )
+      || this.isAbyssalOctarch(boss)
       || this.isSingularityCommander(boss)
     );
     if (boss.y < targetEntranceY && !isPerformingSettledTimelineMovement) {
@@ -20040,6 +21955,9 @@ export class GameEngine {
       // whole timeline.
       boss.attackTimer = 0;
       boss.bossActionPresentation = undefined;
+      return true;
+    }
+    if (this.updateAbyssalOctarchPhaseReaction(boss)) {
       return true;
     }
     if (
@@ -20057,6 +21975,9 @@ export class GameEngine {
       this.clearPrismMothRuntime(boss);
       this.clearFrontierCrownclawRuntime(boss);
       this.clearSingularityRuntime(boss);
+      if (this.isAbyssalOctarch(boss)) {
+        this.clearAbyssalOctarchActionRuntime(boss);
+      }
       this.clearBossTimelineActionLocks(boss);
     }
     const phaseId = boss.bossTimelinePhaseId ?? boss.activeBossPhaseId;
@@ -20065,6 +21986,9 @@ export class GameEngine {
         this.clearPrismMothRuntime(boss);
         this.clearFrontierCrownclawRuntime(boss);
         this.clearSingularityRuntime(boss);
+        if (this.isAbyssalOctarch(boss)) {
+          this.clearAbyssalOctarchActionRuntime(boss);
+        }
       }
       boss.bossTimelineLastPhaseId = phaseId;
       getBossTimelineTriggeredCues(timeline, 'phase-enter', phaseId)
@@ -20109,6 +22033,8 @@ export class GameEngine {
     this.updatePrismMothActionRuntime(boss);
     this.updateSingularityActionRuntime(boss);
     this.updateSingularityAttackFlow(boss);
+    this.updateAbyssalOctarchActionRuntime(boss);
+    this.updateAbyssalOctarchAttackFlow(boss);
     return true;
   }
 
@@ -20121,6 +22047,40 @@ export class GameEngine {
       return;
     }
     if (this.updateSingularityTimelineMovement(boss)) {
+      return;
+    }
+    if (this.isAbyssalOctarch(boss)) {
+      const phaseReaction = boss.bossAbyssalOctarchPhaseReaction;
+      if (phaseReaction) {
+        const sample = sampleAbyssalOctarchPhaseReaction({
+          phaseId: phaseReaction.phaseId,
+          elapsedFrames: boss.attackTimer
+        });
+        boss.vx = 0;
+        boss.vy = 0;
+        boss.bossPresentationBankRadians = Math.sin(sample.progress * Math.PI * 5)
+          * (1 - sample.progress)
+          * (phaseReaction.phaseIndex === 4 ? 0.075 : 0.045);
+        return;
+      }
+      const previousX = boss.x;
+      const previousY = boss.y;
+      const anchorX = (this.width - boss.width) / 2;
+      const anchorY = Math.max(24, this.height * 0.035);
+      const huntIntensity = 1 + Math.max(0, boss.activeBossPhaseIndex) * 0.32;
+      const targetX = anchorX
+        + Math.sin((boss.attackTimer + boss.bossAbyssalOctarchSequence * 19) * 0.012)
+          * Math.min(this.width * 0.12, 64) * huntIntensity;
+      const targetY = anchorY
+        + Math.cos(boss.attackTimer * 0.009) * Math.min(this.height * 0.018, 18);
+      const follow = boss.y < anchorY ? 0.055 : 0.018 + huntIntensity * 0.004;
+      boss.x += (targetX - boss.x) * follow;
+      boss.y += (targetY - boss.y) * follow;
+      boss.x = clamp(boss.x, 8, Math.max(8, this.width - boss.width - 8));
+      boss.y = clamp(boss.y, 16, Math.max(16, this.height * 0.2));
+      boss.vx = boss.x - previousX;
+      boss.vy = boss.y - previousY;
+      boss.bossPresentationBankRadians = clamp(boss.vx * 0.008, -0.08, 0.08);
       return;
     }
     const speed = Math.max(0.1, boss.configuredSpeed ?? 2) * boss.activeBossPhaseSpeedMultiplier;
@@ -20488,6 +22448,7 @@ export class GameEngine {
   }
 
   updateBoss(boss: Entity) {
+    if (this.updateAbyssalOctarchDefeatSequence(boss)) return;
     if (this.updateSingularityDefeatSequence(boss)) return;
     if (this.updateBossRevival(boss)) return;
     if (this.updateUmbraEscape(boss)) return;
@@ -21989,9 +23950,9 @@ export class GameEngine {
       ? e.spriteFrames
       : ASSETS.PAYWALL_BASTION_FRAMES;
     const healthRatio = e.maxHp > 0 ? e.hp / e.maxHp : 1;
+    if (e.attackTimer > 0) return frames[2];
     if (healthRatio <= 0.15) return frames[4];
     if (healthRatio <= 0.5) return frames[3];
-    if (e.attackTimer > 0) return frames[2];
     return frames[Math.floor((this.frameCount + e.variant * 5) / 24) % 2];
   }
 

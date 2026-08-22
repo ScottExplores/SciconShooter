@@ -1,0 +1,261 @@
+{
+  "schemaVersion": 1,
+  "encounterId": "prism-bloom",
+  "sourceSha256": "15e6e189234872ef149ff9e8d9d61aaafa81c37895b543b2c715ebb1181050f9",
+  "canvas": {
+    "width": 192,
+    "height": 192
+  },
+  "runtimeContract": {
+    "sampling": "nearest",
+    "alpha": "binary",
+    "maximumSharedColors": 32,
+    "minimumMarginPixels": 8
+  },
+  "palette": [
+    [
+      136,
+      85,
+      255
+    ],
+    [
+      0,
+      0,
+      17
+    ],
+    [
+      0,
+      0,
+      0
+    ],
+    [
+      85,
+      204,
+      255
+    ],
+    [
+      51,
+      187,
+      255
+    ],
+    [
+      34,
+      102,
+      255
+    ],
+    [
+      68,
+      187,
+      255
+    ],
+    [
+      102,
+      204,
+      255
+    ],
+    [
+      0,
+      0,
+      34
+    ],
+    [
+      119,
+      68,
+      255
+    ],
+    [
+      153,
+      102,
+      255
+    ],
+    [
+      34,
+      119,
+      255
+    ],
+    [
+      51,
+      170,
+      255
+    ],
+    [
+      136,
+      68,
+      255
+    ],
+    [
+      34,
+      136,
+      255
+    ],
+    [
+      51,
+      34,
+      170
+    ],
+    [
+      68,
+      204,
+      255
+    ],
+    [
+      51,
+      136,
+      255
+    ],
+    [
+      153,
+      85,
+      255
+    ],
+    [
+      0,
+      0,
+      51
+    ],
+    [
+      238,
+      0,
+      238
+    ],
+    [
+      17,
+      17,
+      85
+    ],
+    [
+      17,
+      17,
+      102
+    ],
+    [
+      34,
+      85,
+      238
+    ],
+    [
+      34,
+      34,
+      153
+    ],
+    [
+      34,
+      34,
+      170
+    ],
+    [
+      34,
+      85,
+      255
+    ],
+    [
+      51,
+      119,
+      255
+    ],
+    [
+      51,
+      153,
+      255
+    ],
+    [
+      119,
+      85,
+      255
+    ],
+    [
+      34,
+      17,
+      153
+    ],
+    [
+      17,
+      17,
+      119
+    ]
+  ],
+  "frames": [
+    {
+      "state": "neutral",
+      "fileName": "prism-bloom-neutral.png",
+      "sha256": "971dd5ff302d43ad5283dc27ee0da8c8c10ba0d909b88c93aa1344f999c74d68",
+      "structuralCleanup": {
+        "sourceComponentCount": 1,
+        "sourceDiscardedPixels": 0,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    },
+    {
+      "state": "idle",
+      "fileName": "prism-bloom-idle.png",
+      "sha256": "d998061b015aa3547ddca979f0f9831676a0d3bc89b02b325bffa63f0f0d46cd",
+      "structuralCleanup": {
+        "sourceComponentCount": 1,
+        "sourceDiscardedPixels": 0,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    },
+    {
+      "state": "charge",
+      "fileName": "prism-bloom-charge.png",
+      "sha256": "c39904b62609380160debad86e692b8fd22bd0cd4e61781a11e5a50f1ff4aa90",
+      "structuralCleanup": {
+        "sourceComponentCount": 4,
+        "sourceDiscardedPixels": 1307,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    },
+    {
+      "state": "attack-a",
+      "fileName": "prism-bloom-attack-a.png",
+      "sha256": "412528512c31c45fa06b8d9aaf48761fc7047238c214822a3be855f51bf33b30",
+      "structuralCleanup": {
+        "sourceComponentCount": 13,
+        "sourceDiscardedPixels": 7203,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    },
+    {
+      "state": "attack-b",
+      "fileName": "prism-bloom-attack-b.png",
+      "sha256": "53db1644c668d688ca7dc6c002576b4316d015ae498a81bb95ae2d2a63f95b8f",
+      "structuralCleanup": {
+        "sourceComponentCount": 14,
+        "sourceDiscardedPixels": 7221,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    },
+    {
+      "state": "damage",
+      "fileName": "prism-bloom-damage.png",
+      "sha256": "1283b9b0d029e7e52931c0e80fe260aa41cca53c6e01e9428700364fa04b6379",
+      "structuralCleanup": {
+        "sourceComponentCount": 2,
+        "sourceDiscardedPixels": 17,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    },
+    {
+      "state": "critical",
+      "fileName": "prism-bloom-critical.png",
+      "sha256": "b1c019584cfbe8a92091f490d0401686f08093d3a2daaa633818ff3414e6af4e",
+      "structuralCleanup": {
+        "sourceComponentCount": 1,
+        "sourceDiscardedPixels": 0,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    }
+  ],
+  "sheet": {
+    "fileName": "prism-bloom-sheet.png",
+    "sha256": "389b207bfc3f72d8e081e7241d379671ac4d4fee91a66f542aa32c3f9557ef8b",
+    "gutterPixels": 4
+  }
+}

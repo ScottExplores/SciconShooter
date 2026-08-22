@@ -43,6 +43,22 @@ test('preview seek and fast-forward frame budgets are executable and strictly bo
   assert.equal(preview.resolvePreviewAttackLoopFrame(145, 15, 100), 15);
 });
 
+test('completed previews retain fixed-step ticks only for a pending camera restore', () => {
+  const preview = loadPreviewSession();
+  const shouldAdvance = (gameActive, pendingCameraRestore, running = true) => (
+    preview.shouldAdvancePreviewRuntimeFrame({
+      running,
+      gameActive,
+      pendingCameraRestore
+    })
+  );
+
+  assert.equal(shouldAdvance(true, false), true);
+  assert.equal(shouldAdvance(false, true), true);
+  assert.equal(shouldAdvance(false, false), false);
+  assert.equal(shouldAdvance(true, true, false), false);
+});
+
 test('Boss Factory debug controls normalize unsafe input and expose only supported safe guides', () => {
   const preview = loadPreviewSession();
 
@@ -125,6 +141,8 @@ test('the canonical canvas routes typed preview commands through the real engine
   assert.match(canvas, /pixiRendererRef\.current\?\.capturePngDataUrl\(\)/);
   assert.match(canvas, /onPreviewSnapshot\?: \(snapshot: PreviewSnapshot\) => void/);
   assert.match(canvas, /RUNTIME_STATE_SYNC_INTERVAL_MS/);
+  assert.match(canvas, /shouldAdvancePreviewRuntimeFrame\(/);
+  assert.match(canvas, /engine\.hasPendingPreviewEncounterCameraRestore\(\)/);
 
   assert.match(engine, /private canUsePreviewControl\(\)/);
   assert.match(engine, /return this\.previewMode \|\| this\.testMode/);
@@ -147,6 +165,7 @@ test('the canonical canvas routes typed preview commands through the real engine
   assert.match(engine, /invincible: this\.previewInvincibleBossComponents\.has\(component\)/);
   assert.match(engine, /rescalePreviewHealthBudget\([\s\S]*boss\.hp,[\s\S]*previousMaxHealth,[\s\S]*maxHealth/);
   assert.match(engine, /safeRegionGuide: resolvePreviewSafeRegionGuide\(activePrimitiveId\)/);
+  assert.match(engine, /hasPendingPreviewEncounterCameraRestore\(\)/);
 });
 
 test('Pixi owns preview-only modular diagnostics and uses its extract system for PNG capture', () => {

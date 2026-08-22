@@ -27,7 +27,7 @@ const remotePrototypeAssetUrls = (): Plugin => ({
   transform(source, id) {
     if (
       !source.includes('/__director/api/v1/prototype-assets/')
-      && !source.includes('/game-art/generated/mini-boss-lab-v2')
+      && !source.includes('/game-art/generated/mini-boss-lab-v3')
     ) return null;
     const code = rewriteHostedRunnerAssetUrls(source);
     return { code, map: null };

@@ -1,0 +1,261 @@
+{
+  "schemaVersion": 1,
+  "encounterId": "aegis-convoy-captain",
+  "sourceSha256": "d65e3ae618df1cd7f963dd4b4acb2c07efd37563a892b277928bff45078e80a8",
+  "canvas": {
+    "width": 192,
+    "height": 192
+  },
+  "runtimeContract": {
+    "sampling": "nearest",
+    "alpha": "binary",
+    "maximumSharedColors": 32,
+    "minimumMarginPixels": 8
+  },
+  "palette": [
+    [
+      17,
+      17,
+      17
+    ],
+    [
+      17,
+      51,
+      85
+    ],
+    [
+      17,
+      34,
+      68
+    ],
+    [
+      0,
+      0,
+      0
+    ],
+    [
+      34,
+      34,
+      34
+    ],
+    [
+      34,
+      17,
+      17
+    ],
+    [
+      17,
+      51,
+      102
+    ],
+    [
+      17,
+      17,
+      34
+    ],
+    [
+      17,
+      34,
+      51
+    ],
+    [
+      17,
+      34,
+      85
+    ],
+    [
+      34,
+      51,
+      85
+    ],
+    [
+      51,
+      51,
+      51
+    ],
+    [
+      34,
+      34,
+      51
+    ],
+    [
+      34,
+      51,
+      102
+    ],
+    [
+      0,
+      0,
+      17
+    ],
+    [
+      17,
+      0,
+      0
+    ],
+    [
+      238,
+      170,
+      51
+    ],
+    [
+      221,
+      153,
+      34
+    ],
+    [
+      51,
+      51,
+      68
+    ],
+    [
+      34,
+      51,
+      68
+    ],
+    [
+      17,
+      34,
+      34
+    ],
+    [
+      0,
+      17,
+      34
+    ],
+    [
+      0,
+      17,
+      17
+    ],
+    [
+      238,
+      170,
+      34
+    ],
+    [
+      51,
+      34,
+      34
+    ],
+    [
+      51,
+      34,
+      17
+    ],
+    [
+      68,
+      68,
+      68
+    ],
+    [
+      34,
+      34,
+      17
+    ],
+    [
+      238,
+      153,
+      34
+    ],
+    [
+      17,
+      17,
+      0
+    ],
+    [
+      34,
+      17,
+      0
+    ],
+    [
+      34,
+      17,
+      34
+    ]
+  ],
+  "frames": [
+    {
+      "state": "neutral",
+      "fileName": "aegis-convoy-captain-neutral.png",
+      "sha256": "61d345f78ec7491292cb9d3bfe88b948e9be57e42d1f459cdbffb1e116c3d42b",
+      "structuralCleanup": {
+        "sourceComponentCount": 31,
+        "sourceDiscardedPixels": 1133,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    },
+    {
+      "state": "idle",
+      "fileName": "aegis-convoy-captain-idle.png",
+      "sha256": "e32c817a58a0e2fa899d67f078880354c58f43fadbc8fd9e52fb29c3259c9745",
+      "structuralCleanup": {
+        "sourceComponentCount": 15,
+        "sourceDiscardedPixels": 1453,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    },
+    {
+      "state": "charge",
+      "fileName": "aegis-convoy-captain-charge.png",
+      "sha256": "49c30e7329808ef816784c25c8913968432a7c874e9c68b0e5725ccf6305aeff",
+      "structuralCleanup": {
+        "sourceComponentCount": 9,
+        "sourceDiscardedPixels": 2083,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    },
+    {
+      "state": "attack-a",
+      "fileName": "aegis-convoy-captain-attack-a.png",
+      "sha256": "75271df4c15d3768d99c79d66be0afe4631b9290cc75730549ff7b799fd0fdb5",
+      "structuralCleanup": {
+        "sourceComponentCount": 14,
+        "sourceDiscardedPixels": 1457,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    },
+    {
+      "state": "attack-b",
+      "fileName": "aegis-convoy-captain-attack-b.png",
+      "sha256": "552bfaf8dde364d628ed045f5e04026bb118717242d97cbf6b3d8a1206acbdaf",
+      "structuralCleanup": {
+        "sourceComponentCount": 26,
+        "sourceDiscardedPixels": 1486,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    },
+    {
+      "state": "damage",
+      "fileName": "aegis-convoy-captain-damage.png",
+      "sha256": "eaab94b38e7a9cff280daa786ffe1a5f08aae4bd261248979d363c57324eb159",
+      "structuralCleanup": {
+        "sourceComponentCount": 14,
+        "sourceDiscardedPixels": 1755,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    },
+    {
+      "state": "critical",
+      "fileName": "aegis-convoy-captain-critical.png",
+      "sha256": "9d82b488f0b2c6d7ff6e6566d47e307e0e0cf17450803ffcf6425e9ce2f159c2",
+      "structuralCleanup": {
+        "sourceComponentCount": 3,
+        "sourceDiscardedPixels": 2368,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    }
+  ],
+  "sheet": {
+    "fileName": "aegis-convoy-captain-sheet.png",
+    "sha256": "22a68856f4a9dce7f1d22c80f4c40d6be1c29c7551b0f61dd1dbe1a3cd6d44ac",
+    "gutterPixels": 4
+  }
+}

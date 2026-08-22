@@ -91,6 +91,20 @@ export type PreviewCommand =
     readonly eventId?: string;
   })
   | (PreviewCommandBase & {
+    readonly type: 'destroy-boss-component';
+    readonly componentId: string;
+    readonly eventId?: string;
+  })
+  | (PreviewCommandBase & {
+    readonly type: 'restore-boss-components';
+    readonly eventId?: string;
+  })
+  | (PreviewCommandBase & {
+    readonly type: 'set-encounter-camera';
+    readonly mode: 'auto' | 'normal' | 'expanded';
+  })
+  | (PreviewCommandBase & { readonly type: 'replay-encounter-camera' })
+  | (PreviewCommandBase & {
     readonly type: 'set-debug-overlays';
     readonly overlays: PreviewDebugOverlayState;
   })
@@ -206,7 +220,7 @@ export interface PreviewBossSnapshot {
   readonly activeWells: number;
   readonly hazardCount: number;
   readonly lifecycle: Readonly<{
-    kind: 'vanish-reentry' | 'escape';
+    kind: 'vanish-reentry' | 'escape' | 'abyssal-defeat';
     stage: string;
     progress: number;
   }> | null;
@@ -220,6 +234,38 @@ export interface PreviewBossSnapshot {
   readonly activeAttack: PreviewBossAttackSnapshot | null;
   readonly activePrimitiveId: BossTimelinePrimitiveId | null;
   readonly safeRegionGuide: PreviewSafeRegionGuide | null;
+  /** Colossal Test Boss diagnostics. Null for every non-Octarch encounter. */
+  readonly octarch: PreviewAbyssalOctarchSnapshot | null;
+}
+
+export interface PreviewAbyssalOctarchSnapshot {
+  readonly survivingTentacles: number;
+  readonly selectedTentacleId: string | null;
+  readonly activeActionId: string | null;
+  readonly actionStage: string | null;
+  readonly grabState: 'none' | 'reaching' | 'held' | 'throwing' | 'immunity';
+  readonly playerCaptured: boolean;
+  readonly throwVelocity: Readonly<{ x: number; y: number }> | null;
+  readonly phaseReaction: Readonly<{
+    phaseId: string;
+    stage: string;
+    progress: number;
+    remainingFrames: number;
+  }> | null;
+  readonly defeatStage: string | null;
+  readonly defeatProgress: number;
+}
+
+export interface PreviewEncounterCameraSnapshot {
+  readonly profileEventId: string;
+  readonly mode: 'auto' | 'normal' | 'expanded';
+  readonly scale: number;
+  readonly offsetX: number;
+  readonly offsetY: number;
+  readonly progress: number;
+  readonly expanded: boolean;
+  readonly displayBounds: Readonly<{ width: number; height: number }>;
+  readonly worldBounds: Readonly<{ width: number; height: number }>;
 }
 
 export interface PreviewBossComponentSnapshot {
@@ -277,6 +323,7 @@ export interface PreviewSnapshot extends PreviewPlaybackSnapshot {
   readonly durationSeconds: number;
   readonly entityCount: number;
   readonly activeEventIds: readonly string[];
+  readonly encounterCamera: PreviewEncounterCameraSnapshot | null;
   readonly boss: PreviewBossSnapshot | null;
   readonly miniBossEncounter: PreviewMiniBossEncounterSnapshot | null;
 }
@@ -295,6 +342,20 @@ export interface PreviewCommandResult {
 export const clampPreviewTimeScale = (value: number) => (
   Math.max(0.25, Math.min(2, Number.isFinite(value) ? value : 1))
 );
+
+/**
+ * A completed preview normally stops simulation immediately. Camera restore is
+ * the one bounded post-completion lifecycle that still needs fixed-step ticks.
+ */
+export const shouldAdvancePreviewRuntimeFrame = ({
+  running,
+  gameActive,
+  pendingCameraRestore
+}: {
+  readonly running: boolean;
+  readonly gameActive: boolean;
+  readonly pendingCameraRestore: boolean;
+}) => running && (gameActive || pendingCameraRestore);
 
 export const clampPreviewBossHealthRatio = (value: number) => (
   Math.max(0.01, Math.min(1, Number.isFinite(value) ? value : 1))

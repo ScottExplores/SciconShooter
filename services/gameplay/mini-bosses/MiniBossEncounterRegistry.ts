@@ -13,7 +13,7 @@ import { MINI_BOSS_LAB_ENCOUNTER_IDS } from './types.ts';
 const STAGE_20_ENEMY_ROOT = '/game-art/generated/scicon-stage20-expansion-v1/enemies/frames';
 const WARNING_EFFECT_ROOT = '/game-art/generated/ui/animations/boss-alert-banners-v1/effects';
 const EXPLOSION_ROOT = '/game-art/pixi/effects/explosion';
-const MINI_BOSS_LAB_V2_ROOT = '/game-art/generated/mini-boss-lab-v2';
+const MINI_BOSS_LAB_V2_ROOT = '/game-art/generated/mini-boss-lab-v3';
 
 const stage20Enemy = (name: string) => `${STAGE_20_ENEMY_ROOT}/${name}.png`;
 const miniBossLabV2Frame = (encounterId: MiniBossEncounterId, fileName: string) => (
@@ -45,7 +45,7 @@ const generatedAnimatedBodyAsset = (
   usage: 'primary-body',
   status: 'approved-generated',
   galleryCategory: 'Elite Enemies',
-  provenance: 'generated-mini-boss-lab-v2',
+  provenance: 'generated-mini-boss-lab-v3',
   frames: Object.freeze(frames.map((fileName) => miniBossLabV2Frame(encounterId, fileName)))
 });
 const generatedProjectileAsset = (
@@ -58,7 +58,7 @@ const generatedProjectileAsset = (
   usage: 'projectile',
   status: 'approved-generated',
   galleryCategory: 'Elite Enemies',
-  provenance: 'generated-mini-boss-lab-v2',
+  provenance: 'generated-mini-boss-lab-v3',
   frames: Object.freeze(frames.map((fileName) => miniBossLabV2Frame(encounterId, fileName))),
   ...dimensions
 });
@@ -174,7 +174,7 @@ const FRACTURE_ENGINE_ELITE = Object.freeze({
       'fracture-engine-elite-neutral.png',
       'fracture-engine-elite-idle.png',
       'fracture-engine-elite-charge.png',
-      'fracture-engine-elite-attack.png',
+      'fracture-engine-elite-attack-a.png',
       'fracture-engine-elite-attack-b.png',
       'fracture-engine-elite-damage.png',
       'fracture-engine-elite-critical.png'
@@ -372,7 +372,15 @@ const RAILSPINE_WALLCRAWLER = Object.freeze({
       'railspine-wallcrawler-damage.png',
       'railspine-wallcrawler-critical.png'
     ]),
-    linkedAsset('railspine-body-right', stage20Enemy('wall-sniper-right')),
+    generatedAnimatedBodyAsset('railspine-body-right', 'railspine-wallcrawler', [
+      'railspine-wallcrawler-neutral.png',
+      'railspine-wallcrawler-idle.png',
+      'railspine-wallcrawler-charge.png',
+      'railspine-wallcrawler-attack-a.png',
+      'railspine-wallcrawler-attack-b.png',
+      'railspine-wallcrawler-damage.png',
+      'railspine-wallcrawler-critical.png'
+    ]),
     generatedProjectileAsset('railspine-needle', 'railspine-wallcrawler', [
       'railspine-needle-01.png', 'railspine-needle-02.png', 'railspine-needle-03.png', 'railspine-needle-04.png'
     ], { widthPixels: 14, heightPixels: 36 }),
@@ -393,7 +401,7 @@ const RAILSPINE_WALLCRAWLER = Object.freeze({
     activeSeconds: 2.1,
     recoverySeconds: 0.75,
     emissionIntervalFrames: 20,
-    maximumProjectilesPerEmission: 5,
+    maximumProjectilesPerEmission: 1,
     projectileAssetId: 'railspine-needle',
     telegraphAssetId: 'railspine-scan'
   }),
@@ -671,7 +679,15 @@ const GRIDLINE_SENTRIES = Object.freeze({
       'gridline-sentries-damage.png',
       'gridline-sentries-critical.png'
     ]),
-    linkedAsset('gridline-sentry-mirror', stage20Enemy('wall-sniper-right')),
+    generatedAnimatedBodyAsset('gridline-sentry-mirror', 'gridline-sentries', [
+      'gridline-sentries-neutral.png',
+      'gridline-sentries-idle.png',
+      'gridline-sentries-charge.png',
+      'gridline-sentries-attack-a.png',
+      'gridline-sentries-attack-b.png',
+      'gridline-sentries-damage.png',
+      'gridline-sentries-critical.png'
+    ]),
     generatedProjectileAsset('gridline-bolt', 'gridline-sentries', [
       'gridline-bolt-01.png', 'gridline-bolt-02.png', 'gridline-bolt-03.png', 'gridline-bolt-04.png'
     ], { widthPixels: 14, heightPixels: 36 }),

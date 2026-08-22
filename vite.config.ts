@@ -1,6 +1,8 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { createRequire } from 'node:module';
+import fs from 'node:fs';
+import path from 'node:path';
 
 const require = createRequire(import.meta.url);
 const leaderboardHandler = require('./api/leaderboard.js');
@@ -180,8 +182,27 @@ const localApiRoutes = () => ({
   }
 });
 
+const excludeSandboxTestAssetsFromProduction = () => ({
+  name: 'exclude-sandbox-test-assets-from-production',
+  closeBundle() {
+    const distRoot = path.resolve(process.cwd(), 'dist');
+    const testPackagesRoot = path.resolve(
+      distRoot,
+      'game-art',
+      'generated',
+      'bosses',
+      'test-packages'
+    );
+    const relativeTarget = path.relative(distRoot, testPackagesRoot);
+    if (relativeTarget.startsWith('..') || path.isAbsolute(relativeTarget)) {
+      throw new Error('Refusing to remove sandbox test assets outside the production dist directory.');
+    }
+    fs.rmSync(testPackagesRoot, { recursive: true, force: true });
+  }
+});
+
 export default defineConfig({
-  plugins: [react(), localApiRoutes()],
+  plugins: [react(), localApiRoutes(), excludeSandboxTestAssetsFromProduction()],
   publicDir: 'public', // Ensures public/ folder is served at root
   build: {
     outDir: 'dist',

@@ -9,7 +9,13 @@ if (!fs.existsSync(indexPath)) {
   throw new Error('Production boundary check expected dist/index.html after the Vite build.');
 }
 
-const forbiddenPathFragments = ['director', 'director-data', '__director', 'combat-lab'];
+const forbiddenPathFragments = [
+  'director',
+  'director-data',
+  '__director',
+  'combat-lab',
+  'test-packages'
+];
 const forbiddenPrototypeAssetBasenames = [
   'meridian-harrower-assembled',
   'meridian-harrower-modular-sheet',

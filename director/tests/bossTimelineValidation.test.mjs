@@ -419,6 +419,88 @@ test('side barrages allow explicit heavy-cannon and gatling presentation cues', 
   )));
 });
 
+test('Octarch motion cues remain portable across browser and server validators', () => {
+  const motionCues = [
+    'octarch-grasp-hurl',
+    'octarch-tentacle-slam',
+    'octarch-sweeping-arm',
+    'octarch-needle-stab',
+    'octarch-constricting-ring',
+    'octarch-suction-current',
+    'octarch-asteroid-hurl',
+    'octarch-abyssal-gaze'
+  ];
+
+  motionCues.forEach((motionCue) => {
+    const { candidate, boss } = campaignWithTimeline();
+    const effect = boss.timeline.clips.find((clip) => clip.primitiveId === 'effect-cue');
+    effect.parameters = { color: '#67e8f9', motionCue };
+    const serverResult = validateServerCampaign(candidate);
+    const browserResult = validateBrowserCampaign(candidate);
+    assert.equal(serverResult.valid, true, `${motionCue}: ${serverResult.errors.join('\n')}`);
+    assert.equal(
+      browserResult.valid,
+      true,
+      `${motionCue}: ${browserResult.issues.map((issue) => `${issue.path}: ${issue.message}`).join('\n')}`
+    );
+  });
+
+  const { candidate, boss } = campaignWithTimeline();
+  const attack = boss.timeline.clips.find((clip) => clip.primitiveId === 'aimed-burst');
+  attack.primitiveId = 'pod-volley';
+  attack.label = 'Octarch asteroid hurl';
+  attack.parameters = {
+    projectileCount: 6,
+    sequence: 0,
+    motionCue: 'octarch-asteroid-hurl'
+  };
+  const serverResult = validateServerCampaign(candidate);
+  const browserResult = validateBrowserCampaign(candidate);
+  assert.equal(serverResult.valid, true, serverResult.errors.join('\n'));
+  assert.equal(
+    browserResult.valid,
+    true,
+    browserResult.issues.map((issue) => `${issue.path}: ${issue.message}`).join('\n')
+  );
+});
+
+test('portable timeline validators accept 256 clips and reject the 257th', () => {
+  const buildCandidate = (clipCount) => {
+    const { candidate, boss } = campaignWithTimeline();
+    boss.timeline.clips = Array.from({ length: clipCount }, (_, index) => ({
+      id: `capacity-effect-${index + 1}`,
+      label: `Capacity effect ${index + 1}`,
+      track: 'presentation',
+      primitiveId: 'effect-cue',
+      trigger: 'time',
+      startSeconds: index * 0.02,
+      durationSeconds: 0.1,
+      parameters: { color: '#67e8f9' }
+    }));
+    return candidate;
+  };
+
+  const maximum = buildCandidate(256);
+  const maximumServer = validateServerCampaign(maximum);
+  const maximumBrowser = validateBrowserCampaign(maximum);
+  assert.equal(maximumServer.valid, true, maximumServer.errors.join('\n'));
+  assert.equal(
+    maximumBrowser.valid,
+    true,
+    maximumBrowser.issues.map((issue) => `${issue.path}: ${issue.message}`).join('\n')
+  );
+
+  const overflow = buildCandidate(257);
+  const overflowServer = validateServerCampaign(overflow);
+  const overflowBrowser = validateBrowserCampaign(overflow);
+  assert.equal(overflowServer.valid, false);
+  assert.ok(overflowServer.errors.some((error) => error.includes('at most 256 items')));
+  assert.equal(overflowBrowser.valid, false);
+  assert.ok(overflowBrowser.issues.some((issue) => (
+    issue.path.endsWith('/clips') && issue.code === 'too_many_items'
+  )));
+});
+
 test('server campaign validation rejects unsafe boss timeline shapes and missing warnings', () => {
   const { candidate, boss } = campaignWithTimeline();
   const attack = boss.timeline.clips.find((clip) => clip.primitiveId === 'aimed-burst');

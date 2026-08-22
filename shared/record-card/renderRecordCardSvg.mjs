@@ -84,10 +84,7 @@ const RECORD_CARD_ENCOUNTER_ART = Object.freeze({
     Object.freeze({ path: '/game-art/pixi/bosses/paywall-decimator/helmet.png', x: 0.35, y: 0.13, width: 0.3, height: 0.3 })
   ]),
   PAYWALL_BASTION_FRAMES: Object.freeze([
-    Object.freeze({ path: '/game-art/pixi/bosses/paywall-decimator/body/frame-1.png', x: 0.16, y: 0.18, width: 0.68, height: 0.58 }),
-    Object.freeze({ path: '/game-art/pixi/bosses/paywall-decimator/cannon-left.png', x: 0.12, y: 0.52, width: 0.28, height: 0.32 }),
-    Object.freeze({ path: '/game-art/pixi/bosses/paywall-decimator/cannon-right.png', x: 0.6, y: 0.52, width: 0.28, height: 0.32 }),
-    Object.freeze({ path: '/game-art/pixi/bosses/paywall-decimator/helmet.png', x: 0.35, y: 0.13, width: 0.3, height: 0.3 })
+    Object.freeze({ path: '/game-art/generated/elite-enemies/paywall-wall-v2/frames/paywall-wall-02-neutral.png', x: 0.12, y: 0.08, width: 0.76, height: 0.84 })
   ]),
   PIXI_BOSS_CROWNCLAW_FRAMES: Object.freeze([
     Object.freeze({ path: '/game-art/generated/bosses/astral-crownclaw/astral-crownclaw-intact.png', x: 0.03, y: 0.08, width: 0.94, height: 0.84 })

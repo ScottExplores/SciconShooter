@@ -1,0 +1,261 @@
+{
+  "schemaVersion": 1,
+  "encounterId": "aegis-brood-core",
+  "sourceSha256": "f6a5720ec0b885433e6def0839d55c61eabd68c60e6e64a2c1326a178b604755",
+  "canvas": {
+    "width": 192,
+    "height": 192
+  },
+  "runtimeContract": {
+    "sampling": "nearest",
+    "alpha": "binary",
+    "maximumSharedColors": 32,
+    "minimumMarginPixels": 8
+  },
+  "palette": [
+    [
+      0,
+      0,
+      0
+    ],
+    [
+      17,
+      34,
+      51
+    ],
+    [
+      34,
+      119,
+      119
+    ],
+    [
+      0,
+      0,
+      17
+    ],
+    [
+      17,
+      17,
+      34
+    ],
+    [
+      0,
+      51,
+      51
+    ],
+    [
+      17,
+      34,
+      68
+    ],
+    [
+      0,
+      17,
+      17
+    ],
+    [
+      204,
+      153,
+      51
+    ],
+    [
+      0,
+      34,
+      34
+    ],
+    [
+      17,
+      17,
+      51
+    ],
+    [
+      17,
+      17,
+      17
+    ],
+    [
+      17,
+      34,
+      85
+    ],
+    [
+      0,
+      17,
+      34
+    ],
+    [
+      51,
+      34,
+      17
+    ],
+    [
+      187,
+      136,
+      51
+    ],
+    [
+      221,
+      170,
+      68
+    ],
+    [
+      68,
+      34,
+      17
+    ],
+    [
+      34,
+      51,
+      85
+    ],
+    [
+      34,
+      119,
+      102
+    ],
+    [
+      17,
+      0,
+      0
+    ],
+    [
+      85,
+      51,
+      17
+    ],
+    [
+      34,
+      51,
+      68
+    ],
+    [
+      0,
+      34,
+      51
+    ],
+    [
+      34,
+      17,
+      17
+    ],
+    [
+      34,
+      34,
+      68
+    ],
+    [
+      204,
+      136,
+      51
+    ],
+    [
+      34,
+      136,
+      119
+    ],
+    [
+      51,
+      68,
+      102
+    ],
+    [
+      34,
+      136,
+      136
+    ],
+    [
+      187,
+      136,
+      34
+    ],
+    [
+      0,
+      17,
+      0
+    ]
+  ],
+  "frames": [
+    {
+      "state": "neutral",
+      "fileName": "aegis-brood-core-neutral.png",
+      "sha256": "a6e6054b43b509d63534f87ab96a70decf99a268128887805e3d6f707c1b3da1",
+      "structuralCleanup": {
+        "sourceComponentCount": 1,
+        "sourceDiscardedPixels": 0,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    },
+    {
+      "state": "idle",
+      "fileName": "aegis-brood-core-idle.png",
+      "sha256": "63adfc1be5273e81d100e60de06f0a2ad158609d62e7ade898f225e3b6a38e46",
+      "structuralCleanup": {
+        "sourceComponentCount": 3,
+        "sourceDiscardedPixels": 276,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    },
+    {
+      "state": "charge",
+      "fileName": "aegis-brood-core-charge.png",
+      "sha256": "3a5606bb81fcc123d44d4421eadc816aade3ce89273b4705410ef1f1d07019fd",
+      "structuralCleanup": {
+        "sourceComponentCount": 2,
+        "sourceDiscardedPixels": 70,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    },
+    {
+      "state": "attack-a",
+      "fileName": "aegis-brood-core-attack-a.png",
+      "sha256": "4701d27c4daf8416c47f413d9da96a5a704b4d491d3d416ec258c9034b7fbc1c",
+      "structuralCleanup": {
+        "sourceComponentCount": 1,
+        "sourceDiscardedPixels": 0,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    },
+    {
+      "state": "attack-b",
+      "fileName": "aegis-brood-core-attack-b.png",
+      "sha256": "a1b05ce40ec9c31246f4b066bdb151e84bcb9f6e9665ec0d644b56b8ba644804",
+      "structuralCleanup": {
+        "sourceComponentCount": 1,
+        "sourceDiscardedPixels": 0,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    },
+    {
+      "state": "damage",
+      "fileName": "aegis-brood-core-damage.png",
+      "sha256": "02ba4674c3d186d1a8774ecef6a675cf7862a7e1555c8f07f11060bb704ee448",
+      "structuralCleanup": {
+        "sourceComponentCount": 4,
+        "sourceDiscardedPixels": 676,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    },
+    {
+      "state": "critical",
+      "fileName": "aegis-brood-core-critical.png",
+      "sha256": "d0319fd0ce3f929bf70bd005cff4d8c33b533bdfbe18f170fff52cc1eb162cc0",
+      "structuralCleanup": {
+        "sourceComponentCount": 1,
+        "sourceDiscardedPixels": 0,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    }
+  ],
+  "sheet": {
+    "fileName": "aegis-brood-core-sheet.png",
+    "sha256": "e7833b4aa5dbb003e1a5db0c025f3a3e2b2b9d64be1ef2e116e89730ceef7b10",
+    "gutterPixels": 4
+  }
+}

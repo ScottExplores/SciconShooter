@@ -15,6 +15,11 @@ import {
   type BossAttackSentenceBlueprint
 } from '@game/game-config/bossAttackSentences';
 import { assertValidGameCampaign } from '@game/game-config/validate';
+import {
+  ABYSSAL_OCTARCH_ACTION_IDS,
+  ABYSSAL_OCTARCH_PHASE_ACTIONS,
+  type AbyssalOctarchPhaseId
+} from '@game/services/gameplay/bosses/AbyssalOctarchRuntime';
 import type { CombatLabPreviewResult } from './experimentModel';
 
 export type SandboxBossPrototypeId =
@@ -26,6 +31,7 @@ export type SandboxBossPrototypeId =
   | 'helios-clawcarrier'
   | 'frontier-crownclaw'
   | 'aurora-storm-engine'
+  | 'abyssal-octarch'
   | 'umbra-needlewing'
   | 'cinderjaw-siege-beetle'
   | 'gloamforge-mantis'
@@ -3939,7 +3945,340 @@ const gridlineTimeline = miniBossTimeline({
   }
 });
 
+const abyssalFirstContact = 'octarch-first-contact';
+const abyssalHunts = 'octarch-hunts';
+const abyssalSeveredFury = 'octarch-severed-fury';
+const abyssalFinalCore = 'octarch-final-core';
+
+const abyssalAttackOrder = ABYSSAL_OCTARCH_ACTION_IDS;
+
+const buildAbyssalPreludeBeat = (
+  id: string,
+  label: string,
+  offsetSeconds: number,
+  motionCue: NonNullable<PrototypeTimelineParameters['motionCue']>
+): BossAttackBeatBlueprint => ({
+  id,
+  label,
+  primitiveId: 'effect-cue',
+  offsetSeconds,
+  telegraphStyle: 'warning',
+  leadSeconds: 0.45,
+  actionDurationSeconds: 0.18,
+  parameters: { motionCue, color: '#22d3ee' }
+});
+
+const buildAbyssalPhase = ({
+  phaseId,
+  phaseIndex,
+  color
+}: {
+  phaseId: AbyssalOctarchPhaseId;
+  phaseIndex: 1 | 2 | 3 | 4;
+  color: string;
+}): BossAttackPhaseBlueprint => {
+  const lead = phaseIndex === 1 ? 1.05 : phaseIndex === 2 ? 0.9 : phaseIndex === 3 ? 0.76 : 0.7;
+  const recovery = phaseIndex === 1 ? 0.9 : phaseIndex === 2 ? 0.75 : 0.65;
+  // Each window clears the previous attack's authored recovery. The short gap
+  // is intentional transition time, not an overlapping or blank combat state.
+  const starts = [0.25, 5.2, 9.55, 13.9, 18.25, 22.6, 26.95, 31.3] as const;
+  const makeCoreAttack = ({
+    id,
+    label,
+    primitiveId,
+    startSeconds,
+    style,
+    cue,
+    solution,
+    safeRouteRule,
+    sourceSocketRoles,
+    parameters = {}
+  }: {
+    id: string;
+    label: string;
+    primitiveId: BossAttackBeatBlueprint['primitiveId'];
+    startSeconds: number;
+    style: BossTimelineTelegraphStyle;
+    cue: NonNullable<PrototypeTimelineParameters['motionCue']>;
+    solution: string;
+    safeRouteRule: BossAttackSentenceBlueprint['safeRouteRule'];
+    sourceSocketRoles: BossAttackSentenceBlueprint['sourceSocketRoles'];
+    parameters?: PrototypeTimelineParameters;
+  }): BossAttackSentenceBlueprint => ({
+    id,
+    label,
+    phaseId,
+    role: 'core',
+    skillTest: style === 'ring' ? 'gap-tracking' : style === 'lane' ? 'lane-routing' : 'rhythm-dodge',
+    recognitionCue: `${label} begins with one named limb posture and a locked ${style} warning.`,
+    solution,
+    safeRouteRule,
+    sourceSocketRoles,
+    startSeconds,
+    recoverySeconds: recovery,
+    color,
+    beats: [
+      buildAbyssalPreludeBeat(`${id}-prepare`, `${label} preparation`, 0, cue),
+      {
+        id: `${id}-strike`,
+        label,
+        primitiveId,
+        offsetSeconds: 0.7,
+        telegraphStyle: style,
+        leadSeconds: lead,
+        actionDurationSeconds: phaseIndex >= 3 ? 1.35 : 1.55,
+        parameters: { ...parameters, sequence: phaseIndex - 1, motionCue: cue }
+      }
+    ]
+  });
+  const grasp: BossAttackSentenceBlueprint = {
+    id: 'grasp-and-hurl',
+    label: 'Grasp and Hurl',
+    phaseId,
+    role: 'signature',
+    skillTest: 'route-combination',
+    recognitionCue: 'One middle tentacle lights every suction node, coils backward, then locks one reachable strike arc.',
+    solution: 'Leave the locked arc before extension; if caught, the single bounded throw returns control with immunity.',
+    safeRouteRule: 'channel-to-quadrant',
+    sourceSocketRoles: ['port', 'starboard'],
+    startSeconds: starts[0],
+    recoverySeconds: recovery + 0.25,
+    color,
+    beats: [
+      buildAbyssalPreludeBeat('grasp-search', 'Searching suction nodes', 0, 'octarch-grasp-hurl'),
+      buildAbyssalPreludeBeat('grasp-coil', 'Tentacle coils', 0.65, 'octarch-grasp-hurl'),
+      {
+        id: 'grasp-reach',
+        label: 'Grasping reach',
+        primitiveId: 'articulated-melee-sweep',
+        offsetSeconds: 1.3,
+        telegraphStyle: 'target',
+        leadSeconds: lead + 0.25,
+        actionDurationSeconds: 1.15,
+        parameters: { sequence: phaseIndex - 1, motionCue: 'octarch-grasp-hurl' }
+      },
+      buildAbyssalPreludeBeat('grasp-release', 'Throw release', 3.05, 'octarch-grasp-hurl')
+    ]
+  };
+  const needleThrustCount = phaseIndex >= 3 ? 4 : 3;
+  const needleThrustSpacing = phaseIndex >= 3 ? 0.78 : 0.94;
+  const needleLeadSeconds = phaseIndex >= 3 ? 0.45 : 0.52;
+  const needle: BossAttackSentenceBlueprint = {
+    id: 'needle-tip-stab',
+    label: 'Needle-Tip Stab',
+    phaseId,
+    role: 'core',
+    skillTest: 'rhythm-dodge',
+    recognitionCue: 'The needle arm retracts and locks a fresh target before every separate thrust.',
+    solution: 'Move after each target lock; every warned thrust commits, strikes once, and visibly recovers before the next lock.',
+    safeRouteRule: 'opposite-side-dodge',
+    sourceSocketRoles: ['port', 'starboard'],
+    startSeconds: starts[3],
+    recoverySeconds: recovery,
+    color,
+    beats: Array.from({ length: needleThrustCount }, (_, thrustIndex) => ({
+      id: `needle-thrust-${thrustIndex + 1}`,
+      label: `Needle thrust ${thrustIndex + 1}`,
+      primitiveId: 'tracking-pincer-dive' as const,
+      offsetSeconds: thrustIndex * needleThrustSpacing,
+      telegraphStyle: 'target' as const,
+      leadSeconds: needleLeadSeconds,
+      actionDurationSeconds: phaseIndex >= 3 ? 0.22 : 0.24,
+      parameters: {
+        sequence: (phaseIndex - 1) * 4 + thrustIndex,
+        motionCue: 'octarch-needle-stab' as const
+      }
+    }))
+  };
+  const attacks: readonly BossAttackSentenceBlueprint[] = [
+      grasp,
+      makeCoreAttack({
+        id: 'tentacle-slam',
+        label: 'Tentacle Slam',
+        primitiveId: 'articulated-melee-sweep',
+        startSeconds: starts[1],
+        style: 'target',
+        cue: 'octarch-tentacle-slam',
+        solution: 'Leave the marked impact disk, then punish the embedded arm.',
+        safeRouteRule: 'opposite-side-dodge',
+        sourceSocketRoles: ['port', 'starboard']
+      }),
+      makeCoreAttack({
+        id: 'sweeping-arm',
+        label: 'Sweeping Arm',
+        primitiveId: 'articulated-melee-sweep',
+        startSeconds: starts[2],
+        style: 'lane',
+        cue: 'octarch-sweeping-arm',
+        solution: 'Cross into the warned open band before the arm sweeps through its lane.',
+        safeRouteRule: 'shifting-channel',
+        sourceSocketRoles: ['port', 'starboard']
+      }),
+      needle,
+      makeCoreAttack({
+        id: 'constricting-ring',
+        label: 'Constricting Ring',
+        primitiveId: 'gap-ring',
+        startSeconds: starts[4],
+        style: 'ring',
+        cue: 'octarch-constricting-ring',
+        solution: 'Read the bright opening and exit through it before the loose ring contracts.',
+        safeRouteRule: 'rotating-gap',
+        sourceSocketRoles: ['core', 'port', 'starboard'],
+        parameters: { projectileCount: phaseIndex >= 3 ? 22 : 18 }
+      }),
+      makeCoreAttack({
+        id: 'suction-current',
+        label: 'Suction Current',
+        primitiveId: 'singularity-pulse',
+        startSeconds: starts[5],
+        style: 'ring',
+        cue: 'octarch-suction-current',
+        solution: 'Steer across the visible current instead of fighting directly toward the mouth.',
+        safeRouteRule: 'rotating-gap',
+        sourceSocketRoles: ['core', 'port', 'starboard'],
+        parameters: { projectileCount: phaseIndex >= 3 ? 20 : 16 }
+      }),
+      makeCoreAttack({
+        id: 'asteroid-hurl',
+        label: 'Asteroid Hurl',
+        primitiveId: 'pod-volley',
+        startSeconds: starts[6],
+        style: 'target',
+        cue: 'octarch-asteroid-hurl',
+        solution: 'Watch the held asteroid, then leave its locked trajectory before release.',
+        safeRouteRule: 'opposite-side-dodge',
+        sourceSocketRoles: ['port', 'starboard'],
+        parameters: { projectileCount: phaseIndex >= 3 ? 2 : 1 }
+      }),
+      makeCoreAttack({
+        id: 'abyssal-gaze',
+        label: 'Abyssal Gaze',
+        primitiveId: 'singularity-event-horizon-gaze',
+        startSeconds: starts[7],
+        style: 'lane',
+        cue: 'octarch-abyssal-gaze',
+        solution: 'Let the eye lock, then cross the narrow warned beam lane before it fires.',
+        safeRouteRule: 'shifting-channel',
+        sourceSocketRoles: ['core']
+      })
+  ];
+  const availableAttackIds = new Set<string>(
+    ABYSSAL_OCTARCH_PHASE_ACTIONS[phaseId]
+  );
+  const availableAttacks = attacks
+    .filter((attack) => availableAttackIds.has(attack.id))
+    .map((attack, index) => {
+      const startSeconds = starts[index];
+      if (startSeconds === undefined) {
+        throw new Error(`${phaseId} exceeds the bounded Octarch attack slots.`);
+      }
+      return { ...attack, startSeconds };
+    });
+  return {
+    phaseId,
+    color,
+    cameraStrength: phaseIndex === 1 ? 0.75 : phaseIndex === 2 ? 1 : 1.35,
+    attacks: availableAttacks
+  };
+};
+
+const abyssalOctarchTimeline = compileBossAttackTimeline({
+  durationSeconds: 36,
+  loop: true,
+  attackAvailability: 'phase-subset',
+  attackOrder: abyssalAttackOrder,
+  phases: [
+    buildAbyssalPhase({ phaseId: abyssalFirstContact, phaseIndex: 1, color: '#22d3ee' }),
+    buildAbyssalPhase({ phaseId: abyssalHunts, phaseIndex: 2, color: '#a78bfa' }),
+    buildAbyssalPhase({ phaseId: abyssalSeveredFury, phaseIndex: 3, color: '#fb7185' }),
+    buildAbyssalPhase({ phaseId: abyssalFinalCore, phaseIndex: 4, color: '#fbbf24' })
+  ]
+});
+
 const definitions = deepFreeze([
+  {
+    id: 'abyssal-octarch',
+    label: 'Abyssal Octarch',
+    shortLabel: 'Expanded-arena eight-limb superboss',
+    description: 'A sandbox-only colossal biomechanical octopus that teaches limb destruction, controlled suction, and a fair capture-and-throw mechanic before exposing its final core.',
+    designIntent: [
+      'Test a uniformly zoomed-out world while the HUD remains unscaled',
+      'Make eight independently targetable tentacles drive the encounter phase and available anatomy',
+      'Prove a deterministic warned grab, one bounded throw, and guaranteed cleanup',
+      'Keep this experimental superboss out of Campaign and Weekly content until separately promoted'
+    ],
+    boss: {
+      id: 'sandbox-abyssal-octarch',
+      kind: 'boss',
+      label: 'Abyssal Octarch',
+      startSeconds: 0,
+      durationSeconds: 180,
+      delayAfterSeconds: 0,
+      blocksWaveClock: true,
+      // Reuse an allowlisted runtime identity while the sandbox event ID owns
+      // the experimental mechanics. This prevents accidental Campaign/weekly
+      // registration before the boss is explicitly promoted.
+      bossId: 'singularity-crab',
+      rigId: 'open-orbit',
+      componentMode: 'hull-only',
+      spriteKey: 'CAMPAIGN_BOSS_SINGULARITY_CRAB',
+      spriteStyle: { scale: 1 },
+      sizeMultiplier: 2.5,
+      positionId: 'center-top',
+      movementPatternId: 'arena-roam',
+      warningSeconds: 1.4,
+      health: 3200,
+      speed: 1.15,
+      damage: 1,
+      scoreReward: 0,
+      powerupDropChance: 0,
+      shieldCount: 0,
+      weapons: [{
+        id: 'octarch-core-pulse-placeholder',
+        weaponId: 'burst-volley',
+        attackIntervalSeconds: 9,
+        damage: 1,
+        projectileSpeed: 5.2,
+        burstCount: 1
+      }],
+      phases: [
+        {
+          id: abyssalFirstContact,
+          label: 'First Contact',
+          triggerHealthRatio: 1,
+          movementPatternId: 'arena-roam',
+          speedMultiplier: 0.75,
+          weaponSettingIds: ['octarch-core-pulse-placeholder']
+        },
+        {
+          id: abyssalHunts,
+          label: 'The Octarch Hunts',
+          triggerHealthRatio: 0.75,
+          movementPatternId: 'arena-roam',
+          speedMultiplier: 0.88,
+          weaponSettingIds: ['octarch-core-pulse-placeholder']
+        },
+        {
+          id: abyssalSeveredFury,
+          label: 'Severed Fury',
+          triggerHealthRatio: 0.45,
+          movementPatternId: 'arena-roam',
+          speedMultiplier: 1,
+          weaponSettingIds: ['octarch-core-pulse-placeholder']
+        },
+        {
+          id: abyssalFinalCore,
+          label: 'Final Core',
+          triggerHealthRatio: 0.15,
+          movementPatternId: 'arena-roam',
+          speedMultiplier: 1.08,
+          weaponSettingIds: ['octarch-core-pulse-placeholder']
+        }
+      ],
+      timeline: abyssalOctarchTimeline
+    }
+  },
   {
     id: 'paywall-decimator-archive',
     label: 'Paywall Decimator',

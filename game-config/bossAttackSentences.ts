@@ -77,7 +77,12 @@ const HEX_COLOR = /^#[0-9a-f]{6}$/i;
 const ATTACK_ROLES = new Set<BossAttackSentenceRole>(['core', 'signature']);
 const ATTACK_AVAILABILITY = new Set<BossAttackAvailability>(['every-phase', 'phase-subset']);
 const PHASE_SUBSET_MINIMUM_GLOBAL_ATTACKS = 4;
-const PHASE_SUBSET_MAXIMUM_GLOBAL_ATTACKS = 6;
+/**
+ * Eight remains a deliberately small visual-control ceiling. It supports one
+ * readable button per Octarch mechanic without turning Boss Factory timelines
+ * into an unbounded scripting surface.
+ */
+const PHASE_SUBSET_MAXIMUM_GLOBAL_ATTACKS = 8;
 const PHASE_SUBSET_MINIMUM_ATTACKS_PER_PHASE = 3;
 const ATTACK_SKILL_TESTS = new Set<BossAttackSkillTest>([
   'rhythm-dodge',
@@ -483,7 +488,7 @@ export const compileBossAttackTimeline = (
       || roleCounts.signature !== 1
     ) {
       throw new Error(
-        'Phase-subset timelines require between four and six global attacks, at least three core attacks, and exactly one signature attack.'
+        'Phase-subset timelines require between four and eight global attacks, at least three core attacks, and exactly one signature attack.'
       );
     }
   } else if (attacks.length !== 4 || roleCounts.core !== 3 || roleCounts.signature !== 1) {
@@ -504,8 +509,8 @@ export const compileBossAttackTimeline = (
     ...phaseCues,
     ...compiled.flatMap((entry) => entry.clips)
   ];
-  if (clips.length > 128) {
-    throw new Error('Boss attack timelines support at most 128 compiled clips.');
+  if (clips.length > 256) {
+    throw new Error('Boss attack timelines support at most 256 compiled clips.');
   }
   return {
     durationSeconds,

@@ -1091,7 +1091,15 @@ export type BossTimelineMotionCue =
   | 'umbra-wing-shard-gate'
   | 'umbra-predator-lock'
   | 'umbra-blackout-ambush'
-  | 'umbra-escape';
+  | 'umbra-escape'
+  | 'octarch-grasp-hurl'
+  | 'octarch-tentacle-slam'
+  | 'octarch-sweeping-arm'
+  | 'octarch-needle-stab'
+  | 'octarch-constricting-ring'
+  | 'octarch-suction-current'
+  | 'octarch-asteroid-hurl'
+  | 'octarch-abyssal-gaze';
 
 /**
  * Explicit rotation policy for authored radial beam arrays. Seeded random

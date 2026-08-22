@@ -440,6 +440,113 @@ test('remote restart preserves the ready renderer instead of reopening its start
   assert.doesNotMatch(restart, /setCanvasStatus\('loading'\)/);
 });
 
+test('Abyssal Octarch runs one deterministic, restartable Director entrance', () => {
+  assert.match(source, /prototypeId === 'abyssal-octarch'/);
+  assert.match(source, /ABYSSAL_OCTARCH_TRANSMISSION_COPY/);
+  assert.match(source, /lines: Object\.freeze\(\[/);
+  assert.match(source, /ABYSSAL_OCTARCH_ENTRANCE_STEPS/);
+  const orderedEntranceStages = [
+    'carrier-lock',
+    'transmission-source',
+    'transmission-fracture',
+    'transmission-warning',
+    'abrupt-cutoff',
+    'tentacle-pass',
+    'core-reveal',
+    'emergence',
+    'camera-handoff'
+  ];
+  let previousStageIndex = -1;
+  for (const stageId of orderedEntranceStages) {
+    const stageIndex = source.indexOf(`id: '${stageId}'`);
+    assert.ok(stageIndex > previousStageIndex, `${stageId} follows the prior entrance beat`);
+    previousStageIndex = stageIndex;
+  }
+  assert.match(source, /durationMs:/);
+  assert.match(source, /lineCount:/);
+  assert.match(source, /interference:/);
+  assert.match(source, /\.lines\.slice\(0, octarchEntranceStep\.lineCount\)/);
+  assert.match(source, /octarchEntranceStep\?\.id\.startsWith\('transmission-'\)/);
+  assert.match(source, /Incoming deep-space transmission/);
+  assert.match(source, /Begin encounter/);
+  assert.match(source, /Skip entrance/);
+  assert.match(source, /action === 'begin'/);
+  assert.match(source, /window\.setTimeout/);
+  assert.match(source, /window\.clearTimeout/);
+  assert.match(source, /nextStep\.id === 'camera-handoff'/);
+  assert.match(source, /type: 'replay-encounter-camera'/);
+
+  const startIndex = source.indexOf("  const startOctarchEntrance = useCallback");
+  const skipIndex = source.indexOf("\n\n  const skipOctarchEntrance", startIndex);
+  const startEntrance = source.slice(startIndex, skipIndex);
+  assert.match(startEntrance, /source === 'replay'/);
+  assert.match(startEntrance, /setPreviewCommand\(null\)/);
+  assert.match(startEntrance, /setPreviewSnapshot\(null\)/);
+  assert.match(startEntrance, /setRestartToken\(\(value\) => value \+ 1\)/);
+  assert.doesNotMatch(startEntrance, /replay-encounter-camera/);
+  assert.match(source, /startOctarchEntrance\('replay'\)/);
+
+  const skipEntrance = source.slice(
+    skipIndex,
+    source.indexOf("\n\n  const beginOctarchEncounter", skipIndex)
+  );
+  assert.match(skipEntrance, /type: 'set-encounter-camera', mode: 'expanded'/);
+  assert.match(skipEntrance, /setOctarchExpandedHandoffPending\(!previewSnapshot\?\.boss\)/);
+  assert.match(source, /!octarchExpandedHandoffPending[\s\S]*?!previewSnapshot\?\.boss/);
+  assert.match(source, /setOctarchCameraMode\('expanded'\)/);
+  assert.match(source, /type: 'set-encounter-camera', mode: 'expanded'/);
+  assert.match(source, /setOctarchCameraMode\('auto'\)/);
+  assert.match(source, /type: 'set-encounter-camera'/);
+  assert.match(source, /mode: showOctarchEntrance \? 'prompt' : 'inactive'/);
+  assert.match(source, /mode: nextIsAbyssalOctarch \? 'prompt' : 'inactive'/);
+  assert.match(source, /setPreviewCommand\(null\)/);
+  assert.doesNotMatch(source, /octarchTransmissionVisible/);
+});
+
+test('Abyssal Octarch component lab reports live phase and arena bounds accessibly', () => {
+  assert.match(source, /type: 'destroy-boss-component'/);
+  assert.match(source, /type: 'restore-boss-components'/);
+  assert.match(source, /ABYSSAL_OCTARCH_TENTACLES/);
+  assert.match(source, /ABYSSAL_OCTARCH_PHASES\.find\(\(phase\) => phase\.id === phaseId\)/);
+  assert.match(source, /previewSnapshot\.boss\.phaseIndex/);
+  assert.match(source, /aria-label="Abyssal Octarch development diagnostics"/);
+  assert.match(source, /octarchCameraSnapshot\.scale\.toFixed\(2\)/);
+  assert.match(source, /octarchCameraSnapshot\.worldBounds\.width/);
+  assert.match(source, /octarchCameraSnapshot\?\.mode \?\? octarchCameraMode/);
+  assert.match(source, /resolveOctarchDiagnosticBounds\(octarchCameraSnapshot\)/);
+  assert.match(source, /camera\.displayBounds\.width - camera\.offsetX/);
+  assert.match(source, /ABYSSAL_OCTARCH_PLAYER_FOOTPRINT_PX = 122/);
+  assert.match(source, /Player travel \(est\.\)/);
+  assert.match(source, /Estimated from the active visible bounds/);
+  assert.match(source, /octarchDiagnostics\?\.selectedTentacleId/);
+  assert.match(source, /octarchDiagnostics\?\.activeActionId/);
+  assert.match(source, /octarchDiagnostics\?\.actionStage/);
+  assert.match(source, /octarchDiagnostics\?\.grabState/);
+  assert.match(source, /octarchDiagnostics\?\.throwVelocity/);
+  assert.match(source, /octarchDiagnostics\?\.defeatStage/);
+  assert.match(styles, /\.boss-sandbox__octarch-lab/);
+  assert.match(styles, /\.boss-sandbox__octarch-state > span/);
+  assert.match(styles, /\.boss-sandbox__octarch-transmission\s*\{[\s\S]*?z-index:\s*40;/);
+  assert.match(styles, /@keyframes boss-sandbox-octarch-interference/);
+  assert.match(styles, /@keyframes boss-sandbox-octarch-tentacle-pass/);
+  assert.match(styles, /@keyframes boss-sandbox-octarch-core-reveal/);
+  assert.match(styles, /@keyframes boss-sandbox-octarch-emergence/);
+  assert.match(styles, /\.boss-sandbox__octarch-lab button:focus-visible/);
+  assert.match(
+    styles,
+    /\.boss-sandbox__picker \.boss-sandbox__octarch-lab\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\);/
+  );
+  assert.match(
+    styles,
+    /\.boss-sandbox__octarch-transmission button\s*\{[\s\S]*?min-height:\s*40px;/
+  );
+  const reducedMotionStyles = styles.slice(styles.indexOf('@media (prefers-reduced-motion: reduce)'));
+  assert.match(reducedMotionStyles, /boss-sandbox__octarch-tentacle-pass/);
+  assert.match(reducedMotionStyles, /boss-sandbox__octarch-core-reveal/);
+  assert.match(reducedMotionStyles, /boss-sandbox__octarch-emergence/);
+  assert.doesNotMatch(source, /aria-modal="true"/);
+});
+
 test('generated and campaign boss art are selected from their canonical local registries', () => {
   assert.match(source, /getSandboxBossArtworkRegistration\(selectedChoice\?\.prototypeId\)/);
   assert.match(source, /createSandboxOnlyBossArtwork\(preview\)/);

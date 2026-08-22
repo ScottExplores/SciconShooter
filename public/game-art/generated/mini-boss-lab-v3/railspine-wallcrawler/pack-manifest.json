@@ -1,0 +1,261 @@
+{
+  "schemaVersion": 1,
+  "encounterId": "railspine-wallcrawler",
+  "sourceSha256": "690581ca288efb13182347e94775756cc26bb15c3cc440c6da92b615e7ebe491",
+  "canvas": {
+    "width": 192,
+    "height": 192
+  },
+  "runtimeContract": {
+    "sampling": "nearest",
+    "alpha": "binary",
+    "maximumSharedColors": 32,
+    "minimumMarginPixels": 8
+  },
+  "palette": [
+    [
+      0,
+      0,
+      0
+    ],
+    [
+      34,
+      34,
+      34
+    ],
+    [
+      17,
+      17,
+      17
+    ],
+    [
+      17,
+      0,
+      0
+    ],
+    [
+      51,
+      51,
+      51
+    ],
+    [
+      68,
+      68,
+      68
+    ],
+    [
+      51,
+      34,
+      34
+    ],
+    [
+      136,
+      119,
+      119
+    ],
+    [
+      68,
+      51,
+      51
+    ],
+    [
+      119,
+      102,
+      102
+    ],
+    [
+      34,
+      17,
+      17
+    ],
+    [
+      85,
+      68,
+      68
+    ],
+    [
+      85,
+      85,
+      85
+    ],
+    [
+      102,
+      85,
+      85
+    ],
+    [
+      0,
+      17,
+      0
+    ],
+    [
+      153,
+      136,
+      136
+    ],
+    [
+      34,
+      0,
+      0
+    ],
+    [
+      102,
+      102,
+      102
+    ],
+    [
+      119,
+      119,
+      102
+    ],
+    [
+      51,
+      0,
+      0
+    ],
+    [
+      136,
+      136,
+      119
+    ],
+    [
+      119,
+      119,
+      119
+    ],
+    [
+      85,
+      85,
+      68
+    ],
+    [
+      170,
+      153,
+      153
+    ],
+    [
+      68,
+      0,
+      0
+    ],
+    [
+      102,
+      102,
+      85
+    ],
+    [
+      17,
+      17,
+      0
+    ],
+    [
+      238,
+      17,
+      0
+    ],
+    [
+      51,
+      51,
+      34
+    ],
+    [
+      68,
+      68,
+      51
+    ],
+    [
+      221,
+      17,
+      0
+    ],
+    [
+      34,
+      34,
+      17
+    ]
+  ],
+  "frames": [
+    {
+      "state": "neutral",
+      "fileName": "railspine-wallcrawler-neutral.png",
+      "sha256": "21351d3572adea60cf1379b68904b93b279dbf17d95706d22c5a151c7b449b1c",
+      "structuralCleanup": {
+        "sourceComponentCount": 2,
+        "sourceDiscardedPixels": 1,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    },
+    {
+      "state": "idle",
+      "fileName": "railspine-wallcrawler-idle.png",
+      "sha256": "23c54c5d762dc8b87a4e95c438bb3422207d3d03779df542ce563f138d0862c3",
+      "structuralCleanup": {
+        "sourceComponentCount": 2,
+        "sourceDiscardedPixels": 2,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    },
+    {
+      "state": "charge",
+      "fileName": "railspine-wallcrawler-charge.png",
+      "sha256": "bca697a9ca5abba7121987034f0087644a94550244f367fe137f77a3deae820a",
+      "structuralCleanup": {
+        "sourceComponentCount": 1,
+        "sourceDiscardedPixels": 0,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    },
+    {
+      "state": "attack-a",
+      "fileName": "railspine-wallcrawler-attack-a.png",
+      "sha256": "52043e6edb113a38640d274a00e5e088459a49ddc3f1c2432b27924f53a3616b",
+      "structuralCleanup": {
+        "sourceComponentCount": 3,
+        "sourceDiscardedPixels": 2,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    },
+    {
+      "state": "attack-b",
+      "fileName": "railspine-wallcrawler-attack-b.png",
+      "sha256": "2e19cd1a3579a5c1c261c45567eed801fe1c569c1318da8772efe22202d75218",
+      "structuralCleanup": {
+        "sourceComponentCount": 4,
+        "sourceDiscardedPixels": 4,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    },
+    {
+      "state": "damage",
+      "fileName": "railspine-wallcrawler-damage.png",
+      "sha256": "52dee4c24c236064b76a71bff28884945fbdf8cc0a63c86e2f608c4506ee6831",
+      "structuralCleanup": {
+        "sourceComponentCount": 4,
+        "sourceDiscardedPixels": 395,
+        "outputComponentCount": 2,
+        "outputDiscardedPixels": 2
+      }
+    },
+    {
+      "state": "critical",
+      "fileName": "railspine-wallcrawler-critical.png",
+      "sha256": "fbd2f6f26f278a80f0501453e9d75f053762657f110ad0a292f8714976501c6e",
+      "structuralCleanup": {
+        "sourceComponentCount": 2,
+        "sourceDiscardedPixels": 6,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    }
+  ],
+  "sheet": {
+    "fileName": "railspine-wallcrawler-sheet.png",
+    "sha256": "5cc7acfca2d1b6b8bfe1231affa224a1cce3dbd45ebb582e6924644069576810",
+    "gutterPixels": 4
+  }
+}

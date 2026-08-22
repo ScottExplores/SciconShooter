@@ -48,6 +48,71 @@ const requestBuffer = async (port, pathname) => new Promise((resolve, reject) =>
   request.end();
 });
 
+test('Abyssal Octarch catalog pins its neutral, modular atlas, and canonical reference', () => {
+  const definitions = PROTOTYPE_ASSET_DEFINITIONS
+    .filter((asset) => asset.prototypeId === 'abyssal-octarch')
+    .map(({ variant, fileName, sha256, width, height, route }) => ({
+      variant,
+      fileName,
+      sha256,
+      width,
+      height,
+      route
+    }));
+
+  assert.deepEqual(definitions, [
+    {
+      variant: 'assembled',
+      fileName: 'abyssal-octarch/assembled.png',
+      sha256: 'a9fc10f01d3d6abcb51ff00b8be1a2b6ead7c02b10e7ee697369b2c1c1b7854d',
+      width: 720,
+      height: 480,
+      route: '/api/v1/prototype-assets/abyssal-octarch/a9fc10f01d3d6abcb51ff00b8be1a2b6ead7c02b10e7ee697369b2c1c1b7854d/assembled.png'
+    },
+    {
+      variant: 'sheet',
+      fileName: 'abyssal-octarch/sheet.png',
+      sha256: 'dae4d697b30ee0a7f6509022fc4273907452b7a71a02377bfe885a3523f4cf30',
+      width: 2048,
+      height: 512,
+      route: '/api/v1/prototype-assets/abyssal-octarch/dae4d697b30ee0a7f6509022fc4273907452b7a71a02377bfe885a3523f4cf30/sheet.png'
+    },
+    {
+      variant: 'reference',
+      fileName: 'abyssal-octarch/abyssal-octarch-reference-runtime.png',
+      sha256: '32e3b0b8989342a8fcf1c1df3e41894b714a0e896621ebb5218a8c9f1e685831',
+      width: 720,
+      height: 480,
+      route: '/api/v1/prototype-assets/abyssal-octarch/32e3b0b8989342a8fcf1c1df3e41894b714a0e896621ebb5218a8c9f1e685831/reference.png'
+    }
+  ]);
+});
+
+test('Abyssal Octarch generated collision mask is bound to the assembled artwork hash', () => {
+  const generatedSource = readFileSync(
+    path.join(
+      repositoryRoot,
+      'director',
+      'src',
+      'tools',
+      'bosses',
+      'generatedSandboxBossCollisionMasks.ts'
+    ),
+    'utf8'
+  );
+  const entry = generatedSource.match(
+    /"abyssal-octarch": Object\.freeze\(\{ contentHash: "([a-f0-9]{64})", mask: Object\.freeze\(\{ width: (\d+), height: (\d+), rowWords: Object\.freeze\(\[([^\]]+)\]\) \}\) \}\)/
+  );
+  assert.ok(entry, 'Abyssal Octarch generated collision-mask entry is missing.');
+  const rowWords = entry[4].split(',').map((value) => Number(value.trim()));
+  assert.equal(entry[1], 'a9fc10f01d3d6abcb51ff00b8be1a2b6ead7c02b10e7ee697369b2c1c1b7854d');
+  assert.equal(Number(entry[2]), 64);
+  assert.equal(Number(entry[3]), 64);
+  assert.equal(rowWords.length, 128);
+  assert.ok(rowWords.some((value) => value !== 0));
+  assert.ok(rowWords.every((value) => Number.isInteger(value) && value >= 0 && value <= 0xffffffff));
+});
+
 test('Gloamforge Mantis catalog pins its neutral preview and modular atlas', () => {
   const definitions = PROTOTYPE_ASSET_DEFINITIONS
     .filter((asset) => asset.prototypeId === 'gloamforge-mantis')
@@ -214,7 +279,7 @@ test('fixed content-addressed prototype routes serve only hash-verified PNG asse
     prototypeAssets: localPrototypeAssets
   });
 
-  assert.equal(PROTOTYPE_ASSET_DEFINITIONS.length, 30);
+  assert.equal(PROTOTYPE_ASSET_DEFINITIONS.length, 33);
   for (const asset of PROTOTYPE_ASSET_DEFINITIONS) {
     const response = await requestBuffer(port, `/__director${asset.route}`);
     assert.equal(response.status, 200);
