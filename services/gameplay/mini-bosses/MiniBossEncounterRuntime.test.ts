@@ -226,6 +226,28 @@ test('Railspine stays edge-attached while its rail uses the opposite playfield e
   assert.notEqual(rail.origin.x, rail.target.x);
 });
 
+test('Railspine support needles pressure the live player instead of firing harmlessly sideways', () => {
+  const definition = getMiniBossEncounterDefinition('railspine-wallcrawler')!;
+  const entranceFrames = Math.round(definition.entranceSeconds * 60);
+  const signatureFrames = Math.round((
+    definition.signature.telegraphSeconds
+    + definition.signature.activeSeconds
+    + definition.signature.recoverySeconds
+  ) * 60);
+  const supportWarningFrames = Math.round(definition.support.telegraphSeconds * 60);
+  const sample = sampleMiniBossEncounter(definition, {
+    frame: entranceFrames + signatureFrames + supportWarningFrames,
+    viewportWidth: 390,
+    viewportHeight: 844,
+    playerPosition: { x: 282, y: 716 }
+  });
+  const projectile = sample.hazards.find((hazard) => hazard.kind === 'projectile-burst');
+  assert.ok(projectile);
+  assert.ok(projectile.target.x >= 228 && projectile.target.x <= 336);
+  assert.equal(projectile.target.y, 716);
+  assert.ok(projectile.angleRadians! > 0, 'the wall shot travels inward/down toward the player band');
+});
+
 test('Maw Carrier reinforcement requests are encounter-owned and capped by remaining budget', () => {
   const definition = getMiniBossEncounterDefinition('maw-carrier')!;
   const start = actionStartFrame(definition.id);
@@ -367,27 +389,27 @@ test('Fracture Engine uses registered warning, alternating attack, damage, and c
   assert.equal(lowHealthAttackMember.animationState, 'attack');
   assert.match(
     resolveMiniBossMemberAssetUrl(definition, warningMember, 0)!,
-    /mini-boss-lab-v2\/fracture-engine-elite\/fracture-engine-elite-charge\.png$/
+    /mini-boss-lab-v3\/fracture-engine-elite\/fracture-engine-elite-charge\.png$/
   );
   assert.match(
     resolveMiniBossMemberAssetUrl(definition, attackMember, 0)!,
-    /mini-boss-lab-v2\/fracture-engine-elite\/fracture-engine-elite-attack\.png$/
+    /mini-boss-lab-v3\/fracture-engine-elite\/fracture-engine-elite-attack-a\.png$/
   );
   assert.match(
     resolveMiniBossMemberAssetUrl(definition, attackMember, 4)!,
-    /mini-boss-lab-v2\/fracture-engine-elite\/fracture-engine-elite-attack-b\.png$/
+    /mini-boss-lab-v3\/fracture-engine-elite\/fracture-engine-elite-attack-b\.png$/
   );
   assert.match(
     resolveMiniBossMemberAssetUrl(definition, lowHealthAttackMember, 0)!,
-    /mini-boss-lab-v2\/fracture-engine-elite\/fracture-engine-elite-attack\.png$/
+    /mini-boss-lab-v3\/fracture-engine-elite\/fracture-engine-elite-attack-a\.png$/
   );
   assert.match(
     resolveMiniBossMemberAssetUrl(definition, { ...attackMember, animationState: 'damage', healthRatio: 0.4 }, 0)!,
-    /mini-boss-lab-v2\/fracture-engine-elite\/fracture-engine-elite-damage\.png$/
+    /mini-boss-lab-v3\/fracture-engine-elite\/fracture-engine-elite-damage\.png$/
   );
   assert.match(
     resolveMiniBossMemberAssetUrl(definition, { ...attackMember, animationState: 'critical', healthRatio: 0.1 }, 0)!,
-    /mini-boss-lab-v2\/fracture-engine-elite\/fracture-engine-elite-critical\.png$/
+    /mini-boss-lab-v3\/fracture-engine-elite\/fracture-engine-elite-critical\.png$/
   );
   const projectile = definition.assets.find((asset) => asset.id === 'fracture-shard')!;
   assert.equal(projectile.frames?.length, 4);
@@ -398,10 +420,10 @@ test('Fracture Engine uses registered warning, alternating attack, damage, and c
 test('every elite encounter owns seven readable body states and a sized generated projectile animation', () => {
   for (const definition of MINI_BOSS_ENCOUNTER_DEFINITIONS) {
     const body = definition.assets.find((binding) => binding.usage === 'primary-body');
-    assert.equal(body?.provenance, 'generated-mini-boss-lab-v2', `${definition.id} body provenance`);
+    assert.equal(body?.provenance, 'generated-mini-boss-lab-v3', `${definition.id} body provenance`);
     assert.equal(body?.frames?.length, 7, `${definition.id} body animation state count`);
     const projectile = definition.assets.find((binding) => binding.id === definition.signature.projectileAssetId);
-    assert.equal(projectile?.provenance, 'generated-mini-boss-lab-v2', `${definition.id} projectile provenance`);
+    assert.equal(projectile?.provenance, 'generated-mini-boss-lab-v3', `${definition.id} projectile provenance`);
     assert.equal(projectile?.frames?.length, 4, `${definition.id} projectile frame count`);
     assert.ok((projectile?.widthPixels ?? 0) >= 14, `${definition.id} projectile width remains readable`);
     assert.ok((projectile?.heightPixels ?? 0) >= 32, `${definition.id} projectile height remains readable`);
@@ -458,7 +480,7 @@ test('asset inventory is explicit, approved, and points only at registered runti
   assert.ok(MINI_BOSS_LAB_ASSET_INVENTORY.length >= 32);
   for (const item of MINI_BOSS_LAB_ASSET_INVENTORY) {
     assert.equal(item.galleryCategory, 'Elite Enemies');
-    if (item.provenance === 'generated-mini-boss-lab-v2') {
+    if (item.provenance === 'generated-mini-boss-lab-v3') {
       assert.equal(item.status, 'approved-generated');
     } else {
       assert.equal(item.status, 'approved-existing');

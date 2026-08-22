@@ -95,7 +95,7 @@ test('Fracture Engine visual states use exact per-frame alpha collision masks', 
   }
   const fractureGeneratorSection = collisionMaskGenerator.slice(
     collisionMaskGenerator.indexOf('bottleneck-harvester-01-idle.png'),
-    collisionMaskGenerator.indexOf('paywall-bastion-01-idle.png')
+    collisionMaskGenerator.indexOf('paywall-wall-01-idle.png')
   );
   assert.doesNotMatch(
     fractureGeneratorSection,

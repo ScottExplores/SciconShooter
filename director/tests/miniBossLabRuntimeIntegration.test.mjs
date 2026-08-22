@@ -497,7 +497,7 @@ test('Fracture core loss retires only its owned satellites and enters the solo f
   assert.ok(satelliteEntities.every(Boolean));
   const fractureBodyFrames = definition.assets.find((asset) => asset.id === 'fracture-core-body')?.frames;
   assert.equal(fractureBodyFrames?.length, 7);
-  assert.match(fractureBodyFrames?.[0] ?? '', /mini-boss-lab-v2\/fracture-engine-elite\/fracture-engine-elite-neutral\.png$/);
+  assert.match(fractureBodyFrames?.[0] ?? '', /mini-boss-lab-v3\/fracture-engine-elite\/fracture-engine-elite-neutral\.png$/);
   assert.equal(
     coreEntities[0].spriteUrl,
     fractureBodyFrames?.[3],

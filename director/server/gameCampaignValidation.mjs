@@ -403,7 +403,15 @@ const BOSS_TIMELINE_MOTION_CUES = new Set([
   'umbra-wing-shard-gate',
   'umbra-predator-lock',
   'umbra-blackout-ambush',
-  'umbra-escape'
+  'umbra-escape',
+  'octarch-grasp-hurl',
+  'octarch-tentacle-slam',
+  'octarch-sweeping-arm',
+  'octarch-needle-stab',
+  'octarch-constricting-ring',
+  'octarch-suction-current',
+  'octarch-asteroid-hurl',
+  'octarch-abyssal-gaze'
 ]);
 const BOSS_TIMELINE_ROTATION_DIRECTIONS = new Set([
   'clockwise',
@@ -554,7 +562,7 @@ const BOSS_TIMELINE_PRIMITIVES = new Map([
   ['rotating-cross', { track: 'attack', damaging: true, supportsRepeat: true, parameterKeys: ['projectileCount', 'sequence'] }],
   ['helix-volley', { track: 'attack', damaging: true, supportsRepeat: true, parameterKeys: ['projectileCount', 'sequence', 'handedness'] }],
   ['side-barrage', { track: 'attack', damaging: true, supportsRepeat: true, parameterKeys: ['projectileCount', 'side', 'motionCue'] }],
-  ['pod-volley', { track: 'attack', damaging: true, supportsRepeat: true, parameterKeys: ['projectileCount', 'sequence'] }],
+  ['pod-volley', { track: 'attack', damaging: true, supportsRepeat: true, parameterKeys: ['projectileCount', 'sequence', 'motionCue'] }],
   ['weave-wall', { track: 'attack', damaging: true, supportsRepeat: true, parameterKeys: ['projectileCount', 'sequence'] }],
   ['summon-formation', { track: 'summon', damaging: true, supportsRepeat: false, parameterKeys: ['summonCount', 'enemyId', 'formationPatternId'] }],
   ['set-shield', { track: 'defense', damaging: false, supportsRepeat: false, parameterKeys: ['shieldCount', 'enabled'] }],
@@ -2007,7 +2015,7 @@ const validateBossTimeline = (
     errors.push(`${location}/clips must be an array`);
     return;
   }
-  if (timeline.clips.length > 128) errors.push(`${location}/clips must contain at most 128 items`);
+  if (timeline.clips.length > 256) errors.push(`${location}/clips must contain at most 256 items`);
 
   const clipIds = new Set();
   const clipsById = new Map();
@@ -2397,12 +2405,12 @@ const validateBossTimeline = (
     } else {
       if (
         usesPhaseSubsets
-          ? timeline.attacks.length < 4 || timeline.attacks.length > 6
+          ? timeline.attacks.length < 4 || timeline.attacks.length > 8
           : timeline.attacks.length !== 4
       ) {
         errors.push(
           usesPhaseSubsets
-            ? `${attacksLocation} must contain between four and six global attacks`
+            ? `${attacksLocation} must contain between four and eight global attacks`
             : `${attacksLocation} must contain exactly three core attacks and one signature attack`
         );
       }

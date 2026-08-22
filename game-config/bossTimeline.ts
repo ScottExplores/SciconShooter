@@ -296,7 +296,7 @@ export const BOSS_TIMELINE_PRIMITIVES: Readonly<Record<
   'rotating-cross': primitive('rotating-cross', 'Rotating cross', 'attack', 'Fire the registered rotating-cross pattern.', true, true, ['projectileCount', 'sequence']),
   'helix-volley': primitive('helix-volley', 'Helix volley', 'attack', 'Fire a left- or right-handed helix volley.', true, true, ['projectileCount', 'sequence', 'handedness']),
   'side-barrage': primitive('side-barrage', 'Side barrage', 'attack', 'Fire from the selected port or starboard side.', true, true, ['projectileCount', 'side', 'motionCue']),
-  'pod-volley': primitive('pod-volley', 'Pod volley', 'attack', 'Launch a slow, readable fan of large animated sprite pods.', true, true, ['projectileCount', 'sequence']),
+  'pod-volley': primitive('pod-volley', 'Pod volley', 'attack', 'Launch a slow, readable fan of large animated sprite pods.', true, true, ['projectileCount', 'sequence', 'motionCue']),
   'weave-wall': primitive('weave-wall', 'Weave wall', 'attack', 'Send deterministic projectile rows around a shifting two-lane safe channel.', true, true, ['projectileCount', 'sequence']),
   'summon-formation': primitive('summon-formation', 'Summon formation', 'summon', 'Spawn a bounded enemy reinforcement group.', true, false, ['summonCount', 'enemyId', 'formationPatternId']),
   'set-shield': primitive('set-shield', 'Legacy shield marker', 'defense', 'Retained for schema-v1 compatibility; the obsolete generic escort shield has no runtime effect.', false, false, ['shieldCount', 'enabled']),

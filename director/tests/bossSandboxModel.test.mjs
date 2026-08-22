@@ -301,7 +301,7 @@ test('Boss Sandbox groups main-game and every non-campaign prototype without los
   assert.equal(campaignGroup.source, 'campaign');
   assert.equal(testGroup.source, 'test');
   assert.equal(miniBossGroup.source, 'test');
-  assert.equal(testGroup.choices.length, 15);
+  assert.equal(testGroup.choices.length, 16);
   assert.equal(miniBossGroup.choices.length, 8);
   assert.equal(miniBossGroup.label, 'ELITE ENEMIES · Campaign roster');
   artworkFixtures.forEach(({ prototypeId }) => {
@@ -336,7 +336,7 @@ test('Boss Sandbox groups main-game and every non-campaign prototype without los
   assert.equal(fractureCampaignChoice?.miniBoss?.encounterId, 'fracture-engine-elite');
   assert.match(
     fractureCampaignChoice?.artworkUrl ?? '',
-    /mini-boss-lab-v2\/fracture-engine-elite\/.*\.png$/
+    /mini-boss-lab-v3\/fracture-engine-elite\/.*\.png$/
   );
   assert.equal(
     new Set(groups.flatMap((group) => group.choices.map((choice) => choice.id))).size,
@@ -406,12 +406,16 @@ test('Boss Sandbox clearly separates bosses from elite enemies across Campaign a
 
   const testBossChoices = model.filterBossSandboxGroups(groups, 'test-bosses')
     .flatMap((group) => group.choices);
-  assert.equal(testBossChoices.length, 15);
+  assert.equal(testBossChoices.length, 16);
   assert.ok(testBossChoices.every((choice) => choice.source === 'test'));
   assert.ok(testBossChoices.every((choice) => choice.encounterClass === 'full-boss'));
   assert.ok(testBossChoices.some((choice) => (
     choice.prototypeId === 'cinderjaw-siege-beetle'
     && choice.bossLabel === 'Cinderjaw Siege Beetle'
+  )));
+  assert.ok(testBossChoices.some((choice) => (
+    choice.prototypeId === 'abyssal-octarch'
+    && choice.bossLabel === 'Abyssal Octarch'
   )));
   const paywallArchive = testBossChoices.find((choice) => (
     choice.prototypeId === 'paywall-decimator-archive'
@@ -636,6 +640,26 @@ test('fixed artwork registrations are presentation-only and locked to matching t
     assert.equal(preview.previewWave.events[0].spriteKey, spriteKeyBefore);
     assert.deepEqual(campaign, sourceSnapshot);
   }
+});
+
+test('Abyssal Octarch registration forwards its colossal encounter camera and fresh collision mask', () => {
+  const choice = getPrototypeChoice('abyssal-octarch');
+  assert.ok(choice);
+
+  const preview = model.buildBossSandboxPreview(campaign, choice);
+  const registration = model.getSandboxBossArtworkRegistration('abyssal-octarch');
+  const artwork = model.createSandboxOnlyBossArtwork(preview);
+
+  assert.ok(registration);
+  assert.equal(registration.renderMode, 'articulated');
+  assert.equal(artwork.encounterCamera, registration.encounterCamera);
+  assert.equal(artwork.encounterCamera.eventId, preview.eventId);
+  assert.equal(artwork.encounterCamera.verticalAnchor, 'top');
+  assert.equal(artwork.contentHash, 'a9fc10f01d3d6abcb51ff00b8be1a2b6ead7c02b10e7ee697369b2c1c1b7854d');
+  assert.equal(artwork.collisionMask.width, 64);
+  assert.equal(artwork.collisionMask.height, 64);
+  assert.equal(artwork.collisionMask.rowWords.length, 128);
+  assert.ok(artwork.collisionMask.rowWords.some((value) => value !== 0));
 });
 
 test('Nullwake artwork publishes five frozen anatomy-owned normalized weapon sockets', () => {

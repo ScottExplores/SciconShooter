@@ -432,11 +432,11 @@ export const ASSETS = {
   ],
   WALL_BOSS_SEGMENT: "/game-art/bosses/wall-segment.png",
   PAYWALL_BASTION_FRAMES: [
-    "/game-art/generated/scicon-flight-motion-pack-v1/bosses/paywall-bastion/frames/paywall-bastion-01-idle.png",
-    "/game-art/generated/scicon-flight-motion-pack-v1/bosses/paywall-bastion/frames/paywall-bastion-02-neutral.png",
-    "/game-art/generated/scicon-flight-motion-pack-v1/bosses/paywall-bastion/frames/paywall-bastion-03-attack.png",
-    "/game-art/generated/scicon-flight-motion-pack-v1/bosses/paywall-bastion/frames/paywall-bastion-04-damage-50.png",
-    "/game-art/generated/scicon-flight-motion-pack-v1/bosses/paywall-bastion/frames/paywall-bastion-05-critical-15.png"
+    "/game-art/generated/elite-enemies/paywall-wall-v2/frames/paywall-wall-01-idle.png",
+    "/game-art/generated/elite-enemies/paywall-wall-v2/frames/paywall-wall-02-neutral.png",
+    "/game-art/generated/elite-enemies/paywall-wall-v2/frames/paywall-wall-03-attack.png",
+    "/game-art/generated/elite-enemies/paywall-wall-v2/frames/paywall-wall-04-damage-50.png",
+    "/game-art/generated/elite-enemies/paywall-wall-v2/frames/paywall-wall-05-critical-15.png"
   ],
   FINAL_BOSS: "/game-art/bosses/final-boss-sentinel.png",
   

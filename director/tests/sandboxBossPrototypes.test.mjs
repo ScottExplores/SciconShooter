@@ -45,7 +45,7 @@ const getPrototypeBoss = (prototypeId) => {
 };
 
 test('all Sandbox boss descriptors build deterministic, valid, immutable-provenance previews', () => {
-  assert.equal(SANDBOX_BOSS_PROTOTYPES.length, 23);
+  assert.equal(SANDBOX_BOSS_PROTOTYPES.length, 24);
   assert.equal(Object.isFrozen(SANDBOX_BOSS_PROTOTYPES), true);
 
   const prototypeHashes = new Set();

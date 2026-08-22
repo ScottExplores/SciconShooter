@@ -1,0 +1,261 @@
+{
+  "schemaVersion": 1,
+  "encounterId": "fracture-engine-elite",
+  "sourceSha256": "05c0ea2fb5255c0fd94be3f571544729a708c02894f0a99a982aceba6635fb35",
+  "canvas": {
+    "width": 192,
+    "height": 192
+  },
+  "runtimeContract": {
+    "sampling": "nearest",
+    "alpha": "binary",
+    "maximumSharedColors": 32,
+    "minimumMarginPixels": 8
+  },
+  "palette": [
+    [
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      17
+    ],
+    [
+      51,
+      17,
+      102
+    ],
+    [
+      119,
+      51,
+      170
+    ],
+    [
+      68,
+      17,
+      119
+    ],
+    [
+      102,
+      34,
+      153
+    ],
+    [
+      85,
+      34,
+      136
+    ],
+    [
+      17,
+      0,
+      51
+    ],
+    [
+      17,
+      0,
+      34
+    ],
+    [
+      102,
+      51,
+      153
+    ],
+    [
+      34,
+      17,
+      85
+    ],
+    [
+      34,
+      0,
+      85
+    ],
+    [
+      51,
+      17,
+      119
+    ],
+    [
+      0,
+      0,
+      34
+    ],
+    [
+      102,
+      51,
+      170
+    ],
+    [
+      34,
+      0,
+      68
+    ],
+    [
+      17,
+      0,
+      68
+    ],
+    [
+      51,
+      17,
+      85
+    ],
+    [
+      85,
+      34,
+      153
+    ],
+    [
+      34,
+      17,
+      68
+    ],
+    [
+      17,
+      0,
+      17
+    ],
+    [
+      34,
+      17,
+      102
+    ],
+    [
+      136,
+      68,
+      187
+    ],
+    [
+      68,
+      17,
+      136
+    ],
+    [
+      85,
+      17,
+      136
+    ],
+    [
+      102,
+      34,
+      170
+    ],
+    [
+      68,
+      17,
+      102
+    ],
+    [
+      68,
+      34,
+      119
+    ],
+    [
+      51,
+      0,
+      102
+    ],
+    [
+      153,
+      85,
+      204
+    ],
+    [
+      34,
+      0,
+      102
+    ],
+    [
+      17,
+      17,
+      51
+    ]
+  ],
+  "frames": [
+    {
+      "state": "neutral",
+      "fileName": "fracture-engine-elite-neutral.png",
+      "sha256": "2655873e28ab8b63cba88d1e5320d0e8804feb82a395a925a2c14fa97e834c55",
+      "structuralCleanup": {
+        "sourceComponentCount": 2,
+        "sourceDiscardedPixels": 4,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    },
+    {
+      "state": "idle",
+      "fileName": "fracture-engine-elite-idle.png",
+      "sha256": "bbba4de728363eb5ef3bc4cf758dcb51c6897d74a53b6f6d64fb6ef806bb53a3",
+      "structuralCleanup": {
+        "sourceComponentCount": 3,
+        "sourceDiscardedPixels": 1341,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    },
+    {
+      "state": "charge",
+      "fileName": "fracture-engine-elite-charge.png",
+      "sha256": "da6c43e8027b1723eb05ef8c0bf75b13137ec9a8c61438b2314139f4d46e3f4b",
+      "structuralCleanup": {
+        "sourceComponentCount": 3,
+        "sourceDiscardedPixels": 2,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    },
+    {
+      "state": "attack-a",
+      "fileName": "fracture-engine-elite-attack-a.png",
+      "sha256": "6140a1c05c17fd0ae1c56d020ac29dfdf8c61d7950a5579ae91da6315ca6dbee",
+      "structuralCleanup": {
+        "sourceComponentCount": 2,
+        "sourceDiscardedPixels": 1,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    },
+    {
+      "state": "attack-b",
+      "fileName": "fracture-engine-elite-attack-b.png",
+      "sha256": "a6fdfd4412932027205bad59c26c98def8bb3a4962d767b5bb65b50bdf77d562",
+      "structuralCleanup": {
+        "sourceComponentCount": 8,
+        "sourceDiscardedPixels": 441,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    },
+    {
+      "state": "damage",
+      "fileName": "fracture-engine-elite-damage.png",
+      "sha256": "c189ced6171b20d69f93bece32ab52a6ca6b28e82cd5a35ce2e57ac23d807371",
+      "structuralCleanup": {
+        "sourceComponentCount": 13,
+        "sourceDiscardedPixels": 1131,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    },
+    {
+      "state": "critical",
+      "fileName": "fracture-engine-elite-critical.png",
+      "sha256": "8192ac079a642af38120e3a7de2cbd1f0053d3f9fcd689b95c921011968df87f",
+      "structuralCleanup": {
+        "sourceComponentCount": 8,
+        "sourceDiscardedPixels": 113,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    }
+  ],
+  "sheet": {
+    "fileName": "fracture-engine-elite-sheet.png",
+    "sha256": "b8e35ff86ce604057684a07ff5a487ebf28b12ab9f9ddbd0aa6b2dbb0ae85352",
+    "gutterPixels": 4
+  }
+}

@@ -74,7 +74,7 @@ test('Paywall Decimator parts independently control bolt cannons and the core ra
   const componentRuntime = read('services/gameplay/bosses/BossComponentRuntime.ts');
   const renderer = read('services/pixi/PixiGameRenderer.ts');
 
-  assert.match(engine, /type BossPartId = 'left-cannon' \| 'right-cannon' \| 'helmet'/);
+  assert.match(engine, /export type BossPartId\s*=\s*[\s\S]*?\| 'left-cannon'[\s\S]*?\| 'right-cannon'[\s\S]*?\| 'helmet'[\s\S]*?\| AbyssalOctarchTentacleId;/);
   assert.match(engine, /damageBossComponent\(boss: Entity, component: BossComponentState/);
   assert.match(engine, /if \(boss\.bossRigId === 'paywall-siege'\)/);
   assert.match(engine, /spawnPaywallBossRay\(boss: Entity, enraged: boolean, lifetimeFrames\?: number\)/);

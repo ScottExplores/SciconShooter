@@ -18,6 +18,7 @@ const exclusionSource = fs.readFileSync(
   path.join(root, 'tools', 'assert-director-excluded.mjs'),
   'utf8'
 );
+const viteConfigSource = fs.readFileSync(path.join(root, 'vite.config.ts'), 'utf8');
 
 test('preview overrides and promoted campaign boss artwork share the canonical canvas', () => {
   assert.match(editorSource, /previewBossArtwork/);
@@ -65,4 +66,11 @@ test('production exclusion rejects every local animated prototype asset filename
     exclusionSource,
     /forbiddenPrototypeAssetBasenames\.some\(\(basename\) => lowerRelative\.includes\(basename\)\)/
   );
+});
+
+test('production build removes and rejects every sandbox-only test asset package', () => {
+  assert.match(viteConfigSource, /excludeSandboxTestAssetsFromProduction/);
+  assert.match(viteConfigSource, /['"]test-packages['"]/);
+  assert.match(viteConfigSource, /fs\.rmSync\(testPackagesRoot, \{ recursive: true, force: true \}\)/);
+  assert.match(exclusionSource, /['"]test-packages['"]/);
 });

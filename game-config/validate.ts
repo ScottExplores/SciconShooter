@@ -360,7 +360,15 @@ const BOSS_TIMELINE_MOTION_CUES = new Set([
   'umbra-wing-shard-gate',
   'umbra-predator-lock',
   'umbra-blackout-ambush',
-  'umbra-escape'
+  'umbra-escape',
+  'octarch-grasp-hurl',
+  'octarch-tentacle-slam',
+  'octarch-sweeping-arm',
+  'octarch-needle-stab',
+  'octarch-constricting-ring',
+  'octarch-suction-current',
+  'octarch-asteroid-hurl',
+  'octarch-abyssal-gaze'
 ]);
 const BOSS_TIMELINE_ROTATION_DIRECTIONS = new Set([
   'clockwise',
@@ -1713,8 +1721,8 @@ const validateBossTimeline = (
   const usesPhaseSubsets = attackAvailability === 'phase-subset';
   if (!checkArray(value.clips, `${path}/clips`, issues)) return;
   const timelineClips = value.clips;
-  if (timelineClips.length > 128) {
-    pushIssue(issues, `${path}/clips`, 'too_many_items', 'Boss timelines support at most 128 clips');
+  if (timelineClips.length > 256) {
+    pushIssue(issues, `${path}/clips`, 'too_many_items', 'Boss timelines support at most 256 clips');
   }
 
   const clipIds = new Set<string>();
@@ -2236,7 +2244,7 @@ const validateBossTimeline = (
     if (checkArray(value.attacks, attacksPath, issues)) {
       if (
         usesPhaseSubsets
-          ? value.attacks.length < 4 || value.attacks.length > 6
+          ? value.attacks.length < 4 || value.attacks.length > 8
           : value.attacks.length !== 4
       ) {
         pushIssue(
@@ -2244,7 +2252,7 @@ const validateBossTimeline = (
           attacksPath,
           'invalid_attack_roster',
           usesPhaseSubsets
-            ? 'Phase-subset Boss Factory timelines require between four and six global attacks'
+            ? 'Phase-subset Boss Factory timelines require between four and eight global attacks'
             : 'Boss Factory timelines require exactly three core attacks and one signature attack'
         );
       }

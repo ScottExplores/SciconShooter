@@ -20,6 +20,7 @@ import type { RuntimeSquadLoadout } from '../services/squadProgression';
 import type { PlayerShipId } from '../services/playerShipService';
 import {
   clampPreviewTimeScale,
+  shouldAdvancePreviewRuntimeFrame,
   type PreviewCommand,
   type PreviewCommandResult,
   type PreviewSnapshot
@@ -43,6 +44,7 @@ import {
   getPlayerWeaponFrames
 } from '../services/playerWeaponVisuals';
 import { getShipAbilityDefinition } from '../services/shipAbilityService';
+import { resolveEncounterWorldSize } from '../services/gameplay/EncounterCameraRuntime';
 
 export const preloadGameplayAssets = async () => {
   await preloadPixiGameplayTextures();
@@ -607,6 +609,21 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           command.loop ?? false
         );
         break;
+      case 'destroy-boss-component':
+        handled = engine.destroyPreviewBossComponent(
+          command.componentId,
+          command.eventId
+        );
+        break;
+      case 'restore-boss-components':
+        handled = engine.restorePreviewBossComponents(command.eventId);
+        break;
+      case 'set-encounter-camera':
+        handled = engine.setPreviewEncounterCameraMode(command.mode);
+        break;
+      case 'replay-encounter-camera':
+        handled = engine.replayPreviewEncounterCameraEntrance();
+        break;
       case 'clear-boss-hazards':
         handled = engine.clearPreviewBossHazards(command.eventId);
         break;
@@ -904,6 +921,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       const initialRect = host.getBoundingClientRect();
       const initialWidth = setup.previewViewportWidth ?? Math.max(1, Math.round(initialRect.width || 720));
       const initialHeight = setup.previewViewportHeight ?? Math.max(1, Math.round(initialRect.height || 720));
+      const initialWorldSize = resolveEncounterWorldSize(
+        initialWidth,
+        initialHeight,
+        setupBossArtwork?.encounterCamera
+      );
       const renderer = new PixiGameRenderer({
         previewBossArtwork: setupBossArtwork,
         startupTexturePolicy: previewMode ? 'resilient-preview' : 'required',
@@ -987,6 +1009,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
               setupBossArtwork.projectileAnimations
             ) as BossModularProjectileVisualKind[]
           : undefined,
+        previewEncounterCamera: setupBossArtwork?.encounterCamera,
+        previewDisplayViewport: { width: initialWidth, height: initialHeight },
         telemetrySink,
         preloadCanvasAssets: false
       });
@@ -1060,17 +1084,27 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         const rect = host.getBoundingClientRect();
         const width = setup.previewViewportWidth ?? Math.max(1, Math.round(rect.width || 720));
         const height = setup.previewViewportHeight ?? Math.max(1, Math.round(rect.height || 720));
-        if (engine.width === width && engine.height === height) return;
+        const worldSize = resolveEncounterWorldSize(
+          width,
+          height,
+          setupBossArtwork?.encounterCamera
+        );
+        if (
+          engine.width === worldSize.width
+          && engine.height === worldSize.height
+          && renderer.canvas.width === width
+          && renderer.canvas.height === height
+        ) return;
         renderer.resize(width, height);
         refreshFrameBudget();
-        engine.resize(width, height);
+        engine.resize(worldSize.width, worldSize.height, width, height);
       };
     
     handleResize();
     window.addEventListener('resize', handleResize);
     const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(handleResize);
     resizeObserver?.observe(host);
-    engine.init(initialWidth, initialHeight);
+    engine.init(initialWorldSize.width, initialWorldSize.height);
     if (autoFire) keysRef.current[' '] = true;
     engine.handleInput(runningRef.current ? keysRef.current : {}, null);
     lastPublishedStatsRef.current = null;
@@ -1160,9 +1194,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       const rect = canvas.getBoundingClientRect();
       const displayWidth = Math.max(1, rect.width);
       const displayHeight = Math.max(1, rect.height);
-      const x = Math.max(0, Math.min(engine.width, (clientX - rect.left) * (engine.width / displayWidth)));
-      const y = Math.max(0, Math.min(engine.height, (clientY - rect.top) * (engine.height / displayHeight)));
-      engine.handleInput(keys, { x, y });
+      const displayX = Math.max(0, Math.min(displayWidth, clientX - rect.left))
+        * (canvas.width / displayWidth);
+      const displayY = Math.max(0, Math.min(displayHeight, clientY - rect.top))
+        * (canvas.height / displayHeight);
+      engine.handleInput(keys, engine.mapDisplayPointToWorld(displayX, displayY));
     };
 
     const updateTouchTarget = (touch: Touch) => {
@@ -1326,7 +1362,14 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       const elapsed = Math.min(100, Math.max(0, timestamp - lastTimeRef.current));
       lastTimeRef.current = timestamp;
 
-      if (runningRef.current && engine.gameActive) {
+      const shouldAdvanceSimulation = previewMode
+        ? shouldAdvancePreviewRuntimeFrame({
+            running: runningRef.current,
+            gameActive: engine.gameActive,
+            pendingCameraRestore: engine.hasPendingPreviewEncounterCameraRestore()
+          })
+        : runningRef.current && engine.gameActive;
+      if (shouldAdvanceSimulation) {
         simulationAccumulator += elapsed * timeScaleRef.current;
         let simulationSteps = 0;
 

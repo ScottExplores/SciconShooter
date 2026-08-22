@@ -183,6 +183,17 @@ export interface PreviewBossModularActionPresentation {
   readonly side?: 'port' | 'starboard' | 'left' | 'right' | null;
   readonly sequence?: number | null;
   readonly motionCue?: string | null;
+  /**
+   * Optional live simulation component identity. Modular encounters use this
+   * when anatomy loss makes a surviving fallback part own the authored move.
+   */
+  readonly selectedComponentId?: string | null;
+  /**
+   * Optional target in the modular rig's local design coordinates. This keeps
+   * articulated contact poses aligned with the canonical world-space target
+   * without making the renderer or rig sampler own gameplay collision.
+   */
+  readonly targetDesignPoint?: Readonly<{ x: number; y: number }> | null;
 }
 
 export type PreviewBossVanishReentryStage =
@@ -294,6 +305,8 @@ export interface PreviewBossArtwork {
   /** Optional boss-specific projectile frames stored in the modular atlas. */
   readonly projectileAnimations?: PreviewBossProjectileAnimationProfile;
   readonly vfxAtlas?: PreviewBossVfxAtlas;
+  /** Optional preview encounter camera. The HUD remains outside this world transform. */
+  readonly encounterCamera?: import('../../gameplay/EncounterCameraRuntime').EncounterCameraProfile;
 }
 
 export type PreviewBossRigKind = PreviewBossAtlas['kind'];

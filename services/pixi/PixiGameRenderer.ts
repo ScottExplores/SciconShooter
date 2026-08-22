@@ -51,6 +51,12 @@ import {
   resolveBottleneckDroneFrameIndex
 } from '../gameplay/bosses/BottleneckDronePresentation';
 import {
+  ABYSSAL_OCTARCH_DIRECT_TENTACLE_ACTION_IDS,
+  ABYSSAL_OCTARCH_EVENT_ID,
+  ABYSSAL_OCTARCH_TENTACLES,
+  sampleAbyssalOctarchAttackTip
+} from '../gameplay/bosses/AbyssalOctarchRuntime';
+import {
   createSoftRadialLight,
   hideSoftRadialLight,
   showSoftRadialLight
@@ -71,6 +77,16 @@ import {
   sampleRotatingEmitterCorePose,
   type RotatingEmitterCoreActionPresentation
 } from './boss-rigs/RotatingEmitterCorePose';
+import {
+  ABYSSAL_OCTARCH_RIG_PART_TO_COMPONENT,
+  resolveAbyssalOctarchAsteroidReleasePresentationTarget,
+  resolveAbyssalOctarchPresentationSide,
+  sampleAbyssalOctarchTentacleSeverPresentation
+} from './boss-rigs/AbyssalOctarchModularPose';
+import {
+  ABYSSAL_OCTARCH_LIMB_HUD_ORDER,
+  resolveAbyssalOctarchLimbPresentation
+} from './boss-rigs/AbyssalOctarchLimbPresentation';
 import { sampleAssembledBossMotion } from './boss-rigs/AssembledBossMotion';
 import { sampleAssembledBossAccentPose } from './boss-rigs/AssembledBossAccentPose';
 import { sampleWingbeatHoverPose } from './boss-rigs/WingbeatHoverPose';
@@ -180,7 +196,7 @@ type EntityView = {
   lastHp: number;
   lastFlashFrames: number;
   lastDamageFlashFrame: number;
-  lastComponentDamageFrames: Record<BossPartId, number>;
+  lastComponentDamageFrames: Partial<Record<BossPartId, number>>;
   damageRecoilFrame: number;
   damageRecoilDirection: number;
   damageRecoilStrength: number;
@@ -192,7 +208,7 @@ type EntityView = {
 
 type BossRigView = {
   parts: Container;
-  partSprites: Record<BossPartId, Sprite>;
+  partSprites: Partial<Record<BossPartId, Sprite>>;
   thrust: Container;
   thrusterSprites: readonly [Sprite, Sprite];
   componentHealth: Graphics;
@@ -418,6 +434,10 @@ const DAMAGE_RECOIL_DURATION_FRAMES = BOSS_SIGNIFICANT_REACTION_FRAMES;
 const CORNER_AMBUSH_BEAM_PRIMITIVE_ID = 'corner-ambush-beam';
 const CORNER_AMBUSH_RAM_PRIMITIVE_ID = 'corner-ambush-ram';
 const CORNER_AMBUSH_DIM_ALPHA = 0.9;
+const ABYSSAL_OCTARCH_MODULAR_RIG_ID = ABYSSAL_OCTARCH_EVENT_ID.replace(
+  /^sandbox-/,
+  ''
+);
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 const smoothstep = (value: number) => {
@@ -1149,9 +1169,9 @@ const getFormationMotionFrameIndex = (engine: GameEngine, entity: Entity) => {
 
 const getPaywallBastionFrameIndex = (engine: GameEngine, entity: Entity) => {
   const healthRatio = entity.maxHp > 0 ? entity.hp / entity.maxHp : 1;
+  if (entity.attackTimer > 0) return 2;
   if (healthRatio <= 0.15) return 4;
   if (healthRatio <= 0.5) return 3;
-  if (entity.attackTimer > 0) return 2;
   return Math.floor((engine.frameCount + entity.variant * 5) / 24) % 2;
 };
 
@@ -1394,6 +1414,7 @@ export class PixiGameRenderer {
   private readonly bossHealthFrame = new Sprite(Texture.WHITE);
   private readonly bossHealthBar = new Graphics();
   private readonly bossHealthName = createText(10, '#fef08a');
+  private readonly abyssalOctarchLimbHud = new Graphics();
   private readonly requestedBossComponentTextures = new Set<string>();
   private readonly seenBossPhase = new Map<string, number>();
   private readonly seenBossComponents = new Map<string, Partial<Record<BossPartId, boolean>>>();
@@ -1891,6 +1912,7 @@ export class PixiGameRenderer {
     this.bossHealthRoot.addChild(
       this.bossHealthFrame,
       this.bossHealthBar,
+      this.abyssalOctarchLimbHud,
       this.bossHealthName
     );
 
@@ -4831,6 +4853,9 @@ export class PixiGameRenderer {
     }
 
     const action = this.getPreviewBossActionPresentation(entity);
+    const abyssalOctarchModularPreview = (
+      registration.manifest.id === ABYSSAL_OCTARCH_MODULAR_RIG_ID
+    );
     const prismMothModularPreview = this.isPrismMothModularPreview(
       entity,
       registration
@@ -4839,6 +4864,133 @@ export class PixiGameRenderer {
       registration.manifest.preserveAspectRatio
       || prismMothModularPreview
     );
+    const designSize = registration.manifest.designSize;
+    const authoredScaleX = entity.width / Math.max(1, designSize.width);
+    const authoredScaleY = entity.height / Math.max(1, designSize.height);
+    const uniformScale = Math.min(authoredScaleX, authoredScaleY);
+    const designScaleX = preserveStructuralAspect ? uniformScale : authoredScaleX;
+    const designScaleY = preserveStructuralAspect ? uniformScale : authoredScaleY;
+    const octarchState = abyssalOctarchModularPreview
+      ? entity.bossAbyssalOctarchState
+      : undefined;
+    const selectedOctarchTentacleId = octarchState?.plan.tentacleIds[0];
+    const selectedOctarchSide = resolveAbyssalOctarchPresentationSide(
+      selectedOctarchTentacleId,
+      action?.side
+    );
+    const octarchStageProgress = octarchState
+      ? (() => {
+          const timer = entity.attackTimer;
+          if (octarchState.stage === 'preparation' || octarchState.stage === 'telegraph') {
+            return clamp(
+              (timer - octarchState.warningStartFrame)
+                / Math.max(1, octarchState.fireStartFrame - octarchState.warningStartFrame),
+              0,
+              1
+            );
+          }
+          if (octarchState.stage === 'active') {
+            return clamp(
+              (timer - octarchState.fireStartFrame)
+                / Math.max(1, octarchState.fireEndFrame - octarchState.fireStartFrame),
+              0,
+              1
+            );
+          }
+          if (octarchState.stage === 'held') {
+            return clamp(
+              (timer - octarchState.captureStartFrame)
+                / Math.max(1, octarchState.fireEndFrame - octarchState.captureStartFrame),
+              0,
+              1
+            );
+          }
+          if (octarchState.stage === 'throwing') {
+            return clamp(
+              (timer - octarchState.throwStartFrame)
+                / Math.max(1, octarchState.recoveryEndFrame - octarchState.throwStartFrame),
+              0,
+              1
+            );
+          }
+          if (octarchState.stage === 'recovery') {
+            return clamp(
+              (timer - octarchState.fireEndFrame)
+                / Math.max(1, octarchState.recoveryEndFrame - octarchState.fireEndFrame),
+              0,
+              1
+            );
+          }
+          return 1;
+        })()
+      : undefined;
+    const octarchTargetWorld = octarchState
+      ? octarchState.captured
+        ? {
+            x: engine.player.x + engine.player.width / 2,
+            y: engine.player.y + engine.player.height / 2
+          }
+        : octarchState.plan.target
+      : undefined;
+    const octarchAsteroidReleaseWorld = octarchState?.actionId === 'asteroid-hurl'
+      ? resolveAbyssalOctarchAsteroidReleasePresentationTarget({
+          selectedTentacleId: selectedOctarchTentacleId,
+          bossX: entity.x,
+          bossY: entity.y,
+          bossWidth: entity.width,
+          bossHeight: entity.height
+        })
+      : null;
+    const octarchSelectedDescriptor = selectedOctarchTentacleId
+      ? ABYSSAL_OCTARCH_TENTACLES.find((tentacle) => (
+          tentacle.id === selectedOctarchTentacleId
+        ))
+      : undefined;
+    const octarchFinalPresentationTarget = octarchAsteroidReleaseWorld ?? octarchTargetWorld;
+    const octarchSharedTipSample = octarchState
+      && octarchSelectedDescriptor
+      && octarchFinalPresentationTarget
+      && ABYSSAL_OCTARCH_DIRECT_TENTACLE_ACTION_IDS.includes(octarchState.actionId)
+      ? sampleAbyssalOctarchAttackTip({
+          actionId: octarchState.actionId,
+          start: {
+            x: entity.x + entity.width * octarchSelectedDescriptor.centerXRatio,
+            y: entity.y + entity.height * octarchSelectedDescriptor.centerYRatio
+          },
+          finalTarget: octarchFinalPresentationTarget,
+          sequence: octarchState.plan.sequence,
+          activeProgress: octarchStageProgress ?? 0,
+          arenaWidth: engine.width,
+          bossWidth: entity.width
+        })
+      : null;
+    const octarchPresentationTargetWorld = octarchSharedTipSample
+      ? octarchState?.stage === 'active' && octarchState.actionId !== 'asteroid-hurl'
+        ? octarchSharedTipSample.tip
+        : octarchState?.actionId === 'sweeping-arm'
+          ? octarchSharedTipSample.target
+          : octarchFinalPresentationTarget
+      : octarchFinalPresentationTarget;
+    const octarchTargetDesignPoint = octarchPresentationTargetWorld
+      ? Object.freeze({
+          x: (octarchPresentationTargetWorld.x - (entity.x + entity.width / 2))
+            / Math.max(0.0001, designScaleX),
+          y: (octarchPresentationTargetWorld.y - (entity.y + entity.height / 2))
+            / Math.max(0.0001, designScaleY)
+        })
+      : undefined;
+    const poseAction = octarchState
+      ? {
+          ...(action ?? {}),
+          primitiveId: action?.primitiveId ?? `abyssal-octarch-${octarchState.actionId}`,
+          motionCue: action?.motionCue ?? octarchState.actionId,
+          stage: octarchState.stage,
+          progress: octarchStageProgress,
+          side: selectedOctarchSide,
+          selectedComponentId: selectedOctarchTentacleId ?? null,
+          targetDesignPoint: octarchTargetDesignPoint
+        }
+      : action;
     const targetEntranceY = Math.max(72, Math.min(engine.height * 0.13, 116));
     const entranceProgress = clamp(
       (entity.y + entity.height) / Math.max(1, targetEntranceY + entity.height),
@@ -4852,7 +5004,7 @@ export class PixiGameRenderer {
       phaseIndex: Math.max(1, entity.activeBossPhaseIndex + 1),
       entranceProgress,
       damageStage: entity.bossDecayStage,
-      phaseProgress: action?.stage === 'phase-enter' ? action.progress : undefined,
+      phaseProgress: poseAction?.stage === 'phase-enter' ? poseAction.progress : undefined,
       revivalStage: entity.bossRevivalStage,
       revivalProgress: entity.bossRevivalProgress,
       revived: entity.bossRevivalConsumed,
@@ -4874,15 +5026,9 @@ export class PixiGameRenderer {
       reaction: entity.bossEscapeState
         ? null
         : this.getPreviewBossPoseReaction(entity, engine),
-      action
+      action: poseAction
     });
     const hierarchy = resolveModularBossRigHierarchy(registration, partOverrides);
-    const designSize = registration.manifest.designSize;
-    const authoredScaleX = entity.width / Math.max(1, designSize.width);
-    const authoredScaleY = entity.height / Math.max(1, designSize.height);
-    const uniformScale = Math.min(authoredScaleX, authoredScaleY);
-    const designScaleX = preserveStructuralAspect ? uniformScale : authoredScaleX;
-    const designScaleY = preserveStructuralAspect ? uniformScale : authoredScaleY;
     this.modularBossDebugSnapshot = Object.freeze({
       entityId: entity.id,
       centerX: entity.x + entity.width / 2,
@@ -4937,7 +5083,6 @@ export class PixiGameRenderer {
     );
     const portCannon = componentById.get('left-cannon');
     const starboardCannon = componentById.get('right-cannon');
-
     rigView.root.visible = true;
     rigView.root.position.set(0, 0);
     rigView.root.pivot.set(0, 0);
@@ -4950,20 +5095,40 @@ export class PixiGameRenderer {
     for (const part of hierarchy.parts) {
       const sprite = rigView.partSprites[part.id];
       if (!sprite) continue;
+      const octarchComponentId = abyssalOctarchModularPreview
+        ? ABYSSAL_OCTARCH_RIG_PART_TO_COMPONENT[part.id]
+        : undefined;
+      const octarchComponent = octarchComponentId
+        ? componentById.get(octarchComponentId)
+        : undefined;
+      const octarchSever = octarchComponent && octarchComponentId
+        ? sampleAbyssalOctarchTentacleSeverPresentation({
+            destroyed: octarchComponent.destroyed,
+            lastDamageFrame: octarchComponent.lastDamageFlashFrame,
+            currentFrame: engine.frameCount,
+            side: octarchComponentId.endsWith('-port') ? 'port' : 'starboard'
+          })
+        : null;
       const sideBreakableRole = (
         part.role === 'arm'
         || part.role === 'armor'
         || part.role === 'pod'
       );
       const portComponentPart = (
-        part.id === 'cannon.port'
-        || part.id === 'muzzle.port'
-        || (sideBreakableRole && part.id.includes('.port'))
+        !abyssalOctarchModularPreview
+        && (
+          part.id === 'cannon.port'
+          || part.id === 'muzzle.port'
+          || (sideBreakableRole && part.id.includes('.port'))
+        )
       );
       const starboardComponentPart = (
-        part.id === 'cannon.starboard'
-        || part.id === 'muzzle.starboard'
-        || (sideBreakableRole && part.id.includes('.starboard'))
+        !abyssalOctarchModularPreview
+        && (
+          part.id === 'cannon.starboard'
+          || part.id === 'muzzle.starboard'
+          || (sideBreakableRole && part.id.includes('.starboard'))
+        )
       );
       const leftComponentPart = prismMothModularPreview
         && sideBreakableRole
@@ -4977,7 +5142,7 @@ export class PixiGameRenderer {
       ) || (
         (starboardComponentPart || rightComponentPart)
         && Boolean(starboardCannon?.destroyed)
-      );
+      ) || Boolean(octarchComponent?.destroyed && !octarchSever?.visible);
       const texture = part.frameId
         ? this.getModularPreviewBossTexture(part.frameId)
         : undefined;
@@ -5010,7 +5175,23 @@ export class PixiGameRenderer {
       sprite.rotation = Math.atan2(part.worldTransform.b, part.worldTransform.a);
       sprite.scale.set(scaleX, partScaleY);
       sprite.alpha = part.alpha;
-      sprite.tint = '#ffffff';
+      if (octarchComponent?.destroyed && octarchSever?.visible) {
+        // Keep the exact severed tentacle for one short readable reaction.
+        // Scaling toward its joint produces a retraction instead of spawning a
+        // duplicate limb; after the fade the structural part stays absent.
+        sprite.position.x += octarchSever.xOffset;
+        sprite.position.y += octarchSever.yOffset;
+        sprite.rotation += octarchSever.rotationOffset;
+        sprite.scale.set(
+          scaleX * octarchSever.scale,
+          partScaleY * octarchSever.scale
+        );
+        sprite.alpha = part.alpha * octarchSever.alpha;
+      }
+      const octarchLimbPresentation = octarchComponent
+        ? resolveAbyssalOctarchLimbPresentation(octarchComponent)
+        : null;
+      sprite.tint = octarchLimbPresentation?.spriteTint ?? '#ffffff';
       sprite.filters = null;
     }
     return true;
@@ -5557,7 +5738,7 @@ export class PixiGameRenderer {
     const nextState: Partial<Record<BossPartId, boolean>> = {};
     for (const component of components) {
       const sprite = rig.partSprites[component.id];
-      sprite.filters = null;
+      if (sprite) sprite.filters = null;
       const textureKey = partTextures[component.id];
       const texture = this.getOrRequestBossComponentTexture(textureKey);
       const visualScale = this.getBossComponentVisualScale(entity, component);
@@ -5588,8 +5769,8 @@ export class PixiGameRenderer {
           this.phaseTextUntilFrame = engine.frameCount + 88;
         }
       }
-      sprite.visible = Boolean(texture && !component.destroyed);
-      if (!texture || component.destroyed) continue;
+      if (sprite) sprite.visible = Boolean(texture && !component.destroyed);
+      if (!sprite || !texture || component.destroyed) continue;
       sprite.texture = texture;
       sprite.position.set(
         (component.centerXRatio - 0.5) * entity.width,
@@ -6266,6 +6447,13 @@ export class PixiGameRenderer {
       view.sprite.position.set(0, 0);
       view.root.rotation = entity.bossPresentationBankRadians;
       view.root.scale.set(1);
+      if (
+        entity.miniBossLabWallSide === 'right'
+        && (entity.miniBossLabEncounterId === 'railspine-wallcrawler'
+          || entity.miniBossLabEncounterId === 'gridline-sentries')
+      ) {
+        view.sprite.scale.x = -Math.abs(view.sprite.scale.x);
+      }
       view.sprite.alpha = 0.97 + pulse * 0.03;
       if (state === 'charge') {
         view.sprite.tint = '#dbeafe';
@@ -6283,14 +6471,12 @@ export class PixiGameRenderer {
         view.sprite.tint = '#e0f2fe';
         view.sprite.alpha = 0.88;
       }
+      // Guard state remains simulation-owned, but it is communicated through
+      // the registered armor pose/tint instead of the old generic circular
+      // bubble that made every elite look like the same shielded object.
       if (entity.miniBossLabShielded && entity.hp > 0) {
-        const shieldPulse = 0.72 + Math.sin(phase * 0.11) * 0.14;
-        view.aura
-          .ellipse(0, 0, entity.width * 0.64, entity.height * 0.61)
-          .fill({ color: '#22d3ee', alpha: 0.075 * shieldPulse });
-        view.aura
-          .ellipse(0, 0, entity.width * 0.7, entity.height * 0.67)
-          .stroke({ color: '#67e8f9', width: 2, alpha: shieldPulse });
+        view.sprite.tint = state === 'charge' ? '#dbeafe' : '#ccfbf1';
+        view.sprite.alpha = Math.max(view.sprite.alpha, 0.98);
       }
     } else if (isFormationMotionEnemy(entity) && entity.formationState) {
       const presentation = sampleFormationEnemyPresentation({
@@ -6355,11 +6541,15 @@ export class PixiGameRenderer {
       const pulse = 1 + Math.sin((engine.frameCount + entity.variant) * 0.065) * 0.035;
       view.root.scale.set(pulse);
       view.root.rotation = Math.sin((engine.frameCount + entity.variant) * 0.025) * 0.035;
-    } else if (entity.type === EntityType.ENEMY_JOURNAL || entity.type === EntityType.ENEMY_INVADER) {
+    } else if (entity.type === EntityType.ENEMY_JOURNAL) {
       const ambientRotation = Math.sin((engine.frameCount + entity.variant) * 0.05) * 0.09;
       view.root.rotation = entity.formationState
         ? entity.angle + ambientRotation * 0.25
         : ambientRotation;
+    } else if (entity.type === EntityType.ENEMY_INVADER) {
+      // Paywall nodes are one interlocking barrier. Their semantic frames
+      // animate locally, while the rigid formation owns all world movement.
+      view.root.rotation = 0;
     } else if (entity.type === EntityType.COIN) {
       // The RSC frame art supplies the 3D yaw flip. A brief presentation-only
       // scale pulse makes boss showers readable without changing pickup
@@ -6728,6 +6918,7 @@ export class PixiGameRenderer {
     ));
     this.bossHealthRoot.visible = Boolean(boss);
     this.bossHealthBar.clear();
+    this.abyssalOctarchLimbHud.clear();
     this.bossHealthName.text = '';
     if (!boss) return;
 
@@ -6766,6 +6957,66 @@ export class PixiGameRenderer {
       .fill('#ef233c');
     this.bossHealthBar.roundRect(-barWidth / 2, barY, barWidth, barHeight, barRadius)
       .stroke({ color: '#ff6b76', width: 1, alpha: 0.72 });
+    if (
+      boss.sourceEventId === ABYSSAL_OCTARCH_EVENT_ID
+      || boss.sourceItemId === 'abyssal-octarch'
+    ) {
+      const componentById = new Map(
+        (boss.bossComponents ?? []).map((component) => [component.id, component])
+      );
+      const segmentGap = 2;
+      const centerGap = 7;
+      const segmentHeight = Math.max(4, Math.min(6, barHeight * 0.28));
+      const segmentWidth = Math.max(
+        8,
+        (barWidth - centerGap - segmentGap * 6) / ABYSSAL_OCTARCH_LIMB_HUD_ORDER.length
+      );
+      const occupiedWidth = (
+        segmentWidth * ABYSSAL_OCTARCH_LIMB_HUD_ORDER.length
+        + segmentGap * 6
+        + centerGap
+      );
+      let cursorX = -occupiedWidth / 2;
+      const segmentY = barY + barHeight + 4;
+
+      ABYSSAL_OCTARCH_LIMB_HUD_ORDER.forEach((componentId, index) => {
+        if (index === 4) cursorX += centerGap;
+        const component = componentById.get(componentId);
+        const presentation = component
+          ? resolveAbyssalOctarchLimbPresentation(component)
+          : null;
+        const ratio = presentation?.ratio ?? 0;
+        const fill = presentation?.indicatorFill ?? '#25152f';
+        const stroke = presentation?.indicatorStroke ?? '#475569';
+        const radius = Math.max(1, segmentHeight * 0.25);
+        this.abyssalOctarchLimbHud
+          .roundRect(cursorX, segmentY, segmentWidth, segmentHeight, radius)
+          .fill({ color: '#050512', alpha: 0.96 });
+        if (ratio > 0) {
+          this.abyssalOctarchLimbHud
+            .roundRect(
+              cursorX + 1,
+              segmentY + 1,
+              Math.max(1, (segmentWidth - 2) * ratio),
+              Math.max(1, segmentHeight - 2),
+              Math.max(1, radius - 1)
+            )
+            .fill({ color: fill, alpha: 0.98 });
+        }
+        this.abyssalOctarchLimbHud
+          .roundRect(cursorX, segmentY, segmentWidth, segmentHeight, radius)
+          .stroke({ color: stroke, width: 1, alpha: presentation ? 0.9 : 0.38 });
+        if (presentation?.state === 'severed') {
+          this.abyssalOctarchLimbHud
+            .moveTo(cursorX + 2, segmentY + 1)
+            .lineTo(cursorX + segmentWidth - 2, segmentY + segmentHeight - 1)
+            .moveTo(cursorX + segmentWidth - 2, segmentY + 1)
+            .lineTo(cursorX + 2, segmentY + segmentHeight - 1)
+            .stroke({ color: '#fb7185', width: 1, alpha: 0.84 });
+        }
+        cursorX += segmentWidth + (index === 3 || index === 7 ? 0 : segmentGap);
+      });
+    }
     this.bossHealthName.text = name;
     this.bossHealthName.position.set(0, -frameHeight * 0.64);
   }
@@ -7596,7 +7847,12 @@ export class PixiGameRenderer {
     const deltaMs = this.lastTimestamp ? clamp(timestamp - this.lastTimestamp, 0, 50) : 16.667;
     this.lastTimestamp = timestamp;
     this.updatePlayerSteeringPresentation(engine, deltaMs);
-    this.camera.position.set(engine.shakeX, engine.shakeY);
+    const encounterCamera = engine.getEncounterCameraTransform();
+    this.camera.scale.set(encounterCamera.scale);
+    this.camera.position.set(
+      encounterCamera.offsetX + engine.shakeX,
+      encounterCamera.offsetY + engine.shakeY
+    );
     this.environment.update(engine);
     this.effectPool.setQuality(engine.performanceMode, engine.mobileProfile);
     this.syncCornerAmbushPresentation(engine);
