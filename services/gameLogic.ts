@@ -113,6 +113,11 @@ import {
 } from './squadProgression';
 import { resolveBossPhaseConfig } from './bossPhaseConfig';
 import {
+  BOTTLENECK_DRONE_BOSS_ID,
+  isBottleneckDroneCharging,
+  resolveBottleneckDroneFrameIndex
+} from './gameplay/bosses/BottleneckDronePresentation';
+import {
   advanceBossRevivalRuntime,
   createBossRevivalRuntimeState,
   createCompletedBossRevivalRuntimeState,
@@ -11071,6 +11076,10 @@ export class GameEngine {
         this.applyConfiguredBossPhase(mb);
         mb.sourceEventId = configured.id;
         mb.sourceItemId = configured.bossId;
+        if (configured.bossId === BOTTLENECK_DRONE_BOSS_ID) {
+          mb.spriteFrames = [...ASSETS.BOTTLENECK_DRONE_FRAMES];
+          mb.spriteFrames.forEach(loadImage);
+        }
         if (mb.spriteUrl) loadImage(mb.spriteUrl);
       }
       spawned.push(mb);
@@ -12133,20 +12142,28 @@ export class GameEngine {
      const baseShootRate = boss.attackIntervalFrames ?? (this.wave === 1 ? 72 : Math.max(30, 60 - (this.wave * 5)));
      const hullPressureMultiplier = 0.58 + clamp(healthRatio, 0, 1) * 0.42;
      const shootRate = Math.max(8, Math.round(baseShootRate * phaseCadenceMultiplier * hullPressureMultiplier));
+     if (boss.sourceItemId === BOTTLENECK_DRONE_BOSS_ID) {
+       boss.isCharging = isBottleneckDroneCharging({
+         attackTimer: boss.attackTimer,
+         cadenceFrames: shootRate
+       });
+     }
      if (boss.attackTimer % shootRate === 0) {
-        const burstCount = Math.max(1, boss.configuredBurstCount ?? 1);
-        for (let index = 0; index < burstCount; index++) {
-          const offset = index - ((burstCount - 1) / 2);
-          const b = this.createEntity(EntityType.PROJECTILE, boss.x + boss.width/2, boss.y + boss.height);
-          b.vx = offset * 0.85;
-          b.vy = boss.projectileSpeed ?? (5 + (this.wave * 0.5));
-          b.width = 16;
-          b.height = 16;
-          b.color = '#ff0000';
-          b.damage = Math.max(1, Number(boss.projectileDamage) || 1);
-          this.entities.push(b);
-        }
-        this.playSound('boss_shoot', 0.9, { pitchJitter: 0.1, pitchOffset: -0.02 });
+       const burstCount = Math.max(1, boss.configuredBurstCount ?? 1);
+       for (let index = 0; index < burstCount; index++) {
+         const offset = index - ((burstCount - 1) / 2);
+         const b = this.createEntity(EntityType.PROJECTILE, boss.x + boss.width/2, boss.y + boss.height);
+         b.vx = offset * 0.85;
+         b.vy = boss.projectileSpeed ?? (5 + (this.wave * 0.5));
+         b.width = 16;
+         b.height = 16;
+         b.color = '#ff0000';
+         b.damage = Math.max(1, Number(boss.projectileDamage) || 1);
+         this.entities.push(b);
+       }
+       boss.campaignLastFireFrame = this.frameCount;
+       if (boss.sourceItemId === BOTTLENECK_DRONE_BOSS_ID) boss.isCharging = false;
+       this.playSound('boss_shoot', 0.9, { pitchJitter: 0.1, pitchOffset: -0.02 });
      }
   }
 
@@ -22012,7 +22029,16 @@ export class GameEngine {
       this.drawHealthBar(ctx, e, 12);
       ctx.globalAlpha = 1.0;
       const bob = Math.sin(this.frameCount * 0.08) * 4;
-      const drewSprite = this.drawSprite(ctx, e.spriteUrl || ASSETS.MINI_BOSS, e.width, e.height, {
+      const spriteFrames = e.spriteFrames;
+      const sprite = e.sourceItemId === BOTTLENECK_DRONE_BOSS_ID && spriteFrames && spriteFrames.length >= 5
+        ? spriteFrames[resolveBottleneckDroneFrameIndex({
+            frameCount: this.frameCount,
+            lastFireFrame: e.campaignLastFireFrame,
+            isCharging: e.isCharging,
+            variant: e.variant
+          })]
+        : e.spriteUrl || ASSETS.MINI_BOSS;
+      const drewSprite = this.drawSprite(ctx, sprite, e.width, e.height, {
         shadowColor: '#fb7185',
         shadowBlur: 22,
         yOffset: bob,

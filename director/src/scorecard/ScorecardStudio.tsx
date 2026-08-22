@@ -36,7 +36,10 @@ interface IconProps {
 
 const encounterAssets = [
   { label: 'Gatekeeper sentinel', value: '/game-art/bosses/final-boss-sentinel.png' },
-  { label: 'Mini-boss drone', value: '/game-art/bosses/mini-boss-drone.png' },
+  {
+    label: 'Bottleneck Drone',
+    value: '/game-art/generated/elite-enemies/bottleneck-drone-v3/frames/bottleneck-drone-01-neutral.png'
+  },
   { label: 'Wall segment', value: '/game-art/bosses/wall-segment.png' },
   { label: 'Journal ace', value: '/game-art/enemies/journal-ace.png' },
   { label: 'Asteroid', value: '/game-art/enemies/asteroid-5.png' }

@@ -20,6 +20,9 @@ export class PixiTextureBank {
     const request = Assets.load<Texture>(url)
       .then((texture) => {
         texture.source.scaleMode = 'nearest';
+        // Gameplay sprites are never tiling textures. Explicit clamping prevents
+        // an out-of-range UV from sampling the opposite edge of a generated frame.
+        texture.source.addressMode = 'clamp-to-edge';
         this.textures.set(url, texture);
         this.pending.delete(url);
         return texture;

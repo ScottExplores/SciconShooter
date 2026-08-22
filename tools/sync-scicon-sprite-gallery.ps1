@@ -89,6 +89,9 @@ function Convert-AssetSlugToLabel([string]$Slug) {
 
 function Get-ProjectBossGroup([string]$RelativePath) {
   $normalized = $RelativePath.ToLowerInvariant().Replace('\', '/')
+  if ($normalized -match '^generated/elite-enemies/([^/]+)/') {
+    return Convert-AssetSlugToLabel ($Matches[1] -replace '-v\d+$', '')
+  }
   if ($normalized -match '^generated/mini-boss-lab-v2/([^/]+)/') {
     return Convert-AssetSlugToLabel $Matches[1]
   }
@@ -131,6 +134,7 @@ function Get-PrototypeBossGroup([string]$RelativePath) {
 
 function Get-ProjectCategory([string]$RelativePath) {
   $normalized = $RelativePath.ToLowerInvariant().Replace('\', '/')
+  if ($normalized -match '^generated/elite-enemies/') { return 'Scicon - Elite Enemies' }
   if ($normalized -match '^generated/mini-boss-lab-v2/') { return 'Scicon - Elite Enemies' }
   if ($normalized -match '(^|/)animations/' -or $normalized.EndsWith('.gif')) { return 'Scicon - Animations' }
   if ($normalized -match '(^|/)(bosses|boss-weapons?)/') { return 'Scicon - Bosses & Mini-Bosses' }
@@ -200,6 +204,7 @@ function Test-SpriteSheetAsset([string]$RelativePath) {
 function Get-SimpleSemanticCategory([string]$RelativePath) {
   $normalized = $RelativePath.ToLowerInvariant().Replace('\', '/')
 
+  if ($normalized -match '^generated/elite-enemies/') { return 'Elite Enemies' }
   if ($normalized -match '^generated/mini-boss-lab-v2/') { return 'Elite Enemies' }
   if ($normalized -match 'scicon-simple-arcade-kit-v1/(?:projectiles|effects)/') { return 'Props & Effects' }
   if ($normalized -match 'scicon-player-weapon-fx' -or $normalized -match 'biohazard-bomb') {
@@ -262,7 +267,7 @@ function Get-ProjectRuntimeGalleryCategories([string]$RelativePath, [string]$Ext
     $categories.Add('Test Bosses & Prototypes')
   }
 
-  if ($normalized -match '^generated/mini-boss-lab-v2/' -and
+  if ($normalized -match '^generated/(?:elite-enemies|mini-boss-lab-v2)/' -and
       -not $categories.Contains('Elite Enemies')) {
     $categories.Add('Elite Enemies')
   }
