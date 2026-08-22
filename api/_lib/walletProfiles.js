@@ -2161,15 +2161,35 @@ const canonicalizeWeeklyCampaignStreakServer = (
     );
     const eliteKills = strictWeeklyInteger(outcomeValue.eliteKills, 0, limits.eliteKillCeiling);
     const wavesCleared = strictWeeklyInteger(outcomeValue.wavesCleared, 0, limits.waveCount);
-    const miniBossKills = strictWeeklyInteger(
+    const generatedPaywallWallOmitsMiniBossCounter = (
+      graphContext.kind === 'generated-weekly-run'
+      && limits.miniBossKillCeiling === 1
+      && limits.majorBossKillCeiling === 0
+      && Array.isArray(node.miniBossIds)
+      && node.miniBossIds.length === 1
+      && node.miniBossIds[0] === 'paywall-wall'
+    );
+    const reportedMiniBossKills = strictWeeklyInteger(
       outcomeValue.miniBossKills,
       0,
       limits.miniBossKillCeiling
     );
-    const majorBossKills = strictWeeklyInteger(
+    const reportedMajorBossKills = strictWeeklyInteger(
       outcomeValue.majorBossKills,
       0,
       limits.majorBossKillCeiling
+    );
+    // The deployed Paywall Wall is one generated elite encounter, but its
+    // destructible pieces are runtime ENEMY_INVADER entities. Those clients
+    // correctly clear the encounter while reporting zero mini-boss kills.
+    // Accept only that exact graph-owned omission, then restore the planned
+    // mini-boss credit so its score cannot differ from other elite depths.
+    const bossOutcomeMatchesLimits = (
+      reportedMajorBossKills === limits.majorBossKillCeiling
+      && (
+        reportedMiniBossKills === limits.miniBossKillCeiling
+        || (generatedPaywallWallOmitsMiniBossCounter && reportedMiniBossKills === 0)
+      )
     );
     const damageTaken = strictWeeklyInteger(outcomeValue.damageTaken, 0, 1_000_000);
     const livesRemaining = strictWeeklyInteger(
@@ -2193,8 +2213,7 @@ const canonicalizeWeeklyCampaignStreakServer = (
       || eliteKills === null
       || regularEnemyKills + eliteKills > limits.nonBossKillCeiling
       || wavesCleared !== limits.waveCount
-      || miniBossKills !== limits.miniBossKillCeiling
-      || majorBossKills !== limits.majorBossKillCeiling
+      || !bossOutcomeMatchesLimits
       || damageTaken === null
       || livesRemaining === null
       || (accuracy !== null && (!Number.isFinite(accuracy) || accuracy < 0 || accuracy > 1))
@@ -2203,6 +2222,10 @@ const canonicalizeWeeklyCampaignStreakServer = (
       || (requireFinalized && elapsedMs === null)
     ) return fail('weekly_outcome_impossible');
 
+    const miniBossKills = generatedPaywallWallOmitsMiniBossCounter
+      ? limits.miniBossKillCeiling
+      : reportedMiniBossKills;
+    const majorBossKills = reportedMajorBossKills;
     const outcome = {
       regularEnemyKills,
       eliteKills,

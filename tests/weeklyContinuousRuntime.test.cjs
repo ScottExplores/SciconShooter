@@ -58,6 +58,51 @@ const createStats = () => ({
   bossMaxHp: 100
 });
 
+test('Weekly Paywall Wall awards one mini-boss credit when its final mobile segment is destroyed', () => {
+  const weekly = weeklyGenerator.buildWeeklyRunCampaign('2026-08-16', authoredCampaign, 4);
+  const wallLevel = weekly.levels[1];
+  const wallWave = wallLevel.waves.at(-1);
+  const wallEvent = wallWave.events.find((event) => (
+    event.kind === 'boss' && event.bossId === 'paywall-wall'
+  ));
+  assert.ok(wallEvent, 'the fixed-week second depth must contain Paywall Wall');
+
+  const engine = new GameEngine(createStats(), {
+    campaign: weekly,
+    initialLevelId: wallLevel.id,
+    initialWaveId: wallWave.id,
+    refillLivesAtMissionBoundary: false,
+    continuousStageBoundaries: true,
+    audioEnabled: false,
+    randomSeed: 'weekly-paywall-counter-test'
+  });
+  engine.init(390, 700);
+  engine.entities = [];
+  engine.spawnWallBoss(wallEvent);
+
+  const segments = engine.entities.filter((entity) => (
+    entity.type === 'ENEMY_INVADER'
+    && entity.sourceEventId === wallEvent.id
+    && entity.sourceItemId === 'paywall-wall'
+  ));
+  assert.equal(segments.length, 6, 'the mobile depth-two wall has six destructible segments');
+
+  segments.forEach((segment, index) => {
+    segment.hp = 0;
+    engine.handleEnemyDestroyed(segment);
+    assert.equal(
+      engine.waveVictoryKillCounts.miniBossKills,
+      index === segments.length - 1 ? 1 : 0,
+      'only the final destroyed segment may complete the boss encounter'
+    );
+  });
+
+  assert.equal(engine.waveVictoryKillCounts.regularEnemyKills, 6);
+  assert.equal(engine.waveVictoryKillCounts.majorBossKills, 0);
+  engine.handleEnemyDestroyed(segments.at(-1));
+  assert.equal(engine.waveVictoryKillCounts.miniBossKills, 1, 'duplicate destruction cannot add credit');
+});
+
 test('Weekly Run extends its runway in place and crosses a depth without resetting live combat state', () => {
   const initial = weeklyGenerator.buildWeeklyRunCampaign(
     '2026-W31',

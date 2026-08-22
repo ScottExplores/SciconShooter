@@ -8461,6 +8461,27 @@ export class GameEngine {
 
   private recordWaveVictoryKill(target: Entity) {
     const encounterId = target.sourceEventId || target.id;
+    const isConfiguredPaywallWallSegment = (
+      target.type === EntityType.ENEMY_INVADER
+      && target.sourceItemId === 'paywall-wall'
+      && Boolean(target.sourceEventId)
+    );
+    if (isConfiguredPaywallWallSegment) {
+      const hasLivingEncounterMember = this.entities.some((entity) => (
+        entity !== target
+        && entity.type === EntityType.ENEMY_INVADER
+        && entity.sourceEventId === target.sourceEventId
+        && !entity.markedForDeletion
+        && entity.hp > 0
+      ));
+      if (
+        !hasLivingEncounterMember
+        && !this.creditedMiniBossEncounterIds.has(encounterId)
+      ) {
+        this.creditedMiniBossEncounterIds.add(encounterId);
+        this.waveVictoryKillCounts.miniBossKills++;
+      }
+    }
     if (target.type === EntityType.BOSS) {
       if (!this.creditedMajorBossEncounterIds.has(encounterId)) {
         this.creditedMajorBossEncounterIds.add(encounterId);

@@ -267,6 +267,123 @@ test('generated Weekly Run receipt proof is canonical and rejects route, outcome
   }, 'weekly_finalization_invalid');
 });
 
+test('a guest Wave 4 defeat after three generated elite bosses creates a verified receipt', async () => {
+  clearWeeklyRunAttemptMemoryForTests();
+  const issuedAt = Date.parse('2026-08-21T04:59:00.000Z');
+  const boundary = getWeeklyBoundaryMeta(new Date(issuedAt));
+  const run = browser.generator.buildWeeklyRunCampaign(boundary.weekKey, undefined, 4);
+  const graph = browser.graph.createCampaignGraphIndex(run);
+  const nodes = graph.definition.nodes.slice(0, 4);
+  assert.equal(nodes.length, 4);
+  assert.deepEqual(
+    nodes.slice(0, 3).map((node) => node.miniBossIds[0]),
+    ['bottleneck-drone', 'paywall-wall', 'aegis-brood-core']
+  );
+
+  let state = browser.streak.startWeeklyCampaignStreak(graph, {
+    weeklyId: boundary.weekKey,
+    resetAtMs: boundary.endsAt.getTime(),
+    startNodeId: nodes[0].nodeId,
+    unlockedNodeIds: graph.definition.nodes.map((node) => node.nodeId),
+    nowMs: issuedAt - 1_000
+  });
+  const binding = createWeeklyCampaignStreakRunBinding(state, { now: issuedAt });
+  const session = await createReservedRunStart('weekly-wave-4-runtime-category-test', {
+    runMode: 'weekly-streak',
+    profileId: 'pilot:weekly-wave-4-runtime-category',
+    weeklyCampaignProof: state,
+    nowMs: issuedAt
+  });
+  assert.equal(session.identity.kind, 'guest');
+
+  for (let index = 0; index < 3; index += 1) {
+    const node = nodes[index];
+    assert.equal(node.miniBossIds.length, 1, `Depth ${index + 1} is an elite encounter`);
+    const runtimeOutcome = outcomeForNode(run, node);
+    // Paywall Wall is made from ENEMY_INVADER segments. The deployed runtime
+    // clears it but does not increment either boss counter.
+    if (node.miniBossIds[0] === 'paywall-wall') {
+      runtimeOutcome.regularEnemyKills = 6;
+      runtimeOutcome.miniBossKills = 0;
+      runtimeOutcome.majorBossKills = 0;
+    }
+    const occurredAtMs = issuedAt + (index + 1) * 40_000;
+    state = browser.streak.recordWeeklyCampaignNodeScore(state, graph, {
+      eventId: `generated-weekly-runtime-elite-${index}`,
+      nodeId: node.nodeId,
+      occurredAtMs,
+      outcome: runtimeOutcome
+    });
+    const advance = browser.streak.requestWeeklyCampaignAdvance(
+      state,
+      graph,
+      nodes[index + 1].nodeId,
+      occurredAtMs
+    );
+    assert.equal(advance.kind, 'advanced');
+    state = advance.state;
+  }
+  const finalized = browser.streak.finalizeWeeklyCampaignLoss(state, issuedAt + 121_000);
+
+  const canonical = validateFinalizedWeeklyCampaignStreakProof(finalized, {
+    now: issuedAt + 130_000,
+    expectedBinding: binding
+  });
+  assert.equal(canonical.score.completedNodeCount, 3);
+  assert.equal(canonical.currentNodeId, 'weekly-run-node-3');
+  for (const event of canonical.scoreEvents) {
+    assert.equal(event.outcome.miniBossKills, 1);
+    assert.equal(event.outcome.majorBossKills, 0);
+  }
+
+  const missingOrdinaryEliteCredit = structuredClone(finalized);
+  missingOrdinaryEliteCredit.scoreEvents[0].outcome.miniBossKills = 0;
+  assert.throws(
+    () => validateFinalizedWeeklyCampaignStreakProof(missingOrdinaryEliteCredit, {
+      now: issuedAt + 130_000,
+      expectedBinding: binding
+    }),
+    (error) => error?.details?.anomalies?.includes('weekly_outcome_impossible')
+  );
+
+  const wrongPaywallMajorCredit = structuredClone(finalized);
+  wrongPaywallMajorCredit.scoreEvents[1].outcome.majorBossKills = 1;
+  assert.throws(
+    () => validateFinalizedWeeklyCampaignStreakProof(wrongPaywallMajorCredit, {
+      now: issuedAt + 130_000,
+      expectedBinding: binding
+    }),
+    (error) => error?.details?.anomalies?.includes('weekly_outcome_impossible')
+  );
+
+  const futurePaywallMiniCredit = structuredClone(finalized);
+  futurePaywallMiniCredit.scoreEvents[1].outcome.miniBossKills = 1;
+  const futureCanonical = validateFinalizedWeeklyCampaignStreakProof(futurePaywallMiniCredit, {
+    now: issuedAt + 130_000,
+    expectedBinding: binding
+  });
+  assert.equal(futureCanonical.scoreEvents[1].outcome.miniBossKills, 1);
+
+  const originalNow = Date.now;
+  Date.now = () => issuedAt + 130_000;
+  try {
+    const receipt = await finishRun(session.startToken, {
+      score: 6_915,
+      wave: 4,
+      playerShipId: 'researchhub',
+      weeklyCampaignProof: finalized
+    }, { headers: {}, socket: { remoteAddress: '127.0.0.1' } });
+    assert.equal(receipt.identity.kind, 'guest');
+    assert.equal(receipt.integrity, 'server-verified');
+    assert.deepEqual(receipt.anomalies, []);
+    assert.equal(receipt.metrics.wave, 3);
+    assert.equal(receipt.weeklyCampaign.completedNodeCount, 3);
+    assert.equal(receipt.weeklyCampaign.finalNodeId, 'weekly-run-node-3');
+  } finally {
+    Date.now = originalNow;
+  }
+});
+
 test('a guest Weekly Run proof survives score and automatic advance in the same clock tick', async () => {
   clearWeeklyRunAttemptMemoryForTests();
   const issuedAt = Date.now() - 100_000;
