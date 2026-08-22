@@ -873,7 +873,8 @@ test('renderer, preview snapshot, and permanent records all consume the escape l
 
   assert.match(previewSource, /readonly lifecycle: Readonly<\{/);
   assert.match(previewSource, /kind: 'vanish-reentry' \| 'escape'/);
-  assert.match(engineSource, /lifecycle: activeBoss\.bossEscapeStage/);
+  assert.match(engineSource, /lifecycle: activeBossInAbyssalDefeat/);
+  assert.match(engineSource, /:[\s\S]{0,80}activeBoss\.bossEscapeStage/);
   assert.match(rendererSource, /vanishReentry: entity\.bossVanishReentryStage/);
   assert.match(rendererSource, /escape: entity\.bossEscapeStage/);
   assert.match(
