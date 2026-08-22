@@ -1,0 +1,286 @@
+{
+  "schemaVersion": 1,
+  "id": "paywall-wall-v2",
+  "source": {
+    "assetId": "paywall-wall-animation-sheet-v2.png",
+    "sha256": "71ffb8f6dc16ca517022437885607e38febb4d57956872a917c7a4a2e12f41f8",
+    "width": 2141,
+    "height": 734,
+    "cells": [
+      {
+        "name": "idle",
+        "left": 0,
+        "right": 427,
+        "bounds": {
+          "x": 42,
+          "y": 167,
+          "width": 371,
+          "height": 370
+        },
+        "opaquePixelCount": 92764,
+        "discardedComponentCount": 0,
+        "discardedPixelCount": 0
+      },
+      {
+        "name": "neutral",
+        "left": 428,
+        "right": 855,
+        "bounds": {
+          "x": 450,
+          "y": 167,
+          "width": 386,
+          "height": 370
+        },
+        "opaquePixelCount": 97057,
+        "discardedComponentCount": 0,
+        "discardedPixelCount": 0
+      },
+      {
+        "name": "attack",
+        "left": 856,
+        "right": 1283,
+        "bounds": {
+          "x": 887,
+          "y": 167,
+          "width": 370,
+          "height": 462
+        },
+        "opaquePixelCount": 99766,
+        "discardedComponentCount": 1,
+        "discardedPixelCount": 2
+      },
+      {
+        "name": "damage-50",
+        "left": 1284,
+        "right": 1711,
+        "bounds": {
+          "x": 1300,
+          "y": 167,
+          "width": 372,
+          "height": 370
+        },
+        "opaquePixelCount": 93056,
+        "discardedComponentCount": 0,
+        "discardedPixelCount": 0
+      },
+      {
+        "name": "critical-15",
+        "left": 1712,
+        "right": 2140,
+        "bounds": {
+          "x": 1714,
+          "y": 167,
+          "width": 371,
+          "height": 370
+        },
+        "opaquePixelCount": 92851,
+        "discardedComponentCount": 1,
+        "discardedPixelCount": 34
+      }
+    ]
+  },
+  "processing": {
+    "frameOrder": [
+      "idle",
+      "neutral",
+      "attack",
+      "damage-50",
+      "critical-15"
+    ],
+    "targetFrame": {
+      "width": 84,
+      "height": 100
+    },
+    "runtimeFrame": {
+      "width": 42,
+      "height": 50
+    },
+    "sourceToRuntimeScale": 0.5,
+    "structuralReference": {
+      "top": 167,
+      "bottom": 536,
+      "width": 386,
+      "height": 370,
+      "scale": 0.1945945945945946
+    },
+    "bodyPlacement": {
+      "top": 6,
+      "targetWidth": 76,
+      "targetHeight": 72
+    },
+    "paletteLimit": 32,
+    "sharedPaletteSize": 32,
+    "alpha": "binary",
+    "scaling": "nearest-neighbor",
+    "structuralComponentPolicy": "single-connected-component",
+    "sourceFrameGutterPixels": 1,
+    "transparentSafetyMarginPixels": 4,
+    "sheetGutterPixels": 4
+  },
+  "runtime": {
+    "anchor": {
+      "x": 0.5,
+      "y": 0.5
+    },
+    "projectileSocket": {
+      "x": 0.5,
+      "y": 1
+    },
+    "stateOrder": [
+      "idle",
+      "neutral",
+      "attack",
+      "damage-50",
+      "critical-15"
+    ]
+  },
+  "frames": [
+    {
+      "id": "idle",
+      "path": "frames/paywall-wall-01-idle.png",
+      "sha256": "c248d9d2032db98774edc39757931d1abdcc7cdfd86c5ed3223dcfbbb5a527b6",
+      "analysis": {
+        "width": 84,
+        "height": 100,
+        "opaquePixels": 3505,
+        "transparentPixels": 4895,
+        "semitransparentPixels": 0,
+        "opaquePaletteSize": 31
+      },
+      "centroid": {
+        "x": 41.49957203994294,
+        "y": 46.43623395149786,
+        "opaquePixelCount": 3505
+      },
+      "sourceCleanup": {
+        "discardedComponentCount": 0,
+        "discardedPixelCount": 0
+      }
+    },
+    {
+      "id": "neutral",
+      "path": "frames/paywall-wall-02-neutral.png",
+      "sha256": "75a9b291a84869b9f332466370a1f73539a782b35d14e8e200faebb0c641315d",
+      "analysis": {
+        "width": 84,
+        "height": 100,
+        "opaquePixels": 3686,
+        "transparentPixels": 4714,
+        "semitransparentPixels": 0,
+        "opaquePaletteSize": 31
+      },
+      "centroid": {
+        "x": 41.44519804666305,
+        "y": 46.46174715138361,
+        "opaquePixelCount": 3686
+      },
+      "sourceCleanup": {
+        "discardedComponentCount": 0,
+        "discardedPixelCount": 0
+      }
+    },
+    {
+      "id": "attack",
+      "path": "frames/paywall-wall-03-attack.png",
+      "sha256": "3fd644ba9ab75f6810338d88e38cc84be626f67708e6c47cad1fe24a1864bf2a",
+      "analysis": {
+        "width": 84,
+        "height": 100,
+        "opaquePixels": 3777,
+        "transparentPixels": 4623,
+        "semitransparentPixels": 0,
+        "opaquePaletteSize": 32
+      },
+      "centroid": {
+        "x": 41.488482922954724,
+        "y": 49.237490071485304,
+        "opaquePixelCount": 3777
+      },
+      "sourceCleanup": {
+        "discardedComponentCount": 1,
+        "discardedPixelCount": 2
+      }
+    },
+    {
+      "id": "damage-50",
+      "path": "frames/paywall-wall-04-damage-50.png",
+      "sha256": "f184cb405b290d2f804bdb7441f6e235bbd36a2a94a2cb8ddf3fe4a6a8cd24d4",
+      "analysis": {
+        "width": 84,
+        "height": 100,
+        "opaquePixels": 3518,
+        "transparentPixels": 4882,
+        "semitransparentPixels": 0,
+        "opaquePaletteSize": 32
+      },
+      "centroid": {
+        "x": 41.55571347356452,
+        "y": 46.4462762933485,
+        "opaquePixelCount": 3518
+      },
+      "sourceCleanup": {
+        "discardedComponentCount": 0,
+        "discardedPixelCount": 0
+      }
+    },
+    {
+      "id": "critical-15",
+      "path": "frames/paywall-wall-05-critical-15.png",
+      "sha256": "4562cf2312c5603045cf2fa42f635fc58a71898cf90a284079f30f0b03bcf00f",
+      "analysis": {
+        "width": 84,
+        "height": 100,
+        "opaquePixels": 3514,
+        "transparentPixels": 4886,
+        "semitransparentPixels": 0,
+        "opaquePaletteSize": 32
+      },
+      "centroid": {
+        "x": 41.63375071143995,
+        "y": 46.47467273762094,
+        "opaquePixelCount": 3514
+      },
+      "sourceCleanup": {
+        "discardedComponentCount": 1,
+        "discardedPixelCount": 34
+      }
+    }
+  ],
+  "spriteSheet": {
+    "path": "paywall-wall-sprite-sheet.png",
+    "width": 436,
+    "height": 100,
+    "frames": [
+      {
+        "x": 0,
+        "y": 0,
+        "width": 84,
+        "height": 100
+      },
+      {
+        "x": 88,
+        "y": 0,
+        "width": 84,
+        "height": 100
+      },
+      {
+        "x": 176,
+        "y": 0,
+        "width": 84,
+        "height": 100
+      },
+      {
+        "x": 264,
+        "y": 0,
+        "width": 84,
+        "height": 100
+      },
+      {
+        "x": 352,
+        "y": 0,
+        "width": 84,
+        "height": 100
+      }
+    ]
+  }
+}

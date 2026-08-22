@@ -116,9 +116,9 @@ test('Paywall Bastions use attack and real health decay frames across authored c
   const campaign = JSON.parse(read('game-config/campaign.json'));
 
   assert.match(constants, /PAYWALL_BASTION_FRAMES/);
-  assert.match(constants, /paywall-bastion-03-attack\.png/);
-  assert.match(constants, /paywall-bastion-04-damage-50\.png/);
-  assert.match(constants, /paywall-bastion-05-critical-15\.png/);
+  assert.match(constants, /paywall-wall-03-attack\.png/);
+  assert.match(constants, /paywall-wall-04-damage-50\.png/);
+  assert.match(constants, /paywall-wall-05-critical-15\.png/);
   assert.match(renderer, /getPaywallBastionFrameIndex/);
   assert.match(renderer, /healthRatio <= 0\.15/);
   assert.match(renderer, /healthRatio <= 0\.5/);

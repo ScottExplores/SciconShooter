@@ -1,0 +1,292 @@
+{
+  "schemaVersion": 2,
+  "encounterId": "twin-meridian-sentinels",
+  "sourceSha256": "d3b4dac4ef29d08935feab8f23db7ca9ccc28a8e4af98a3eaf9c4ca28e6a09f3",
+  "canvas": {
+    "width": 192,
+    "height": 192
+  },
+  "runtimeContract": {
+    "sampling": "nearest",
+    "alpha": "binary",
+    "maximumSharedColors": 32,
+    "minimumMarginPixels": 8
+  },
+  "palette": [
+    [
+      0,
+      187,
+      238
+    ],
+    [
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      170,
+      221
+    ],
+    [
+      0,
+      0,
+      17
+    ],
+    [
+      0,
+      170,
+      238
+    ],
+    [
+      0,
+      204,
+      255
+    ],
+    [
+      0,
+      68,
+      119
+    ],
+    [
+      0,
+      68,
+      136
+    ],
+    [
+      0,
+      187,
+      255
+    ],
+    [
+      0,
+      51,
+      102
+    ],
+    [
+      0,
+      17,
+      17
+    ],
+    [
+      238,
+      170,
+      34
+    ],
+    [
+      0,
+      51,
+      119
+    ],
+    [
+      0,
+      17,
+      34
+    ],
+    [
+      238,
+      153,
+      17
+    ],
+    [
+      0,
+      17,
+      51
+    ],
+    [
+      0,
+      153,
+      204
+    ],
+    [
+      238,
+      170,
+      17
+    ],
+    [
+      0,
+      221,
+      255
+    ],
+    [
+      0,
+      0,
+      34
+    ],
+    [
+      17,
+      17,
+      17
+    ],
+    [
+      221,
+      136,
+      17
+    ],
+    [
+      0,
+      187,
+      221
+    ],
+    [
+      255,
+      187,
+      34
+    ],
+    [
+      0,
+      34,
+      85
+    ],
+    [
+      17,
+      0,
+      0
+    ],
+    [
+      204,
+      136,
+      17
+    ],
+    [
+      187,
+      119,
+      17
+    ],
+    [
+      0,
+      153,
+      221
+    ],
+    [
+      204,
+      119,
+      17
+    ],
+    [
+      17,
+      221,
+      255
+    ],
+    [
+      0,
+      85,
+      136
+    ]
+  ],
+  "frames": [
+    {
+      "state": "neutral",
+      "fileName": "twin-meridian-sentinels-neutral.png",
+      "sha256": "176ddab7bb7abb5fb6275e55a6969ae1e53f4da43b187b6bbe9064f3f87fdd09",
+      "structuralCleanup": {
+        "sourceComponentCount": 1,
+        "sourceDiscardedPixels": 0,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    },
+    {
+      "state": "idle",
+      "fileName": "twin-meridian-sentinels-idle.png",
+      "sha256": "f80bc876828bee9de7a3f37b39ff9bfbfca6fc5f79e105baaef0e197f129e71d",
+      "structuralCleanup": {
+        "sourceComponentCount": 1,
+        "sourceDiscardedPixels": 0,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    },
+    {
+      "state": "charge",
+      "fileName": "twin-meridian-sentinels-charge.png",
+      "sha256": "0f6acf8367c36c94098044c165f73d213af3f26b31b8235990fc02a2f6ca7eaf",
+      "structuralCleanup": {
+        "sourceComponentCount": 1,
+        "sourceDiscardedPixels": 0,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    },
+    {
+      "state": "attack-a",
+      "fileName": "twin-meridian-sentinels-attack-a.png",
+      "sha256": "d738725def3e1c1000534ca78296052ad5e627beb502cba0691b060fe1c6dfc2",
+      "structuralCleanup": {
+        "sourceComponentCount": 1,
+        "sourceDiscardedPixels": 0,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    },
+    {
+      "state": "attack-b",
+      "fileName": "twin-meridian-sentinels-attack-b.png",
+      "sha256": "d1b49214dcc7b48150c45e11a3b31d387a880fc12cbbb8ede4e6a9156270710c",
+      "structuralCleanup": {
+        "sourceComponentCount": 4,
+        "sourceDiscardedPixels": 3,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    },
+    {
+      "state": "damage",
+      "fileName": "twin-meridian-sentinels-damage.png",
+      "sha256": "f1d7b7bbb0a4f11a49ae769d2d4318c632b302c3065f6a5124bb81636e908d91",
+      "structuralCleanup": {
+        "sourceComponentCount": 2,
+        "sourceDiscardedPixels": 84,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    },
+    {
+      "state": "critical",
+      "fileName": "twin-meridian-sentinels-critical.png",
+      "sha256": "ec069cb311d3e5a5bc925ecb011043437bffb5bb3fa91dc0f9685d7f4d3027c4",
+      "structuralCleanup": {
+        "sourceComponentCount": 2,
+        "sourceDiscardedPixels": 116,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    }
+  ],
+  "projectileFrames": [
+    {
+      "assetId": "meridian-bolt",
+      "fileName": "meridian-bolt-01.png",
+      "sha256": "aca5f2fb5d3eee22588b5040b61e6f502f3c2f36f27cc717fb729eb0d1642820",
+      "width": 22,
+      "height": 64
+    },
+    {
+      "assetId": "meridian-bolt",
+      "fileName": "meridian-bolt-02.png",
+      "sha256": "023f751b969b5e0d191a37eee9d2d03a8fda3104e93954fae7cd3bd011bd5b00",
+      "width": 22,
+      "height": 64
+    },
+    {
+      "assetId": "meridian-bolt",
+      "fileName": "meridian-bolt-03.png",
+      "sha256": "b705fa5dd893919824b776c7d881d9a17e2e1989e43ebd344ad476119103dcfc",
+      "width": 22,
+      "height": 64
+    },
+    {
+      "assetId": "meridian-bolt",
+      "fileName": "meridian-bolt-04.png",
+      "sha256": "a1a8986d2ce947e3bcc081d5e4e7290d5434d7e63a1f1b125b420e28f7bb09d3",
+      "width": 22,
+      "height": 64
+    }
+  ],
+  "sheet": {
+    "fileName": "twin-meridian-sentinels-sheet.png",
+    "sha256": "d4eed851ed58b8692619b833523af62c79a67f57da8adbd806acc17c6c57c5a0",
+    "gutterPixels": 4,
+    "usage": "review-only"
+  }
+}

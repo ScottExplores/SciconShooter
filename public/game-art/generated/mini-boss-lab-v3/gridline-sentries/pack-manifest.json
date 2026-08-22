@@ -1,0 +1,292 @@
+{
+  "schemaVersion": 2,
+  "encounterId": "gridline-sentries",
+  "sourceSha256": "123fab1a28fa207aec8a64eda0536c2af0c83ca624b39d02acaf4b2f773a1f26",
+  "canvas": {
+    "width": 192,
+    "height": 192
+  },
+  "runtimeContract": {
+    "sampling": "nearest",
+    "alpha": "binary",
+    "maximumSharedColors": 32,
+    "minimumMarginPixels": 8
+  },
+  "palette": [
+    [
+      0,
+      0,
+      0
+    ],
+    [
+      119,
+      102,
+      102
+    ],
+    [
+      34,
+      34,
+      51
+    ],
+    [
+      51,
+      51,
+      68
+    ],
+    [
+      17,
+      17,
+      17
+    ],
+    [
+      102,
+      102,
+      102
+    ],
+    [
+      136,
+      119,
+      119
+    ],
+    [
+      0,
+      17,
+      0
+    ],
+    [
+      34,
+      34,
+      34
+    ],
+    [
+      17,
+      17,
+      34
+    ],
+    [
+      119,
+      119,
+      119
+    ],
+    [
+      17,
+      0,
+      0
+    ],
+    [
+      0,
+      238,
+      255
+    ],
+    [
+      17,
+      238,
+      255
+    ],
+    [
+      17,
+      255,
+      255
+    ],
+    [
+      102,
+      85,
+      85
+    ],
+    [
+      153,
+      136,
+      136
+    ],
+    [
+      85,
+      85,
+      85
+    ],
+    [
+      51,
+      34,
+      51
+    ],
+    [
+      68,
+      68,
+      85
+    ],
+    [
+      34,
+      34,
+      68
+    ],
+    [
+      0,
+      0,
+      17
+    ],
+    [
+      51,
+      51,
+      51
+    ],
+    [
+      102,
+      85,
+      102
+    ],
+    [
+      68,
+      68,
+      68
+    ],
+    [
+      34,
+      51,
+      68
+    ],
+    [
+      238,
+      0,
+      0
+    ],
+    [
+      119,
+      102,
+      119
+    ],
+    [
+      85,
+      68,
+      85
+    ],
+    [
+      0,
+      17,
+      17
+    ],
+    [
+      68,
+      51,
+      68
+    ],
+    [
+      0,
+      238,
+      238
+    ]
+  ],
+  "frames": [
+    {
+      "state": "neutral",
+      "fileName": "gridline-sentries-neutral.png",
+      "sha256": "2dad11f9c16e7d8b1b71e71983bf39b8f7a5c6f0711403608ca19d4fc98f28d0",
+      "structuralCleanup": {
+        "sourceComponentCount": 1,
+        "sourceDiscardedPixels": 0,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    },
+    {
+      "state": "idle",
+      "fileName": "gridline-sentries-idle.png",
+      "sha256": "b25628abe966a88980eecc1380a096fa4c822f48a229b0abec3fcaefb2f73424",
+      "structuralCleanup": {
+        "sourceComponentCount": 2,
+        "sourceDiscardedPixels": 1500,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    },
+    {
+      "state": "charge",
+      "fileName": "gridline-sentries-charge.png",
+      "sha256": "d675c4b28269bf0a4dbe8bc5ac8e526487739f57a839bc76ba0da88767837d32",
+      "structuralCleanup": {
+        "sourceComponentCount": 2,
+        "sourceDiscardedPixels": 561,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    },
+    {
+      "state": "attack-a",
+      "fileName": "gridline-sentries-attack-a.png",
+      "sha256": "c39cd2a59f449b7a736f24ebe5cff7d6583e9ceb928b70b7e1ae5e591b4d51e1",
+      "structuralCleanup": {
+        "sourceComponentCount": 1,
+        "sourceDiscardedPixels": 0,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    },
+    {
+      "state": "attack-b",
+      "fileName": "gridline-sentries-attack-b.png",
+      "sha256": "fecd94a4d3e4744dd210d1efe954d568c3cdc2bbb5f9022cc6c729388ed340a8",
+      "structuralCleanup": {
+        "sourceComponentCount": 1,
+        "sourceDiscardedPixels": 0,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    },
+    {
+      "state": "damage",
+      "fileName": "gridline-sentries-damage.png",
+      "sha256": "c6d68cb59af74cbfba2ddaa22ec7b184bcc82b1a6b94f72ca5df8c4b55240262",
+      "structuralCleanup": {
+        "sourceComponentCount": 4,
+        "sourceDiscardedPixels": 917,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    },
+    {
+      "state": "critical",
+      "fileName": "gridline-sentries-critical.png",
+      "sha256": "3a0927981c8e3d8fe668306eb57dde5d3802f1e9453af5565f85a80164e378a1",
+      "structuralCleanup": {
+        "sourceComponentCount": 6,
+        "sourceDiscardedPixels": 246,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    }
+  ],
+  "projectileFrames": [
+    {
+      "assetId": "gridline-bolt",
+      "fileName": "gridline-bolt-01.png",
+      "sha256": "077162a0e12831e9dc9603718f56ba4c9d9dd50ac3303457f075e62158e242c4",
+      "width": 20,
+      "height": 58
+    },
+    {
+      "assetId": "gridline-bolt",
+      "fileName": "gridline-bolt-02.png",
+      "sha256": "34298af095453250381f84e076ee63d5275d7bb3198e3ef995e15519ac4d4c0a",
+      "width": 20,
+      "height": 58
+    },
+    {
+      "assetId": "gridline-bolt",
+      "fileName": "gridline-bolt-03.png",
+      "sha256": "b6ef07cb35a72bd3015418308b73f503b06c6c269f94fc5807c74ad99c08a318",
+      "width": 20,
+      "height": 58
+    },
+    {
+      "assetId": "gridline-bolt",
+      "fileName": "gridline-bolt-04.png",
+      "sha256": "cf9b0bb3d8c52a41d72ae382480c80738878c6190a04d8ec4c64e37244e03379",
+      "width": 20,
+      "height": 58
+    }
+  ],
+  "sheet": {
+    "fileName": "gridline-sentries-sheet.png",
+    "sha256": "722986b5bbe9649bdfc6676fb8e72f1000f8f5c7ee2a66a61a4805fd0425a33a",
+    "gutterPixels": 4,
+    "usage": "review-only"
+  }
+}

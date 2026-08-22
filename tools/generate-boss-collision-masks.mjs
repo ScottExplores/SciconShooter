@@ -107,7 +107,7 @@ const campaignMasks = [
     key: '/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/wall-sniper-right.png'
   },
   {
-    key: '/game-art/bosses/mini-boss-drone.png'
+    key: '/game-art/generated/elite-enemies/bottleneck-drone-v3/frames/bottleneck-drone-01-neutral.png'
   },
   {
     key: '/game-art/generated/scicon-flight-motion-pack-v1/bosses/bottleneck-harvester/frames/bottleneck-harvester-01-idle.png'
@@ -125,13 +125,13 @@ const campaignMasks = [
     key: '/game-art/generated/scicon-flight-motion-pack-v1/bosses/bottleneck-harvester/frames/bottleneck-harvester-05-critical-15.png'
   },
   {
-    key: '/game-art/generated/scicon-flight-motion-pack-v1/bosses/paywall-bastion/frames/paywall-bastion-01-idle.png',
+    key: '/game-art/generated/elite-enemies/paywall-wall-v2/frames/paywall-wall-01-idle.png',
     sources: [
-      '/game-art/generated/scicon-flight-motion-pack-v1/bosses/paywall-bastion/frames/paywall-bastion-01-idle.png',
-      '/game-art/generated/scicon-flight-motion-pack-v1/bosses/paywall-bastion/frames/paywall-bastion-02-neutral.png',
-      '/game-art/generated/scicon-flight-motion-pack-v1/bosses/paywall-bastion/frames/paywall-bastion-03-attack.png',
-      '/game-art/generated/scicon-flight-motion-pack-v1/bosses/paywall-bastion/frames/paywall-bastion-04-damage-50.png',
-      '/game-art/generated/scicon-flight-motion-pack-v1/bosses/paywall-bastion/frames/paywall-bastion-05-critical-15.png'
+      '/game-art/generated/elite-enemies/paywall-wall-v2/frames/paywall-wall-01-idle.png',
+      '/game-art/generated/elite-enemies/paywall-wall-v2/frames/paywall-wall-02-neutral.png',
+      '/game-art/generated/elite-enemies/paywall-wall-v2/frames/paywall-wall-03-attack.png',
+      '/game-art/generated/elite-enemies/paywall-wall-v2/frames/paywall-wall-04-damage-50.png',
+      '/game-art/generated/elite-enemies/paywall-wall-v2/frames/paywall-wall-05-critical-15.png'
     ]
   }
 ];
@@ -187,6 +187,7 @@ const sandboxDirectory = path.join(
   'prototype-assets'
 );
 const sandboxMasks = [
+  'abyssal-octarch',
   'meridian-harrower',
   'helios-clawcarrier',
   'aurora-storm-engine',
@@ -203,6 +204,12 @@ const sandboxMasks = [
   key,
   source: key === 'gloamforge-mantis'
     ? path.join(sandboxDirectory, 'gloamforge-mantis', 'gloamforge-mantis-neutral.png')
+    : key === 'abyssal-octarch'
+      ? path.join(
+        sandboxDirectory,
+        'abyssal-octarch',
+        'assembled.png'
+      )
     : key === 'frontier-crownclaw'
       ? path.join(
         sandboxDirectory,

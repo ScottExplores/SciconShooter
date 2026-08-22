@@ -89,13 +89,20 @@ if (assets.some((item) => !Array.isArray(item.simpleCategories) || !item.simpleC
   throw new Error("Gallery items are missing multi-category metadata");
 }
 if (assets.some((item) => item.kind === "GIF" && !item.simpleCategories.includes("All GIFs"))) throw new Error("Not every GIF is in All GIFs");
-const bossAnimation = assets.find((item) => item.name === "paywall-bastion-animation-preview.gif");
-if (!bossAnimation?.simpleCategories.includes("Bosses")) throw new Error("Boss GIFs are not also discoverable under Bosses");
+const paywallEliteFrames = assets.filter((item) => item.absolutePath.includes(`${path.sep}paywall-wall-v2${path.sep}`));
+if (paywallEliteFrames.length !== 6) throw new Error("Paywall Wall V2 frames and sheet are missing from the Sprite Gallery");
+if (paywallEliteFrames.some((item) => (
+  item.category !== "Scicon - Elite Enemies" ||
+  !item.simpleCategories.includes("Elite Enemies") ||
+  item.bossGroup !== "Paywall Wall"
+))) {
+  throw new Error("Paywall Wall V2 art is not clearly classified as one elite-enemy group");
+}
 const bossAtlas = assets.find((item) => item.path.includes("scicon-stage20-expansion-v1") && item.name === "source-atlas.png");
 if (!bossAtlas?.simpleCategories.includes("Bosses") || !bossAtlas.simpleCategories.includes("Sprite Sheets")) {
   throw new Error("Boss atlases are not cross-categorized as Bosses and Sprite Sheets");
 }
-const eliteEncounterAssets = assets.filter((item) => item.absolutePath.includes(`${path.sep}mini-boss-lab-v2${path.sep}`));
+const eliteEncounterAssets = assets.filter((item) => item.absolutePath.includes(`${path.sep}mini-boss-lab-v3${path.sep}`));
 if (!eliteEncounterAssets.length) throw new Error("Elite encounter runtime art is missing from the Sprite Gallery");
 if (eliteEncounterAssets.some((item) => (
   item.category !== "Scicon - Elite Enemies" ||
@@ -104,11 +111,19 @@ if (eliteEncounterAssets.some((item) => (
 ))) {
   throw new Error("Elite encounter art is not clearly categorized or grouped in the Sprite Gallery");
 }
-if (eliteEncounterAssets.some((item) => (
+const eliteEncounterSheets = eliteEncounterAssets.filter((item) => item.name.endsWith('-sheet.png'));
+const eliteEncounterRuntimeAssets = eliteEncounterAssets.filter((item) => !item.name.endsWith('-sheet.png'));
+if (eliteEncounterRuntimeAssets.length !== 88 || eliteEncounterSheets.length !== 8) {
+  throw new Error("Elite encounter inventory must contain 88 runtime images and eight review sheets");
+}
+if (eliteEncounterRuntimeAssets.some((item) => (
   !item.inGame ||
   !item.usageLocations.some((value) => value.startsWith("services/gameplay/mini-bosses/MiniBossEncounterRegistry.ts"))
 ))) {
   throw new Error("Elite encounter runtime art is not marked as in-game through the shared registry");
+}
+if (eliteEncounterSheets.some((item) => item.inGame || !item.simpleCategories.includes('Sprite Sheets'))) {
+  throw new Error("Elite encounter review sheets must remain out of runtime and inside Sprite Sheets");
 }
 const maxShotFrame = assets.find((item) => item.name === "max-shot-aura-01.png");
 if (!maxShotFrame?.simpleCategories.includes("Items & Power-Ups")) throw new Error("Generated power-up frames are miscategorized");
@@ -179,6 +194,67 @@ if (
   heliosExplosionFrames.some((item) => !item.simpleCategories.includes("Test Bosses & Prototypes"))
 ) {
   throw new Error("Helios mine explosion frames are not discoverable under Test Bosses & Prototypes");
+}
+const octarchRuntimeRoot = "/generated/bosses/test-packages/abyssal-octarch-v1/";
+const requiredOctarchRuntimeAssets = [
+  "assembled-a9fc10f01d3d6abcb51ff00b8be1a2b6ead7c02b10e7ee697369b2c1c1b7854d.png",
+  "atlas-dae4d697b30ee0a7f6509022fc4273907452b7a71a02377bfe885a3523f4cf30.png",
+  "reference-32e3b0b8989342a8fcf1c1df3e41894b714a0e896621ebb5218a8c9f1e685831.png",
+];
+for (const name of requiredOctarchRuntimeAssets) {
+  const item = assets.find((candidate) => (
+    candidate.name === name &&
+    candidate.absolutePath.replaceAll("\\", "/").includes(octarchRuntimeRoot)
+  ));
+  if (
+    !item ||
+    item.category !== "Scicon - Bosses & Mini-Bosses" ||
+    item.bossGroup !== "Abyssal Octarch" ||
+    !item.simpleCategories.includes("Bosses") ||
+    !item.simpleCategories.includes("Test Bosses & Prototypes")
+  ) {
+    throw new Error(`Abyssal Octarch runtime asset is not grouped as a Test Boss: ${name}`);
+  }
+  if (
+    !item.inGame ||
+    !item.usageLocations.some((value) => (
+      value.startsWith("services/pixi/boss-rigs/AbyssalOctarchArtwork.ts")
+    ))
+  ) {
+    throw new Error(`Abyssal Octarch runtime usage metadata is missing: ${name}`);
+  }
+}
+const octarchRuntimeAtlas = assets.find((item) => (
+  item.name === requiredOctarchRuntimeAssets[1] &&
+  item.absolutePath.replaceAll("\\", "/").includes(octarchRuntimeRoot)
+));
+if (!octarchRuntimeAtlas?.simpleCategories.includes("Sprite Sheets")) {
+  throw new Error("Abyssal Octarch runtime atlas is missing from Sprite Sheets");
+}
+const octarchPrototypeAssets = assets.filter((item) => (
+  item.source === "Scicon test prototype" &&
+  item.absolutePath.replaceAll("\\", "/").includes("/abyssal-octarch/")
+));
+if (
+  !octarchPrototypeAssets.length ||
+  octarchPrototypeAssets.some((item) => (
+    item.bossGroup !== "Abyssal Octarch" ||
+    !item.simpleCategories.includes("Bosses") ||
+    !item.simpleCategories.includes("Test Bosses & Prototypes")
+  ))
+) {
+  throw new Error("Abyssal Octarch structural and VFX source assets are not grouped as Test Boss art");
+}
+const octarchPrototypeSheet = octarchPrototypeAssets.find((item) => item.name === "sheet.png");
+const octarchPrototypeVfx = octarchPrototypeAssets.find((item) => item.name === "vfx.impact.png");
+if (!octarchPrototypeSheet?.simpleCategories.includes("Sprite Sheets")) {
+  throw new Error("Abyssal Octarch prototype sheet is missing from Sprite Sheets");
+}
+if (!octarchPrototypeVfx?.simpleCategories.includes("Props & Effects")) {
+  throw new Error("Abyssal Octarch VFX frames are missing from Props & Effects");
+}
+if (octarchPrototypeAssets.some((item) => /[\\/]evidence[\\/]/i.test(item.absolutePath))) {
+  throw new Error("Abyssal Octarch evidence captures were added to the sprite gallery");
 }
 const biohazardBomb = assets.find((item) => item.name === "biohazard-bomb-e5d01d651f2f.png");
 if (
@@ -299,6 +375,12 @@ const trackedImageFiles = execFileSync("git", ["ls-files", "-z"], {
 }).split("\0")
   .filter(Boolean)
   .filter((relativePath) => imageExtensions.has(path.extname(relativePath).toLowerCase()))
+  // Boss Factory review/evidence captures are tracked QA records, not reusable
+  // sprites. The sync excludes them, so the tracked-file audit must do the same.
+  .filter((relativePath) => !(
+    /^director-data\/prototype-assets\/.*\/(?:review|evidence)\//i
+      .test(relativePath.replaceAll("\\", "/"))
+  ))
   .map((relativePath) => path.resolve(projectRoot, relativePath));
 const uncatalogedTrackedImages = trackedImageFiles.filter(
   (filePath) => !catalogPaths.has(normalizeAbsolutePath(filePath)),

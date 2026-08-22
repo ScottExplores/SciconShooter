@@ -1,7 +1,7 @@
 const DIRECTOR_PROTOTYPE_ASSET_PREFIX =
   '/__director/api/v1/prototype-assets/';
-const MINI_BOSS_LAB_V2_ASSET_PREFIX =
-  '/game-art/generated/mini-boss-lab-v2';
+const MINI_BOSS_LAB_V3_ASSET_PREFIX =
+  '/game-art/generated/mini-boss-lab-v3';
 
 const createDirectorPrototypeAssetPattern = () => (
   /\/__director\/api\/v1\/prototype-assets\/([a-z0-9-]+)\/(?:\$\{[^}\r\n]+\}|[a-f0-9]{64})\/([a-z0-9-]+\.png)/g
@@ -32,12 +32,12 @@ export const rewriteDirectorPrototypeAssetUrls = (source) => {
  * exactly so arbitrary public paths cannot enter the deployment package.
  */
 export const rewriteGeneratedMiniBossAssetUrls = (source) => {
-  if (!source.includes(MINI_BOSS_LAB_V2_ASSET_PREFIX)) return source;
+  if (!source.includes(MINI_BOSS_LAB_V3_ASSET_PREFIX)) return source;
   const code = source.replaceAll(
-    MINI_BOSS_LAB_V2_ASSET_PREFIX,
+    MINI_BOSS_LAB_V3_ASSET_PREFIX,
     '/runner-assets/prototype-assets'
   );
-  if (code.includes(MINI_BOSS_LAB_V2_ASSET_PREFIX)) {
+  if (code.includes(MINI_BOSS_LAB_V3_ASSET_PREFIX)) {
     throw new Error(
       'Remote Boss Test Runner encountered an unsupported Mini-Boss Lab asset URL.'
     );

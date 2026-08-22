@@ -60,6 +60,16 @@ import {
   UMBRA_NEEDLEWING_REFERENCE_SHA256,
   UMBRA_NEEDLEWING_REFERENCE_URL
 } from '@game/services/pixi/boss-rigs/UmbraNeedlewingArtwork';
+import {
+  ABYSSAL_OCTARCH_ARTWORK_PACKAGE,
+  ABYSSAL_OCTARCH_ATLAS_SHA256,
+  ABYSSAL_OCTARCH_ATLAS_URL,
+  ABYSSAL_OCTARCH_DESIGN_SIZE,
+  ABYSSAL_OCTARCH_MODULAR_RIG,
+  ABYSSAL_OCTARCH_NEUTRAL_SHA256,
+  ABYSSAL_OCTARCH_NEUTRAL_URL,
+  ABYSSAL_OCTARCH_REFERENCE_COMPARISON
+} from '@game/services/pixi/boss-rigs/AbyssalOctarchArtwork';
 import { getSandboxBossCollisionMask } from './generatedSandboxBossCollisionMasks';
 import {
   createFocusedPreviewCampaign,
@@ -1492,6 +1502,7 @@ export interface SandboxBossArtworkRegistration {
     PreviewBossArtwork['modularReferenceComparison']
   >;
   readonly projectileAnimations?: NonNullable<PreviewBossArtwork['projectileAnimations']>;
+  readonly encounterCamera?: NonNullable<PreviewBossArtwork['encounterCamera']>;
   readonly vfxAtlas?: PreviewBossVfxAtlas;
 }
 
@@ -1600,6 +1611,20 @@ const UMBRA_NEEDLEWING_SHEET_ASSET = Object.freeze({
   height: UMBRA_NEEDLEWING_MODULAR_RIG.manifest.atlas.height
 }) satisfies SandboxBossArtworkAsset;
 
+const ABYSSAL_OCTARCH_ASSEMBLED_ASSET = Object.freeze({
+  url: ABYSSAL_OCTARCH_NEUTRAL_URL,
+  contentHash: ABYSSAL_OCTARCH_NEUTRAL_SHA256,
+  width: ABYSSAL_OCTARCH_DESIGN_SIZE.width,
+  height: ABYSSAL_OCTARCH_DESIGN_SIZE.height
+}) satisfies SandboxBossArtworkAsset;
+
+const ABYSSAL_OCTARCH_SHEET_ASSET = Object.freeze({
+  url: ABYSSAL_OCTARCH_ATLAS_URL,
+  contentHash: ABYSSAL_OCTARCH_ATLAS_SHA256,
+  width: ABYSSAL_OCTARCH_MODULAR_RIG.manifest.atlas.width,
+  height: ABYSSAL_OCTARCH_MODULAR_RIG.manifest.atlas.height
+}) satisfies SandboxBossArtworkAsset;
+
 const CINDERJAW_SIEGE_BEETLE_ASSEMBLED_ASSET = Object.freeze({
   url: CINDERJAW_SIEGE_BEETLE_ART_URL,
   contentHash: CINDERJAW_SIEGE_BEETLE_ART_SHA256,
@@ -1694,6 +1719,18 @@ const SANDBOX_BOSS_VFX_SHEET_ASSET = Object.freeze({
 export const SANDBOX_BOSS_ARTWORK_REGISTRATIONS: Readonly<
   Partial<Record<SandboxBossPrototypeId, SandboxBossArtworkRegistration>>
 > = Object.freeze({
+  'abyssal-octarch': Object.freeze({
+    prototypeId: 'abyssal-octarch',
+    assembled: ABYSSAL_OCTARCH_ASSEMBLED_ASSET,
+    sheet: ABYSSAL_OCTARCH_SHEET_ASSET,
+    renderMode: 'articulated',
+    weaponSockets: ABYSSAL_OCTARCH_ARTWORK_PACKAGE.artwork.weaponSockets!,
+    modularRig: ABYSSAL_OCTARCH_MODULAR_RIG,
+    sampleModularPose: ABYSSAL_OCTARCH_ARTWORK_PACKAGE.artwork.sampleModularPose!,
+    modularReferenceComparison: ABYSSAL_OCTARCH_REFERENCE_COMPARISON,
+    projectileAnimations: ABYSSAL_OCTARCH_ARTWORK_PACKAGE.artwork.projectileAnimations!,
+    encounterCamera: ABYSSAL_OCTARCH_ARTWORK_PACKAGE.artwork.encounterCamera!
+  }),
   'meridian-harrower': Object.freeze({
     prototypeId: 'meridian-harrower',
     assembled: MERIDIAN_HARROWER_ASSEMBLED_ASSET,
@@ -2469,6 +2506,9 @@ export const createSandboxOnlyBossArtwork = (
       : {}),
     ...(registration.projectileAnimations
       ? { projectileAnimations: registration.projectileAnimations }
+      : {}),
+    ...(registration.encounterCamera
+      ? { encounterCamera: registration.encounterCamera }
       : {}),
     ...(registration.vfxAtlas ? { vfxAtlas: registration.vfxAtlas } : {})
   });

@@ -422,14 +422,21 @@ export const ASSETS = {
     "/game-art/generated/scicon-flight-motion-pack-v1/enemies/predatory-journal-raider/frames/predatory-journal-raider-02-neutral.png",
     "/game-art/generated/scicon-flight-motion-pack-v1/enemies/predatory-journal-raider/frames/predatory-journal-raider-03-wings-out.png"
   ],
-  MINI_BOSS: "/game-art/bosses/mini-boss-drone.png",
+  MINI_BOSS: "/game-art/generated/elite-enemies/bottleneck-drone-v3/frames/bottleneck-drone-01-neutral.png",
+  BOTTLENECK_DRONE_FRAMES: [
+    "/game-art/generated/elite-enemies/bottleneck-drone-v3/frames/bottleneck-drone-01-neutral.png",
+    "/game-art/generated/elite-enemies/bottleneck-drone-v3/frames/bottleneck-drone-02-idle.png",
+    "/game-art/generated/elite-enemies/bottleneck-drone-v3/frames/bottleneck-drone-03-charge.png",
+    "/game-art/generated/elite-enemies/bottleneck-drone-v3/frames/bottleneck-drone-04-fire.png",
+    "/game-art/generated/elite-enemies/bottleneck-drone-v3/frames/bottleneck-drone-05-recovery.png"
+  ],
   WALL_BOSS_SEGMENT: "/game-art/bosses/wall-segment.png",
   PAYWALL_BASTION_FRAMES: [
-    "/game-art/generated/scicon-flight-motion-pack-v1/bosses/paywall-bastion/frames/paywall-bastion-01-idle.png",
-    "/game-art/generated/scicon-flight-motion-pack-v1/bosses/paywall-bastion/frames/paywall-bastion-02-neutral.png",
-    "/game-art/generated/scicon-flight-motion-pack-v1/bosses/paywall-bastion/frames/paywall-bastion-03-attack.png",
-    "/game-art/generated/scicon-flight-motion-pack-v1/bosses/paywall-bastion/frames/paywall-bastion-04-damage-50.png",
-    "/game-art/generated/scicon-flight-motion-pack-v1/bosses/paywall-bastion/frames/paywall-bastion-05-critical-15.png"
+    "/game-art/generated/elite-enemies/paywall-wall-v2/frames/paywall-wall-01-idle.png",
+    "/game-art/generated/elite-enemies/paywall-wall-v2/frames/paywall-wall-02-neutral.png",
+    "/game-art/generated/elite-enemies/paywall-wall-v2/frames/paywall-wall-03-attack.png",
+    "/game-art/generated/elite-enemies/paywall-wall-v2/frames/paywall-wall-04-damage-50.png",
+    "/game-art/generated/elite-enemies/paywall-wall-v2/frames/paywall-wall-05-critical-15.png"
   ],
   FINAL_BOSS: "/game-art/bosses/final-boss-sentinel.png",
   

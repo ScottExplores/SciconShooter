@@ -34,6 +34,11 @@ import {
   type PreviewDebugOverlayState,
   type PreviewSnapshot
 } from '@game/services/gameplay/previewSession';
+import {
+  ABYSSAL_OCTARCH_PHASES,
+  ABYSSAL_OCTARCH_TENTACLES,
+  type AbyssalOctarchTentacleId
+} from '@game/services/gameplay/bosses/AbyssalOctarchRuntime';
 import { resolveCampaignBossArtwork } from '@game/services/pixi/boss-rigs/CampaignBossArtworkRegistry';
 import {
   fetchGameCampaign,
@@ -95,6 +100,90 @@ import './boss-sandbox.css';
 
 const PREVIEW_SEED = 'scicon-simple-boss-sandbox';
 const BOSS_SANDBOX_RAIL_STORAGE_KEY = 'scicon:boss-sandbox:rail-widths:v1';
+const ABYSSAL_OCTARCH_TRANSMISSION_COPY = Object.freeze({
+  signal: 'Incoming deep-space transmission // unstable carrier',
+  title: 'ABYSSAL OCTARCH',
+  lines: Object.freeze([
+    Object.freeze({
+      id: 'source-located',
+      text: 'Control: We found the source of the gravitational distortion. It is—'
+    }),
+    Object.freeze({
+      id: 'eight-contacts',
+      text: '[ STATIC // SIGNAL FRACTURE // EIGHT CONTACTS ]'
+    }),
+    Object.freeze({
+      id: 'warning-cut-short',
+      text: 'Do not let the arms surround y—'
+    })
+  ])
+});
+const ABYSSAL_OCTARCH_ENTRANCE_STEPS = Object.freeze([
+  Object.freeze({
+    id: 'carrier-lock',
+    durationMs: 520,
+    lineCount: 0,
+    interference: 0,
+    cue: 'Deep-space carrier lock acquired'
+  }),
+  Object.freeze({
+    id: 'transmission-source',
+    durationMs: 1_050,
+    lineCount: 1,
+    interference: 1,
+    cue: 'Control transmission received'
+  }),
+  Object.freeze({
+    id: 'transmission-fracture',
+    durationMs: 820,
+    lineCount: 2,
+    interference: 2,
+    cue: 'Interference rising; eight contacts detected'
+  }),
+  Object.freeze({
+    id: 'transmission-warning',
+    durationMs: 680,
+    lineCount: 3,
+    interference: 3,
+    cue: 'Control warning interrupted'
+  }),
+  Object.freeze({
+    id: 'abrupt-cutoff',
+    durationMs: 420,
+    lineCount: 3,
+    interference: 4,
+    cue: 'Carrier lost'
+  }),
+  Object.freeze({
+    id: 'tentacle-pass',
+    durationMs: 860,
+    lineCount: 3,
+    interference: 3,
+    cue: 'Massive tentacle passing across the viewport'
+  }),
+  Object.freeze({
+    id: 'core-reveal',
+    durationMs: 780,
+    lineCount: 3,
+    interference: 2,
+    cue: 'Abyssal eye and core signature revealed'
+  }),
+  Object.freeze({
+    id: 'emergence',
+    durationMs: 940,
+    lineCount: 3,
+    interference: 1,
+    cue: 'Abyssal Octarch emerging into the arena'
+  }),
+  Object.freeze({
+    id: 'camera-handoff',
+    durationMs: 720,
+    lineCount: 3,
+    interference: 0,
+    cue: 'Encounter camera expanding to the full arena'
+  })
+] as const);
+const ABYSSAL_OCTARCH_PLAYER_FOOTPRINT_PX = 122;
 type BossSandboxRailSide = 'left' | 'right';
 interface BossSandboxRailResizeSession {
   readonly side: BossSandboxRailSide;
@@ -103,6 +192,19 @@ interface BossSandboxRailResizeSession {
 }
 type PreviewArtworkStatus = 'not-needed' | 'checking' | 'ready' | 'unavailable';
 type PreviewCanvasStatus = 'loading' | 'ready' | 'error';
+type OctarchCameraMode = 'auto' | 'expanded' | 'normal';
+type OctarchTransmissionAction = 'skip' | 'begin';
+type OctarchEntranceMode = 'inactive' | 'prompt' | 'sequence';
+interface OctarchEntranceState {
+  readonly mode: OctarchEntranceMode;
+  readonly stepIndex: number;
+}
+interface OctarchDiagnosticBounds {
+  readonly minX: number;
+  readonly maxX: number;
+  readonly minY: number;
+  readonly maxY: number;
+}
 type PreviewCommandInput = PreviewCommand extends infer Command
   ? Command extends { nonce: number }
     ? Omit<Command, 'nonce'>
@@ -112,6 +214,62 @@ type PreviewCommandInput = PreviewCommand extends infer Command
 interface BossSandboxWorkspaceProps {
   initialState: GameCampaignDiskState<GameCampaignConfig>;
 }
+
+const clampOctarchDiagnosticBound = (
+  value: number,
+  minimum: number,
+  maximum: number
+) => Math.max(minimum, Math.min(maximum, Number.isFinite(value) ? value : minimum));
+
+const resolveOctarchDiagnosticBounds = (
+  camera: NonNullable<PreviewSnapshot['encounterCamera']>
+): Readonly<{
+  visible: OctarchDiagnosticBounds;
+  estimatedPlayerTravel: OctarchDiagnosticBounds;
+}> => {
+  const scale = Math.max(0.0001, camera.scale);
+  const visibleMinX = clampOctarchDiagnosticBound(
+    -camera.offsetX / scale,
+    0,
+    camera.worldBounds.width
+  );
+  const visibleMaxX = clampOctarchDiagnosticBound(
+    (camera.displayBounds.width - camera.offsetX) / scale,
+    visibleMinX,
+    camera.worldBounds.width
+  );
+  const visibleMinY = clampOctarchDiagnosticBound(
+    -camera.offsetY / scale,
+    0,
+    camera.worldBounds.height
+  );
+  const visibleMaxY = clampOctarchDiagnosticBound(
+    (camera.displayBounds.height - camera.offsetY) / scale,
+    visibleMinY,
+    camera.worldBounds.height
+  );
+  const visible = Object.freeze({
+    minX: visibleMinX,
+    maxX: visibleMaxX,
+    minY: visibleMinY,
+    maxY: visibleMaxY
+  });
+  return Object.freeze({
+    visible,
+    // The preview contract does not expose the runtime clamp. This estimate uses
+    // the canonical 122 px player footprint and is labeled as estimated in the UI.
+    estimatedPlayerTravel: Object.freeze({
+      minX: visible.minX,
+      maxX: Math.max(visible.minX, visible.maxX - ABYSSAL_OCTARCH_PLAYER_FOOTPRINT_PX),
+      minY: visible.minY,
+      maxY: Math.max(visible.minY, visible.maxY - ABYSSAL_OCTARCH_PLAYER_FOOTPRINT_PX)
+    })
+  });
+};
+
+const formatOctarchDiagnosticBounds = (bounds: OctarchDiagnosticBounds) => (
+  `x ${Math.round(bounds.minX)}–${Math.round(bounds.maxX)} | y ${Math.round(bounds.minY)}–${Math.round(bounds.maxY)}`
+);
 
 const readBossSandboxRailWidths = (): BossSandboxRailWidths => {
   if (typeof window === 'undefined') return normalizeBossSandboxRailWidths(null);
@@ -240,7 +398,9 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
   );
   const firstChoice = getDefaultBossSandboxChoice(choices);
   const [selectedChoiceId, setSelectedChoiceId] = useState(firstChoice?.id ?? '');
-  const [playing, setPlaying] = useState(true);
+  const [playing, setPlaying] = useState(
+    firstChoice?.prototypeId !== 'abyssal-octarch'
+  );
   const [invincible, setInvincible] = useState(true);
   const {
     companions,
@@ -278,6 +438,16 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
   const [previewMountToken, setPreviewMountToken] = useState(0);
   const [previewCanvasStatus, setPreviewCanvasStatus] =
     useState<PreviewCanvasStatus>('loading');
+  const [octarchEntrance, setOctarchEntrance] = useState<OctarchEntranceState>({
+    mode: firstChoice?.prototypeId === 'abyssal-octarch' ? 'prompt' : 'inactive',
+    stepIndex: 0
+  });
+  const [octarchExpandedHandoffPending, setOctarchExpandedHandoffPending] =
+    useState(false);
+  const [octarchCameraMode, setOctarchCameraMode] =
+    useState<OctarchCameraMode>('auto');
+  const [selectedOctarchTentacleId, setSelectedOctarchTentacleId] =
+    useState<AbyssalOctarchTentacleId>(ABYSSAL_OCTARCH_TENTACLES[0].id);
   const [prismMothAttackTuning, setPrismMothAttackTuning] =
     useState<Readonly<PrismMothAttackTuning>>(DEFAULT_PRISM_MOTH_ATTACK_TUNING);
   const [frontierCrownclawAttackTuning, setFrontierCrownclawAttackTuning] =
@@ -475,6 +645,76 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
     previewSnapshot?.boss?.activeAttack
   );
   const eventId = preview ? getBossSandboxEventId(preview) : null;
+  const isAbyssalOctarch = selectedChoice?.prototypeId === 'abyssal-octarch';
+  const octarchDiagnostics = isAbyssalOctarch
+    ? previewSnapshot?.boss?.octarch ?? null
+    : null;
+  const octarchCameraSnapshot = isAbyssalOctarch
+    ? previewSnapshot?.encounterCamera ?? null
+    : null;
+  const activeOctarchCameraMode = octarchCameraSnapshot?.mode ?? octarchCameraMode;
+  const octarchComponentSnapshots = useMemo(() => (
+    isAbyssalOctarch
+      ? previewSnapshot?.boss?.components.filter((component) => (
+          ABYSSAL_OCTARCH_TENTACLES.some((tentacle) => tentacle.id === component.id)
+        )) ?? []
+      : []
+  ), [isAbyssalOctarch, previewSnapshot?.boss?.components]);
+  const selectedOctarchComponent = octarchComponentSnapshots.find((component) => (
+    component.id === selectedOctarchTentacleId
+  )) ?? null;
+  const destroyedOctarchTentacles = octarchComponentSnapshots.filter((component) => (
+    component.destroyed
+  )).length;
+  const survivingOctarchTentacles = octarchDiagnostics?.survivingTentacles
+    ?? (octarchComponentSnapshots.length > 0
+      ? octarchComponentSnapshots.length - destroyedOctarchTentacles
+      : ABYSSAL_OCTARCH_TENTACLES.length);
+  const attackingOctarchTentacle = octarchDiagnostics?.selectedTentacleId
+    ? ABYSSAL_OCTARCH_TENTACLES.find((tentacle) => (
+        tentacle.id === octarchDiagnostics.selectedTentacleId
+      ))?.label ?? octarchDiagnostics.selectedTentacleId
+    : 'none';
+  const octarchThrowState = octarchDiagnostics?.throwVelocity
+    ? `${octarchDiagnostics.throwVelocity.x.toFixed(1)}, ${octarchDiagnostics.throwVelocity.y.toFixed(1)}`
+    : 'idle';
+  const activeOctarchPhase = useMemo(() => {
+    if (!isAbyssalOctarch || !previewSnapshot?.boss) return null;
+    const phaseId = previewSnapshot.boss.phaseId;
+    return ABYSSAL_OCTARCH_PHASES.find((phase) => phase.id === phaseId)
+      ?? ABYSSAL_OCTARCH_PHASES[
+        Math.min(
+          ABYSSAL_OCTARCH_PHASES.length - 1,
+          Math.max(0, previewSnapshot.boss.phaseIndex)
+        )
+      ];
+  }, [isAbyssalOctarch, previewSnapshot?.boss]);
+  const octarchDiagnosticBounds = useMemo(() => (
+    octarchCameraSnapshot
+      ? resolveOctarchDiagnosticBounds(octarchCameraSnapshot)
+      : null
+  ), [octarchCameraSnapshot]);
+  const octarchEntranceStep = octarchEntrance.mode === 'sequence'
+    ? ABYSSAL_OCTARCH_ENTRANCE_STEPS[
+      Math.min(octarchEntrance.stepIndex, ABYSSAL_OCTARCH_ENTRANCE_STEPS.length - 1)
+    ]
+    : null;
+  const octarchEntranceVisible = isAbyssalOctarch
+    && octarchEntrance.mode !== 'inactive';
+  const revealedOctarchTransmissionLines = octarchEntranceStep
+    ? ABYSSAL_OCTARCH_TRANSMISSION_COPY.lines.slice(0, octarchEntranceStep.lineCount)
+    : [];
+
+  useEffect(() => {
+    setOctarchCameraMode('auto');
+    setSelectedOctarchTentacleId(ABYSSAL_OCTARCH_TENTACLES[0].id);
+    setOctarchEntrance({
+      mode: isAbyssalOctarch ? 'prompt' : 'inactive',
+      stepIndex: 0
+    });
+    setOctarchExpandedHandoffPending(false);
+    if (isAbyssalOctarch) setPlaying(false);
+  }, [isAbyssalOctarch, selectedChoice?.id]);
   useEffect(() => {
     const host = previewHostRef.current;
     if (!host) return undefined;
@@ -620,18 +860,34 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
   }, []);
 
   const restart = useCallback(() => {
-    setPlaying(true);
+    const showOctarchEntrance = selectedChoice?.prototypeId === 'abyssal-octarch';
+    setPlaying(!showOctarchEntrance);
+    setOctarchEntrance({
+      mode: showOctarchEntrance ? 'prompt' : 'inactive',
+      stepIndex: 0
+    });
+    setOctarchExpandedHandoffPending(false);
+    setOctarchCameraMode('auto');
+    setSelectedOctarchTentacleId(ABYSSAL_OCTARCH_TENTACLES[0].id);
     setSelectedPhaseId(null);
     setSelectedAttackId(null);
     setAttackLoopEnabled(false);
     setSignatureLoopEnabled(false);
+    setPreviewCommand(null);
     setPreviewSnapshot(null);
     setRestartToken((value) => value + 1);
-    setNotice('Boss restarted');
-  }, []);
+    setNotice(showOctarchEntrance
+      ? 'Abyssal transmission reacquired before restart'
+      : 'Boss restarted');
+  }, [selectedChoice?.prototypeId]);
 
   const retryPreview = useCallback(() => {
-    setPlaying(true);
+    setPlaying(!isAbyssalOctarch);
+    setOctarchEntrance({
+      mode: isAbyssalOctarch ? 'prompt' : 'inactive',
+      stepIndex: 0
+    });
+    setOctarchExpandedHandoffPending(false);
     setPreviewCommand(null);
     setPreviewTimeScale(1);
     setDebugOverlays(DEFAULT_PREVIEW_DEBUG_OVERLAYS);
@@ -639,7 +895,7 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
     setPreviewCanvasStatus('loading');
     setPreviewMountToken((value) => value + 1);
     setNotice('Reloading the game view');
-  }, []);
+  }, [isAbyssalOctarch]);
 
   const handlePreviewReady = useCallback(() => {
     setPreviewCanvasStatus('ready');
@@ -671,8 +927,123 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
     if (!eventId) return;
     setAttackLoopEnabled(false);
     sendCommand({ type: 'spawn-event-now', eventId });
+    if (isAbyssalOctarch) {
+      setPlaying(false);
+      setOctarchEntrance({ mode: 'prompt', stepIndex: 0 });
+      setOctarchExpandedHandoffPending(false);
+      setNotice('Abyssal transmission intercepted before deployment');
+      return;
+    }
     setPlaying(true);
     setNotice('Boss spawned');
+  }, [eventId, isAbyssalOctarch, sendCommand]);
+
+  const startOctarchEntrance = useCallback((source: 'begin' | 'replay') => {
+    setPlaying(false);
+    setOctarchExpandedHandoffPending(false);
+    setOctarchCameraMode('auto');
+    if (source === 'replay') {
+      setSelectedPhaseId(null);
+      setSelectedAttackId(null);
+      setAttackLoopEnabled(false);
+      setSignatureLoopEnabled(false);
+      setPreviewCommand(null);
+      setPreviewSnapshot(null);
+      setRestartToken((value) => value + 1);
+    }
+    setOctarchEntrance({ mode: 'sequence', stepIndex: 0 });
+    previewHostRef.current?.scrollIntoView({ block: 'center', behavior: 'auto' });
+    setNotice(source === 'replay'
+      ? 'Replaying the complete Abyssal Octarch entrance'
+      : 'Abyssal Octarch entrance sequence started');
+  }, []);
+
+  const skipOctarchEntrance = useCallback(() => {
+    setOctarchEntrance({ mode: 'inactive', stepIndex: 0 });
+    setOctarchCameraMode('expanded');
+    sendCommand({ type: 'set-encounter-camera', mode: 'expanded' });
+    setOctarchExpandedHandoffPending(!previewSnapshot?.boss);
+    setPlaying(true);
+    setNotice('Entrance skipped; expanded Octarch fight ready');
+  }, [previewSnapshot?.boss, sendCommand]);
+
+  const beginOctarchEncounter = useCallback((action: OctarchTransmissionAction) => {
+    if (action === 'begin') {
+      startOctarchEntrance('begin');
+      return;
+    }
+    skipOctarchEntrance();
+  }, [skipOctarchEntrance, startOctarchEntrance]);
+
+  const changeOctarchCameraMode = useCallback((mode: OctarchCameraMode) => {
+    setOctarchCameraMode(mode);
+    sendCommand({ type: 'set-encounter-camera', mode });
+    setNotice(`Octarch arena camera set to ${mode}`);
+  }, [sendCommand]);
+
+  const replayOctarchEntrance = useCallback(() => {
+    startOctarchEntrance('replay');
+  }, [startOctarchEntrance]);
+
+  useEffect(() => {
+    if (
+      !isAbyssalOctarch
+      || !octarchExpandedHandoffPending
+      || !previewSnapshot?.boss
+    ) return;
+    setOctarchCameraMode('expanded');
+    sendCommand({ type: 'set-encounter-camera', mode: 'expanded' });
+    setOctarchExpandedHandoffPending(false);
+  }, [
+    isAbyssalOctarch,
+    octarchExpandedHandoffPending,
+    previewSnapshot?.boss,
+    sendCommand
+  ]);
+
+  useEffect(() => {
+    if (!isAbyssalOctarch || octarchEntrance.mode !== 'sequence') return undefined;
+    const step = ABYSSAL_OCTARCH_ENTRANCE_STEPS[octarchEntrance.stepIndex];
+    if (!step) {
+      setOctarchEntrance({ mode: 'inactive', stepIndex: 0 });
+      return undefined;
+    }
+    const timeoutId = window.setTimeout(() => {
+      const nextStepIndex = octarchEntrance.stepIndex + 1;
+      const nextStep = ABYSSAL_OCTARCH_ENTRANCE_STEPS[nextStepIndex];
+      if (!nextStep) {
+        setOctarchEntrance({ mode: 'inactive', stepIndex: 0 });
+        setNotice('Abyssal Octarch arena handoff active');
+        return;
+      }
+      if (nextStep.id === 'camera-handoff') {
+        setOctarchExpandedHandoffPending(false);
+        setOctarchCameraMode('auto');
+        sendCommand({ type: 'replay-encounter-camera' });
+        setPlaying(true);
+      }
+      setOctarchEntrance({ mode: 'sequence', stepIndex: nextStepIndex });
+      setNotice(nextStep.cue);
+    }, step.durationMs);
+    return () => window.clearTimeout(timeoutId);
+  }, [isAbyssalOctarch, octarchEntrance, sendCommand]);
+
+  const severSelectedOctarchTentacle = useCallback(() => {
+    if (!eventId) return;
+    sendCommand({
+      type: 'destroy-boss-component',
+      eventId,
+      componentId: selectedOctarchTentacleId
+    });
+    setPlaying(true);
+    setNotice('Selected Octarch tentacle severed for phase testing');
+  }, [eventId, selectedOctarchTentacleId, sendCommand]);
+
+  const restoreOctarchTentacles = useCallback(() => {
+    if (!eventId) return;
+    sendCommand({ type: 'restore-boss-components', eventId });
+    setPlaying(true);
+    setNotice('All Octarch tentacles restored');
   }, [eventId, sendCommand]);
 
   const toggleInvincibility = useCallback(() => {
@@ -826,7 +1197,7 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
   }, [eventId, sendCommand]);
 
   const jumpToPhase = useCallback((phaseId: string) => {
-    if (!eventId) return;
+    if (!eventId || octarchEntranceVisible) return;
     setSelectedPhaseId(phaseId);
     setSelectedAttackId(null);
     setAttackLoopEnabled(false);
@@ -834,14 +1205,14 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
     sendCommand({ type: 'jump-to-boss-phase', phaseId, eventId });
     setPlaying(true);
     setNotice('Jumped to selected phase');
-  }, [eventId, sendCommand]);
+  }, [eventId, octarchEntranceVisible, sendCommand]);
 
   const triggerAttack = useCallback((
     attackId: string,
     phaseId: string,
     attackNumber: number
   ) => {
-    if (!eventId) return;
+    if (!eventId || octarchEntranceVisible) return;
     setSelectedAttackId(attackId);
     setSelectedPhaseId(phaseId);
     setAttackLoopEnabled(false);
@@ -854,10 +1225,10 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
     });
     setPlaying(true);
     setNotice(`Starting Attack ${attackNumber}`);
-  }, [eventId, sendCommand]);
+  }, [eventId, octarchEntranceVisible, sendCommand]);
 
   const replaySelectedAttack = useCallback(() => {
-    if (!eventId || !selectedAttack) return;
+    if (!eventId || !selectedAttack || octarchEntranceVisible) return;
     sendCommand({
       type: 'trigger-boss-attack',
       attackId: selectedAttack.id,
@@ -867,12 +1238,13 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
     });
     setPlaying(true);
     setNotice('Restarted selected attack from its first warning');
-  }, [attackLoopEnabled, eventId, selectedAttack, sendCommand]);
+  }, [attackLoopEnabled, eventId, octarchEntranceVisible, selectedAttack, sendCommand]);
 
   const toggleSelectedAttackLoop = useCallback(() => {
     if (
       !eventId
       || !selectedAttack
+      || octarchEntranceVisible
       || selectedAttack.source === 'configured-weapon'
     ) return;
     const enabled = !attackLoopEnabled;
@@ -888,7 +1260,7 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
     setNotice(enabled
       ? 'Looping selected attack from its first warning'
       : 'Attack loop stopped and restarted once');
-  }, [attackLoopEnabled, eventId, selectedAttack, sendCommand]);
+  }, [attackLoopEnabled, eventId, octarchEntranceVisible, selectedAttack, sendCommand]);
 
   const handleCommandResult = useCallback((result: PreviewCommandResult) => {
     if (!previewCommand || result.nonce !== previewCommand.nonce) return;
@@ -914,7 +1286,9 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
   const selectBoss = useCallback((choiceId: string) => {
     if (choiceId === selectedChoiceId) return;
     const nextChoice = choices.find((choice) => choice.id === choiceId);
+    const nextIsAbyssalOctarch = nextChoice?.prototypeId === 'abyssal-octarch';
     setSelectedChoiceId(choiceId);
+    setPreviewSnapshot(null);
     setPreviewArtworkStatus(
       getSandboxBossArtworkRegistration(nextChoice?.prototypeId) ? 'checking' : 'not-needed'
     );
@@ -925,13 +1299,23 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
     setMiniBossShieldEnabled(true);
     setCompactHealthBarsEnabled(true);
     setWallSide('left');
+    setOctarchCameraMode('auto');
+    setSelectedOctarchTentacleId(ABYSSAL_OCTARCH_TENTACLES[0].id);
+    setOctarchEntrance({
+      mode: nextIsAbyssalOctarch ? 'prompt' : 'inactive',
+      stepIndex: 0
+    });
+    setOctarchExpandedHandoffPending(false);
+    setPreviewCommand(null);
     setPreviewTimeScale(1);
     setDebugOverlays(DEFAULT_PREVIEW_DEBUG_OVERLAYS);
     setReferenceComparison(DEFAULT_PREVIEW_BOSS_REFERENCE_COMPARISON);
-    setPlaying(true);
+    setPlaying(!nextIsAbyssalOctarch);
     setPreviewCanvasStatus('loading');
     setRestartToken((value) => value + 1);
-    setNotice('Loaded a fresh isolated boss fight');
+    setNotice(nextIsAbyssalOctarch
+      ? 'Abyssal transmission intercepted before deployment'
+      : 'Loaded a fresh isolated boss fight');
   }, [choices, selectedChoiceId]);
 
   const selectCategory = useCallback((nextCategoryId: BossSandboxCategory['id']) => {
@@ -954,6 +1338,7 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
       style={sandboxStyle}
       data-left-panel={collapsedRails.left ? 'collapsed' : 'open'}
       data-right-panel={collapsedRails.right ? 'collapsed' : 'open'}
+      data-octarch-entrance={octarchEntranceVisible ? 'active' : 'inactive'}
     >
       <header className="boss-sandbox__header">
         <div className="boss-sandbox__brand">
@@ -1186,10 +1571,142 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
             >
               {invincible ? 'Watch safely' : 'Fight normally'}
             </button>
-            <button type="button" onClick={() => setPlaying((value) => !value)}>
+            <button
+              type="button"
+              disabled={octarchEntranceVisible}
+              onClick={() => setPlaying((value) => !value)}
+            >
               {playing ? 'Pause' : 'Resume'}
             </button>
           </div>
+
+          {isAbyssalOctarch ? (
+            <section className="boss-sandbox__octarch-lab" aria-label="Abyssal Octarch controls">
+              <span>Abyssal Octarch Lab</span>
+              <div
+                className="boss-sandbox__octarch-camera"
+                role="group"
+                aria-label="Octarch arena camera"
+              >
+                {(['auto', 'expanded', 'normal'] as const).map((mode) => (
+                  <button
+                    type="button"
+                    key={mode}
+                    aria-pressed={activeOctarchCameraMode === mode}
+                    className={activeOctarchCameraMode === mode ? 'is-active' : ''}
+                    disabled={octarchEntranceVisible}
+                    onClick={() => changeOctarchCameraMode(mode)}
+                  >
+                    {mode === 'auto' ? 'Auto' : mode === 'expanded' ? 'Expanded' : 'Normal'}
+                  </button>
+                ))}
+              </div>
+              <button type="button" onClick={replayOctarchEntrance}>
+                {octarchEntrance.mode === 'sequence' ? 'Restart entrance' : 'Replay entrance'}
+              </button>
+              <label className="boss-sandbox__octarch-tentacle-select">
+                <span>Tentacle component</span>
+                <select
+                  aria-label="Octarch tentacle component"
+                  disabled={octarchEntranceVisible}
+                  value={selectedOctarchTentacleId}
+                  onChange={(event) => setSelectedOctarchTentacleId(
+                    event.target.value as AbyssalOctarchTentacleId
+                  )}
+                >
+                  {ABYSSAL_OCTARCH_TENTACLES.map((tentacle) => {
+                    const component = octarchComponentSnapshots.find((candidate) => (
+                      candidate.id === tentacle.id
+                    ));
+                    return (
+                      <option value={tentacle.id} key={tentacle.id}>
+                        {tentacle.label}
+                        {component ? ` | ${component.destroyed ? 'SEVERED' : `${Math.round(component.healthRatio * 100)}%`}` : ''}
+                      </option>
+                    );
+                  })}
+                </select>
+              </label>
+              <div className="boss-sandbox__octarch-component-actions">
+                <button
+                  type="button"
+                  disabled={octarchEntranceVisible
+                    || !selectedOctarchComponent
+                    || selectedOctarchComponent.destroyed}
+                  onClick={severSelectedOctarchTentacle}
+                >
+                  Sever selected
+                </button>
+                <button
+                  type="button"
+                  disabled={octarchEntranceVisible || destroyedOctarchTentacles === 0}
+                  onClick={restoreOctarchTentacles}
+                >
+                  Restore all
+                </button>
+              </div>
+              <small
+                className="boss-sandbox__octarch-state"
+                aria-label="Abyssal Octarch development diagnostics"
+              >
+                <span>
+                  <strong>Phase</strong>
+                  {activeOctarchPhase
+                    ? `${activeOctarchPhase.index} | ${activeOctarchPhase.label} | ${activeOctarchPhase.id}`
+                    : 'awaiting phase'}
+                </span>
+                <span>
+                  <strong>Camera</strong>
+                  {octarchCameraSnapshot
+                    ? `${activeOctarchCameraMode} | ${octarchCameraSnapshot.scale.toFixed(2)}x | world ${Math.round(octarchCameraSnapshot.worldBounds.width)}×${Math.round(octarchCameraSnapshot.worldBounds.height)}`
+                    : 'awaiting camera'}
+                </span>
+                <span>
+                  <strong>Visible world</strong>
+                  {octarchDiagnosticBounds
+                    ? formatOctarchDiagnosticBounds(octarchDiagnosticBounds.visible)
+                    : 'awaiting camera'}
+                </span>
+                <span title="Estimated from the active visible bounds and the canonical 122 px preview ship footprint.">
+                  <strong>Player travel (est.)</strong>
+                  {octarchDiagnosticBounds
+                    ? formatOctarchDiagnosticBounds(octarchDiagnosticBounds.estimatedPlayerTravel)
+                    : 'awaiting camera'}
+                </span>
+                <span>
+                  <strong>Attacking tentacle</strong>
+                  {attackingOctarchTentacle}
+                </span>
+                <span>
+                  <strong>Action / stage</strong>
+                  {octarchDiagnostics?.activeActionId ?? 'idle'}
+                  {' / '}{octarchDiagnostics?.actionStage ?? previewSnapshot?.boss?.state ?? 'awaiting contact'}
+                </span>
+                <span>
+                  <strong>Grab / throw</strong>
+                  {octarchDiagnostics?.grabState ?? 'none'}
+                  {octarchDiagnostics?.playerCaptured ? ' | player captured' : ''}
+                  {' | '}{octarchThrowState}
+                </span>
+                <span>
+                  <strong>Defeat</strong>
+                  {octarchDiagnostics?.defeatStage
+                    ?? (previewSnapshot?.boss?.lifecycle?.kind === 'abyssal-defeat'
+                      ? previewSnapshot.boss.lifecycle.stage
+                      : 'inactive')}
+                  {octarchDiagnostics?.defeatStage
+                    ? ` | ${Math.round(octarchDiagnostics.defeatProgress * 100)}%`
+                    : ''}
+                </span>
+                <span>
+                  <strong>Field</strong>
+                  {survivingOctarchTentacles}/8 tentacles
+                  {' | '}{previewSnapshot?.boss?.hazardCount ?? 0} hazards
+                  {survivingOctarchTentacles === 0 ? ' | CORE EXPOSED' : ''}
+                </span>
+              </small>
+            </section>
+          ) : null}
 
           {selectedChoice.miniBoss ? (
             <section className="boss-sandbox__mini-lab" aria-label="Mini-Boss Lab controls">
@@ -1295,7 +1812,7 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
                 /{previewSnapshot.boss.activeAttack.beatCount}
               </small>
             ) : null}
-            {previewSnapshot?.boss?.bossId === 'singularity-crab' ? (
+            {previewSnapshot?.boss?.bossId === 'singularity-crab' && !isAbyssalOctarch ? (
               <small className="boss-sandbox__mechanics-status" aria-live="polite">
                 Phase {previewSnapshot.boss.phaseIndex + 1}
                 {' | state '}{previewSnapshot.boss.state}
@@ -1315,6 +1832,7 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
                   aria-label={`Attack ${attack.attackNumber}: ${attack.sourceLabel}`}
                   aria-pressed={performingAttackId === attack.id}
                   className={performingAttackId === attack.id ? 'is-performing' : ''}
+                  disabled={octarchEntranceVisible}
                   title={attack.sourceLabel}
                   onClick={() => triggerAttack(
                     attack.id,
@@ -1333,7 +1851,7 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
             >
               <button
                 type="button"
-                disabled={!selectedAttack}
+                disabled={octarchEntranceVisible || !selectedAttack}
                 onClick={replaySelectedAttack}
               >
                 Replay selected
@@ -1342,7 +1860,9 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
                 type="button"
                 aria-pressed={attackLoopEnabled}
                 className={attackLoopEnabled ? 'is-active' : ''}
-                disabled={!selectedAttack || selectedAttack.source === 'configured-weapon'}
+                disabled={octarchEntranceVisible
+                  || !selectedAttack
+                  || selectedAttack.source === 'configured-weapon'}
                 title={selectedAttack?.source === 'configured-weapon'
                   ? 'Configured weapon attacks already use their production cadence'
                   : 'Restart this attack after its recovery window'}
@@ -1364,6 +1884,7 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
                   type="button"
                   key={phase.id}
                   aria-pressed={selectedPhaseId === phase.id}
+                  disabled={octarchEntranceVisible}
                   onClick={() => jumpToPhase(phase.id)}
                 >
                   {index + 1}. {phase.label}
@@ -1492,6 +2013,97 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
                   </>
                 )}
               </div>
+            ) : null}
+
+            {octarchEntranceVisible && previewCanvasStatus === 'ready' ? (
+              <section
+                className="boss-sandbox__octarch-transmission"
+                role="dialog"
+                aria-busy={octarchEntrance.mode === 'sequence'}
+                aria-describedby="boss-sandbox-octarch-entrance-cue"
+                aria-label="Incoming Abyssal Octarch transmission"
+                data-entrance-stage={octarchEntranceStep?.id ?? 'prompt'}
+                data-interference={octarchEntranceStep?.interference ?? 0}
+              >
+                <div
+                  aria-hidden="true"
+                  className="boss-sandbox__octarch-presentation"
+                >
+                  <span className="boss-sandbox__octarch-tentacle-pass" />
+                  <span className="boss-sandbox__octarch-core-reveal">
+                    <i />
+                    <i />
+                  </span>
+                  <span className="boss-sandbox__octarch-emergence">
+                    {Array.from({ length: 8 }, (_, index) => <i key={index} />)}
+                  </span>
+                </div>
+                <div aria-hidden="true" className="boss-sandbox__octarch-signal">
+                  <span />
+                  <span />
+                  <span />
+                </div>
+                <small>{ABYSSAL_OCTARCH_TRANSMISSION_COPY.signal}</small>
+                <strong>{ABYSSAL_OCTARCH_TRANSMISSION_COPY.title}</strong>
+                <p className="boss-sandbox__octarch-transmission-lines" aria-hidden="true">
+                  {octarchEntrance.mode === 'prompt' ? (
+                    <span>Transmission buffered. Run the full contact sequence when ready.</span>
+                  ) : revealedOctarchTransmissionLines.map((line, index) => (
+                    <span
+                      className={index === revealedOctarchTransmissionLines.length - 1
+                        ? 'is-current'
+                        : ''}
+                      key={line.id}
+                    >
+                      {line.text}
+                    </span>
+                  ))}
+                </p>
+                <p
+                  className="boss-sandbox__octarch-entrance-cue"
+                  id="boss-sandbox-octarch-entrance-cue"
+                  role="status"
+                  aria-live={octarchEntranceStep?.id === 'abrupt-cutoff' ? 'assertive' : 'polite'}
+                  aria-atomic="true"
+                >
+                  {octarchEntrance.mode === 'prompt'
+                    ? 'Awaiting Director command'
+                    : octarchEntranceStep?.id === 'abrupt-cutoff'
+                      ? '[ CARRIER LOST ]'
+                      : octarchEntranceStep?.id.startsWith('transmission-')
+                        ? ABYSSAL_OCTARCH_TRANSMISSION_COPY.lines[
+                          octarchEntranceStep.lineCount - 1
+                        ]?.text ?? octarchEntranceStep.cue
+                      : octarchEntranceStep?.cue ?? 'Reconstructing signal'}
+                </p>
+                <div className="boss-sandbox__octarch-transmission-actions">
+                  <button
+                    type="button"
+                    disabled={previewCanvasStatus !== 'ready'}
+                    onClick={() => beginOctarchEncounter('skip')}
+                  >
+                    Skip entrance
+                  </button>
+                  {octarchEntrance.mode === 'prompt' ? (
+                    <button
+                      type="button"
+                      className="is-primary"
+                      disabled={previewCanvasStatus !== 'ready'}
+                      onClick={() => beginOctarchEncounter('begin')}
+                    >
+                      Begin encounter
+                    </button>
+                  ) : (
+                    <small aria-hidden="true">
+                      {Math.min(
+                        octarchEntrance.stepIndex + 1,
+                        ABYSSAL_OCTARCH_ENTRANCE_STEPS.length
+                      )}
+                      /{ABYSSAL_OCTARCH_ENTRANCE_STEPS.length}
+                    </small>
+                  )}
+                </div>
+              </section>
             ) : null}
           </div>
         </section>

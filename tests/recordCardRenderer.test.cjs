@@ -249,10 +249,7 @@ test('modern encounter art resolves to the same body and cannon rig used in game
       '/game-art/pixi/bosses/paywall-decimator/helmet.png'
     ],
     PAYWALL_BASTION_FRAMES: [
-      '/game-art/pixi/bosses/paywall-decimator/body/frame-1.png',
-      '/game-art/pixi/bosses/paywall-decimator/cannon-left.png',
-      '/game-art/pixi/bosses/paywall-decimator/cannon-right.png',
-      '/game-art/pixi/bosses/paywall-decimator/helmet.png'
+      '/game-art/generated/elite-enemies/paywall-wall-v2/frames/paywall-wall-02-neutral.png'
     ],
     PIXI_BOSS_CROWNCLAW_FRAMES: [
       '/game-art/generated/bosses/astral-crownclaw/astral-crownclaw-intact.png'

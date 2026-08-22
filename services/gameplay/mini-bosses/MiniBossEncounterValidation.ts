@@ -170,7 +170,7 @@ export const validateMiniBossEncounterDefinition = (
     const approvedExisting = binding.status === 'approved-existing'
       && binding.provenance === 'existing-runtime-art';
     const approvedGenerated = binding.status === 'approved-generated'
-      && binding.provenance === 'generated-mini-boss-lab-v2';
+      && binding.provenance === 'generated-mini-boss-lab-v3';
     if (!approvedExisting && !approvedGenerated) {
       diagnostics.push(error('asset.unapproved', `${binding.id} is not an approved runtime asset.`));
     }

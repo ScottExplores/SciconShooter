@@ -50,10 +50,14 @@ test('dialog submission uses the player-report service and retains drafts unless
   assert.match(dialogSource, /catch \{[\s\S]*?status: 'error', reportId: null/);
   assert.match(dialogSource, /Your draft is still here/);
   assert.match(dialogSource, /const resetDraft = \(\) =>/);
-  const catchStart = dialogSource.indexOf('    } catch {');
-  const catchEnd = dialogSource.indexOf('\n    }\n  };', catchStart);
+  const normalizedDialogSource = dialogSource.replace(/\r\n/g, '\n');
+  const catchStart = normalizedDialogSource.indexOf('    } catch {');
+  const catchEnd = normalizedDialogSource.indexOf('\n    }\n  };', catchStart);
   assert.ok(catchStart >= 0 && catchEnd > catchStart);
-  assert.doesNotMatch(dialogSource.slice(catchStart, catchEnd), /createDraft|summary: ''|details: ''/);
+  assert.doesNotMatch(
+    normalizedDialogSource.slice(catchStart, catchEnd),
+    /createDraft|summary: ''|details: ''/
+  );
 });
 
 test('successful and queued submissions show a stable report receipt', () => {

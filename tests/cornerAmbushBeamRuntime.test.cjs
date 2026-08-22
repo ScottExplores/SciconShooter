@@ -115,6 +115,9 @@ test('GameEngine requires the warning lock and shares it with one angled live be
   assert.match(engineSource, /this\.spawnBossCornerAmbushBeamEntity\(boss, state\.lock, false, liveFrames\)/);
   assert.match(engineSource, /style === 'target'[\s\S]*linkedAction\?\.primitiveId === 'corner-ambush-beam'/);
   assert.match(engineSource, /entity\.isBeam && entity\.beamAngleRadians !== null/);
-  assert.match(engineSource, /resize\(width: number, height: number\)[\s\S]*boss\.bossCornerAmbushBeamState = undefined/);
+  assert.match(
+    engineSource,
+    /resize\(width: number, height: number, displayWidth\?: number, displayHeight\?: number\)[\s\S]*boss\.bossCornerAmbushBeamState = undefined/
+  );
   assert.doesNotMatch(source, /Math\.random|Date\.|performance\./);
 });

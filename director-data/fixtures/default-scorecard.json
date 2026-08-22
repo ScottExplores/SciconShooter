@@ -48,7 +48,7 @@
       "minWave": 2,
       "maxWave": 2,
       "label": "REPLICATION RIFT",
-      "assetPath": "/game-art/bosses/mini-boss-drone.png"
+      "assetPath": "/game-art/generated/elite-enemies/bottleneck-drone-v3/frames/bottleneck-drone-01-neutral.png"
     },
     {
       "id": "deep-review-space",

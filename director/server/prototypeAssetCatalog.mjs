@@ -22,6 +22,33 @@ const asset = ({
 
 export const PROTOTYPE_ASSET_DEFINITIONS = Object.freeze([
   asset({
+    prototypeId: 'abyssal-octarch',
+    variant: 'assembled',
+    fileName: 'abyssal-octarch/assembled.png',
+    sha256: 'a9fc10f01d3d6abcb51ff00b8be1a2b6ead7c02b10e7ee697369b2c1c1b7854d',
+    width: 720,
+    height: 480,
+    label: 'Abyssal Octarch assembled modular preview'
+  }),
+  asset({
+    prototypeId: 'abyssal-octarch',
+    variant: 'sheet',
+    fileName: 'abyssal-octarch/sheet.png',
+    sha256: 'dae4d697b30ee0a7f6509022fc4273907452b7a71a02377bfe885a3523f4cf30',
+    width: 2048,
+    height: 512,
+    label: 'Abyssal Octarch modular and attack animation atlas'
+  }),
+  asset({
+    prototypeId: 'abyssal-octarch',
+    variant: 'reference',
+    fileName: 'abyssal-octarch/abyssal-octarch-reference-runtime.png',
+    sha256: '32e3b0b8989342a8fcf1c1df3e41894b714a0e896621ebb5218a8c9f1e685831',
+    width: 720,
+    height: 480,
+    label: 'Abyssal Octarch canonical alignment reference'
+  }),
+  asset({
     prototypeId: 'meridian-harrower',
     variant: 'assembled',
     fileName: 'meridian-harrower-assembled.png',

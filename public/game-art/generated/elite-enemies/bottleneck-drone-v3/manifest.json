@@ -1,0 +1,236 @@
+{
+  "schemaVersion": 1,
+  "id": "bottleneck-drone-v3",
+  "source": {
+    "assetId": "bottleneck-drone-animation-sheet-v3.png",
+    "sha256": "5754c1884cf42d30dcb07341b35c68259dc83c87000ca3f3e02b368032ed6c26",
+    "width": 1774,
+    "height": 887,
+    "frameCells": [
+      {
+        "name": "neutral",
+        "left": 0,
+        "right": 353,
+        "width": 354,
+        "bounds": {
+          "x": 17,
+          "y": 280,
+          "width": 315,
+          "height": 318
+        },
+        "opaquePixelCount": 63128,
+        "discardedComponentCount": 2,
+        "discardedPixelCount": 4
+      },
+      {
+        "name": "idle",
+        "left": 354,
+        "right": 708,
+        "width": 355,
+        "bounds": {
+          "x": 372,
+          "y": 280,
+          "width": 312,
+          "height": 318
+        },
+        "opaquePixelCount": 63079,
+        "discardedComponentCount": 1,
+        "discardedPixelCount": 2
+      },
+      {
+        "name": "charge",
+        "left": 709,
+        "right": 1063,
+        "width": 355,
+        "bounds": {
+          "x": 767,
+          "y": 280,
+          "width": 235,
+          "height": 318
+        },
+        "opaquePixelCount": 53913,
+        "discardedComponentCount": 1,
+        "discardedPixelCount": 1
+      },
+      {
+        "name": "fire",
+        "left": 1064,
+        "right": 1418,
+        "width": 355,
+        "bounds": {
+          "x": 1084,
+          "y": 280,
+          "width": 309,
+          "height": 412
+        },
+        "opaquePixelCount": 65192,
+        "discardedComponentCount": 1,
+        "discardedPixelCount": 1
+      },
+      {
+        "name": "recovery",
+        "left": 1419,
+        "right": 1773,
+        "width": 355,
+        "bounds": {
+          "x": 1442,
+          "y": 280,
+          "width": 309,
+          "height": 318
+        },
+        "opaquePixelCount": 61365,
+        "discardedComponentCount": 2,
+        "discardedPixelCount": 2
+      }
+    ]
+  },
+  "processing": {
+    "frameOrder": [
+      "neutral",
+      "idle",
+      "charge",
+      "fire",
+      "recovery"
+    ],
+    "commonCrop": {
+      "width": 361,
+      "height": 412,
+      "top": 280,
+      "bottom": 691
+    },
+    "targetFrame": {
+      "width": 140,
+      "height": 160
+    },
+    "contentBox": {
+      "x": 6,
+      "y": 7,
+      "width": 128,
+      "height": 146
+    },
+    "paletteLimit": 32,
+    "sharedPaletteSize": 32,
+    "alpha": "binary",
+    "scaling": "nearest-neighbor",
+    "structuralComponentPolicy": "largest-connected-component-only",
+    "sourceFrameGutterPixels": 4,
+    "transparentSafetyMarginPixels": 4
+  },
+  "runtime": {
+    "canvasWidth": 140,
+    "canvasHeight": 160,
+    "anchor": {
+      "x": 0.5,
+      "y": 0.5
+    },
+    "projectileSocket": {
+      "x": 0.5,
+      "y": 1
+    },
+    "stateOrder": [
+      "neutral",
+      "idle",
+      "charge",
+      "fire",
+      "recovery"
+    ]
+  },
+  "frames": [
+    {
+      "id": "neutral",
+      "path": "frames/bottleneck-drone-01-neutral.png",
+      "analysis": {
+        "width": 140,
+        "height": 160,
+        "opaquePixels": 7942,
+        "transparentPixels": 14458,
+        "semitransparentPixels": 0,
+        "opaquePaletteSize": 32
+      },
+      "centroid": {
+        "x": 69.20146058927223,
+        "y": 68.58322840594309,
+        "opaquePixelCount": 7942
+      },
+      "discardedComponentCount": 0,
+      "discardedPixelCount": 0
+    },
+    {
+      "id": "idle",
+      "path": "frames/bottleneck-drone-02-idle.png",
+      "analysis": {
+        "width": 140,
+        "height": 160,
+        "opaquePixels": 7925,
+        "transparentPixels": 14475,
+        "semitransparentPixels": 0,
+        "opaquePaletteSize": 32
+      },
+      "centroid": {
+        "x": 68.70889589905363,
+        "y": 68.71255520504732,
+        "opaquePixelCount": 7925
+      },
+      "discardedComponentCount": 0,
+      "discardedPixelCount": 0
+    },
+    {
+      "id": "charge",
+      "path": "frames/bottleneck-drone-03-charge.png",
+      "analysis": {
+        "width": 140,
+        "height": 160,
+        "opaquePixels": 6759,
+        "transparentPixels": 15641,
+        "semitransparentPixels": 0,
+        "opaquePaletteSize": 32
+      },
+      "centroid": {
+        "x": 69.33037431572718,
+        "y": 68.48320757508507,
+        "opaquePixelCount": 6759
+      },
+      "discardedComponentCount": 1,
+      "discardedPixelCount": 3
+    },
+    {
+      "id": "fire",
+      "path": "frames/bottleneck-drone-04-fire.png",
+      "analysis": {
+        "width": 140,
+        "height": 160,
+        "opaquePixels": 8159,
+        "transparentPixels": 14241,
+        "semitransparentPixels": 0,
+        "opaquePaletteSize": 32
+      },
+      "centroid": {
+        "x": 69.14045838950852,
+        "y": 73.34465007966662,
+        "opaquePixelCount": 8159
+      },
+      "discardedComponentCount": 0,
+      "discardedPixelCount": 0
+    },
+    {
+      "id": "recovery",
+      "path": "frames/bottleneck-drone-05-recovery.png",
+      "analysis": {
+        "width": 140,
+        "height": 160,
+        "opaquePixels": 7690,
+        "transparentPixels": 14710,
+        "semitransparentPixels": 0,
+        "opaquePaletteSize": 32
+      },
+      "centroid": {
+        "x": 70.01521456436932,
+        "y": 69.47646293888167,
+        "opaquePixelCount": 7690
+      },
+      "discardedComponentCount": 0,
+      "discardedPixelCount": 0
+    }
+  ],
+  "spriteSheet": "bottleneck-drone-sprite-sheet.png"
+}

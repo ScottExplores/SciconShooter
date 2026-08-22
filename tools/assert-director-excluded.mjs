@@ -9,7 +9,13 @@ if (!fs.existsSync(indexPath)) {
   throw new Error('Production boundary check expected dist/index.html after the Vite build.');
 }
 
-const forbiddenPathFragments = ['director', 'director-data', '__director', 'combat-lab'];
+const forbiddenPathFragments = [
+  'director',
+  'director-data',
+  '__director',
+  'combat-lab',
+  'test-packages'
+];
 const forbiddenPrototypeAssetBasenames = [
   'meridian-harrower-assembled',
   'meridian-harrower-modular-sheet',
@@ -34,7 +40,7 @@ const forbiddenPrototypeAssetBasenames = [
 const forbiddenText = [
   'Scicon Director',
   '/__director',
-  'director-data/workspace',
+  'director-data/',
   'Scicon Combat Lab',
   '/combat-lab',
   'scicon-combat-lab-presets-v1',

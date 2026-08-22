@@ -1,0 +1,292 @@
+{
+  "schemaVersion": 2,
+  "encounterId": "maw-carrier",
+  "sourceSha256": "3140975560d7e9e160994170b9e4b511ab099888d69e918f900bd813b8f02685",
+  "canvas": {
+    "width": 192,
+    "height": 192
+  },
+  "runtimeContract": {
+    "sampling": "nearest",
+    "alpha": "binary",
+    "maximumSharedColors": 32,
+    "minimumMarginPixels": 8
+  },
+  "palette": [
+    [
+      0,
+      0,
+      0
+    ],
+    [
+      34,
+      34,
+      34
+    ],
+    [
+      17,
+      17,
+      17
+    ],
+    [
+      51,
+      51,
+      51
+    ],
+    [
+      68,
+      68,
+      68
+    ],
+    [
+      34,
+      17,
+      17
+    ],
+    [
+      17,
+      0,
+      0
+    ],
+    [
+      85,
+      85,
+      85
+    ],
+    [
+      51,
+      34,
+      34
+    ],
+    [
+      0,
+      17,
+      0
+    ],
+    [
+      17,
+      17,
+      0
+    ],
+    [
+      68,
+      51,
+      51
+    ],
+    [
+      34,
+      0,
+      0
+    ],
+    [
+      85,
+      68,
+      68
+    ],
+    [
+      102,
+      102,
+      102
+    ],
+    [
+      51,
+      85,
+      0
+    ],
+    [
+      34,
+      34,
+      17
+    ],
+    [
+      34,
+      17,
+      34
+    ],
+    [
+      51,
+      68,
+      0
+    ],
+    [
+      68,
+      102,
+      0
+    ],
+    [
+      68,
+      17,
+      0
+    ],
+    [
+      51,
+      34,
+      51
+    ],
+    [
+      51,
+      0,
+      0
+    ],
+    [
+      136,
+      187,
+      17
+    ],
+    [
+      85,
+      17,
+      0
+    ],
+    [
+      17,
+      0,
+      17
+    ],
+    [
+      119,
+      119,
+      119
+    ],
+    [
+      51,
+      17,
+      0
+    ],
+    [
+      34,
+      51,
+      0
+    ],
+    [
+      85,
+      119,
+      0
+    ],
+    [
+      68,
+      119,
+      0
+    ],
+    [
+      68,
+      51,
+      68
+    ]
+  ],
+  "frames": [
+    {
+      "state": "neutral",
+      "fileName": "maw-carrier-neutral.png",
+      "sha256": "b5e2df1ff24177719e7841dde77e441805dc2709453c500114f3b6e038a92ad2",
+      "structuralCleanup": {
+        "sourceComponentCount": 1,
+        "sourceDiscardedPixels": 0,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    },
+    {
+      "state": "idle",
+      "fileName": "maw-carrier-idle.png",
+      "sha256": "85a7f220a1868fcf42f15381888890c9ca6cbf8d2e328875aeafb4034467e449",
+      "structuralCleanup": {
+        "sourceComponentCount": 1,
+        "sourceDiscardedPixels": 0,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    },
+    {
+      "state": "charge",
+      "fileName": "maw-carrier-charge.png",
+      "sha256": "f13b023b86110f1e7fd6a1682469418317ce9d8afea6aa686f0decf088825276",
+      "structuralCleanup": {
+        "sourceComponentCount": 1,
+        "sourceDiscardedPixels": 0,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    },
+    {
+      "state": "attack-a",
+      "fileName": "maw-carrier-attack-a.png",
+      "sha256": "341ce66978187615b2a6ceb67245c4bdaa11d5e1caaffb169538ed40a4b0e222",
+      "structuralCleanup": {
+        "sourceComponentCount": 1,
+        "sourceDiscardedPixels": 0,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    },
+    {
+      "state": "attack-b",
+      "fileName": "maw-carrier-attack-b.png",
+      "sha256": "e26c90a43d2cb0537f9fbcb5d9df8526c9feccd64b0702125ad8678b4fea0c49",
+      "structuralCleanup": {
+        "sourceComponentCount": 8,
+        "sourceDiscardedPixels": 85,
+        "outputComponentCount": 2,
+        "outputDiscardedPixels": 4
+      }
+    },
+    {
+      "state": "damage",
+      "fileName": "maw-carrier-damage.png",
+      "sha256": "90fafefeba235a8a6adef6edd7b83ec30151c6fa4fe42478c5015ed84ee1aaff",
+      "structuralCleanup": {
+        "sourceComponentCount": 1,
+        "sourceDiscardedPixels": 0,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    },
+    {
+      "state": "critical",
+      "fileName": "maw-carrier-critical.png",
+      "sha256": "781a17f6e937937590b58ad656a972f03aa9ab2ca535d113f441ec8bc3c5e710",
+      "structuralCleanup": {
+        "sourceComponentCount": 2,
+        "sourceDiscardedPixels": 249,
+        "outputComponentCount": 1,
+        "outputDiscardedPixels": 0
+      }
+    }
+  ],
+  "projectileFrames": [
+    {
+      "assetId": "maw-seed",
+      "fileName": "maw-seed-01.png",
+      "sha256": "570733062bee4beb3da72fb7873eef50486009a335401e07c436652545b95401",
+      "width": 56,
+      "height": 64
+    },
+    {
+      "assetId": "maw-seed",
+      "fileName": "maw-seed-02.png",
+      "sha256": "e050e230e537bcb740989facce6c98d3e8467fe24cba4c7a2f9a3631bfecb106",
+      "width": 56,
+      "height": 64
+    },
+    {
+      "assetId": "maw-seed",
+      "fileName": "maw-seed-03.png",
+      "sha256": "85ebdd89b7b7d29907cb94a290cbc9c412769ed559b9bbd176cdf4229f0f2e1a",
+      "width": 56,
+      "height": 64
+    },
+    {
+      "assetId": "maw-seed",
+      "fileName": "maw-seed-04.png",
+      "sha256": "bb1f423b8e07b12dde6c6712fdbf8b60c7c26f814a0f66a25d7ef7fad7d7501f",
+      "width": 56,
+      "height": 64
+    }
+  ],
+  "sheet": {
+    "fileName": "maw-carrier-sheet.png",
+    "sha256": "7033cc65feacbe0c601537d72e608555e8b5e0f40bed538267c067745e1c6327",
+    "gutterPixels": 4,
+    "usage": "review-only"
+  }
+}

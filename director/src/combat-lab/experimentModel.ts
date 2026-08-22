@@ -465,7 +465,13 @@ const focusBossPhase = (
       revival: undefined
     };
   }
-  if (event.timeline?.attacks?.length) {
+  const timelineReferencesOtherPhases = Boolean(
+    event.timeline?.attacks?.some((attack) => (
+      attack.variants.some((variant) => variant.phaseId !== phase.id)
+    ))
+    || event.timeline?.clips.some((clip) => clip.phaseId && clip.phaseId !== phase.id)
+  );
+  if (timelineReferencesOtherPhases) {
     const dormantReferencedPhases = event.phases
       .filter((candidate) => candidate.id !== phase.id)
       .map((candidate, index) => ({
