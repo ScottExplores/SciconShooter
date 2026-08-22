@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "encounterId": "maw-carrier",
   "sourceSha256": "3140975560d7e9e160994170b9e4b511ab099888d69e918f900bd813b8f02685",
   "canvas": {
@@ -253,9 +253,40 @@
       }
     }
   ],
+  "projectileFrames": [
+    {
+      "assetId": "maw-seed",
+      "fileName": "maw-seed-01.png",
+      "sha256": "570733062bee4beb3da72fb7873eef50486009a335401e07c436652545b95401",
+      "width": 56,
+      "height": 64
+    },
+    {
+      "assetId": "maw-seed",
+      "fileName": "maw-seed-02.png",
+      "sha256": "e050e230e537bcb740989facce6c98d3e8467fe24cba4c7a2f9a3631bfecb106",
+      "width": 56,
+      "height": 64
+    },
+    {
+      "assetId": "maw-seed",
+      "fileName": "maw-seed-03.png",
+      "sha256": "85ebdd89b7b7d29907cb94a290cbc9c412769ed559b9bbd176cdf4229f0f2e1a",
+      "width": 56,
+      "height": 64
+    },
+    {
+      "assetId": "maw-seed",
+      "fileName": "maw-seed-04.png",
+      "sha256": "bb1f423b8e07b12dde6c6712fdbf8b60c7c26f814a0f66a25d7ef7fad7d7501f",
+      "width": 56,
+      "height": 64
+    }
+  ],
   "sheet": {
     "fileName": "maw-carrier-sheet.png",
     "sha256": "7033cc65feacbe0c601537d72e608555e8b5e0f40bed538267c067745e1c6327",
-    "gutterPixels": 4
+    "gutterPixels": 4,
+    "usage": "review-only"
   }
 }

@@ -436,7 +436,7 @@ function Get-AssetUsageIndex([string]$SourceRoot, [string]$ArtRoot) {
       Location = 'services/pixi/boss-rigs/AbyssalOctarchArtwork.ts'
     },
     [pscustomobject]@{
-      Pattern = '^generated/mini-boss-lab-v[23]/[^/]+/.+\.png$'
+      Pattern = '^generated/mini-boss-lab-v[23]/[^/]+/(?:[^/]+-(?:neutral|idle|charge|attack-a|attack-b|damage|critical)|[^/]+-\d{2})\.png$'
       Location = 'services/gameplay/mini-bosses/MiniBossEncounterRegistry.ts'
     },
     [pscustomobject]@{

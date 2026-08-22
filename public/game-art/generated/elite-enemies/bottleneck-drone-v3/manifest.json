@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "bottleneck-drone-v3",
   "source": {
-    "path": "director-data/prototype-assets/bottleneck-drone/bottleneck-drone-animation-sheet-v3.png",
+    "assetId": "bottleneck-drone-animation-sheet-v3.png",
     "sha256": "5754c1884cf42d30dcb07341b35c68259dc83c87000ca3f3e02b368032ed6c26",
     "width": 1774,
     "height": 887,

@@ -40,7 +40,7 @@ const forbiddenPrototypeAssetBasenames = [
 const forbiddenText = [
   'Scicon Director',
   '/__director',
-  'director-data/workspace',
+  'director-data/',
   'Scicon Combat Lab',
   '/combat-lab',
   'scicon-combat-lab-presets-v1',

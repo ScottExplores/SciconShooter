@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { PNG } from '../director/node_modules/pngjs/lib/png.js';
 
@@ -12,6 +12,16 @@ const FRAME_NAMES = Object.freeze([
   'damage',
   'critical'
 ]);
+const PROJECTILE_ASSET_IDS = Object.freeze({
+  'fracture-engine-elite': 'fracture-shard',
+  'aegis-brood-core': 'aegis-pulse',
+  'railspine-wallcrawler': 'railspine-needle',
+  'maw-carrier': 'maw-seed',
+  'twin-meridian-sentinels': 'meridian-bolt',
+  'prism-bloom': 'prism-petal',
+  'aegis-convoy-captain': 'convoy-command-bolt',
+  'gridline-sentries': 'gridline-bolt'
+});
 
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const clampByte = (value) => Math.max(0, Math.min(255, Math.round(value)));
@@ -218,15 +228,46 @@ const main = async () => {
   const sheetName = `${encounterId}-sheet.png`;
   const sheetBytes = PNG.sync.write(sheet, { colorType: 6 });
   await writeFile(path.join(outputRoot, sheetName), sheetBytes);
+  const generatedFileNames = new Set([
+    ...manifestFrames.map((frame) => frame.fileName),
+    sheetName
+  ]);
+  const projectileAssetId = PROJECTILE_ASSET_IDS[encounterId];
+  if (!projectileAssetId) throw new Error(`No projectile asset ID is registered for ${encounterId}.`);
+  const projectileFrames = [];
+  for (const entry of (await readdir(outputRoot, { withFileTypes: true }))
+    .filter((candidate) => (
+      candidate.isFile()
+      && candidate.name.toLowerCase().endsWith('.png')
+      && !generatedFileNames.has(candidate.name)
+    ))
+    .sort((left, right) => left.name.localeCompare(right.name))) {
+    if (!entry.name.startsWith(`${projectileAssetId}-`)) {
+      throw new Error(`Unclassified PNG in ${encounterId}: ${entry.name}`);
+    }
+    const bytes = await readFile(path.join(outputRoot, entry.name));
+    const projectile = PNG.sync.read(bytes);
+    projectileFrames.push({
+      assetId: projectileAssetId,
+      fileName: entry.name,
+      sha256: sha256(bytes),
+      width: projectile.width,
+      height: projectile.height
+    });
+  }
+  if (projectileFrames.length !== 4) {
+    throw new Error(`${encounterId} must inventory exactly four projectile frames.`);
+  }
   await writeFile(path.join(outputRoot, 'pack-manifest.json'), `${JSON.stringify({
-    schemaVersion: 1,
+    schemaVersion: 2,
     encounterId,
     sourceSha256: sha256(await readFile(sourcePath)),
     canvas: { width: 192, height: 192 },
     runtimeContract: { sampling: 'nearest', alpha: 'binary', maximumSharedColors: 32, minimumMarginPixels: 8 },
     palette,
     frames: manifestFrames.map((frame, index) => ({ ...frame, structuralCleanup: structuralReports[index] })),
-    sheet: { fileName: sheetName, sha256: sha256(sheetBytes), gutterPixels: 4 }
+    projectileFrames,
+    sheet: { fileName: sheetName, sha256: sha256(sheetBytes), gutterPixels: 4, usage: 'review-only' }
   }, null, 2)}\n`);
 };
 

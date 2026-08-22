@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "encounterId": "railspine-wallcrawler",
   "sourceSha256": "690581ca288efb13182347e94775756cc26bb15c3cc440c6da92b615e7ebe491",
   "canvas": {
@@ -253,9 +253,40 @@
       }
     }
   ],
+  "projectileFrames": [
+    {
+      "assetId": "railspine-needle",
+      "fileName": "railspine-needle-01.png",
+      "sha256": "d7f391e2eab2c239d93fa05fad35e00fc6fa4f6cf3577666946aaad6eefee84b",
+      "width": 21,
+      "height": 60
+    },
+    {
+      "assetId": "railspine-needle",
+      "fileName": "railspine-needle-02.png",
+      "sha256": "88916abd99d1acb2362b1720603b6e56466cb8e19600d488568395cfc998761c",
+      "width": 21,
+      "height": 60
+    },
+    {
+      "assetId": "railspine-needle",
+      "fileName": "railspine-needle-03.png",
+      "sha256": "2847c3ac9c63c5a5324b85151e4e1e83516b80fd6624055ec1682e7d948c17e5",
+      "width": 21,
+      "height": 60
+    },
+    {
+      "assetId": "railspine-needle",
+      "fileName": "railspine-needle-04.png",
+      "sha256": "42bb2f959a10ca5a662e0a380e826a492225eb578c933ff4ed2e13a5a05a3a68",
+      "width": 21,
+      "height": 60
+    }
+  ],
   "sheet": {
     "fileName": "railspine-wallcrawler-sheet.png",
     "sha256": "5cc7acfca2d1b6b8bfe1231affa224a1cce3dbd45ebb582e6924644069576810",
-    "gutterPixels": 4
+    "gutterPixels": 4,
+    "usage": "review-only"
   }
 }

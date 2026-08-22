@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "paywall-wall-v2",
   "source": {
-    "path": "director-data/prototype-assets/paywall-wall/paywall-wall-animation-sheet-v2.png",
+    "assetId": "paywall-wall-animation-sheet-v2.png",
     "sha256": "71ffb8f6dc16ca517022437885607e38febb4d57956872a917c7a4a2e12f41f8",
     "width": 2141,
     "height": 734,

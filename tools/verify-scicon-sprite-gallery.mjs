@@ -111,11 +111,19 @@ if (eliteEncounterAssets.some((item) => (
 ))) {
   throw new Error("Elite encounter art is not clearly categorized or grouped in the Sprite Gallery");
 }
-if (eliteEncounterAssets.some((item) => (
+const eliteEncounterSheets = eliteEncounterAssets.filter((item) => item.name.endsWith('-sheet.png'));
+const eliteEncounterRuntimeAssets = eliteEncounterAssets.filter((item) => !item.name.endsWith('-sheet.png'));
+if (eliteEncounterRuntimeAssets.length !== 88 || eliteEncounterSheets.length !== 8) {
+  throw new Error("Elite encounter inventory must contain 88 runtime images and eight review sheets");
+}
+if (eliteEncounterRuntimeAssets.some((item) => (
   !item.inGame ||
   !item.usageLocations.some((value) => value.startsWith("services/gameplay/mini-bosses/MiniBossEncounterRegistry.ts"))
 ))) {
   throw new Error("Elite encounter runtime art is not marked as in-game through the shared registry");
+}
+if (eliteEncounterSheets.some((item) => item.inGame || !item.simpleCategories.includes('Sprite Sheets'))) {
+  throw new Error("Elite encounter review sheets must remain out of runtime and inside Sprite Sheets");
 }
 const maxShotFrame = assets.find((item) => item.name === "max-shot-aura-01.png");
 if (!maxShotFrame?.simpleCategories.includes("Items & Power-Ups")) throw new Error("Generated power-up frames are miscategorized");

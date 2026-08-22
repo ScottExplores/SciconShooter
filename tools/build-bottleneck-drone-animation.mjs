@@ -208,7 +208,7 @@ const manifest = Object.freeze({
   schemaVersion: 1,
   id: packageId,
   source: Object.freeze({
-    path: path.relative(workspaceRoot, sourcePath).replaceAll('\\', '/'),
+    assetId: path.basename(sourcePath),
     sha256: createHash('sha256').update(sourceBytes).digest('hex'),
     width: source.width,
     height: source.height,
