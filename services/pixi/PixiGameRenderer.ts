@@ -15,13 +15,16 @@ import { BOSS_CANNON_SCALE, CROWNCLAW_ARM_SCALE, Entity, GameEngine, VisualEffec
 import type { BossComponentState, BossPartId, GameRuntimeState, StageTakeoffPresentation } from '../gameLogic';
 import type { BossRigId } from '../../game-config/types';
 import {
+  PLAYER_SHIP_HARD_BANK_THRESHOLD,
   PLAYER_SHIP_HARD_BANK_SWEEP_RATIO,
   PLAYER_SHIP_STEERING_FRAME_URLS,
-  PLAYER_SHIP_TOUCH_SPEED_SCALE,
   applyPlayerSteeringDeadzone,
+  getPlayerSteeringPresentationSpeed,
   getPlayerSteeringBlendMs,
   getPlayerShipMotionByAssetUrl,
   selectPlayerSteeringState,
+  updatePlayerHardBankLatch,
+  type PlayerHardBankLatch,
   type PlayerSteeringState
 } from '../playerShipMotion';
 import {
@@ -1347,6 +1350,14 @@ export interface PixiGameRendererOptions {
 export class PixiGameRenderer {
   readonly app = new Application();
 
+  get viewportWidth() {
+    return this.width;
+  }
+
+  get viewportHeight() {
+    return this.height;
+  }
+
   private readonly textureBank = new PixiTextureBank();
   private readonly articulatedBossRigLoads = new Map<ArticulatedBossArchetype, Promise<unknown>>();
   private readonly layers: Record<SceneLayerName, Container> = {
@@ -1445,6 +1456,11 @@ export class PixiGameRenderer {
   private playerSteeringSweepOriginX: number | null = null;
   private playerSteeringSweepDirection: -1 | 0 | 1 = 0;
   private playerSteeringShipUrl: string | null = null;
+  private playerHardBankLatch: PlayerHardBankLatch = {
+    direction: 0,
+    remainingMs: 0,
+    triggeredDirection: 0
+  };
   private lastShotFrame = -999;
   private lastBombFrame = -999;
   private bioBeamVisualStartFrame = -1;
@@ -3738,6 +3754,7 @@ export class PixiGameRenderer {
       this.playerSteeringSweepOriginX = null;
       this.playerSteeringSweepDirection = 0;
       this.playerSteeringShipUrl = null;
+      this.playerHardBankLatch = { direction: 0, remainingMs: 0, triggeredDirection: 0 };
       return;
     }
 
@@ -3747,6 +3764,7 @@ export class PixiGameRenderer {
       this.playerSteeringSweepOriginX = playerCenterX;
       this.playerSteeringSweepDirection = 0;
       this.playerSteeringShipUrl = engine.playerShipUrl;
+      this.playerHardBankLatch = { direction: 0, remainingMs: 0, triggeredDirection: 0 };
     }
 
     if (engine.waveDepartureFrames > 0) {
@@ -3755,6 +3773,7 @@ export class PixiGameRenderer {
       this.playerSteeringTextureKey = motion.steeringFrames.neutral;
       this.playerSteeringSweepOriginX = playerCenterX;
       this.playerSteeringSweepDirection = 0;
+      this.playerHardBankLatch = { direction: 0, remainingMs: 0, triggeredDirection: 0 };
       return;
     }
 
@@ -3763,8 +3782,11 @@ export class PixiGameRenderer {
       + (Math.min(speedLevel, 5) * 1.5)
       + (speedLevel >= 6 ? 3 : 0)
       + (speedLevel >= 7 ? 2 : 0);
-    const presentationSpeed = maxHorizontalSpeed
-      * (engine.touchPos ? PLAYER_SHIP_TOUCH_SPEED_SCALE : 1);
+    const presentationSpeed = getPlayerSteeringPresentationSpeed({
+      baseHorizontalSpeed: GAME_CONFIG.BASE_PLAYER_SPEED,
+      maxHorizontalSpeed,
+      touchActive: Boolean(engine.touchPos)
+    });
     const normalizedHorizontal = applyPlayerSteeringDeadzone(
       engine.playerVel.x / Math.max(1, presentationSpeed)
     );
@@ -3787,6 +3809,29 @@ export class PixiGameRenderer {
       : (playerCenterX - this.playerSteeringSweepOriginX) * this.playerSteeringSweepDirection;
     const hardBankEligible = Math.max(0, signedSweep) / playableWidth
       >= PLAYER_SHIP_HARD_BANK_SWEEP_RATIO;
+    const hardBankDirection: -1 | 0 | 1 = normalizedHorizontal <= -PLAYER_SHIP_HARD_BANK_THRESHOLD
+      ? -1
+      : normalizedHorizontal >= PLAYER_SHIP_HARD_BANK_THRESHOLD
+        ? 1
+        : 0;
+    const touchIntentX = engine.touchPos ? engine.touchPos.x - playerCenterX : 0;
+    const requestedDirection: -1 | 0 | 1 = engine.touchPos
+      ? touchIntentX < -2
+        ? -1
+        : touchIntentX > 2
+          ? 1
+          : 0
+      : steeringDirection;
+    const requestedHardBankDirection = hardBankDirection === requestedDirection
+      ? hardBankDirection
+      : 0;
+    this.playerHardBankLatch = updatePlayerHardBankLatch(this.playerHardBankLatch, {
+      requestedDirection,
+      hardBankDirection: requestedHardBankDirection,
+      triggerEligible: requestedHardBankDirection !== 0
+        && (hardBankEligible || Boolean(engine.touchPos)),
+      deltaMs
+    });
     const steeringBlendMs = getPlayerSteeringBlendMs(speedLevel);
     const blend = 1 - Math.exp(-Math.max(0, deltaMs) / steeringBlendMs);
     this.playerSteeringVisual += (normalizedHorizontal - this.playerSteeringVisual) * blend;
@@ -3794,7 +3839,11 @@ export class PixiGameRenderer {
       this.playerSteeringVisual = 0;
     }
 
-    const state = selectPlayerSteeringState(this.playerSteeringVisual, hardBankEligible);
+    const state = this.playerHardBankLatch.direction < 0
+      ? 'hard-left'
+      : this.playerHardBankLatch.direction > 0
+        ? 'hard-right'
+        : selectPlayerSteeringState(this.playerSteeringVisual, hardBankEligible);
     this.playerSteeringState = state;
     this.playerSteeringTextureKey = motion.steeringFrames[state];
   }

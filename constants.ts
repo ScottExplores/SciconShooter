@@ -583,6 +583,8 @@ export const STORAGE_KEYS = {
   CREDITED_FUNDING_TXS: "scicon_credited_funding_txs",
   POLISH_SETTINGS: "scicon_polish_settings",
   LATEST_RUN_RECEIPT: "scicon_latest_run_receipt",
+  WEEKLY_RUN_PENDING_ADMISSION: "scicon_weekly_run_pending_admission_v1",
+  WEEKLY_GUEST_PROPOSAL_CAPABILITY: "scicon_weekly_guest_proposal_capability_v1",
   SELECTED_SHIP: "scicon_selected_ship",
   TUTORIAL_SEEN: "scicon_tutorial_seen_v1"
 };

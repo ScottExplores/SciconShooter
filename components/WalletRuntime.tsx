@@ -13,6 +13,7 @@ import {
   disconnectBaseAccount,
   getRscBalance,
   parseBaseAccountAccounts,
+  readCachedBaseAccount,
   signBaseAccountMessage,
   switchBaseAccount,
   type RscBalanceSnapshot
@@ -36,9 +37,12 @@ import {
   type ContinuePaymentSettlement
 } from '../services/continuePaymentService';
 import type { RunReceipt } from '../services/runReceiptService';
+import { associateRunWithWallet } from '../services/runClaimService';
 import { claimWeeklyChampionProposal } from '../services/weeklyClaimService';
 import type { ResearchHubProposal } from '../services/researchHubProposals';
 import { mintMissionRecord } from '../services/recordMintService';
+import { createAddressResourceCoordinator } from '../services/addressResourceCoordinator';
+import { loadAuthenticatedWalletProfile } from '../services/walletProfileService';
 
 export type WalletRuntimeAction =
   | { nonce: number; type: 'connect' }
@@ -55,7 +59,13 @@ export type WalletRuntimeAction =
   | { nonce: number; type: 'purchase-rsc'; skuId: RscPurchaseSkuId }
   | { nonce: number; type: 'refresh-player-ship-access' }
   | { nonce: number; type: 'purchase-player-ship'; skuId: PlayerShipPurchaseSkuId }
-  | { nonce: number; type: 'claim-champion'; weekKey: string; proposal: ResearchHubProposal }
+  | {
+      nonce: number;
+      type: 'claim-champion';
+      weekKey: string;
+      proposal: ResearchHubProposal;
+      receipt?: RunReceipt;
+    }
   | { nonce: number; type: 'mint-mission'; receipt: RunReceipt };
 
 interface ContinueStatusUpdate {
@@ -64,10 +74,16 @@ interface ContinueStatusUpdate {
   hash?: string;
 }
 
+export interface MissionMintStatusContext {
+  walletAddress: Address;
+  runId: string;
+}
+
 export interface RscBalanceUpdate {
   status: 'idle' | 'loading' | 'ready' | 'error';
   balance: RscBalanceSnapshot | null;
   error?: string;
+  refreshing?: boolean;
 }
 
 export interface WalletPurchaseStatusUpdate {
@@ -81,6 +97,7 @@ export interface PlayerShipAccessUpdate {
   status: 'idle' | 'loading' | 'ready' | 'error';
   access: PlayerShipAccessSnapshot | null;
   error?: string;
+  refreshing?: boolean;
 }
 
 export interface PlayerShipPurchaseStatusUpdate {
@@ -97,6 +114,7 @@ interface WalletRuntimeProps {
   onActionHandled: (nonce: number) => void;
   onContinueStatusChange: (update: ContinueStatusUpdate) => void;
   onContinueSuccess: (settlement: ContinuePaymentSettlement) => void;
+  onWalletIdentityTransition?: (address: Address | null) => void;
   onWalletChange: (wallet: WalletSession) => void;
   onWalletError: (message: string) => void;
   /** Optional until App wires the Hangar's Research Coin rail. */
@@ -112,19 +130,13 @@ interface WalletRuntimeProps {
   /** Apply the returned authoritative wallet profile after settlement. */
   onPlayerShipPurchaseSuccess?: (settlement: PlayerShipPurchaseSettlement) => void;
   onChampionClaimStatus: (status: 'idle' | 'connecting' | 'signing' | 'confirmed' | 'error', message?: string) => void;
-  onMissionMintStatus: (status: 'idle' | 'authorizing' | 'confirming' | 'confirmed' | 'error', message?: string, hash?: string) => void;
+  onMissionMintStatus: (
+    status: 'idle' | 'authorizing' | 'confirming' | 'confirmed' | 'error',
+    message?: string,
+    hash?: string,
+    context?: MissionMintStatusContext
+  ) => void;
 }
-
-const getCachedBaseAccount = (): Address | null => {
-  try {
-    const address = localStorage.getItem(STORAGE_KEYS.WALLET_ADDRESS);
-    return address && /^0x[a-fA-F0-9]{40}$/.test(address)
-      ? address as Address
-      : null;
-  } catch {
-    return null;
-  }
-};
 
 const getUserFacingMessage = (error: any, fallback: string, tokenLabel = 'RSC') => {
   const message = error?.shortMessage || error?.message || fallback;
@@ -158,6 +170,7 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
   onActionHandled,
   onContinueStatusChange,
   onContinueSuccess,
+  onWalletIdentityTransition,
   onWalletChange,
   onWalletError,
   onRscBalanceChange,
@@ -169,7 +182,7 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
   onChampionClaimStatus,
   onMissionMintStatus
 }) => {
-  const [activeWalletAddress, setActiveWalletAddress] = useState<Address | null>(getCachedBaseAccount);
+  const [activeWalletAddress, setActiveWalletAddress] = useState<Address | null>(readCachedBaseAccount);
   const [isConnecting, setIsConnecting] = useState(false);
   const startedActionNonceRef = useRef<number | null>(null);
   const purchaseBusyRef = useRef(false);
@@ -177,6 +190,12 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
   const activeWalletAddressRef = useRef<Address | null>(activeWalletAddress);
   const resumedPurchaseOrdersRef = useRef(new Set<string>());
   const resumedPlayerShipPurchaseOrdersRef = useRef(new Set<string>());
+  const [rscBalanceCoordinator] = useState(() => createAddressResourceCoordinator<RscBalanceSnapshot>({
+    load: (owner) => getRscBalance(owner as Address)
+  }));
+  const [playerShipAccessCoordinator] = useState(() => createAddressResourceCoordinator<PlayerShipAccessSnapshot>({
+    load: (owner) => loadPlayerShipAccess(owner as Address, { interactive: false })
+  }));
 
   const isCurrentWalletAddress = useCallback((address: Address) => (
     activeWalletAddressRef.current?.toLowerCase() === address.toLowerCase()
@@ -200,16 +219,22 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
     setActiveWalletAddress(nextAddress);
 
     if (previousAddress !== normalizedNextAddress) {
+      rscBalanceCoordinator.setOwner(nextAddress);
+      playerShipAccessCoordinator.setOwner(nextAddress);
+      if (nextAddress) {
+        void rscBalanceCoordinator.refresh();
+        void playerShipAccessCoordinator.refresh();
+      }
+      onWalletIdentityTransition?.(nextAddress);
       // Wallet-bound results must never leak into the next account's UI.
-      onRscBalanceChange?.({ status: 'idle', balance: null });
       onWalletPurchaseStatus?.({ status: 'idle' });
-      onPlayerShipAccessChange?.({ status: 'idle', access: null });
       onPlayerShipPurchaseStatus?.({ status: 'idle' });
     }
   }, [
-    onPlayerShipAccessChange,
     onPlayerShipPurchaseStatus,
-    onRscBalanceChange,
+    playerShipAccessCoordinator,
+    rscBalanceCoordinator,
+    onWalletIdentityTransition,
     onWalletPurchaseStatus
   ]);
 
@@ -319,74 +344,83 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
     }
   }, [commitActiveWalletAddress, onWalletError]);
 
-  const refreshRscBalance = useCallback(async (requestedAddress?: Address | null) => {
-    const address = requestedAddress || activeWalletAddress;
-    if (!address) {
-      onRscBalanceChange?.({ status: 'idle', balance: null });
-      return null;
-    }
-    onRscBalanceChange?.({ status: 'loading', balance: null });
-    try {
-      const balance = await getRscBalance(address);
-      // Ignore a late response from an account that was switched while the RPC
-      // read was in flight. The next account event starts its own refresh.
-      if (!isCurrentWalletAddress(address)) {
-        return null;
-      }
-      onRscBalanceChange?.({ status: 'ready', balance });
-      return balance;
-    } catch (error: any) {
-      if (!isCurrentWalletAddress(address)) return null;
-      onRscBalanceChange?.({
-        status: 'error',
-        balance: null,
-        error: getUserFacingMessage(error, 'Research Coin balance could not be loaded.')
-      });
-      return null;
-    }
-  }, [activeWalletAddress, isCurrentWalletAddress, onRscBalanceChange]);
+  useEffect(() => rscBalanceCoordinator.subscribe((state) => {
+    const error = state.error
+      ? getUserFacingMessage(
+          state.error,
+          state.hasValue
+            ? 'Research Coin balance could not be refreshed.'
+            : 'Research Coin balance could not be loaded.'
+        )
+      : undefined;
+    onRscBalanceChange?.({
+      status: state.error
+        ? 'error'
+        : state.status === 'refreshing'
+          ? 'ready'
+          : state.status,
+      balance: state.value,
+      error,
+      refreshing: state.busy
+    });
+  }), [onRscBalanceChange, rscBalanceCoordinator]);
+
+  useEffect(() => playerShipAccessCoordinator.subscribe((state) => {
+    const error = state.error
+      ? getUserFacingMessage(
+          state.error,
+          state.hasValue
+            ? 'Ship access could not be refreshed.'
+            : 'Ship access could not be refreshed. Reconnect Base Account and try again.'
+        )
+      : undefined;
+    onPlayerShipAccessChange?.({
+      status: state.hasValue
+        ? 'ready'
+        : state.error
+          ? 'error'
+          : state.status === 'refreshing'
+          ? 'ready'
+          : state.status,
+      access: state.value,
+      error,
+      refreshing: state.busy
+    });
+  }), [onPlayerShipAccessChange, playerShipAccessCoordinator]);
 
   useEffect(() => {
-    if (!onRscBalanceChange) return;
-    void refreshRscBalance(activeWalletAddress);
-  }, [activeWalletAddress, onRscBalanceChange, refreshRscBalance]);
+    rscBalanceCoordinator.setOwner(activeWalletAddress);
+    playerShipAccessCoordinator.setOwner(activeWalletAddress);
+    if (activeWalletAddress) void rscBalanceCoordinator.refresh();
+  }, [activeWalletAddress, playerShipAccessCoordinator, rscBalanceCoordinator]);
 
-  const refreshPlayerShipAccess = useCallback(async (
-    requestedAddress?: Address | null
+  useEffect(() => () => {
+    // React StrictMode replays effect setup/cleanup while preserving hook
+    // state. Invalidate owner-bound reads without terminally disposing these
+    // useState-owned coordinators so the replayed setup remains functional.
+    rscBalanceCoordinator.setOwner(null);
+    playerShipAccessCoordinator.setOwner(null);
+  }, [playerShipAccessCoordinator, rscBalanceCoordinator]);
+
+  const refreshRscBalance = useCallback(async (
+    requestedAddress?: Address | null,
+    mode: 'dedupe' | 'force' | 'trailing' = 'dedupe'
   ) => {
     const address = requestedAddress || activeWalletAddress;
-    if (!address) {
-      onPlayerShipAccessChange?.({ status: 'idle', access: null });
-      return null;
-    }
-    onPlayerShipAccessChange?.({ status: 'loading', access: null });
-    try {
-      const access = await loadPlayerShipAccess(address, { interactive: false });
-      if (!isCurrentWalletAddress(address)) {
-        return null;
-      }
-      onPlayerShipAccessChange?.({ status: 'ready', access });
-      return access;
-    } catch (error: any) {
-      if (!isCurrentWalletAddress(address)) {
-        return null;
-      }
-      onPlayerShipAccessChange?.({
-        status: 'error',
-        access: null,
-        error: getUserFacingMessage(
-          error,
-          'Ship access could not be refreshed. Reconnect Base Account and try again.'
-        )
-      });
-      return null;
-    }
-  }, [activeWalletAddress, isCurrentWalletAddress, onPlayerShipAccessChange]);
+    if (!address || !isCurrentWalletAddress(address)) return null;
+    rscBalanceCoordinator.setOwner(address);
+    return rscBalanceCoordinator.refresh({ mode });
+  }, [activeWalletAddress, isCurrentWalletAddress, rscBalanceCoordinator]);
 
-  useEffect(() => {
-    if (!onPlayerShipAccessChange) return;
-    void refreshPlayerShipAccess(activeWalletAddress);
-  }, [activeWalletAddress, onPlayerShipAccessChange, refreshPlayerShipAccess]);
+  const refreshPlayerShipAccess = useCallback(async (
+    requestedAddress?: Address | null,
+    mode: 'dedupe' | 'force' | 'trailing' = 'dedupe'
+  ) => {
+    const address = requestedAddress || activeWalletAddress;
+    if (!address || !isCurrentWalletAddress(address)) return null;
+    playerShipAccessCoordinator.setOwner(address);
+    return playerShipAccessCoordinator.refresh({ mode });
+  }, [activeWalletAddress, isCurrentWalletAddress, playerShipAccessCoordinator]);
 
   const purchaseWithRsc = useCallback(async (skuId: RscPurchaseSkuId) => {
     if (purchaseBusyRef.current) return;
@@ -428,7 +462,7 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
         skuId,
         transactionHash: settlement.transactionHash
       });
-      await refreshRscBalance(address);
+      await refreshRscBalance(address, 'force');
     } catch (error: any) {
       if (requestAddress && !isCurrentWalletAddress(requestAddress)) return;
       onWalletPurchaseStatus?.({
@@ -474,7 +508,7 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
           skuId: settlement.skuId,
           transactionHash: settlement.transactionHash
         });
-        await refreshRscBalance(activeWalletAddress);
+        await refreshRscBalance(activeWalletAddress, 'force');
       })
       .catch((error: any) => {
         if (!active || !isCurrentWalletAddress(activeWalletAddress)) {
@@ -540,7 +574,7 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
       });
       if (!isCurrentWalletAddress(address)) return;
       onPlayerShipPurchaseSuccess?.(settlement);
-      onPlayerShipAccessChange?.({ status: 'ready', access: settlement.access });
+      playerShipAccessCoordinator.commitAuthoritative(address, settlement.access);
       onPlayerShipPurchaseStatus?.({
         status: 'confirmed',
         skuId,
@@ -565,7 +599,7 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
     activeWalletAddress,
     connectWallet,
     isCurrentWalletAddress,
-    onPlayerShipAccessChange,
+    playerShipAccessCoordinator,
     onPlayerShipPurchaseStatus,
     onPlayerShipPurchaseSuccess
   ]);
@@ -593,7 +627,7 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
           }
           if (!settlement) return;
           onPlayerShipPurchaseSuccess?.(settlement);
-          onPlayerShipAccessChange?.({ status: 'ready', access: settlement.access });
+          playerShipAccessCoordinator.commitAuthoritative(activeWalletAddress, settlement.access);
           onPlayerShipPurchaseStatus?.({
             status: 'confirmed',
             skuId: settlement.skuId,
@@ -624,7 +658,7 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
   }, [
     activeWalletAddress,
     isCurrentWalletAddress,
-    onPlayerShipAccessChange,
+    playerShipAccessCoordinator,
     onPlayerShipPurchaseStatus,
     onPlayerShipPurchaseSuccess
   ]);
@@ -662,7 +696,7 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
         }
       });
       onContinueSuccess(settlement);
-      await refreshRscBalance(address);
+      await refreshRscBalance(address, 'force');
     } catch (error: any) {
       onContinueStatusChange({
         status: 'error',
@@ -671,7 +705,11 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
     }
   }, [activeWalletAddress, connectWallet, onContinueStatusChange, onContinueSuccess, refreshRscBalance]);
 
-  const claimChampion = useCallback(async (weekKey: string, proposal: ResearchHubProposal) => {
+  const claimChampion = useCallback(async (
+    weekKey: string,
+    proposal: ResearchHubProposal,
+    receipt?: RunReceipt
+  ) => {
     onChampionClaimStatus('connecting');
     const address = activeWalletAddress || await connectWallet();
     if (!address) {
@@ -680,6 +718,13 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
     }
     try {
       onChampionClaimStatus('signing');
+      if (receipt) {
+        await associateRunWithWallet({
+          address,
+          receipt,
+          signMessage: signBaseAccountMessage
+        });
+      }
       await claimWeeklyChampionProposal({ weekKey, proposal, address, signMessage: signBaseAccountMessage });
       onChampionClaimStatus('confirmed');
     } catch (error: any) {
@@ -693,21 +738,40 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
       onMissionMintStatus('error', 'Connect the Base Account attached to this run.');
       return;
     }
+    const context: MissionMintStatusContext = {
+      walletAddress: address,
+      runId: receipt.runId
+    };
     try {
-      onMissionMintStatus('authorizing');
+      onMissionMintStatus('authorizing', '', '', context);
+      // Mint authorization mutates the canonical receipt owner. Establish or
+      // reuse the exact wallet-profile session before requesting it so a
+      // public address alone can never authorize another wallet's history.
+      await loadAuthenticatedWalletProfile(address, { interactive: true });
       const result = await mintMissionRecord({ address, receipt });
-      onMissionMintStatus('confirmed', result.tokenId ? `Mission Record #${result.tokenId} minted.` : 'Mission Record minted.', result.transactionHash);
+      if (!isCurrentWalletAddress(address)) return;
+      onMissionMintStatus(
+        'confirmed',
+        result.tokenId ? `Mission Record #${result.tokenId} minted.` : 'Mission Record minted.',
+        result.transactionHash,
+        context
+      );
     } catch (error: any) {
-      onMissionMintStatus('error', getUserFacingMessage(error, 'Mission Record mint was cancelled.'));
+      if (!isCurrentWalletAddress(address)) return;
+      onMissionMintStatus(
+        'error',
+        getUserFacingMessage(error, 'Mission Record mint was cancelled.'),
+        '',
+        context
+      );
     }
-  }, [activeWalletAddress, connectWallet, onMissionMintStatus]);
+  }, [activeWalletAddress, connectWallet, isCurrentWalletAddress, onMissionMintStatus]);
 
   useEffect(() => {
     if (!action || startedActionNonceRef.current === action.nonce) return;
 
     const currentAction = action;
     startedActionNonceRef.current = currentAction.nonce;
-    onActionHandled(currentAction.nonce);
 
     const runAction = async () => {
       if (currentAction.type === 'connect') {
@@ -727,13 +791,15 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
       } else if (currentAction.type === 'purchase-player-ship') {
         await purchasePlayerShip(currentAction.skuId);
       } else if (currentAction.type === 'claim-champion') {
-        await claimChampion(currentAction.weekKey, currentAction.proposal);
+        await claimChampion(currentAction.weekKey, currentAction.proposal, currentAction.receipt);
       } else if (currentAction.type === 'mint-mission') {
         await mintMission(currentAction.receipt);
       }
     };
 
-    void runAction();
+    void runAction().finally(() => {
+      onActionHandled(currentAction.nonce);
+    });
   }, [
     action,
     claimChampion,

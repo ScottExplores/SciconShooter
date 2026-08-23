@@ -1,4 +1,5 @@
 import type { Address } from 'viem';
+import { fetchJsonWithDeadline } from './fetchWithDeadline';
 import { STORAGE_KEYS } from '../constants';
 import type { PlayerShipId } from './playerShipService';
 import type { BossArchiveDifficultyId } from './bossArchive';
@@ -183,7 +184,7 @@ const walletCacheKey = (address: string) => (
 const requestWalletProfile = async <T>(
   init: RequestInit = {}
 ): Promise<T> => {
-  const response = await fetch('/api/wallet-profile', {
+  const { response, payload } = await fetchJsonWithDeadline<any>('/api/wallet-profile', {
     credentials: 'same-origin',
     cache: 'no-store',
     ...init,
@@ -192,7 +193,6 @@ const requestWalletProfile = async <T>(
       ...(init.headers || {})
     }
   });
-  const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new WalletProfileRequestError(
       payload.error || 'Wallet profile could not be synchronized.',

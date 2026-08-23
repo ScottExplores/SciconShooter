@@ -172,7 +172,9 @@ export const loadWeeklyRunAttemptQuota = async (
   walletAddress: Address,
   { interactive = false }: { interactive?: boolean } = {}
 ): Promise<WeeklyRunAttemptQuota> => {
-  await loadAuthenticatedWalletProfile(walletAddress, { interactive });
+  if (interactive) {
+    await loadAuthenticatedWalletProfile(walletAddress, { interactive: true });
+  }
   const response = await requestWalletPurchase<{
     walletAddress: Address;
     weeklyRunQuota: WeeklyRunAttemptQuota;

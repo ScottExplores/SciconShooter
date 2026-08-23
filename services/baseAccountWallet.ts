@@ -16,7 +16,8 @@ import { base } from 'viem/chains';
 import {
   BIO_SHIP_HOLDING_REQUIREMENT,
   DONATION_CONFIG,
-  PLAYER_SHIP_PURCHASE_SKUS
+  PLAYER_SHIP_PURCHASE_SKUS,
+  STORAGE_KEYS
 } from '../constants';
 
 type CallsStatusResponse = {
@@ -62,6 +63,23 @@ export const parseBaseAccountAccounts = (value: unknown): Address[] | null => {
   return accounts.every((address): address is Address => Boolean(address))
     ? accounts
     : null;
+};
+
+/**
+ * Restore only a syntactically valid address that the player explicitly
+ * connected before. This is a local presentation hint; server endpoints still
+ * authenticate their HttpOnly session and never trust this value as proof.
+ */
+export const readCachedBaseAccount = (
+  storage: Pick<Storage, 'getItem'> | null = typeof window === 'undefined'
+    ? null
+    : window.localStorage
+): Address | null => {
+  try {
+    return parseBaseAccountAddress(storage?.getItem(STORAGE_KEYS.WALLET_ADDRESS));
+  } catch {
+    return null;
+  }
 };
 
 const requireBaseAccountAddress = (value: unknown, message: string): Address => {

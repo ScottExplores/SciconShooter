@@ -36,6 +36,7 @@ const makeReceipt = (runId = crypto.randomUUID(), overrides = {}) => signPayload
     coinsCollected: 12,
     playerShipId: 'researchhub'
   },
+  weeklyCampaign: { weeklyId: 'test-week', startNodeId: 'weekly-run-test-depth-1' },
   integrity: 'server-verified',
   ...overrides
 });
@@ -122,14 +123,65 @@ test('an unauthenticated caller cannot attach a wallet address to a score', asyn
   }
 });
 
-test('a verified profile session owns score attribution and overrides body metadata', async () => {
+test('a wallet-bound receipt and verified profile session own score attribution', async () => {
   const storage = installLeaderboardStorageMock();
   try {
     const sessionToken = createWalletProfileSession(AUTHENTICATED_WALLET);
     const response = await submit({
-      walletAddress: SPOOFED_WALLET,
+      walletAddress: AUTHENTICATED_WALLET,
       cookie: `${SESSION_COOKIE_NAME}=${encodeURIComponent(sessionToken)}`,
+      receiptToken: makeReceipt(undefined, {
+        identity: {
+          kind: 'wallet',
+          profileIdHash: 'signed-profile-binding',
+          walletAddress: AUTHENTICATED_WALLET
+        }
+      }),
       ip: '127.0.1.3'
+    });
+    assert.equal(response.statusCode, 200);
+    assert.equal(storage.insertedRow.wallet_address, AUTHENTICATED_WALLET);
+    assert.equal(response.body.scores[0].walletAddress, AUTHENTICATED_WALLET);
+  } finally {
+    storage.restore();
+  }
+});
+
+test('an authenticated wallet request leaves a guest receipt anonymous', async () => {
+  const storage = installLeaderboardStorageMock();
+  try {
+    const sessionToken = createWalletProfileSession(AUTHENTICATED_WALLET);
+    const response = await submit({
+      walletAddress: AUTHENTICATED_WALLET,
+      cookie: `${SESSION_COOKIE_NAME}=${encodeURIComponent(sessionToken)}`,
+      receiptToken: makeReceipt(undefined, {
+        identity: {
+          kind: 'guest',
+          profileIdHash: 'signed-guest-binding'
+        }
+      }),
+      ip: '127.0.1.6'
+    });
+    assert.equal(response.statusCode, 200);
+    assert.equal(storage.insertedRow.wallet_address, null);
+    assert.equal(response.body.scores[0].walletAddress, undefined);
+  } finally {
+    storage.restore();
+  }
+});
+
+test('a signed wallet receipt remains attributed when its profile cookie is absent', async () => {
+  const storage = installLeaderboardStorageMock();
+  try {
+    const response = await submit({
+      receiptToken: makeReceipt(undefined, {
+        identity: {
+          kind: 'wallet',
+          profileIdHash: 'signed-profile-binding',
+          walletAddress: AUTHENTICATED_WALLET
+        }
+      }),
+      ip: '127.0.1.7'
     });
     assert.equal(response.statusCode, 200);
     assert.equal(storage.insertedRow.wallet_address, AUTHENTICATED_WALLET);

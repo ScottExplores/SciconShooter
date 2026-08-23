@@ -293,6 +293,13 @@ const createWalletPurchaseQuote = async ({ address, skuId, now = Date.now() }) =
   }
   const sku = walletPurchaseSku(skuId);
   if (!sku) throw apiError('This Research Coin purchase is not available.', 400, 'wallet_purchase_sku_invalid');
+  if (sku.purchaseEnabled === false) {
+    throw apiError(
+      'Additional Weekly Run attempts are unavailable while guest ranked play is enabled.',
+      409,
+      'weekly_attempt_purchases_disabled'
+    );
+  }
   if (!sku.enabled) {
     throw apiError(
       'Token packs are coming soon while the server-authoritative Token economy is completed.',

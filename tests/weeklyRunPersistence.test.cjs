@@ -106,6 +106,46 @@ const activeGeneratedStreak = ({ now, depth }) => {
   return { boundary, graph, run, state };
 };
 
+const freshGeneratedStreak = ({ now, depth }) => {
+  const boundary = getWeeklyBoundaryMeta(new Date(now));
+  const run = browser.generator.buildWeeklyRunCampaign(boundary.weekKey, undefined, depth);
+  const graph = browser.graph.createCampaignGraphIndex(run);
+  const entryNode = graph.nodeById.get(graph.definition.entryNodeId);
+  const state = browser.streak.startWeeklyCampaignStreak(graph, {
+    weeklyId: boundary.weekKey,
+    resetAtMs: boundary.endsAt.getTime(),
+    startNodeId: entryNode.nodeId,
+    unlockedNodeIds: graph.definition.nodes.map((node) => node.nodeId),
+    nowMs: now - 1_000
+  });
+  return { boundary, graph, run, state };
+};
+
+const scoreGeneratedDepths = ({ generated, issuedAt, depth }) => {
+  let state = generated.state;
+  const nodes = generated.graph.definition.nodes.slice(0, depth);
+  nodes.forEach((node, index) => {
+    const occurredAtMs = issuedAt + (index + 1) * 40_000;
+    state = browser.streak.recordWeeklyCampaignNodeScore(state, generated.graph, {
+      eventId: `legitimate-generated-depth-${index + 1}`,
+      nodeId: node.nodeId,
+      occurredAtMs,
+      outcome: outcomeForNode(generated.run, node)
+    });
+    if (index < nodes.length - 1) {
+      const advance = browser.streak.requestWeeklyCampaignAdvance(
+        state,
+        generated.graph,
+        nodes[index + 1].nodeId,
+        occurredAtMs
+      );
+      assert.equal(advance.kind, 'advanced');
+      state = advance.state;
+    }
+  });
+  return state;
+};
+
 test('a generated Weekly Run beyond the initial runway survives local reload and wallet sanitize', () => {
   const now = Date.now();
   const profileId = 'pilot:weekly-run-persistence';
@@ -259,8 +299,15 @@ test('generated Weekly Run receipt proof is canonical and rejects route, outcome
   expectRejected((value) => {
     value.scoreEvents[0].outcome.wavesCleared += 1;
   }, 'weekly_outcome_impossible');
+  const missingGeneratedBossTelemetry = structuredClone(finalized);
+  missingGeneratedBossTelemetry.scoreEvents[0].outcome.miniBossKills = 0;
+  const canonicalMissingBossTelemetry = validateFinalizedWeeklyCampaignStreakProof(
+    missingGeneratedBossTelemetry,
+    { now: issuedAt + 60_000, expectedBinding: binding }
+  );
+  assert.equal(canonicalMissingBossTelemetry.scoreEvents[0].outcome.miniBossKills, 1);
   expectRejected((value) => {
-    value.scoreEvents[0].outcome.miniBossKills = 0;
+    value.scoreEvents[0].outcome.majorBossKills = 1;
   }, 'weekly_outcome_impossible');
   expectRejected((value) => {
     value.finalization.reason = 'forfeit';
@@ -300,11 +347,11 @@ test('a guest Wave 4 defeat after three generated elite bosses creates a verifie
     const node = nodes[index];
     assert.equal(node.miniBossIds.length, 1, `Depth ${index + 1} is an elite encounter`);
     const runtimeOutcome = outcomeForNode(run, node);
-    // Paywall Wall is made from ENEMY_INVADER segments. The deployed runtime
-    // clears it but does not increment either boss counter.
+    // Generated boss counters are runtime telemetry. Exercise a legitimate
+    // completed route where all three elite implementations omit that counter.
+    runtimeOutcome.miniBossKills = 0;
     if (node.miniBossIds[0] === 'paywall-wall') {
       runtimeOutcome.regularEnemyKills = 6;
-      runtimeOutcome.miniBossKills = 0;
       runtimeOutcome.majorBossKills = 0;
     }
     const occurredAtMs = issuedAt + (index + 1) * 40_000;
@@ -338,13 +385,11 @@ test('a guest Wave 4 defeat after three generated elite bosses creates a verifie
 
   const missingOrdinaryEliteCredit = structuredClone(finalized);
   missingOrdinaryEliteCredit.scoreEvents[0].outcome.miniBossKills = 0;
-  assert.throws(
-    () => validateFinalizedWeeklyCampaignStreakProof(missingOrdinaryEliteCredit, {
-      now: issuedAt + 130_000,
-      expectedBinding: binding
-    }),
-    (error) => error?.details?.anomalies?.includes('weekly_outcome_impossible')
+  const ordinaryEliteCanonical = validateFinalizedWeeklyCampaignStreakProof(
+    missingOrdinaryEliteCredit,
+    { now: issuedAt + 130_000, expectedBinding: binding }
   );
+  assert.equal(ordinaryEliteCanonical.scoreEvents[0].outcome.miniBossKills, 1);
 
   const wrongPaywallMajorCredit = structuredClone(finalized);
   wrongPaywallMajorCredit.scoreEvents[1].outcome.majorBossKills = 1;
@@ -382,6 +427,165 @@ test('a guest Wave 4 defeat after three generated elite bosses creates a verifie
   } finally {
     Date.now = originalNow;
   }
+});
+
+test('production generated Weekly Run finish fails closed when its receipt cannot be persisted', async () => {
+  clearWeeklyRunAttemptMemoryForTests();
+  const issuedAt = Date.now() - 70_000;
+  const { boundary, graph, run } = freshGeneratedStreak({ now: issuedAt, depth: 1 });
+  const entryNode = graph.nodeById.get(graph.definition.entryNodeId);
+  let proof = browser.streak.startWeeklyCampaignStreak(graph, {
+    weeklyId: boundary.weekKey,
+    resetAtMs: boundary.endsAt.getTime(),
+    startNodeId: entryNode.nodeId,
+    unlockedNodeIds: graph.definition.nodes.map((node) => node.nodeId),
+    nowMs: issuedAt - 1_000
+  });
+  const start = await createReservedRunStart('weekly-receipt-persistence-test', {
+    runMode: 'weekly-streak',
+    profileId: 'pilot:weekly-receipt-persistence',
+    weeklyCampaignProof: proof,
+    nowMs: issuedAt
+  });
+  proof = browser.streak.recordWeeklyCampaignNodeScore(proof, graph, {
+    eventId: 'weekly-receipt-persistence-event',
+    nodeId: entryNode.nodeId,
+    occurredAtMs: issuedAt + 50_000,
+    outcome: outcomeForNode(run, entryNode)
+  });
+  proof = browser.streak.finalizeWeeklyCampaignLoss(proof, issuedAt + 51_000);
+
+  const originalEnvironment = process.env.NODE_ENV;
+  const originalNow = Date.now;
+  process.env.NODE_ENV = 'production';
+  Date.now = () => issuedAt + 60_000;
+  try {
+    await assert.rejects(
+      () => finishRun(start.startToken, {
+        playerShipId: 'researchhub',
+        weeklyCampaignProof: proof
+      }, { headers: {}, socket: { remoteAddress: '127.0.0.1' } }),
+      (error) => {
+        assert.equal(error.statusCode, 503);
+        assert.deepEqual(error.details, ['weekly_receipt_persistence_unavailable']);
+        return true;
+      }
+    );
+  } finally {
+    Date.now = originalNow;
+    process.env.NODE_ENV = originalEnvironment;
+  }
+});
+
+test('a generated major boss clear is canonical when runtime boss telemetry is omitted', () => {
+  const issuedAt = Date.parse('2026-08-21T04:59:00.000Z');
+  const boundary = getWeeklyBoundaryMeta(new Date(issuedAt));
+  const run = browser.generator.buildWeeklyRunCampaign(boundary.weekKey, undefined, 5);
+  const graph = browser.graph.createCampaignGraphIndex(run);
+  const nodes = graph.definition.nodes.slice(0, 4);
+  assert.equal(nodes[3].bossId, 'paywall-decimator');
+
+  let state = browser.streak.startWeeklyCampaignStreak(graph, {
+    weeklyId: boundary.weekKey,
+    resetAtMs: boundary.endsAt.getTime(),
+    startNodeId: nodes[0].nodeId,
+    unlockedNodeIds: graph.definition.nodes.map((node) => node.nodeId),
+    nowMs: issuedAt - 1_000
+  });
+  const binding = createWeeklyCampaignStreakRunBinding(state, { now: issuedAt });
+
+  for (let index = 0; index < nodes.length; index += 1) {
+    const outcome = outcomeForNode(run, nodes[index]);
+    outcome.miniBossKills = 0;
+    outcome.majorBossKills = 0;
+    const occurredAtMs = issuedAt + (index + 1) * 40_000;
+    state = browser.streak.recordWeeklyCampaignNodeScore(state, graph, {
+      eventId: `generated-weekly-runtime-boss-${index}`,
+      nodeId: nodes[index].nodeId,
+      occurredAtMs,
+      outcome
+    });
+    if (index < nodes.length - 1) {
+      const advance = browser.streak.requestWeeklyCampaignAdvance(
+        state,
+        graph,
+        nodes[index + 1].nodeId,
+        occurredAtMs
+      );
+      assert.equal(advance.kind, 'advanced');
+      state = advance.state;
+    }
+  }
+
+  const finalized = browser.streak.finalizeWeeklyCampaignLoss(state, issuedAt + 161_000);
+  const canonical = validateFinalizedWeeklyCampaignStreakProof(finalized, {
+    now: issuedAt + 170_000,
+    expectedBinding: binding
+  });
+  assert.equal(canonical.scoreEvents[3].outcome.miniBossKills, 0);
+  assert.equal(canonical.scoreEvents[3].outcome.majorBossKills, 1);
+
+  const wrongCategory = structuredClone(finalized);
+  wrongCategory.scoreEvents[3].outcome.miniBossKills = 1;
+  assert.throws(
+    () => validateFinalizedWeeklyCampaignStreakProof(wrongCategory, {
+      now: issuedAt + 170_000,
+      expectedBinding: binding
+    }),
+    (error) => error?.details?.anomalies?.includes('weekly_outcome_impossible')
+  );
+});
+
+test('generated elite and major roster clears use graph-owned boss credit', () => {
+  const issuedAt = Date.parse('2026-08-21T02:00:00.000Z');
+  const boundary = getWeeklyBoundaryMeta(new Date(issuedAt));
+  const run = browser.generator.buildWeeklyRunCampaign(boundary.weekKey, undefined, 30);
+  const graph = browser.graph.createCampaignGraphIndex(run);
+  const nodes = graph.definition.nodes.slice(0, 30);
+  let state = browser.streak.startWeeklyCampaignStreak(graph, {
+    weeklyId: boundary.weekKey,
+    resetAtMs: boundary.endsAt.getTime(),
+    startNodeId: nodes[0].nodeId,
+    unlockedNodeIds: nodes.map((node) => node.nodeId),
+    nowMs: issuedAt - 1_000
+  });
+  const binding = createWeeklyCampaignStreakRunBinding(state, { now: issuedAt });
+
+  for (let index = 0; index < nodes.length; index += 1) {
+    const occurredAtMs = issuedAt + (index + 1) * 40_000;
+    state = browser.streak.recordWeeklyCampaignNodeScore(state, graph, {
+      eventId: `generated-roster-counter-omission-${index}`,
+      nodeId: nodes[index].nodeId,
+      occurredAtMs,
+      outcome: {
+        ...outcomeForNode(run, nodes[index]),
+        miniBossKills: 0,
+        majorBossKills: 0
+      }
+    });
+    if (index < nodes.length - 1) {
+      const advance = browser.streak.requestWeeklyCampaignAdvance(
+        state,
+        graph,
+        nodes[index + 1].nodeId,
+        occurredAtMs
+      );
+      assert.equal(advance.kind, 'advanced');
+      state = advance.state;
+    }
+  }
+
+  const finalizedAtMs = issuedAt + nodes.length * 40_000 + 1_000;
+  const canonical = validateFinalizedWeeklyCampaignStreakProof(
+    browser.streak.finalizeWeeklyCampaignLoss(state, finalizedAtMs),
+    { now: finalizedAtMs + 1_000, expectedBinding: binding }
+  );
+  assert.ok(nodes.some((node) => node.miniBossIds.length > 0));
+  assert.ok(nodes.some((node) => Boolean(node.bossId)));
+  canonical.scoreEvents.forEach((event, index) => {
+    assert.equal(event.outcome.miniBossKills, nodes[index].miniBossIds.length > 0 ? 1 : 0);
+    assert.equal(event.outcome.majorBossKills, nodes[index].bossId ? 1 : 0);
+  });
 });
 
 test('a guest Weekly Run proof survives score and automatic advance in the same clock tick', async () => {
@@ -491,16 +695,19 @@ test('a fast legitimate Weekly Run clear can create a verified receipt', async (
 });
 
 test('a deep generated Weekly Run receipt is not capped by authored Campaign mission count', async () => {
-  const issuedAt = Date.now();
-  const generated = activeGeneratedStreak({ now: issuedAt, depth: 30 });
+  clearWeeklyRunAttemptMemoryForTests();
+  const issuedAt = Date.parse('2026-08-17T12:00:00.000Z');
+  const generated = freshGeneratedStreak({ now: issuedAt, depth: 30 });
   const start = await createReservedRunStart('weekly-deep-proof-test', {
     runMode: 'weekly-streak',
     weeklyCampaignProof: generated.state,
     nowMs: issuedAt
   });
-  const finalized = browser.streak.finalizeWeeklyCampaignLoss(generated.state, issuedAt + 1_000);
+  const scored = scoreGeneratedDepths({ generated, issuedAt, depth: 30 });
+  const finalizedAt = issuedAt + 30 * 40_000 + 1_000;
+  const finalized = browser.streak.finalizeWeeklyCampaignLoss(scored, finalizedAt);
   const originalNow = Date.now;
-  Date.now = () => issuedAt + 2_000;
+  Date.now = () => finalizedAt + 1_000;
   try {
     const receipt = await finishRun(start.startToken, {
       playerShipId: 'researchhub',
@@ -518,12 +725,15 @@ test('server Weekly Run reservations give guests five free attempts and keep wal
   clearWeeklyRunAttemptMemoryForTests();
   const baseNow = Date.now();
   const proofs = Array.from({ length: 6 }, (_, index) => (
-    activeGeneratedStreak({ now: baseNow + index * 2_000, depth: 1 }).state
+    freshGeneratedStreak({ now: baseNow + index * 2_000, depth: 1 }).state
   ));
   const firstProof = proofs[0];
+  const serverGuestIdentityId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
   const guestOptions = (proof) => ({
     runMode: 'weekly-streak',
-    profileId: 'pilot:weekly-attempt-guest',
+    // Rotating the untrusted client profile ID must not rotate the quota.
+    profileId: `pilot:rotated-${proof.createdAtMs}`,
+    guestIdentityId: serverGuestIdentityId,
     weeklyCampaignProof: proof,
     nowMs: proof.updatedAtMs + 1
   });
@@ -552,6 +762,13 @@ test('server Weekly Run reservations give guests five free attempts and keep wal
   assert.equal(subsequent[3].weeklyAttempt.attemptNumber, 5);
   assert.equal(subsequent[3].weeklyAttempt.attemptsUsed, 5);
   assert.equal(subsequent[3].weeklyAttempt.attemptsRemaining, 0);
+  const lostFifthResponseRetry = await createReservedRunStart(
+    'weekly-attempt-test',
+    guestOptions(proofs[4])
+  );
+  assert.equal(lostFifthResponseRetry.runId, subsequent[3].runId);
+  assert.equal(lostFifthResponseRetry.weeklyAttempt.attemptNumber, 5);
+  assert.equal(lostFifthResponseRetry.weeklyAttempt.attemptsRemaining, 0);
   await assert.rejects(
     () => createReservedRunStart('weekly-attempt-test', guestOptions(proofs[5])),
     (error) => {
@@ -578,7 +795,7 @@ test('server Weekly Run reservations give guests five free attempts and keep wal
 test('generated Weekly Run deliberate-end proofs can never mint a score receipt', async () => {
   clearWeeklyRunAttemptMemoryForTests();
   const issuedAt = Date.now();
-  const generated = activeGeneratedStreak({ now: issuedAt, depth: 1 });
+  const generated = freshGeneratedStreak({ now: issuedAt, depth: 1 });
   const start = await createReservedRunStart('weekly-forfeit-test', {
     testRun: true,
     runMode: 'weekly-streak',
@@ -586,12 +803,26 @@ test('generated Weekly Run deliberate-end proofs can never mint a score receipt'
     weeklyCampaignProof: generated.state,
     nowMs: issuedAt
   });
-  const finalized = browser.streak.finalizeWeeklyCampaignDeliberateEnd(
+  const entryNode = generated.graph.nodeById.get(generated.graph.definition.entryNodeId);
+  const scored = browser.streak.recordWeeklyCampaignNodeScore(
     generated.state,
-    issuedAt + 1_000
+    generated.graph,
+    {
+      eventId: 'weekly-forfeit-depth-1',
+      nodeId: entryNode.nodeId,
+      occurredAtMs: issuedAt + 9_000,
+      outcome: {
+        ...outcomeForNode(generated.run, entryNode),
+        elapsedMs: 9_000
+      }
+    }
+  );
+  const finalized = browser.streak.finalizeWeeklyCampaignDeliberateEnd(
+    scored,
+    issuedAt + 9_001
   );
   const originalNow = Date.now;
-  Date.now = () => issuedAt + 2_000;
+  Date.now = () => issuedAt + 10_000;
   try {
     await assert.rejects(
       () => finishRun(start.startToken, {
@@ -611,7 +842,7 @@ test('generated Weekly Run deliberate-end proofs can never mint a score receipt'
 
 test('a Weekly Run reservation settles exactly one canonical result proof', async () => {
   clearWeeklyRunAttemptMemoryForTests();
-  const issuedAt = Date.now() - 70_000;
+  const issuedAt = Date.parse('2026-08-17T12:00:00.000Z');
   const boundary = getWeeklyBoundaryMeta(new Date(issuedAt));
   const run = browser.generator.buildWeeklyRunCampaign(boundary.weekKey, undefined, 1);
   const graph = browser.graph.createCampaignGraphIndex(run);
@@ -624,7 +855,7 @@ test('a Weekly Run reservation settles exactly one canonical result proof', asyn
     nowMs: issuedAt - 1_000
   });
   const start = await createReservedRunStart('weekly-single-settlement-test', {
-    testRun: true,
+    testRun: false,
     runMode: 'weekly-streak',
     profileId: 'pilot:weekly-single-settlement',
     weeklyCampaignProof: active,
@@ -642,13 +873,38 @@ test('a Weekly Run reservation settles exactly one canonical result proof', asyn
   const firstProof = makeFinalized(0);
   const conflictingProof = makeFinalized(1);
   const originalNow = Date.now;
-  Date.now = () => issuedAt + 60_000;
+  let serverNow = issuedAt + 60_000;
+  Date.now = () => serverNow;
   try {
     const firstReceipt = await finishRun(start.startToken, {
       playerShipId: 'researchhub',
       weeklyCampaignProof: firstProof
     }, { headers: {}, socket: { remoteAddress: '127.0.0.1' } });
     assert.equal(firstReceipt.integrity, 'server-verified');
+
+    const retryProof = browser.streak.markWeeklyCampaignStreakSubmission(
+      firstProof,
+      'failed',
+      issuedAt + 59_000
+    );
+    // A retry can arrive much later after the first response was lost. Its
+    // receipt must still use the settlement-owned time and anomaly decision.
+    serverNow = issuedAt + 120_000;
+    const retryReceipt = await finishRun(start.startToken, {
+      playerShipId: 'researchhub',
+      weeklyCampaignProof: retryProof
+    }, { headers: {}, socket: { remoteAddress: '127.0.0.1' } });
+    assert.equal(retryReceipt.runId, firstReceipt.runId);
+    assert.equal(
+      retryReceipt.weeklyCampaign.proofHash,
+      firstReceipt.weeklyCampaign.proofHash
+    );
+    assert.equal(
+      retryReceipt.weeklyCampaign.finalRevision,
+      firstReceipt.weeklyCampaign.finalRevision
+    );
+    assert.equal(retryReceipt.finishedAt, firstReceipt.finishedAt);
+    assert.equal(retryReceipt.receiptToken, firstReceipt.receiptToken);
 
     await assert.rejects(
       () => finishRun(start.startToken, {
@@ -666,9 +922,114 @@ test('a Weekly Run reservation settles exactly one canonical result proof', asyn
   }
 });
 
+test('a delayed non-test retry keeps the original settlement decision and token', async () => {
+  clearWeeklyRunAttemptMemoryForTests();
+  const issuedAt = Date.parse('2026-08-17T12:00:00.000Z');
+  const generated = freshGeneratedStreak({ now: issuedAt, depth: 1 });
+  const start = await createReservedRunStart('weekly-delayed-retry-test', {
+    testRun: false,
+    runMode: 'weekly-streak',
+    profileId: 'pilot:weekly-delayed-retry',
+    weeklyCampaignProof: generated.state,
+    nowMs: issuedAt
+  });
+  const entryNode = generated.graph.nodeById.get(generated.graph.definition.entryNodeId);
+  const scored = browser.streak.recordWeeklyCampaignNodeScore(
+    generated.state,
+    generated.graph,
+    {
+      eventId: 'weekly-short-settlement-depth-1',
+      nodeId: entryNode.nodeId,
+      occurredAtMs: issuedAt + 9_000,
+      outcome: {
+        ...outcomeForNode(generated.run, entryNode),
+        elapsedMs: 9_000
+      }
+    }
+  );
+  const finalized = browser.streak.finalizeWeeklyCampaignLoss(
+    scored,
+    issuedAt + 9_001
+  );
+  const retryProof = browser.streak.markWeeklyCampaignStreakSubmission(
+    finalized,
+    'failed',
+    issuedAt + 9_500
+  );
+  const originalNow = Date.now;
+  // Settlement happens before anomaly inspection. Keep the canonical gameplay
+  // event at a valid 9 seconds while making server-measured duration 1 second;
+  // a retry much later must preserve this original review decision.
+  let serverNow = issuedAt + 1_000;
+  Date.now = () => serverNow;
+  try {
+    const first = await finishRun(start.startToken, {
+      playerShipId: 'researchhub',
+      weeklyCampaignProof: finalized
+    }, { headers: {}, socket: { remoteAddress: '127.0.0.1' } });
+    assert.deepEqual(first.anomalies, ['run_too_short']);
+    assert.equal(first.integrity, 'review');
+
+    serverNow = issuedAt + 60_000;
+    const retry = await finishRun(start.startToken, {
+      playerShipId: 'researchhub',
+      weeklyCampaignProof: retryProof
+    }, { headers: {}, socket: { remoteAddress: '127.0.0.1' } });
+    assert.deepEqual(retry.anomalies, first.anomalies);
+    assert.equal(retry.integrity, first.integrity);
+    assert.equal(retry.finishedAt, first.finishedAt);
+    assert.equal(retry.receiptToken, first.receiptToken);
+  } finally {
+    Date.now = originalNow;
+  }
+});
+
+test('generated Weekly Run admission rejects a fabricated scored prefix before reservation', async () => {
+  clearWeeklyRunAttemptMemoryForTests();
+  const issuedAt = Date.parse('2026-08-17T12:00:00.000Z');
+  const boundary = getWeeklyBoundaryMeta(new Date(issuedAt));
+  const run = browser.generator.buildWeeklyRunCampaign(boundary.weekKey, undefined, 2);
+  const graph = browser.graph.createCampaignGraphIndex(run);
+  const [entryNode, secondNode] = graph.definition.nodes;
+  let forged = browser.streak.startWeeklyCampaignStreak(graph, {
+    weeklyId: boundary.weekKey,
+    resetAtMs: boundary.endsAt.getTime(),
+    startNodeId: entryNode.nodeId,
+    unlockedNodeIds: graph.definition.nodes.map((node) => node.nodeId),
+    nowMs: issuedAt - 1_000
+  });
+  forged = browser.streak.recordWeeklyCampaignNodeScore(forged, graph, {
+    eventId: 'fabricated-prefix-score',
+    nodeId: entryNode.nodeId,
+    occurredAtMs: issuedAt - 500,
+    outcome: outcomeForNode(run, entryNode)
+  });
+  const advance = browser.streak.requestWeeklyCampaignAdvance(
+    forged,
+    graph,
+    secondNode.nodeId,
+    issuedAt - 250
+  );
+  assert.equal(advance.kind, 'advanced');
+
+  await assert.rejects(
+    () => createReservedRunStart('weekly-forged-prefix-test', {
+      runMode: 'weekly-streak',
+      profileId: 'pilot:weekly-forged-prefix',
+      weeklyCampaignProof: advance.state,
+      nowMs: issuedAt
+    }),
+    (error) => {
+      assert.equal(error.statusCode, 422);
+      assert.deepEqual(error.details, ['weekly_generated_start_not_pristine']);
+      return true;
+    }
+  );
+});
+
 test('configured Weekly Run persistence fails closed while ordinary Campaign start remains available', async () => {
   clearWeeklyRunAttemptMemoryForTests();
-  const proof = activeGeneratedStreak({ now: Date.now(), depth: 1 }).state;
+  const proof = freshGeneratedStreak({ now: Date.now(), depth: 1 }).state;
   const previous = {
     url: process.env.SUPABASE_URL,
     role: process.env.SUPABASE_SERVICE_ROLE_KEY,

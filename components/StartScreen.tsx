@@ -19,6 +19,7 @@ import type {
   WalletPurchaseStatusUpdate
 } from './WalletRuntime';
 import type { WalletRunRecord } from '../services/playerRunService';
+import { getWalletActivityViewState } from '../services/walletActivityMerge';
 import type { WeeklyProposalRecovery } from '../services/weeklyProposalRecovery';
 import {
   isWeeklyProposalReminderDue,
@@ -101,6 +102,8 @@ interface StartScreenProps {
   walletRecords: MintRecord[];
   walletRuns: WalletRunRecord[];
   walletRunsLoading: boolean;
+  walletRunsError?: string;
+  onRetryWalletRuns?: () => void;
   weeklyProposalRecovery?: WeeklyProposalRecovery | null;
   onOpenWeeklyLeaderProposal?: (record: WalletRunRecord) => void;
   walletAddress?: string | null;
@@ -746,6 +749,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
   walletRecords,
   walletRuns,
   walletRunsLoading,
+  walletRunsError = '',
+  onRetryWalletRuns,
   weeklyProposalRecovery = null,
   onOpenWeeklyLeaderProposal,
   walletAddress,
@@ -819,6 +824,12 @@ const StartScreen: React.FC<StartScreenProps> = ({
   onDowngradeMainShip
 }) => {
   const [leaderboardView, setLeaderboardView] = useState<LeaderboardView>('weekly');
+  const walletActivityView = getWalletActivityViewState({
+    connected: Boolean(walletAddress),
+    loading: walletRunsLoading,
+    hasError: Boolean(walletRunsError),
+    runCount: walletRuns.length
+  });
   const [trophyCategory, setTrophyCategory] = useState<TrophyCategory>('weeklyFunding');
   const [dashboardTab, setDashboardTab] = useState<DashboardTab>(() => {
     if (testChampionWinner || requestedChampionWinner) return 'proposals';
@@ -900,10 +911,6 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const canOpenBossArchive = Boolean(onStartBossFight) && (
     availableBossArchiveEntries.length > 0 || bossArchiveDevelopmentAccess
   );
-
-  useEffect(() => {
-    if (dashboardTab === 'hangar' && walletAddress) onRefreshRscBalance();
-  }, [dashboardTab, onRefreshRscBalance, walletAddress]);
 
   const openBossArchive = () => {
     if (!canOpenBossArchive) return;
@@ -1479,16 +1486,10 @@ const StartScreen: React.FC<StartScreenProps> = ({
    *  panel, not a child, so the competition and the way to enter it are two
    *  separate boxes instead of one crowded card. */
   const renderWeeklyRunEntry = () => {
-    const weeklyAttemptSkuId: RscPurchaseSkuId = 'weekly-run-attempt';
-    const purchaseIsForWeeklyAttempt = String(walletPurchaseStatus.skuId ?? '') === weeklyAttemptSkuId;
-    const purchaseBusy = walletPurchaseStatus.status !== 'idle'
-      && walletPurchaseStatus.status !== 'confirmed'
-      && walletPurchaseStatus.status !== 'error';
     const needsServerVerification = weeklyRunAttemptQuotaUnknown
       && weeklyRunAttemptsRemaining <= 0;
     const attemptsExhausted = weeklyRunAttemptsRemaining <= 0
       && !needsServerVerification;
-    const showAttemptPurchase = attemptsExhausted;
     const weeklyRunEntryState = attemptsExhausted
       ? 'exhausted'
       : needsServerVerification
@@ -1512,7 +1513,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
           aria-label={weeklyRunAttemptsRemaining > 0
             ? `Play Weekly Run. ${weeklyRunAttemptsRemaining} attempt${weeklyRunAttemptsRemaining === 1 ? '' : 's'} remain, with endless escalating waves and bosses scored on the weekly board. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`
             : needsServerVerification
-              ? `Verify any purchased Weekly Run attempts with the server. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`
+              ? `Check Weekly Run attempts with the server. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`
               : `Weekly Run attempts used. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`}
         >
           <span className="sci-weekly-run-entry__copy">
@@ -1536,46 +1537,6 @@ const StartScreen: React.FC<StartScreenProps> = ({
             {weeklyRunEntryState === 'available' ? <Icon name="play" className="h-3 w-3" /> : null}
           </span>
         </button>
-        {showAttemptPurchase ? (
-          <div className="mx-3 mt-1 grid gap-1">
-            <PixelActionButton
-              type="button"
-              tone="gold"
-              ready
-              disabled={purchaseBusy}
-              onClick={() => onPurchaseWithRsc(weeklyAttemptSkuId)}
-              aria-label="Purchase one additional Weekly Run attempt for 3 Research Coin"
-              className="min-h-11 px-3 py-1.5 text-[0.68rem] font-black uppercase tracking-[0.08em]"
-            >
-              <span className="flex items-center justify-center gap-1.5">
-                <span>+1 Attempt</span>
-                <span aria-hidden="true">·</span>
-                <span className="flex items-center gap-1 text-yellow-100">
-                  <img src={ASSETS.REAL_RSC_ICON} alt="" className="h-4 w-4 object-contain" aria-hidden="true" />
-                  3 RSC
-                </span>
-              </span>
-            </PixelActionButton>
-            {purchaseIsForWeeklyAttempt && walletPurchaseStatus.status !== 'idle' ? (
-              <p
-                className={`text-center text-[0.55rem] font-bold uppercase tracking-[0.06em] ${walletPurchaseStatus.status === 'error' ? 'text-red-200' : walletPurchaseStatus.status === 'confirmed' ? 'text-emerald-200' : 'text-cyan-100'}`}
-                role="status"
-              >
-                {walletPurchaseStatus.status === 'error'
-                  ? walletPurchaseStatus.error
-                  : walletPurchaseStatus.status === 'confirmed'
-                    ? 'Extra attempt added'
-                    : walletPurchaseStatus.status === 'connecting'
-                      ? 'Connecting wallet...'
-                      : walletPurchaseStatus.status === 'authorizing'
-                        ? 'Preparing secure quote...'
-                        : walletPurchaseStatus.status === 'confirming'
-                          ? 'Confirm the 3 RSC transfer...'
-                          : 'Adding attempt...'}
-              </p>
-            ) : null}
-          </div>
-        ) : null}
         {weeklyRunLaunchError ? (
           <div
             className="mt-1 flex items-center justify-between gap-2 border border-red-300/35 bg-red-950/75 px-3 py-2 text-left text-[0.68rem] font-bold text-red-100"
@@ -2059,13 +2020,14 @@ const StartScreen: React.FC<StartScreenProps> = ({
           <div className="max-h-[min(62vh,48rem)] space-y-3 overflow-y-auto overscroll-contain pr-1 custom-scrollbar">
             {sortedPastPicks.map((winner) => {
               const proposalSelection = resolveProposalSelection(winner, proposalReferencePool);
+              const proposalClaimed = winner.status === 'claimed' || winner.status === 'funded';
               return (
                 <button
                   key={`${winner.periodKey}-${winner.winnerName}`}
                   type="button"
                   onClick={() => proposalSelection?.url && onOpenProposal(proposalSelection.url)}
                   disabled={!proposalSelection?.url}
-                  aria-label={`${winner.winnerName} won ${winner.periodLabel} with ${formatNumber(winner.score)} points${proposalSelection ? ` and selected ${proposalSelection.title}` : ''}`}
+                  aria-label={`${winner.winnerName} won ${winner.periodLabel} with ${formatNumber(winner.score)} points${proposalSelection ? proposalClaimed ? ` and selected ${proposalSelection.title}` : ` with ${proposalSelection.title} awaiting champion confirmation` : ''}`}
                   className="sci-past-pick-card group relative w-full overflow-hidden p-3 text-left disabled:cursor-default sm:p-4"
                 >
                   <span className="sci-past-pick-accent" aria-hidden="true" />
@@ -2077,7 +2039,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
                       </div>
                       <div className="shrink-0 text-right">
                         <p className="text-lg font-black leading-none text-white">{winner.allocationRsc ?? weeklyAllocation.allocationRsc} <span className="text-xs text-emerald-200">RSC</span></p>
-                        <p className="mt-1 text-[0.58rem] font-bold uppercase tracking-wide text-cyan-200">Final allocation</p>
+                        <p className="mt-1 text-[0.58rem] font-bold uppercase tracking-wide text-cyan-200">{proposalClaimed ? 'Final allocation' : 'Claim pending'}</p>
                       </div>
                     </div>
 
@@ -2101,7 +2063,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
                           ) : null}
                         </div>
                         <div className="min-w-0">
-                          <p className="text-[0.62rem] font-bold uppercase tracking-wide text-emerald-200">{proposalSelection ? 'Proposal selected' : 'Proposal pending'}</p>
+                          <p className="text-[0.62rem] font-bold uppercase tracking-wide text-emerald-200">{proposalSelection ? proposalClaimed ? 'Proposal selected' : 'Proposal preselected' : 'Proposal pending'}</p>
                           <p className="mt-1 line-clamp-2 text-sm font-bold leading-snug text-white">{proposalSelection?.title ?? 'Champion selection pending'}</p>
                           {proposalSelection?.author && <p className="mt-1 truncate text-[0.68rem] font-bold uppercase text-cyan-200">{proposalSelection.author}</p>}
                         </div>
@@ -2113,7 +2075,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
             })}
             {sortedPastPicks.length === 0 && (
               <div className="rounded-[6px] border border-cyan-300/15 bg-cyan-300/8 p-4 text-sm text-slate-200">
-                Past weekly picks will appear here after winners are archived, showing the weekly high-score pilot, their score, and the proposal they chose for the funding allocation.
+                Past weekly picks will appear here after winners are archived, showing the weekly high-score pilot, their score, and the proposal selection or pending claim for the funding allocation.
               </div>
             )}
           </div>
@@ -2121,16 +2083,44 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
         {!isLoading && leaderboardView === 'records' && (
           <div className="max-h-[min(58vh,43rem)] space-y-2 overflow-y-auto overscroll-contain pr-1 custom-scrollbar">
-            {!walletAddress ? (
+            {walletActivityView === 'stale' ? (
+              <div className="flex items-center justify-between gap-3 rounded-[6px] border border-amber-300/25 bg-amber-300/8 px-3 py-2 text-xs text-slate-200">
+                <span>{walletRunsError}</span>
+                {onRetryWalletRuns ? (
+                  <button
+                    type="button"
+                    onClick={onRetryWalletRuns}
+                    className="shrink-0 font-black uppercase tracking-wider text-cyan-100 underline decoration-cyan-300/50 underline-offset-2"
+                  >
+                    Retry
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+            {walletActivityView === 'disconnected' ? (
               <div className="rounded-[6px] border border-cyan-300/15 bg-cyan-300/8 p-4 text-sm text-slate-200">
                 <p>Connect a Base Account to view your five most recent runs.</p>
                 {walletControl ? <div className="mt-3 flex justify-start">{walletControl}</div> : null}
               </div>
-            ) : walletRunsLoading ? (
+            ) : walletActivityView === 'initial-error' ? (
+              <div className="rounded-[6px] border border-amber-300/30 bg-amber-300/10 p-4 text-sm text-slate-100">
+                <p className="font-bold text-white">Wallet activity did not load</p>
+                <p className="mt-1 text-xs text-slate-300">{walletRunsError}</p>
+                {onRetryWalletRuns ? (
+                  <button
+                    type="button"
+                    onClick={onRetryWalletRuns}
+                    className="mt-3 rounded-[5px] border border-cyan-200/45 bg-cyan-300/12 px-3 py-2 text-xs font-black uppercase tracking-wider text-cyan-50"
+                  >
+                    Try again
+                  </button>
+                ) : null}
+              </div>
+            ) : walletActivityView === 'loading' ? (
               <div className="rounded-[6px] border border-cyan-300/15 bg-cyan-300/8 p-4 text-sm text-slate-300">
                 Loading your recent runs...
               </div>
-            ) : walletRuns.length === 0 ? (
+            ) : walletActivityView === 'empty' ? (
               <div className="rounded-[6px] border border-cyan-300/15 bg-cyan-300/8 p-4 text-sm text-slate-200">
                 <p className="font-bold text-white">No saved runs yet</p>
                 <p className="mt-1 text-xs text-slate-400">Submit your score after a run. Your latest five runs will appear here.</p>
@@ -2344,6 +2334,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
           onPurchaseWithRsc={onPurchaseWithRsc}
           onPurchasePlayerShip={onPurchasePlayerShip}
           onRefreshPlayerShipAccess={onRefreshPlayerShipAccess}
+          onRefreshRscBalance={onRefreshRscBalance}
           onOpenRscSwap={() => setShowRscAcquire(true)}
           onPurchaseMini={onPurchaseMiniShip}
           onUpgradeMini={onUpgradeMiniShip}
@@ -2388,6 +2379,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
           onPurchaseWithRsc={onPurchaseWithRsc}
           onPurchasePlayerShip={onPurchasePlayerShip}
           onRefreshPlayerShipAccess={onRefreshPlayerShipAccess}
+          onRefreshRscBalance={onRefreshRscBalance}
           onOpenRscSwap={() => setShowRscAcquire(true)}
           onPurchaseMini={onPurchaseMiniShip}
           onUpgradeMini={onUpgradeMiniShip}

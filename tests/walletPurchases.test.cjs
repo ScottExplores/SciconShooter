@@ -193,6 +193,7 @@ test('wallet purchase catalog enables support, Weekly attempts, and exact 500 To
   );
   assert.equal(releaseGatedCatalog.WALLET_PURCHASE_SKUS['right-support'].enabled, true);
   assert.equal(releaseGatedCatalog.WALLET_PURCHASE_SKUS['weekly-run-attempt'].enabled, true);
+  assert.equal(releaseGatedCatalog.WALLET_PURCHASE_SKUS['weekly-run-attempt'].purchaseEnabled, false);
   assert.equal(releaseGatedCatalog.WALLET_PURCHASE_SKUS['tokens-500'].enabled, false);
   assert.equal(releaseGatedCatalog.WALLET_PURCHASE_SKUS['tokens-2500'].enabled, false);
   assert.equal(releaseGatedCatalog.WALLET_PURCHASE_SKUS['tokens-5000'].enabled, false);
@@ -275,17 +276,11 @@ test('paid Token headroom is exact while non-Token products bypass the limit', (
   }));
 });
 
-test('Weekly Run attempt quotes are week-bound, expire by cutoff, and expose +1 for 3 RSC', async () => {
+test('new Weekly Run attempt quotes are disabled while guest ranked play is enabled', async () => {
   const now = Date.parse('2026-08-02T20:00:00.000Z');
-  let inserted = null;
   const purchases = loadWalletPurchasesForQuoteTest({
-    fetchSupabaseJson: async (requestPath, options = {}) => {
-      if (requestPath.includes('status=eq.quoted') && !options.method) return [];
-      if (options.method === 'POST') {
-        inserted = JSON.parse(options.body);
-        return [{ ...inserted }];
-      }
-      throw new Error(`Unexpected weekly quote request: ${requestPath}`);
+    fetchSupabaseJson: async () => {
+      throw new Error('A disabled attempt SKU must not read or create an order.');
     },
     weeklyRunQuota: {
       weeklyId: '2026-08-02',
@@ -298,18 +293,10 @@ test('Weekly Run attempt quotes are week-bound, expire by cutoff, and expose +1 
     }
   });
 
-  const quote = await purchases.createWalletPurchaseQuote({
-    address: WALLET,
-    skuId: 'weekly-run-attempt',
-    now
-  });
-  assert.equal(quote.rscAmount, '3');
-  assert.equal(quote.rscAmountRaw, '3000000000000000000');
-  assert.equal(quote.weeklyId, '2026-08-02');
-  assert.equal(quote.weeklyAttemptReward, 1);
-  assert.equal(inserted.reward_weekly_id, '2026-08-02');
-  assert.equal(inserted.weekly_attempt_reward, 1);
-  assert.ok(Date.parse(quote.expiresAt) <= Date.parse('2026-08-09T19:00:00.000Z'));
+  await assert.rejects(
+    purchases.createWalletPurchaseQuote({ address: WALLET, skuId: 'weekly-run-attempt', now }),
+    (error) => error?.code === 'weekly_attempt_purchases_disabled'
+  );
 });
 
 test('Weekly Run attempt quotes cannot charge while a wallet still has an entry', async () => {
@@ -325,7 +312,7 @@ test('Weekly Run attempt quotes cannot charge while a wallet still has an entry'
       skuId: 'weekly-run-attempt',
       now: Date.parse('2026-08-02T20:00:00.000Z')
     }),
-    (error) => error?.code === 'weekly_run_attempts_still_available'
+    (error) => error?.code === 'weekly_attempt_purchases_disabled'
   );
 });
 

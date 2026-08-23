@@ -244,12 +244,14 @@ import {
   type GameplayRandomSeed
 } from './gameplay/random';
 import {
+  mapEncounterClientPointToDisplay,
   mapEncounterDisplayPointToWorld,
   normalizeEncounterCameraProfile,
   resolveEncounterVisibleWorldBounds,
   sampleEncounterCameraRestoreTransform,
   sampleEncounterCameraTransform,
   type EncounterCameraMode,
+  type EncounterClientViewport,
   type EncounterCameraProfile,
   type EncounterCameraTransform,
   type EncounterVisibleWorldBounds
@@ -6269,6 +6271,21 @@ export class GameEngine {
       worldWidth: this.width,
       worldHeight: this.height
     });
+  }
+
+  mapClientPointToWorld(
+    clientX: number,
+    clientY: number,
+    viewport: EncounterClientViewport
+  ) {
+    const displayPoint = mapEncounterClientPointToDisplay({
+      clientX,
+      clientY,
+      viewport,
+      displayWidth: this.previewDisplayWidth,
+      displayHeight: this.previewDisplayHeight
+    });
+    return this.mapDisplayPointToWorld(displayPoint.x, displayPoint.y);
   }
 
   setPreviewEncounterCameraMode(mode: EncounterCameraMode) {

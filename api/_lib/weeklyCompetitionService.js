@@ -16,6 +16,7 @@ const {
 } = require('../../shared/weeklyCompetitionBoundary.js');
 
 const LEADERBOARD_TABLE = process.env.SUPABASE_LEADERBOARD_TABLE || 'scicon_leaderboard';
+const RUN_RECEIPTS_TABLE = process.env.SUPABASE_RUN_RECEIPTS_TABLE || 'scicon_run_receipts';
 const COMPETITIONS_TABLE = process.env.SUPABASE_WEEKLY_COMPETITIONS_TABLE || 'scicon_weekly_competitions';
 const PROPOSAL_CACHE_TABLE = process.env.SUPABASE_PROPOSAL_CACHE_TABLE || 'scicon_proposal_cache';
 const WEEKLY_PROPOSAL_CACHE_PREFIX = 'researchhub-open-preregistrations:week:';
@@ -31,7 +32,7 @@ const RECENT_COMPETITION_BACKFILL_WEEKS = 3;
 const DEFAULT_ALLOCATION_RSC = 100;
 const CLAIM_WINDOW_MS = 72 * 60 * 60 * 1000;
 const TERMINAL_WEEKLY_COMPETITION_STATUSES = new Set(['finalized', 'claimed', 'funded', 'expired']);
-const LEADER_PROPOSAL_SELECT = 'name,score,wave,date,wallet_address,run_id,verified,proposal_id,proposal_title,proposal_url,proposal_author';
+const LEADER_PROPOSAL_SELECT = 'name,score,wave,date,wallet_address,run_id,verified,receipt_hash,proposal_id,proposal_title,proposal_url,proposal_author';
 const LEADER_PROPOSAL_IMAGE_SELECT = `${LEADER_PROPOSAL_SELECT},proposal_image_url`;
 const PILOT_TEST_WALLET = String(
   process.env.PILOT_TEST_WALLET || '0x3a8d692aabdd4981080a8f6af8375a21359464bf'
@@ -114,9 +115,38 @@ const readTopEligibleScore = async (weekKey) => {
   }
   if (!Array.isArray(rows)) return null;
 
-  // New submissions are server verified. Legacy leaderboard rows predate run
-  // receipts but remain eligible because players saw them on the live board.
-  return rows.find((row) => String(row?.wallet_address || '').toLowerCase() !== PILOT_TEST_WALLET) || null;
+  const candidates = rows.filter((row) => (
+    String(row?.wallet_address || '').toLowerCase() !== PILOT_TEST_WALLET
+    && Boolean(row?.run_id)
+    && row?.verified === true
+  ));
+  if (candidates.length === 0) return null;
+
+  // Production finalization must never promote a pre-hardening receipt. Those
+  // rows could not preserve whether the privileged Pilot Test path was used.
+  // Keep local fixture tests lightweight; the production-only path is covered
+  // by a dedicated provenance regression.
+  if (process.env.NODE_ENV !== 'production') return candidates[0];
+  const runIds = [...new Set(candidates.map((row) => String(row.run_id)))];
+  const receiptRows = await fetchSupabaseJson(
+    `${RUN_RECEIPTS_TABLE}?select=run_id,score,wave,receipt_hash,integrity_status,receipt_provenance_version`
+      + `&run_id=in.(${runIds.map(encodeURIComponent).join(',')})`
+      + '&receipt_provenance_version=eq.1&integrity_status=eq.server-verified'
+      + `&limit=${runIds.length}`,
+    { headers: supabaseHeaders() }
+  );
+  const trustedByRunId = new Map(
+    (Array.isArray(receiptRows) ? receiptRows : []).map((row) => [String(row.run_id), row])
+  );
+  return candidates.find((row) => {
+    const receipt = trustedByRunId.get(String(row.run_id));
+    return receipt
+      && Number(receipt.receipt_provenance_version) === 1
+      && receipt.integrity_status === 'server-verified'
+      && Number(receipt.score) === Number(row.score)
+      && Number(receipt.wave) === Number(row.wave || 1)
+      && String(receipt.receipt_hash || '') === String(row.receipt_hash || '');
+  }) || null;
 };
 
 const winnerMatchesCompetition = (winner, competition) => {
@@ -158,7 +188,6 @@ const buildCompetitionRow = ({
   end,
   winner,
   proposal,
-  proposalVerifiedAtCutoff = Boolean(proposal),
   existing,
   observedAt
 }) => {
@@ -177,7 +206,10 @@ const buildCompetitionRow = ({
     week_key: weekKey,
     starts_at: start.toISOString(),
     ends_at: end.toISOString(),
-    status: proposal && proposalVerifiedAtCutoff ? 'claimed' : 'finalized',
+    // Archiving a proposal choice is not proof that the champion signed the
+    // weekly claim. A run may have been wallet-associated after a guest made
+    // the choice, so only the signed weekly-claim CAS may advance this row.
+    status: 'finalized',
     winner_run_id: winner.run_id || null,
     winner_name: winner.name,
     winner_wallet: winner.wallet_address || null,
@@ -202,7 +234,6 @@ const buildExpiredCompetitionRow = ({ weekKey, start, end, existing, observedAt 
   const allocationRsc = Number(existing?.allocation_rsc)
     || Number(process.env.WEEKLY_ALLOCATION_RSC)
     || DEFAULT_ALLOCATION_RSC;
-
   return {
     week_key: weekKey,
     starts_at: start.toISOString(),
@@ -417,21 +448,115 @@ const resolveStableWinner = async ({ initialWinner, weekKey }) => {
   ), { statusCode: 409 });
 };
 
-const saveCompetition = async (row) => {
-  const save = (value) => fetchSupabaseJson(`${COMPETITIONS_TABLE}?on_conflict=week_key`, {
-    method: 'POST',
-    headers: supabaseHeaders({ Prefer: 'resolution=merge-duplicates,return=representation' }),
-    body: JSON.stringify(value)
-  });
+const readCompetitionByWeekKey = async (weekKey) => {
+  const rows = await fetchSupabaseJson(
+    `${COMPETITIONS_TABLE}?select=*&week_key=eq.${encodeURIComponent(weekKey)}&limit=1`,
+    { headers: supabaseHeaders() }
+  );
+  return Array.isArray(rows) ? (rows[0] || null) : null;
+};
+
+const isCompetitionInsertConflict = (error) => (
+  /(?:status\s*409|with 409|23505|duplicate key|unique constraint)/i.test(error?.message || '')
+);
+
+const saveInitialCompetitionIfCurrent = async (row, existing) => {
+  const filters = existing ? [
+    'select=*',
+    `week_key=eq.${encodeURIComponent(existing.week_key)}`,
+    'status=eq.open'
+  ] : null;
+  if (filters && existing.updated_at && Number.isFinite(Date.parse(existing.updated_at))) {
+    filters.push(`updated_at=eq.${encodeURIComponent(existing.updated_at)}`);
+  }
+  const write = (value) => fetchSupabaseJson(
+    filters ? `${COMPETITIONS_TABLE}?${filters.join('&')}` : COMPETITIONS_TABLE,
+    {
+      method: filters ? 'PATCH' : 'POST',
+      headers: supabaseHeaders({ Prefer: 'return=representation' }),
+      body: JSON.stringify(value)
+    }
+  );
+
   let saved;
   try {
-    saved = await save(row);
+    saved = await write(row);
+  } catch (error) {
+    if (/proposal_image_url|schema cache/i.test(error?.message || '')) {
+      const { proposal_image_url: _proposalImageUrl, ...compatibleRow } = row;
+      try {
+        saved = await write(compatibleRow);
+      } catch (compatibleError) {
+        if (!isCompetitionInsertConflict(compatibleError)) throw compatibleError;
+      }
+    } else if (!isCompetitionInsertConflict(error)) {
+      throw error;
+    }
+  }
+
+  if (Array.isArray(saved) && saved.length > 1) {
+    throw Object.assign(new Error('Initial weekly competition commit affected more than one row.'), {
+      statusCode: 503,
+      code: 'WEEKLY_COMPETITION_COMMIT_UNCONFIRMED'
+    });
+  }
+  if (Array.isArray(saved) && saved.length === 1) {
+    return { committed: true, competition: saved[0] };
+  }
+  return {
+    committed: false,
+    competition: await readCompetitionByWeekKey(row.week_key)
+  };
+};
+
+const competitionValueFilter = (column, value) => (
+  value === null || value === undefined || value === ''
+    ? `${column}=is.null`
+    : `${column}=eq.${encodeURIComponent(value)}`
+);
+
+const saveFinalizedCompetitionIfCurrent = async (row, existing) => {
+  const filters = [
+    `select=*`,
+    `week_key=eq.${encodeURIComponent(existing.week_key)}`,
+    'status=eq.finalized',
+    competitionValueFilter('winner_run_id', existing.winner_run_id)
+  ];
+  if (existing.updated_at && Number.isFinite(Date.parse(existing.updated_at))) {
+    filters.push(`updated_at=eq.${encodeURIComponent(existing.updated_at)}`);
+  }
+  const url = `${COMPETITIONS_TABLE}?${filters.join('&')}`;
+  const patch = (value) => fetchSupabaseJson(url, {
+    method: 'PATCH',
+    headers: supabaseHeaders({ Prefer: 'return=representation' }),
+    body: JSON.stringify(value)
+  });
+
+  let saved;
+  try {
+    saved = await patch(row);
   } catch (error) {
     if (!/proposal_image_url|schema cache/i.test(error?.message || '')) throw error;
     const { proposal_image_url: _proposalImageUrl, ...compatibleRow } = row;
-    saved = await save(compatibleRow);
+    saved = await patch(compatibleRow);
   }
-  return Array.isArray(saved) ? (saved[0] || row) : row;
+
+  if (!Array.isArray(saved) || saved.length > 1) {
+    throw Object.assign(new Error('Weekly competition reconciliation could not confirm one saved row.'), {
+      statusCode: 503,
+      code: 'WEEKLY_COMPETITION_COMMIT_UNCONFIRMED'
+    });
+  }
+  if (saved.length === 1) return { committed: true, competition: saved[0] };
+
+  const currentRows = await fetchSupabaseJson(
+    `${COMPETITIONS_TABLE}?select=*&week_key=eq.${encodeURIComponent(existing.week_key)}&limit=1`,
+    { headers: supabaseHeaders() }
+  );
+  return {
+    committed: false,
+    competition: Array.isArray(currentRows) ? (currentRows[0] || null) : null
+  };
 };
 
 const finalizeWeeklyCompetition = async (
@@ -449,12 +574,9 @@ const finalizeWeeklyCompetition = async (
     throw error;
   }
 
-  const existing = await fetchSupabaseJson(`${COMPETITIONS_TABLE}?select=*&week_key=eq.${encodeURIComponent(weekKey)}&limit=1`, {
-    headers: supabaseHeaders()
-  });
-  const existingCompetition = Array.isArray(existing) ? existing[0] : null;
+  const existingCompetition = await readCompetitionByWeekKey(weekKey);
   if (existingCompetition?.status && existingCompetition.status !== 'open') {
-    const canReconcile = ['finalized', 'claimed'].includes(existingCompetition.status)
+    const canReconcile = existingCompetition.status === 'finalized'
       && !existingCompetition.allocation_tx_hash;
     if (!canReconcile) {
       return { finalized: false, weekKey, reason: 'Competition is already locked.', competition: existingCompetition };
@@ -484,16 +606,25 @@ const finalizeWeeklyCompetition = async (
           competition: existingCompetition
         };
       }
-      const enrichedCompetition = await saveCompetition(buildCompetitionRow({
+      const enrichment = await saveFinalizedCompetitionIfCurrent(buildCompetitionRow({
         weekKey,
         start,
         end,
         winner: actualWinner,
         proposal: proposalResolution.proposal,
-        proposalVerifiedAtCutoff: proposalResolution.verifiedAtCutoff,
         existing: existingCompetition,
         observedAt: finalizationObservedAt
-      }));
+      }), existingCompetition);
+      if (!enrichment.committed) {
+        return {
+          finalized: false,
+          raceLost: true,
+          weekKey,
+          reason: 'Competition changed while its proposal was being restored.',
+          competition: enrichment.competition
+        };
+      }
+      const enrichedCompetition = enrichment.competition;
       return {
         finalized: false,
         enriched: true,
@@ -514,16 +645,25 @@ const finalizeWeeklyCompetition = async (
       start,
       end
     });
-    const repairedCompetition = await saveCompetition(buildCompetitionRow({
+    const repair = await saveFinalizedCompetitionIfCurrent(buildCompetitionRow({
       weekKey,
       start,
       end,
       winner: stableWinner,
       proposal: proposalResolution.proposal,
-      proposalVerifiedAtCutoff: proposalResolution.verifiedAtCutoff,
       existing: existingCompetition,
       observedAt: finalizationObservedAt
-    }));
+    }), existingCompetition);
+    if (!repair.committed) {
+      return {
+        finalized: false,
+        raceLost: true,
+        weekKey,
+        reason: 'Competition changed while its winner was being reconciled.',
+        competition: repair.competition
+      };
+    }
+    const repairedCompetition = repair.competition;
     return {
       finalized: false,
       repaired: true,
@@ -537,13 +677,23 @@ const finalizeWeeklyCompetition = async (
 
   const winner = await readTopEligibleScore(weekKey);
   if (!winner) {
-    const competition = await saveCompetition(buildExpiredCompetitionRow({
+    const closure = await saveInitialCompetitionIfCurrent(buildExpiredCompetitionRow({
       weekKey,
       start,
       end,
       existing: existingCompetition,
       observedAt: finalizationObservedAt
-    }));
+    }), existingCompetition);
+    if (!closure.committed) {
+      return {
+        finalized: false,
+        raceLost: true,
+        weekKey,
+        reason: 'Competition changed while the empty week was being closed.',
+        competition: closure.competition
+      };
+    }
+    const competition = closure.competition;
     return {
       finalized: true,
       empty: true,
@@ -560,15 +710,24 @@ const finalizeWeeklyCompetition = async (
     start,
     end
   });
-  const competition = await saveCompetition(buildCompetitionRow({
+  const finalization = await saveInitialCompetitionIfCurrent(buildCompetitionRow({
     weekKey,
     start,
     end,
     winner: stableWinner,
     proposal: proposalResolution.proposal,
-    proposalVerifiedAtCutoff: proposalResolution.verifiedAtCutoff,
     observedAt: finalizationObservedAt
-  }));
+  }), existingCompetition);
+  if (!finalization.committed) {
+    return {
+      finalized: false,
+      raceLost: true,
+      weekKey,
+      reason: 'Competition changed while its winner was being finalized.',
+      competition: finalization.competition
+    };
+  }
+  const competition = finalization.competition;
 
   const webhookUrl = process.env.WEEKLY_CHAMPION_WEBHOOK_URL;
   if (webhookUrl) {
@@ -585,11 +744,7 @@ const finalizeWeeklyCompetition = async (
 
   const notification = await sendBaseNotificationBroadcast({
     title: 'Weekly champion locked',
-    message: proposalResolution.proposal && !proposalResolution.resolutionPending
-      ? (proposalResolution.selectionSource === 'automatic_fallback'
-          ? `${stableWinner.name} won with ${Number(stableWinner.score).toLocaleString('en-US')} points. ${proposalResolution.proposal.title} was selected as the most-funded eligible fallback.`
-          : `${stableWinner.name} won with ${Number(stableWinner.score).toLocaleString('en-US')} points and directed the weekly pick to ${proposalResolution.proposal.title}.`)
-      : `${stableWinner.name} won with ${Number(stableWinner.score).toLocaleString('en-US')} points. Proposal verification is pending.`,
+    message: `${stableWinner.name} won with ${Number(stableWinner.score).toLocaleString('en-US')} points. Their signed weekly proposal claim is still pending.`,
     targetPath: '/?view=trophies'
   }).catch((error) => {
     console.error('Base champion notification failed:', error);
@@ -617,7 +772,13 @@ const ensureRecentWeeklyCompetitions = async ({
     throw Object.assign(new Error('Invalid weekly recovery observation time.'), { statusCode: 400 });
   }
 
-  const safeLookback = Math.max(1, Math.min(8, Math.floor(Number(lookbackWeeks) || 1)));
+  // Receipt capabilities are sized to this fixed recovery horizon. Do not let
+  // a caller silently widen it and create competitions whose guest winner can
+  // no longer authenticate during the claim window.
+  const safeLookback = Math.max(
+    1,
+    Math.min(RECENT_COMPETITION_BACKFILL_WEEKS, Math.floor(Number(lookbackWeeks) || 1))
+  );
   const competitions = Array.isArray(existingCompetitions)
     ? existingCompetitions
     : await readWeeklyCompetitions(Math.max(24, safeLookback));
@@ -664,6 +825,7 @@ module.exports = {
   parseBody,
   readWeeklyProposalSnapshot,
   readWeeklyCompetitions,
+  readTopEligibleScore,
   resolveProposalAtWeeklyCutoff,
   sendJson
 };

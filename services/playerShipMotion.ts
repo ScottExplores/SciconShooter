@@ -24,6 +24,14 @@ export const PLAYER_SHIP_BANK_THRESHOLD = 0.42;
 export const PLAYER_SHIP_HARD_BANK_THRESHOLD = 0.95;
 export const PLAYER_SHIP_HARD_BANK_SWEEP_RATIO = 0.72;
 export const PLAYER_SHIP_TOUCH_SPEED_SCALE = 1.34;
+export const PLAYER_SHIP_HARD_BANK_HOLD_MS = 220;
+
+export interface PlayerHardBankLatch {
+  readonly direction: -1 | 0 | 1;
+  readonly remainingMs: number;
+  /** The direction already presented for the current continuous gesture. */
+  readonly triggeredDirection: -1 | 0 | 1;
+}
 
 const packPath = '/game-art/generated/scicon-flight-motion-pack-v1/ships';
 
@@ -132,6 +140,65 @@ export const getPlayerSteeringBlendMs = (speedLevel: number) => {
   if (speedLevel <= 0) return PLAYER_SHIP_BASE_STEERING_BLEND_MS;
   if (speedLevel === 1) return PLAYER_SHIP_LEVEL_ONE_STEERING_BLEND_MS;
   return PLAYER_SHIP_STEERING_BLEND_MS;
+};
+
+export const getPlayerSteeringPresentationSpeed = ({
+  baseHorizontalSpeed,
+  maxHorizontalSpeed,
+  touchActive
+}: {
+  readonly baseHorizontalSpeed: number;
+  readonly maxHorizontalSpeed: number;
+  readonly touchActive: boolean;
+}) => Math.max(
+  1,
+  touchActive
+    ? baseHorizontalSpeed * PLAYER_SHIP_TOUCH_SPEED_SCALE
+    : maxHorizontalSpeed
+);
+
+export const updatePlayerHardBankLatch = (
+  current: PlayerHardBankLatch,
+  {
+    requestedDirection,
+    hardBankDirection,
+    triggerEligible,
+    deltaMs
+  }: {
+    readonly requestedDirection: -1 | 0 | 1;
+    readonly hardBankDirection: -1 | 0 | 1;
+    readonly triggerEligible: boolean;
+    readonly deltaMs: number;
+  }
+): PlayerHardBankLatch => {
+  if (
+    current.direction !== 0
+    && requestedDirection !== 0
+    && requestedDirection !== current.direction
+  ) {
+    return Object.freeze({
+      direction: 0,
+      remainingMs: 0,
+      triggeredDirection: current.triggeredDirection
+    });
+  }
+  if (
+    triggerEligible
+    && hardBankDirection !== 0
+    && hardBankDirection !== current.triggeredDirection
+  ) {
+    return Object.freeze({
+      direction: hardBankDirection,
+      remainingMs: PLAYER_SHIP_HARD_BANK_HOLD_MS,
+      triggeredDirection: hardBankDirection
+    });
+  }
+  const remainingMs = Math.max(0, current.remainingMs - Math.max(0, deltaMs));
+  return Object.freeze({
+    direction: remainingMs > 0 ? current.direction : 0,
+    remainingMs,
+    triggeredDirection: requestedDirection === 0 ? 0 : current.triggeredDirection
+  });
 };
 
 export const selectPlayerSteeringState = (

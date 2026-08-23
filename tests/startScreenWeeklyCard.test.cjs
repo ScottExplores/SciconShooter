@@ -58,16 +58,15 @@ test('the Weekly Run drawer omits the ship thumbnail and keeps its quota copy co
   assert.doesNotMatch(entry, /sci-weekly-run-entry__glyph|ASSETS\.PLAYER_SHIP/);
   assert.match(entryRule, /grid-template-columns: minmax\(0, 1fr\) auto/);
   assert.doesNotMatch(stylesSource, /sci-weekly-run-entry__glyph/);
-  assert.match(entry, /const attemptsExhausted = weeklyRunAttemptsRemaining <= 0[\s\S]*const showAttemptPurchase = attemptsExhausted/);
-  assert.match(entry, /weekly-run-attempt/);
-  assert.match(entry, /onPurchaseWithRsc\(weeklyAttemptSkuId\)/);
+  assert.match(entry, /const attemptsExhausted = weeklyRunAttemptsRemaining <= 0/);
+  assert.doesNotMatch(entry, /weekly-run-attempt/);
+  assert.doesNotMatch(entry, /onPurchaseWithRsc\(weeklyAttemptSkuId\)/);
   assert.doesNotMatch(entry, /Free\/Week/);
   assert.doesNotMatch(entry, /free attempts each week/);
   assert.doesNotMatch(entry, /WEEKLY_RUN_STARTING_LIVES|\bLives\b/i);
   assert.doesNotMatch(entry, /weeklyRunAttemptsRemaining\}\/\$\{WEEKLY_RUN_ATTEMPT_LIMIT/);
   assert.match(entry, /const attemptLabel = `\$\{weeklyRunAttemptsRemaining\} Attempt/);
-  assert.match(entry, /\+1 Attempt/);
-  assert.match(entry, /3 RSC/);
+  assert.doesNotMatch(entry, /\+1 Attempt|3 RSC/);
 });
 
 test('the Weekly Run drawer advertises play with quota-driven color and localized attention', () => {
@@ -360,7 +359,10 @@ test('Past Picks renders the complete framed winner archive without trophy thumb
   assert.match(archiveSource, /sci-past-pick-card/);
   assert.match(archiveSource, /Final allocation/);
   assert.match(archiveSource, /winner\.allocationRsc \?\? weeklyAllocation\.allocationRsc/);
+  assert.match(archiveSource, /proposalClaimed = winner\.status === 'claimed' \|\| winner\.status === 'funded'/);
   assert.match(archiveSource, /Proposal selected/);
+  assert.match(archiveSource, /Proposal preselected/);
+  assert.match(archiveSource, /Claim pending/);
   assert.match(archiveSource, /resolveProposalSelection\(winner, proposalReferencePool\)/);
   assert.match(archiveSource, /proposalSelection\?\.imageUrl/);
   assert.match(archiveSource, /key=\{`\$\{proposalSelection\.id\}:\$\{proposalSelection\.imageUrl\}`\}/);

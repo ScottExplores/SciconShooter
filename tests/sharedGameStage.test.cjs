@@ -82,9 +82,10 @@ test('preview device sizes keep one canonical renderer and map scaled pointer in
   assert.match(editorCanvas, /previewViewport,/);
   assert.match(canvas, /previewViewportWidth \?\? Math\.max/);
   assert.match(canvas, /previewViewportHeight \?\? Math\.max/);
-  assert.match(canvas, /\(canvas\.width \/ displayWidth\)/);
-  assert.match(canvas, /\(canvas\.height \/ displayHeight\)/);
-  assert.match(canvas, /engine\.mapDisplayPointToWorld\(displayX, displayY\)/);
+  assert.match(canvas, /engine\.mapClientPointToWorld\(clientX, clientY, rect\)/);
+  assert.doesNotMatch(canvas, /canvas\.(?:width|height) \/ display/);
+  assert.match(canvas, /renderer\.viewportWidth === width/);
+  assert.match(canvas, /renderer\.viewportHeight === height/);
   assert.match(combatLab, /const PREVIEW_DEVICES/);
   assert.match(combatLab, /Pixel 8/);
   assert.match(combatLab, /iPhone 15/);

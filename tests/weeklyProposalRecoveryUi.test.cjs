@@ -107,6 +107,48 @@ test('the mandatory post-score chooser cannot be dismissed while recovery openin
   assert.match(picker, /disabled=\{isSaving\}/);
   assert.match(picker, /aria-pressed=\{selected\}/);
   assert.match(app, /weeklyProposalReturnRef\.current === 'record'[\s\S]*setShowMissionRecordPreview\(true\)/);
+  assert.match(app, /isWeeklyLeaderDisplacementError\(error\)[\s\S]*setWeeklyProposalSelectionMode\('recovery'\)/);
+  assert.match(app, /Another pilot took the weekly lead[\s\S]*close this panel to continue/);
+});
+
+test('guest proposal recovery is durable before score POST and uses the live scoring week', () => {
+  const app = read('App.tsx');
+  const createIndex = app.indexOf('createWeeklyGuestProposalCapability(verifiedReceipt, name)');
+  const durableWriteIndex = app.indexOf('writeWeeklyGuestProposalCapability(capability)', createIndex);
+  const scorePostIndex = app.indexOf('await saveScore(name, score, wave', durableWriteIndex);
+  const recoveryEffectIndex = app.indexOf('resolveWeeklyGuestProposalCapabilities({');
+
+  assert.ok(createIndex > 0);
+  assert.ok(durableWriteIndex > createIndex);
+  assert.ok(scorePostIndex > durableWriteIndex);
+  assert.match(app.slice(createIndex, scorePostIndex), /if \(!capability \|\| !storedCapabilities\)[\s\S]*could not safely store/);
+  assert.match(app, /setWeeklyLeaderboardHydrated\(false\)[\s\S]*writeWeeklyGuestProposalCapability/);
+  assert.match(app.slice(recoveryEffectIndex - 500, recoveryEffectIndex), /!weeklyLeaderboardHydrated[\s\S]*isSubmittingScore/);
+  assert.match(app, /weeklyLeaderboard: weeklyRecoveryLeaderboard/);
+  assert.match(app, /setWeeklyRecoveryLeaderboard\(data\.monthlyScores\)[\s\S]*presentedWeeklyScores/);
+  assert.match(app, /weeklyRecoveryEvidenceRequestRef\.current !== expectedEvidenceRequestId/);
+  assert.match(
+    app,
+    /finally \{[\s\S]*scoreSettlementEvidenceRequestId = weeklyRecoveryEvidenceRequestRef\.current \+ 1;[\s\S]*weeklyRecoveryEvidenceRequestRef\.current = scoreSettlementEvidenceRequestId/
+  );
+  assert.match(app, /markWeeklyGuestProposalScoreSettled\([\s\S]*guestProposalCandidateRunId/);
+  assert.match(app, /WEEKLY_GUEST_PROPOSAL_RECONCILIATION_DELAYS_MS\[attemptIndex\]/);
+  assert.match(app, /scheduleWeeklyGuestProposalReconciliation\([\s\S]*scoreSettlementEvidenceRequestId,[\s\S]*guestProposalCandidateRunId/);
+  assert.match(app, /capability\.leaderMismatchCount \?\? 0/);
+  assert.match(app, /setWeeklyProposalSelectionMode\('recovery'\)[\s\S]*setShowWeeklyProposalSelection\(true\)/);
+  assert.match(app, /settleWeeklyGuestProposalCapability\(proposalRunId, 'resolved'\)/);
+  assert.match(app, /settleWeeklyGuestProposalCapability\(proposalRunId, 'displaced'\)/);
+  assert.match(app, /entry\.winnerRunId === capability\.receipt\.runId/);
+  assert.match(app, /winner\?\.status === 'finalized'/);
+  assert.match(app, /setRunReceipt\(recoverableChampion\.receipt\)[\s\S]*setShowMissionRecordPreview\(true\)/);
+  assert.match(
+    app,
+    /const matchingReceipt = runReceipt\?\.runId === winner\.winnerRunId[\s\S]*weeklyGuestProposalCapabilities\.find[\s\S]*capability\.receipt\.runId === winner\.winnerRunId/
+  );
+  assert.match(
+    app,
+    /const associationReceipt = !winner\.winnerWallet[\s\S]*matchingReceiptExpiresAt > Date\.now\(\)[\s\S]*receipt: associationReceipt/
+  );
 });
 
 test('a selected recovery proposal survives a failed save and exposes a clear retry', () => {

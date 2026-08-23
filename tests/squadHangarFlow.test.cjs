@@ -85,7 +85,9 @@ test('guest runs save device Pilot Hangar and Boss Archive progress while wallet
   assert.match(app, /const unsettledLifetimeCampaignEnemies = isCampaignRun/);
   assert.match(app, /if \(isWeeklyLeaderboardRun && squadRunAppliedGameIdRef\.current !== gameId\)/);
   assert.match(app, /if \(!isNonCompetitiveRun && permanentRunAppliedGameIdRef\.current !== gameId\)/);
-  assert.match(app, /saveScore\(name, score, wave, \{[\s\S]*walletAddress: activeWalletAddress/);
+  assert.match(app, /const scoreWalletAddress = activeWalletAddress\?\.toLowerCase\(\) \?\? null/);
+  assert.match(app, /const attributableWalletAddress = verifiedReceipt\.identity\?\.kind === 'wallet'/);
+  assert.match(app, /saveScore\(name, score, wave, \{[\s\S]*walletAddress: attributableWalletAddress/);
 });
 
 test('the Hangar is available to device Pilots while minted ship locks remain visible', () => {

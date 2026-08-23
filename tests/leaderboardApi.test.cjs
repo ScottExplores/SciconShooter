@@ -18,6 +18,7 @@ const makeReceipt = (runId = crypto.randomUUID(), overrides = {}) => signPayload
   finishedAt: Date.now(),
   expiresAt: Date.now() + 60_000,
   metrics: { score: 4321, wave: 4, durationMs: 60_000, enemiesDefeated: 20, coinsCollected: 12 },
+  weeklyCampaign: { weeklyId: 'test-week', startNodeId: 'weekly-run-test-depth-1' },
   integrity: 'server-verified',
   ...overrides
 });
@@ -202,6 +203,127 @@ test('leaderboard rejects a signed Campaign or standard receipt before touching 
   }
 });
 
+test('leaderboard rejects a Weekly Run receipt under integrity review before storage', async () => {
+  const originalFetch = global.fetch;
+  let fetchCalled = false;
+  global.fetch = async () => {
+    fetchCalled = true;
+    return jsonResponse([]);
+  };
+  try {
+    const res = makeResponse();
+    await leaderboardHandler({
+      method: 'POST',
+      body: {
+        name: 'REVIEW',
+        receiptToken: makeReceipt(undefined, { integrity: 'review' })
+      },
+      headers: {}, socket: { remoteAddress: '127.0.0.42' }
+    }, res);
+    assert.equal(res.statusCode, 403);
+    assert.equal(res.body.code, 'WEEKLY_RUN_INTEGRITY_REVIEW');
+    assert.equal(fetchCalled, false);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('leaderboard rejects an authored weekly proof without generated attempt admission', async () => {
+  const originalFetch = global.fetch;
+  let fetchCalled = false;
+  global.fetch = async () => {
+    fetchCalled = true;
+    return jsonResponse([]);
+  };
+  try {
+    const res = makeResponse();
+    await leaderboardHandler({
+      method: 'POST',
+      body: {
+        name: 'AUTHORED',
+        receiptToken: makeReceipt(undefined, {
+          weeklyCampaign: { weeklyId: 'test-week', startNodeId: 'campaign-mission-1' }
+        })
+      },
+      headers: {}, socket: { remoteAddress: '127.0.0.43' }
+    }, res);
+    assert.equal(res.statusCode, 403);
+    assert.equal(res.body.code, 'WEEKLY_RUN_REQUIRED');
+    assert.equal(fetchCalled, false);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('production leaderboard rejects a signed Weekly token without its durable receipt row', async () => {
+  const runId = crypto.randomUUID();
+  const originalFetch = global.fetch;
+  const originalEnvironment = process.env.NODE_ENV;
+  let writeCount = 0;
+  process.env.NODE_ENV = 'production';
+  global.fetch = async (_url, options = {}) => {
+    if (options.method === 'POST' || options.method === 'PATCH') writeCount += 1;
+    return jsonResponse([]);
+  };
+  try {
+    const res = makeResponse();
+    await leaderboardHandler({
+      method: 'POST',
+      body: { name: 'NO LEDGER', receiptToken: makeReceipt(runId) },
+      headers: {},
+      socket: { remoteAddress: '127.0.0.44' }
+    }, res);
+    assert.equal(res.statusCode, 409);
+    assert.equal(res.body.code, 'WEEKLY_RECEIPT_NOT_DURABLE');
+    assert.equal(writeCount, 0);
+  } finally {
+    global.fetch = originalFetch;
+    if (originalEnvironment === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = originalEnvironment;
+  }
+});
+
+test('production proposal recovery rejects a legacy provenance-zero receipt', async () => {
+  const runId = crypto.randomUUID();
+  const receiptToken = makeReceipt(runId);
+  const receipt = require('../api/_lib/runReceipts').verifyRunReceipt(receiptToken);
+  const originalFetch = global.fetch;
+  const originalEnvironment = process.env.NODE_ENV;
+  let nonReceiptReads = 0;
+  process.env.NODE_ENV = 'production';
+  global.fetch = async (url) => {
+    if (!String(url).includes('scicon_run_receipts')) nonReceiptReads += 1;
+    return jsonResponse([{
+      run_id: runId,
+      receipt_hash: require('node:crypto').createHash('sha256').update(receiptToken).digest('hex'),
+      integrity_status: 'server-verified',
+      receipt_provenance_version: 0,
+      score: receipt.metrics.score,
+      wave: receipt.metrics.wave
+    }]);
+  };
+  try {
+    const res = makeResponse();
+    await leaderboardHandler({
+      method: 'POST',
+      body: {
+        action: 'select-proposal',
+        proposalId: '321',
+        receiptToken
+      },
+      headers: {},
+      socket: { remoteAddress: '127.0.0.45' }
+    }, res);
+    assert.equal(res.statusCode, 409);
+    assert.equal(res.body.code, 'WEEKLY_RECEIPT_NOT_DURABLE');
+    assert.equal(nonReceiptReads, 0);
+  } finally {
+    global.fetch = originalFetch;
+    if (originalEnvironment === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = originalEnvironment;
+  }
+});
+
 test('leaderboard treats a replayed run ID as an idempotent save', async () => {
   const runId = crypto.randomUUID();
   const originalFetch = global.fetch;
@@ -245,25 +367,37 @@ test('leaderboard treats a duplicate insert race as an idempotent save', async (
   }
 });
 
-test('leaderboard saves a verified receipt through the legacy schema fallback', async () => {
+test('leaderboard keeps verified receipt identity when only proposal_image_url is unavailable', async () => {
   const runId = crypto.randomUUID();
   const originalFetch = global.fetch;
-  let legacyWrite;
-  const legacyRow = {
+  const postBodies = [];
+  const verifiedRow = {
     name: 'GUEST', score: 4321, wave: 4, date: new Date().toISOString(),
-    wallet_address: null, donated: false
+    wallet_address: null, donated: false,
+    proposal_id: null, proposal_title: null, proposal_url: null, proposal_author: null,
+    run_id: runId, verified: true, receipt_hash: 'hash'
   };
   global.fetch = async (url, options = {}) => {
     const value = String(url);
-    if (value.includes('select=run_id&run_id=eq.')) return jsonResponse({ message: 'column run_id does not exist' }, 400);
+    if (value.includes('select=run_id&run_id=eq.')) return jsonResponse([]);
     if (options.method === 'POST') {
       const rows = JSON.parse(options.body);
-      if (Object.hasOwn(rows[0], 'run_id')) return jsonResponse({ message: 'column run_id does not exist' }, 400);
-      legacyWrite = rows[0];
+      postBodies.push(rows[0]);
+      if (Object.hasOwn(rows[0], 'proposal_image_url')) {
+        return jsonResponse({
+          code: 'PGRST204',
+          message: "Could not find the 'proposal_image_url' column in the schema cache"
+        }, 400);
+      }
       return jsonResponse(null, 204);
     }
-    if (value.includes('run_id,verified,receipt_hash')) return jsonResponse({ message: 'column run_id does not exist' }, 400);
-    return jsonResponse([legacyRow]);
+    if (value.includes('proposal_image_url')) {
+      return jsonResponse({
+        code: 'PGRST204',
+        message: "Could not find the 'proposal_image_url' column in the schema cache"
+      }, 400);
+    }
+    return jsonResponse([verifiedRow]);
   };
 
   try {
@@ -273,8 +407,77 @@ test('leaderboard saves a verified receipt through the legacy schema fallback', 
     }, res);
     assert.equal(res.statusCode, 200);
     assert.equal(res.body.scores[0].score, 4321);
-    assert.equal(legacyWrite.name, 'GUEST');
-    assert.equal(Object.hasOwn(legacyWrite, 'run_id'), false);
+    assert.equal(postBodies.length, 2);
+    assert.equal(Object.hasOwn(postBodies[1], 'proposal_image_url'), false);
+    assert.equal(postBodies[1].run_id, runId);
+    assert.equal(postBodies[1].verified, true);
+    assert.match(postBodies[1].receipt_hash, /^[a-f0-9]{64}$/);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('leaderboard returns readiness failure instead of writing a legacy row when verified columns are unavailable', async () => {
+  const runId = crypto.randomUUID();
+  const originalFetch = global.fetch;
+  const postBodies = [];
+  global.fetch = async (url, options = {}) => {
+    const value = String(url);
+    if (value.includes('select=run_id&run_id=eq.')) return jsonResponse([]);
+    if (options.method === 'POST') {
+      const rows = JSON.parse(options.body);
+      postBodies.push(rows[0]);
+      return jsonResponse({
+        code: 'PGRST204',
+        message: "Could not find the 'run_id' column in the schema cache"
+      }, 400);
+    }
+    throw new Error(`Unexpected leaderboard request: ${value}`);
+  };
+
+  try {
+    const res = makeResponse();
+    await leaderboardHandler({
+      method: 'POST', body: { name: 'guest', receiptToken: makeReceipt(runId) }, headers: {}, socket: { remoteAddress: '127.0.0.45' }
+    }, res);
+    assert.equal(res.statusCode, 503);
+    assert.equal(res.body.code, 'LEADERBOARD_SCHEMA_NOT_READY');
+    assert.match(res.body.error, /storage is not ready for verified scores/i);
+    assert.equal(postBodies.length, 1);
+    assert.equal(postBodies[0].run_id, runId);
+    assert.equal(postBodies[0].verified, true);
+    assert.match(postBodies[0].receipt_hash, /^[a-f0-9]{64}$/);
+    assert.equal(Object.hasOwn(postBodies[0], 'run_id'), true, 'no identity-less legacy POST is attempted');
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('leaderboard replay-check schema errors return readiness failure without attempting a write', async () => {
+  const runId = crypto.randomUUID();
+  const originalFetch = global.fetch;
+  let postCount = 0;
+  global.fetch = async (url, options = {}) => {
+    const value = String(url);
+    if (options.method === 'POST') postCount += 1;
+    if (value.includes('select=run_id&run_id=eq.')) {
+      return jsonResponse({
+        code: 'PGRST204',
+        message: "Could not find the 'run_id' column in the schema cache"
+      }, 400);
+    }
+    throw new Error(`Unexpected leaderboard request: ${value}`);
+  };
+
+  try {
+    const res = makeResponse();
+    await leaderboardHandler({
+      method: 'POST', body: { name: 'guest', receiptToken: makeReceipt(runId) }, headers: {}, socket: { remoteAddress: '127.0.0.46' }
+    }, res);
+    assert.equal(res.statusCode, 503);
+    assert.equal(res.body.code, 'LEADERBOARD_SCHEMA_NOT_READY');
+    assert.match(res.body.error, /storage is not ready for verified scores/i);
+    assert.equal(postCount, 0);
   } finally {
     global.fetch = originalFetch;
   }
@@ -333,6 +536,31 @@ test('leaderboard returns the top 100 all-time and weekly scores', async () => {
     assert.equal(res.body.monthlyScores[99].name, 'WEEKLY99');
     assert.match(allTimeRequest, /limit=100/);
     assert.match(weeklyRequest, /limit=100/);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('a current-schema review row cannot outrank a verified weekly score', async () => {
+  const originalFetch = global.fetch;
+  const date = new Date().toISOString();
+  const review = {
+    name: 'REVIEW', score: 999999, wave: 99, date, wallet_address: null,
+    donated: false, run_id: 'review-run', verified: false, receipt_hash: 'review-hash'
+  };
+  const verified = {
+    name: 'VERIFIED', score: 100, wave: 1, date, wallet_address: null,
+    donated: false, run_id: 'verified-run', verified: true, receipt_hash: 'verified-hash'
+  };
+  global.fetch = async () => jsonResponse([review, verified]);
+  try {
+    const res = makeResponse();
+    await leaderboardHandler({
+      method: 'GET', query: {}, headers: {}, socket: { remoteAddress: '127.0.0.44' }
+    }, res);
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.monthlyScores[0].runId, 'verified-run');
+    assert.equal(res.body.scores.some((entry) => entry.runId === 'review-run'), false);
   } finally {
     global.fetch = originalFetch;
   }
@@ -445,7 +673,7 @@ test('the current weekly leader can attach one eligible proposal to the verified
     await leaderboardHandler({
       method: 'POST',
       body: { action: 'select-proposal', proposalId: '321', receiptToken: makeReceipt(runId) },
-      headers: {},
+      headers: { cookie: 'scicon_wallet_profile_session=expired-or-forged' },
       socket: { remoteAddress: '127.0.0.1' }
     }, res);
 
@@ -453,6 +681,11 @@ test('the current weekly leader can attach one eligible proposal to the verified
     assert.equal(res.body.monthlyScores[0].proposalId, '321');
     assert.equal(res.body.monthlyScores[0].proposalTitle, 'Open Science Target');
     assert.equal(res.body.monthlyScores[0].proposalImageUrl, 'https://images.researchhub.com/proposals/321.png');
+    assert.ok(
+      Array.isArray(res.headers['Set-Cookie'])
+      && res.headers['Set-Cookie'].every((value) => /Max-Age=0/.test(value)),
+      'a stale optional wallet cookie is cleared without blocking a guest proposal'
+    );
     assert.deepEqual(patchBody, {
       proposal_id: '321',
       proposal_title: 'Open Science Target',
@@ -603,6 +836,7 @@ test('a run that is not the current weekly leader cannot attach a proposal', asy
 
     assert.equal(res.statusCode, 409);
     assert.match(res.body.error, /no longer the current weekly high score/i);
+    assert.equal(res.body.code, 'WEEKLY_LEADER_CHANGED');
     assert.equal(patchCalled, false);
   } finally {
     global.fetch = originalFetch;
@@ -667,6 +901,44 @@ test('the exact verified current leader can replace its saved proposal', async (
   }
 });
 
+test('an empty exact proposal update is a terminal lead change with a stable code', async () => {
+  const runId = crypto.randomUUID();
+  const originalFetch = global.fetch;
+  const leader = {
+    name: 'PILOT', score: 4321, wave: 4, date: new Date().toISOString(), wallet_address: null,
+    donated: false, proposal_id: null, proposal_title: null, proposal_url: null, proposal_author: null,
+    proposal_image_url: null, run_id: runId, verified: true, receipt_hash: 'hash'
+  };
+
+  global.fetch = async (url, options = {}) => {
+    const value = String(url);
+    if (value.includes('backend.prod.researchhub.com')) {
+      return jsonResponse({ results: [{
+        content_object: {
+          id: 654, title: 'Replacement Target', slug: 'replacement-target',
+          fundraise: { status: 'OPEN', end_date: '2099-01-01T00:00:00.000Z' }
+        }
+      }] });
+    }
+    if (options.method === 'PATCH') return jsonResponse([]);
+    return jsonResponse([leader]);
+  };
+
+  try {
+    const res = makeResponse();
+    await leaderboardHandler({
+      method: 'POST',
+      body: { action: 'select-proposal', proposalId: '654', receiptToken: makeReceipt(runId) },
+      headers: {}, socket: { remoteAddress: '127.0.0.25' }
+    }, res);
+    assert.equal(res.statusCode, 409);
+    assert.equal(res.body.code, 'WEEKLY_LEADER_CHANGED');
+    assert.match(res.body.error, /no longer the current weekly high score/i);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
 test('proposal recovery rejects an unverified leaderboard row even with its signed run receipt', async () => {
   const runId = crypto.randomUUID();
   const originalFetch = global.fetch;
@@ -690,6 +962,7 @@ test('proposal recovery rejects an unverified leaderboard row even with its sign
     }, res);
     assert.equal(res.statusCode, 409);
     assert.match(res.body.error, /no longer the current weekly high score/i);
+    assert.equal(res.body.code, 'WEEKLY_LEADER_CHANGED');
     assert.equal(patchCalled, false);
   } finally {
     global.fetch = originalFetch;
@@ -734,6 +1007,7 @@ test('proposal recovery rechecks the weekly leader after proposal eligibility lo
     }, res);
     assert.equal(res.statusCode, 409);
     assert.match(res.body.error, /no longer the current weekly high score/i);
+    assert.equal(res.body.code, 'WEEKLY_LEADER_CHANGED');
     assert.equal(patchCalled, false);
   } finally {
     global.fetch = originalFetch;
@@ -790,6 +1064,7 @@ test('proposal recovery rolls back its exact write if the lead changes during th
     }, res);
     assert.equal(res.statusCode, 409);
     assert.match(res.body.error, /no longer the current weekly high score/i);
+    assert.equal(res.body.code, 'WEEKLY_LEADER_CHANGED');
     assert.equal(rollbackBody.proposal_id, '321');
     assert.equal(rollbackBody.proposal_title, 'Original Target');
   } finally {

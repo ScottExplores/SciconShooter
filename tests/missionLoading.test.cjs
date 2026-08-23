@@ -40,7 +40,8 @@ test('app presents bounded startup loading while deferring the heavier gameplay 
   assert.match(app, /preloadStartupAssets\(\{/);
   assert.match(app, /STARTUP_LOADING_MINIMUM_MS/);
   assert.match(app, /context="startup"/);
-  assert.match(app, /walletRuntimeEnabled && !startupLoading/);
+  assert.match(app, /\{walletRuntimeEnabled \? \(/);
+  assert.doesNotMatch(app, /walletRuntimeEnabled && !startupLoading/);
   assert.match(app, /if \(missionLaunchPendingRef\.current\) return/);
   assert.doesNotMatch(app, /missionLaunchPendingRef\.current \|\| !gameplayPreloadReady/);
   assert.match(app, /const shouldShowMissionLoading = !gameplayPreloadReady/);
@@ -94,7 +95,7 @@ test('mission launch reserves and validates one token before wallet authorizatio
   const runModeIndex = app.indexOf('const runMode: ActiveRunMode', startIndex);
   const authorizationFlow = app.slice(startIndex, runModeIndex);
 
-  assert.match(authorizationFlow, /if \(missionLaunchPendingRef\.current\) return;\s*const launchNonce = missionLaunchNonceRef\.current \+ 1;\s*missionLaunchNonceRef\.current = launchNonce;\s*missionLaunchPendingRef\.current = true/);
+  assert.match(authorizationFlow, /if \(missionLaunchPendingRef\.current\) return;\s*deploymentReloadSafeRef\.current = false;\s*const launchNonce = missionLaunchNonceRef\.current \+ 1;\s*missionLaunchNonceRef\.current = launchNonce;\s*missionLaunchPendingRef\.current = true/);
   assert.match(authorizationFlow, /const started = await startTask;\s*if \(missionLaunchNonceRef\.current !== launchNonce\) return;\s*serverChallengeRun = started\.run/);
   assert.match(authorizationFlow, /serverBranchAttempt = await startTask;\s*if \(missionLaunchNonceRef\.current !== launchNonce\) return;/);
   assert.match(app, /if \(gameStateRef\.current !== GameState\.MENU \|\| missionLaunchPendingRef\.current\) resetGame\(\)/);

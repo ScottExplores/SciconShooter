@@ -12,6 +12,10 @@ create table if not exists public.scicon_run_receipts (
   coins_collected integer not null default 0 check (coins_collected >= 0),
   player_ship_id text not null default 'researchhub' check (player_ship_id in ('researchhub', 'bio', 'eth', 'btc')),
   game_version text not null,
+  run_mode text not null default 'standard' check (run_mode in ('standard', 'weekly-streak')),
+  test_run boolean not null default false,
+  receipt_provenance_version smallint not null default 0
+    check (receipt_provenance_version between 0 and 1),
   integrity_status text not null check (integrity_status in ('server-verified', 'review')),
   anomaly_flags text[] not null default '{}',
   ip_hash text,
@@ -33,13 +37,38 @@ alter table public.scicon_run_receipts
   add constraint scicon_run_receipts_player_ship_id_check
   check (player_ship_id in ('researchhub', 'bio', 'eth', 'btc'));
 
+alter table public.scicon_run_receipts
+  add column if not exists run_mode text not null default 'standard';
+
+alter table public.scicon_run_receipts
+  drop constraint if exists scicon_run_receipts_run_mode_check;
+
+alter table public.scicon_run_receipts
+  add constraint scicon_run_receipts_run_mode_check
+  check (run_mode in ('standard', 'weekly-streak'));
+
+alter table public.scicon_run_receipts
+  add column if not exists test_run boolean not null default false;
+
+alter table public.scicon_run_receipts
+  add column if not exists receipt_provenance_version smallint not null default 0;
+
+alter table public.scicon_run_receipts
+  drop constraint if exists scicon_run_receipts_provenance_version_check;
+
+alter table public.scicon_run_receipts
+  add constraint scicon_run_receipts_provenance_version_check
+  check (receipt_provenance_version between 0 and 1);
+
 -- Server-owned admission ledger for the endless Weekly Run. Client profile
--- counters are presentation only. Every identity receives five attempts each
--- week; authenticated wallets may add server-verified purchased capacity.
--- Retried starts for the same streak remain idempotent.
+-- counters are presentation only. Every wallet or server-derived anonymous
+-- admission scope receives five attempts each week; authenticated wallets may
+-- add server-verified purchased capacity. Retried starts remain idempotent and
+-- separately bound to the exact signed guest owner.
 create table if not exists public.scicon_weekly_run_attempts (
   reservation_id uuid primary key,
   identity_hash text not null check (identity_hash ~ '^[a-f0-9]{64}$'),
+  owner_identity_hash text not null,
   wallet_address text check (
     wallet_address is null
     or (
@@ -60,6 +89,22 @@ create table if not exists public.scicon_weekly_run_attempts (
   unique (identity_hash, weekly_id, attempt_key),
   unique (identity_hash, weekly_id, attempt_number)
 );
+
+-- `identity_hash` is the admission/quota scope. Existing rows used that same
+-- hash for ownership; preserve them while separating the random signed guest
+-- cookie owner from the stable server-derived guest quota scope.
+alter table public.scicon_weekly_run_attempts
+  add column if not exists owner_identity_hash text;
+update public.scicon_weekly_run_attempts
+set owner_identity_hash = identity_hash
+where owner_identity_hash is null;
+alter table public.scicon_weekly_run_attempts
+  alter column owner_identity_hash set not null;
+alter table public.scicon_weekly_run_attempts
+  drop constraint if exists scicon_weekly_run_attempts_owner_identity_hash_check;
+alter table public.scicon_weekly_run_attempts
+  add constraint scicon_weekly_run_attempts_owner_identity_hash_check
+  check (owner_identity_hash ~ '^[a-f0-9]{64}$');
 
 create table if not exists public.scicon_weekly_run_attempt_credits (
   wallet_address text not null check (
@@ -131,13 +176,21 @@ begin
 end;
 $$;
 
+drop function if exists public.scicon_reserve_weekly_run_attempt(
+  text, text, text, text, uuid, uuid
+);
+drop function if exists public.scicon_reserve_weekly_run_attempt(
+  text, text, text, text, uuid, uuid, text
+);
+
 create or replace function public.scicon_reserve_weekly_run_attempt(
   p_identity_hash text,
   p_wallet_address text,
   p_weekly_id text,
   p_attempt_key text,
   p_reservation_id uuid,
-  p_run_id uuid
+  p_run_id uuid,
+  p_owner_identity_hash text default null
 )
 returns jsonb
 language plpgsql
@@ -150,8 +203,10 @@ declare
   v_attempts_used integer;
   v_purchased_attempts integer := 0;
   v_attempt_capacity integer := 5;
+  v_owner_identity_hash text := coalesce(p_owner_identity_hash, p_identity_hash);
 begin
   if p_identity_hash is null or p_identity_hash !~ '^[a-f0-9]{64}$'
+    or v_owner_identity_hash is null or v_owner_identity_hash !~ '^[a-f0-9]{64}$'
     or p_weekly_id is null or char_length(p_weekly_id) not between 1 and 64
     or p_attempt_key is null or p_attempt_key !~ '^[a-f0-9]{64}$'
     or p_reservation_id is null or p_run_id is null
@@ -195,6 +250,9 @@ begin
   where identity_hash = p_identity_hash and weekly_id = p_weekly_id;
 
   if v_existing.reservation_id is not null then
+    if v_existing.owner_identity_hash <> v_owner_identity_hash then
+      raise exception 'weekly_run_attempt_owner_mismatch';
+    end if;
     if v_existing.status = 'finalized' then
       raise exception 'weekly_run_attempt_already_finalized';
     end if;
@@ -217,11 +275,11 @@ begin
   v_attempt_number := v_attempts_used + 1;
 
   insert into public.scicon_weekly_run_attempts (
-    reservation_id, identity_hash, wallet_address, weekly_id, attempt_key,
-    attempt_number, run_id
+    reservation_id, identity_hash, owner_identity_hash, wallet_address,
+    weekly_id, attempt_key, attempt_number, run_id
   ) values (
-    p_reservation_id, p_identity_hash, p_wallet_address, p_weekly_id, p_attempt_key,
-    v_attempt_number, p_run_id
+    p_reservation_id, p_identity_hash, v_owner_identity_hash, p_wallet_address,
+    p_weekly_id, p_attempt_key, v_attempt_number, p_run_id
   ) returning * into v_existing;
 
   return jsonb_build_object(
@@ -270,7 +328,7 @@ begin
   for update;
 
   if not found
-    or v_attempt.identity_hash <> p_identity_hash
+    or v_attempt.owner_identity_hash <> p_identity_hash
     or v_attempt.weekly_id <> p_weekly_id
     or v_attempt.attempt_key <> p_attempt_key
     or v_attempt.run_id <> p_run_id
@@ -306,10 +364,10 @@ end;
 $$;
 
 revoke all on function public.scicon_reserve_weekly_run_attempt(
-  text, text, text, text, uuid, uuid
+  text, text, text, text, uuid, uuid, text
 ) from public, anon, authenticated;
 grant execute on function public.scicon_reserve_weekly_run_attempt(
-  text, text, text, text, uuid, uuid
+  text, text, text, text, uuid, uuid, text
 ) to service_role;
 revoke all on function public.scicon_get_weekly_run_quota(text, text)
   from public, anon, authenticated;
