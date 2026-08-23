@@ -139,7 +139,12 @@ test('weekly streak proof and the server-issued run token are bound to Weekly mo
   assert.match(serverReceiptSource, /startRunMode\s*===\s*'weekly-streak'\s*&&\s*!hasWeeklyProof/);
   assert.match(serverReceiptSource, /startRunMode\s*!==\s*'weekly-streak'\s*&&\s*hasWeeklyProof/);
   assert.match(receiptRouteSource, /readOptionalWalletProfileSession\(req\)/);
-  assert.match(receiptRouteSource, /profileId:\s*body\.profileId/);
+  assert.match(receiptRouteSource, /guestIdentityId:\s*guestIdentity\?\.guestId/);
+  assert.doesNotMatch(
+    receiptRouteSource,
+    /profileId:\s*body\.profileId/,
+    'the server must bind guest runs to its signed guest identity instead of a rotating client profile id'
+  );
   assert.match(appSource, /profileId:\s*weeklySquadStateRef\.current\.profileId,[\s\S]{0,80}weeklyCampaignProof/);
   assert.match(appSource, /beginRunSession\(isOwnerTestRun\s*\|\|\s*isOwnerWallet,\s*activeRunMode\)/);
 });

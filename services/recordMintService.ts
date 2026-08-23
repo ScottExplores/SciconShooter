@@ -46,6 +46,18 @@ const postJson = async (url: string, payload: Record<string, unknown>) => {
   return data;
 };
 
+const requireConfirmedMint = (confirmation: unknown) => {
+  if (
+    !confirmation
+    || typeof confirmation !== 'object'
+    || Array.isArray(confirmation)
+    || (confirmation as { confirmed?: unknown }).confirmed !== true
+  ) {
+    throw new Error('Mint confirmation is still pending. Retry to finish saving this Mission Record.');
+  }
+  return confirmation as { confirmed: true; tokenId?: string };
+};
+
 export const mintMissionRecord = async ({
   address,
   receipt
@@ -61,9 +73,9 @@ export const mintMissionRecord = async ({
     const transactionHash = existingPending.transactionHash
       || await waitForBaseCallsTransaction(existingPending.callsId);
     writePendingMint(receipt.runId, { ...existingPending, transactionHash });
-    const confirmation = await postJson('/api/mint-records', {
+    const confirmation = requireConfirmedMint(await postJson('/api/mint-records', {
       action: 'confirm', recordType: 'mission', runId: receipt.runId, address, transactionHash, sponsored: Boolean(existingPending.sponsored)
-    });
+    }));
     clearPendingMint(receipt.runId);
     return { transactionHash, sponsored: Boolean(existingPending.sponsored), tokenId: confirmation.tokenId as string | undefined };
   }
@@ -113,14 +125,14 @@ export const mintMissionRecord = async ({
   const submitted = readPendingMint(receipt.runId);
   if (submitted) writePendingMint(receipt.runId, { ...submitted, transactionHash });
 
-  const confirmation = await postJson('/api/mint-records', {
+  const confirmation = requireConfirmedMint(await postJson('/api/mint-records', {
     action: 'confirm',
     recordType: 'mission',
     runId: receipt.runId,
     address,
     transactionHash,
     sponsored: sponsorGas
-  });
+  }));
   clearPendingMint(receipt.runId);
   return { transactionHash, sponsored: sponsorGas, tokenId: confirmation.tokenId as string | undefined };
 };

@@ -38,6 +38,7 @@ const startToken = (overrides = {}) => {
   const now = Date.now();
   return signPayload({
     type: 'run-start',
+    startProvenanceVersion: 1,
     runId: crypto.randomUUID(),
     gameVersion: 'test',
     issuedAt: now - 30_000,
@@ -194,6 +195,11 @@ test('creates a server-verified receipt for plausible metrics', async () => {
   assert.equal(receipt.persisted, false);
   assert.equal(verifyRunReceipt(receipt.receiptToken).metrics.score, 5000);
   assert.equal(receipt.metrics.playerShipId, 'researchhub');
+  assert.ok(
+    new Date(receipt.expiresAt).getTime() - new Date(receipt.finishedAt).getTime()
+      >= 33 * 24 * 60 * 60 * 1_000,
+    'receipts remain valid through the fixed three-week backfill horizon and claim window'
+  );
 });
 
 test('binds the selected ship from the signed run start to the finished receipt', async () => {

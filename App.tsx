@@ -23,7 +23,7 @@ import {
   type PlayerShipPurchaseSkuId,
   type RscPurchaseSkuId
 } from './constants';
-import { ALL_TIME_SCORE_LIMIT, WEEKLY_SCORE_LIMIT, getLeaderboardData, getLeaderboardWeekScores, saveScore, saveWeeklyLeaderProposal } from './services/leaderboardService';
+import { ALL_TIME_SCORE_LIMIT, WEEKLY_SCORE_LIMIT, getLeaderboardData, getLeaderboardWeekScores, isWeeklyLeaderDisplacementError, saveScore, saveWeeklyLeaderProposal } from './services/leaderboardService';
 import { getArchivedWeeklyWinners } from './services/winnerArchiveService';
 import { getMissionRecordWeeklyFunding } from './services/weeklyFundingFlow';
 import {
@@ -38,6 +38,7 @@ import {
 import { loadOnboardingProgress, type OnboardingStepId } from './services/onboardingProgress';
 import { BASE_FLASK_CHARGE_MAX, getChargeForStoredFlasks, getFlaskProgress, spendStoredFlasks } from './services/flaskProgress';
 import type {
+  MissionMintStatusContext,
   PlayerShipAccessUpdate,
   PlayerShipPurchaseStatusUpdate,
   RscBalanceUpdate,
@@ -50,6 +51,7 @@ import {
   type WeeklyRunAttemptQuota
 } from './services/walletPurchaseService';
 import type { ContinuePaymentSettlement } from './services/continuePaymentService';
+import { readCachedBaseAccount } from './services/baseAccountWallet';
 import {
   loadPlayerShipAccess,
   type PlayerShipPurchaseSettlement
@@ -71,10 +73,31 @@ import {
   recordPlayerReportBreadcrumb,
   updatePlayerReportContext
 } from './services/playerReportService';
-import { getWalletRecords } from './services/recordService';
-import { getWalletRuns, type WalletRunRecord } from './services/playerRunService';
+import { getWalletRecordsStrict } from './services/recordService';
+import { getWalletRunsStrict, type WalletRunRecord } from './services/playerRunService';
+import { createAddressResourceCoordinator, resolveWalletTransitionReloadSafety, shouldHydrateWalletIdentityTransition } from './services/addressResourceCoordinator';
+import { advanceMintIndexRetry, mergeWalletActivity } from './services/walletActivityMerge';
+import {
+  canRetryPendingWeeklyRunAdmission,
+  clearPendingWeeklyRunAdmission,
+  getWeeklyRunAdmissionSessionKey,
+  getWeeklyRunSessionQuotaOwner,
+  isRetryableWeeklyRunAdmissionError,
+  readPendingWeeklyRunAdmission,
+  writePendingWeeklyRunAdmission
+} from './services/weeklyRunAdmissionRecovery';
 import { getWeeklyProposalRecovery } from './services/weeklyProposalRecovery';
 import { getWeeklyProposalLifecycle } from './services/weeklyProposalLifecycle';
+import {
+  createWeeklyGuestProposalCapability,
+  markWeeklyGuestProposalCapability,
+  markWeeklyGuestProposalScoreSettled,
+  readWeeklyGuestProposalCapabilities,
+  resolveWeeklyGuestProposalCapabilities,
+  WEEKLY_GUEST_PROPOSAL_RECONCILIATION_DELAYS_MS,
+  writeWeeklyGuestProposalCapabilities,
+  writeWeeklyGuestProposalCapability
+} from './services/weeklyGuestProposalRecovery';
 import {
   addCampaignMasteryBtcUnlock,
   getUsablePlayerShip,
@@ -515,6 +538,10 @@ const preloadGameplayComponents = (listener?: GameplayPreloadListener) => {
 
 type ProposalFeedStatus = 'loading' | 'ready' | 'empty' | 'error';
 type ProposalSelectionStatus = 'idle' | 'saving' | 'confirmed' | 'error';
+interface WalletActivitySnapshot {
+  records: MintRecord[];
+  runs: WalletRunRecord[];
+}
 type ActiveRunMode = 'standard' | 'campaign' | 'campaign-replay' | 'weekly-streak' | 'campaign-lab' | 'campaign-branch' | 'owner-test' | 'boss-archive';
 type CampaignResultPresentation = {
   summaryId: string;
@@ -685,6 +712,7 @@ const RESUME_COUNTDOWN_START = 3;
 const RESUME_COUNTDOWN_STEP_MS = 1_000;
 
 const App: React.FC = () => {
+  const [initialWalletAddress] = useState<Address | null>(readCachedBaseAccount);
   const [gameState, setGameState] = useState<GameState>(GameState.MENU);
   const [gameId, setGameId] = useState<number>(0);
   const [activeRunLifeCapacity, setActiveRunLifeCapacity] = useState(GAME_CONFIG.PLAYER_LIVES);
@@ -700,11 +728,13 @@ const App: React.FC = () => {
   const [onboardingStepId, setOnboardingStepId] = useState<OnboardingStepId | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [monthlyLeaderboard, setMonthlyLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [weeklyRecoveryLeaderboard, setWeeklyRecoveryLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [archivedWinners, setArchivedWinners] = useState<ArchivedWinner[]>([]);
   const [weeklyPresentationTime, setWeeklyPresentationTime] = useState(() => Date.now());
   const [walletRecords, setWalletRecords] = useState<MintRecord[]>([]);
   const [walletRuns, setWalletRuns] = useState<WalletRunRecord[]>([]);
   const [walletRunsLoading, setWalletRunsLoading] = useState(false);
+  const [walletActivityError, setWalletActivityError] = useState('');
   const [pilotProfile] = useState(initializeLocalPilotProfile);
   const [activeProfileId, setActiveProfileId] = useState(pilotProfile.id);
   const [selectedShipId, setSelectedShipId] = useState<PlayerShipId>(() => (
@@ -749,6 +779,7 @@ const App: React.FC = () => {
   ));
   const [showNameInput, setShowNameInput] = useState<boolean>(false);
   const [loadingLeaderboard, setLoadingLeaderboard] = useState<boolean>(true);
+  const [weeklyLeaderboardHydrated, setWeeklyLeaderboardHydrated] = useState(false);
   const [isSubmittingScore, setIsSubmittingScore] = useState<boolean>(false);
   const [scoreSaved, setScoreSaved] = useState<boolean>(false);
   const [scoreSubmitError, setScoreSubmitError] = useState<string>('');
@@ -756,12 +787,13 @@ const App: React.FC = () => {
   const [walletError, setWalletError] = useState<string>('');
   const [walletProfileStatus, setWalletProfileStatus] = useState<
     'guest' | 'authenticating' | 'ready' | 'syncing' | 'error'
-  >('guest');
+  >(initialWalletAddress ? 'authenticating' : 'guest');
+  const [walletIdentityHydrating, setWalletIdentityHydrating] = useState(
+    Boolean(initialWalletAddress)
+  );
   const [walletProfileAuthorizationNonce, setWalletProfileAuthorizationNonce] = useState(0);
   const [walletProfileRetryNonce, setWalletProfileRetryNonce] = useState(0);
-  const [walletRuntimeEnabled, setWalletRuntimeEnabled] = useState(() => (
-    Boolean(localStorage.getItem(STORAGE_KEYS.WALLET_ADDRESS))
-  ));
+  const [walletRuntimeEnabled, setWalletRuntimeEnabled] = useState(Boolean(initialWalletAddress));
   const [walletRuntimeAction, setWalletRuntimeAction] = useState<WalletRuntimeAction | null>(null);
   const [rscBalanceUpdate, setRscBalanceUpdate] = useState<RscBalanceUpdate>({
     status: 'idle',
@@ -778,9 +810,9 @@ const App: React.FC = () => {
     status: 'idle'
   });
   const [walletSession, setWalletSession] = useState<WalletSession>({
-    address: null,
-    chainId: null,
-    status: 'idle',
+    address: initialWalletAddress,
+    chainId: initialWalletAddress ? DONATION_CONFIG.BASE_CHAIN_ID : null,
+    status: initialWalletAddress ? 'connected' : 'idle',
     error: '',
     connectorName: undefined,
     hasDonated: false
@@ -871,6 +903,10 @@ const App: React.FC = () => {
   const introStoryTimeoutRef = useRef<number | null>(null);
   const weeklyProposalTransitionRef = useRef<number | null>(null);
   const weeklyProposalReturnRef = useRef<'results' | 'record'>('results');
+  const guestProposalRecoveryShownRunIdRef = useRef<string | null>(null);
+  const guestChampionRecoveryShownRunIdRef = useRef<string | null>(null);
+  const weeklyRecoveryEvidenceRequestRef = useRef(0);
+  const weeklyRecoveryReconciliationTimersRef = useRef(new Set<number>());
   const gameStateRef = useRef<GameState>(GameState.MENU);
   const openCampaignMapRef = useRef<(focusMissionId?: string | null) => void>(() => undefined);
   // Legacy Campaign Map tooling reaches its later-declared Weekly route
@@ -929,6 +965,7 @@ const App: React.FC = () => {
   const walletProfileSaveChainRef = useRef<Promise<void>>(Promise.resolve());
   const walletProfileSessionChainRef = useRef<Promise<void>>(Promise.resolve());
   const walletTokenSpendInFlightRef = useRef(false);
+  const [walletTokenSpendBusy, setWalletTokenSpendBusy] = useState(false);
   const walletTokenSpendPendingRef = useRef(new Map<string, {
     spendId: string;
     expectedRevision: number;
@@ -940,6 +977,48 @@ const App: React.FC = () => {
   const proposalRefreshNonceRef = useRef(0);
   const weeklyLeaderProposalIdRef = useRef<string | null>(null);
   const pendingDeploymentEntryRef = useRef<string | null>(null);
+  const deploymentReloadSafeRef = useRef(false);
+  const walletActivityExpectedRunRef = useRef(new Map<string, WalletRunRecord>());
+  const walletActivityExpectedMintRef = useRef(new Map<string, {
+    runId: string;
+    retries: number;
+  }>());
+  const walletActivityRetryTimerRef = useRef<number | null>(null);
+  const walletActivityOwnerGenerationRef = useRef(0);
+  const missionMintContextRef = useRef<{
+    walletAddress: string;
+    runId: string;
+    ownerGeneration: number;
+  } | null>(null);
+  const [walletActivityCoordinator] = useState(() => {
+    let coordinator: ReturnType<typeof createAddressResourceCoordinator<WalletActivitySnapshot>>;
+    coordinator = createAddressResourceCoordinator<WalletActivitySnapshot>({
+      load: async (owner, { signal }) => {
+        // Records and runs form one screen-level snapshot. Publishing an empty
+        // half after a one-sided outage makes valid wallet data appear lost.
+        // Reject the refresh as a unit so the coordinator can retain the last
+        // complete snapshot and expose a retry on the first load.
+        const [records, runs] = await Promise.all([
+          getWalletRecordsStrict(owner, { signal }),
+          getWalletRunsStrict(owner, { signal })
+        ]);
+        const current = coordinator.getState();
+        const expectedRun = walletActivityExpectedRunRef.current.get(owner) ?? null;
+        const expectedMint = walletActivityExpectedMintRef.current.get(owner);
+        const merged = mergeWalletActivity({
+          current: current.owner === owner ? current.value : null,
+          records,
+          runs,
+          expectedRun,
+          expectedMintRunId: expectedMint?.runId ?? null
+        });
+        if (merged.expectedRunObserved) walletActivityExpectedRunRef.current.delete(owner);
+        if (merged.expectedMintObserved) walletActivityExpectedMintRef.current.delete(owner);
+        return { records: merged.records, runs: merged.runs };
+      }
+    });
+    return coordinator;
+  });
   const [runReceipt, setRunReceipt] = useState<RunReceipt | null>(null);
   const [runReceiptStatus, setRunReceiptStatus] = useState<'idle' | 'starting' | 'finalizing' | 'ready' | 'local' | 'error'>('idle');
   const [showMissionRecordPreview, setShowMissionRecordPreview] = useState(false);
@@ -948,6 +1027,9 @@ const App: React.FC = () => {
   const [weeklyProposalSelectionStatus, setWeeklyProposalSelectionStatus] = useState<ProposalSelectionStatus>('idle');
   const [weeklyProposalSelectionMessage, setWeeklyProposalSelectionMessage] = useState('');
   const [weeklyProposalSelectionMode, setWeeklyProposalSelectionMode] = useState<'required' | 'recovery'>('recovery');
+  const [weeklyGuestProposalCapabilities, setWeeklyGuestProposalCapabilities] = useState(
+    readWeeklyGuestProposalCapabilities
+  );
   const [scorecardChampionWinner, setScorecardChampionWinner] = useState<ArchivedWinner | null>(null);
   const [championClaimStatus, setChampionClaimStatus] = useState<'idle' | 'connecting' | 'signing' | 'confirmed' | 'error'>('idle');
   const [championClaimMessage, setChampionClaimMessage] = useState('');
@@ -967,6 +1049,62 @@ const App: React.FC = () => {
       weeklyProposalTransitionRef.current = null;
     }
   };
+
+  const settleWeeklyGuestProposalCapability = useCallback((
+    expectedRunId: string,
+    proposalState: 'resolved' | 'displaced'
+  ) => {
+    markWeeklyGuestProposalCapability(expectedRunId, proposalState);
+    setWeeklyGuestProposalCapabilities((current) => current.map((capability) => (
+      capability.receipt.runId === expectedRunId
+        ? { ...capability, proposalState }
+        : capability
+    )));
+    if (guestProposalRecoveryShownRunIdRef.current === expectedRunId) {
+      guestProposalRecoveryShownRunIdRef.current = null;
+    }
+  }, []);
+
+  const scheduleWeeklyGuestProposalReconciliation = useCallback(function scheduleReconciliation(
+    expectedEvidenceRequestId: number,
+    expectedRunId: string,
+    attemptIndex = 0
+  ) {
+    const delayMs = WEEKLY_GUEST_PROPOSAL_RECONCILIATION_DELAYS_MS[attemptIndex];
+    if (delayMs === undefined) return;
+
+    const timeoutId = window.setTimeout(() => {
+      weeklyRecoveryReconciliationTimersRef.current.delete(timeoutId);
+      if (weeklyRecoveryEvidenceRequestRef.current !== expectedEvidenceRequestId) return;
+
+      void getLeaderboardData().then((refreshed) => {
+        if (weeklyRecoveryEvidenceRequestRef.current !== expectedEvidenceRequestId) return;
+        if (refreshed.scores.length > 0) setLeaderboard(refreshed.scores);
+        setWeeklyRecoveryLeaderboard(refreshed.monthlyScores);
+        setWeeklyLeaderboardHydrated(true);
+
+        const exactLeaderObserved = refreshed.monthlyScores[0]?.verified === true
+          && refreshed.monthlyScores[0]?.runId === expectedRunId;
+        if (!exactLeaderObserved) {
+          scheduleReconciliation(expectedEvidenceRequestId, expectedRunId, attemptIndex + 1);
+        }
+      }).catch((refreshError) => {
+        console.warn('Weekly leaderboard recovery after an ambiguous score save failed', refreshError);
+        if (weeklyRecoveryEvidenceRequestRef.current === expectedEvidenceRequestId) {
+          scheduleReconciliation(expectedEvidenceRequestId, expectedRunId, attemptIndex + 1);
+        }
+      });
+    }, delayMs);
+    weeklyRecoveryReconciliationTimersRef.current.add(timeoutId);
+  }, []);
+
+  useEffect(() => () => {
+    weeklyRecoveryEvidenceRequestRef.current += 1;
+    weeklyRecoveryReconciliationTimersRef.current.forEach((timeoutId) => {
+      window.clearTimeout(timeoutId);
+    });
+    weeklyRecoveryReconciliationTimersRef.current.clear();
+  }, []);
 
   /** Keeps presentation state and the launch-time authority cache in lockstep.
    *  The owner binding prevents a late response from one wallet being reused
@@ -1096,7 +1234,7 @@ const App: React.FC = () => {
     let checkInFlight = false;
 
     const applyOrDeferUpdate = (entryAsset: string) => {
-      if (gameStateRef.current === GameState.MENU) {
+      if (deploymentReloadSafeRef.current) {
         reloadForDeploymentUpdate(entryAsset);
         return;
       }
@@ -1138,10 +1276,40 @@ const App: React.FC = () => {
     };
   }, []);
 
+  const deploymentReloadSafe = Boolean(
+    gameState === GameState.MENU
+    && !startupLoading
+    && !missionLoading
+    && !missionLaunchPendingRef.current
+    && !weeklyRunAdmissionPendingRef.current
+    && !walletRuntimeAction
+    && !walletIdentityHydrating
+    && !walletTokenSpendBusy
+    && walletSession.status !== 'connecting'
+    && walletProfileStatus !== 'authenticating'
+    && walletProfileStatus !== 'syncing'
+    && rscBalanceUpdate.status !== 'loading'
+    && !rscBalanceUpdate.refreshing
+    && playerShipAccessUpdate.status !== 'loading'
+    && !playerShipAccessUpdate.refreshing
+    && !['connecting', 'authorizing', 'confirming', 'settling'].includes(walletPurchaseStatus.status)
+    && !['connecting', 'authorizing', 'confirming', 'settling'].includes(playerShipPurchaseStatus.status)
+    && !['switching_network', 'processing', 'confirming'].includes(continuePaymentStatus)
+    && !['connecting', 'signing'].includes(championClaimStatus)
+    && !['authorizing', 'confirming'].includes(missionMintStatus)
+    && runReceiptStatus !== 'starting'
+    && runReceiptStatus !== 'finalizing'
+    && !isSubmittingScore
+    && weeklyProposalSelectionStatus !== 'saving'
+  );
+  deploymentReloadSafeRef.current = deploymentReloadSafe;
+
   useEffect(() => {
-    if (gameState !== GameState.MENU || !pendingDeploymentEntryRef.current) return;
-    reloadForDeploymentUpdate(pendingDeploymentEntryRef.current);
-  }, [gameState]);
+    if (!deploymentReloadSafe || !pendingDeploymentEntryRef.current) return;
+    const entryAsset = pendingDeploymentEntryRef.current;
+    pendingDeploymentEntryRef.current = null;
+    reloadForDeploymentUpdate(entryAsset);
+  }, [deploymentReloadSafe]);
 
   const wallet = useMemo<WalletSession>(() => {
     const address = walletSession.address ?? null;
@@ -1164,6 +1332,12 @@ const App: React.FC = () => {
     };
   }, [donatedWallets, walletError, walletRuntimeAction?.type, walletSession]);
   const activeWalletAddress = wallet.address ?? null;
+  // A visible wallet address is not proof that its retained server session is
+  // ready. Fall back to explicit guest intent while authentication is stale or
+  // recovering; the resulting guest receipt can be associated later.
+  const runWalletIntent = activeWalletAddress && walletProfileStatus === 'ready'
+    ? activeWalletAddress
+    : null;
   const isOwnerWallet = activeWalletAddress?.toLowerCase() === DONATION_CONFIG.RECIPIENT_ADDRESS.toLowerCase();
   const founderAuthorizationRef = useRef(Boolean(isOwnerWallet));
   founderAuthorizationRef.current = Boolean(isOwnerWallet);
@@ -1290,6 +1464,99 @@ const App: React.FC = () => {
     walletAddress: activeWalletAddress,
     proposalLifecycle: weeklyProposalLifecycle
   }), [activeWalletAddress, monthlyLeaderboard, walletRuns, weeklyProposalLifecycle]);
+  useEffect(() => {
+    // Never invalidate a durable guest receipt against the optimistic row or a
+    // stale board from before its score request. Only a completed leaderboard
+    // fetch/score response may supply evidence about the current No. 1 pilot.
+    if (
+      !weeklyLeaderboardHydrated
+      || isSubmittingScore
+      || weeklyGuestProposalCapabilities.length === 0
+    ) return;
+
+    const resolution = resolveWeeklyGuestProposalCapabilities({
+      capabilities: weeklyGuestProposalCapabilities,
+      weeklyLeaderboard: weeklyRecoveryLeaderboard
+    });
+    const currentSignature = weeklyGuestProposalCapabilities
+      .map((capability) => `${capability.receipt.runId}:${capability.proposalState}:${capability.leaderMismatchCount ?? 0}:${capability.scoreSettledAtMs ?? 0}`)
+      .join('|');
+    const retainedSignature = resolution.retained
+      .map((capability) => `${capability.receipt.runId}:${capability.proposalState}:${capability.leaderMismatchCount ?? 0}:${capability.scoreSettledAtMs ?? 0}`)
+      .join('|');
+    if (currentSignature !== retainedSignature) {
+      writeWeeklyGuestProposalCapabilities(resolution.retained);
+      setWeeklyGuestProposalCapabilities(resolution.retained);
+    }
+    const recovered = resolution.recoverable;
+    if (!recovered) return;
+    const recoveryRunId = recovered.receipt.runId;
+    if (
+      (gameState !== GameState.MENU && gameState !== GameState.GAMEOVER)
+      || guestProposalRecoveryShownRunIdRef.current === recoveryRunId
+    ) return;
+
+    guestProposalRecoveryShownRunIdRef.current = recoveryRunId;
+    setRunReceipt(recovered.receipt);
+    setMissionRecordPilotName(recovered.pilotName);
+    setShowNameInput(false);
+    setScoreSaved(true);
+    setScoreSubmitError('');
+    weeklyProposalReturnRef.current = 'results';
+    setWeeklyProposalSelectionStatus('idle');
+    setWeeklyProposalSelectionMessage('');
+    setWeeklyProposalSelectionMode('recovery');
+    setShowMissionRecordPreview(false);
+    setShowWeeklyProposalSelection(true);
+  }, [
+    gameState,
+    isSubmittingScore,
+    weeklyGuestProposalCapabilities,
+    weeklyLeaderboardHydrated,
+    weeklyRecoveryLeaderboard
+  ]);
+  useEffect(() => {
+    if (
+      (gameState !== GameState.MENU && gameState !== GameState.GAMEOVER)
+      || isSubmittingScore
+      || showNameInput
+      || showWeeklyProposalSelection
+      || showMissionRecordPreview
+    ) return;
+
+    const now = Date.now();
+    const recoverableChampion = weeklyGuestProposalCapabilities.find((capability) => {
+      const receiptExpiresAt = Date.parse(capability.receipt.expiresAt);
+      if (!Number.isFinite(receiptExpiresAt) || receiptExpiresAt <= now) return false;
+      const winner = archivedWinners.find((entry) => (
+        entry.winnerRunId === capability.receipt.runId
+      ));
+      const claimDeadline = winner?.claimDeadline
+        ? Date.parse(winner.claimDeadline)
+        : null;
+      return winner?.status === 'finalized'
+        && (claimDeadline === null || (Number.isFinite(claimDeadline) && claimDeadline > now));
+    });
+    if (
+      !recoverableChampion
+      || guestChampionRecoveryShownRunIdRef.current === recoverableChampion.receipt.runId
+    ) return;
+
+    guestChampionRecoveryShownRunIdRef.current = recoverableChampion.receipt.runId;
+    setRunReceipt(recoverableChampion.receipt);
+    setMissionRecordPilotName(recoverableChampion.pilotName);
+    setMissionMintStatus('idle');
+    setMissionMintMessage('');
+    setShowMissionRecordPreview(true);
+  }, [
+    archivedWinners,
+    gameState,
+    isSubmittingScore,
+    showMissionRecordPreview,
+    showNameInput,
+    showWeeklyProposalSelection,
+    weeklyGuestProposalCapabilities
+  ]);
   const shipUnlocks = useMemo(() => {
     const access = playerShipAccessUpdate.access;
     return getPlayerShipUnlocks({
@@ -1453,6 +1720,7 @@ const App: React.FC = () => {
   const beginRunSession = useCallback((testRun: boolean, runMode: ActiveRunMode) => {
     if (runSessionPromiseRef.current) return;
 
+    deploymentReloadSafeRef.current = false;
     const weeklyStreak = runMode === 'weekly-streak'
       ? weeklySquadStateRef.current.weeklyCampaignStreak
       : null;
@@ -1466,12 +1734,13 @@ const App: React.FC = () => {
       playerShipId: activeRunShipIdRef.current,
       runMode: runMode === 'weekly-streak' ? 'weekly-streak' : 'standard',
       profileId: weeklySquadStateRef.current.profileId,
+      walletAddress: runWalletIntent,
       weeklyCampaignProof: weeklyStreak
     }).then((session) => {
       setRunReceiptStatus(session.localOnly ? 'local' : 'idle');
       return session;
     });
-  }, []);
+  }, [runWalletIntent]);
   const offerFirstFlightGuideBeforeRun = useCallback((testRun: boolean, runMode: ActiveRunMode) => {
     onboardingRunSessionPendingRef.current = { testRun, runMode };
     // Freeze synchronously. SciconOnboarding opens the invitation on its next
@@ -1504,6 +1773,7 @@ const App: React.FC = () => {
     const fetchDashboardData = async (background = false) => {
       if (!active || dashboardFetchInFlight) return;
       dashboardFetchInFlight = true;
+      const recoveryEvidenceRequestId = weeklyRecoveryEvidenceRequestRef.current;
       const alreadyHasData = leaderboard.length > 0;
       if (!background && !alreadyHasData) {
         setLoadingLeaderboard(true);
@@ -1515,6 +1785,12 @@ const App: React.FC = () => {
           getArchivedWeeklyWinners()
         ]);
         if (!active) return;
+        if (recoveryEvidenceRequestId === weeklyRecoveryEvidenceRequestRef.current) {
+          // Proposal recovery always uses the live scoring week, even while the
+          // dashboard intentionally holds the outgoing week during settlement.
+          setWeeklyRecoveryLeaderboard(data.monthlyScores);
+          setWeeklyLeaderboardHydrated(true);
+        }
         // Do not expose half of a rollover. The weekly board and Past Picks
         // advance in the same React commit only after both sources respond.
         if (archive === null) return;
@@ -1934,6 +2210,8 @@ const App: React.FC = () => {
       return false;
     }
     walletTokenSpendInFlightRef.current = true;
+    deploymentReloadSafeRef.current = false;
+    setWalletTokenSpendBusy(true);
     setWalletError('');
 
     const spendTask = walletProfileSaveChainRef.current
@@ -2027,6 +2305,7 @@ const App: React.FC = () => {
       return false;
     } finally {
       walletTokenSpendInFlightRef.current = false;
+      setWalletTokenSpendBusy(false);
     }
   }, [activeWalletAddress, hydrateActiveProfile, walletProfileStatus]);
 
@@ -2167,6 +2446,8 @@ const App: React.FC = () => {
   useEffect(() => {
     const transitionNonce = profileTransitionNonceRef.current + 1;
     profileTransitionNonceRef.current = transitionNonce;
+    deploymentReloadSafeRef.current = false;
+    setWalletIdentityHydrating(true);
     let cancelled = false;
     const isCurrent = () => (
       !cancelled
@@ -2206,6 +2487,10 @@ const App: React.FC = () => {
       });
     }
     preloadMiniShipTextures();
+    // The address-owned device snapshot above is already coherent and safe to
+    // render. Continue cloud reconciliation in the background instead of
+    // holding the entire app behind a wallet-network request.
+    setWalletIdentityHydrating(false);
 
     walletProfileSessionChainRef.current = walletProfileSessionChainRef.current
       .catch(() => undefined)
@@ -2319,6 +2604,9 @@ const App: React.FC = () => {
             ? 'Profile authorization was cancelled. This wallet is using its device-only save until you reconnect.'
             : error?.message || 'This wallet profile could not sync. Its device-only save remains separate.'
         );
+      })
+      .finally(() => {
+        if (isCurrent()) setWalletIdentityHydrating(false);
       });
     return () => {
       cancelled = true;
@@ -2371,35 +2659,109 @@ const App: React.FC = () => {
     weeklySquadState.weekKey
   ]);
 
-  useEffect(() => {
-    let cancelled = false;
-    if (!activeWalletAddress) {
+  const refreshWalletActivity = useCallback(async function refreshActivity({
+    mode = 'dedupe',
+    expectedMintRunId
+  }: {
+    mode?: 'dedupe' | 'force' | 'trailing';
+    expectedMintRunId?: string;
+  } = {}) {
+    const owner = walletActivityCoordinator.getState().owner;
+    if (!owner) return null;
+    if (expectedMintRunId) {
+      if (walletActivityRetryTimerRef.current !== null) {
+        window.clearTimeout(walletActivityRetryTimerRef.current);
+        walletActivityRetryTimerRef.current = null;
+      }
+      walletActivityExpectedMintRef.current.set(owner, {
+        runId: expectedMintRunId,
+        retries: 0
+      });
+    }
+    const result = await walletActivityCoordinator.refresh({ mode });
+    const expectation = walletActivityExpectedMintRef.current.get(owner);
+    if (
+      expectation
+      && walletActivityCoordinator.getState().owner === owner
+    ) {
+      const retryStep = advanceMintIndexRetry(expectation.retries);
+      if (retryStep.exhausted) {
+        walletActivityExpectedMintRef.current.delete(owner);
+        return walletActivityCoordinator.refresh({ mode: 'force' });
+      }
+      expectation.retries = retryStep.retries;
+      walletActivityExpectedMintRef.current.set(owner, expectation);
+      if (walletActivityRetryTimerRef.current !== null) window.clearTimeout(walletActivityRetryTimerRef.current);
+      walletActivityRetryTimerRef.current = window.setTimeout(() => {
+        walletActivityRetryTimerRef.current = null;
+        if (walletActivityCoordinator.getState().owner !== owner) return;
+        void refreshActivity({ mode: 'force' });
+      }, retryStep.delayMs ?? 0);
+    }
+    return result;
+  }, [walletActivityCoordinator]);
+
+  const setWalletActivityOwner = useCallback((address: Address | string | null) => {
+    const nextOwner = address?.toLowerCase() ?? null;
+    if (walletActivityCoordinator.getState().owner !== nextOwner) {
+      walletActivityOwnerGenerationRef.current += 1;
+      walletActivityExpectedRunRef.current.clear();
+      walletActivityExpectedMintRef.current.clear();
+      missionMintContextRef.current = null;
+      if (walletActivityRetryTimerRef.current !== null) {
+        window.clearTimeout(walletActivityRetryTimerRef.current);
+        walletActivityRetryTimerRef.current = null;
+      }
+    }
+    walletActivityCoordinator.setOwner(nextOwner);
+  }, [walletActivityCoordinator]);
+
+  useEffect(() => walletActivityCoordinator.subscribe((state) => {
+    if (state.value) {
+      setWalletRecords(state.value.records);
+      setWalletRuns(state.value.runs);
+    } else if (state.status === 'idle') {
       setWalletRecords([]);
       setWalletRuns([]);
-      setWalletRunsLoading(false);
-      return undefined;
     }
+    setWalletRunsLoading(state.busy && !state.hasValue);
+    if (state.error) {
+      setWalletActivityError(
+        state.hasValue
+          ? 'Could not refresh wallet activity. Showing the last saved data on this device.'
+          : 'Your wallet activity could not load. Check your connection and try again.'
+      );
+      console.warn('Wallet activity refresh retained its last good data', state.error);
+    } else {
+      setWalletActivityError('');
+    }
+  }), [walletActivityCoordinator]);
 
+  useEffect(() => {
+    setWalletActivityOwner(activeWalletAddress);
+    if (!activeWalletAddress) return;
     trackEvent('wallet_connected');
-
     localStorage.setItem(STORAGE_KEYS.WALLET_ADDRESS, activeWalletAddress);
+  }, [activeWalletAddress, setWalletActivityOwner]);
 
-    setWalletRunsLoading(true);
-    void Promise.all([
-      getWalletRecords(activeWalletAddress),
-      getWalletRuns(activeWalletAddress)
-    ]).then(([records, runs]) => {
-      if (cancelled) return;
-      setWalletRecords(records);
-      setWalletRuns(runs);
-    }).finally(() => {
-      if (!cancelled) setWalletRunsLoading(false);
-    });
+  useEffect(() => {
+    if (!activeWalletAddress || walletProfileStatus !== 'ready') return;
+    // History endpoints issue fresh signed capabilities and therefore wait
+    // for the matching HttpOnly wallet-profile session. This second effect
+    // also refreshes immediately after a remembered session is restored.
+    void refreshWalletActivity();
+  }, [activeWalletAddress, refreshWalletActivity, walletProfileStatus]);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [activeWalletAddress]);
+  useEffect(() => () => {
+    if (walletActivityRetryTimerRef.current !== null) {
+      window.clearTimeout(walletActivityRetryTimerRef.current);
+      walletActivityRetryTimerRef.current = null;
+    }
+    walletActivityExpectedRunRef.current.clear();
+    walletActivityExpectedMintRef.current.clear();
+    missionMintContextRef.current = null;
+    walletActivityCoordinator.setOwner(null);
+  }, [walletActivityCoordinator]);
 
   useEffect(() => {
     let retryTimer: number | null = null;
@@ -2627,7 +2989,20 @@ const App: React.FC = () => {
     bossDifficultyId: BossArchiveDifficultyId = 'easy',
     reusableBossArchiveRun: BossArchiveRunContext | null = null
   ) => {
+    if (
+      walletIdentityHydrating
+      || (activeWalletAddress && walletProfileStatus === 'authenticating')
+    ) {
+      const message = 'Your Base Account is still loading. Wait a moment, then try the mission again.';
+      setWalletError(message);
+      if (campaignRequest || branchRequest || campaignLabRequest) {
+        setCampaignMapError(message);
+        setCampaignMapStatus('launch-error');
+      }
+      return;
+    }
     if (missionLaunchPendingRef.current) return;
+    deploymentReloadSafeRef.current = false;
     const launchNonce = missionLaunchNonceRef.current + 1;
     missionLaunchNonceRef.current = launchNonce;
     missionLaunchPendingRef.current = true;
@@ -3697,6 +4072,16 @@ const App: React.FC = () => {
    */
   const startWeeklyRunFromHome = useCallback(async () => {
     if (weeklyRunAdmissionPendingRef.current || missionLaunchPendingRef.current) return;
+    if (
+      walletIdentityHydrating
+      || (activeWalletAddress && walletProfileStatus === 'authenticating')
+    ) {
+      const message = 'Your Base Account is still loading. Wait a moment, then try Weekly Run again.';
+      setWalletError(message);
+      setWeeklyRunLaunchError(message);
+      return;
+    }
+    deploymentReloadSafeRef.current = false;
     weeklyRunAdmissionPendingRef.current = true;
     try {
       setWeeklyRunLaunchError(null);
@@ -3708,11 +4093,26 @@ const App: React.FC = () => {
       ? weeklyRunAttemptQuotaRef.current
       : null;
     const staleStreak = weeklySquadStateRef.current.weeklyCampaignStreak;
-    if (staleStreak?.finalization.status === 'active') {
+    const admissionProfileId = weeklySquadStateRef.current.profileId;
+    const pendingAdmission = readPendingWeeklyRunAdmission();
+    const retryPendingAdmission = canRetryPendingWeeklyRunAdmission({
+      marker: pendingAdmission,
+      streak: staleStreak,
+      profileId: admissionProfileId,
+      weeklyId: boundary.weekKey
+    });
+    if (staleStreak?.finalization.status === 'active' && !retryPendingAdmission) {
       // Weekly Run is a single-flight attempt. Returning to Home, reloading the
       // webview, or reopening the app forfeits that flight; it must never
       // rebuild the engine at a saved Depth with restored checkpoint hearts.
       persistWeeklyCampaignStreak(finalizeWeeklyCampaignDeliberateEnd(staleStreak, now.getTime()));
+    }
+    if (
+      pendingAdmission
+      && pendingAdmission.profileId === admissionProfileId
+      && !retryPendingAdmission
+    ) {
+      clearPendingWeeklyRunAdmission(pendingAdmission.sessionKey);
     }
     const stateBeforeLaunch = weeklySquadStateRef.current;
     const entry = weeklyRun.entry;
@@ -3730,35 +4130,43 @@ const App: React.FC = () => {
       && walletProfileStatus === 'ready'
       && !currentQuota
     );
-    if (attemptsRemaining <= 0 && !serverCanVerifyUnknownWalletQuota) {
+    if (!retryPendingAdmission && attemptsRemaining <= 0 && !serverCanVerifyUnknownWalletQuota) {
       setCampaignMapError(
         `All ${WEEKLY_RUN_ATTEMPT_LIMIT} free Weekly Run attempts have been used. `
-        + 'Connect a Base Account to add one attempt for 3 RSC, or wait for the weekly reset.'
+        + 'Wait for the weekly reset to play another ranked run.'
       );
       setCampaignMapStatus('launch-error');
       return;
     }
-    try {
-      const startedStreak = startWeeklyCampaignStreak(weeklyRun.graph, {
-        weeklyId: boundary.weekKey,
-        resetAtMs: boundary.endsAt.getTime(),
-        startNodeId: weeklyRun.graph.definition.nodes[0]?.nodeId ?? '',
-        // Every click starts a new flight at Depth 1. Weekly Run is not gated
-        // on Campaign progress, but its deterministic graph still proves each
-        // later Depth was earned in sequence during this one flight.
-        unlockedNodeIds: weeklyRun.graph.definition.nodes.map((node) => node.nodeId),
-        nowMs: now.getTime()
-      });
-      const withReservedAttempt = consumeWeeklyRunAttempt(weeklySquadStateRef.current);
-      weeklySquadStateRef.current = withReservedAttempt;
-      saveWeeklySquadState(withReservedAttempt);
-      setWeeklySquadState(withReservedAttempt);
-      persistWeeklyCampaignStreak(startedStreak);
-    } catch (error) {
-      setCampaignMapError(error instanceof Error ? error.message : 'The Weekly Run could not start.');
-      setCampaignMapStatus('launch-error');
-      openCampaignMapRef.current();
-      return;
+    if (!retryPendingAdmission) {
+      try {
+        const startedStreak = startWeeklyCampaignStreak(weeklyRun.graph, {
+          weeklyId: boundary.weekKey,
+          resetAtMs: boundary.endsAt.getTime(),
+          startNodeId: weeklyRun.graph.definition.nodes[0]?.nodeId ?? '',
+          // Every acknowledged flight starts at Depth 1. A transport retry
+          // reuses this exact pristine proof and therefore the same atomic
+          // server reservation instead of consuming another attempt.
+          unlockedNodeIds: weeklyRun.graph.definition.nodes.map((node) => node.nodeId),
+          nowMs: now.getTime()
+        });
+        const preparedAdmission = {
+          ...consumeWeeklyRunAttempt(stateBeforeLaunch),
+          weeklyCampaignStreak: startedStreak,
+          updatedAt: new Date().toISOString()
+        };
+        // One durable write owns both the local attempt counter and its exact
+        // pristine proof. A storage failure therefore leaves stateBeforeLaunch
+        // untouched and sends no server reservation request.
+        saveWeeklySquadState(preparedAdmission);
+        weeklySquadStateRef.current = preparedAdmission;
+        setWeeklySquadState(preparedAdmission);
+      } catch (error) {
+        setCampaignMapError(error instanceof Error ? error.message : 'The Weekly Run could not start.');
+        setCampaignMapStatus('launch-error');
+        openCampaignMapRef.current();
+        return;
+      }
     }
 
     const weeklyStreakForReservation = weeklySquadStateRef.current.weeklyCampaignStreak;
@@ -3767,7 +4175,26 @@ const App: React.FC = () => {
       setCampaignMapStatus('launch-error');
       return;
     }
-    const sessionKey = `${weeklyStreakForReservation.weeklyId}:${weeklyStreakForReservation.startNodeId}:${weeklyStreakForReservation.createdAtMs}`;
+    const sessionKey = getWeeklyRunAdmissionSessionKey(weeklyStreakForReservation);
+    const admissionMarkerStored = retryPendingAdmission || writePendingWeeklyRunAdmission({
+      schemaVersion: 1,
+      profileId: admissionProfileId,
+      weeklyId: weeklyStreakForReservation.weeklyId,
+      sessionKey,
+      createdAtMs: weeklyStreakForReservation.createdAtMs
+    });
+    if (!admissionMarkerStored) {
+      // Do not reserve a server attempt that this browser cannot durably retry
+      // after a lost response. No request has been sent yet, so restoring the
+      // pre-launch state is exact and does not consume an attempt.
+      weeklySquadStateRef.current = stateBeforeLaunch;
+      saveWeeklySquadState(stateBeforeLaunch);
+      setWeeklySquadState(stateBeforeLaunch);
+      setCampaignMapError('Weekly Run recovery storage is unavailable. Free some browser storage and try again.');
+      setWeeklyRunLaunchError('Weekly Run recovery storage is unavailable. Free some browser storage and try again.');
+      setCampaignMapStatus('launch-error');
+      return;
+    }
     try {
       setRunReceiptStatus('starting');
       weeklyRunSessionKeyRef.current = sessionKey;
@@ -3777,11 +4204,13 @@ const App: React.FC = () => {
         playerShipId: usableShipId,
         runMode: 'weekly-streak',
         profileId: weeklySquadStateRef.current.profileId,
+        walletAddress: runWalletIntent,
         weeklyCampaignProof: weeklyStreakForReservation
       });
       runSessionPromiseRef.current = sessionPromise;
       const session = await sessionPromise;
       if (session.weeklyAttempt) {
+        const admittedQuotaOwner = getWeeklyRunSessionQuotaOwner(session.identity);
         const reconciled = reconcileWeeklyRunAttempts(
           weeklySquadStateRef.current,
           session.weeklyAttempt.attemptsUsed
@@ -3796,8 +4225,11 @@ const App: React.FC = () => {
           attemptsUsed: session.weeklyAttempt.attemptsUsed,
           attemptsRemaining: session.weeklyAttempt.attemptsRemaining,
           resetAt: new Date(session.weeklyAttempt.resetAtMs).toISOString()
-        }, quotaOwner);
+        }, admittedQuotaOwner);
       }
+      // Keep the idempotency marker until every synchronous local write that
+      // acknowledges this reservation has succeeded.
+      clearPendingWeeklyRunAdmission(sessionKey);
       setRunReceiptStatus('idle');
       setWeeklyRunLaunchError(null);
     } catch (error) {
@@ -3806,7 +4238,9 @@ const App: React.FC = () => {
       runStartedAtRef.current = null;
       setRunReceiptStatus('error');
       const details = (error as { details?: string[] })?.details;
+      const retryableAdmission = isRetryableWeeklyRunAdmissionError(error);
       if (details?.includes('weekly_run_attempts_exhausted')) {
+        clearPendingWeeklyRunAdmission(sessionKey);
         const restored = reconcileWeeklyRunAttempts(stateBeforeLaunch, WEEKLY_RUN_ATTEMPT_LIMIT);
         weeklySquadStateRef.current = restored;
         saveWeeklySquadState(restored);
@@ -3821,12 +4255,18 @@ const App: React.FC = () => {
           resetAt: boundary.endsAt.toISOString()
         }, quotaOwner);
       } else {
-        // Keep the same pending streak key so a lost HTTP response can retry
-        // the idempotent server reservation, but do not consume the displayed
-        // local attempt until the reservation is actually acknowledged.
+        if (!retryableAdmission) clearPendingWeeklyRunAdmission(sessionKey);
+        // A lost response keeps the exact pristine proof and durable marker so
+        // the next click/reload retries one idempotent reservation. A terminal
+        // rejection finalizes it and the next click creates a genuinely new
+        // attempt instead.
+        const retainedStreak = weeklySquadStateRef.current.weeklyCampaignStreak;
         const pending = {
           ...weeklySquadStateRef.current,
           weeklyStats: stateBeforeLaunch.weeklyStats,
+          weeklyCampaignStreak: !retryableAdmission && retainedStreak?.finalization.status === 'active'
+            ? finalizeWeeklyCampaignDeliberateEnd(retainedStreak, Date.now())
+            : retainedStreak,
           updatedAt: new Date().toISOString()
         };
         weeklySquadStateRef.current = pending;
@@ -3857,8 +4297,10 @@ const App: React.FC = () => {
     launchGame,
     persistWeeklyCampaignStreak,
     usableShipId,
+    walletIdentityHydrating,
     walletProfileStatus,
-    weeklyRun
+    weeklyRun,
+    runWalletIntent
   ]);
 
   const selectWeeklyCampaignMissionFromMap = useCallback((
@@ -5557,6 +5999,7 @@ const App: React.FC = () => {
   const requestWalletRuntimeAction = useCallback((type: 'connect' | 'switch-account' | 'disconnect') => {
     // Kick the chunk off immediately as well, so a first-ever click does not
     // have to wait on a cold network fetch before the popup can open.
+    deploymentReloadSafeRef.current = false;
     warmWalletRuntime();
     setWalletRuntimeEnabled(true);
     walletActionNonceRef.current += 1;
@@ -5564,6 +6007,7 @@ const App: React.FC = () => {
   }, []);
 
   const connectWallet = useCallback(() => {
+    deploymentReloadSafeRef.current = false;
     walletProfileInteractiveAuthorizationRef.current = true;
     if (activeWalletAddress) {
       setWalletError('');
@@ -5579,6 +6023,7 @@ const App: React.FC = () => {
       connectWallet();
       return;
     }
+    deploymentReloadSafeRef.current = false;
     warmWalletRuntime();
     setWalletRuntimeEnabled(true);
     walletActionNonceRef.current += 1;
@@ -5593,6 +6038,7 @@ const App: React.FC = () => {
       connectWallet();
       return;
     }
+    deploymentReloadSafeRef.current = false;
     warmWalletRuntime();
     setWalletRuntimeEnabled(true);
     walletActionNonceRef.current += 1;
@@ -5658,6 +6104,7 @@ const App: React.FC = () => {
       }
     }
 
+    deploymentReloadSafeRef.current = false;
     warmWalletRuntime();
     setWalletRuntimeEnabled(true);
     walletActionNonceRef.current += 1;
@@ -5707,6 +6154,7 @@ const App: React.FC = () => {
       }
     }
 
+    deploymentReloadSafeRef.current = false;
     warmWalletRuntime();
     setWalletRuntimeEnabled(true);
     walletActionNonceRef.current += 1;
@@ -6255,13 +6703,15 @@ const App: React.FC = () => {
         testRun: isOwnerTestRun,
         playerShipId: activeRunShipIdRef.current,
         runMode: 'standard',
-        profileId: weeklySquadStateRef.current.profileId
+        profileId: weeklySquadStateRef.current.profileId,
+        walletAddress: runWalletIntent
       });
       runSessionPromiseRef.current = sessionPromise;
       const session = await sessionPromise;
       if (session.localOnly || !session.startToken) {
         throw new Error('Secure Continues require an online run session. Check your connection, then start a new run.');
       }
+      deploymentReloadSafeRef.current = false;
       warmWalletRuntime();
       setWalletRuntimeEnabled(true);
       walletActionNonceRef.current += 1;
@@ -6278,11 +6728,42 @@ const App: React.FC = () => {
         error instanceof Error ? error.message : 'The Continue could not be prepared.'
       );
     }
-  }, [continuesUsed, isContinuePaymentBusy, isOwnerTestRun, runReceipt]);
+  }, [continuesUsed, isContinuePaymentBusy, isOwnerTestRun, runReceipt, runWalletIntent]);
 
   const handleWalletRuntimeActionHandled = useCallback((nonce: number) => {
     setWalletRuntimeAction((current) => current?.nonce === nonce ? null : current);
   }, []);
+
+  const handleWalletIdentityTransition = useCallback((address: Address | null) => {
+    // Wallet runtimes may synchronously report A -> B -> A before React
+    // publishes either intermediate address. Tie the overlay to the net
+    // transition so that collapsed callback sequence cannot latch it forever.
+    const identityHydrating = shouldHydrateWalletIdentityTransition(
+      address,
+      activeWalletAddress
+    );
+    deploymentReloadSafeRef.current = resolveWalletTransitionReloadSafety(
+      identityHydrating,
+      deploymentReloadSafe
+    );
+    setWalletIdentityHydrating(identityHydrating);
+    if (missionMintStatus === 'authorizing' || missionMintStatus === 'confirming') {
+      setMissionMintStatus('idle');
+      setMissionMintMessage('');
+      missionMintContextRef.current = null;
+    }
+    setWalletActivityOwner(address);
+    // A synchronous A -> B -> A sequence can be batched into no React address
+    // change. Start the final owner's read here so its cleared resources do not
+    // wait on an effect that may never rerun.
+    if (address) void refreshWalletActivity();
+  }, [
+    activeWalletAddress,
+    deploymentReloadSafe,
+    missionMintStatus,
+    refreshWalletActivity,
+    setWalletActivityOwner
+  ]);
 
   const handleWalletRuntimeChange = useCallback((nextWallet: WalletSession) => {
     setWalletSession(nextWallet);
@@ -6375,6 +6856,7 @@ const App: React.FC = () => {
       playerShipId: activeRunShipIdRef.current,
       runMode: isWeeklyCampaignRun ? 'weekly-streak' : 'standard',
       profileId: weeklySquadStateRef.current.profileId,
+      walletAddress: runWalletIntent,
       weeklyCampaignProof
     });
     runSessionPromiseRef.current = sessionPromise;
@@ -6480,6 +6962,9 @@ const App: React.FC = () => {
     const name = playerNameInput.trim().substring(0, 15).toUpperCase();
     const score = stats.score;
     const wave = stats.wave;
+    const scoreWalletAddress = activeWalletAddress?.toLowerCase() ?? null;
+    const scoreWalletOwnerGeneration = walletActivityOwnerGenerationRef.current;
+    const scoreWalletDonated = wallet.hasDonated;
     const scoreKey = `${gameId}:${score}:${wave}`;
     const submittedAt = new Date().toISOString();
     updateWeeklyCampaignSubmission('pending');
@@ -6513,8 +6998,8 @@ const App: React.FC = () => {
       score,
       wave,
       date: submittedAt,
-      walletAddress: activeWalletAddress || undefined,
-      donated: wallet.hasDonated
+      walletAddress: scoreWalletAddress || undefined,
+      donated: scoreWalletDonated
     };
     const scoreSorter = (a: LeaderboardEntry, b: LeaderboardEntry) => (
       b.score !== a.score
@@ -6530,17 +7015,63 @@ const App: React.FC = () => {
 
     let confirmedSave = false;
     let requiresWeeklyProposal = false;
+    let scoreRequestStarted = false;
+    let recoveryEvidenceRequestId: number | null = null;
+    let scoreSettlementEvidenceRequestId: number | null = null;
+    let guestProposalCandidateRunId: string | null = null;
     try {
       const verifiedReceipt = await finalizeCurrentRun();
       if (!verifiedReceipt) {
         throw new Error('Run verification is still preparing. Please try again.');
       }
-      const updatedData = await saveScore(name, score, wave, {
-        date: submittedAt,
-        walletAddress: activeWalletAddress,
-        donated: wallet.hasDonated,
-        receipt: verifiedReceipt
-      });
+      const attributableWalletAddress = verifiedReceipt.identity?.kind === 'wallet'
+        && verifiedReceipt.identity.walletAddress?.toLowerCase() === scoreWalletAddress
+        ? scoreWalletAddress
+        : null;
+      if (verifiedReceipt.identity?.kind === 'guest') {
+        const priorLeaderboardHydration = weeklyLeaderboardHydrated;
+        recoveryEvidenceRequestId = weeklyRecoveryEvidenceRequestRef.current + 1;
+        weeklyRecoveryEvidenceRequestRef.current = recoveryEvidenceRequestId;
+        setWeeklyLeaderboardHydrated(false);
+        const capability = createWeeklyGuestProposalCapability(verifiedReceipt, name);
+        const storedCapabilities = capability
+          ? writeWeeklyGuestProposalCapability(capability)
+          : null;
+        if (!capability || !storedCapabilities) {
+          setWeeklyLeaderboardHydrated(priorLeaderboardHydration);
+          throw new Error(
+            'This browser could not safely store your verified Weekly Run. Free some site storage and try submitting again.'
+          );
+        }
+        setWeeklyGuestProposalCapabilities(storedCapabilities);
+        guestProposalCandidateRunId = verifiedReceipt.runId;
+      }
+      scoreRequestStarted = true;
+      let updatedData: Awaited<ReturnType<typeof saveScore>>;
+      try {
+        updatedData = await saveScore(name, score, wave, {
+          date: submittedAt,
+          walletAddress: attributableWalletAddress,
+          donated: scoreWalletDonated,
+          receipt: verifiedReceipt
+        });
+      } finally {
+        if (recoveryEvidenceRequestId !== null) {
+          // Any dashboard GET begun after the durable prewrite but before this
+          // POST settled may still contain the old leader. Advance on success,
+          // an explicit server rejection, and a lost/failed response alike.
+          scoreSettlementEvidenceRequestId = weeklyRecoveryEvidenceRequestRef.current + 1;
+          weeklyRecoveryEvidenceRequestRef.current = scoreSettlementEvidenceRequestId;
+          if (guestProposalCandidateRunId) {
+            const settledCapabilities = markWeeklyGuestProposalScoreSettled(
+              guestProposalCandidateRunId
+            );
+            if (settledCapabilities) {
+              setWeeklyGuestProposalCapabilities(settledCapabilities);
+            }
+          }
+        }
+      }
       if (updatedData.remoteSaved === false) {
         throw new Error(updatedData.remoteError || 'Global leaderboard save did not confirm');
       }
@@ -6548,6 +7079,8 @@ const App: React.FC = () => {
         setLeaderboard(updatedData.scores);
       }
       setMonthlyLeaderboard(updatedData.monthlyScores);
+      setWeeklyRecoveryLeaderboard(updatedData.monthlyScores);
+      setWeeklyLeaderboardHydrated(true);
       const savedWeeklyLeader = updatedData.monthlyScores[0];
       const savedLeaderMatchesRun = savedWeeklyLeader?.runId
         ? savedWeeklyLeader.runId === verifiedReceipt.runId
@@ -6555,6 +7088,22 @@ const App: React.FC = () => {
           && (savedWeeklyLeader.wave ?? 1) === wave
           && savedWeeklyLeader.name === name;
       requiresWeeklyProposal = Boolean(savedLeaderMatchesRun && !savedWeeklyLeader?.proposalId);
+      if (
+        guestProposalCandidateRunId
+        && scoreSettlementEvidenceRequestId !== null
+        && !savedLeaderMatchesRun
+      ) {
+        scheduleWeeklyGuestProposalReconciliation(
+          scoreSettlementEvidenceRequestId,
+          guestProposalCandidateRunId
+        );
+      }
+      if (requiresWeeklyProposal && guestProposalCandidateRunId) {
+        // The current submission owns the non-dismissible chooser. Mark it as
+        // presented so the reload-recovery effect cannot downgrade this live
+        // flow to the dismissible recovery variant during the same render.
+        guestProposalRecoveryShownRunIdRef.current = guestProposalCandidateRunId;
+      }
       submittedScoreKeysRef.current.add(scoreKey);
       setScoreSaved(true);
       trackEvent('score_submitted', { score, wave, integrity: verifiedReceipt.integrity });
@@ -6564,12 +7113,24 @@ const App: React.FC = () => {
         wave,
         runId: verifiedReceipt.runId
       });
-      if (activeWalletAddress) {
-        setWalletRuns(current => [
-          { pilotName: name, receipt: verifiedReceipt },
-          ...current.filter(run => run.receipt.runId !== verifiedReceipt.runId)
-        ].slice(0, 5));
-        void getWalletRuns(activeWalletAddress).then(setWalletRuns);
+      if (
+        attributableWalletAddress
+        && walletActivityCoordinator.getState().owner === attributableWalletAddress
+        && walletActivityOwnerGenerationRef.current === scoreWalletOwnerGeneration
+      ) {
+        const verifiedRun = { pilotName: name, receipt: verifiedReceipt };
+        const currentActivity = walletActivityCoordinator.getState().value;
+        walletActivityExpectedRunRef.current.set(attributableWalletAddress, verifiedRun);
+        walletActivityCoordinator.commitAuthoritative(attributableWalletAddress, {
+          records: currentActivity?.records ?? [],
+          runs: [
+            verifiedRun,
+            ...(currentActivity?.runs ?? []).filter((run) => (
+              run.receipt.runId !== verifiedReceipt.runId
+            ))
+          ].slice(0, 5)
+        });
+        void refreshWalletActivity({ mode: 'trailing' });
       }
       updateWeeklyCampaignSubmission('submitted', verifiedReceipt.runId);
       confirmedSave = true;
@@ -6581,6 +7142,16 @@ const App: React.FC = () => {
       setLeaderboard(previousLeaderboard);
       setMonthlyLeaderboard(previousMonthlyLeaderboard);
       setScoreSubmitError(error instanceof Error ? error.message : 'Global save did not confirm. Please try again.');
+      if (
+        scoreRequestStarted
+        && scoreSettlementEvidenceRequestId !== null
+        && guestProposalCandidateRunId
+      ) {
+        scheduleWeeklyGuestProposalReconciliation(
+          scoreSettlementEvidenceRequestId,
+          guestProposalCandidateRunId
+        );
+      }
       return false;
     } finally {
       submittingScoreRef.current = false;
@@ -6626,6 +7197,23 @@ const App: React.FC = () => {
   };
 
   const claimWeeklyChampion = (winner: ArchivedWinner, proposal: ResearchHubProposal) => {
+    const matchingReceipt = runReceipt?.runId === winner.winnerRunId
+      ? runReceipt
+      : weeklyGuestProposalCapabilities.find((capability) => (
+          capability.receipt.runId === winner.winnerRunId
+        ))?.receipt;
+    const matchingReceiptExpiresAt = matchingReceipt
+      ? Date.parse(matchingReceipt.expiresAt)
+      : Number.NaN;
+    // A finalized wallet-owned winner is already associated server-side. Do
+    // not let an expired or stale local guest receipt block its direct claim.
+    const associationReceipt = !winner.winnerWallet
+      && matchingReceipt
+      && Number.isFinite(matchingReceiptExpiresAt)
+      && matchingReceiptExpiresAt > Date.now()
+      ? matchingReceipt
+      : undefined;
+    deploymentReloadSafeRef.current = false;
     setWalletRuntimeEnabled(true);
     setChampionClaimStatus('connecting');
     setChampionClaimMessage('');
@@ -6634,7 +7222,8 @@ const App: React.FC = () => {
       nonce: walletActionNonceRef.current,
       type: 'claim-champion',
       weekKey: winner.periodKey,
-      proposal
+      proposal,
+      receipt: associationReceipt
     });
   };
 
@@ -6643,6 +7232,8 @@ const App: React.FC = () => {
 
   const mintCurrentMissionRecord = () => {
     if (!runReceipt || runReceipt.integrity === 'local-unverified') return;
+    deploymentReloadSafeRef.current = false;
+    missionMintContextRef.current = null;
     emitSquadDomainEvent('mint_started', {
       profileId: weeklySquadState.profileId,
       runId: runReceipt.runId
@@ -6655,27 +7246,46 @@ const App: React.FC = () => {
   const handleMissionMintStatus = (
     status: 'idle' | 'authorizing' | 'confirming' | 'confirmed' | 'error',
     message = '',
-    _hash = ''
+    _hash = '',
+    context?: MissionMintStatusContext
   ) => {
     setMissionMintStatus(status);
     setMissionMintMessage(message);
+    const contextOwner = context?.walletAddress.toLowerCase() ?? null;
+    if (status === 'authorizing' && contextOwner && context) {
+      missionMintContextRef.current = {
+        walletAddress: contextOwner,
+        runId: context.runId,
+        ownerGeneration: walletActivityOwnerGenerationRef.current
+      };
+    }
+    if (status === 'error') {
+      if (contextOwner) walletActivityExpectedMintRef.current.delete(contextOwner);
+      missionMintContextRef.current = null;
+    }
     if (status === 'confirmed') {
+      const initiatedMint = missionMintContextRef.current;
       emitSquadDomainEvent('mint_confirmed', {
         profileId: weeklySquadState.profileId,
-        runId: runReceipt?.runId || null
+        runId: context?.runId || initiatedMint?.runId || null
       });
       trackEvent('mission_record_minted', {
         chain: missionRecordChainId === 8453 ? 'base' : 'base_sepolia'
       });
-      if (activeWalletAddress) {
-        void Promise.all([
-          getWalletRecords(activeWalletAddress),
-          getWalletRuns(activeWalletAddress)
-        ]).then(([records, runs]) => {
-          setWalletRecords(records);
-          setWalletRuns(runs);
+      if (
+        contextOwner
+        && context
+        && initiatedMint?.walletAddress === contextOwner
+        && initiatedMint.runId === context.runId
+        && initiatedMint.ownerGeneration === walletActivityOwnerGenerationRef.current
+        && walletActivityCoordinator.getState().owner === contextOwner
+      ) {
+        void refreshWalletActivity({
+          mode: 'force',
+          expectedMintRunId: context.runId
         });
       }
+      missionMintContextRef.current = null;
     }
   };
 
@@ -6718,6 +7328,8 @@ const App: React.FC = () => {
   const confirmWeeklyLeaderProposal = async (proposal: ResearchHubProposal) => {
     if (!runReceipt || weeklyProposalSelectionStatus === 'saving') return;
 
+    deploymentReloadSafeRef.current = false;
+    const proposalRunId = runReceipt.runId;
     clearWeeklyProposalTransition();
     setWeeklyProposalSelectionStatus('saving');
     setWeeklyProposalSelectionMessage('Saving your weekly funding choice...');
@@ -6733,6 +7345,9 @@ const App: React.FC = () => {
         setLeaderboard(updatedData.scores);
       }
       setMonthlyLeaderboard(updatedData.monthlyScores);
+      setWeeklyRecoveryLeaderboard(updatedData.monthlyScores);
+      setWeeklyLeaderboardHydrated(true);
+      settleWeeklyGuestProposalCapability(proposalRunId, 'resolved');
       setWeeklyProposalSelectionStatus('confirmed');
       setWeeklyProposalSelectionMessage(`${proposal.title} is saved with your weekly-leading score.`);
       trackEvent('proposal_selected', {
@@ -6746,6 +7361,27 @@ const App: React.FC = () => {
       }, 650);
     } catch (error) {
       console.error('Weekly proposal selection failed:', error);
+      if (isWeeklyLeaderDisplacementError(error)) {
+        // The choice is mandatory only while this run is actually #1. A lead
+        // change between score save and proposal save must never trap the
+        // player behind a chooser they are no longer authorized to complete.
+        settleWeeklyGuestProposalCapability(proposalRunId, 'displaced');
+        setWeeklyProposalSelectionMode('recovery');
+        setWeeklyProposalSelectionStatus('error');
+        setWeeklyProposalSelectionMessage(
+          'Another pilot took the weekly lead before this choice was saved. Your score is still recorded; close this panel to continue.'
+        );
+        try {
+          const refreshed = await getLeaderboardData();
+          if (refreshed.scores.length > 0) setLeaderboard(refreshed.scores);
+          setMonthlyLeaderboard(refreshed.monthlyScores);
+          setWeeklyRecoveryLeaderboard(refreshed.monthlyScores);
+          setWeeklyLeaderboardHydrated(true);
+        } catch (refreshError) {
+          console.warn('Weekly leaderboard refresh after a lead change failed', refreshError);
+        }
+        return;
+      }
       setWeeklyProposalSelectionStatus('error');
       setWeeklyProposalSelectionMessage(
         error instanceof Error ? error.message : 'Your weekly proposal could not be saved. Please try again.'
@@ -6959,7 +7595,7 @@ const App: React.FC = () => {
 
   return (
     <div className="relative h-full w-full select-none bg-[#0b1020]">
-      {walletRuntimeEnabled && !startupLoading ? (
+      {walletRuntimeEnabled ? (
         <React.Suspense fallback={null}>
           <WalletRuntime
             action={walletRuntimeAction}
@@ -6968,6 +7604,7 @@ const App: React.FC = () => {
             onActionHandled={handleWalletRuntimeActionHandled}
             onContinueStatusChange={handleContinueStatusChange}
             onContinueSuccess={handleContinueSuccess}
+            onWalletIdentityTransition={handleWalletIdentityTransition}
             onWalletChange={handleWalletRuntimeChange}
             onWalletError={setWalletError}
             onRscBalanceChange={setRscBalanceUpdate}
@@ -6982,11 +7619,11 @@ const App: React.FC = () => {
         </React.Suspense>
       ) : null}
 
-      {startupLoading ? (
+      {startupLoading || walletIdentityHydrating ? (
         <MissionLoadingScreen
           context="startup"
-          progress={startupLoading.progress}
-          phase={startupLoading.phase}
+          progress={startupLoading?.progress ?? 96}
+          phase={startupLoading?.phase ?? 'runtime-sync'}
           tip={startupLoadingTip}
         />
       ) : missionLoading ? (
@@ -7208,6 +7845,8 @@ const App: React.FC = () => {
           walletRecords={walletRecords}
           walletRuns={walletRuns}
           walletRunsLoading={walletRunsLoading}
+          walletRunsError={walletActivityError}
+          onRetryWalletRuns={() => void refreshWalletActivity({ mode: 'force' })}
           weeklyProposalRecovery={weeklyProposalRecovery}
           onOpenWeeklyLeaderProposal={openWeeklyLeaderProposal}
           walletAddress={activeWalletAddress}
@@ -7354,6 +7993,8 @@ const App: React.FC = () => {
             walletRecords={walletRecords}
             walletRuns={walletRuns}
             walletRunsLoading={walletRunsLoading}
+            walletRunsError={walletActivityError}
+            onRetryWalletRuns={() => void refreshWalletActivity({ mode: 'force' })}
             walletAddress={activeWalletAddress}
             selectedShipId={usableShipId}
             shipUnlocks={shipUnlocks}
@@ -7698,7 +8339,7 @@ const App: React.FC = () => {
                 <div>
                   <strong className="text-indigo-400">FUNDING EVENT:</strong>
                   <p className="mt-1">
-                    The weekly leaderboard drives the funding allocation. After the week closes, the verified No. 1 pilot gets a claim window to connect a Base Account and choose an eligible ResearchHub proposal. Funding is only marked directed after its transaction confirms.
+                    The weekly leaderboard drives the funding allocation. After the week closes, the No. 1 server-validated submission gets a claim window to connect a Base Account and choose an eligible ResearchHub proposal. Funding is only marked directed after its transaction confirms.
                   </p>
                 </div>
                 <p className="mt-4 border-t border-gray-700 pt-2 text-xs italic text-gray-500">

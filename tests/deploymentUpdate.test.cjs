@@ -118,13 +118,23 @@ test('application recovery preserves progress while clearing only the transient 
   assert.match(replacedUrl, /__scicon_recovery=246810/);
 });
 
-test('the app refreshes new deployments only at a safe menu boundary', () => {
+test('the app refreshes new deployments only after startup and wallet work are idle', () => {
   const app = fs.readFileSync(path.join(root, 'App.tsx'), 'utf8');
   const vercel = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
   const rootHeaders = vercel.headers.find((entry) => entry.source === '/');
 
   assert.match(app, /checkForDeploymentUpdate/);
-  assert.match(app, /gameStateRef\.current === GameState\.MENU/);
+  assert.match(app, /const deploymentReloadSafe = Boolean\(/);
+  assert.match(app, /gameState === GameState\.MENU/);
+  assert.match(app, /&& !startupLoading/);
+  assert.match(app, /walletProfileStatus !== 'authenticating'/);
+  assert.match(app, /walletProfileStatus !== 'syncing'/);
+  assert.match(app, /weeklyProposalSelectionStatus !== 'saving'/);
+  assert.match(
+    app,
+    /const confirmWeeklyLeaderProposal[\s\S]*deploymentReloadSafeRef\.current = false;[\s\S]*setWeeklyProposalSelectionStatus\('saving'\)/
+  );
+  assert.match(app, /deploymentReloadSafeRef\.current/);
   assert.match(app, /pendingDeploymentEntryRef\.current = entryAsset/);
   assert.match(app, /window\.addEventListener\('pageshow', handlePageShow\)/);
   assert.match(app, /document\.addEventListener\('visibilitychange', handleVisibilityChange\)/);

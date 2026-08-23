@@ -1,5 +1,8 @@
 const crypto = require('crypto');
 const { fetchSupabaseJson, supabaseHeaders } = require('./_lib/supabase');
+const { reserveRunWalletAssociation } = require('./_lib/runWalletAssociation');
+const { checkRateLimit } = require('./_lib/rateLimit');
+const { assertSameOrigin } = require('./_lib/walletProfileAuth');
 const { handlePlayerRuns } = require('./_lib/playerRuns');
 const continuePaymentHandler = require('./_lib/continuePaymentRoute');
 const walletProfileHandler = require('./_lib/walletProfileRoute');
@@ -10,13 +13,98 @@ const walletTokenSpendHandler = require('./_lib/walletTokenSpendRoute');
 const MINTS_TABLE = process.env.SUPABASE_MINT_RECORDS_TABLE || 'scicon_mint_records';
 const RECEIPTS_TABLE = process.env.SUPABASE_RUN_RECEIPTS_TABLE || 'scicon_run_receipts';
 const LEADERBOARD_TABLE = process.env.SUPABASE_LEADERBOARD_TABLE || 'scicon_leaderboard';
+const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const sendJson = (res, status, payload) => {
   res.statusCode = status;
   res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Cache-Control', 'no-store');
   res.end(JSON.stringify(payload));
 };
 const addressPattern = /^0x[a-f0-9]{40}$/i;
 const hashPattern = /^0x[a-f0-9]{64}$/i;
+
+const ownershipSyncError = (error) => {
+  if (error?.code === 'RUN_ASSOCIATION_CONFLICT') {
+    return Object.assign(
+      new Error('This run is already attached to another Base Account.'),
+      { statusCode: 409, code: 'MINT_OWNERSHIP_CONFLICT' }
+    );
+  }
+  return Object.assign(
+    new Error('The mint confirmed, but wallet ownership is still syncing. Retry to finish.'),
+    { statusCode: 503, code: 'MINT_OWNERSHIP_SYNC_PENDING' }
+  );
+};
+
+const syncMintOwnership = async ({ runId, walletAddress, confirmedAt }) => {
+  try {
+    // The receipt is canonical. Do not denormalize the leaderboard unless the
+    // first-destination lock confirms this exact wallet owns the run.
+    await reserveRunWalletAssociation({
+      runId,
+      walletAddress,
+      associatedAt: confirmedAt
+    });
+  } catch (error) {
+    console.error('Mint receipt ownership sync failed:', error);
+    throw ownershipSyncError(error);
+  }
+
+  try {
+    await fetchSupabaseJson(
+      `${LEADERBOARD_TABLE}?run_id=eq.${encodeURIComponent(runId)}`,
+      {
+        method: 'PATCH',
+        headers: supabaseHeaders({ Prefer: 'return=minimal' }),
+        body: JSON.stringify({ wallet_address: walletAddress })
+      }
+    );
+  } catch (error) {
+    console.error('Mint leaderboard ownership sync failed:', error);
+    throw ownershipSyncError(error);
+  }
+};
+
+const mintConfirmationPersistenceError = () => Object.assign(
+  new Error('The mint confirmed on Base, but its Mission Record is still saving. Retry to finish.'),
+  { statusCode: 503, code: 'MINT_CONFIRMATION_PERSISTENCE_PENDING' }
+);
+
+const resolveConfirmedMintSponsorship = (pendingMint) => Boolean(pendingMint?.sponsored);
+
+const persistConfirmedMint = async ({
+  runId,
+  walletAddress,
+  transactionHash,
+  tokenId,
+  confirmedAt,
+  sponsored
+}) => {
+  const rows = await fetchSupabaseJson(
+    `${MINTS_TABLE}?record_type=eq.mission&run_id=eq.${encodeURIComponent(runId)}&wallet_address=eq.${walletAddress}`,
+    {
+      method: 'PATCH',
+      headers: supabaseHeaders({ Prefer: 'return=representation' }),
+      body: JSON.stringify({
+        status: 'confirmed',
+        token_id: tokenId,
+        transaction_hash: transactionHash,
+        confirmed_at: confirmedAt,
+        sponsored: Boolean(sponsored)
+      })
+    }
+  );
+  const persisted = Array.isArray(rows) && rows.length === 1 ? rows[0] : null;
+  if (
+    !persisted
+    || persisted.status !== 'confirmed'
+    || String(persisted.token_id) !== String(tokenId)
+    || String(persisted.transaction_hash || '').toLowerCase() !== transactionHash.toLowerCase()
+  ) {
+    throw mintConfirmationPersistenceError();
+  }
+  return persisted;
+};
 
 const loadMissionScores = async (rows) => {
   const runIds = [...new Set(rows
@@ -96,6 +184,27 @@ module.exports = async (req, res) => {
   if (req.query?.route === 'wallet-token-spends') return walletTokenSpendHandler(req, res);
 
   try {
+    assertSameOrigin(req, { required: false, matchProtocol: true });
+  } catch (error) {
+    return sendJson(res, error.statusCode || 403, { error: error.message });
+  }
+
+  if (req.method === 'POST') {
+    const rateLimit = checkRateLimit(req, {
+      scope: 'mint-confirmation',
+      limit: 30,
+      windowMs: RATE_LIMIT_WINDOW_MS
+    });
+    if (!rateLimit.allowed) {
+      res.setHeader('Retry-After', String(Math.max(1, Math.ceil((rateLimit.resetAt - Date.now()) / 1000))));
+      return sendJson(res, 429, {
+        error: 'Too many mint confirmation requests. Try again shortly.',
+        code: 'MINT_CONFIRMATION_RATE_LIMITED'
+      });
+    }
+  }
+
+  try {
     if (req.method === 'GET') {
       const wallet = String(req.query?.wallet || '').toLowerCase();
       if (!addressPattern.test(wallet)) return sendJson(res, 400, { error: 'Valid wallet is required' });
@@ -122,11 +231,17 @@ module.exports = async (req, res) => {
     if (body.action !== 'confirm' || body.recordType !== 'mission' || !body.runId || !addressPattern.test(body.address || '') || !hashPattern.test(body.transactionHash || '')) {
       return sendJson(res, 400, { error: 'Mint confirmation details are invalid' });
     }
-    const existingRows = await fetchSupabaseJson(`${MINTS_TABLE}?select=status,token_id,transaction_hash&record_type=eq.mission&run_id=eq.${encodeURIComponent(body.runId)}&wallet_address=eq.${body.address.toLowerCase()}&limit=1`, {
+    const walletAddress = body.address.toLowerCase();
+    const existingRows = await fetchSupabaseJson(`${MINTS_TABLE}?select=status,token_id,transaction_hash,confirmed_at,sponsored&record_type=eq.mission&run_id=eq.${encodeURIComponent(body.runId)}&wallet_address=eq.${walletAddress}&limit=1`, {
       headers: supabaseHeaders()
     });
     const existingMint = Array.isArray(existingRows) ? existingRows[0] : null;
     if (existingMint?.status === 'confirmed') {
+      await syncMintOwnership({
+        runId: body.runId,
+        walletAddress,
+        confirmedAt: existingMint.confirmed_at || new Date().toISOString()
+      });
       return sendJson(res, 200, {
         confirmed: true,
         transactionHash: existingMint.transaction_hash,
@@ -172,40 +287,36 @@ module.exports = async (req, res) => {
       })
       .find((event) => event?.eventName === 'MissionRecordMinted'
         && event.args.runId?.toLowerCase() === expectedRunId
-        && event.args.player?.toLowerCase() === body.address.toLowerCase());
+        && event.args.player?.toLowerCase() === walletAddress);
     if (!mintEvent) {
       return sendJson(res, 409, { error: 'The confirmed transaction did not mint this Mission Record' });
     }
     const confirmedAt = new Date().toISOString();
-    await fetchSupabaseJson(`${MINTS_TABLE}?record_type=eq.mission&run_id=eq.${encodeURIComponent(body.runId)}&wallet_address=eq.${body.address.toLowerCase()}`, {
-      method: 'PATCH',
-      headers: supabaseHeaders({ Prefer: 'return=minimal' }),
-      body: JSON.stringify({
-        status: 'confirmed',
-        token_id: mintEvent.args.tokenId.toString(),
-        transaction_hash: body.transactionHash,
-        confirmed_at: confirmedAt,
-        sponsored: Boolean(body.sponsored)
-      })
+    await persistConfirmedMint({
+      runId: body.runId,
+      walletAddress,
+      transactionHash: body.transactionHash,
+      tokenId: mintEvent.args.tokenId.toString(),
+      confirmedAt,
+      // Sponsorship was reserved server-side during authorization. Never let
+      // a public transaction observer choose or consume this wallet's weekly
+      // sponsored eligibility from the confirmation request body.
+      sponsored: resolveConfirmedMintSponsorship(existingMint)
     });
-    const ownershipUpdates = await Promise.allSettled([
-      fetchSupabaseJson(`${RECEIPTS_TABLE}?run_id=eq.${encodeURIComponent(body.runId)}&wallet_address=is.null`, {
-        method: 'PATCH',
-        headers: supabaseHeaders({ Prefer: 'return=minimal' }),
-        body: JSON.stringify({ wallet_address: body.address.toLowerCase(), wallet_claimed_at: confirmedAt })
-      }),
-      fetchSupabaseJson(`${LEADERBOARD_TABLE}?run_id=eq.${encodeURIComponent(body.runId)}&wallet_address=is.null`, {
-        method: 'PATCH',
-        headers: supabaseHeaders({ Prefer: 'return=minimal' }),
-        body: JSON.stringify({ wallet_address: body.address.toLowerCase() })
-      })
-    ]);
-    ownershipUpdates.forEach((result) => {
-      if (result.status === 'rejected') console.error('Mint ownership sync failed:', result.reason);
+    await syncMintOwnership({
+      runId: body.runId,
+      walletAddress,
+      confirmedAt
     });
     return sendJson(res, 200, { confirmed: true, transactionHash: body.transactionHash, tokenId: mintEvent.args.tokenId.toString() });
   } catch (error) {
     console.error('Mint confirmation failed:', error);
-    return sendJson(res, 500, { error: error.message || 'Mint confirmation failed' });
+    return sendJson(res, error.statusCode || 500, {
+      error: error.message || 'Mint confirmation failed',
+      ...(error?.code ? { code: error.code } : {})
+    });
   }
 };
+
+module.exports.persistConfirmedMint = persistConfirmedMint;
+module.exports.resolveConfirmedMintSponsorship = resolveConfirmedMintSponsorship;

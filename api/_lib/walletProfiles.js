@@ -2161,14 +2161,7 @@ const canonicalizeWeeklyCampaignStreakServer = (
     );
     const eliteKills = strictWeeklyInteger(outcomeValue.eliteKills, 0, limits.eliteKillCeiling);
     const wavesCleared = strictWeeklyInteger(outcomeValue.wavesCleared, 0, limits.waveCount);
-    const generatedPaywallWallOmitsMiniBossCounter = (
-      graphContext.kind === 'generated-weekly-run'
-      && limits.miniBossKillCeiling === 1
-      && limits.majorBossKillCeiling === 0
-      && Array.isArray(node.miniBossIds)
-      && node.miniBossIds.length === 1
-      && node.miniBossIds[0] === 'paywall-wall'
-    );
+    const isGeneratedWeeklyNode = graphContext.kind === 'generated-weekly-run';
     const reportedMiniBossKills = strictWeeklyInteger(
       outcomeValue.miniBossKills,
       0,
@@ -2179,16 +2172,20 @@ const canonicalizeWeeklyCampaignStreakServer = (
       0,
       limits.majorBossKillCeiling
     );
-    // The deployed Paywall Wall is one generated elite encounter, but its
-    // destructible pieces are runtime ENEMY_INVADER entities. Those clients
-    // correctly clear the encounter while reporting zero mini-boss kills.
-    // Accept only that exact graph-owned omission, then restore the planned
-    // mini-boss credit so its score cannot differ from other elite depths.
+    // Generated Weekly stages are graph-owned and may implement a boss through
+    // ordinary enemy entities or a presentation-specific death path. Completing
+    // and advancing the node is authoritative; the client boss counters are
+    // only telemetry and are therefore allowed to report either zero or the
+    // planned value. Wrong-category or over-limit counters still fail above.
     const bossOutcomeMatchesLimits = (
-      reportedMajorBossKills === limits.majorBossKillCeiling
+      reportedMiniBossKills !== null
+      && reportedMajorBossKills !== null
       && (
-        reportedMiniBossKills === limits.miniBossKillCeiling
-        || (generatedPaywallWallOmitsMiniBossCounter && reportedMiniBossKills === 0)
+        isGeneratedWeeklyNode
+        || (
+          reportedMiniBossKills === limits.miniBossKillCeiling
+          && reportedMajorBossKills === limits.majorBossKillCeiling
+        )
       )
     );
     const damageTaken = strictWeeklyInteger(outcomeValue.damageTaken, 0, 1_000_000);
@@ -2222,10 +2219,12 @@ const canonicalizeWeeklyCampaignStreakServer = (
       || (requireFinalized && elapsedMs === null)
     ) return fail('weekly_outcome_impossible');
 
-    const miniBossKills = generatedPaywallWallOmitsMiniBossCounter
+    const miniBossKills = isGeneratedWeeklyNode
       ? limits.miniBossKillCeiling
       : reportedMiniBossKills;
-    const majorBossKills = reportedMajorBossKills;
+    const majorBossKills = isGeneratedWeeklyNode
+      ? limits.majorBossKillCeiling
+      : reportedMajorBossKills;
     const outcome = {
       regularEnemyKills,
       eliteKills,

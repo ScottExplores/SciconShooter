@@ -55,6 +55,10 @@ test('verified Weekly Run admission is server-authoritative and database-atomic'
   const route = read('api', 'run-receipts.js');
   const client = read('services', 'runReceiptService.ts');
   const app = read('App.tsx');
+  const weeklyLaunch = app.slice(
+    app.indexOf('const startWeeklyRunFromHome'),
+    app.indexOf('const selectWeeklyCampaignMissionFromMap = useCallback')
+  );
 
   assert.match(sql, /create table if not exists public\.scicon_weekly_run_attempts/);
   assert.match(sql, /unique \(identity_hash, weekly_id, attempt_number\)/);
@@ -66,6 +70,26 @@ test('verified Weekly Run admission is server-authoritative and database-atomic'
   assert.match(client, /if \(runMode === 'weekly-streak'\)[\s\S]*throw error/);
   assert.match(client, /if \(session\.runMode === 'weekly-streak'\)[\s\S]*No wallet is required/);
   assert.match(client, /Weekly Run verification was interrupted; keeping the signed run available for retry/);
+  assert.match(app, /canRetryPendingWeeklyRunAdmission/);
+  assert.match(app, /const sessionKey = getWeeklyRunAdmissionSessionKey\(weeklyStreakForReservation\)/);
+  assert.ok(
+    weeklyLaunch.indexOf('if (!retryPendingAdmission)') < weeklyLaunch.indexOf('startWeeklyCampaignStreak(weeklyRun.graph'),
+    'a lost start response must reuse the pristine pending proof before creating another attempt'
+  );
+  assert.match(weeklyLaunch, /if \(!retryPendingAdmission && attemptsRemaining <= 0/);
+  assert.match(weeklyLaunch, /const admissionMarkerStored = retryPendingAdmission \|\| writePendingWeeklyRunAdmission/);
+  assert.match(weeklyLaunch, /if \(!admissionMarkerStored\)[\s\S]*No request has been sent yet/);
+  assert.match(weeklyLaunch, /const preparedAdmission = \{[\s\S]*weeklyCampaignStreak: startedStreak/);
+  assert.ok(
+    weeklyLaunch.indexOf('saveWeeklySquadState(preparedAdmission)')
+      < weeklyLaunch.indexOf('weeklySquadStateRef.current = preparedAdmission'),
+    'the combined proof and local attempt must be durable before publishing it'
+  );
+  assert.ok(
+    weeklyLaunch.indexOf('saveWeeklySquadState(reconciled)')
+      < weeklyLaunch.indexOf('clearPendingWeeklyRunAdmission(sessionKey)'),
+    'the durable marker must remain until acknowledged quota state is saved'
+  );
   assert.ok(
     app.indexOf('const session = await sessionPromise') < app.indexOf("setActiveRunMode('weekly-streak')"),
     'Weekly Run gameplay must not unlock before the server reservation resolves'

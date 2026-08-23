@@ -276,3 +276,10 @@ export const saveWeeklyLeaderProposal = async (
 
   return { scores, monthlyScores, remoteSaved: true };
 };
+
+export const isWeeklyLeaderDisplacementError = (error: unknown) => {
+  const candidate = error as { status?: unknown; code?: unknown; message?: unknown };
+  if (Number(candidate?.status) !== 409) return false;
+  if (candidate?.code === 'WEEKLY_LEADER_CHANGED') return true;
+  return /no longer the current weekly high score/i.test(String(candidate?.message || ''));
+};

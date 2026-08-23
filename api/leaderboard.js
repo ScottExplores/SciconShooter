@@ -3,11 +3,15 @@ const WEEKLY_SCORE_LIMIT = 100;
 const SYNC_SCORE_LIMIT = ALL_TIME_SCORE_LIMIT + WEEKLY_SCORE_LIMIT;
 const SUPABASE_TABLE = process.env.SUPABASE_LEADERBOARD_TABLE || 'scicon_leaderboard';
 const NONCES_TABLE = process.env.SUPABASE_WALLET_NONCES_TABLE || 'scicon_wallet_nonces';
+const RUN_RECEIPTS_TABLE = process.env.SUPABASE_RUN_RECEIPTS_TABLE || 'scicon_run_receipts';
 const WEEKLY_PROPOSAL_CHALLENGE_STALE_CODE = 'WEEKLY_PROPOSAL_CHALLENGE_STALE';
 const { verifyRunReceipt } = require('./_lib/runReceipts');
 const { findEligibleProposal } = require('./_lib/researchHubEligibility');
 const { verifyBaseMessage } = require('./_lib/baseSignatures');
-const { readOptionalWalletProfileSession } = require('./_lib/walletProfileAuth');
+const {
+  clearWalletProfileSessionCookie,
+  readOptionalWalletProfileSession
+} = require('./_lib/walletProfileAuth');
 const crypto = require('crypto');
 const { checkRateLimit } = require('./_lib/rateLimit');
 const { getCurrentWeekRange, getWeekRange } = require('../shared/weeklyCompetitionBoundary.js');
@@ -54,8 +58,22 @@ const receiptFinishedInCurrentCompetitionWeek = (receipt, now = new Date()) => {
   return finishedAt.getTime() >= start.getTime() && finishedAt.getTime() < end.getTime();
 };
 
-const isMissingProposalColumnError = (error) => (
-  /proposal_|schema cache|column/i.test(error?.message || '')
+const isSchemaColumnError = (error) => (
+  /PGRST204|schema cache|column[^\n]*(?:does not exist|could not find|not found)|could not find[^\n]*column/i
+    .test(error?.message || '')
+);
+
+const isMissingProposalImageColumnError = (error) => (
+  /proposal_image_url/i.test(error?.message || '') && isSchemaColumnError(error)
+);
+
+const createLeaderboardSchemaNotReadyError = (storageDetails) => Object.assign(
+  new Error('Weekly leaderboard storage is not ready for verified scores. Please try again shortly.'),
+  {
+    statusCode: 503,
+    code: 'LEADERBOARD_SCHEMA_NOT_READY',
+    storageDetails
+  }
 );
 
 const isDuplicateKeyError = (details) => (
@@ -99,6 +117,9 @@ const dedupeAndSort = (scores, limit = ALL_TIME_SCORE_LIMIT) => {
   const normalized = scores
     .map(sanitizeEntry)
     .filter(Boolean)
+    // Current-schema rows carry a run ID and must be explicitly verified.
+    // Identity-less legacy rows predate receipts and remain visible by policy.
+    .filter((score) => !score.runId || score.verified === true)
     .filter((score) => {
       const key = `${score.name}|${score.score}|${score.wave}|${score.date}`;
       if (seen.has(key)) return false;
@@ -194,23 +215,20 @@ const readSupabaseScores = async () => {
     rows = await requestSupabaseScores(SUPABASE_SELECT, `&limit=${ALL_TIME_SCORE_LIMIT}`);
     monthlyRows = await requestSupabaseScores(SUPABASE_SELECT, monthlyQuery);
   } catch (error) {
-    if (!isMissingProposalColumnError(error)) {
+    if (!isMissingProposalImageColumnError(error)) {
+      if (isSchemaColumnError(error)) {
+        throw createLeaderboardSchemaNotReadyError(error.message);
+      }
       throw error;
     }
-
     try {
       rows = await requestSupabaseScores(VERIFIED_SUPABASE_SELECT, `&limit=${ALL_TIME_SCORE_LIMIT}`);
       monthlyRows = await requestSupabaseScores(VERIFIED_SUPABASE_SELECT, monthlyQuery);
     } catch (verifiedError) {
-      if (!isMissingProposalColumnError(verifiedError)) throw verifiedError;
-      try {
-        rows = await requestSupabaseScores(PROPOSAL_SUPABASE_SELECT, `&limit=${ALL_TIME_SCORE_LIMIT}`);
-        monthlyRows = await requestSupabaseScores(PROPOSAL_SUPABASE_SELECT, monthlyQuery);
-      } catch (proposalError) {
-        if (!isMissingProposalColumnError(proposalError)) throw proposalError;
-        rows = await requestSupabaseScores(LEGACY_SUPABASE_SELECT, `&limit=${ALL_TIME_SCORE_LIMIT}`);
-        monthlyRows = await requestSupabaseScores(LEGACY_SUPABASE_SELECT, monthlyQuery);
+      if (isSchemaColumnError(verifiedError)) {
+        throw createLeaderboardSchemaNotReadyError(verifiedError.message);
       }
+      throw verifiedError;
     }
   }
 
@@ -224,6 +242,41 @@ const readSupabaseScores = async () => {
   return dedupeAndSort(scores, SYNC_SCORE_LIMIT);
 };
 
+const requireDurableWeeklyReceipt = async (
+  receipt,
+  receiptToken,
+  { allowReissuedToken = false } = {}
+) => {
+  if (process.env.NODE_ENV !== 'production') return;
+  const receiptHash = crypto.createHash('sha256').update(String(receiptToken || '')).digest('hex');
+  const response = await fetch(supabaseUrl(
+    `${RUN_RECEIPTS_TABLE}?select=run_id,receipt_hash,integrity_status,score,wave,receipt_provenance_version`
+    + `&run_id=eq.${encodeURIComponent(receipt.runId)}&limit=1`
+  ), { headers: supabaseHeaders() });
+  if (!response.ok) {
+    throw Object.assign(new Error('Weekly receipt storage is temporarily unavailable.'), {
+      statusCode: 503,
+      code: 'WEEKLY_RECEIPT_STORAGE_UNAVAILABLE'
+    });
+  }
+  const rows = await response.json();
+  const row = Array.isArray(rows) ? rows[0] : null;
+  if (
+    !row
+    || String(row.run_id || '') !== String(receipt.runId || '')
+    || (!allowReissuedToken && String(row.receipt_hash || '') !== receiptHash)
+    || Number(row.receipt_provenance_version) !== 1
+    || row.integrity_status !== 'server-verified'
+    || Number(row.score) !== Number(receipt.metrics?.score)
+    || Number(row.wave) !== Number(receipt.metrics?.wave)
+  ) {
+    throw Object.assign(new Error('This Weekly Run does not have a durable verified receipt.'), {
+      statusCode: 409,
+      code: 'WEEKLY_RECEIPT_NOT_DURABLE'
+    });
+  }
+};
+
 const readSupabaseWeekScores = async (weekKey) => {
   const { start, end } = getWeekRange(weekKey);
   const weeklyQuery = `&date=gte.${encodeURIComponent(start.toISOString())}&date=lt.${encodeURIComponent(end.toISOString())}&limit=${WEEKLY_SCORE_LIMIT}`;
@@ -232,17 +285,19 @@ const readSupabaseWeekScores = async (weekKey) => {
   try {
     rows = await requestSupabaseScores(SUPABASE_SELECT, weeklyQuery);
   } catch (error) {
-    if (!isMissingProposalColumnError(error)) throw error;
+    if (!isMissingProposalImageColumnError(error)) {
+      if (isSchemaColumnError(error)) {
+        throw createLeaderboardSchemaNotReadyError(error.message);
+      }
+      throw error;
+    }
     try {
       rows = await requestSupabaseScores(VERIFIED_SUPABASE_SELECT, weeklyQuery);
     } catch (verifiedError) {
-      if (!isMissingProposalColumnError(verifiedError)) throw verifiedError;
-      try {
-        rows = await requestSupabaseScores(PROPOSAL_SUPABASE_SELECT, weeklyQuery);
-      } catch (proposalError) {
-        if (!isMissingProposalColumnError(proposalError)) throw proposalError;
-        rows = await requestSupabaseScores(LEGACY_SUPABASE_SELECT, weeklyQuery);
+      if (isSchemaColumnError(verifiedError)) {
+        throw createLeaderboardSchemaNotReadyError(verifiedError.message);
       }
+      throw verifiedError;
     }
   }
 
@@ -253,6 +308,16 @@ const readSupabaseWeekScores = async (weekKey) => {
 };
 
 const insertSupabaseRows = async (rows) => {
+  if (rows.some((row) => (
+    !row.run_id
+    || row.verified !== true
+    || !row.receipt_hash
+  ))) {
+    throw createLeaderboardSchemaNotReadyError(
+      'Attempted to persist a Weekly score without its verified receipt identity.'
+    );
+  }
+
   let response = await fetch(supabaseUrl(SUPABASE_TABLE), {
     method: 'POST',
     headers: supabaseHeaders({ Prefer: 'return=minimal' }),
@@ -262,7 +327,11 @@ const insertSupabaseRows = async (rows) => {
   if (!response.ok) {
     const details = await response.text();
     if (isDuplicateKeyError(details)) return;
-    if (!isMissingProposalColumnError(new Error(details))) {
+    const initialError = new Error(details);
+    if (!isMissingProposalImageColumnError(initialError)) {
+      if (isSchemaColumnError(initialError)) {
+        throw createLeaderboardSchemaNotReadyError(details);
+      }
       throw new Error(`Supabase leaderboard save failed with ${response.status}: ${details}`);
     }
 
@@ -276,50 +345,11 @@ const insertSupabaseRows = async (rows) => {
 
     const verifiedDetails = await response.text();
     if (isDuplicateKeyError(verifiedDetails)) return;
-    if (!isMissingProposalColumnError(new Error(verifiedDetails))) {
-      throw new Error(`Supabase leaderboard save failed with ${response.status}: ${verifiedDetails}`);
+    const verifiedError = new Error(verifiedDetails);
+    if (isSchemaColumnError(verifiedError)) {
+      throw createLeaderboardSchemaNotReadyError(verifiedDetails);
     }
-
-    const proposalRows = verifiedRows.map((row) => ({
-      name: row.name,
-      score: row.score,
-      wave: row.wave,
-      date: row.date,
-      wallet_address: row.wallet_address,
-      donated: row.donated,
-      proposal_id: row.proposal_id,
-      proposal_title: row.proposal_title,
-      proposal_url: row.proposal_url,
-      proposal_author: row.proposal_author
-    }));
-    response = await fetch(supabaseUrl(`${SUPABASE_TABLE}?on_conflict=name,score,wave,date`), {
-      method: 'POST',
-      headers: supabaseHeaders({ Prefer: 'resolution=merge-duplicates,return=minimal' }),
-      body: JSON.stringify(proposalRows)
-    });
-    if (!response.ok) {
-      const proposalDetails = await response.text();
-      if (!isMissingProposalColumnError(new Error(proposalDetails))) {
-        throw new Error(`Legacy leaderboard save failed with ${response.status}: ${proposalDetails}`);
-      }
-      const legacyRows = proposalRows.map((row) => ({
-        name: row.name,
-        score: row.score,
-        wave: row.wave,
-        date: row.date,
-        wallet_address: row.wallet_address,
-        donated: row.donated
-      }));
-      response = await fetch(supabaseUrl(`${SUPABASE_TABLE}?on_conflict=name,score,wave,date`), {
-        method: 'POST',
-        headers: supabaseHeaders({ Prefer: 'resolution=merge-duplicates,return=minimal' }),
-        body: JSON.stringify(legacyRows)
-      });
-      if (!response.ok) {
-        const legacyDetails = await response.text();
-        throw new Error(`Legacy leaderboard save failed with ${response.status}: ${legacyDetails}`);
-      }
-    }
+    throw new Error(`Supabase leaderboard save failed with ${response.status}: ${verifiedDetails}`);
   }
 };
 
@@ -340,7 +370,9 @@ const hasSubmittedRun = async (runId) => {
   });
   if (!response.ok) {
     const details = await response.text();
-    if (isMissingProposalColumnError(new Error(details))) return false;
+    if (isSchemaColumnError(new Error(details))) {
+      throw createLeaderboardSchemaNotReadyError(details);
+    }
     throw new Error(`Run replay check failed with ${response.status}: ${details}`);
   }
   const rows = await response.json();
@@ -360,7 +392,10 @@ const getVerifiedWeeklyLeaderForReceipt = async (receipt) => {
   const currentScores = await readScores();
   const currentLeader = toLeaderboardPayload(currentScores).monthlyScores[0];
   if (!receiptMatchesVerifiedLeader(receipt, currentLeader)) {
-    throw Object.assign(new Error('This run is no longer the current weekly high score.'), { statusCode: 409 });
+    throw Object.assign(new Error('This run is no longer the current weekly high score.'), {
+      statusCode: 409,
+      code: 'WEEKLY_LEADER_CHANGED'
+    });
   }
   return { currentLeader, currentScores };
 };
@@ -540,7 +575,10 @@ const selectProposalForWeeklyLeader = async (
   const latestScores = await readScores();
   const latestLeader = toLeaderboardPayload(latestScores).monthlyScores[0];
   if (!receiptMatchesVerifiedLeader(receipt, latestLeader)) {
-    throw Object.assign(new Error('This run is no longer the current weekly high score.'), { statusCode: 409 });
+    throw Object.assign(new Error('This run is no longer the current weekly high score.'), {
+      statusCode: 409,
+      code: 'WEEKLY_LEADER_CHANGED'
+    });
   }
 
   await requireWalletProposalAuthorization({
@@ -577,7 +615,7 @@ const selectProposalForWeeklyLeader = async (
 
   if (!response.ok) {
     let details = await response.text();
-    if (isMissingProposalColumnError(new Error(details))) {
+    if (isMissingProposalImageColumnError(new Error(details))) {
       const { proposal_image_url: _proposalImageUrl, ...compatibleRow } = proposalRow;
       response = await fetch(selectionUrl, {
         method: 'PATCH',
@@ -591,7 +629,10 @@ const selectProposalForWeeklyLeader = async (
 
   const rows = await response.json();
   if (!Array.isArray(rows) || rows.length === 0) {
-    throw Object.assign(new Error('The weekly proposal could not be attached to this score.'), { statusCode: 409 });
+    throw Object.assign(new Error('This run is no longer the current weekly high score.'), {
+      statusCode: 409,
+      code: 'WEEKLY_LEADER_CHANGED'
+    });
   }
 
   const scores = await readScores();
@@ -609,7 +650,7 @@ const selectProposalForWeeklyLeader = async (
     }).catch(() => undefined);
     if (rollbackResponse && !rollbackResponse.ok) {
       const rollbackDetails = await rollbackResponse.text();
-      if (isMissingProposalColumnError(new Error(rollbackDetails))) {
+      if (isMissingProposalImageColumnError(new Error(rollbackDetails))) {
         const { proposal_image_url: _proposalImageUrl, ...compatiblePreviousProposal } = previousProposal;
         await fetch(rollbackUrl, {
           method: 'PATCH',
@@ -618,7 +659,10 @@ const selectProposalForWeeklyLeader = async (
         }).catch(() => undefined);
       }
     }
-    throw Object.assign(new Error('This run is no longer the current weekly high score.'), { statusCode: 409 });
+    throw Object.assign(new Error('This run is no longer the current weekly high score.'), {
+      statusCode: 409,
+      code: 'WEEKLY_LEADER_CHANGED'
+    });
   }
   return { ...updatedPayload, selectedProposal: proposal };
 };
@@ -734,9 +778,42 @@ module.exports = async (req, res) => {
         });
       }
 
-      const proposalSession = isProposalAction
-        ? readOptionalWalletProfileSession(req)
-        : null;
+      if (receipt.integrity !== 'server-verified') {
+        return sendJson(res, 403, {
+          error: 'This Weekly Run requires manual integrity review and cannot enter the leaderboard.',
+          code: 'WEEKLY_RUN_INTEGRITY_REVIEW'
+        });
+      }
+
+      if (
+        !isProposalAction
+        && !String(receipt.weeklyCampaign?.startNodeId || '').startsWith('weekly-run-')
+      ) {
+        return sendJson(res, 403, {
+          error: 'Only a generated Weekly Run with a reserved attempt can enter this leaderboard.',
+          code: 'WEEKLY_RUN_REQUIRED'
+        });
+      }
+
+      await requireDurableWeeklyReceipt(receipt, body.receiptToken, {
+        // Wallet history can reissue a fresh signed capability for the same
+        // canonical row. Proposal recovery accepts that token only after the
+        // immutable run metrics and hardened provenance row match.
+        allowReissuedToken: isProposalAction
+      });
+
+      let proposalSession = null;
+      if (isProposalAction) {
+        try {
+          proposalSession = readOptionalWalletProfileSession(req);
+        } catch (error) {
+          if (error?.statusCode !== 401) throw error;
+          // An expired optional profile cookie is not proposal authorization.
+          // Clear it and let guest receipts continue bearer-authorized, while
+          // wallet leaders fall through to the existing signature challenge.
+          clearWalletProfileSessionCookie(res);
+        }
+      }
 
       if (action === 'select-proposal-challenge') {
         const challenge = await createProposalSelectionChallenge(
@@ -778,13 +855,27 @@ module.exports = async (req, res) => {
       // owns the address. Without that request this remains a guest score; with
       // no matching session, an arbitrary body walletAddress is ignored.
       const walletAttributionRequested = Boolean(sanitizeText(body.walletAddress, 80));
+      const requestedWalletAddress = walletAttributionRequested
+        ? normalizeAddress(body.walletAddress)
+        : null;
       const walletSession = walletAttributionRequested
         ? readOptionalWalletProfileSession(req)
         : null;
+      const receiptWalletAddress = receipt.identity?.kind === 'wallet'
+        ? normalizeAddress(receipt.identity.walletAddress)
+        : null;
+      if (receipt.identity?.kind === 'wallet' && !receiptWalletAddress) {
+        return sendJson(res, 403, {
+          error: 'This run has an invalid wallet identity.',
+          code: 'RUN_IDENTITY_MISMATCH'
+        });
+      }
       if (
-        walletSession
-        && receipt.identity?.kind === 'wallet'
-        && receipt.identity.walletAddress !== walletSession.walletAddress
+        receiptWalletAddress
+        && (
+          (walletAttributionRequested && requestedWalletAddress !== receiptWalletAddress)
+          || (walletSession && walletSession.walletAddress !== receiptWalletAddress)
+        )
       ) {
         return sendJson(res, 403, {
           error: 'This run belongs to a different wallet profile.',
@@ -797,7 +888,11 @@ module.exports = async (req, res) => {
         score: receipt.metrics.score,
         wave: receipt.metrics.wave,
         date: new Date(receipt.finishedAt).toISOString(),
-        walletAddress: walletSession?.walletAddress,
+        // A wallet-bound receipt is itself signed server evidence of the
+        // starting wallet. Guest receipts intentionally remain anonymous here;
+        // their separate claim/mint path requires the originating guest cookie
+        // plus proof from the destination wallet.
+        walletAddress: receiptWalletAddress,
         runId: receipt.runId,
         verified: receipt.integrity === 'server-verified',
         receiptHash: crypto.createHash('sha256').update(body.receiptToken).digest('hex')

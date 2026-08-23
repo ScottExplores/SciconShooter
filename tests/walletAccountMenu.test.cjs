@@ -42,8 +42,8 @@ test('returning sessions restore automatically and provider disconnect events cl
   const service = read('services', 'baseAccountWallet.ts');
   const runtime = read('components', 'WalletRuntime.tsx');
 
-  assert.match(app, /useState\(\(\) => \(\s*Boolean\(localStorage\.getItem\(STORAGE_KEYS\.WALLET_ADDRESS\)\)/);
-  assert.match(runtime, /useState<Address \| null>\(getCachedBaseAccount\)/);
+  assert.match(app, /const \[initialWalletAddress\] = useState<Address \| null>\(readCachedBaseAccount\)/);
+  assert.match(runtime, /useState<Address \| null>\(readCachedBaseAccount\)/);
   assert.doesNotMatch(runtime, /getConnectedBaseAccount\(\)/);
   assert.match(runtime, /baseAccountProvider\.on\('accountsChanged', handleAccountsChanged\)/);
   assert.match(runtime, /baseAccountProvider\.on\('disconnect', handleDisconnect\)/);
@@ -54,15 +54,16 @@ test('returning sessions restore automatically and provider disconnect events cl
   assert.match(runtime, /Base Account sent an invalid account update/);
   assert.match(service, /export const parseBaseAccountAddress = \(value: unknown\)/);
   assert.match(service, /export const parseBaseAccountAccounts = \(value: unknown\)/);
+  assert.match(service, /export const readCachedBaseAccount/);
 });
 
 test('wallet transitions clear account-scoped state and disconnect locally even if provider cleanup fails', () => {
   const runtime = read('components', 'WalletRuntime.tsx');
 
   assert.match(runtime, /const commitActiveWalletAddress = useCallback/);
-  assert.match(runtime, /onRscBalanceChange\?\.\(\{ status: 'idle', balance: null \}\)/);
+  assert.match(runtime, /rscBalanceCoordinator\.setOwner\(nextAddress\)/);
   assert.match(runtime, /onWalletPurchaseStatus\?\.\(\{ status: 'idle' \}\)/);
-  assert.match(runtime, /onPlayerShipAccessChange\?\.\(\{ status: 'idle', access: null \}\)/);
+  assert.match(runtime, /playerShipAccessCoordinator\.setOwner\(nextAddress\)/);
   assert.match(runtime, /onPlayerShipPurchaseStatus\?\.\(\{ status: 'idle' \}\)/);
   assert.match(
     runtime,
@@ -73,15 +74,16 @@ test('wallet transitions clear account-scoped state and disconnect locally even 
 
 test('late wallet requests cannot repopulate state after disconnect or account switch', () => {
   const runtime = read('components', 'WalletRuntime.tsx');
+  const coordinator = read('services', 'addressResourceCoordinator.ts');
 
   assert.match(
     runtime,
     /activeWalletAddressRef\.current\?\.toLowerCase\(\) === address\.toLowerCase\(\)/
   );
-  assert.ok(
-    (runtime.match(/!isCurrentWalletAddress\(address\)/g) || []).length >= 6,
-    'balance, ship access, and purchase callbacks should all reject stale wallet results'
-  );
+  assert.match(runtime, /createAddressResourceCoordinator<RscBalanceSnapshot>/);
+  assert.match(runtime, /createAddressResourceCoordinator<PlayerShipAccessSnapshot>/);
+  assert.match(coordinator, /ownerGeneration !== requestOwnerGeneration/);
+  assert.match(coordinator, /request\.ownerGeneration === ownerGeneration/);
   assert.match(runtime, /!isCurrentWalletAddress\(activeWalletAddress\)/);
 });
 
@@ -96,8 +98,9 @@ test('switching wallets loads a distinct authenticated cloud profile', () => {
   assert.match(app, /walletProfileAddressRef\.current !== normalizedAddress/);
   assert.match(app, /hydrateActiveProfile\(\{[\s\S]*?profileId: pilotProfile\.id[\s\S]*?\}\)/);
   assert.match(app, /localStorage\.setItem\(STORAGE_KEYS\.WALLET_ADDRESS, activeWalletAddress\)/);
-  assert.match(app, /getWalletRecords\(activeWalletAddress\)/);
-  assert.match(app, /getWalletRuns\(activeWalletAddress\)/);
+  assert.match(app, /setWalletActivityOwner\(activeWalletAddress\)/);
+  assert.match(app, /getWalletRecordsStrict\(owner, \{ signal \}\)/);
+  assert.match(app, /getWalletRunsStrict\(owner, \{ signal \}\)/);
   assert.match(app, /getPlayerShipUnlocks\(\{/);
   assert.match(app, /authoritativePaidUnlockIds: access\?\.unlockedPlayerShips/);
   assert.match(profiles, /readCachedWalletProfile/);

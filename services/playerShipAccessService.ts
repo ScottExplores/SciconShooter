@@ -146,7 +146,11 @@ export const loadPlayerShipAccess = async (
   walletAddress: Address,
   { interactive = false }: { interactive?: boolean } = {}
 ): Promise<PlayerShipAccessSnapshot> => {
-  await loadAuthenticatedWalletProfile(walletAddress, { interactive });
+  // The status endpoint already validates the authenticated, wallet-bound
+  // profile cookie. Avoid a second profile GET during startup rehydration.
+  if (interactive) {
+    await loadAuthenticatedWalletProfile(walletAddress, { interactive: true });
+  }
   const response = await requestPlayerShipAccess<{
     walletAddress: Address;
     access: PlayerShipAccessSnapshot;

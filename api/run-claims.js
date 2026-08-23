@@ -1,12 +1,18 @@
 const crypto = require('crypto');
 const { verifyRunReceipt } = require('./_lib/runReceipts');
+const { requireRunAssociationIdentity } = require('./_lib/runIdentityAuthorization');
+const { reserveRunWalletAssociation } = require('./_lib/runWalletAssociation');
 const { fetchSupabaseJson, supabaseHeaders } = require('./_lib/supabase');
 const { verifyBaseMessage } = require('./_lib/baseSignatures');
+const { checkRateLimit } = require('./_lib/rateLimit');
+const { assertSameOrigin } = require('./_lib/walletProfileAuth');
+const { requireTrustedReceiptProvenance } = require('./_lib/runReceiptProvenance');
 
 const NONCES_TABLE = process.env.SUPABASE_WALLET_NONCES_TABLE || 'scicon_wallet_nonces';
 const RECEIPTS_TABLE = process.env.SUPABASE_RUN_RECEIPTS_TABLE || 'scicon_run_receipts';
 const LEADERBOARD_TABLE = process.env.SUPABASE_LEADERBOARD_TABLE || 'scicon_leaderboard';
 const CHALLENGE_LIFETIME_MS = 10 * 60 * 1000;
+const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 
 const sendJson = (res, status, payload) => {
   res.statusCode = status;
@@ -39,10 +45,11 @@ const makeMessage = ({ address, runId, challengeId, expiresAt }) => [
   'Signing does not spend funds or mint anything.'
 ].join('\n');
 
-const createChallenge = async ({ address, receiptToken }) => {
+const createChallenge = async ({ address, receiptToken }, req) => {
   const normalizedAddress = normalizeAddress(address);
   if (!normalizedAddress) throw Object.assign(new Error('A valid Base wallet address is required.'), { statusCode: 400 });
   const receipt = verifyRunReceipt(receiptToken);
+  requireRunAssociationIdentity({ receipt, requestedAddress: normalizedAddress, req });
   const challengeId = crypto.randomUUID();
   const expiresAt = new Date(Date.now() + CHALLENGE_LIFETIME_MS).toISOString();
   const message = makeMessage({ address: normalizedAddress, runId: receipt.runId, challengeId, expiresAt });
@@ -73,17 +80,18 @@ const syncLeaderboardWallet = async (runId, walletAddress) => {
   }
 };
 
-const claimRun = async ({ address, receiptToken, challengeId, signature }) => {
+const claimRun = async ({ address, receiptToken, challengeId, signature }, req) => {
   const normalizedAddress = normalizeAddress(address);
   if (!normalizedAddress || !challengeId || !signature) {
     throw Object.assign(new Error('Wallet, challenge, and signature are required.'), { statusCode: 400 });
   }
   const receipt = verifyRunReceipt(receiptToken);
+  requireRunAssociationIdentity({ receipt, requestedAddress: normalizedAddress, req });
   const [rows, receiptRows] = await Promise.all([
     fetchSupabaseJson(`${NONCES_TABLE}?select=*&challenge_id=eq.${encodeURIComponent(challengeId)}&limit=1`, {
       headers: supabaseHeaders()
     }),
-    fetchSupabaseJson(`${RECEIPTS_TABLE}?select=wallet_address,wallet_claimed_at&run_id=eq.${encodeURIComponent(receipt.runId)}&limit=1`, {
+    fetchSupabaseJson(`${RECEIPTS_TABLE}?select=wallet_address,wallet_claimed_at,receipt_provenance_version&run_id=eq.${encodeURIComponent(receipt.runId)}&limit=1`, {
       headers: supabaseHeaders()
     })
   ]);
@@ -96,6 +104,7 @@ const claimRun = async ({ address, receiptToken, challengeId, signature }) => {
   }
 
   const storedReceipt = Array.isArray(receiptRows) ? receiptRows[0] : null;
+  requireTrustedReceiptProvenance(storedReceipt);
   const storedWallet = storedReceipt?.wallet_address?.toLowerCase() || null;
   if (storedWallet && storedWallet !== normalizedAddress) {
     throw Object.assign(new Error('This run is already attached to another Base Account.'), { statusCode: 409 });
@@ -121,22 +130,12 @@ const claimRun = async ({ address, receiptToken, challengeId, signature }) => {
   if (!valid) throw Object.assign(new Error('Wallet signature could not be verified.'), { statusCode: 401 });
 
   const now = new Date().toISOString();
-  if (!storedWallet) {
-    const claimedReceipts = await fetchSupabaseJson(`${RECEIPTS_TABLE}?run_id=eq.${encodeURIComponent(receipt.runId)}&wallet_address=is.null`, {
-      method: 'PATCH',
-      headers: supabaseHeaders({ Prefer: 'return=representation' }),
-      body: JSON.stringify({ wallet_address: normalizedAddress, wallet_claimed_at: now })
-    });
-    if (!Array.isArray(claimedReceipts) || claimedReceipts.length !== 1) {
-      const currentRows = await fetchSupabaseJson(`${RECEIPTS_TABLE}?select=wallet_address,wallet_claimed_at&run_id=eq.${encodeURIComponent(receipt.runId)}&limit=1`, {
-        headers: supabaseHeaders()
-      });
-      const currentReceipt = Array.isArray(currentRows) ? currentRows[0] : null;
-      if (currentReceipt?.wallet_address?.toLowerCase() !== normalizedAddress) {
-        throw Object.assign(new Error('This run was attached by another account. Refresh before retrying.'), { statusCode: 409 });
-      }
-    }
-  }
+  const association = await reserveRunWalletAssociation({
+    runId: receipt.runId,
+    walletAddress: normalizedAddress,
+    associatedAt: now,
+    storedAssociation: storedReceipt
+  });
 
   const consumedChallenges = await fetchSupabaseJson(`${NONCES_TABLE}?challenge_id=eq.${encodeURIComponent(challengeId)}&used_at=is.null`, {
     method: 'PATCH',
@@ -154,18 +153,43 @@ const claimRun = async ({ address, receiptToken, challengeId, signature }) => {
   }
 
   await syncLeaderboardWallet(receipt.runId, normalizedAddress);
-  return { runId: receipt.runId, walletAddress: normalizedAddress, claimedAt: storedReceipt?.wallet_claimed_at || now };
+  return {
+    runId: receipt.runId,
+    walletAddress: normalizedAddress,
+    claimedAt: association.associatedAt
+  };
 };
 
 module.exports = async (req, res) => {
+  try {
+    assertSameOrigin(req, { required: false, matchProtocol: true });
+  } catch (error) {
+    return sendJson(res, error.statusCode || 403, { error: error.message });
+  }
   if (req.method !== 'POST') return sendJson(res, 405, { error: 'Method not allowed' });
   try {
     const body = parseBody(req.body);
-    if (body.action === 'challenge') return sendJson(res, 200, await createChallenge(body));
-    if (body.action === 'claim') return sendJson(res, 200, { claim: await claimRun(body) });
+    const action = body.action === 'claim' ? 'claim' : 'challenge';
+    const rateLimit = checkRateLimit(req, {
+      scope: `run-association:${action}`,
+      limit: action === 'claim' ? 30 : 40,
+      windowMs: RATE_LIMIT_WINDOW_MS
+    });
+    if (!rateLimit.allowed) {
+      res.setHeader('Retry-After', String(Math.max(1, Math.ceil((rateLimit.resetAt - Date.now()) / 1000))));
+      return sendJson(res, 429, {
+        error: 'Too many run association requests. Try again shortly.',
+        code: 'RUN_CLAIM_RATE_LIMITED'
+      });
+    }
+    if (body.action === 'challenge') return sendJson(res, 200, await createChallenge(body, req));
+    if (body.action === 'claim') return sendJson(res, 200, { claim: await claimRun(body, req) });
     return sendJson(res, 400, { error: 'Unknown run claim action' });
   } catch (error) {
     console.error('Run claim API error:', error);
-    return sendJson(res, error.statusCode || 500, { error: error.message || 'Run claim failed' });
+    return sendJson(res, error.statusCode || 500, {
+      error: error.message || 'Run claim failed',
+      ...(error?.code ? { code: error.code } : {})
+    });
   }
 };

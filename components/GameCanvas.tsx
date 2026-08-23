@@ -1092,8 +1092,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         if (
           engine.width === worldSize.width
           && engine.height === worldSize.height
-          && renderer.canvas.width === width
-          && renderer.canvas.height === height
+          && renderer.viewportWidth === width
+          && renderer.viewportHeight === height
         ) return;
         renderer.resize(width, height);
         refreshFrameBudget();
@@ -1192,13 +1192,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     
     const updateClientTarget = (clientX: number, clientY: number) => {
       const rect = canvas.getBoundingClientRect();
-      const displayWidth = Math.max(1, rect.width);
-      const displayHeight = Math.max(1, rect.height);
-      const displayX = Math.max(0, Math.min(displayWidth, clientX - rect.left))
-        * (canvas.width / displayWidth);
-      const displayY = Math.max(0, Math.min(displayHeight, clientY - rect.top))
-        * (canvas.height / displayHeight);
-      engine.handleInput(keys, engine.mapDisplayPointToWorld(displayX, displayY));
+      engine.handleInput(keys, engine.mapClientPointToWorld(clientX, clientY, rect));
     };
 
     const updateTouchTarget = (touch: Touch) => {

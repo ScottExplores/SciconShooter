@@ -1172,6 +1172,33 @@ test('weekly worker publishes a verified winner post and its direct score-challe
   assert.equal(store.actions.get('weekly:2026-07-27:main').metadata.fundingStatus, 'selection_only');
 });
 
+test('weekly worker never publishes a preselected proposal before the champion signs its claim', async () => {
+  const competition = {
+    week_key: '2026-08-03',
+    ends_at: '2026-08-09T19:00:00.000Z',
+    status: 'finalized',
+    winner_name: 'GUEST PILOT',
+    winning_score: 12_345,
+    winning_wave: 4,
+    proposal_id: '32342',
+    proposal_url: 'https://www.researchhub.com/proposal/32342/precision-phenotyping',
+    allocation_tx_hash: null
+  };
+  const posts = [];
+  const result = await processWeeklyWinner({
+    client: {
+      async createPost(input) { posts.push(input); return { id: 'must-not-post', text: input.text }; }
+    },
+    store: createMemoryStore({ competition }),
+    now: new Date('2026-08-10T20:00:00.000Z')
+  });
+
+  assert.equal(result.published, false);
+  assert.equal(result.reason, 'champion_claim_pending');
+  assert.equal(buildWeeklyThread(competition), null);
+  assert.equal(posts.length, 0);
+});
+
 test('global kill switch prevents all X and database activity', async () => {
   const result = await runSocialAgent({
     mode: 'all',

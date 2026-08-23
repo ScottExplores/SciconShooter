@@ -7,6 +7,7 @@ const {
   getCompletedWeeklyCompetitionKeys,
   getPreviousWeekKey,
   getWeekRange,
+  readTopEligibleScore,
   resolveProposalAtWeeklyCutoff
 } = require('../api/_lib/weeklyCompetitionService');
 const {
@@ -192,6 +193,119 @@ test('finalization persists an expired terminal row when a closed week has no sc
   assert.deepEqual(savedRows[0], result.competition);
 });
 
+test('production finalization skips a verified leader backed only by legacy provenance', async (context) => {
+  const originalFetch = global.fetch;
+  const originalEnvironment = process.env.NODE_ENV;
+  const originalUrl = process.env.SUPABASE_URL;
+  const originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  process.env.NODE_ENV = 'production';
+  process.env.SUPABASE_URL = 'https://example.supabase.co';
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-key';
+  const savedRows = [];
+  const legacyLeader = {
+    name: 'LEGACY',
+    score: 9999,
+    wave: 7,
+    date: '2020-01-10T00:00:00.000Z',
+    wallet_address: null,
+    run_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    verified: true,
+    receipt_hash: 'legacy-receipt-hash'
+  };
+  global.fetch = async (url, options = {}) => {
+    const requestUrl = String(url);
+    if (requestUrl.includes('scicon_leaderboard')) {
+      return new Response(JSON.stringify([legacyLeader]), { status: 200 });
+    }
+    if (requestUrl.includes('scicon_run_receipts')) {
+      return new Response(JSON.stringify([{
+        run_id: legacyLeader.run_id,
+        score: legacyLeader.score,
+        wave: legacyLeader.wave,
+        receipt_hash: legacyLeader.receipt_hash,
+        integrity_status: 'server-verified',
+        receipt_provenance_version: 0
+      }]), { status: 200 });
+    }
+    if (requestUrl.includes('scicon_weekly_competitions') && options.method === 'POST') {
+      const row = JSON.parse(options.body);
+      savedRows.push(row);
+      return new Response(JSON.stringify([row]), { status: 200 });
+    }
+    if (requestUrl.includes('scicon_weekly_competitions')) {
+      return new Response('[]', { status: 200 });
+    }
+    throw new Error(`Unexpected request: ${requestUrl}`);
+  };
+
+  context.after(() => {
+    global.fetch = originalFetch;
+    if (originalEnvironment === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = originalEnvironment;
+    if (originalUrl === undefined) delete process.env.SUPABASE_URL;
+    else process.env.SUPABASE_URL = originalUrl;
+    if (originalKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    else process.env.SUPABASE_SERVICE_ROLE_KEY = originalKey;
+  });
+
+  const result = await finalizeWeeklyCompetition('2020-01-05', {
+    observedAt: shortlyAfterCutoff('2020-01-05')
+  });
+  assert.equal(result.finalized, true);
+  assert.equal(result.empty, true);
+  assert.equal(savedRows.length, 1);
+  assert.equal(savedRows[0].status, 'expired');
+  assert.equal(savedRows[0].winner_run_id, null);
+});
+
+test('production leader lookup accepts an exact provenance-one receipt', async () => {
+  const originalFetch = global.fetch;
+  const originalEnvironment = process.env.NODE_ENV;
+  const originalUrl = process.env.SUPABASE_URL;
+  const originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  process.env.NODE_ENV = 'production';
+  process.env.SUPABASE_URL = 'https://example.supabase.co';
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-key';
+  const leader = {
+    name: 'TRUSTED',
+    score: 8000,
+    wave: 6,
+    date: '2020-01-10T00:00:00.000Z',
+    wallet_address: null,
+    run_id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+    verified: true,
+    receipt_hash: 'trusted-receipt-hash'
+  };
+  global.fetch = async (url) => {
+    if (String(url).includes('scicon_leaderboard')) {
+      return new Response(JSON.stringify([leader]), { status: 200 });
+    }
+    if (String(url).includes('scicon_run_receipts')) {
+      return new Response(JSON.stringify([{
+        run_id: leader.run_id,
+        score: leader.score,
+        wave: leader.wave,
+        receipt_hash: leader.receipt_hash,
+        integrity_status: 'server-verified',
+        receipt_provenance_version: 1
+      }]), { status: 200 });
+    }
+    throw new Error(`Unexpected request: ${String(url)}`);
+  };
+  try {
+    const result = await readTopEligibleScore('2020-01-05');
+    assert.equal(result?.run_id, leader.run_id);
+  } finally {
+    global.fetch = originalFetch;
+    if (originalEnvironment === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = originalEnvironment;
+    if (originalUrl === undefined) delete process.env.SUPABASE_URL;
+    else process.env.SUPABASE_URL = originalUrl;
+    if (originalKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    else process.env.SUPABASE_SERVICE_ROLE_KEY = originalKey;
+  }
+});
+
 test('recovery finalizes a stale open row and skips only terminal weeks', async (context) => {
   const originalFetch = global.fetch;
   const originalUrl = process.env.SUPABASE_URL;
@@ -207,7 +321,7 @@ test('recovery finalizes a stale open row and skips only terminal weeks', async 
 
   global.fetch = async (url, options = {}) => {
     const requestUrl = String(url);
-    if (requestUrl.includes('scicon_weekly_competitions') && options.method === 'POST') {
+    if (requestUrl.includes('scicon_weekly_competitions') && options.method === 'PATCH') {
       const row = JSON.parse(options.body);
       savedRows.push(row);
       return new Response(JSON.stringify([row]), { status: 200 });
@@ -258,6 +372,10 @@ test('a closed week becomes finalizable exactly when the five-minute settlement 
 
   global.fetch = async (url, options = {}) => {
     requests.push({ url: String(url), options });
+    if (options.method === 'POST') {
+      const row = JSON.parse(options.body);
+      return new Response(JSON.stringify([row]), { status: 200 });
+    }
     return new Response('[]', { status: 200 });
   };
 
@@ -295,6 +413,10 @@ test('finalization locks the top eligible score for a closed week', async (conte
     name: 'Pilot One', score: 4321, wave: 8, date: '2020-01-07T12:00:00.000Z',
     wallet_address: null, run_id: 'verified-run', verified: true
   };
+  const reviewOnlyLeader = {
+    name: 'Review Only', score: 999999, wave: 99, date: '2020-01-07T11:00:00.000Z',
+    wallet_address: null, run_id: 'review-run', verified: false
+  };
   const proposalEntries = [{
     content_object: {
       id: 654,
@@ -317,7 +439,7 @@ test('finalization locks the top eligible score for a closed week', async (conte
       return new Response('[]', { status: 200 });
     }
     if (String(url).includes('scicon_leaderboard')) {
-      return new Response(JSON.stringify([winner]), { status: 200 });
+      return new Response(JSON.stringify([reviewOnlyLeader, winner]), { status: 200 });
     }
     if (String(url).includes('scicon_proposal_cache')) {
       return new Response(JSON.stringify(cutoffSnapshotRows('2020-01-05', proposalEntries)), { status: 200 });
@@ -339,7 +461,7 @@ test('finalization locks the top eligible score for a closed week', async (conte
   });
   assert.equal(result.finalized, true);
   assert.equal(result.proposalSelectionSource, 'automatic_fallback');
-  assert.equal(result.competition.status, 'claimed');
+  assert.equal(result.competition.status, 'finalized');
   assert.equal(result.competition.winner_run_id, 'verified-run');
   assert.equal(result.competition.winning_score, 4321);
   assert.equal(result.competition.proposal_id, '654');
@@ -434,7 +556,7 @@ test('finalization re-resolves the proposal when the weekly leader changes durin
   assert.equal(leaderboardReads, 3);
 });
 
-test('finalization carries a legacy leader proposal into the archive and excludes the pilot test wallet', async (context) => {
+test('finalization preserves a wallet-associated guest proposal as claimable and excludes the pilot test wallet', async (context) => {
   const originalFetch = global.fetch;
   const originalUrl = process.env.SUPABASE_URL;
   const originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -447,7 +569,8 @@ test('finalization carries a legacy leader proposal into the archive and exclude
   };
   const winner = {
     name: 'Proposal Pilot', score: 7654, wave: 6, date: '2020-02-04T12:00:00.000Z',
-    wallet_address: null, run_id: null, verified: false,
+    wallet_address: '0x1111111111111111111111111111111111111111',
+    run_id: 'proposal-pilot-run', verified: true,
     proposal_id: '321', proposal_title: 'Open Science Target',
     proposal_url: 'https://www.researchhub.com/post/321/open-science-target',
     proposal_author: 'Ada Researcher',
@@ -495,9 +618,10 @@ test('finalization carries a legacy leader proposal into the archive and exclude
     observedAt: shortlyAfterCutoff('2020-02-02')
   });
   assert.equal(result.finalized, true);
-  assert.equal(result.competition.status, 'claimed');
+  assert.equal(result.competition.status, 'finalized');
   assert.equal(result.competition.winner_name, 'Proposal Pilot');
-  assert.equal(result.competition.winner_run_id, null);
+  assert.equal(result.competition.winner_run_id, 'proposal-pilot-run');
+  assert.equal(result.competition.winner_wallet, '0x1111111111111111111111111111111111111111');
   assert.equal(result.competition.proposal_id, '321');
   assert.equal(result.competition.proposal_title, 'Open Science Target');
   assert.equal(result.competition.proposal_author, 'Ada Researcher');
@@ -524,11 +648,12 @@ test('re-finalization repairs an unlocked archive and preserves its event alloca
     finalized_at: '2020-02-09T21:00:00.000Z',
     claim_deadline: '2020-02-12T21:00:00.000Z',
     allocation_rsc: 250,
-    allocation_tx_hash: null
+    allocation_tx_hash: null,
+    updated_at: '2020-02-09T21:00:00.000Z'
   };
   const actualWinner = {
     name: 'Actual Winner', score: 8000, wave: 6, date: '2020-02-05T12:00:00.000Z',
-    wallet_address: null, run_id: null, verified: false,
+    wallet_address: null, run_id: 'actual-winner-run', verified: true, receipt_hash: 'actual-winner-hash',
     proposal_id: '321', proposal_title: 'Legacy Winning Proposal',
     proposal_url: 'https://www.researchhub.com/post/321/legacy-winning-proposal', proposal_author: 'Researcher One',
     proposal_image_url: 'https://images.researchhub.com/proposals/321.png'
@@ -549,9 +674,17 @@ test('re-finalization repairs an unlocked archive and preserves its event alloca
     },
     author: { first_name: 'Researcher', last_name: 'One' }
   }];
+  let currentCompetition = { ...existing };
   global.fetch = async (_url, options = {}) => {
-    if (String(_url).includes('scicon_weekly_competitions') && options.method !== 'POST') {
-      return new Response(JSON.stringify([existing]), { status: 200 });
+    if (String(_url).includes('scicon_weekly_competitions')) {
+      if (options.method === 'PATCH') {
+        assert.match(String(_url), /status=eq\.finalized/);
+        assert.match(String(_url), /winner_run_id=eq\.lower-verified-run/);
+        assert.match(String(_url), /updated_at=eq\./);
+        currentCompetition = JSON.parse(options.body);
+        return new Response(JSON.stringify([currentCompetition]), { status: 200 });
+      }
+      return new Response(JSON.stringify([currentCompetition]), { status: 200 });
     }
     if (String(_url).includes('scicon_leaderboard')) {
       return new Response(JSON.stringify([actualWinner]), { status: 200 });
@@ -559,8 +692,7 @@ test('re-finalization repairs an unlocked archive and preserves its event alloca
     if (String(_url).includes('scicon_proposal_cache')) {
       return new Response(JSON.stringify(cutoffSnapshotRows('2020-02-02', proposalEntries)), { status: 200 });
     }
-    const saved = JSON.parse(options.body);
-    return new Response(JSON.stringify([saved]), { status: 200 });
+    throw new Error(`Unexpected request: ${String(_url)}`);
   };
 
   context.after(() => {
@@ -579,12 +711,231 @@ test('re-finalization repairs an unlocked archive and preserves its event alloca
   assert.equal(result.competition.winner_name, 'Actual Winner');
   assert.equal(result.competition.winning_score, 8000);
   assert.equal(result.competition.winning_wave, 6);
-  assert.equal(result.competition.status, 'claimed');
+  assert.equal(result.competition.status, 'finalized');
   assert.equal(result.competition.proposal_title, 'Legacy Winning Proposal');
   assert.equal(result.competition.proposal_image_url, 'https://images.researchhub.com/proposals/321.png');
   assert.equal(result.proposalSelectionSource, 'manual');
   assert.equal(result.competition.allocation_rsc, 250);
   assert.equal(result.competition.finalized_at, existing.finalized_at);
+});
+
+test('a claimed weekly competition is immutable during later reconciliation', async (context) => {
+  const originalFetch = global.fetch;
+  const originalUrl = process.env.SUPABASE_URL;
+  const originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  process.env.SUPABASE_URL = 'https://example.supabase.co';
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-key';
+  const claimed = {
+    week_key: '2020-02-02',
+    status: 'claimed',
+    winner_run_id: 'claimed-run',
+    winner_wallet: '0x1111111111111111111111111111111111111111',
+    winner_name: 'Claimed Pilot',
+    winning_score: 8000,
+    winning_wave: 6,
+    proposal_id: '777',
+    proposal_title: 'Signed Winner Choice',
+    allocation_tx_hash: null,
+    updated_at: '2020-02-09T21:05:00.000Z'
+  };
+  let requestCount = 0;
+  global.fetch = async (url, options = {}) => {
+    requestCount += 1;
+    assert.match(String(url), /scicon_weekly_competitions/);
+    assert.notEqual(options.method, 'PATCH');
+    assert.notEqual(options.method, 'POST');
+    return new Response(JSON.stringify([claimed]), { status: 200 });
+  };
+
+  context.after(() => {
+    global.fetch = originalFetch;
+    if (originalUrl === undefined) delete process.env.SUPABASE_URL;
+    else process.env.SUPABASE_URL = originalUrl;
+    if (originalKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    else process.env.SUPABASE_SERVICE_ROLE_KEY = originalKey;
+  });
+
+  const result = await finalizeWeeklyCompetition('2020-02-02', {
+    observedAt: shortlyAfterCutoff('2020-02-02')
+  });
+  assert.equal(result.finalized, false);
+  assert.equal(result.repaired, undefined);
+  assert.equal(result.enriched, undefined);
+  assert.match(result.reason, /already locked/i);
+  assert.deepEqual(result.competition, claimed);
+  assert.equal(requestCount, 1);
+});
+
+test('a finalized-row enrichment cannot overwrite a champion claim that wins the interleaving', async (context) => {
+  const originalFetch = global.fetch;
+  const originalUrl = process.env.SUPABASE_URL;
+  const originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  process.env.SUPABASE_URL = 'https://example.supabase.co';
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-key';
+  const existing = {
+    week_key: '2020-02-02',
+    starts_at: '2020-02-02T20:00:00.000Z',
+    ends_at: '2020-02-09T20:00:00.000Z',
+    status: 'finalized',
+    winner_run_id: 'claim-race-run',
+    winner_wallet: null,
+    winner_name: 'Race Pilot',
+    winning_score: 8100,
+    winning_wave: 6,
+    finalized_at: '2020-02-09T21:00:00.000Z',
+    claim_deadline: '2020-02-12T21:00:00.000Z',
+    proposal_id: null,
+    proposal_title: null,
+    allocation_rsc: 100,
+    allocation_tx_hash: null,
+    updated_at: '2020-02-09T21:00:00.000Z'
+  };
+  const leader = {
+    name: 'Race Pilot', score: 8100, wave: 6, date: '2020-02-05T12:00:00.000Z',
+    wallet_address: null, run_id: 'claim-race-run', verified: true,
+    proposal_id: '777', proposal_title: 'Signed Winner Choice',
+    proposal_url: 'https://www.researchhub.com/post/777/signed-winner-choice',
+    proposal_author: 'Researcher One', proposal_image_url: null
+  };
+  const proposalEntries = [{
+    content_object: {
+      id: 777,
+      title: 'Signed Winner Choice',
+      slug: 'signed-winner-choice',
+      fundraise: { status: 'OPEN', end_date: '2099-01-01T00:00:00.000Z' }
+    },
+    author: { first_name: 'Researcher', last_name: 'One' }
+  }];
+  const claimed = {
+    ...existing,
+    status: 'claimed',
+    winner_wallet: '0x1111111111111111111111111111111111111111',
+    proposal_id: '777',
+    proposal_title: 'Signed Winner Choice',
+    proposal_url: 'https://www.researchhub.com/post/777/signed-winner-choice',
+    proposal_author: 'Researcher One',
+    updated_at: '2020-02-09T21:01:00.000Z'
+  };
+  let currentCompetition = { ...existing };
+  let competitionPatchCount = 0;
+  global.fetch = async (url, options = {}) => {
+    const requestUrl = String(url);
+    if (requestUrl.includes('scicon_weekly_competitions')) {
+      if (options.method === 'PATCH') {
+        competitionPatchCount += 1;
+        assert.match(requestUrl, /status=eq\.finalized/);
+        assert.match(requestUrl, /winner_run_id=eq\.claim-race-run/);
+        assert.match(requestUrl, /updated_at=eq\./);
+        currentCompetition = { ...claimed };
+        return new Response('[]', { status: 200 });
+      }
+      return new Response(JSON.stringify([currentCompetition]), { status: 200 });
+    }
+    if (requestUrl.includes('scicon_leaderboard')) {
+      return new Response(JSON.stringify([leader]), { status: 200 });
+    }
+    if (requestUrl.includes('scicon_proposal_cache')) {
+      return new Response(JSON.stringify(cutoffSnapshotRows('2020-02-02', proposalEntries)), { status: 200 });
+    }
+    throw new Error(`Unexpected request: ${requestUrl}`);
+  };
+
+  context.after(() => {
+    global.fetch = originalFetch;
+    if (originalUrl === undefined) delete process.env.SUPABASE_URL;
+    else process.env.SUPABASE_URL = originalUrl;
+    if (originalKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    else process.env.SUPABASE_SERVICE_ROLE_KEY = originalKey;
+  });
+
+  const result = await finalizeWeeklyCompetition('2020-02-02', {
+    observedAt: shortlyAfterCutoff('2020-02-02')
+  });
+  assert.equal(result.finalized, false);
+  assert.equal(result.raceLost, true);
+  assert.equal(result.enriched, undefined);
+  assert.match(result.reason, /changed while its proposal/i);
+  assert.deepEqual(result.competition, claimed);
+  assert.equal(competitionPatchCount, 1);
+});
+
+test('an initial finalizer cannot upsert over a champion claim committed by another finalizer', async (context) => {
+  const originalFetch = global.fetch;
+  const originalUrl = process.env.SUPABASE_URL;
+  const originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  process.env.SUPABASE_URL = 'https://example.supabase.co';
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-key';
+  const leader = {
+    name: 'Initial Race Pilot', score: 8200, wave: 7, date: '2020-02-05T12:00:00.000Z',
+    wallet_address: null, run_id: 'initial-race-run', verified: true,
+    proposal_id: '888', proposal_title: 'Initial Race Choice',
+    proposal_url: 'https://www.researchhub.com/post/888/initial-race-choice',
+    proposal_author: 'Researcher Two', proposal_image_url: null
+  };
+  const proposalEntries = [{
+    content_object: {
+      id: 888,
+      title: 'Initial Race Choice',
+      slug: 'initial-race-choice',
+      fundraise: { status: 'OPEN', end_date: '2099-01-01T00:00:00.000Z' }
+    },
+    author: { first_name: 'Researcher', last_name: 'Two' }
+  }];
+  const claimed = {
+    week_key: '2020-02-02',
+    starts_at: '2020-02-02T20:00:00.000Z',
+    ends_at: '2020-02-09T20:00:00.000Z',
+    status: 'claimed',
+    winner_run_id: 'initial-race-run',
+    winner_wallet: '0x1111111111111111111111111111111111111111',
+    winner_name: 'Initial Race Pilot',
+    winning_score: 8200,
+    winning_wave: 7,
+    proposal_id: '888',
+    proposal_title: 'Initial Race Choice',
+    proposal_url: 'https://www.researchhub.com/post/888/initial-race-choice',
+    proposal_author: 'Researcher Two',
+    allocation_rsc: 100,
+    updated_at: '2020-02-09T21:01:00.000Z'
+  };
+  let currentCompetition = null;
+  let insertCount = 0;
+  global.fetch = async (url, options = {}) => {
+    const requestUrl = String(url);
+    if (requestUrl.includes('scicon_weekly_competitions')) {
+      if (options.method === 'POST') {
+        insertCount += 1;
+        assert.doesNotMatch(requestUrl, /on_conflict/);
+        currentCompetition = { ...claimed };
+        return new Response(JSON.stringify({ code: '23505', message: 'duplicate key' }), { status: 409 });
+      }
+      return new Response(JSON.stringify(currentCompetition ? [currentCompetition] : []), { status: 200 });
+    }
+    if (requestUrl.includes('scicon_leaderboard')) {
+      return new Response(JSON.stringify([leader]), { status: 200 });
+    }
+    if (requestUrl.includes('scicon_proposal_cache')) {
+      return new Response(JSON.stringify(cutoffSnapshotRows('2020-02-02', proposalEntries)), { status: 200 });
+    }
+    throw new Error(`Unexpected request: ${requestUrl}`);
+  };
+
+  context.after(() => {
+    global.fetch = originalFetch;
+    if (originalUrl === undefined) delete process.env.SUPABASE_URL;
+    else process.env.SUPABASE_URL = originalUrl;
+    if (originalKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    else process.env.SUPABASE_SERVICE_ROLE_KEY = originalKey;
+  });
+
+  const result = await finalizeWeeklyCompetition('2020-02-02', {
+    observedAt: shortlyAfterCutoff('2020-02-02')
+  });
+  assert.equal(result.finalized, false);
+  assert.equal(result.raceLost, true);
+  assert.match(result.reason, /changed while its winner/i);
+  assert.deepEqual(result.competition, claimed);
+  assert.equal(insertCount, 1);
 });
 
 test('re-finalization never rewrites an archive with a confirmed allocation transaction', async (context) => {
@@ -840,7 +1191,11 @@ test('finalization archives the winner even when proposal verification is pendin
       liveFeedCalled = true;
       return new Response(JSON.stringify({ error: 'unexpected' }), { status: 503 });
     }
-    if (options.method === 'POST') archiveWriteCount += 1;
+    if (options.method === 'POST') {
+      archiveWriteCount += 1;
+      const row = JSON.parse(options.body);
+      return new Response(JSON.stringify([row]), { status: 200 });
+    }
     return new Response('[]', { status: 200 });
   };
 
@@ -865,7 +1220,7 @@ test('finalization archives the winner even when proposal verification is pendin
   assert.equal(liveFeedCalled, false);
 });
 
-test('recovery backfills the two most recent missing Past Picks from final leaderboard records', async (context) => {
+test('recovery backfills within the fixed three-week horizon even when a caller requests more', async (context) => {
   const originalFetch = global.fetch;
   const originalUrl = process.env.SUPABASE_URL;
   const originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -921,7 +1276,7 @@ test('recovery backfills the two most recent missing Past Picks from final leade
   const recovery = await ensureRecentWeeklyCompetitions({
     observedAt: new Date('2026-08-03T01:00:00.000Z'),
     existingCompetitions: [{ week_key: '2026-07-12', status: 'finalized' }],
-    lookbackWeeks: 3
+    lookbackWeeks: 999
   });
 
   assert.equal(recovery.changed, true);

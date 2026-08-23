@@ -82,6 +82,7 @@ interface SquadHangarProps {
   onPurchaseWithRsc: (skuId: RscPurchaseSkuId) => void;
   onPurchasePlayerShip: (skuId: PlayerShipPurchaseSkuId) => void;
   onRefreshPlayerShipAccess: () => void;
+  onRefreshRscBalance: () => void;
   onOpenRscSwap: () => void;
   onPurchaseMini: (id: MiniShipId) => void;
   onUpgradeMini: (id: MiniShipId) => void;
@@ -285,6 +286,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
   onPurchaseWithRsc,
   onPurchasePlayerShip,
   onRefreshPlayerShipAccess,
+  onRefreshRscBalance,
   onOpenRscSwap,
   onPurchaseMini,
   onUpgradeMini,
@@ -613,6 +615,15 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
             optionsLabel="Open Aerodrome to get Research Coin"
           />
         </div>
+        {rscBalanceStatus === 'error' ? (
+          <button
+            type="button"
+            onClick={onRefreshRscBalance}
+            className="mt-1.5 w-full border border-cyan-200/30 bg-cyan-300/8 px-2 py-1 text-[0.55rem] font-black uppercase tracking-[0.08em] text-cyan-100"
+          >
+            Research Coin did not refresh · Tap to retry
+          </button>
+        ) : null}
         {showTokenExchange ? (
           <section className="mt-2 border border-cyan-200/30 bg-[#07152a]/98 p-2 shadow-[0_0_20px_rgba(34,211,238,0.16)]" aria-label="Token exchange">
             <div className="flex items-start justify-between gap-3">

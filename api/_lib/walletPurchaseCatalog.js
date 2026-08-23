@@ -10,6 +10,10 @@ const addressPattern = /^0x[0-9a-f]{40}$/;
 const RSC_TOKEN_EXCHANGE_ENABLED = (
   String(process.env.ENABLE_RSC_TOKEN_EXCHANGE || 'true').trim().toLowerCase() === 'true'
 );
+// Guest ranked play cannot provide a cryptographic, device-stable identity.
+// Do not sell attempt capacity while a guest can still enter the same board;
+// already-created orders remain canonical and can be settled safely.
+const WEEKLY_ATTEMPT_PURCHASES_ENABLED = false;
 
 const configuredStoreRecipient = (purchaserAddress = '') => {
   const purchaser = String(purchaserAddress || '').trim().toLowerCase();
@@ -36,6 +40,7 @@ const WALLET_PURCHASE_SKUS = Object.freeze({
     tokenReward: 0,
     grantsRightSupport: false,
     weeklyAttemptReward: 1,
+    purchaseEnabled: WEEKLY_ATTEMPT_PURCHASES_ENABLED,
     enabled: true
   }),
   'tokens-500': Object.freeze({
@@ -79,6 +84,7 @@ module.exports = {
   RSC_DECIMALS,
   RSC_PURCHASE_RECIPIENT_ADDRESS,
   RSC_TOKEN_EXCHANGE_ENABLED,
+  WEEKLY_ATTEMPT_PURCHASES_ENABLED,
   ZERO_ADDRESS,
   WALLET_PURCHASE_ORDER_LIFETIME_MS,
   WALLET_PURCHASE_SKUS,

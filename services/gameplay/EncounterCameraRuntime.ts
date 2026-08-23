@@ -24,6 +24,13 @@ export interface EncounterWorldSize {
   readonly height: number;
 }
 
+export interface EncounterClientViewport {
+  readonly left: number;
+  readonly top: number;
+  readonly width: number;
+  readonly height: number;
+}
+
 export interface EncounterVisibleWorldBounds {
   readonly minX: number;
   readonly maxX: number;
@@ -274,3 +281,41 @@ export const mapEncounterDisplayPointToWorld = ({
     finitePositive(worldHeight)
   )
 });
+
+/**
+ * Convert a browser client-space point into Pixi's logical display space.
+ * Canvas backing-store dimensions include Pixi's render resolution, so they
+ * must not be used here or mobile input will be multiplied by DPR twice.
+ */
+export const mapEncounterClientPointToDisplay = ({
+  clientX,
+  clientY,
+  viewport,
+  displayWidth,
+  displayHeight
+}: {
+  readonly clientX: number;
+  readonly clientY: number;
+  readonly viewport: EncounterClientViewport;
+  readonly displayWidth: number;
+  readonly displayHeight: number;
+}) => {
+  const safeViewportWidth = finitePositive(viewport.width);
+  const safeViewportHeight = finitePositive(viewport.height);
+  const safeDisplayWidth = finitePositive(displayWidth);
+  const safeDisplayHeight = finitePositive(displayHeight);
+  const x = clamp(
+    (Number.isFinite(clientX) ? clientX : viewport.left) - viewport.left,
+    0,
+    safeViewportWidth
+  );
+  const y = clamp(
+    (Number.isFinite(clientY) ? clientY : viewport.top) - viewport.top,
+    0,
+    safeViewportHeight
+  );
+  return Object.freeze({
+    x: x * (safeDisplayWidth / safeViewportWidth),
+    y: y * (safeDisplayHeight / safeViewportHeight)
+  });
+};

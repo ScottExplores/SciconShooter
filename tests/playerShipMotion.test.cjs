@@ -2,10 +2,24 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const esbuild = require('esbuild');
 
 const root = path.resolve(__dirname, '..');
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), 'utf8');
 const manifest = JSON.parse(read('public/game-art/generated/scicon-flight-motion-pack-v1/pack-manifest.json'));
+
+const motionBundle = esbuild.buildSync({
+  entryPoints: [path.join(root, 'services', 'playerShipMotion.ts')],
+  bundle: true,
+  platform: 'node',
+  format: 'cjs',
+  write: false
+}).outputFiles[0].text;
+const loadMotionRuntime = () => {
+  const holder = { exports: {} };
+  new Function('module', 'exports', motionBundle)(holder, holder.exports);
+  return holder.exports;
+};
 
 const steeringIds = ['researchhub', 'bio', 'eth', 'btc-token-ship'];
 const selectionIds = steeringIds.map((id) => `${id}-selection-idle`);
@@ -65,6 +79,7 @@ test('player motion catalog mirrors the four animated production PNG sets in the
   assert.match(motion, /PLAYER_SHIP_HARD_BANK_THRESHOLD = 0\.95/);
   assert.match(motion, /PLAYER_SHIP_HARD_BANK_SWEEP_RATIO = 0\.72/);
   assert.match(motion, /PLAYER_SHIP_TOUCH_SPEED_SCALE = 1\.34/);
+  assert.match(motion, /PLAYER_SHIP_HARD_BANK_HOLD_MS = 220/);
   assert.match(motion, /'hard-left': `\$\{packPath\}\/researchhub\/frames\/researchhub-05-hard-right\.png`/);
   assert.match(motion, /'bank-left': `\$\{packPath\}\/researchhub\/frames\/researchhub-04-bank-right\.png`/);
   assert.match(motion, /'bank-right': `\$\{packPath\}\/researchhub\/frames\/researchhub-02-bank-left\.png`/);
@@ -116,6 +131,9 @@ test('Pixi preloads steering textures and swaps frames only for the player prese
   assert.match(renderer, /Math\.exp\(-Math\.max\(0, deltaMs\) \/ steeringBlendMs\)/);
   assert.match(renderer, /engine\.width - engine\.player\.width/);
   assert.match(renderer, /Math\.max\(0, signedSweep\) \/ playableWidth\s*>= PLAYER_SHIP_HARD_BANK_SWEEP_RATIO/);
+  assert.match(renderer, /getPlayerSteeringPresentationSpeed/);
+  assert.match(renderer, /updatePlayerHardBankLatch/);
+  assert.match(renderer, /hardBankDirection === requestedDirection/);
   assert.match(renderer, /selectPlayerSteeringState\(this\.playerSteeringVisual, hardBankEligible\)/);
   assert.match(renderer, /engine\.waveDepartureFrames > 0[\s\S]*?this\.playerSteeringState = 'neutral'/);
   assert.match(renderer, /const hardBank = !takeoffActive[\s\S]*?this\.playerSteeringState === 'hard-left'/);
@@ -123,4 +141,84 @@ test('Pixi preloads steering textures and swaps frames only for the player prese
   assert.match(renderer, /hardBank \? 0 : \(index === 0 \? -1 : 1\)/);
   assert.match(renderer, /sprite\.rotation = 0/);
   assert.doesNotMatch(renderer, /paywall-interceptor\/frames|citation-wraith\/frames|peer-review-bulwark\/frames|predatory-journal-raider\/frames/);
+});
+
+test('touch steering presentation stays equally responsive after speed upgrades', () => {
+  const { getPlayerSteeringPresentationSpeed } = loadMotionRuntime();
+  const baseHorizontalSpeed = 2.5;
+
+  for (const upgradedSpeed of [2.5, 5.5, 10, 15]) {
+    assert.equal(
+      getPlayerSteeringPresentationSpeed({
+        baseHorizontalSpeed,
+        maxHorizontalSpeed: upgradedSpeed,
+        touchActive: true
+      }),
+      baseHorizontalSpeed * 1.34
+    );
+  }
+  assert.equal(
+    getPlayerSteeringPresentationSpeed({
+      baseHorizontalSpeed,
+      maxHorizontalSpeed: 15,
+      touchActive: false
+    }),
+    15
+  );
+});
+
+test('a hard bank remains visible briefly and clears on an intentional reversal', () => {
+  const { updatePlayerHardBankLatch } = loadMotionRuntime();
+  let latch = { direction: 0, remainingMs: 0, triggeredDirection: 0 };
+  latch = updatePlayerHardBankLatch(latch, {
+    requestedDirection: 1,
+    hardBankDirection: 1,
+    triggerEligible: true,
+    deltaMs: 16
+  });
+  assert.deepEqual(latch, { direction: 1, remainingMs: 220, triggeredDirection: 1 });
+
+  latch = updatePlayerHardBankLatch(latch, {
+    requestedDirection: 1,
+    hardBankDirection: 0,
+    triggerEligible: false,
+    deltaMs: 120
+  });
+  assert.deepEqual(latch, { direction: 1, remainingMs: 100, triggeredDirection: 1 });
+
+  latch = updatePlayerHardBankLatch(latch, {
+    requestedDirection: -1,
+    hardBankDirection: 0,
+    triggerEligible: false,
+    deltaMs: 16
+  });
+  assert.deepEqual(latch, { direction: 0, remainingMs: 0, triggeredDirection: 1 });
+});
+
+test('a sustained touch gesture triggers one bank and an opposite gesture can trigger next', () => {
+  const { updatePlayerHardBankLatch } = loadMotionRuntime();
+  let latch = { direction: 0, remainingMs: 0, triggeredDirection: 0 };
+  latch = updatePlayerHardBankLatch(latch, {
+    requestedDirection: 1,
+    hardBankDirection: 1,
+    triggerEligible: true,
+    deltaMs: 16
+  });
+  for (let index = 0; index < 20; index += 1) {
+    latch = updatePlayerHardBankLatch(latch, {
+      requestedDirection: 1,
+      hardBankDirection: 1,
+      triggerEligible: true,
+      deltaMs: 16
+    });
+  }
+  assert.deepEqual(latch, { direction: 0, remainingMs: 0, triggeredDirection: 1 });
+
+  latch = updatePlayerHardBankLatch(latch, {
+    requestedDirection: -1,
+    hardBankDirection: -1,
+    triggerEligible: true,
+    deltaMs: 16
+  });
+  assert.deepEqual(latch, { direction: -1, remainingMs: 220, triggeredDirection: -1 });
 });

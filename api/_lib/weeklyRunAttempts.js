@@ -76,6 +76,16 @@ const identityHashFor = (identity) => {
     .digest('hex');
 };
 
+const quotaIdentityHashFor = (identity, guestAdmissionScope) => {
+  const normalizedScope = String(guestAdmissionScope || '').trim().toLowerCase();
+  if (identity?.kind !== 'wallet' && /^[a-f0-9]{64}$/.test(normalizedScope)) {
+    return crypto.createHash('sha256')
+      .update(`scicon-weekly-run-guest-admission-v1:${normalizedScope}`)
+      .digest('hex');
+  }
+  return identityHashFor(identity);
+};
+
 const attemptKeyFor = (binding) => {
   const weeklyId = String(binding?.weeklyId || '');
   const startNodeId = String(binding?.startNodeId || '');
@@ -109,7 +119,7 @@ const mapPersistenceError = (error) => {
   const message = String(error?.message || '');
   if (/weekly_run_attempts_exhausted/i.test(message)) {
     return attemptError(
-      'All Weekly Run attempts have been used. Connect a Base Account to purchase another attempt, or wait for the weekly reset.',
+      'All Weekly Run attempts have been used. Wait for the weekly reset to play another ranked run.',
       409,
       'weekly_run_attempts_exhausted'
     );
@@ -119,6 +129,13 @@ const mapPersistenceError = (error) => {
       'This Weekly Run attempt has already been finalized.',
       409,
       'weekly_run_attempt_already_finalized'
+    );
+  }
+  if (/weekly_run_attempt_owner_mismatch/i.test(message)) {
+    return attemptError(
+      'This Weekly Run admission belongs to a different guest session.',
+      409,
+      'weekly_run_attempt_owner_mismatch'
     );
   }
   if (/weekly_run_attempt_(?:binding|reservation)_invalid/i.test(message)) {
@@ -133,7 +150,14 @@ const mapPersistenceError = (error) => {
 
 const memoryBucketKey = (identityHash, weeklyId) => `${identityHash}:${weeklyId}`;
 
-const reserveInMemory = ({ identityHash, walletAddress, weeklyId, attemptKey, resetAtMs }) => {
+const reserveInMemory = ({
+  identityHash,
+  ownerIdentityHash,
+  walletAddress,
+  weeklyId,
+  attemptKey,
+  resetAtMs
+}) => {
   const bucketKey = memoryBucketKey(identityHash, weeklyId);
   const attempts = memoryAttempts.get(bucketKey) || [];
   const quota = normalizeQuota({
@@ -143,6 +167,13 @@ const reserveInMemory = ({ identityHash, walletAddress, weeklyId, attemptKey, re
   });
   const existing = attempts.find((row) => row.attemptKey === attemptKey);
   if (existing) {
+    if (existing.ownerIdentityHash !== ownerIdentityHash) {
+      throw attemptError(
+        'This Weekly Run admission belongs to a different guest session.',
+        409,
+        'weekly_run_attempt_owner_mismatch'
+      );
+    }
     if (existing.status === 'finalized') {
       throw attemptError(
         'This Weekly Run attempt has already been finalized.',
@@ -157,7 +188,7 @@ const reserveInMemory = ({ identityHash, walletAddress, weeklyId, attemptKey, re
   }
   if (quota.attemptsRemaining <= 0) {
     throw attemptError(
-      'All Weekly Run attempts have been used. Connect a Base Account to purchase another attempt, or wait for the weekly reset.',
+      'All Weekly Run attempts have been used. Wait for the weekly reset to play another ranked run.',
       409,
       'weekly_run_attempts_exhausted'
     );
@@ -167,6 +198,7 @@ const reserveInMemory = ({ identityHash, walletAddress, weeklyId, attemptKey, re
     runId: crypto.randomUUID(),
     attemptNumber: attempts.length + 1,
     identityHash,
+    ownerIdentityHash,
     walletAddress,
     weeklyId,
     attemptKey,
@@ -186,8 +218,9 @@ const reserveInMemory = ({ identityHash, walletAddress, weeklyId, attemptKey, re
   };
 };
 
-const reserveWeeklyRunAttempt = async ({ identity, binding }) => {
-  const identityHash = identityHashFor(identity);
+const reserveWeeklyRunAttempt = async ({ identity, binding, guestAdmissionScope = null }) => {
+  const ownerIdentityHash = identityHashFor(identity);
+  const identityHash = quotaIdentityHashFor(identity, guestAdmissionScope);
   const walletAddress = identity?.kind === 'wallet'
     ? normalizeWalletAddress(identity.walletAddress)
     : null;
@@ -198,7 +231,14 @@ const reserveWeeklyRunAttempt = async ({ identity, binding }) => {
   const weeklyId = String(binding.weeklyId);
   const resetAtMs = Math.floor(Number(binding.resetAtMs));
   if (!hasSupabaseConfig()) {
-    return reserveInMemory({ identityHash, walletAddress, weeklyId, attemptKey, resetAtMs });
+    return reserveInMemory({
+      identityHash,
+      ownerIdentityHash,
+      walletAddress,
+      weeklyId,
+      attemptKey,
+      resetAtMs
+    });
   }
 
   const proposedReservationId = crypto.randomUUID();
@@ -209,6 +249,7 @@ const reserveWeeklyRunAttempt = async ({ identity, binding }) => {
       headers: supabaseHeaders(),
       body: JSON.stringify({
         p_identity_hash: identityHash,
+        p_owner_identity_hash: ownerIdentityHash,
         p_wallet_address: walletAddress,
         p_weekly_id: weeklyId,
         p_attempt_key: attemptKey,
@@ -276,11 +317,15 @@ const getWeeklyRunQuota = async ({ address, now = Date.now() }) => {
   }
 };
 
-const settleInMemory = ({ reservation, identityHash, proofHash }) => {
-  const attempts = memoryAttempts.get(memoryBucketKey(identityHash, reservation.weeklyId)) || [];
-  const row = attempts.find((candidate) => candidate.reservationId === reservation.reservationId);
+const settleInMemory = ({ reservation, ownerIdentityHash, proofHash }) => {
+  let row = null;
+  for (const attempts of memoryAttempts.values()) {
+    row = attempts.find((candidate) => candidate.reservationId === reservation.reservationId) || null;
+    if (row) break;
+  }
   if (
     !row
+    || row.ownerIdentityHash !== ownerIdentityHash
     || row.runId !== reservation.runId
     || row.attemptKey !== reservation.attemptKey
   ) {
@@ -303,7 +348,7 @@ const settleInMemory = ({ reservation, identityHash, proofHash }) => {
 };
 
 const settleWeeklyRunAttempt = async ({ reservation, identity, proofHash }) => {
-  const identityHash = identityHashFor(identity);
+  const ownerIdentityHash = identityHashFor(identity);
   if (!reservation || typeof reservation !== 'object') {
     throw attemptError('Weekly Run reservation is missing.', 422, 'weekly_attempt_reservation_missing');
   }
@@ -322,7 +367,7 @@ const settleWeeklyRunAttempt = async ({ reservation, identity, proofHash }) => {
     throw attemptError('Weekly Run reservation is invalid.', 422, 'weekly_attempt_reservation_invalid');
   }
   if (!hasSupabaseConfig()) {
-    return settleInMemory({ reservation: normalized, identityHash, proofHash });
+    return settleInMemory({ reservation: normalized, ownerIdentityHash, proofHash });
   }
   try {
     const value = normalizeRpcResult(await fetchSupabaseJson(`rpc/${SETTLEMENT_RPC}`, {
@@ -330,7 +375,7 @@ const settleWeeklyRunAttempt = async ({ reservation, identity, proofHash }) => {
       headers: supabaseHeaders(),
       body: JSON.stringify({
         p_reservation_id: normalized.reservationId,
-        p_identity_hash: identityHash,
+        p_identity_hash: ownerIdentityHash,
         p_weekly_id: normalized.weeklyId,
         p_attempt_key: normalized.attemptKey,
         p_run_id: normalized.runId,
