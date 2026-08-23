@@ -5,15 +5,16 @@ const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
 const read = (...segments) => fs.readFileSync(path.join(root, ...segments), 'utf8');
+const componentsRoot = path.join(
+  root,
+  'director-data',
+  'prototype-assets',
+  'helios-clawcarrier-v2',
+  'components'
+);
+const prototypeTest = fs.existsSync(componentsRoot) ? test : test.skip;
 
-test('Helios runtime art is covered by the Test Bosses Sprite Gallery inventory', () => {
-  const componentsRoot = path.join(
-    root,
-    'director-data',
-    'prototype-assets',
-    'helios-clawcarrier-v2',
-    'components'
-  );
+prototypeTest('Helios runtime art is covered by the Test Bosses Sprite Gallery inventory', () => {
   const componentNames = new Set(fs.readdirSync(componentsRoot));
   const required = [
     'body.closed.png',

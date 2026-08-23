@@ -49,6 +49,13 @@ const frameRoot = path.join(
   'bottleneck-drone-v3'
 );
 const manifest = JSON.parse(fs.readFileSync(path.join(frameRoot, 'manifest.json'), 'utf8'));
+const localPrototypeSheetPath = path.join(
+  root,
+  'director-data',
+  'prototype-assets',
+  'bottleneck-drone',
+  manifest.source.assetId
+);
 
 test('Bottleneck Drone visual remake preserves the authored M03 combat contract', () => {
   const campaign = JSON.parse(readText('game-config/campaign.json'));
@@ -276,18 +283,17 @@ test('sprite frame safety removes detached sheet fragments and protects transpar
     /divider 1\/2.*opaque pixels/
   );
 
-  const sourceSheet = PNG.sync.read(fs.readFileSync(path.join(
-    root,
-    'director-data',
-    'prototype-assets',
-    'bottleneck-drone',
-    manifest.source.assetId
-  )));
-  assert.doesNotThrow(() => safetyModule.assertTransparentFrameGutters(
-    sourceSheet,
-    manifest.frames.length,
-    manifest.processing.sourceFrameGutterPixels
-  ));
+  // Prototype inputs are intentionally local-only and excluded from the
+  // production repository. Validate their gutters when the Boss Sandbox
+  // package is present, while always validating every shipped runtime frame.
+  if (fs.existsSync(localPrototypeSheetPath)) {
+    const sourceSheet = PNG.sync.read(fs.readFileSync(localPrototypeSheetPath));
+    assert.doesNotThrow(() => safetyModule.assertTransparentFrameGutters(
+      sourceSheet,
+      manifest.frames.length,
+      manifest.processing.sourceFrameGutterPixels
+    ));
+  }
 
   for (const frameDefinition of manifest.frames) {
     const image = PNG.sync.read(fs.readFileSync(path.join(frameRoot, frameDefinition.path)));
