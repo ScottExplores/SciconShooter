@@ -170,8 +170,8 @@ const PlayerReportDialog: React.FC<PlayerReportDialogProps> = ({ kind, onClose }
             <h2 id="sci-player-report-title" className="mt-1 text-xl font-black text-white">{title}</h2>
             <p id="sci-player-report-description" className="mt-1 text-xs leading-relaxed text-slate-300">
               {isBug
-                ? 'Tell us what went wrong. Your report is saved directly to the Scicon issue log.'
-                : 'Share an idea or tell us what would make Scicon Shooter better.'}
+                ? 'Tell us what went wrong. Your report is emailed to the Scicon team and saved to the issue log.'
+                : 'Share an idea or tell us what would make Scicon Shooter better. Your feedback is emailed directly to the Scicon team.'}
             </p>
           </div>
           <button
@@ -200,7 +200,7 @@ const PlayerReportDialog: React.FC<PlayerReportDialogProps> = ({ kind, onClose }
             </h3>
             <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-slate-300">
               {draft.status === 'sent'
-                ? 'Thank you. The Scicon team can now review this report.'
+                ? 'Thank you. This was emailed to the Scicon team and saved under the Report ID below.'
                 : 'Delivery is temporarily unavailable, so the report will retry automatically with bounded backoff. Your draft remains queued until delivery.'}
             </p>
             <p className="mt-4 text-[0.65rem] font-black uppercase tracking-[0.12em] text-cyan-200">
@@ -283,12 +283,12 @@ const PlayerReportDialog: React.FC<PlayerReportDialogProps> = ({ kind, onClose }
               />
               <span>
                 <strong className="block text-cyan-100">Include technical diagnostics</strong>
-                Adds the game version, screen, mission/wave, device size, connection state, and recent technical events. It never includes recovery phrases or wallet keys.
+                Adds the game version, screen, mission/wave, device size, connection state, and recent technical events. Manual reports are sent through Resend to the Scicon team's Gmail inbox. Technical diagnostics do not read wallet secrets or browser storage. Never type a recovery phrase or private key into a report.
               </span>
             </label>
 
             <p className="rounded-[6px] border border-cyan-300/18 bg-slate-900/70 p-3 text-xs leading-relaxed text-slate-300">
-              Need direct support? Submit this report first so we can trace the issue, then email{' '}
+              No email address or wallet is required. If you want a direct reply, submit this report first and then email{' '}
               <a className="font-bold text-cyan-200 underline decoration-cyan-400/50 underline-offset-2" href={supportMailto}>
                 {DONATION_CONFIG.SUPPORT_EMAIL}
               </a>{' '}
@@ -317,7 +317,7 @@ const PlayerReportDialog: React.FC<PlayerReportDialogProps> = ({ kind, onClose }
                 disabled={!draft.summary.trim() || draft.status === 'sending'}
                 className="min-h-11 rounded-[6px] border border-emerald-300/40 bg-emerald-400/14 px-3 py-2 text-sm font-black text-emerald-100 transition hover:bg-emerald-300/20 disabled:cursor-not-allowed disabled:opacity-45"
               >
-                {draft.status === 'sending' ? 'Saving report...' : isBug ? 'Submit bug report' : 'Send feedback'}
+                {draft.status === 'sending' ? 'Sending report...' : isBug ? 'Submit bug report' : 'Send feedback'}
               </button>
             </div>
           </form>

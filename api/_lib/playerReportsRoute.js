@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const { isDeepStrictEqual } = require('node:util');
 const {
   fetchSupabaseJson,
   getSupabaseConfig,
@@ -7,6 +8,7 @@ const {
 } = require('./supabase');
 const { checkRateLimit, getClientAddress } = require('./rateLimit');
 const { assertSameOrigin } = require('./walletProfileAuth');
+const { sendPlayerReportEmail } = require('./playerReportEmail');
 
 const EVENTS_TABLE = process.env.SUPABASE_PRODUCT_EVENTS_TABLE || 'scicon_product_events';
 const MAX_REQUEST_BODY_BYTES = 64 * 1024;
@@ -15,6 +17,7 @@ const MAX_DETAILS_LENGTH = 5_000;
 const MAX_BREADCRUMBS = 30;
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 const REPORT_RATE_LIMITS = Object.freeze({ manual: 5, automatic: 20 });
+const REPORT_REQUEST_RATE_LIMIT = 60;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ISO_TIMESTAMP_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 const GAME_VERSION_PATTERN = /^[a-z0-9._-]{1,64}$/i;
@@ -313,8 +316,70 @@ const buildStoredProperties = (report, limiterKey) => ({
   summary: report.summary,
   details: report.details,
   created_at: report.createdAt,
+  ...(report.source === 'manual' ? { email_notification: { status: 'pending' } } : {}),
   ...(report.diagnostics ? { diagnostics: report.diagnostics } : {})
 });
+
+const deriveReportEventId = (reportId) => {
+  const digest = crypto
+    .createHash('sha256')
+    .update(`scicon-player-report-event:v1:${reportId}`)
+    .digest();
+  const safeMagnitude = Number(digest.readBigUInt64BE(0) & ((1n << 52n) - 1n)) || 1;
+  return -safeMagnitude;
+};
+
+const findStoredReport = async (reportId) => {
+  const rows = await fetchSupabaseJson(
+    `${EVENTS_TABLE}?select=event_name,session_id,game_version,properties`
+      + `&properties->>report_id=eq.${encodeURIComponent(reportId)}`
+      + '&limit=1',
+    { headers: supabaseHeaders() }
+  );
+  return Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+};
+
+const storedReportMatches = (stored, report) => {
+  if (!stored || !isPlainObject(stored.properties)) return false;
+  const expectedEventName = eventNameForReport(report);
+  return stored.event_name === expectedEventName
+    && stored.session_id === report.sessionId
+    && stored.game_version === report.gameVersion
+    && stored.properties.report_id === report.reportId
+    && stored.properties.kind === report.kind
+    && stored.properties.category === report.category
+    && stored.properties.source === report.source
+    && stored.properties.summary === report.summary
+    && stored.properties.details === report.details
+    && stored.properties.created_at === report.createdAt
+    && isDeepStrictEqual(stored.properties.diagnostics, report.diagnostics);
+};
+
+const storedReportWasEmailed = (stored) => (
+  stored?.properties?.email_notification?.status === 'sent'
+);
+
+const markStoredReportEmailed = async (reportId, storedProperties, providerMessageId) => {
+  const safeProviderMessageId = redactSensitiveText(providerMessageId, 200)
+    .replace(/[^a-z0-9_-]/gi, '');
+  await fetchSupabaseJson(
+    `${EVENTS_TABLE}?properties->>report_id=eq.${encodeURIComponent(reportId)}`,
+    {
+      method: 'PATCH',
+      headers: supabaseHeaders({ Prefer: 'return=minimal' }),
+      body: JSON.stringify({
+        properties: {
+          ...storedProperties,
+          email_notification: {
+            status: 'sent',
+            notified_at: new Date().toISOString(),
+            provider_message_id: safeProviderMessageId
+          }
+        }
+      })
+    }
+  );
+};
 
 const digestToUuid = (digest) => [
   digest.slice(0, 8),
@@ -385,49 +450,102 @@ module.exports = async (req, res) => {
       });
     }
 
-    const rateLimit = checkRateLimit(req, {
-      scope: `player-report:${report.source}`,
-      limit: REPORT_RATE_LIMITS[report.source],
+    const requestRateLimit = checkRateLimit(req, {
+      scope: `player-report-request:${report.source}`,
+      limit: REPORT_REQUEST_RATE_LIMIT,
       windowMs: RATE_LIMIT_WINDOW_MS
     });
-    if (!rateLimit.allowed) {
-      return sendRateLimitExceeded(res, rateLimit.resetAt);
-    }
-    const durableRateLimit = await checkDurableRateLimit(req, report.source);
-    if (!durableRateLimit.allowed) {
-      return sendRateLimitExceeded(res, durableRateLimit.resetAt);
+    if (!requestRateLimit.allowed) {
+      return sendRateLimitExceeded(res, requestRateLimit.resetAt);
     }
 
     const eventName = eventNameForReport(report);
-    await fetchSupabaseJson(EVENTS_TABLE, {
-      method: 'POST',
-      headers: supabaseHeaders({ Prefer: 'return=minimal' }),
-      body: JSON.stringify({
-        event_name: eventName,
-        session_id: report.sessionId,
-        game_version: report.gameVersion,
-        properties: buildStoredProperties(report, durableRateLimit.limiterKey)
-      })
-    });
+    const storedReport = await findStoredReport(report.reportId);
+    if (storedReport && !storedReportMatches(storedReport, report)) {
+      throw apiError('That report ID is already in use.', 409, 'REPORT_ID_CONFLICT');
+    }
 
-    console.info('Player report stored', {
+    let storedProperties = storedReport?.properties || null;
+    if (!storedReport) {
+      const rateLimit = checkRateLimit(req, {
+        scope: `player-report:${report.source}`,
+        limit: REPORT_RATE_LIMITS[report.source],
+        windowMs: RATE_LIMIT_WINDOW_MS
+      });
+      if (!rateLimit.allowed) {
+        return sendRateLimitExceeded(res, rateLimit.resetAt);
+      }
+      const durableRateLimit = await checkDurableRateLimit(req, report.source);
+      if (!durableRateLimit.allowed) {
+        return sendRateLimitExceeded(res, durableRateLimit.resetAt);
+      }
+
+      storedProperties = buildStoredProperties(report, durableRateLimit.limiterKey);
+      await fetchSupabaseJson(EVENTS_TABLE, {
+        method: 'POST',
+        headers: supabaseHeaders({ Prefer: 'return=minimal' }),
+        body: JSON.stringify({
+          id: deriveReportEventId(report.reportId),
+          event_name: eventName,
+          session_id: report.sessionId,
+          game_version: report.gameVersion,
+          properties: storedProperties
+        })
+      });
+    }
+
+    let emailResult = { emailed: false, skipped: true };
+    try {
+      if (report.source === 'manual' && storedReportWasEmailed(storedReport)) {
+        emailResult = { emailed: true, skipped: true };
+      } else {
+        emailResult = await sendPlayerReportEmail(report);
+        if (emailResult.emailed) {
+          await markStoredReportEmailed(
+            report.reportId,
+            storedProperties,
+            emailResult.providerMessageId
+          );
+        }
+      }
+    } catch (error) {
+      const deliveryError = apiError(
+        'Your report was saved, but its email notification is temporarily unavailable.',
+        503,
+        'REPORT_EMAIL_UNAVAILABLE'
+      );
+      if (Number.isFinite(error?.retryAfterMs)) {
+        deliveryError.retryAfterMs = error.retryAfterMs;
+      }
+      throw deliveryError;
+    }
+
+    console.info('Player report accepted', {
       reportId: report.reportId,
       eventName,
       kind: report.kind,
       category: report.category,
       source: report.source,
       gameVersion: report.gameVersion,
-      diagnosticsIncluded: Boolean(report.diagnostics)
+      diagnosticsIncluded: Boolean(report.diagnostics),
+      alreadyStored: Boolean(storedReport),
+      emailNotified: emailResult.emailed
     });
     return sendJson(res, 201, {
       accepted: true,
       stored: true,
+      emailed: emailResult.emailed,
       reportId: report.reportId
     });
   } catch (error) {
     const status = Number.isInteger(error?.statusCode) ? error.statusCode : 503;
+    if (error?.code === 'REPORT_EMAIL_UNAVAILABLE' && Number.isFinite(error?.retryAfterMs)) {
+      res.setHeader('Retry-After', String(Math.max(1, Math.ceil(error.retryAfterMs / 1000))));
+    }
     if (status >= 500) {
-      console.error('Player report storage failed', {
+      console.error(error?.code === 'REPORT_EMAIL_UNAVAILABLE'
+        ? 'Player report email notification failed'
+        : 'Player report storage failed', {
         reportId: report?.reportId || null,
         kind: report?.kind || null,
         category: report?.category || null,
@@ -437,12 +555,16 @@ module.exports = async (req, res) => {
       });
     }
     return sendJson(res, status, {
-      error: status >= 500
-        ? 'Player report storage is temporarily unavailable.'
-        : error.message,
-      code: status >= 500
-        ? 'REPORT_STORAGE_UNAVAILABLE'
-        : error.code || 'REPORT_INVALID'
+      error: error?.code === 'REPORT_EMAIL_UNAVAILABLE'
+        ? error.message
+        : status >= 500
+          ? 'Player report storage is temporarily unavailable.'
+          : error.message,
+      code: error?.code === 'REPORT_EMAIL_UNAVAILABLE'
+        ? error.code
+        : status >= 500
+          ? 'REPORT_STORAGE_UNAVAILABLE'
+          : error.code || 'REPORT_INVALID'
     });
   }
 };
@@ -451,10 +573,15 @@ module.exports._test = {
   MAX_REQUEST_BODY_BYTES,
   buildStoredProperties,
   checkDurableRateLimit,
+  deriveReportEventId,
   deriveDurableRateLimitKey,
   eventNameForReport,
+  findStoredReport,
+  markStoredReportEmailed,
   parseBody,
   redactSensitiveText,
   sanitizeDiagnostics,
+  storedReportMatches,
+  storedReportWasEmailed,
   validateReport
 };
