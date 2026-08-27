@@ -4,9 +4,14 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const playerReportsHandler = require('../api/_lib/playerReportsRoute');
+const {
+  PLAYER_REPORT_EMAIL_TO,
+  RESEND_EMAIL_ENDPOINT
+} = require('../api/_lib/playerReportEmail');
 
 const TEST_SUPABASE_URL = 'https://example.supabase.co';
 const TEST_SERVICE_KEY = 'player-report-test-service-key';
+const TEST_RESEND_API_KEY = 're_player-report-test-key';
 let requestSequence = 0;
 
 const makeResponse = () => ({
@@ -21,6 +26,16 @@ const supabaseResponse = (data = null, status = 201) => ({
   status,
   async text() { return data === null ? '' : JSON.stringify(data); }
 });
+
+const resendResponse = (data = { id: 'email_test_message' }, status = 200) => ({
+  ok: status >= 200 && status < 300,
+  status,
+  async json() { return data; }
+});
+
+const isResendRequest = (url) => String(url) === RESEND_EMAIL_ENDPOINT;
+const isStoredReportLookup = (url) => String(url).includes('properties->>report_id=eq.');
+const isDurableLimiterLookup = (url) => String(url).includes('properties->>limiter_key=eq.');
 
 const nextIp = () => `203.0.113.${++requestSequence}`;
 
@@ -53,8 +68,10 @@ const withSupabaseEnvironment = async (run) => {
   const originalUrl = process.env.SUPABASE_URL;
   const originalRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const originalServiceKey = process.env.SUPABASE_SERVICE_KEY;
+  const originalResendApiKey = process.env.RESEND_API_KEY;
   process.env.SUPABASE_URL = TEST_SUPABASE_URL;
   process.env.SUPABASE_SERVICE_ROLE_KEY = TEST_SERVICE_KEY;
+  process.env.RESEND_API_KEY = TEST_RESEND_API_KEY;
   delete process.env.SUPABASE_SERVICE_KEY;
   try {
     return await run();
@@ -65,6 +82,8 @@ const withSupabaseEnvironment = async (run) => {
     else process.env.SUPABASE_SERVICE_ROLE_KEY = originalRoleKey;
     if (originalServiceKey === undefined) delete process.env.SUPABASE_SERVICE_KEY;
     else process.env.SUPABASE_SERVICE_KEY = originalServiceKey;
+    if (originalResendApiKey === undefined) delete process.env.RESEND_API_KEY;
+    else process.env.RESEND_API_KEY = originalResendApiKey;
   }
 };
 
@@ -75,6 +94,7 @@ test('manual reports are stored as owner-only product event rows and preserve th
   const logs = [];
   global.fetch = async (url, options = {}) => {
     requests.push({ url: String(url), options });
+    if (isResendRequest(url)) return resendResponse();
     return options.body ? supabaseResponse() : supabaseResponse([], 200);
   };
   console.info = (...args) => logs.push(args);
@@ -88,12 +108,20 @@ test('manual reports are stored as owner-only product event rows and preserve th
       assert.deepEqual(res.body, {
         accepted: true,
         stored: true,
+        emailed: true,
         reportId: '11111111-1111-4111-8111-111111111111'
       });
       assert.equal(res.headers['Cache-Control'], 'no-store');
-      assert.equal(requests.length, 2);
-      const limiterRequest = requests.find((request) => !request.options.body);
-      const reportRequest = requests.find((request) => request.options.body);
+      assert.equal(requests.length, 5);
+      const existingRequest = requests.find((request) => isStoredReportLookup(request.url));
+      const limiterRequest = requests.find((request) => isDurableLimiterLookup(request.url));
+      const reportRequest = requests.find((request) => (
+        request.url === `${TEST_SUPABASE_URL}/rest/v1/scicon_product_events`
+        && request.options.method === 'POST'
+      ));
+      const notificationUpdate = requests.find((request) => request.options.method === 'PATCH');
+      const emailRequest = requests.find((request) => isResendRequest(request.url));
+      assert.ok(existingRequest);
       assert.match(limiterRequest.url, /properties->>limiter_key=eq\.[0-9a-f-]{36}/i);
       assert.equal(reportRequest.url, `${TEST_SUPABASE_URL}/rest/v1/scicon_product_events`);
       assert.equal(reportRequest.options.method, 'POST');
@@ -101,6 +129,9 @@ test('manual reports are stored as owner-only product event rows and preserve th
       assert.equal(reportRequest.options.headers.Prefer, 'return=minimal');
 
       const row = JSON.parse(reportRequest.options.body);
+      assert.equal(row.id, playerReportsHandler._test.deriveReportEventId(validReport().reportId));
+      assert.ok(Number.isSafeInteger(row.id));
+      assert.ok(row.id < 0);
       assert.equal(row.event_name, 'player_bug_report');
       assert.equal(row.session_id, validReport().sessionId);
       assert.equal(row.game_version, validReport().gameVersion);
@@ -109,11 +140,28 @@ test('manual reports are stored as owner-only product event rows and preserve th
       assert.equal(row.properties.details, validReport().details);
       assert.equal(row.properties.created_at, validReport().createdAt);
       assert.equal(row.properties.schema_version, 1);
+      assert.equal(row.properties.email_notification.status, 'pending');
       assert.match(row.properties.limiter_key, /^[0-9a-f-]{36}$/i);
       assert.doesNotMatch(JSON.stringify(row), /203\.0\.113\./);
 
+      assert.equal(emailRequest.options.method, 'POST');
+      assert.equal(emailRequest.options.headers.Authorization, `Bearer ${TEST_RESEND_API_KEY}`);
+      assert.equal(
+        emailRequest.options.headers['Idempotency-Key'],
+        'scicon-player-report/11111111-1111-4111-8111-111111111111'
+      );
+      const email = JSON.parse(emailRequest.options.body);
+      assert.deepEqual(email.to, [PLAYER_REPORT_EMAIL_TO]);
+      assert.match(email.subject, /Bug report/);
+      assert.match(email.text, /The wave changed unexpectedly\./);
+      assert.equal(email.reply_to, undefined);
+      const updatedProperties = JSON.parse(notificationUpdate.options.body).properties;
+      assert.equal(updatedProperties.email_notification.status, 'sent');
+      assert.match(updatedProperties.email_notification.notified_at, /Z$/);
+      assert.equal(updatedProperties.email_notification.provider_message_id, 'email_test_message');
+
       const serializedLogs = JSON.stringify(logs);
-      assert.match(serializedLogs, /Player report stored/);
+      assert.match(serializedLogs, /Player report accepted/);
       assert.match(serializedLogs, /11111111-1111-4111-8111-111111111111/);
       assert.doesNotMatch(serializedLogs, /flight restarted while enemies/i);
       assert.doesNotMatch(serializedLogs, /wave changed unexpectedly/i);
@@ -125,12 +173,272 @@ test('manual reports are stored as owner-only product event rows and preserve th
   }
 });
 
+test('report event IDs are deterministic, negative, and isolated from the positive identity sequence', () => {
+  const first = playerReportsHandler._test.deriveReportEventId(
+    '11111111-1111-4111-8111-111111111111'
+  );
+  const repeat = playerReportsHandler._test.deriveReportEventId(
+    '11111111-1111-4111-8111-111111111111'
+  );
+  const different = playerReportsHandler._test.deriveReportEventId(
+    '22222222-2222-4222-8222-222222222222'
+  );
+  assert.equal(first, repeat);
+  assert.notEqual(first, different);
+  assert.ok(Number.isSafeInteger(first));
+  assert.ok(first < 0);
+});
+
+test('stored report retries tolerate JSONB object key reordering without accepting changed content', () => {
+  const report = playerReportsHandler._test.validateReport(validReport({
+    diagnostics: {
+      runtime: { gameState: 'playing', score: 42 },
+      environment: { pathname: '/', online: true },
+      breadcrumbs: []
+    }
+  }));
+  const properties = playerReportsHandler._test.buildStoredProperties(report, 'limiter-key');
+  const reorderedDiagnostics = {
+    breadcrumbs: [...properties.diagnostics.breadcrumbs],
+    environment: Object.fromEntries(Object.entries(properties.diagnostics.environment).reverse()),
+    runtime: Object.fromEntries(Object.entries(properties.diagnostics.runtime).reverse())
+  };
+  const stored = {
+    event_name: 'player_bug_report',
+    session_id: report.sessionId,
+    game_version: report.gameVersion,
+    properties: {
+      ...properties,
+      diagnostics: reorderedDiagnostics
+    }
+  };
+  assert.equal(playerReportsHandler._test.storedReportMatches(stored, report), true);
+  stored.properties.summary = 'Changed after storage';
+  assert.equal(playerReportsHandler._test.storedReportMatches(stored, report), false);
+});
+
+test('a failed email notification retries from the durable report without duplicate storage or mail', async () => {
+  const originalFetch = global.fetch;
+  const originalInfo = console.info;
+  const originalError = console.error;
+  let storedRow = null;
+  let reportWrites = 0;
+  let notificationUpdates = 0;
+  const emailRequests = [];
+  global.fetch = async (url, options = {}) => {
+    if (isResendRequest(url)) {
+      emailRequests.push({ url: String(url), options });
+      return emailRequests.length === 1
+        ? resendResponse({ message: 'temporary provider failure' }, 503)
+        : resendResponse({ id: 'email_retry_succeeded' });
+    }
+    if (options.method === 'PATCH') {
+      notificationUpdates += 1;
+      storedRow.properties = JSON.parse(options.body).properties;
+      return supabaseResponse();
+    }
+    if (isStoredReportLookup(url)) {
+      return supabaseResponse(storedRow ? [storedRow] : [], 200);
+    }
+    if (isDurableLimiterLookup(url)) return supabaseResponse([], 200);
+    if (options.body) {
+      reportWrites += 1;
+      storedRow = JSON.parse(options.body);
+      return supabaseResponse();
+    }
+    throw new Error(`Unexpected request: ${url}`);
+  };
+  console.info = () => {};
+  console.error = () => {};
+
+  try {
+    await withSupabaseEnvironment(async () => {
+      const request = makeRequest(validReport({
+        reportId: '12121212-1212-4212-8212-121212121212'
+      }));
+      const first = makeResponse();
+      await playerReportsHandler(request, first);
+      assert.equal(first.statusCode, 503);
+      assert.equal(first.body.code, 'REPORT_EMAIL_UNAVAILABLE');
+      assert.equal(reportWrites, 1);
+
+      const retry = makeResponse();
+      await playerReportsHandler(request, retry);
+      assert.equal(retry.statusCode, 201);
+      assert.equal(retry.body.stored, true);
+      assert.equal(retry.body.emailed, true);
+      assert.equal(reportWrites, 1);
+      assert.equal(notificationUpdates, 1);
+      assert.equal(emailRequests.length, 2);
+      assert.deepEqual(
+        emailRequests.map((entry) => entry.options.headers['Idempotency-Key']),
+        [
+          'scicon-player-report/12121212-1212-4212-8212-121212121212',
+          'scicon-player-report/12121212-1212-4212-8212-121212121212'
+        ]
+      );
+      assert.deepEqual(
+        emailRequests.map((entry) => JSON.parse(entry.options.body).to),
+        [[PLAYER_REPORT_EMAIL_TO], [PLAYER_REPORT_EMAIL_TO]]
+      );
+
+      const replayAfterDelivery = makeResponse();
+      await playerReportsHandler(request, replayAfterDelivery);
+      assert.equal(replayAfterDelivery.statusCode, 201);
+      assert.equal(replayAfterDelivery.body.emailed, true);
+      assert.equal(emailRequests.length, 2);
+      assert.equal(reportWrites, 1);
+      assert.equal(notificationUpdates, 1);
+    });
+  } finally {
+    global.fetch = originalFetch;
+    console.info = originalInfo;
+    console.error = originalError;
+  }
+});
+
+test('an email accepted before status persistence safely retries with the same provider key', async () => {
+  const originalFetch = global.fetch;
+  const originalInfo = console.info;
+  const originalError = console.error;
+  let storedRow = null;
+  let reportInserts = 0;
+  let patchCalls = 0;
+  const emailKeys = [];
+  global.fetch = async (url, options = {}) => {
+    if (isResendRequest(url)) {
+      emailKeys.push(options.headers['Idempotency-Key']);
+      return resendResponse({ id: 'email_already_accepted' });
+    }
+    if (options.method === 'PATCH') {
+      patchCalls += 1;
+      if (patchCalls === 1) return supabaseResponse({ message: 'temporary patch failure' }, 503);
+      storedRow.properties = JSON.parse(options.body).properties;
+      return supabaseResponse();
+    }
+    if (isStoredReportLookup(url)) return supabaseResponse(storedRow ? [storedRow] : [], 200);
+    if (isDurableLimiterLookup(url)) return supabaseResponse([], 200);
+    if (options.method === 'POST') {
+      reportInserts += 1;
+      storedRow = JSON.parse(options.body);
+      return supabaseResponse();
+    }
+    throw new Error(`Unexpected request: ${url}`);
+  };
+  console.info = () => {};
+  console.error = () => {};
+
+  try {
+    await withSupabaseEnvironment(async () => {
+      const request = makeRequest(validReport({
+        reportId: '56565656-5656-4656-8656-565656565656'
+      }));
+      const first = makeResponse();
+      await playerReportsHandler(request, first);
+      assert.equal(first.statusCode, 503);
+      assert.equal(first.body.code, 'REPORT_EMAIL_UNAVAILABLE');
+
+      const retry = makeResponse();
+      await playerReportsHandler(request, retry);
+      assert.equal(retry.statusCode, 201);
+      assert.equal(retry.body.emailed, true);
+      assert.equal(reportInserts, 1);
+      assert.equal(patchCalls, 2);
+      assert.deepEqual(emailKeys, [
+        'scicon-player-report/56565656-5656-4656-8656-565656565656',
+        'scicon-player-report/56565656-5656-4656-8656-565656565656'
+      ]);
+      assert.equal(storedRow.properties.email_notification.status, 'sent');
+    });
+  } finally {
+    global.fetch = originalFetch;
+    console.info = originalInfo;
+    console.error = originalError;
+  }
+});
+
+test('concurrent same-ID submissions use one deterministic event row and recover cleanly', async () => {
+  const originalFetch = global.fetch;
+  const originalInfo = console.info;
+  const originalError = console.error;
+  let storedRow = null;
+  let reportInserts = 0;
+  let emailCalls = 0;
+  let lookupCount = 0;
+  let releaseLookups;
+  const bothLookupsStarted = new Promise((resolve) => { releaseLookups = resolve; });
+  global.fetch = async (url, options = {}) => {
+    if (isResendRequest(url)) {
+      emailCalls += 1;
+      return resendResponse({ id: 'email_concurrent' });
+    }
+    if (options.method === 'PATCH') {
+      storedRow.properties = JSON.parse(options.body).properties;
+      return supabaseResponse();
+    }
+    if (isStoredReportLookup(url)) {
+      if (storedRow) return supabaseResponse([storedRow], 200);
+      lookupCount += 1;
+      if (lookupCount === 2) releaseLookups();
+      await bothLookupsStarted;
+      return supabaseResponse([], 200);
+    }
+    if (isDurableLimiterLookup(url)) return supabaseResponse([], 200);
+    if (options.method === 'POST') {
+      const candidate = JSON.parse(options.body);
+      if (storedRow?.id === candidate.id) {
+        return supabaseResponse({ message: 'duplicate primary key' }, 409);
+      }
+      reportInserts += 1;
+      storedRow = candidate;
+      return supabaseResponse();
+    }
+    throw new Error(`Unexpected request: ${url}`);
+  };
+  console.info = () => {};
+  console.error = () => {};
+
+  try {
+    await withSupabaseEnvironment(async () => {
+      const body = validReport({ reportId: '34343434-3434-4434-8434-343434343434' });
+      const first = makeResponse();
+      const second = makeResponse();
+      await Promise.all([
+        playerReportsHandler(makeRequest(body), first),
+        playerReportsHandler(makeRequest(body), second)
+      ]);
+
+      assert.deepEqual([first.statusCode, second.statusCode].sort(), [201, 503]);
+      assert.equal(reportInserts, 1);
+      assert.equal(emailCalls, 1);
+      assert.equal(storedRow.id, playerReportsHandler._test.deriveReportEventId(body.reportId));
+
+      const retry = makeResponse();
+      await playerReportsHandler(makeRequest(body), retry);
+      assert.equal(retry.statusCode, 201);
+      assert.equal(retry.body.emailed, true);
+      assert.equal(reportInserts, 1);
+      assert.equal(emailCalls, 1);
+    });
+  } finally {
+    global.fetch = originalFetch;
+    console.info = originalInfo;
+    console.error = originalError;
+  }
+});
+
 test('feedback and automatic crashes receive distinct event names', async () => {
   const originalFetch = global.fetch;
   const originalInfo = console.info;
   const rows = [];
-  global.fetch = async (_url, options = {}) => {
+  const emails = [];
+  global.fetch = async (url, options = {}) => {
+    if (isResendRequest(url)) {
+      emails.push(JSON.parse(options.body));
+      return resendResponse();
+    }
     if (!options.body) return supabaseResponse([], 200);
+    if (options.method === 'PATCH') return supabaseResponse();
     rows.push(JSON.parse(options.body));
     return supabaseResponse();
   };
@@ -156,10 +464,15 @@ test('feedback and automatic crashes receive distinct event names', async () => 
 
       assert.equal(feedbackResponse.statusCode, 201);
       assert.equal(crashResponse.statusCode, 201);
+      assert.equal(feedbackResponse.body.emailed, true);
+      assert.equal(crashResponse.body.emailed, false);
       assert.deepEqual(rows.map((row) => row.event_name), [
         'player_feedback',
         'player_bug_report'
       ]);
+      assert.equal(emails.length, 1);
+      assert.deepEqual(emails[0].to, [PLAYER_REPORT_EMAIL_TO]);
+      assert.match(emails[0].subject, /Feedback/);
     });
   } finally {
     global.fetch = originalFetch;
@@ -284,7 +597,8 @@ test('diagnostics are deeply allowlisted, capped, and redacted again on the serv
   const originalFetch = global.fetch;
   const originalInfo = console.info;
   let storedRow;
-  global.fetch = async (_url, options = {}) => {
+  global.fetch = async (url, options = {}) => {
+    if (isResendRequest(url)) return resendResponse();
     if (!options.body) return supabaseResponse([], 200);
     storedRow = JSON.parse(options.body);
     return supabaseResponse();
@@ -387,10 +701,15 @@ test('diagnostics are deeply allowlisted, capped, and redacted again on the serv
 test('manual reports retain a local five-per-hour defense and automatic reports use a separate bucket', async () => {
   const originalFetch = global.fetch;
   const originalInfo = console.info;
-  let fetchCalls = 0;
-  global.fetch = async () => {
-    fetchCalls += 1;
-    return supabaseResponse();
+  let supabaseFetchCalls = 0;
+  let emailCalls = 0;
+  global.fetch = async (url, options = {}) => {
+    if (isResendRequest(url)) {
+      emailCalls += 1;
+      return resendResponse();
+    }
+    supabaseFetchCalls += 1;
+    return options.body ? supabaseResponse() : supabaseResponse([], 200);
   };
   console.info = () => {};
   const ip = '198.51.100.77';
@@ -420,7 +739,9 @@ test('manual reports retain a local five-per-hour defense and automatic reports 
         category: 'crash'
       }), { headers: { host: 'sciconshooter.xyz', origin: 'https://sciconshooter.xyz', 'x-forwarded-for': ip } }), automatic);
       assert.equal(automatic.statusCode, 201);
-      assert.equal(fetchCalls, 12);
+      assert.equal(automatic.body.emailed, false);
+      assert.equal(supabaseFetchCalls, 24);
+      assert.equal(emailCalls, 5);
     });
   } finally {
     global.fetch = originalFetch;
@@ -435,6 +756,10 @@ test('accepted report rows enforce a durable opaque source-separated limiter wit
   let reportWrites = 0;
   const ip = '198.51.100.201';
   global.fetch = async (url, options = {}) => {
+    if (isStoredReportLookup(url)) {
+      queries.push(String(url));
+      return supabaseResponse([], 200);
+    }
     if (options.body) {
       reportWrites += 1;
       return supabaseResponse();
@@ -469,9 +794,10 @@ test('accepted report rows enforce a durable opaque source-separated limiter wit
       assert.equal(res.body.code, 'REPORT_RATE_LIMITED');
       assert.match(res.headers['Retry-After'], /^\d+$/);
       assert.equal(reportWrites, 0);
-      assert.equal(queries.length, 1);
-      assert.match(queries[0], new RegExp(manualKey));
-      assert.doesNotMatch(queries[0], new RegExp(ip.replaceAll('.', '\\.')));
+      assert.equal(queries.length, 2);
+      const limiterQuery = queries.find((query) => isDurableLimiterLookup(query));
+      assert.match(limiterQuery, new RegExp(manualKey));
+      assert.doesNotMatch(limiterQuery, new RegExp(ip.replaceAll('.', '\\.')));
     });
   } finally {
     global.fetch = originalFetch;

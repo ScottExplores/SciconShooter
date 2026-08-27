@@ -10,6 +10,15 @@ const serviceSource = fs.readFileSync(
   'utf8'
 );
 
+const acceptedResponse = ({ emailed = true } = {}) => ({
+  ok: true,
+  status: 201,
+  headers: { get: () => null },
+  async json() {
+    return { accepted: true, stored: true, emailed };
+  }
+});
+
 const loadService = ({ online = true, fetchImpl, browserTimers = false } = {}) => {
   const compiled = ts.transpileModule(serviceSource, {
     compilerOptions: {
@@ -77,7 +86,7 @@ const loadService = ({ online = true, fetchImpl, browserTimers = false } = {}) =
       addEventListener() {},
       removeEventListener() {}
     },
-    fetch: fetchImpl || (async () => ({ ok: true, status: 202 })),
+    fetch: fetchImpl || (async () => acceptedResponse()),
     location: { pathname: '/game' },
     localStorage,
     navigator: {
@@ -107,7 +116,7 @@ test('manual reports send an anonymous, redacted payload without diagnostics whe
   const { service } = loadService({
     fetchImpl: async (_url, options) => {
       submitted = JSON.parse(options.body);
-      return { ok: true, status: 202 };
+      return acceptedResponse();
     }
   });
 
@@ -124,6 +133,25 @@ test('manual reports send an anonymous, redacted payload without diagnostics whe
   assert.match(submitted.summary, /\[redacted_wallet\]/);
   assert.match(submitted.details, /authorization=\[redacted\]/i);
   assert.equal(submitted.diagnostics, undefined);
+});
+
+test('manual reports remain queued until the API confirms both storage and email delivery', async () => {
+  const { service, storageValues } = loadService({
+    fetchImpl: async () => acceptedResponse({ emailed: false })
+  });
+
+  const result = await service.submitPlayerReport({
+    kind: 'feedback',
+    category: 'other',
+    summary: 'Please keep this report until the email is accepted.',
+    details: '',
+    includeDiagnostics: false
+  });
+
+  assert.equal(result.delivery, 'queued');
+  const queue = JSON.parse(storageValues.get('scicon_player_report_queue_v1'));
+  assert.equal(queue.length, 1);
+  assert.equal(queue[0].summary, 'Please keep this report until the email is accepted.');
 });
 
 test('offline reports stay in a bounded local queue and report queued delivery', async () => {
@@ -167,7 +195,7 @@ test('Retry-After delays only the failed entry while a later due report still se
           headers: { get: (name) => name.toLowerCase() === 'retry-after' ? '120' : null }
         };
       }
-      return { ok: true, status: 201, headers: { get: () => null } };
+      return acceptedResponse();
     }
   });
 
@@ -237,11 +265,7 @@ test('a submission returns queued immediately when another bounded flush is acti
     fetchImpl: async () => {
       fetchCount += 1;
       return new Promise((resolve) => {
-        releaseFirstFetch = () => resolve({
-          ok: true,
-          status: 201,
-          headers: { get: () => null }
-        });
+        releaseFirstFetch = () => resolve(acceptedResponse());
       });
     }
   });

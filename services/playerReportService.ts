@@ -75,7 +75,7 @@ const MAX_BREADCRUMBS = 30;
 const MAX_QUEUED_REPORTS = 12;
 const MAX_AUTOMATIC_REPORTS_PER_SESSION = 5;
 const AUTOMATIC_DEDUPE_WINDOW_MS = 60_000;
-const SEND_TIMEOUT_MS = 10_000;
+const SEND_TIMEOUT_MS = 15_000;
 const BASE_RETRY_DELAY_MS = 15_000;
 const MAX_RETRY_DELAY_MS = 60 * 60 * 1000;
 const MAX_RETRY_ATTEMPTS = 8;
@@ -278,9 +278,22 @@ const sendQueuedReport = async (report: QueuedPlayerReport) => {
       keepalive: true,
       signal: controller.signal
     });
+    let responseBody: unknown = null;
+    try {
+      responseBody = await response.json();
+    } catch {
+      responseBody = null;
+    }
+    const receipt = responseBody && typeof responseBody === 'object'
+      ? responseBody as Record<string, unknown>
+      : null;
+    const deliveryComplete = response.ok
+      && receipt?.accepted === true
+      && receipt?.stored === true
+      && (report.source === 'automatic' || receipt?.emailed === true);
     return {
-      sent: response.ok,
-      retryAfterMs: response.ok ? null : parseRetryAfterMs(response)
+      sent: deliveryComplete,
+      retryAfterMs: deliveryComplete ? null : parseRetryAfterMs(response)
     };
   } catch {
     return { sent: false, retryAfterMs: null };

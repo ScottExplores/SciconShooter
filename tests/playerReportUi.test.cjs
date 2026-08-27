@@ -38,7 +38,9 @@ test('technical diagnostics are consented by an enabled-by-default control with 
   assert.match(dialogSource, /includeDiagnostics: true/);
   assert.match(dialogSource, /type="checkbox"[\s\S]*?checked=\{draft\.includeDiagnostics\}/);
   assert.match(dialogSource, /Include technical diagnostics/);
-  assert.match(dialogSource, /never includes recovery phrases or wallet keys/i);
+  assert.match(dialogSource, /sent through Resend to the Scicon team's Gmail inbox/);
+  assert.match(dialogSource, /Technical diagnostics do not read wallet secrets or browser storage/);
+  assert.match(dialogSource, /Never type a recovery phrase or private key into a report/);
 });
 
 test('dialog submission uses the player-report service and retains drafts unless the player explicitly resets them', () => {
@@ -67,6 +69,7 @@ test('successful and queued submissions show a stable report receipt', () => {
   assert.match(dialogSource, /Report ID/);
   assert.match(dialogSource, /\{draft\.reportId\}/);
   assert.match(dialogSource, /Send another/);
+  assert.match(dialogSource, /emailed to the Scicon team and saved under the Report ID/i);
 });
 
 test('support escalation uses the dedicated Scicon account and email without requesting wallet secrets', () => {
@@ -75,6 +78,9 @@ test('support escalation uses the dedicated Scicon account and email without req
   assert.match(dialogSource, /mailto:\$\{DONATION_CONFIG\.SUPPORT_EMAIL\}/);
   assert.match(dialogSource, /public transaction hash/);
   assert.match(dialogSource, /Never send a recovery phrase or private key/);
+  assert.match(dialogSource, /No email address or wallet is required/);
+  assert.match(startScreenSource, /processed by Resend and delivered to sciconshooter@gmail\.com/);
+  assert.match(startScreenSource, /automatic crash reports remain in the private owner report log/);
 });
 
 test('report dialog is keyboard accessible, restores focus, and fits the mobile viewport', () => {
