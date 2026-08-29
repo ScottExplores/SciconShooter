@@ -13,6 +13,8 @@ const ALLOWED_EVENTS = new Set([
   'session_activity',
   'mission_started',
   'mission_completed',
+  'run_progress',
+  'run_ended',
   'score_submitted',
   'returning_player',
   'wallet_connected',
@@ -103,7 +105,15 @@ module.exports = async (req, res) => {
     const properties = safeProperties(body.properties);
     const visitorHash = anonymousPlayerHash(body.anonymousPlayerId);
     if (visitorHash) properties.visitor_hash = visitorHash;
-    properties.schema_version = 2;
+    const deploymentEnvironment = String(process.env.VERCEL_ENV || '').toLowerCase();
+    const eventSource = deploymentEnvironment === 'preview'
+      ? 'preview'
+      : deploymentEnvironment === 'development'
+        ? 'development'
+        : 'production';
+    properties.event_source = eventSource;
+    if (eventSource !== 'production') properties.test_run = true;
+    properties.schema_version = 3;
     await fetchSupabaseJson(EVENTS_TABLE, {
       method: 'POST',
       headers: supabaseHeaders({ Prefer: 'return=minimal' }),

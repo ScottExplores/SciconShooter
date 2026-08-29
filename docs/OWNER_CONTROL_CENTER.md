@@ -63,11 +63,26 @@ Director cache or returned to the browser.
 
 Double-click **Scicon Player Analytics** on the desktop, or use **Scicon Shooter
 Tools → Player Analytics**. The shortcut refreshes a private local HTML dashboard
-from `scicon_product_events` and then opens it. It shows aggregate new and returning
-devices, sessions, foreground play time, Mission starts and finishes, submitted
-scores, daily trends, and run-mode usage. Base Dashboard and Vercel remain useful
-for onchain/account activity and site traffic, but they cannot provide this gameplay
-funnel by themselves.
+from the production `scicon_product_events` telemetry in Supabase and then opens it.
+This is the gameplay dashboard. The Base Dashboard is separate: it reports Base
+Account and onchain actions, so an empty Base view does not mean guest players or
+offchain Mission play are missing from Player Analytics. Vercel remains useful for
+site traffic and delivery health, not in-game progression.
+
+The default Player Analytics view keeps the highest-value measurements together:
+
+- daily active devices, app sessions, actual flight time, average measured flight
+  time per session, run starts, and Campaign clears;
+- Campaign Mission reach, starts, clears, defeats, runs with no recorded end, clear
+  rate, and furthest Mission observed;
+- Weekly Run attempts, average/deepest measured Wave, and depth distribution;
+- mode-by-mode outcomes and data-quality coverage for player IDs, foreground and
+  flight time, Mission/Wave progress, results, production source, and schema version.
+
+Use the **7 DAYS**, **30 DAYS**, and **90 DAYS** buttons for the reporting window.
+The Daily Performance table shows the latest 14 days within that window. All daily
+boundaries are UTC so the same source rows reconcile no matter which computer opens
+the snapshot.
 
 The first launch may show **One-time connection needed**. Add the same server-only
 Supabase values shown above to the ignored repository-root `.env.local`, then reopen
@@ -82,10 +97,24 @@ PRODUCT_ANALYTICS_HASH_SECRET=a-long-random-server-only-secret
 Never add a `VITE_` prefix, paste these values into browser storage, or share the
 generated dashboard. The browser sends a random device-local UUID, the server stores
 only its keyed HMAC, and the dashboard HTML contains aggregates—not raw visitor
-hashes, session IDs, wallet addresses, player names, or raw IP addresses. Foreground
-time and stable new/returning-device measurements begin only after the corresponding
-game build is deployed; older event rows still contribute to legacy session and
-Mission counts.
+hashes, session IDs, analytics run IDs, wallet addresses, player names, or raw IP
+addresses.
+
+Foreground time measures the visible game page, while flight time measures only the
+visible, advancing simulation. `run_progress` records one event per newly reached
+Wave and `run_ended` records one outcome per run; neither records frame-by-frame
+movement. Localhost playtests emit no product telemetry, and new preview/development
+rows are server-tagged and excluded from the dashboard. Older untagged rows cannot
+separate live players from owner testing, so they are excluded from headline KPIs
+and shown only as mixed-history context alongside the **Data Health** coverage.
+
+The v3 metrics do not backfill old events. Immediately after the updated game is
+deployed, actual flight time, precise Campaign drop-off, Weekly depth, production
+source, and current-schema percentages will show as warming up. They become more
+representative as new live runs fill the selected 7/30/90-day window. A run listed
+under **No end** may still be active, cross the report boundary,
+lose connectivity, or predate the richer outcome event; it is not automatically a
+quit.
 
 ## Project map
 
@@ -93,7 +122,7 @@ Mission counts.
 | --- | --- | --- |
 | See current project state | Project Guide | Branch, commit, local changes, and return checklist |
 | Review player problems | Player Reports | Bugs, feedback, crash context, and “Copy for Codex” |
-| See whether people are playing | Player Analytics | New/returning devices, play time, Mission funnel, and run modes |
+| See whether people are playing | Player Analytics | Daily play, flight time, Campaign progression, Weekly depth, and data health |
 | Build or tune a boss | Boss Sandbox | Boss visuals, rigs, attacks, and encounter testing |
 | Edit Campaign content | Mission Builder | Missions, Waves, routes, and authored progression |
 | Experiment with gameplay | Combat Lab | Deterministic local gameplay testing |

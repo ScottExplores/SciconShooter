@@ -28,6 +28,21 @@ test('local development relays persistent APIs when server credentials are absen
   assert.doesNotMatch(viteConfig, /scicon-local-development-receipt-secret/);
 });
 
+test('local product telemetry is accepted without storage or a production relay', () => {
+  const eventsRouteStart = viteConfig.indexOf("mount('/api/events'");
+  const eventsRouteEnd = viteConfig.indexOf("mount('/api/player-reports'", eventsRouteStart);
+  assert.ok(eventsRouteStart >= 0 && eventsRouteEnd > eventsRouteStart);
+
+  const eventsRoute = viteConfig.slice(eventsRouteStart, eventsRouteEnd);
+  const localGuard = eventsRoute.indexOf("if (!req.query?.route)");
+  const optionalRouteRelay = eventsRoute.indexOf("proxyPublicApi('/api/events'");
+  assert.ok(localGuard >= 0, 'local product events need an explicit no-storage guard');
+  assert.ok(optionalRouteRelay > localGuard, 'only routed non-product handlers may use remote persistence');
+  assert.match(eventsRoute, /accepted: true, stored: false, environment: 'development'/);
+  assert.match(eventsRoute, /res\.statusCode = 202/);
+  assert.match(eventsRoute, /return;[\s\S]*proxyPublicApi\('\/api\/events'/);
+});
+
 test('player reports share the events Vercel function and keep the Hobby function budget', () => {
   const apiFunctions = fs.readdirSync(path.join(__dirname, '..', 'api'))
     .filter((name) => name.endsWith('.js'));

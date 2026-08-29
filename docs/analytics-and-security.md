@@ -5,10 +5,12 @@
 | Event | Trigger | Useful properties |
 | --- | --- | --- |
 | `app_opened` | First app render per session | display mode, compact/wide viewport, coarse connection class, data-saver state, navigation time, new/returning status |
-| `session_activity` | Approximately once per visible minute, plus visibility/page-exit flushes | monotonic foreground seconds for the current session and flush reason |
-| `mission_started` | Start Mission begins | run mode, Mission number |
-| `mission_completed` | A run reaches game over | score, wave, run mode, result, duration |
-| `score_submitted` | Verified leaderboard write confirms | score, wave, integrity |
+| `session_activity` | Approximately once per visible minute, plus visibility, gameplay-state, and page-exit flushes | monotonic foreground seconds, monotonic live-simulation seconds, and flush reason |
+| `mission_started` | A playable runtime finishes loading | anonymous analytics run ID, run mode, Mission number, continuous-run flag |
+| `run_progress` | Once when a run reaches a new authored Wave/depth checkpoint | anonymous analytics run ID, run mode, Mission number, local Wave, absolute Wave, continuous-run flag |
+| `run_ended` | Once when a run clears, defeats the player, is forfeited/exited, or is interrupted | anonymous analytics run ID, run mode, Mission number, local/absolute Wave, result, duration |
+| `mission_completed` | Legacy terminal event retained for older rows | score, Wave, run mode, result, duration |
+| `score_submitted` | Verified leaderboard write confirms | anonymous analytics run ID, run mode, score, Wave, integrity |
 | `returning_player` | Browser has a prior first-seen timestamp | days since first seen |
 | `wallet_connected` | Base Account becomes available | none |
 | `mint_preview_opened` | Record preview opens | record type |
@@ -27,20 +29,54 @@ only a keyed HMAC as `visitor_hash`. The raw UUID never enters the database. Eve
 rows do not include wallet addresses, player names, proposal text, or raw IP
 addresses.
 
-Foreground time is sampled only while the page is visible. `session_activity` sends
-a monotonic `active_seconds_total`, so retries and duplicate heartbeats are
-deduplicated by taking the maximum value for each session instead of summing every
-sample. The owner dashboard reports aggregate new/returning devices, sessions,
-foreground play time, Mission starts and finishes, score submissions, and run-mode
-breakdowns. It does not expose raw session IDs or visitor hashes.
+`session_activity` maintains two monotonic counters across reloads in the same
+browser tab. `active_seconds_total` measures visible foreground time, including
+menus and the Hangar. `gameplay_seconds_total` advances only while the live game
+simulation is visible and running, excluding pause screens, loading,
+transmissions, menus, and result screens. The reader derives bounded deltas from
+those counters, so repeated heartbeats are not added twice and a counter reset is
+handled without making the total move backward.
+
+Analytics schema v3 also assigns a random, nonpersonal run ID. `run_progress` is
+sent only once for each newly reached Wave checkpoint—not from the frame loop—and
+`run_ended` is sent once with the final outcome. Together they support aggregate
+Campaign Mission progression and drop-off, explicit clears/defeats/exits, and
+Weekly Run depth even when one Weekly attempt crosses multiple Missions.
+
+The owner dashboard is focused around decisions rather than every available event:
+
+- daily privacy-safe devices, app sessions, actual flight time, average measured
+  flight time per session, run starts, and Campaign clears;
+- Campaign attempts and outcomes by Mission, plus the furthest Mission observed
+  for each hashed device in the selected reporting window;
+- Weekly Run attempts, average and deepest measured Wave, and depth distribution;
+- run-mode health and measurement-coverage checks for anonymous IDs, time,
+  progression, outcomes, production source, current schema, freshness, and the
+  bounded reader limit.
+
+Daily buckets use UTC. “No end recorded” is not automatically a quit: the run may
+still be active, cross the selected report boundary, lose connectivity, or predate
+v3 outcome tracking. The richer flight-time, progression, outcome, and source
+metrics begin filling only after a v3 production build is deployed. Older untagged
+rows cannot reliably separate real players from owner/local testing, so they are
+excluded from headline KPIs and shown only as labelled mixed-history context.
 
 The dashboard is a local owner tool, not a public analytics endpoint. Its generated
-HTML contains aggregates only. Server credentials remain in the ignored root
-`.env.local`, are used by the local Node reader, and are never embedded in the page
-or sent to a browser. Base Dashboard is useful for Base Account/onchain activity and
-Vercel is useful for traffic and delivery health, but neither knows the game's
-Mission funnel or foreground play time. See `docs/OWNER_CONTROL_CENTER.md` for the
-desktop shortcut and one-time connection.
+HTML contains aggregates only and never exposes raw session, visitor, or run IDs.
+Server credentials remain in the ignored root `.env.local`, are used by the local
+Node reader, and are never embedded in the page or sent to a browser.
+
+New telemetry is production-only: loopback Codex/Claude/Vite sessions emit no
+product events, and the server tags production, preview, and development traffic so
+the reader can exclude nonproduction rows. Untagged legacy rows never enter the
+confirmed-live totals; their excluded session count and production-source coverage
+make the historical uncertainty visible instead of silently blending it in.
+
+This Supabase gameplay dashboard and the Base Dashboard answer different questions.
+Base reports Base Account and onchain activity; it does not observe guest sessions,
+foreground/flight time, Mission progression, or Weekly Run depth. Vercel remains
+useful for traffic and delivery health. See `docs/OWNER_CONTROL_CENTER.md` for the
+desktop shortcut and one-time Supabase connection.
 
 ## Player reports and crash diagnostics
 

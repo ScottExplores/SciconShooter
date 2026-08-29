@@ -67,7 +67,11 @@ import {
   type RunReceipt,
   type RunSession
 } from './services/runReceiptService';
-import { trackEvent, trackInitialVisit } from './services/analyticsService';
+import {
+  setAnalyticsGameplayActive,
+  trackEvent,
+  trackInitialVisit
+} from './services/analyticsService';
 import {
   capturePlayerRuntimeError,
   recordPlayerReportBreadcrumb,
@@ -615,6 +619,19 @@ type PendingMissionRuntimeLaunch = {
   runMode: ActiveRunMode;
   missionNumber: number;
 };
+type AnalyticsRunOutcome = 'completed' | 'defeated' | 'forfeited' | 'exited' | 'interrupted';
+type AnalyticsRunTelemetry = {
+  gameId: number;
+  runId: string;
+  runMode: ActiveRunMode;
+  missionNumber: number;
+  startInTestMode: boolean;
+  startedAtMs: number;
+  started: boolean;
+  lastProgressKey: string;
+  ended: boolean;
+  latestPosition: PauseMissionPosition | null;
+};
 
 const OWNER_TEST_FLASK_COUNT = 40;
 const DEPLOYMENT_UPDATE_CHECK_MS = 60_000;
@@ -896,6 +913,7 @@ const App: React.FC = () => {
   });
   const lastStoryWaveRef = useRef(0);
   const diagnosticWaveRef = useRef('');
+  const analyticsRunRef = useRef<AnalyticsRunTelemetry | null>(null);
   const missionLaunchNonceRef = useRef(0);
   const missionLaunchPendingRef = useRef(false);
   const weeklyRunAdmissionPendingRef = useRef(false);
@@ -1124,6 +1142,55 @@ const App: React.FC = () => {
     gameStateRef.current = gameState;
   }, [gameState]);
 
+  const emitRunOutcomeTelemetry = useCallback((
+    result: AnalyticsRunOutcome,
+    positionOverride?: Partial<PauseMissionPosition>
+  ) => {
+    const run = analyticsRunRef.current;
+    if (!run || run.startInTestMode || !run.started || run.ended) return;
+    run.ended = true;
+    const position = { ...(run.latestPosition ?? {}), ...(positionOverride ?? {}) };
+    const waveNumber = Math.max(1, Math.floor(Number(position.waveNumber) || 1));
+    trackEvent('run_ended', {
+      analytics_run_id: run.runId,
+      run_mode: run.runMode,
+      mission_number: Math.max(1, Math.floor(Number(position.levelNumber) || run.missionNumber)),
+      wave_number: waveNumber,
+      absolute_wave_number: Math.max(
+        waveNumber,
+        Math.floor(Number(position.absoluteWaveNumber) || waveNumber)
+      ),
+      continuous_run: Boolean(position.continuousRun),
+      duration_seconds: Math.max(
+        0,
+        Math.round((Date.now() - (runStartedAtRef.current ?? run.startedAtMs)) / 1000)
+      ),
+      result
+    });
+  }, []);
+
+  const emitRunProgressTelemetry = useCallback((position: PauseMissionPosition) => {
+    const run = analyticsRunRef.current;
+    if (!run) return;
+    run.latestPosition = position;
+    const progressKey = `${position.levelId}:${position.waveId}:${position.absoluteWaveNumber}`;
+    if (
+      run.startInTestMode
+      || !run.started
+      || run.ended
+      || run.lastProgressKey === progressKey
+    ) return;
+    run.lastProgressKey = progressKey;
+    trackEvent('run_progress', {
+      analytics_run_id: run.runId,
+      run_mode: run.runMode,
+      mission_number: position.levelNumber,
+      wave_number: position.waveNumber,
+      absolute_wave_number: position.absoluteWaveNumber,
+      continuous_run: position.continuousRun
+    });
+  }, []);
+
   const beginResumeCountdown = useCallback(() => {
     if (gameStateRef.current !== GameState.PAUSED) return;
     setOwnerFrameFrozen(false);
@@ -1205,6 +1272,7 @@ const App: React.FC = () => {
     missionLaunchNonceRef.current += 1;
     missionLaunchPendingRef.current = false;
     pendingMissionRuntimeRef.current = null;
+    analyticsRunRef.current = null;
     onboardingRunSessionPendingRef.current = null;
     clearIntroStoryTimeout();
     clearWeeklyProposalTransition();
@@ -2039,6 +2107,7 @@ const App: React.FC = () => {
       absoluteWaveNumber: runtime.absoluteWaveNumber,
       continuousRun: runtime.continuousRun
     };
+    emitRunProgressTelemetry(nextPosition);
     setPauseMissionPosition((current) => (
       current
       && current.levelId === nextPosition.levelId
@@ -2052,7 +2121,31 @@ const App: React.FC = () => {
         ? current
         : nextPosition
     ));
-  }, []);
+  }, [emitRunProgressTelemetry]);
+
+  useEffect(() => {
+    setAnalyticsGameplayActive(
+      gameState === GameState.PLAYING
+      && gameRuntimeReady
+      && !ownerFrameFrozen
+      && !onboardingGameplayFreeze
+      && !introMissionLocked
+      && !activeStoryBeat
+      && !isOwnerTestRun
+      && !isCampaignLabRun
+    );
+  }, [
+    activeStoryBeat,
+    gameRuntimeReady,
+    gameState,
+    introMissionLocked,
+    isCampaignLabRun,
+    isOwnerTestRun,
+    onboardingGameplayFreeze,
+    ownerFrameFrozen
+  ]);
+
+  useEffect(() => () => setAnalyticsGameplayActive(false), []);
 
   useEffect(() => {
     savePilotStats(activeProfileId, {
@@ -3472,6 +3565,11 @@ const App: React.FC = () => {
 
     const startInTestMode = runMode === 'owner-test' || runMode === 'campaign-lab';
     const nextGameId = gameId + 1;
+    const missionNumber = requestedBossReplay?.missionNumber
+      ?? (requestedWeeklyRunLevel ? getWeeklyRunDepth(requestedWeeklyRunLevel.id) : undefined)
+      ?? requestedCampaignMission?.number
+      ?? getCampaignMissionById(requestedCampaignBranch?.sourceMissionId ?? '')?.number
+      ?? 1;
     const requestedLabShipId = authorizedCampaignLabRequest?.shipId
       ? parsePlayerShipId(authorizedCampaignLabRequest.shipId)
       : null;
@@ -3661,12 +3759,22 @@ const App: React.FC = () => {
       tip: loadingTip,
       squadLoadout,
       runMode,
-      missionNumber: requestedBossReplay?.missionNumber
-        ?? (requestedWeeklyRunLevel ? getWeeklyRunDepth(requestedWeeklyRunLevel.id) : undefined)
-        ?? requestedCampaignMission?.number
-        ?? getCampaignMissionById(requestedCampaignBranch?.sourceMissionId ?? '')?.number
-        ?? 1
+      missionNumber
     };
+    analyticsRunRef.current = {
+      gameId: nextGameId,
+      runId: globalThis.crypto?.randomUUID?.()
+        ?? `${Date.now().toString(36)}-${nextGameId.toString(36)}`,
+      runMode,
+      missionNumber,
+      startInTestMode,
+      startedAtMs: Date.now(),
+      started: false,
+      lastProgressKey: '',
+      ended: false,
+      latestPosition: null
+    };
+    diagnosticWaveRef.current = '';
     setGameRuntimeReady(false);
     setMissionLoading({
       progress: 96,
@@ -3674,11 +3782,7 @@ const App: React.FC = () => {
       tip: loadingTip
     });
     setGameId(nextGameId);
-    lastStoryWaveRef.current = requestedBossReplay?.missionNumber
-      ?? (requestedWeeklyRunLevel ? getWeeklyRunDepth(requestedWeeklyRunLevel.id) : undefined)
-      ?? requestedCampaignMission?.number
-      ?? getCampaignMissionById(requestedCampaignBranch?.sourceMissionId ?? '')?.number
-      ?? 1;
+    lastStoryWaveRef.current = missionNumber;
     setGameState(GameState.PLAYING);
   };
 
@@ -3760,9 +3864,16 @@ const App: React.FC = () => {
       run_mode: pendingLaunch.runMode
     });
     if (!pendingLaunch.startInTestMode) {
+      const telemetry = analyticsRunRef.current;
+      if (telemetry?.gameId === runtimeGameId) {
+        telemetry.started = true;
+        if (telemetry.latestPosition) emitRunProgressTelemetry(telemetry.latestPosition);
+      }
       trackEvent('mission_started', {
         run_mode: pendingLaunch.runMode,
-        mission_number: pendingLaunch.missionNumber
+        mission_number: pendingLaunch.missionNumber,
+        analytics_run_id: telemetry?.gameId === runtimeGameId ? telemetry.runId : '',
+        continuous_run: pendingLaunch.runMode === 'weekly-streak'
       });
     }
     if (pendingLaunch.runMode === 'boss-archive' || pendingLaunch.runMode === 'campaign-branch') {
@@ -3848,6 +3959,9 @@ const App: React.FC = () => {
   };
 
   const resetGame = () => {
+    if (gameStateRef.current === GameState.PLAYING || gameStateRef.current === GameState.PAUSED) {
+      emitRunOutcomeTelemetry(isWeeklyCampaignRun ? 'forfeited' : 'exited');
+    }
     recordPlayerReportBreadcrumb('runtime_reset_requested', {
       game_id: gameId,
       game_state: gameState,
@@ -4348,13 +4462,14 @@ const App: React.FC = () => {
   const endWeeklyCampaignStreak = useCallback(() => {
     const streak = weeklySquadStateRef.current.weeklyCampaignStreak;
     if (!streak || streak.finalization.status !== 'active') return;
+    emitRunOutcomeTelemetry('forfeited');
     // Leaving is a forfeit, not a score-finalization path. The attempt remains
     // consumed, but none of its score, receipt, rewards, or leaderboard UI is
     // saved. A backgrounded/closed tab is different: its active streak remains
     // resumable because browsers cannot reliably distinguish that from a crash.
     persistWeeklyCampaignStreak(finalizeWeeklyCampaignDeliberateEnd(streak, Date.now()));
     resetGame();
-  }, [persistWeeklyCampaignStreak]);
+  }, [emitRunOutcomeTelemetry, persistWeeklyCampaignStreak]);
 
   const launchCampaignBranchFromMap = (request: CampaignMapBranchLaunchRequest) => {
     setCampaignMapStatus('launch-pending');
@@ -5406,6 +5521,7 @@ const App: React.FC = () => {
   const returnToCampaignMapAfterBranchAttempt = async (outcome?: 'failed' | 'interrupted') => {
     const branchId = activeCampaignBranch?.branchId ?? null;
     const sourceMissionId = activeCampaignBranch?.sourceMissionId ?? null;
+    if (outcome === 'interrupted') emitRunOutcomeTelemetry('interrupted');
     if (outcome) await settleCampaignBranchOutcome(outcome);
     openCampaignMap(sourceMissionId);
     setCampaignMapFocusBranchId(branchId);
@@ -5750,6 +5866,11 @@ const App: React.FC = () => {
     if (isWeeklyCampaignRun) {
       return;
     }
+    emitRunOutcomeTelemetry('completed', {
+      levelNumber: summary.stage,
+      waveNumber: summary.waveNumber,
+      waveTotal: summary.waveTotal
+    });
     audioService.playSound('mission_victory', 1, { pitchJitter: 0 });
     if (isBossArchiveRun) {
       setOwnerFrameFrozen(true);
@@ -6842,15 +6963,6 @@ const App: React.FC = () => {
     setRunReceiptStatus('finalizing');
     const gameplayStartedAt = runStartedAtRef.current ?? Date.now();
     runStartedAtRef.current = gameplayStartedAt;
-    if (!isOwnerTestRun && !isCampaignLabRun) {
-      trackEvent('mission_completed', {
-        score: stats.score,
-        wave: stats.wave,
-        run_mode: activeRunMode,
-        duration_seconds: Math.max(0, Math.round((Date.now() - gameplayStartedAt) / 1000)),
-        result: stats.lives > 0 ? 'completed' : 'defeated'
-      });
-    }
     const sessionPromise = runSessionPromiseRef.current ?? startRunSession({
       testRun: isOwnerTestRun,
       playerShipId: activeRunShipIdRef.current,
@@ -7106,7 +7218,13 @@ const App: React.FC = () => {
       }
       submittedScoreKeysRef.current.add(scoreKey);
       setScoreSaved(true);
-      trackEvent('score_submitted', { score, wave, integrity: verifiedReceipt.integrity });
+      trackEvent('score_submitted', {
+        score,
+        wave,
+        integrity: verifiedReceipt.integrity,
+        run_mode: activeRunMode,
+        analytics_run_id: analyticsRunRef.current?.runId ?? ''
+      });
       emitSquadDomainEvent('score_submitted', {
         profileId: weeklySquadState.profileId,
         score,
@@ -7689,6 +7807,7 @@ const App: React.FC = () => {
               onInitializationError: (error) => failMissionRuntimeLaunch(gameId, error),
               onGameOver: async () => {
                 setOwnerFrameFrozen(false);
+                emitRunOutcomeTelemetry('defeated');
                 if (isWeeklyCampaignRun) {
                   const streak = weeklySquadStateRef.current.weeklyCampaignStreak;
                   if (streak?.finalization.status === 'active') {

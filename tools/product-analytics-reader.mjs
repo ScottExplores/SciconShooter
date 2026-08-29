@@ -9,11 +9,15 @@ const PRODUCT_EVENTS = Object.freeze([
   'session_activity',
   'mission_started',
   'mission_completed',
+  'run_progress',
+  'run_ended',
   'score_submitted'
 ]);
 const PRODUCT_EVENT_SET = new Set(PRODUCT_EVENTS);
 const HEX_HASH_PATTERN = /^[a-f0-9]{64}$/i;
+const ANALYTICS_RUN_ID_PATTERN = /^[a-z0-9-]{8,80}$/i;
 const TEST_MODE_PATTERN = /(?:^|[-_ ])(?:test|owner|sandbox|preview|director|lab)(?:$|[-_ ])/i;
+const TEST_SOURCE_PATTERN = /^(?:development|local|preview|test)$/i;
 
 export class ProductAnalyticsReadError extends Error {
   constructor(message, code = 'PRODUCT_ANALYTICS_READ_FAILED') {
@@ -55,6 +59,11 @@ const normalizeMode = (value) => {
   return mode || 'unspecified';
 };
 
+const boundedInteger = (value, minimum = 0, maximum = 100_000) => {
+  const number = boundedNumber(value, minimum, maximum);
+  return number === null ? null : Math.floor(number);
+};
+
 const normalizeEvent = (row) => {
   const record = objectValue(row);
   const eventName = safeText(record.event_name, 48);
@@ -63,6 +72,8 @@ const normalizeEvent = (row) => {
   if (!PRODUCT_EVENT_SET.has(eventName) || !occurredAt) return null;
 
   const visitorHash = safeText(properties.visitor_hash, 128);
+  const analyticsRunId = safeText(properties.analytics_run_id || properties.run_id, 80);
+  const eventSource = normalizeMode(properties.event_source || properties.environment || 'legacy');
   return {
     eventName,
     occurredAt,
@@ -72,11 +83,25 @@ const normalizeEvent = (row) => {
       ? properties.player_status
       : '',
     activeSecondsTotal: boundedNumber(properties.active_seconds_total),
+    gameplaySecondsTotal: boundedNumber(properties.gameplay_seconds_total),
     runMode: normalizeMode(properties.run_mode || properties.mode),
     result: safeText(properties.result, 32).toLowerCase(),
+    missionNumber: boundedInteger(properties.mission_number, 1, 999),
+    waveNumber: boundedInteger(properties.wave_number ?? properties.wave, 1, 9_999),
+    absoluteWaveNumber: boundedInteger(
+      properties.absolute_wave_number ?? properties.wave_number ?? properties.wave,
+      1,
+      9_999
+    ),
+    durationSeconds: boundedInteger(properties.duration_seconds, 0, 604_800),
+    analyticsRunId: ANALYTICS_RUN_ID_PATTERN.test(analyticsRunId) ? analyticsRunId : '',
+    continuousRun: properties.continuous_run === true,
+    schemaVersion: boundedInteger(properties.schema_version, 0, 100) ?? 0,
+    eventSource,
     isTest: properties.test_run === true
       || properties.owner_test === true
       || properties.test_mode === true
+      || TEST_SOURCE_PATTERN.test(eventSource)
       || TEST_MODE_PATTERN.test(String(properties.run_mode || properties.mode || ''))
   };
 };
@@ -174,12 +199,16 @@ export const readProductAnalyticsEvents = async ({
     select: 'event_name,session_id,properties,occurred_at',
     event_name: `in.(${PRODUCT_EVENTS.join(',')})`,
     occurred_at: `gte.${cutoff}`,
-    order: 'occurred_at.asc'
+    // Preserve the newest traffic if the bounded reader ever reaches MAX_ROWS.
+    // Aggregation sorts locally after reading, so newest-first pagination keeps
+    // the 7/30-day owner views useful even when older 90-day history is clipped.
+    order: 'occurred_at.desc'
   }).toString();
   const headers = { apikey: configuredKey, Accept: 'application/json' };
   if (!configuredKey.startsWith('sb_secret_')) headers.Authorization = `Bearer ${configuredKey}`;
 
   const events = [];
+  let reachedEndOfFeed = false;
   for (let offset = 0; offset < MAX_ROWS; offset += PAGE_SIZE) {
     let response;
     try {
@@ -235,11 +264,15 @@ export const readProductAnalyticsEvents = async ({
       const event = normalizeEvent(row);
       if (event) events.push(event);
     }
-    if (rows.length < PAGE_SIZE) break;
+    if (rows.length < PAGE_SIZE) {
+      reachedEndOfFeed = true;
+      break;
+    }
   }
 
   return {
     events,
+    rowLimitHit: !reachedEndOfFeed,
     fetchedAt: fetchedAt.toISOString(),
     source: {
       system: 'Supabase',
@@ -254,9 +287,16 @@ const createDayBucket = (day) => ({
   date: day,
   visitors: new Set(),
   sessions: new Set(),
+  measuredActiveSessions: new Set(),
+  measuredGameplaySessions: new Set(),
+  flightSessions: new Set(),
   activeSeconds: 0,
+  gameplaySeconds: 0,
   missionStarts: 0,
-  runFinishes: 0,
+  campaignStarts: 0,
+  runEnds: 0,
+  campaignClears: 0,
+  defeats: 0,
   scoreSubmissions: 0
 });
 
@@ -272,50 +312,202 @@ const dayRange = (days, now) => {
 const displayMode = (mode) => {
   const labels = {
     campaign: 'Campaign',
+    'campaign-replay': 'Campaign Replay',
     'weekly-run': 'Weekly Run',
     weekly: 'Weekly Run',
+    'weekly-streak': 'Weekly Run',
     'boss-archive': 'Boss Archive',
     'campaign-branch': 'Campaign Branch',
+    standard: 'Standard Run',
     unspecified: 'Unspecified'
   };
   return labels[mode] || mode.split('-').map((word) => word ? word[0].toUpperCase() + word.slice(1) : '').join(' ');
 };
 
-export const aggregateProductAnalytics = (events, { days = 30, now = new Date() } = {}) => {
+const isCampaignMode = (mode) => mode === 'campaign' || mode === 'campaign-replay';
+const isWeeklyMode = (mode) => mode === 'weekly' || mode === 'weekly-run' || mode === 'weekly-streak';
+const knownOutcome = (value) => {
+  const result = safeText(value, 32).toLowerCase();
+  return ['completed', 'defeated', 'forfeited', 'exited', 'interrupted'].includes(result)
+    ? result
+    : 'ended';
+};
+const median = (values) => {
+  if (!values.length) return 0;
+  const sorted = [...values].sort((left, right) => left - right);
+  const midpoint = Math.floor(sorted.length / 2);
+  return sorted.length % 2
+    ? sorted[midpoint]
+    : (sorted[midpoint - 1] + sorted[midpoint]) / 2;
+};
+const ratio = (numerator, denominator) => denominator > 0 ? numerator / denominator : 0;
+
+export const aggregateProductAnalytics = (
+  events,
+  { days = 30, now = new Date(), rowLimitHit = false } = {}
+) => {
   const safeDays = Math.max(1, Math.min(365, Math.floor(Number(days) || 30)));
   const nowDate = safeDate(now);
   const daysInRange = dayRange(safeDays, nowDate);
   const cutoffMs = Date.parse(`${daysInRange[0]}T00:00:00.000Z`);
   const buckets = new Map(daysInRange.map((day) => [day, createDayBucket(day)]));
-  const normalized = (Array.isArray(events) ? events : [])
+  const seenEventKeys = new Set();
+  const eligibleAll = (Array.isArray(events) ? events : [])
     .map((event) => event?.eventName ? event : normalizeEvent(event))
     .filter((event) => event && !event.isTest)
     .filter((event) => {
       const time = Date.parse(event.occurredAt);
-      return Number.isFinite(time) && time >= cutoffMs && time <= nowDate.getTime();
+      return Number.isFinite(time) && time <= nowDate.getTime();
+    })
+    .filter((event) => {
+      const key = [
+        event.eventName,
+        event.occurredAt,
+        event.sessionId,
+        event.analyticsRunId,
+        event.activeSecondsTotal,
+        event.gameplaySecondsTotal,
+        event.runMode,
+        event.result,
+        event.missionNumber,
+        event.waveNumber,
+        event.absoluteWaveNumber
+      ].join('\u001f');
+      if (seenEventKeys.has(key)) return false;
+      seenEventKeys.add(key);
+      return true;
     })
     .sort((left, right) => Date.parse(left.occurredAt) - Date.parse(right.occurredAt));
+  // Only explicitly server-tagged production rows enter owner-facing KPIs.
+  // Older untagged rows remain available as clearly labelled mixed-history
+  // context because they may contain both real players and owner/local testing.
+  const normalizedAll = eligibleAll.filter((event) => event.eventSource === 'production');
+  const normalized = normalizedAll.filter((event) => Date.parse(event.occurredAt) >= cutoffMs);
+  const eligibleWindow = eligibleAll.filter((event) => Date.parse(event.occurredAt) >= cutoffMs);
+  const mixedHistoryWindow = eligibleWindow.filter((event) => event.eventSource !== 'production');
+  const earliestEligibleAt = eligibleAll[0]?.occurredAt || '';
+  const windowRowLimitHit = Boolean(
+    rowLimitHit
+    && (!earliestEligibleAt || Date.parse(earliestEligibleAt) > cutoffMs)
+  );
 
   const visitors = new Set();
   const openedSessions = new Set();
   const hashedOpenedSessions = new Set();
+  const timeEligibleSessions = new Set();
   const firstStatusByVisitor = new Map();
-  const activeBySession = new Map();
   const previousActivityBySession = new Map();
+  const previousGameplayBySession = new Map();
+  const activeSecondsBySession = new Map();
+  const gameplaySecondsBySession = new Map();
   const modeMetrics = new Map();
-  let missionStarts = 0;
-  let runFinishes = 0;
   let scoreSubmissions = 0;
   let latestEventAt = '';
+  let schemaV3Events = 0;
+
+  for (const event of normalizedAll) {
+    if (Date.parse(event.occurredAt) >= cutoffMs || event.eventName !== 'session_activity' || !event.sessionId) {
+      continue;
+    }
+    if (Number.isFinite(event.activeSecondsTotal)) {
+      previousActivityBySession.set(event.sessionId, event.activeSecondsTotal);
+    }
+    if (Number.isFinite(event.gameplaySecondsTotal)) {
+      previousGameplayBySession.set(event.sessionId, event.gameplaySecondsTotal);
+    }
+  }
+
+  const runs = new Map();
+  const currentRunBySession = new Map();
+  const legacyRunSequence = new Map();
+
+  const createLegacyRunKey = (event, prefix = 'run') => {
+    const sessionId = event.sessionId || 'unknown-session';
+    const sequence = (legacyRunSequence.get(sessionId) || 0) + 1;
+    legacyRunSequence.set(sessionId, sequence);
+    return `${prefix}:${sessionId}:${sequence}`;
+  };
+  const ensureRun = (key, event) => {
+    if (!runs.has(key)) {
+      runs.set(key, {
+        key,
+        sessionId: event.sessionId,
+        visitorHash: event.visitorHash,
+        mode: event.runMode,
+        missionNumber: event.missionNumber,
+        startedAt: '',
+        endedAt: '',
+        outcome: '',
+        maxWave: 0,
+        maxAbsoluteWave: 0,
+        hasProgress: false,
+        hasOutcomeDetails: false
+      });
+    }
+    const run = runs.get(key);
+    if (!run.visitorHash && event.visitorHash) run.visitorHash = event.visitorHash;
+    if (run.mode === 'unspecified' && event.runMode !== 'unspecified') run.mode = event.runMode;
+    if (!run.missionNumber && event.missionNumber) run.missionNumber = event.missionNumber;
+    run.maxWave = Math.max(run.maxWave, event.waveNumber || 0);
+    run.maxAbsoluteWave = Math.max(run.maxAbsoluteWave, event.absoluteWaveNumber || 0);
+    return run;
+  };
 
   const modeBucket = (mode) => {
-    if (!modeMetrics.has(mode)) modeMetrics.set(mode, { mode: displayMode(mode), starts: 0, finishes: 0 });
+    if (!modeMetrics.has(mode)) {
+      modeMetrics.set(mode, {
+        mode: displayMode(mode),
+        starts: 0,
+        finishes: 0,
+        clears: 0,
+        defeats: 0,
+        exits: 0,
+        noEnd: 0
+      });
+    }
     return modeMetrics.get(mode);
   };
+
+  // Correlate runs across the full available lookback before selecting the
+  // reporting cohort. This prevents an outcome just inside a 7/30-day boundary
+  // from becoming an impossible clear with no matching start.
+  for (const event of normalizedAll) {
+    if (event.eventName === 'mission_started') {
+      const key = event.analyticsRunId
+        ? `id:${event.analyticsRunId}`
+        : createLegacyRunKey(event);
+      const run = ensureRun(key, event);
+      if (!run.startedAt) run.startedAt = event.occurredAt;
+      if (event.sessionId) currentRunBySession.set(event.sessionId, key);
+    } else if (event.eventName === 'run_progress') {
+      const key = event.analyticsRunId
+        ? `id:${event.analyticsRunId}`
+        : currentRunBySession.get(event.sessionId) || createLegacyRunKey(event, 'progress');
+      const run = ensureRun(key, event);
+      run.hasProgress = true;
+      if (event.sessionId && !currentRunBySession.has(event.sessionId)) {
+        currentRunBySession.set(event.sessionId, key);
+      }
+    } else if (event.eventName === 'run_ended' || event.eventName === 'mission_completed') {
+      const key = event.analyticsRunId
+        ? `id:${event.analyticsRunId}`
+        : currentRunBySession.get(event.sessionId) || createLegacyRunKey(event, 'ended');
+      const run = ensureRun(key, event);
+      if (!run.endedAt) run.endedAt = event.occurredAt;
+      if (!run.outcome || run.outcome === 'ended') run.outcome = knownOutcome(event.result);
+      run.hasOutcomeDetails = run.hasOutcomeDetails || Boolean(
+        event.result && (event.waveNumber || event.absoluteWaveNumber || event.missionNumber)
+      );
+      if (event.sessionId && currentRunBySession.get(event.sessionId) === key) {
+        currentRunBySession.delete(event.sessionId);
+      }
+    }
+  }
 
   for (const event of normalized) {
     latestEventAt = event.occurredAt;
     const bucket = buckets.get(dateKey(event.occurredAt));
+    if (event.schemaVersion >= 3) schemaV3Events += 1;
     if (event.visitorHash) {
       visitors.add(event.visitorHash);
       bucket?.visitors.add(event.visitorHash);
@@ -323,6 +515,7 @@ export const aggregateProductAnalytics = (events, { days = 30, now = new Date() 
 
     if (event.eventName === 'app_opened' && event.sessionId) {
       openedSessions.add(event.sessionId);
+      timeEligibleSessions.add(event.sessionId);
       bucket?.sessions.add(event.sessionId);
       if (event.visitorHash) {
         hashedOpenedSessions.add(event.sessionId);
@@ -337,35 +530,157 @@ export const aggregateProductAnalytics = (events, { days = 30, now = new Date() 
     if (
       event.eventName === 'session_activity'
       && event.sessionId
-      && event.activeSecondsTotal !== null
+      && Number.isFinite(event.activeSecondsTotal)
     ) {
+      timeEligibleSessions.add(event.sessionId);
       const current = event.activeSecondsTotal;
-      activeBySession.set(event.sessionId, Math.max(activeBySession.get(event.sessionId) || 0, current));
       const previous = previousActivityBySession.get(event.sessionId) || 0;
-      const delta = Math.max(0, current - previous);
-      previousActivityBySession.set(event.sessionId, Math.max(previous, current));
-      if (bucket) bucket.activeSeconds += delta;
+      const delta = Math.max(0, current >= previous ? current - previous : current);
+      previousActivityBySession.set(event.sessionId, current);
+      activeSecondsBySession.set(event.sessionId, (activeSecondsBySession.get(event.sessionId) || 0) + delta);
+      if (bucket) {
+        bucket.activeSeconds += delta;
+        bucket.measuredActiveSessions.add(event.sessionId);
+      }
     }
 
-    if (event.eventName === 'mission_started') {
-      missionStarts += 1;
-      if (bucket) bucket.missionStarts += 1;
-      modeBucket(event.runMode).starts += 1;
-    } else if (event.eventName === 'mission_completed') {
-      runFinishes += 1;
-      if (bucket) bucket.runFinishes += 1;
-      modeBucket(event.runMode).finishes += 1;
-    } else if (event.eventName === 'score_submitted') {
+    if (
+      event.eventName === 'session_activity'
+      && event.sessionId
+      && Number.isFinite(event.gameplaySecondsTotal)
+    ) {
+      timeEligibleSessions.add(event.sessionId);
+      const current = event.gameplaySecondsTotal;
+      const previous = previousGameplayBySession.get(event.sessionId) || 0;
+      const delta = Math.max(0, current >= previous ? current - previous : current);
+      previousGameplayBySession.set(event.sessionId, current);
+      gameplaySecondsBySession.set(event.sessionId, (gameplaySecondsBySession.get(event.sessionId) || 0) + delta);
+      if (bucket) {
+        bucket.gameplaySeconds += delta;
+        bucket.measuredGameplaySessions.add(event.sessionId);
+        if (delta > 0) bucket.flightSessions.add(event.sessionId);
+      }
+    }
+
+    if (event.eventName === 'score_submitted') {
       scoreSubmissions += 1;
       if (bucket) bucket.scoreSubmissions += 1;
     }
   }
 
-  const totalActiveSeconds = [...activeBySession.values()].reduce((sum, value) => sum + value, 0);
+  const startedRuns = [...runs.values()].filter((run) => (
+    run.startedAt && Date.parse(run.startedAt) >= cutoffMs
+  ));
+  // Keep the headline finish rate cohort-based: an ending whose start falls
+  // before the selected window must not make the window exceed 100% finished.
+  const endedRuns = startedRuns.filter((run) => run.endedAt);
+  const campaignRuns = startedRuns.filter((run) => isCampaignMode(run.mode));
+  const campaignClears = campaignRuns.filter((run) => run.outcome === 'completed').length;
+  const missionProgress = new Map();
+  const furthestMissionByVisitor = new Map();
+
+  for (const run of startedRuns) {
+    if (run.startedAt) {
+      const bucket = buckets.get(dateKey(run.startedAt));
+      if (bucket) {
+        bucket.missionStarts += 1;
+        if (isCampaignMode(run.mode)) bucket.campaignStarts += 1;
+      }
+    }
+    if (run.endedAt) {
+      const bucket = buckets.get(dateKey(run.endedAt));
+      if (bucket) {
+        bucket.runEnds += 1;
+        if (isCampaignMode(run.mode) && run.outcome === 'completed') bucket.campaignClears += 1;
+        if (run.outcome === 'defeated') bucket.defeats += 1;
+      }
+    }
+
+    if (!isCampaignMode(run.mode) || !run.missionNumber) continue;
+    if (!missionProgress.has(run.missionNumber)) {
+      missionProgress.set(run.missionNumber, {
+        missionNumber: run.missionNumber,
+        reachedDevices: new Set(),
+        starts: 0,
+        ends: 0,
+        clears: 0,
+        defeats: 0,
+        exits: 0
+      });
+    }
+    const mission = missionProgress.get(run.missionNumber);
+    if (run.visitorHash) {
+      mission.reachedDevices.add(run.visitorHash);
+      furthestMissionByVisitor.set(
+        run.visitorHash,
+        Math.max(furthestMissionByVisitor.get(run.visitorHash) || 0, run.missionNumber)
+      );
+    }
+    if (run.startedAt) mission.starts += 1;
+    if (run.endedAt) mission.ends += 1;
+    if (run.outcome === 'completed') mission.clears += 1;
+    if (run.outcome === 'defeated') mission.defeats += 1;
+    if (['forfeited', 'exited', 'interrupted'].includes(run.outcome)) mission.exits += 1;
+  }
+
+  for (const run of startedRuns) {
+    const mode = modeBucket(run.mode);
+    mode.starts += 1;
+    if (run.endedAt) mode.finishes += 1;
+    else mode.noEnd += 1;
+    if (run.outcome === 'completed') mode.clears += 1;
+    if (run.outcome === 'defeated') mode.defeats += 1;
+    if (['forfeited', 'exited', 'interrupted'].includes(run.outcome)) mode.exits += 1;
+  }
+
+  const furthestMissionCounts = new Map();
+  for (const missionNumber of furthestMissionByVisitor.values()) {
+    furthestMissionCounts.set(missionNumber, (furthestMissionCounts.get(missionNumber) || 0) + 1);
+  }
+
+  const weeklyRuns = startedRuns.filter((run) => isWeeklyMode(run.mode));
+  const weeklyDepths = weeklyRuns
+    .map((run) => Math.max(run.maxAbsoluteWave, run.maxWave))
+    .filter((depth) => depth > 0);
+  const weeklyDepthBands = [
+    { label: '1–2', minimum: 1, maximum: 2 },
+    { label: '3–5', minimum: 3, maximum: 5 },
+    { label: '6–9', minimum: 6, maximum: 9 },
+    { label: '10–14', minimum: 10, maximum: 14 },
+    { label: '15+', minimum: 15, maximum: Number.POSITIVE_INFINITY }
+  ].map((band) => ({
+    label: band.label,
+    runs: weeklyDepths.filter((depth) => depth >= band.minimum && depth <= band.maximum).length
+  }));
+
+  const totalActiveSeconds = [...activeSecondsBySession.values()].reduce((sum, value) => sum + value, 0);
+  const totalGameplaySeconds = [...gameplaySecondsBySession.values()].reduce((sum, value) => sum + value, 0);
   const newDevices = [...firstStatusByVisitor.values()].filter((status) => status === 'new').length;
   const returningDevices = [...firstStatusByVisitor.values()].filter((status) => status === 'returning').length;
   const sessions = openedSessions.size;
-  const coverage = sessions > 0 ? hashedOpenedSessions.size / sessions : 0;
+  const missionStarts = startedRuns.length;
+  const runFinishes = endedRuns.length;
+  const coverage = ratio(hashedOpenedSessions.size, sessions);
+  const measuredActiveSessions = activeSecondsBySession.size;
+  const measuredGameplaySessions = gameplaySecondsBySession.size;
+  const flightSessions = [...gameplaySecondsBySession.values()].filter((seconds) => seconds > 0).length;
+  const startsWithMissionNumber = startedRuns.filter((run) => run.missionNumber).length;
+  const startsWithProgress = startedRuns.filter((run) => run.hasProgress).length;
+  const endsWithDetails = endedRuns.filter((run) => run.hasOutcomeDetails).length;
+  const eligibleOpenedSessions = new Set(
+    eligibleWindow
+      .filter((event) => event.eventName === 'app_opened' && event.sessionId)
+      .map((event) => event.sessionId)
+  );
+  const mixedOpenedSessions = new Set(
+    mixedHistoryWindow
+      .filter((event) => event.eventName === 'app_opened' && event.sessionId)
+      .map((event) => event.sessionId)
+  );
+  const mixedVisitors = new Set(
+    mixedHistoryWindow.map((event) => event.visitorHash).filter(Boolean)
+  );
+  const latestObservedEventAt = eligibleWindow.at(-1)?.occurredAt || '';
 
   return {
     days: safeDays,
@@ -376,35 +691,96 @@ export const aggregateProductAnalytics = (events, { days = 30, now = new Date() 
     newDevices,
     returningDevices,
     sessions,
-    measuredActiveSessions: activeBySession.size,
+    measuredActiveSessions,
     totalActiveSeconds,
-    averageActiveSessionSeconds: activeBySession.size > 0
-      ? totalActiveSeconds / activeBySession.size
-      : 0,
+    averageActiveSessionSeconds: ratio(totalActiveSeconds, measuredActiveSessions),
+    measuredGameplaySessions,
+    flightSessions,
+    totalGameplaySeconds,
+    averageGameplaySessionSeconds: ratio(totalGameplaySeconds, flightSessions),
     missionStarts,
     runFinishes,
-    finishRate: missionStarts > 0 ? runFinishes / missionStarts : 0,
+    finishRate: ratio(runFinishes, missionStarts),
+    campaignStarts: campaignRuns.length,
+    campaignClears,
+    campaignClearRate: ratio(campaignClears, campaignRuns.length),
     scoreSubmissions,
     visitorCoverage: coverage,
-    legacySessionsExcluded: Math.max(0, sessions - hashedOpenedSessions.size),
+    legacySessionsExcluded: mixedOpenedSessions.size,
+    mixedHistory: {
+      events: mixedHistoryWindow.length,
+      sessions: mixedOpenedSessions.size,
+      uniqueDevices: mixedVisitors.size,
+      missionStarts: mixedHistoryWindow.filter((event) => event.eventName === 'mission_started').length,
+      scoreSubmissions: mixedHistoryWindow.filter((event) => event.eventName === 'score_submitted').length,
+      latestEventAt: mixedHistoryWindow.at(-1)?.occurredAt || ''
+    },
     daily: [...buckets.values()].map((bucket) => ({
       date: bucket.date,
       uniqueDevices: bucket.visitors.size,
       sessions: bucket.sessions.size,
+      measuredActiveSessions: bucket.measuredActiveSessions.size,
+      measuredGameplaySessions: bucket.measuredGameplaySessions.size,
+      flightSessions: bucket.flightSessions.size,
       activeSeconds: Math.round(bucket.activeSeconds),
+      gameplaySeconds: Math.round(bucket.gameplaySeconds),
+      averageActiveSessionSeconds: ratio(bucket.activeSeconds, bucket.measuredActiveSessions.size),
+      averageGameplaySessionSeconds: ratio(bucket.gameplaySeconds, bucket.flightSessions.size),
       missionStarts: bucket.missionStarts,
-      runFinishes: bucket.runFinishes,
+      runFinishes: bucket.runEnds,
+      campaignClears: bucket.campaignClears,
+      campaignClearRate: ratio(bucket.campaignClears, bucket.campaignStarts),
+      defeats: bucket.defeats,
       scoreSubmissions: bucket.scoreSubmissions
     })),
     modes: [...modeMetrics.values()]
-      .sort((left, right) => right.starts - left.starts || right.finishes - left.finishes || left.mode.localeCompare(right.mode))
+      .sort((left, right) => right.starts - left.starts || right.finishes - left.finishes || left.mode.localeCompare(right.mode)),
+    missionProgress: [...missionProgress.values()]
+      .sort((left, right) => left.missionNumber - right.missionNumber)
+      .map((mission) => ({
+        missionNumber: mission.missionNumber,
+        reachedDevices: mission.reachedDevices.size,
+        starts: mission.starts,
+        ends: mission.ends,
+        clears: mission.clears,
+        defeats: mission.defeats,
+        exits: mission.exits,
+        noEnd: Math.max(0, mission.starts - mission.ends),
+        clearRate: ratio(mission.clears, mission.starts)
+      })),
+    furthestMissionDistribution: [...furthestMissionCounts.entries()]
+      .sort(([left], [right]) => left - right)
+      .map(([missionNumber, devices]) => ({ missionNumber, devices })),
+    weeklyRun: {
+      attempts: weeklyRuns.length,
+      endedRuns: weeklyRuns.filter((run) => run.endedAt).length,
+      measuredRuns: weeklyDepths.length,
+      averageDepth: ratio(weeklyDepths.reduce((sum, depth) => sum + depth, 0), weeklyDepths.length),
+      medianDepth: median(weeklyDepths),
+      deepestDepth: weeklyDepths.length ? Math.max(...weeklyDepths) : 0,
+      depthBands: weeklyDepthBands
+    },
+    dataQuality: {
+      visitorCoverage: coverage,
+      activeTimeCoverage: ratio(measuredActiveSessions, timeEligibleSessions.size),
+      gameplayTimeCoverage: ratio(measuredGameplaySessions, timeEligibleSessions.size),
+      missionNumberCoverage: ratio(startsWithMissionNumber, missionStarts),
+      progressCoverage: ratio(startsWithProgress, missionStarts),
+      outcomeDetailCoverage: ratio(endsWithDetails, runFinishes),
+      productionSourceCoverage: ratio(sessions, eligibleOpenedSessions.size),
+      schemaV3Coverage: ratio(schemaV3Events, normalized.length),
+      productionTaggedEventCoverage: ratio(normalized.length, eligibleWindow.length),
+      latestEventAt,
+      latestObservedEventAt,
+      rowLimitHit: windowRowLimitHit
+    }
   };
 };
 
-export const buildProductAnalyticsWindows = (events, { now = new Date() } = {}) => ({
-  7: aggregateProductAnalytics(events, { days: 7, now }),
-  30: aggregateProductAnalytics(events, { days: 30, now }),
-  90: aggregateProductAnalytics(events, { days: 90, now })
+export const buildProductAnalyticsWindows = (events, { now = new Date(), rowLimitHit = false } = {}) => ({
+  7: aggregateProductAnalytics(events, { days: 7, now, rowLimitHit }),
+  30: aggregateProductAnalytics(events, { days: 30, now, rowLimitHit }),
+  90: aggregateProductAnalytics(events, { days: 90, now, rowLimitHit })
 });
 
 export const PRODUCT_ANALYTICS_LIMITS = Object.freeze({

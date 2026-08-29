@@ -124,6 +124,16 @@ const localApiRoutes = () => ({
       return weeklyCompetitionsHandler(req, res);
     });
     mount('/api/events', async (req, res) => {
+      // Product telemetry is production-only. Local Codex/Claude playtests are
+      // intentionally accepted without storage so they cannot inflate players,
+      // sessions, Mission progression, or playtime in the owner dashboard.
+      if (!req.query?.route) {
+        res.statusCode = 202;
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Cache-Control', 'no-store');
+        res.end(JSON.stringify({ accepted: true, stored: false, environment: 'development' }));
+        return;
+      }
       if (useRemotePersistence) return proxyPublicApi('/api/events', req, res);
       return eventsHandler(req, res);
     });

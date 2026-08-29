@@ -10,6 +10,8 @@ export type ProductEventName =
   | 'session_activity'
   | 'mission_started'
   | 'mission_completed'
+  | 'run_progress'
+  | 'run_ended'
   | 'score_submitted'
   | 'returning_player'
   | 'wallet_connected'
@@ -22,9 +24,52 @@ export type ProductEventName =
 
 const SEEN_KEY = 'scicon_first_seen_at';
 const ANONYMOUS_PLAYER_KEY = 'scicon_anonymous_player_id';
+const ACTIVITY_STATE_KEY = 'scicon_product_activity_state';
 const ACTIVITY_INTERVAL_MS = 60_000;
 
 let memoryAnonymousPlayerId = '';
+let updateGameplayActivity: ((active: boolean) => void) | null = null;
+
+const isLoopbackAnalyticsHost = () => {
+  if (typeof window === 'undefined') return false;
+  const hostname = window.location.hostname.toLowerCase();
+  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
+};
+
+const readActivityState = (sessionId: string) => {
+  try {
+    const parsed = JSON.parse(globalThis.sessionStorage?.getItem(ACTIVITY_STATE_KEY) || '{}');
+    if (parsed?.sessionId !== sessionId) return { activeSecondsTotal: 0, gameplaySecondsTotal: 0 };
+    const activeSecondsTotal = Number(parsed.activeSecondsTotal);
+    const gameplaySecondsTotal = Number(parsed.gameplaySecondsTotal);
+    return {
+      activeSecondsTotal: Number.isFinite(activeSecondsTotal)
+        ? Math.max(0, Math.min(604_800, Math.floor(activeSecondsTotal)))
+        : 0,
+      gameplaySecondsTotal: Number.isFinite(gameplaySecondsTotal)
+        ? Math.max(0, Math.min(604_800, Math.floor(gameplaySecondsTotal)))
+        : 0
+    };
+  } catch {
+    return { activeSecondsTotal: 0, gameplaySecondsTotal: 0 };
+  }
+};
+
+const writeActivityState = (
+  sessionId: string,
+  activeSecondsTotal: number,
+  gameplaySecondsTotal: number
+) => {
+  try {
+    globalThis.sessionStorage?.setItem(ACTIVITY_STATE_KEY, JSON.stringify({
+      sessionId,
+      activeSecondsTotal,
+      gameplaySecondsTotal
+    }));
+  } catch {
+    // Activity remains measurable for this page even when session storage is unavailable.
+  }
+};
 
 const createAnonymousPlayerId = () => {
   if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
@@ -62,6 +107,8 @@ export const trackEvent = (
   eventName: ProductEventName,
   properties: Record<string, string | number | boolean> = {}
 ) => {
+  // Local Codex/Claude/Vite playtests must never inflate production player counts.
+  if (isLoopbackAnalyticsHost()) return;
   const payload = JSON.stringify({
     eventName,
     sessionId: getClientSessionId(),
@@ -80,11 +127,21 @@ export const trackEvent = (
 };
 
 /**
+ * Marks whether the live simulation is actually advancing. The activity sampler
+ * flushes before each transition, so gameplay time excludes menus, pause screens,
+ * transmissions, loading, and result screens without emitting frame-level events.
+ */
+export const setAnalyticsGameplayActive = (active: boolean) => {
+  updateGameplayActivity?.(Boolean(active));
+};
+
+/**
  * Starts one bounded foreground-time sampler for the app lifetime. Activity is
  * sampled once per minute and whenever the tab hides or closes; no telemetry is
  * emitted from the Pixi frame loop.
  */
 export const trackInitialVisit = () => {
+  if (isLoopbackAnalyticsHost()) return () => undefined;
   let firstSeen: string | null = null;
   try {
     firstSeen = localStorage.getItem(SEEN_KEY);
@@ -116,25 +173,43 @@ export const trackInitialVisit = () => {
     }
   }
 
+  const sessionId = getClientSessionId();
+  const restoredActivity = readActivityState(sessionId);
   let visible = document.visibilityState === 'visible';
+  let gameplayActive = false;
   let lastSampleAt = Date.now();
-  let activeSecondsTotal = 0;
-  let lastEmittedSeconds = 0;
+  let activeSecondsTotal = restoredActivity.activeSecondsTotal;
+  let gameplaySecondsTotal = restoredActivity.gameplaySecondsTotal;
+  let lastEmittedActiveSeconds = activeSecondsTotal;
+  let lastEmittedGameplaySeconds = gameplaySecondsTotal;
   let stopped = false;
 
-  const flushActivity = (reason: 'interval' | 'visibility' | 'pagehide' | 'unmount') => {
+  const flushActivity = (
+    reason: 'interval' | 'visibility' | 'pagehide' | 'unmount' | 'gameplay_state'
+  ) => {
     const sampledAt = Date.now();
     if (visible) {
-      activeSecondsTotal += Math.max(
+      const elapsedSeconds = Math.max(
         0,
         Math.min(75, Math.floor((sampledAt - lastSampleAt) / 1000))
       );
+      activeSecondsTotal += elapsedSeconds;
+      if (gameplayActive) gameplaySecondsTotal += elapsedSeconds;
     }
     lastSampleAt = sampledAt;
-    if (activeSecondsTotal < 1 || activeSecondsTotal === lastEmittedSeconds) return;
-    lastEmittedSeconds = activeSecondsTotal;
+    if (
+      activeSecondsTotal < 1
+      || (
+        activeSecondsTotal === lastEmittedActiveSeconds
+        && gameplaySecondsTotal === lastEmittedGameplaySeconds
+      )
+    ) return;
+    lastEmittedActiveSeconds = activeSecondsTotal;
+    lastEmittedGameplaySeconds = gameplaySecondsTotal;
+    writeActivityState(sessionId, activeSecondsTotal, gameplaySecondsTotal);
     trackEvent('session_activity', {
       active_seconds_total: activeSecondsTotal,
+      gameplay_seconds_total: gameplaySecondsTotal,
       reason
     });
   };
@@ -145,6 +220,13 @@ export const trackInitialVisit = () => {
     lastSampleAt = Date.now();
   };
   const handlePageHide = () => flushActivity('pagehide');
+  const handleGameplayActivity = (active: boolean) => {
+    if (stopped || gameplayActive === active) return;
+    flushActivity('gameplay_state');
+    gameplayActive = active;
+    lastSampleAt = Date.now();
+  };
+  updateGameplayActivity = handleGameplayActivity;
   const activityTimer = window.setInterval(() => flushActivity('interval'), ACTIVITY_INTERVAL_MS);
   document.addEventListener('visibilitychange', handleVisibilityChange);
   window.addEventListener('pagehide', handlePageHide);
@@ -153,6 +235,7 @@ export const trackInitialVisit = () => {
     if (stopped) return;
     stopped = true;
     flushActivity('unmount');
+    if (updateGameplayActivity === handleGameplayActivity) updateGameplayActivity = null;
     window.clearInterval(activityTimer);
     document.removeEventListener('visibilitychange', handleVisibilityChange);
     window.removeEventListener('pagehide', handlePageHide);
