@@ -40,7 +40,7 @@ test('BIO uses bounded green primary projectiles while its old continuous beam s
   const renderer = read('services/pixi/PixiGameRenderer.ts');
 
   assert.match(engine, /isBioBeamFiring\(\) \{\s*return false;\s*\}/);
-  assert.match(engine, /const weaponKind: PlayerWeaponKind = 'pulse'/);
+  assert.match(engine, /const weaponKind: PlayerWeaponKind = hullProfile\.primaryKind === 'btc-bolt' \? 'btc-bolt' : 'pulse'/);
   assert.match(engine, /this\.playerShipId === 'bio'[\s\S]*getBioPrimaryShotPlan/);
   assert.match(engine, /weaponKind: 'bio-primary'/);
   assert.doesNotMatch(engine, /if \(bioLaserEquipped\)/);

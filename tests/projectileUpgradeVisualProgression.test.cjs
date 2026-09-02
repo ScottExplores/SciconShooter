@@ -80,8 +80,8 @@ test('runtime stores the upgrade level on primary shots and renderer caps mobile
   const engine = fs.readFileSync(path.join(root, 'services', 'gameLogic.ts'), 'utf8');
   const pixi = fs.readFileSync(path.join(root, 'services', 'pixi', 'PixiGameRenderer.ts'), 'utf8');
 
-  assert.match(engine, /b\.weaponVisualLevel = overdrivePrimary \? this\.missionOverdriveLevel : 0/);
-  assert.match(engine, /b\.weaponVisualFamily = overdrivePrimary[\s\S]*?getPlayerShipWeaponVisualFamily\(this\.playerShipId\)/);
+  assert.match(engine, /b\.weaponVisualLevel = Math\.min\(7, Math\.max\(\r?\n\s*hullVisualLevel,\r?\n\s*overdrivePrimary \? this\.missionOverdriveLevel : 0/);
+  assert.match(engine, /b\.weaponVisualFamily = hullPrimary[\s\S]*?getPlayerShipWeaponVisualFamily\(this\.playerShipId\)/);
   assert.match(pixi, /getPlayerWeaponFlightFrameIndex\([\s\S]*?entity\.weaponVisualLevel/);
   assert.match(pixi, /const reducedTrail = this\.reducedMotion[\s\S]*?engine\.performanceMode[\s\S]*?!engine\.polishSettings\.highDensityParticles/);
   assert.match(pixi, /const launchFrame = this\.reducedMotion[\s\S]*?getPlayerWeaponLaunchFrameIndex/);

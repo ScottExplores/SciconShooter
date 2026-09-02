@@ -5,7 +5,9 @@ import {
 } from './weaponTierProgression';
 import { sampleTripleShotSideAngleRadians } from './playerShotSpread';
 
-export const BIO_PRIMARY_DAMAGE_PER_ROUND = 0.5;
+// 0.58 per rail: the twin rails together land 16% over the RSC pulse, so the
+// paid BIO hull is "different and a little better", per Scott's brief.
+export const BIO_PRIMARY_DAMAGE_PER_ROUND = 0.58;
 export const BIO_PRIMARY_RAIL_OFFSET_PX = 10;
 export const BIO_PRIMARY_RAIL_STAGGER_FRAMES = 1;
 export const BIO_PRIMARY_REPEAT_STAGGER_FRAMES = 2;

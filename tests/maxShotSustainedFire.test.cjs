@@ -96,8 +96,9 @@ test('BIO normal and spread+Max sustain Tier-7 cadence with complete paired-lane
   const cadenceFrames = 4;
   const lifetime = progression.MAX_SHOT_BUNDLE_LIFETIME_FRAMES;
   const scenarios = [
-    { label: 'normal', spreadActive: false, maxShotActive: false, expectedDamage: 4.5 },
-    { label: 'spread+Max', spreadActive: true, maxShotActive: true, expectedDamage: 27 }
+    // BIO rails land 16% over the Research totals (0.58 per rail).
+    { label: 'normal', spreadActive: false, maxShotActive: false, expectedDamage: 4.5 * 1.16 },
+    { label: 'spread+Max', spreadActive: true, maxShotActive: true, expectedDamage: 27 * 1.16 }
   ];
 
   for (const scenario of scenarios) {

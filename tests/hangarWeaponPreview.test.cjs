@@ -54,7 +54,9 @@ test('weapon preview reuses gameplay lane plans and the live base projectile fam
   assert.match(preview, /sampleTripleShotSideAngleRadians\(1, MIDPOINT_SPREAD_SAMPLE\)/);
   assert.match(preview, /getTightVolleyOffsets\(volleySize\)/);
   assert.match(preview, /getTightVolleyAngleOffsets\(volleySize\)/);
-  assert.match(preview, /shipId === 'bio' \? 'bio-primary' : 'pulse'/);
+  // Every hull previews its own family; BTC previews its bolt.
+  assert.match(preview, /shipId === 'bio' \? 'bio-primary' : shipId === 'btc' \? 'btc-bolt' : 'pulse'/);
+  assert.match(preview, /getPlayerShipWeaponVisualFamily\(shipId\)/);
   assert.match(preview, /PLAYER_SHIP_WEAPON_PREVIEW_SPECS/);
 
   const pack = path.join(root, 'public', 'game-art', 'generated', 'scicon-player-weapon-fx-v1');

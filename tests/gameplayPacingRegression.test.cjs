@@ -115,11 +115,11 @@ test('Research keeps tight fire-rate tiers while BIO swaps to equal-damage strai
   assert.match(engineSource, /const fireInterval = getFireRateIntervalFrames\(level\)/);
   assert.match(engineSource, /const volleySize = getFireRateVolleySize\(this\.stats\.upgrades\.fireRate \|\| 0\)/);
   assert.match(engineSource, /getTightVolleyOffsets\(volleySize\)\.map/);
-  assert.match(engineSource, /const weaponKind: PlayerWeaponKind = 'pulse'/);
+  assert.match(engineSource, /const weaponKind: PlayerWeaponKind = hullProfile\.primaryKind === 'btc-bolt' \? 'btc-bolt' : 'pulse'/);
   assert.match(engineSource, /this\.playerShipId === 'bio'[\s\S]*getBioPrimaryShotPlan/);
   assert.match(engineSource, /hasPlayerShotCapacity\(bioPrimaryPlan\.simulationEntityCount\)/);
   assert.match(engineSource, /'bio-primary'/);
-  assert.match(engineSource, /const weaponSpeed = 10/);
-  assert.match(engineSource, /b\.weaponVisualLevel = overdrivePrimary \? this\.missionOverdriveLevel : 0/);
+  assert.match(engineSource, /const weaponSpeed = weaponKind === 'btc-bolt' \? 9 : 10/);
+  assert.match(engineSource, /b\.weaponVisualLevel = Math\.min\(7, Math\.max\(\r?\n\s*hullVisualLevel,\r?\n\s*overdrivePrimary \? this\.missionOverdriveLevel : 0/);
   assert.doesNotMatch(engineSource, /if \(bioLaserEquipped\)/);
 });

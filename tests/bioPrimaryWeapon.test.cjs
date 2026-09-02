@@ -34,34 +34,41 @@ const {
   getBioPrimaryShotPlan
 } = bioPrimary;
 
-test('BIO starts as two half-damage straight rails staggered by one frame', () => {
+// The paid BIO hull lands 16% over the RSC pulse: 0.58 per rail, two rails.
+const BIO_RAIL_DAMAGE = 0.58;
+const BIO_OVER_RESEARCH = 1.16;
+
+test('BIO starts as two 0.58-damage straight rails staggered by one frame', () => {
   const plan = getBioPrimaryShotPlan(0, false, false);
 
-  assert.equal(BIO_PRIMARY_DAMAGE_PER_ROUND, 0.5);
+  assert.equal(BIO_PRIMARY_DAMAGE_PER_ROUND, BIO_RAIL_DAMAGE);
   assert.equal(plan.volleySize, 1);
   assert.equal(plan.logicalRoundCount, 2);
   assert.equal(plan.simulationEntityCount, 1);
   assert.equal(plan.queuedEntityCount, 0);
-  assert.equal(plan.totalDamage, 1);
+  assert.ok(Math.abs(plan.totalDamage - BIO_OVER_RESEARCH) < 1e-10);
   assert.deepEqual(Array.from(plan.shots, (shot) => shot.fireDelayFrames), [0]);
   assert.deepEqual(Array.from(plan.shots, (shot) => shot.offsetX), [0]);
   plan.shots.forEach((shot) => {
     assert.equal(shot.angleBias, 0);
-    assert.equal(shot.damagePerRound, 0.5);
+    assert.equal(shot.damagePerRound, BIO_RAIL_DAMAGE);
     assert.equal(shot.representedRoundCount, 2);
     assert.deepEqual(Array.from(shot.visualPattern, (round) => round.launchDelayFrames), [0, 1]);
     assert.deepEqual(Array.from(shot.visualPattern, (round) => round.offsetX), [-10, 10]);
   });
 });
 
-test('BIO tiers preserve exact Research damage with bounded rail entities', () => {
-  const expectedTotals = [1, 2, 3, 3.45, 3.85, 4.2, 4.5];
+test('BIO tiers track Research damage at +16% with bounded rail entities', () => {
+  const researchTotals = [1, 2, 3, 3.45, 3.85, 4.2, 4.5];
   for (const [index, expectedTier] of [1, 2, 3, 4, 5, 6, 7].entries()) {
     const level = index * 7;
     const plan = getBioPrimaryShotPlan(level, false, false);
     assert.equal(plan.volleySize, expectedTier);
     assert.equal(plan.logicalRoundCount, expectedTier * 2);
-    assert.ok(Math.abs(plan.totalDamage - expectedTotals[index]) < 1e-10, `level ${level} matches Research damage`);
+    assert.ok(
+      Math.abs(plan.totalDamage - researchTotals[index] * BIO_OVER_RESEARCH) < 1e-9,
+      `level ${level} lands 16% over Research damage`
+    );
     assert.equal(plan.simulationEntityCount, 1, 'both rails and tier copies stay in one lane bundle');
     assert.equal(plan.queuedEntityCount, 0);
     plan.shots.forEach((shot) => assert.equal(shot.representedRoundCount, expectedTier * 2));
@@ -73,7 +80,10 @@ test('BIO triple shot creates three angled lanes while retaining two rails per l
 
   assert.equal(plan.repeatCount, 3);
   assert.equal(plan.logicalRoundCount, 18);
-  assert.equal(plan.totalDamage, 9, 'Tier 3 BIO spread matches nine full-strength Research rounds');
+  assert.ok(
+    Math.abs(plan.totalDamage - 9 * BIO_OVER_RESEARCH) < 1e-9,
+    'Tier 3 BIO spread lands 16% over nine full-strength Research rounds'
+  );
   assert.equal(plan.simulationEntityCount, 3, 'three collision lanes each retain the paired BIO rails');
   assert.equal(plan.queuedEntityCount, 2);
   assert.deepEqual(Array.from(plan.shots, (shot) => shot.fireDelayFrames), [0, 1, 2]);

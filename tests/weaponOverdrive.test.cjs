@@ -55,7 +55,7 @@ test('Projectile Upgrade is mission-scoped and amplifies primary fire only', () 
   assert.match(engine, /type !== PowerupType\.EXTRA_LIFE && type !== PowerupType\.OVERDRIVE/);
   // Signature moves scale through their own Hangar track; only the hull's
   // primary fire is amplified.
-  assert.match(engine, /\(weaponKind === 'pulse' \|\| weaponKind === 'bio-primary'\)\n\s*&& this\.missionOverdriveLevel > 0/);
+  assert.match(engine, /const hullPrimary = weaponKind === 'pulse' \|\| weaponKind === 'bio-primary' \|\| weaponKind === 'btc-bolt';\n\s*const overdrivePrimary = hullPrimary && this\.missionOverdriveLevel > 0/);
   // At cap the pickup pays score instead of vanishing.
   assert.match(engine, /MAX PROJECTILE UPGRADE \+250/);
 });

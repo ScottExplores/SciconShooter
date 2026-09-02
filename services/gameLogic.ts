@@ -305,6 +305,13 @@ import {
 } from './gameplay/formations/FormationRuntime';
 import { resolveKamikazeSpinnerFrameIndex } from './gameplay/enemies/KamikazeSpinnerRuntime';
 import {
+  BTC_BOLT_COLOR,
+  BTC_BOLT_HEIGHT,
+  BTC_BOLT_WIDTH,
+  getPlayerShipWeaponProfile
+} from './playerShipWeapons';
+import { applySectorAggression } from './sectorEscalation';
+import {
   MAX_GENERATED_BOSS_PROJECTILES_PER_CUE,
   getGeneratedBossTechniqueCue,
   getGeneratedBossPreviewAttackStart,
@@ -511,7 +518,7 @@ export type {
 type EnemyFormationMode = ConfiguredFormationMode | 'orbit';
 type ConfiguredEnemyFormationMode = ConfiguredFormationMode;
 type EnemyFormationState = 'entry' | 'hold' | 'dive' | 'return';
-type PlayerWeaponKind = 'pulse' | 'bio-primary' | 'plasma' | 'ion' | 'nova' | 'singularity' | 'bio-laser' | 'eth-shard' | 'btc-hash';
+type PlayerWeaponKind = 'pulse' | 'bio-primary' | 'btc-bolt' | 'plasma' | 'ion' | 'nova' | 'singularity' | 'bio-laser' | 'eth-shard' | 'btc-hash';
 export type BossPartId =
   | 'left-cannon'
   | 'right-cannon'
@@ -7129,7 +7136,9 @@ export class GameEngine {
     if (primaryFireHeld) {
       if (this.playerFireCooldownFrames <= 0) {
         this.fireBullet();
-        this.playerFireCooldownFrames += fireInterval;
+        // BTC's heavy bolt fires on a slower cadence than the lighter hulls.
+        this.playerFireCooldownFrames += fireInterval
+          * getPlayerShipWeaponProfile(this.playerShipId).cadenceScale;
       }
       this.playerFireCooldownFrames -= 1;
     } else {
@@ -7874,6 +7883,7 @@ export class GameEngine {
     }
 
     const isBioPrimary = weaponKind === 'bio-primary';
+    const isBtcBolt = weaponKind === 'btc-bolt';
     const isBioLaser = weaponKind === 'bio-laser';
     const isEthShard = weaponKind === 'eth-shard';
     const isBtcHash = weaponKind === 'btc-hash';
@@ -7882,7 +7892,9 @@ export class GameEngine {
     const bioLaserLevel = isBioLaser ? Math.min(this.stats.upgrades.fireRate || 0, 7) : 0;
     const ethShardLevel = isEthShard ? Math.min(this.stats.upgrades.fireRate || 0, 7) : 0;
     const btcHashLevel = isBtcHash ? Math.min(this.stats.upgrades.fireRate || 0, 7) : 0;
-    const bulletColor = isBioPrimary
+    const bulletColor = isBtcBolt
+      ? BTC_BOLT_COLOR
+      : isBioPrimary
       ? '#b7ff68'
       : isBioLaser
       ? '#b7ff68'
@@ -7899,7 +7911,9 @@ export class GameEngine {
             : weaponKind === 'plasma'
               ? '#22d3ee'
               : '#6c63ff';
-    const bulletWidth = isBioPrimary
+    const bulletWidth = isBtcBolt
+      ? BTC_BOLT_WIDTH
+      : isBioPrimary
       ? 9
       : isBioLaser
       ? Math.round(5 + bioLaserLevel * 2.3)
@@ -7924,7 +7938,9 @@ export class GameEngine {
       ),
       0
     ) || 0;
-    const baseBulletHeight = isBioPrimary
+    const baseBulletHeight = isBtcBolt
+      ? BTC_BOLT_HEIGHT
+      : isBioPrimary
       ? 28
       : isBioLaser
       ? Math.round(34 + bioLaserLevel * 6)
@@ -7944,8 +7960,8 @@ export class GameEngine {
     // Mission Overdrive amplifies the hull's PRIMARY fire only. Signature-move
     // projectiles scale through their own Hangar track, and stacking both
     // would double-dip the balance.
-    const overdrivePrimary = (weaponKind === 'pulse' || weaponKind === 'bio-primary')
-      && this.missionOverdriveLevel > 0;
+    const hullPrimary = weaponKind === 'pulse' || weaponKind === 'bio-primary' || weaponKind === 'btc-bolt';
+    const overdrivePrimary = hullPrimary && this.missionOverdriveLevel > 0;
     const overdriveTier = getWeaponOverdriveTier(this.missionOverdriveLevel);
     const projectileGeometry = getWeaponOverdriveProjectileGeometry(
       bulletWidth,
@@ -7967,8 +7983,18 @@ export class GameEngine {
     b.color = bulletColor;
     b.isPlayerShot = true;
     b.weaponKind = weaponKind;
-    b.weaponVisualLevel = overdrivePrimary ? this.missionOverdriveLevel : 0;
-    b.weaponVisualFamily = overdrivePrimary
+    // Hull primaries always wear their own projectile family (ETH and BTC
+    // used to fire RSC art outside of Overdrive), and the art level follows
+    // the Fire Rate tier so an upgraded gun looks upgraded. An Overdrive
+    // pickup still pushes the level higher on top of that.
+    const hullVisualLevel = hullPrimary
+      ? Math.max(0, getFireRateTier(this.stats.upgrades.fireRate || 0) - 1)
+      : 0;
+    b.weaponVisualLevel = Math.min(7, Math.max(
+      hullVisualLevel,
+      overdrivePrimary ? this.missionOverdriveLevel : 0
+    ));
+    b.weaponVisualFamily = hullPrimary
       ? getPlayerShipWeaponVisualFamily(this.playerShipId)
       : undefined;
     b.weaponVisualStartFrame = this.frameCount;
@@ -8003,8 +8029,14 @@ export class GameEngine {
       b.representedRoundsRemaining = visualRoundCount;
       b.hitTargetIds = new Set<string>();
     }
-    if (weaponKind === 'ion' || isNova || isSingularity || (isBioLaser && bioLaserLevel >= 3) || (isEthShard && ethShardLevel >= 4) || (isBtcHash && btcHashLevel >= 3)) {
-      b.pierceRemaining = isBioLaser
+    const hullProfile = getPlayerShipWeaponProfile(this.playerShipId);
+    const hullPierce = (isBtcBolt || isBioPrimary)
+      && hullProfile.pierce > 0
+      && getFireRateTier(this.stats.upgrades.fireRate || 0) >= hullProfile.pierceFromTier;
+    if (hullPierce || weaponKind === 'ion' || isNova || isSingularity || (isBioLaser && bioLaserLevel >= 3) || (isEthShard && ethShardLevel >= 4) || (isBtcHash && btcHashLevel >= 3)) {
+      b.pierceRemaining = hullPierce
+        ? hullProfile.pierce
+        : isBioLaser
         ? Math.min(5, 1 + Math.floor((bioLaserLevel - 3) / 2))
         : isEthShard
           ? Math.min(4, 1 + Math.floor((ethShardLevel - 4) / 2))
@@ -8022,7 +8054,7 @@ export class GameEngine {
     if (playSound) {
       this.playSound('shoot', 1, {
         pitchJitter: isBioLaser ? 0.055 : isEthShard ? 0.07 : isBtcHash ? 0.045 : isSingularity ? 0.035 : isNova ? 0.05 : weaponKind === 'ion' ? 0.08 : 0.06,
-        pitchOffset: pitchOffset + (isBioLaser ? -0.22 - bioLaserLevel * 0.018 : isEthShard ? 0.16 + ethShardLevel * 0.012 : isBtcHash ? -0.12 - btcHashLevel * 0.01 : isSingularity ? -0.36 : isNova ? -0.28 : weaponKind === 'ion' ? -0.18 : weaponKind === 'plasma' ? -0.04 : -0.12)
+        pitchOffset: pitchOffset + (isBtcBolt ? -0.26 : isBioLaser ? -0.22 - bioLaserLevel * 0.018 : isEthShard ? 0.16 + ethShardLevel * 0.012 : isBtcHash ? -0.12 - btcHashLevel * 0.01 : isSingularity ? -0.36 : isNova ? -0.28 : weaponKind === 'ion' ? -0.18 : weaponKind === 'plasma' ? -0.04 : -0.12)
       });
     }
     return true;
@@ -8058,10 +8090,16 @@ export class GameEngine {
   }
 
   fireBullet() {
-    const weaponKind: PlayerWeaponKind = 'pulse';
-    const weaponSpeed = 10;
+    // The hull decides the primary round: RSC and ETH fire the pulse (ETH in
+    // three lanes), BTC fires its heavy hash bolt, BIO plans its twin rails
+    // below. Per-lane damage scales by hull so the paid ships each pull
+    // ahead of RSC in their own way, with BTC on top.
+    const hullProfile = getPlayerShipWeaponProfile(this.playerShipId);
+    const weaponKind: PlayerWeaponKind = hullProfile.primaryKind === 'btc-bolt' ? 'btc-bolt' : 'pulse';
+    const weaponSpeed = weaponKind === 'btc-bolt' ? 9 : 10;
     const volleySize = getFireRateVolleySize(this.stats.upgrades.fireRate || 0);
-    const volleyProjectileDamage = getFireRateProjectileDamageMultiplier(volleySize);
+    const volleyProjectileDamage = getFireRateProjectileDamageMultiplier(volleySize)
+      * hullProfile.laneDamageScale;
     // ETH is the triple-spread ship: centre lane plus the authored 15-20
     // degree side lanes, always. Other hulls keep their single-column identity
     // and Overdrive amplifies whatever the hull fires.
@@ -10348,7 +10386,12 @@ export class GameEngine {
     const patternId = String(event.patternId || '').toLowerCase();
 
     const formation = this.resolveConfiguredFormationMode(patternId, event.id);
-    const choreography = resolveFormationChoreography(event, formationPack);
+    // Deeper sectors peel off in bigger groups with shorter holds (Galaxiga
+    // escalation); the ramp is a pure function of campaign depth.
+    const choreography = applySectorAggression(
+      resolveFormationChoreography(event, formationPack),
+      this.getStageNumberForCampaignIndex()
+    );
     if (formation === 'spiral' && enemy.type === EntityType.ENEMY_DRONE) {
       enemy.width = Math.round(44 * SPIRAL_PAYWALL_INTERCEPTOR_SCALE * REGULAR_ENEMY_SIZE_SCALE);
       enemy.height = Math.round(44 * SPIRAL_PAYWALL_INTERCEPTOR_SCALE * REGULAR_ENEMY_SIZE_SCALE);

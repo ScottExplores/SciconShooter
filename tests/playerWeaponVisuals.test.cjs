@@ -137,13 +137,16 @@ test('primary shots preload every level and Projectile Upgrade selects hull-them
   assert.match(engine, /weaponVisualLevel: number = 0/);
   assert.match(engine, /weaponVisualFamily\?: PlayerWeaponVisualFamily/);
   assert.match(engine, /weaponVisualStartFrame: number = 0/);
-  assert.match(engine, /b\.weaponVisualLevel = overdrivePrimary \? this\.missionOverdriveLevel : 0/);
-  assert.match(engine, /getPlayerShipWeaponVisualFamily\(this\.playerShipId\)/);
-  assert.match(engine, /const weaponKind: PlayerWeaponKind = 'pulse'/);
+  // Hull primaries always wear their own family; the art level follows the
+  // Fire Rate tier and an Overdrive pickup raises it further.
+  assert.match(engine, /const hullVisualLevel = hullPrimary\r?\n\s*\? Math\.max\(0, getFireRateTier\(this\.stats\.upgrades\.fireRate \|\| 0\) - 1\)/);
+  assert.match(engine, /b\.weaponVisualLevel = Math\.min\(7, Math\.max\(\r?\n\s*hullVisualLevel,\r?\n\s*overdrivePrimary \? this\.missionOverdriveLevel : 0/);
+  assert.match(engine, /b\.weaponVisualFamily = hullPrimary\r?\n\s*\? getPlayerShipWeaponVisualFamily\(this\.playerShipId\)/);
+  assert.match(engine, /const weaponKind: PlayerWeaponKind = hullProfile\.primaryKind === 'btc-bolt' \? 'btc-bolt' : 'pulse'/);
   assert.match(engine, /this\.playerShipId === 'bio'[\s\S]*getBioPrimaryShotPlan/);
   assert.match(engine, /'bio-primary'/);
   assert.match(engine, /BIO_PRIMARY_DAMAGE_PER_ROUND/);
-  assert.match(engine, /const weaponSpeed = 10/);
+  assert.match(engine, /const weaponSpeed = weaponKind === 'btc-bolt' \? 9 : 10/);
   assert.match(engine, /PLAYER_PRIMARY_SHOT_SPREAD_DEGREES = 5/);
   assert.match(engine, /Math\.floor\(sample \* 3\) - 1/);
   assert.match(engine, /getRandomPrimaryShotAngle\(this\.nextGameplayRandom\(\)\)/);

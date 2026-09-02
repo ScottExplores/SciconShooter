@@ -140,6 +140,7 @@ export const getPlayerWeaponVisualFamily = (weaponKind: string): PlayerWeaponVis
   if (weaponKind === 'bio-laser') return 'bio';
   if (weaponKind === 'eth-shard') return 'eth';
   if (weaponKind === 'btc-hash') return 'btc';
+  if (weaponKind === 'btc-bolt') return 'btc';
   return 'research';
 };
 

@@ -2,6 +2,7 @@ import { getBioPrimaryShotPlan } from './bioPrimaryWeapon';
 import { type PlayerShipId } from './playerShipService';
 import { sampleTripleShotSideAngleRadians } from './playerShotSpread';
 import {
+  getPlayerShipWeaponVisualFamily,
   getPlayerWeaponFrames
 } from './playerWeaponVisuals';
 import {
@@ -35,9 +36,9 @@ const MIDPOINT_SPREAD_SAMPLE = 0.5;
  */
 export const PLAYER_SHIP_WEAPON_PREVIEW_SPECS: Readonly<Record<PlayerShipId, string>> = Object.freeze({
   researchhub: 'Pulse column - tight centre rounds; each Fire Rate tier adds another bolt',
-  bio: 'Bio volley - staggered twin lanes with piercing rounds',
-  eth: 'Prism spread - triple lanes, sides angled 15-20 degrees',
-  btc: 'Pulse column - tight centre rounds fired from the BTC hull'
+  bio: 'Bio rails - twin straight lanes, +16% output; rails pierce from Tier 4',
+  eth: 'Prism spread - triple lanes, sides angled 15-20 degrees; best crowd coverage',
+  btc: 'Hash bolt - heavy gold lane, 2.1x damage, punches through the first hull'
 });
 
 const radiansToDegrees = (radians: number) => radians * (180 / Math.PI);
@@ -133,9 +134,11 @@ export const getPlayerWeaponPreviewShots = (
   return Object.freeze(buildTightVolleyShots(shipId, fireRateLevel, 'centre'));
 };
 
+/** The Hangar preview fires the hull's own art, exactly like gameplay. */
 export const getPlayerWeaponPreviewFrames = (shipId: PlayerShipId) => (
   getPlayerWeaponFrames(
-    shipId === 'bio' ? 'bio-primary' : 'pulse',
-    0
+    shipId === 'bio' ? 'bio-primary' : shipId === 'btc' ? 'btc-bolt' : 'pulse',
+    0,
+    getPlayerShipWeaponVisualFamily(shipId)
   )
 );
