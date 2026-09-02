@@ -81,6 +81,12 @@ test('mission launch joins a pending preload with progress, then locks simulatio
   assert.match(readyFlow, /beginRunSession/);
   assert.match(failureFlow, /phase: 'error'/);
   assert.match(failureFlow, /pendingMissionRuntimeRef\.current = null/);
+  // A stale chunk failing inside the renderer's dynamic import takes the same
+  // one-shot cache-busting reload as a preload failure, before any state reset.
+  assert.match(
+    failureFlow,
+    /console\.error\('Gameplay runtime launch failed\.', error\);[\s\S]*?if \(recoverFromModulePreloadFailure\(error\)\) return;[\s\S]*?recordPlayerReportBreadcrumb\('runtime_failed'/
+  );
   assert.match(app, /running:\s*gameState === GameState\.PLAYING\s*&&\s*gameRuntimeReady\s*&&\s*!ownerFrameFrozen\s*&&\s*!onboardingGameplayFreeze/);
   assert.match(app, /onReady: \(\) => completeMissionRuntimeLaunch\(gameId\)/);
   assert.match(app, /onInitializationError: \(error\) => failMissionRuntimeLaunch\(gameId, error\)/);

@@ -3935,6 +3935,11 @@ const App: React.FC = () => {
     ) return;
 
     console.error('Gameplay runtime launch failed.', error);
+    // A stale Vite/production chunk can fail inside the renderer's dynamic
+    // import (the preload above only warms the React modules). Take the same
+    // one-shot cache-busting reload the preload path takes instead of parking
+    // the player on the loading screen's error state.
+    if (recoverFromModulePreloadFailure(error)) return;
     recordPlayerReportBreadcrumb('runtime_failed', {
       game_id: runtimeGameId,
       run_mode: pendingLaunch.runMode
