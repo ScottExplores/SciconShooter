@@ -69,24 +69,36 @@ test('the Weekly Run drawer omits the ship thumbnail and keeps its quota copy co
   assert.doesNotMatch(entry, /\+1 Attempt|3 RSC/);
 });
 
-test('the Weekly Run drawer advertises play with quota-driven color and localized attention', () => {
+test('the Weekly Run drawer keeps its static quota-driven call to action compact', () => {
   const entry = source.slice(
     source.indexOf('const renderWeeklyRunEntry'),
     source.indexOf('const renderWeeklyFundingCard')
   );
 
   assert.match(entry, /const weeklyRunEntryState = attemptsExhausted[\s\S]*'exhausted'[\s\S]*needsServerVerification[\s\S]*'checking'[\s\S]*'available'/);
-  assert.match(entry, /weeklySquadState\.weeklyStats\.weeklyRunAttempts <= 0/);
   assert.match(entry, /data-state=\{weeklyRunEntryState\}/);
-  assert.match(entry, /data-attention=\{weeklyRunNeedsAttention \? 'true' : 'false'\}/);
-  assert.match(entry, /weeklyRunNeedsAttention \? 'Try Your Luck' : 'Play'/);
+  assert.match(entry, /weeklyRunAttemptsRemaining > 0\s*\? attemptLabel/);
+  assert.match(entry, /\? 'Try Here'/);
   assert.match(entry, /sci-weekly-run-entry__action/);
   assert.match(stylesSource, /\.sci-weekly-run-entry\[data-state='checking'\]/);
   assert.match(stylesSource, /\.sci-weekly-run-entry\[data-state='exhausted'\][\s\S]*--sci-weekly-entry-accent: 248 113 113/);
-  assert.match(stylesSource, /\.sci-weekly-run-entry\[data-attention='true'\]::after[\s\S]*sci-weekly-run-face-pulse/);
-  assert.match(stylesSource, /data-attention='true'\] \.sci-weekly-run-entry__action[\s\S]*sci-weekly-run-cta-pulse/);
-  assert.doesNotMatch(stylesSource, /\.sci-weekly-run-entry\[data-attention='true'\] \{\s*animation:/);
-  assert.match(stylesSource, /prefers-reduced-motion: reduce[\s\S]*sci-weekly-run-entry\[data-attention='true'\]::after[\s\S]*animation: none/);
+  assert.doesNotMatch(entry, /weeklyRunNeedsAttention|data-attention|Try Your Luck/);
+  assert.doesNotMatch(stylesSource, /sci-weekly-run-(?:face|cta)-pulse|sci-weekly-run-entry\[data-attention/);
+});
+
+test('the current Weekly Funding prize pool has one shared 1,000 RSC source of truth', () => {
+  const boundarySource = fs.readFileSync(path.join(__dirname, '..', 'shared', 'weeklyCompetitionBoundary.js'), 'utf8');
+  const boundaryBrowserSource = fs.readFileSync(path.join(__dirname, '..', 'shared', 'weeklyCompetitionBoundary.browser.ts'), 'utf8');
+  const competitionSource = fs.readFileSync(path.join(__dirname, '..', 'api', '_lib', 'weeklyCompetitionService.js'), 'utf8');
+  const fundingFlowSource = fs.readFileSync(path.join(__dirname, '..', 'services', 'weeklyFundingFlow.ts'), 'utf8');
+  const pickerSource = fs.readFileSync(path.join(__dirname, '..', 'components', 'WeeklyProposalSelection.tsx'), 'utf8');
+
+  assert.match(boundarySource, /const WEEKLY_ALLOCATION_RSC = 1_000/);
+  assert.match(boundaryBrowserSource, /export const WEEKLY_ALLOCATION_RSC = boundary\.WEEKLY_ALLOCATION_RSC/);
+  assert.match(source, /allocationRsc: WEEKLY_ALLOCATION_RSC/);
+  assert.match(competitionSource, /\|\| WEEKLY_ALLOCATION_RSC/);
+  assert.match(fundingFlowSource, /allocationRsc: WEEKLY_ALLOCATION_RSC/);
+  assert.match(pickerSource, /allocationRsc = WEEKLY_ALLOCATION_RSC/);
 });
 
 test('Weekly Run home entry always starts a fresh flight and presents only the saved best score', () => {

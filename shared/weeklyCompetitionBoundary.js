@@ -1,6 +1,9 @@
 const createWeeklyCompetitionBoundary = () => {
 const WEEK_TIME_ZONE = 'America/Los_Angeles';
 const WEEK_BOUNDARY_HOUR = 12;
+// One source of truth for every current-week funding claim. Historical
+// competition rows keep their recorded allocation instead of being rewritten.
+const WEEKLY_ALLOCATION_RSC = 1_000;
 // A score receipt can finish before cutoff while its verified leaderboard write
 // is still in flight. Keep the public rollover behind this short settlement
 // window so the new board and the archived Past Pick can publish together.
@@ -229,6 +232,7 @@ const getWeeklyBoundaryMeta = (now = new Date(), locale) => {
 
 return {
   WEEK_BOUNDARY_HOUR,
+  WEEKLY_ALLOCATION_RSC,
   WEEKLY_SCORE_SETTLEMENT_MS,
   WEEK_TIME_ZONE,
   getCurrentWeekRange,

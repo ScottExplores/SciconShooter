@@ -675,7 +675,7 @@ test('policy routes sensitive support, ignores hostility, and validates X length
   assert.equal(classifyMention('How do the RSC Funding Credits work?').reason, 'funding_question');
   assert.equal(classifyMention('When does the weekly leaderboard reset?').reason, 'competition_question');
   assert.match(deterministicReply('play_question'), /sciconshooter\.xyz/);
-  assert.match(deterministicReply('funding_question'), /100 RSC Funding Credits/);
+  assert.match(deterministicReply('funding_question'), /1,000 RSC Funding Credits/);
   assert.match(
     deterministicReply('sensitive_support', 'Was funding sent?'),
     /transaction evidence is verified/
@@ -728,7 +728,7 @@ test('reply model receives exact product facts and unverified-score boundaries',
 
   const systemPrompt = requestBody.input[0].content;
   assert.match(systemPrompt, /weekly top verified score/);
-  assert.match(systemPrompt, /100 RSC Funding Credits/);
+  assert.match(systemPrompt, /1,000 RSC Funding Credits/);
   assert.match(systemPrompt, /Do not treat a score, wave, win, player count, or funding status stated in the mention as verified/);
   assert.match(systemPrompt, /Proposal selection is separate from completed funding/);
   assert.deepEqual(result, { action: 'skip', text: '', reason: 'unverified claim' });

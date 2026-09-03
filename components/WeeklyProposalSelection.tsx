@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { ResearchHubProposal } from '../services/researchHubProposals';
 import { sortProposalsByFunding } from '../services/proposalFunding';
+import { WEEKLY_ALLOCATION_RSC } from '../shared/weeklyCompetitionBoundary.browser';
 
 type ProposalFeedStatus = 'loading' | 'ready' | 'empty' | 'error';
 type ProposalSelectionStatus = 'idle' | 'saving' | 'confirmed' | 'error';
@@ -24,7 +25,7 @@ interface WeeklyProposalSelectionProps {
 const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
   pilotName,
   score,
-  allocationRsc = 100,
+  allocationRsc = WEEKLY_ALLOCATION_RSC,
   proposals,
   proposalStatus,
   selectionStatus,
@@ -119,7 +120,7 @@ const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
             {score.toLocaleString()} points
           </p>
           <p id="weekly-proposal-selection-description" className="relative mx-auto mt-2 max-w-sm text-[11px] font-semibold leading-relaxed text-slate-300">
-            Choose the ResearchHub proposal that receives the {allocationRsc} RSC allocation if your score remains first at the weekly cutoff.
+            Choose the ResearchHub proposal that receives the {allocationRsc.toLocaleString('en-US')} RSC allocation if your score remains first at the weekly cutoff.
           </p>
           <p className="relative mx-auto mt-1 max-w-sm font-mono text-[9px] font-bold uppercase tracking-[0.08em] text-cyan-200/70">
             Only proposals open past Sunday&apos;s noon-Pacific cutoff are eligible.
@@ -251,7 +252,7 @@ const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
                   : selectionStatus === 'error' && selectedProposal
                     ? 'Retry saving proposal'
                   : selectedProposal
-                    ? `Confirm ${allocationRsc} RSC proposal`
+                    ? `Confirm ${allocationRsc.toLocaleString('en-US')} RSC proposal`
                     : 'Select a proposal'}
             </button>
           </div>

@@ -30,7 +30,8 @@ import { ALL_TIME_SCORE_LIMIT, WEEKLY_SCORE_LIMIT } from '../services/leaderboar
 import { resolveProposalSelection } from '../services/weeklyProposalDisplay';
 import { isProposalExplicitlyCompleted } from '../services/weeklyProposalLifecycle';
 import {
-  getWeeklyPresentationMeta
+  getWeeklyPresentationMeta,
+  WEEKLY_ALLOCATION_RSC
 } from '../shared/weeklyCompetitionBoundary.browser';
 import { buildMissionRecordCardPath } from '../shared/record-card/renderRecordCardSvg.mjs';
 import {
@@ -450,7 +451,7 @@ const FirstPlaceLivingRow = ({
 
 const getWeeklyAllocationMeta = (now = new Date()) => ({
   ...getWeeklyPresentationMeta(now),
-  allocationRsc: 100
+  allocationRsc: WEEKLY_ALLOCATION_RSC
 });
 
 const getPastPickTime = (pick: ArchivedWinner) => {
@@ -1495,8 +1496,6 @@ const StartScreen: React.FC<StartScreenProps> = ({
       : needsServerVerification
         ? 'checking'
         : 'available';
-    const weeklyRunNeedsAttention = weeklyRunEntryState === 'available'
-      && weeklySquadState.weeklyStats.weeklyRunAttempts <= 0;
     const attemptLabel = `${weeklyRunAttemptsRemaining} Attempt${weeklyRunAttemptsRemaining === 1 ? '' : 's'} Left`;
 
     return onStartWeeklyRun ? (
@@ -1506,7 +1505,6 @@ const StartScreen: React.FC<StartScreenProps> = ({
           className="sci-weekly-run-entry"
           data-onboarding-target="weekly-run"
           data-state={weeklyRunEntryState}
-          data-attention={weeklyRunNeedsAttention ? 'true' : 'false'}
           data-attempts-remaining={weeklyRunAttemptsRemaining}
           onClick={onStartWeeklyRun}
           disabled={attemptsExhausted}
@@ -1530,7 +1528,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
           </span>
           <span className="sci-weekly-run-entry__action" aria-hidden="true">
             <span>{weeklyRunEntryState === 'available'
-              ? weeklyRunNeedsAttention ? 'Try Your Luck' : 'Play'
+              ? 'Try Here'
               : weeklyRunEntryState === 'checking'
                 ? 'Check Entry'
                 : 'No Attempts'}</span>
@@ -2038,7 +2036,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
                         <p className="mt-0.5 text-[0.65rem] font-bold uppercase text-emerald-200">Weekly champion</p>
                       </div>
                       <div className="shrink-0 text-right">
-                        <p className="text-lg font-black leading-none text-white">{winner.allocationRsc ?? weeklyAllocation.allocationRsc} <span className="text-xs text-emerald-200">RSC</span></p>
+                        <p className="text-lg font-black leading-none text-white">{(winner.allocationRsc ?? weeklyAllocation.allocationRsc).toLocaleString('en-US')} <span className="text-xs text-emerald-200">RSC</span></p>
                         <p className="mt-1 text-[0.58rem] font-bold uppercase tracking-wide text-cyan-200">{proposalClaimed ? 'Final allocation' : 'Claim pending'}</p>
                       </div>
                     </div>
