@@ -12,6 +12,7 @@ const {
   getCurrentWeekRange,
   getPreviousWeekKey,
   getWeekRange,
+  WEEKLY_ALLOCATION_RSC,
   WEEKLY_SCORE_SETTLEMENT_MS
 } = require('../../shared/weeklyCompetitionBoundary.js');
 
@@ -29,7 +30,6 @@ const MAX_CUTOFF_SNAPSHOT_AGE_MS = 121 * 60 * 1000;
 const CUTOFF_SNAPSHOT_CAPTURE_WINDOW_MS = 121 * 60 * 1000;
 const STABLE_WINNER_MAX_ATTEMPTS = 3;
 const RECENT_COMPETITION_BACKFILL_WEEKS = 3;
-const DEFAULT_ALLOCATION_RSC = 100;
 const CLAIM_WINDOW_MS = 72 * 60 * 60 * 1000;
 const TERMINAL_WEEKLY_COMPETITION_STATUSES = new Set(['finalized', 'claimed', 'funded', 'expired']);
 const LEADER_PROPOSAL_SELECT = 'name,score,wave,date,wallet_address,run_id,verified,receipt_hash,proposal_id,proposal_title,proposal_url,proposal_author';
@@ -200,7 +200,7 @@ const buildCompetitionRow = ({
     : new Date(safeFinalizedAt.getTime() + CLAIM_WINDOW_MS);
   const allocationRsc = Number(existing?.allocation_rsc)
     || Number(process.env.WEEKLY_ALLOCATION_RSC)
-    || DEFAULT_ALLOCATION_RSC;
+    || WEEKLY_ALLOCATION_RSC;
 
   return {
     week_key: weekKey,
@@ -233,7 +233,7 @@ const buildExpiredCompetitionRow = ({ weekKey, start, end, existing, observedAt 
   const now = observedAt || new Date();
   const allocationRsc = Number(existing?.allocation_rsc)
     || Number(process.env.WEEKLY_ALLOCATION_RSC)
-    || DEFAULT_ALLOCATION_RSC;
+    || WEEKLY_ALLOCATION_RSC;
   return {
     week_key: weekKey,
     starts_at: start.toISOString(),

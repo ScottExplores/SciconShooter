@@ -22,6 +22,7 @@ interface WeeklyDashboardPublication {
 }
 
 interface WeeklyCompetitionBoundary {
+  WEEKLY_ALLOCATION_RSC: number;
   WEEKLY_SCORE_SETTLEMENT_MS: number;
   getWeeklyBoundaryMeta: (
     now?: Date | string | number,
@@ -48,4 +49,5 @@ if (!boundary) {
 export const getWeeklyBoundaryMeta = boundary.getWeeklyBoundaryMeta;
 export const getWeeklyPresentationMeta = boundary.getWeeklyPresentationMeta;
 export const resolveWeeklyDashboardPublication = boundary.resolveWeeklyDashboardPublication;
+export const WEEKLY_ALLOCATION_RSC = boundary.WEEKLY_ALLOCATION_RSC;
 export const WEEKLY_SCORE_SETTLEMENT_MS = boundary.WEEKLY_SCORE_SETTLEMENT_MS;

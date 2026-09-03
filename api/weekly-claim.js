@@ -6,7 +6,10 @@ const { verifyBaseMessage } = require('./_lib/baseSignatures');
 const { checkRateLimit } = require('./_lib/rateLimit');
 const { assertSameOrigin } = require('./_lib/walletProfileAuth');
 const { readTopEligibleScore } = require('./_lib/weeklyCompetitionService');
-const { getCurrentWeekRange } = require('../shared/weeklyCompetitionBoundary.js');
+const {
+  getCurrentWeekRange,
+  WEEKLY_ALLOCATION_RSC
+} = require('../shared/weeklyCompetitionBoundary.js');
 
 const COMPETITIONS_TABLE = process.env.SUPABASE_WEEKLY_COMPETITIONS_TABLE || 'scicon_weekly_competitions';
 const RECEIPTS_TABLE = process.env.SUPABASE_RUN_RECEIPTS_TABLE || 'scicon_run_receipts';
@@ -373,7 +376,7 @@ const completeClaim = async ({ weekKey, proposalId, address, challengeId, signat
 
   await sendBaseNotificationBroadcast({
     title: 'Research pick selected',
-    message: `${competition.winner_name || 'The weekly champion'} selected ${proposal.title} for the ${competition.allocation_rsc || 100} RSC allocation.`,
+    message: `${competition.winner_name || 'The weekly champion'} selected ${proposal.title} for the ${Number(competition.allocation_rsc || WEEKLY_ALLOCATION_RSC).toLocaleString('en-US')} RSC allocation.`,
     targetPath: '/?view=trophies'
   }).catch((error) => console.error('Base proposal notification failed:', error));
   return claimResultFromCompetition({

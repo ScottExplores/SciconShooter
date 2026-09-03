@@ -411,7 +411,7 @@ create table if not exists public.scicon_weekly_competitions (
   proposal_url text,
   proposal_author text,
   proposal_image_url text,
-  allocation_rsc numeric not null default 100,
+  allocation_rsc numeric not null default 1000,
   allocation_tx_hash text,
   champion_token_id text,
   updated_at timestamptz not null default now()

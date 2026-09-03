@@ -175,7 +175,8 @@ import { buildWeeklyCampaignRuntimeOutcome } from './services/weeklyCampaignRunt
 import {
   getWeeklyBoundaryMeta,
   getWeeklyPresentationMeta,
-  resolveWeeklyDashboardPublication
+  resolveWeeklyDashboardPublication,
+  WEEKLY_ALLOCATION_RSC
 } from './shared/weeklyCompetitionBoundary.browser';
 import {
   CAMPAIGN_MISSIONS,
@@ -7518,7 +7519,7 @@ const App: React.FC = () => {
     score: stats.score,
     wave: stats.wave,
     scoreDate: new Date().toISOString(),
-    allocationRsc: 100,
+    allocationRsc: WEEKLY_ALLOCATION_RSC,
     status: 'finalized'
   };
   /**

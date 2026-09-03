@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const ts = require('typescript');
+const { WEEKLY_ALLOCATION_RSC } = require('../shared/weeklyCompetitionBoundary.js');
 
 const root = path.resolve(__dirname, '..');
 const loadTypeScriptService = (relativePath, dependencyMap) => {
@@ -35,7 +36,10 @@ const { getWeeklyProposalRecovery } = loadTypeScriptService(
   'services/weeklyProposalRecovery.ts',
   { './weeklyProposalReminder': weeklyProposalReminder }
 );
-const { getMissionRecordWeeklyFunding } = require('../services/weeklyFundingFlow.ts');
+const { getMissionRecordWeeklyFunding } = loadTypeScriptService(
+  'services/weeklyFundingFlow.ts',
+  { '../shared/weeklyCompetitionBoundary.browser': { WEEKLY_ALLOCATION_RSC } }
+);
 
 const wallet = '0x1111111111111111111111111111111111111111';
 const receipt = (overrides = {}) => ({
@@ -197,6 +201,7 @@ test('a selected proposal remains editable only while that receipt is the curren
   });
   assert.equal(funding?.status, 'selected');
   assert.equal(funding?.canEditProposal, true);
+  assert.equal(funding?.allocationRsc, 1_000);
 
   const displaced = getMissionRecordWeeklyFunding({
     receipt: receipt(),

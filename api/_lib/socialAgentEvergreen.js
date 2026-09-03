@@ -1,3 +1,5 @@
+const { WEEKLY_ALLOCATION_RSC } = require('../../shared/weeklyCompetitionBoundary.js');
+
 const GAME_URL = 'https://www.sciconshooter.xyz/';
 const CAMPAIGN = 'evergreen-social-v1';
 const CANDIDATES_PER_SLOT = 3;
@@ -50,7 +52,7 @@ const VARIANTS = Object.freeze({
     'Start as a guest, learn the controls, and bring back the first score you are willing to defend publicly.'
   ]),
   funding: Object.freeze([
-    'Top the verified weekly board and choose an eligible ResearchHub proposal for the round\'s 100 RSC funding-credit allocation. Make the score useful.',
+    `Top the verified weekly board and choose an eligible ResearchHub proposal for the round's ${WEEKLY_ALLOCATION_RSC.toLocaleString('en-US')} RSC funding-credit allocation. Make the score useful.`,
     'Scicon Shooter is a DeSci-inspired arcade game community-built on Base: play games, compete, and help direct ResearchHub Funding Credits.',
     'A weekly high score can do more than sit on a leaderboard. The winner chooses an eligible proposal for that round\'s RSC funding-credit allocation.',
     'The loop is strange on purpose: dodge bullets, top the verified board, choose eligible science for the round\'s Funding Credits.'

@@ -15,6 +15,7 @@ const {
   getWeeklyBoundaryMeta,
   getWeeklyPresentationMeta,
   resolveWeeklyDashboardPublication,
+  WEEKLY_ALLOCATION_RSC,
   WEEKLY_SCORE_SETTLEMENT_MS
 } = require('../shared/weeklyCompetitionBoundary.js');
 
@@ -27,6 +28,10 @@ const cutoffSnapshotRows = (weekKey, results) => [{
     results
   }
 }];
+
+test('the current weekly funding allocation is 1,000 RSC', () => {
+  assert.equal(WEEKLY_ALLOCATION_RSC, 1_000);
+});
 
 test('weekly competition resets Sunday at noon Pacific', () => {
   const beforeSummerCutoff = new Date('2026-07-12T18:59:00.000Z');
@@ -405,8 +410,10 @@ test('finalization locks the top eligible score for a closed week', async (conte
   const originalFetch = global.fetch;
   const originalUrl = process.env.SUPABASE_URL;
   const originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const originalAllocation = process.env.WEEKLY_ALLOCATION_RSC;
   process.env.SUPABASE_URL = 'https://example.supabase.co';
   process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-key';
+  delete process.env.WEEKLY_ALLOCATION_RSC;
 
   const requests = [];
   const winner = {
@@ -454,6 +461,8 @@ test('finalization locks the top eligible score for a closed week', async (conte
     else process.env.SUPABASE_URL = originalUrl;
     if (originalKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
     else process.env.SUPABASE_SERVICE_ROLE_KEY = originalKey;
+    if (originalAllocation === undefined) delete process.env.WEEKLY_ALLOCATION_RSC;
+    else process.env.WEEKLY_ALLOCATION_RSC = originalAllocation;
   });
 
   const result = await finalizeWeeklyCompetition('2020-01-05', {
@@ -466,6 +475,7 @@ test('finalization locks the top eligible score for a closed week', async (conte
   assert.equal(result.competition.winning_score, 4321);
   assert.equal(result.competition.proposal_id, '654');
   assert.equal(result.competition.proposal_title, 'Most Funded Eligible Proposal');
+  assert.equal(result.competition.allocation_rsc, 1_000);
   assert.equal(result.competition.starts_at, '2020-01-05T20:00:00.000Z');
   assert.equal(result.competition.ends_at, '2020-01-12T20:00:00.000Z');
   const leaderboardRequest = requests.find((request) => request.url.includes('scicon_leaderboard'));
