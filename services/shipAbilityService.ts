@@ -168,24 +168,18 @@ export const getShipAbilityUpgradeProfile = (abilityLevel: number): ShipAbilityU
 };
 
 /**
- * BIO, ETH, and BTC borrowed their signature-move frames straight from the
- * *primary weapon* FX pack, so the move a player picked their hull for looked
- * exactly like their ordinary gun. Each now has its own art,
- * drawn on a grid matching the projectile the engine spawns for it:
- * a helix lance, a single crystal shard, and a hexagonal hash lattice.
- *
- * ResearchHub uses the CC0 Spark/Bolt/Charged ladder above. The generated pack
- * remains dedicated to the three collectible hulls, preserving their distinct
- * silhouettes while the shared upgrade profile scales their combat values.
- *
- * Source: tools/generate-signature-move-fx.mjs (procedural, regenerable).
+ * BIO, ETH and BTC use animated energy sprites, not mechanical rocket shapes.
+ * Their signatures retain the hull palette while size, pattern, trails and
+ * impact behavior distinguish them from primary fire. RSC's CC0 ladder stays
+ * unchanged. Source/provenance: docs/COMBAT_EVOLUTION_ART.md;
+ * reproducible alpha extraction: tools/compile-combat-lab-art.mjs.
  */
-const SIGNATURE_MOVE_FX_ROOT = '/game-art/generated/scicon-signature-move-fx-v1';
+const SIGNATURE_MOVE_FX_ROOT = '/game-art/generated/scicon-combat-evolution-v1';
 const SIGNATURE_MOVE_FRAME_COUNT = 6;
 const getSignatureMoveFrames = (ship: 'researchhub' | 'bio' | 'eth' | 'btc') => (
   Array.from(
     { length: SIGNATURE_MOVE_FRAME_COUNT },
-    (_, index) => `${SIGNATURE_MOVE_FX_ROOT}/${ship}/frame-${index + 1}.png`
+    (_, index) => `${SIGNATURE_MOVE_FX_ROOT}/${ship}-${index + 1}.png`
   )
 );
 

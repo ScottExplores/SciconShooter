@@ -333,8 +333,8 @@ export const MINI_SHIP_CATALOG: readonly MiniShipCatalogEntry[] = [
   {
     id: 'quorum-crab',
     name: 'Quorum Crab',
-    role: 'Token magnet',
-    description: 'Expands its Token field every level and unlocks twin cover fire at level four.',
+    role: 'Salvage collector',
+    description: 'Leaves formation to retrieve nearby Tokens, then returns to cover fire. Each level extends its reach.',
     ability: 'coin-magnet',
     purchaseCost: 200,
     maxLevel: MINI_SHIP_MAX_LEVEL,
@@ -346,8 +346,8 @@ export const MINI_SHIP_CATALOG: readonly MiniShipCatalogEntry[] = [
   {
     id: 'axiom-orbiter',
     name: 'Axiom Orbiter',
-    role: 'Twin burst',
-    description: 'Builds from paired precision bolts into a four-round capstone burst.',
+    role: 'Orbital interceptor',
+    description: 'Patrols ahead of your hull and intercepts one nearby hostile bullet per recharge. Keeps its twin burst; upgrades recharge faster.',
     ability: 'twin-burst',
     purchaseCost: 260,
     maxLevel: MINI_SHIP_MAX_LEVEL,

@@ -130,8 +130,8 @@ test('primary shots preload every level and Projectile Upgrade selects hull-them
 
   assert.equal((visuals.match(/frame-[1234]\.png/g) || []).length, 128);
   assert.match(visuals, /UNIVERSAL_PLAYER_WEAPON_FRAMES = research\[0\]/);
-  assert.match(visuals, /BIO_PRIMARY_PLAYER_WEAPON_FRAMES = bio\[0\]/);
-  assert.match(visuals, /PLAYER_WEAPON_FRAME_URLS = Object\.freeze\(\[[\s\S]*\.\.\.research\.flat\(\),[\s\S]*\.\.\.bio\.flat\(\),[\s\S]*\.\.\.eth\.flat\(\),[\s\S]*\.\.\.btc\.flat\(\)/);
+  assert.match(visuals, /BIO_PRIMARY_PLAYER_WEAPON_FRAMES = PLAYER_WEAPON_VISUALS\.bio\[0\]/);
+  assert.match(visuals, /PLAYER_WEAPON_FRAME_URLS = Object\.freeze\(\[[\s\S]*\.\.\.research\.flat\(\),[\s\S]*\.\.\.PLAYER_WEAPON_VISUALS\.bio\.flat\(\),[\s\S]*\.\.\.PLAYER_WEAPON_VISUALS\.eth\.flat\(\),[\s\S]*\.\.\.PLAYER_WEAPON_VISUALS\.btc\.flat\(\)/);
   assert.match(visuals, /const family = familyOverride \?\? getPlayerWeaponVisualFamily\(weaponKind\)/);
   assert.match(visuals, /return PLAYER_WEAPON_VISUALS\[family\]\[visualLevel\]/);
   assert.match(engine, /weaponVisualLevel: number = 0/);

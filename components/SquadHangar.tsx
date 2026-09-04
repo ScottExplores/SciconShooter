@@ -686,6 +686,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
       </header>
 
       <main className="relative z-10">
+        {import.meta.env.DEV ? <a href="/?display=mobile-frame&lab=combat" style={{ display: 'block', margin: '10px 12px', padding: '13px', textAlign: 'center', border: '1px solid #a3e635', color: '#d9f99d', background: '#17251c', fontSize: '11px', fontWeight: 800 }}>COMBAT LAB · ALL SHIPS & UPGRADES UNLOCKED →</a> : null}
         <p className="sr-only" aria-live="polite">{upgradeFeedback?.label ?? ''}</p>
         <section className="relative overflow-hidden border-b border-cyan-200/18 bg-[#03081c] px-3 pb-3 pt-3 sm:px-6 sm:pb-4">
           <div className="sci-hangar-starfield pointer-events-none absolute inset-0" aria-hidden="true">

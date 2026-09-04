@@ -1412,6 +1412,7 @@ export class PixiGameRenderer {
   private readonly playerThrusterRoot = new Container();
   private readonly playerThrusters = [new Sprite(Texture.WHITE), new Sprite(Texture.WHITE)] as const;
   private readonly gunPodRoot = new Container();
+  private readonly gunPodUtility = new Graphics();
   private readonly gunPodThrusterSprites = [new Sprite(Texture.WHITE), new Sprite(Texture.WHITE)] as const;
   private readonly gunPodSprites = [new Sprite(Texture.WHITE), new Sprite(Texture.WHITE)] as const;
   private readonly bioBeamRoot = new Container();
@@ -1897,6 +1898,7 @@ export class PixiGameRenderer {
 
     this.gunPodRoot.eventMode = 'none';
     this.gunPodRoot.visible = false;
+    this.gunPodRoot.addChild(this.gunPodUtility);
     for (const thruster of this.gunPodThrusterSprites) {
       thruster.anchor.set(0.76, 0.5);
       thruster.rotation = -Math.PI / 2;
@@ -3349,19 +3351,22 @@ export class PixiGameRenderer {
         }
         view.root.rotation = -Math.PI / 2;
       } else if (entity.projectileVisualKind === 'bio-genome-lance') {
-        view.aura.roundRect(-entity.width * 0.62, -entity.height * 0.52, entity.width * 1.24, entity.height * 1.04, entity.width * 0.4)
-          .fill({ color: '#4ade80', alpha: 0.16 });
-        view.aura.roundRect(-entity.width * 0.32, -entity.height * 0.5, entity.width * 0.64, entity.height, entity.width * 0.28)
-          .stroke({ color: '#bbf7d0', width: 2, alpha: 0.78 });
+        view.sprite.width = entity.width * 2.1;
+        view.trail.moveTo(-4, entity.height * 0.2).lineTo(-4, entity.height * 0.65)
+          .stroke({ color: '#a3e635', width: 3, alpha: 0.4 });
+        view.trail.moveTo(4, entity.height * 0.15).lineTo(4, entity.height * 0.55)
+          .stroke({ color: '#eaffb2', width: 2, alpha: 0.45 });
       } else if (entity.projectileVisualKind === 'eth-prism-volley') {
-        const pulse = 0.68 + Math.sin((engineFrame + entity.variant * 3) * 0.2) * 0.1;
-        view.aura.circle(0, 0, entity.width * pulse).fill({ color: '#8b5cf6', alpha: 0.18 });
-        view.aura.circle(0, 0, entity.width * 0.56).stroke({ color: '#ddd6fe', width: 1.5, alpha: 0.76 });
+        view.trail.moveTo(0, entity.height * 0.2).lineTo(0, entity.height * 1.05)
+          .stroke({ color: '#c4b5fd', width: 4, alpha: 0.38 });
+        view.trail.moveTo(0, entity.height * 0.2).lineTo(0, entity.height * 0.65)
+          .stroke({ color: '#d5faff', width: 1.5, alpha: 0.65 });
         view.root.rotation = Math.atan2(entity.vy, entity.vx) + Math.PI / 2;
       } else if (entity.projectileVisualKind === 'btc-hash-burst') {
-        const pulse = 0.72 + Math.sin(engineFrame * 0.16) * 0.09;
-        view.aura.circle(0, 0, entity.width * pulse).fill({ color: '#facc15', alpha: 0.16 });
-        view.aura.circle(0, 0, entity.width * 0.58).stroke({ color: '#67e8f9', width: 2, alpha: 0.7 });
+        for (let segment = 0; segment < 4; segment++) {
+          view.trail.rect(-3 + segment % 2, entity.height * (0.36 + segment * 0.16), 5 - segment, 10)
+            .fill({ color: segment % 2 ? '#ff8f32' : '#fef08a', alpha: 0.6 - segment * 0.1 });
+        }
       } else if (entity.spriteFrameFixedRotationRadians !== undefined) {
         // Explosion pixels are the complete warning and damage surface. Do not
         // add a translucent circle or velocity rotation around the authored art.
@@ -3460,48 +3465,23 @@ export class PixiGameRenderer {
       return;
     }
     if (playerShot && entity.squadAbilityKind) {
-      const speed = Math.max(1, Math.hypot(entity.vx, entity.vy));
-      const trailLength = clamp(speed * 3.8, 14, 42);
+      const kind = entity.squadAbilityKind;
+      const family = kind === 'homing-missile' || kind === 'heavy-cannon' ? 'btc'
+        : kind === 'prism-fan' || kind === 'nova-volley' || kind === 'piercing-laser' ? 'eth'
+        : kind === 'spread-cycle' || kind === 'coin-magnet' || kind === 'targeting-laser' ? 'bio'
+        : 'research';
+      const frame = getPlayerWeaponFrames('pulse', entity.weaponVisualLevel, family)[0];
+      this.setTexture(view, frame);
+      view.sprite.tint = '#ffffff';
+      view.sprite.alpha = 0.95;
+      view.sprite.width = Math.max(24, entity.width * 2.4);
+      view.sprite.height = Math.max(30, entity.height * 1.7);
       view.root.rotation = Math.atan2(entity.vy, entity.vx) + Math.PI / 2;
-      view.trail.moveTo(0, entity.height * 0.18).lineTo(0, entity.height * 0.18 + trailLength)
-        .stroke({ color, width: Math.max(1.5, entity.width * 0.42), alpha: 0.34 });
-
-      if (entity.squadAbilityKind === 'homing-missile') {
-        view.body.moveTo(0, -entity.height * 0.56)
-          .lineTo(entity.width * 0.48, entity.height * 0.28)
-          .lineTo(0, entity.height * 0.12)
-          .lineTo(-entity.width * 0.48, entity.height * 0.28)
-          .closePath()
-          .fill(color)
-          .stroke({ color: '#ffffff', width: 1.2, alpha: 0.82 });
-      } else if (entity.squadAbilityKind === 'piercing-laser') {
-        view.aura.roundRect(-entity.width * 0.72, -entity.height * 0.58, entity.width * 1.44, entity.height * 1.16, entity.width)
-          .fill({ color, alpha: 0.22 });
-        view.body.roundRect(-Math.max(1.5, entity.width * 0.2), -entity.height * 0.54, Math.max(3, entity.width * 0.4), entity.height * 1.08, entity.width)
-          .fill('#ffffff');
-      } else if (entity.squadAbilityKind === 'coin-magnet') {
-        view.aura.circle(0, 0, entity.width * 0.92).stroke({ color: '#facc15', width: 1.5, alpha: 0.72 });
-        view.body.circle(0, 0, Math.max(2.5, entity.width * 0.38)).fill(color).stroke({ color: '#fef08a', width: 1, alpha: 0.9 });
-      } else if (entity.squadAbilityKind === 'heavy-cannon') {
-        view.aura.roundRect(-entity.width * 0.65, -entity.height * 0.58, entity.width * 1.3, entity.height * 1.16, entity.width * 0.45)
-          .fill({ color, alpha: 0.28 });
-        view.body.roundRect(-entity.width * 0.38, -entity.height * 0.5, entity.width * 0.76, entity.height, entity.width * 0.34)
-          .fill('#ffffff')
-          .stroke({ color, width: 1.4, alpha: 0.92 });
-      } else if (entity.squadAbilityKind === 'prism-fan' || entity.squadAbilityKind === 'nova-volley') {
-        view.body.moveTo(0, -entity.height * 0.54)
-          .lineTo(entity.width * 0.54, 0)
-          .lineTo(0, entity.height * 0.54)
-          .lineTo(-entity.width * 0.54, 0)
-          .closePath()
-          .fill('#ffffff')
-          .stroke({ color, width: 1.4, alpha: 0.96 });
-      } else {
-        view.aura.roundRect(-entity.width * 0.6, -entity.height * 0.56, entity.width * 1.2, entity.height * 1.12, entity.width)
-          .fill({ color, alpha: 0.2 });
-        view.body.roundRect(-Math.max(1.5, entity.width * 0.3), -entity.height * 0.5, Math.max(3, entity.width * 0.6), entity.height, entity.width)
-          .fill('#ffffff')
-          .stroke({ color, width: 1, alpha: 0.88 });
+      const speed = Math.max(1, Math.hypot(entity.vx, entity.vy));
+      const length = clamp(speed * 3.2, 14, 38);
+      for (let segment = 0; segment < 3; segment++) {
+        view.trail.rect(-1 + segment * 0.15, 6 + segment * length / 3, 2 - segment * 0.3, length / 3)
+          .fill({ color, alpha: 0.4 - segment * 0.1 });
       }
       return;
     }
@@ -3534,6 +3514,22 @@ export class PixiGameRenderer {
       view.sprite.width = visualWidth;
       view.sprite.height = visualHeight;
       view.root.rotation = Math.atan2(entity.vy, entity.vx) + Math.PI / 2;
+      // A compact colored wake exists even on stock hulls. This uses the
+      // already pooled Graphics: no trail particles or extra collision bodies.
+      const family = entity.weaponVisualFamily;
+      if (family && family !== 'research') {
+        const wakeColor = family === 'bio' ? '#a3e635' : family === 'eth' ? '#b7b0ff' : '#ffbf47';
+        const wakeLength = (family === 'btc' ? 28 : 38) + Math.min(5, entity.weaponVisualLevel) * 4;
+        const lanes = family === 'bio' ? [-9, 9] : [0];
+        view.trail.blendMode = 'add';
+        for (const lane of lanes) {
+          for (let segment = 0; segment < 3; segment++) {
+            const width = family === 'btc' ? 3 - segment * 0.65 : 2.6 - segment * 0.55;
+            view.trail.rect(lane - width / 2, 8 + segment * wakeLength / 3, width, wakeLength / 3)
+              .fill({ color: wakeColor, alpha: 0.5 - segment * 0.13 });
+          }
+        }
+      }
       if (presentation.trailLength > 0) {
         const trailStart = visualHeight * 0.2;
         const reducedTrail = this.reducedMotion
@@ -6755,6 +6751,7 @@ export class PixiGameRenderer {
   }
 
   private syncGunPods(engine: GameEngine) {
+    this.gunPodUtility.clear();
     const companions = engine.getSquadCompanionVisuals();
     if (companions.length === 0 || engine.lives <= 0) {
       this.gunPodRoot.visible = false;
@@ -6796,6 +6793,20 @@ export class PixiGameRenderer {
       pod.alpha = companion.alpha;
       pod.position.set(companion.x, companion.y);
       pod.rotation = Math.sin(engine.frameCount * 0.04 + index * Math.PI) * 0.028;
+      if (companion.utilityActive && !takeoffActive) {
+        const color = companion.id === 'axiom-orbiter' ? '#93c5fd' : '#fde047';
+        if (companion.id === 'axiom-orbiter') {
+          // A small forward shield arc reads as defense, not another gun.
+          this.gunPodUtility.arc(companion.x, companion.y, companion.width * 0.6, Math.PI * 1.1, Math.PI * 1.9)
+            .stroke({ color, width: 2, alpha: 0.72 });
+        } else {
+          for (let spark = 0; spark < 3; spark++) {
+            const offset = ((engine.frameCount / 3 + spark * 5) % 18);
+            this.gunPodUtility.rect(companion.x - 1, companion.y + 16 + offset, 2, 3)
+              .fill({ color, alpha: 0.55 - offset / 50 });
+          }
+        }
+      }
 
       if (thruster.visible && thrusterTexture) {
         const thrustScale = Math.min(3.4, 0.8 + takeoff.thrustStrength * 0.8 + takeoff.travel * 1.8);

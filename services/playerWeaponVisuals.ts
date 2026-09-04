@@ -46,23 +46,30 @@ const btc = [
   [`${PLAYER_WEAPON_FX_ROOT}/btc/level-7/frame-1.png`, `${PLAYER_WEAPON_FX_ROOT}/btc/level-7/frame-2.png`, `${PLAYER_WEAPON_FX_ROOT}/btc/level-7/frame-3.png`, `${PLAYER_WEAPON_FX_ROOT}/btc/level-7/frame-4.png`]
 ] as const;
 
-export const PLAYER_WEAPON_VISUALS = { research, bio, eth, btc } as const;
+const evolvedFrames = (family: 'bio' | 'eth' | 'btc', tiers: readonly (readonly string[])[]) => (
+  // Every tier keeps the same clean energy-bolt silhouette. Strength is shown
+  // by bounded scale, brighter wakes and animation, never by adding rocket fins.
+  tiers.map(() => [1, 2, 3, 4].map(frame =>
+    `/game-art/generated/scicon-combat-evolution-v1/${family}-${frame}.png`))
+);
+export const PLAYER_WEAPON_VISUALS = {
+  research, bio: evolvedFrames('bio', bio), eth: evolvedFrames('eth', eth), btc: evolvedFrames('btc', btc)
+} as const;
 
-/** Default four-frame launch family retained by Research, ETH, and BTC. */
+/** Original RSC launch family remains unchanged. */
 export const UNIVERSAL_PLAYER_WEAPON_FRAMES = research[0];
 /** BIO's half-strength twin rails use the checked-in green launch family. */
-export const BIO_PRIMARY_PLAYER_WEAPON_FRAMES = bio[0];
+export const BIO_PRIMARY_PLAYER_WEAPON_FRAMES = PLAYER_WEAPON_VISUALS.bio[0];
 
 /**
- * Every upgrade frame is decoded before play. The complete set is only about
- * 420 KB, so eagerly warming it is cheaper than allowing the first upgraded
- * volley to flash a missing texture on a phone.
+ * Every distinct upgrade frame is decoded before play to avoid first-volley
+ * missing textures on a phone. Repeated tier URLs share cached textures.
  */
 export const PLAYER_WEAPON_FRAME_URLS = Object.freeze([
   ...research.flat(),
-  ...bio.flat(),
-  ...eth.flat(),
-  ...btc.flat()
+  ...PLAYER_WEAPON_VISUALS.bio.flat(),
+  ...PLAYER_WEAPON_VISUALS.eth.flat(),
+  ...PLAYER_WEAPON_VISUALS.btc.flat()
 ]);
 
 export const PLAYER_WEAPON_LAUNCH_TICKS_PER_FRAME = 2;
@@ -115,8 +122,8 @@ export interface PlayerProjectileUpgradePresentation {
 
 /**
  * Six bounded presentation tiers: base plus the five in-mission upgrades.
- * The checked-in art changes silhouette at every tier; these values make that
- * progression readable during dense mobile combat without spawning objects.
+ * These values strengthen the same energy silhouette during dense mobile
+ * combat without spawning objects or increasing collision dimensions.
  */
 export const PLAYER_PROJECTILE_UPGRADE_PRESENTATION: readonly PlayerProjectileUpgradePresentation[] = Object.freeze([
   { level: 0, spriteScale: 1, pulseAmount: 0, trailLength: 0, trailWidth: 0, trailAlpha: 0, sparkCount: 0 },

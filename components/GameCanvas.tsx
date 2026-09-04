@@ -162,6 +162,7 @@ export interface GameCanvasProps {
   /** Optional per-collision life-loss ceiling, used by single-hit endurance modes. */
   maxPlayerDamagePerHit?: number;
   previewMode?: boolean;
+  previewContinuousWaves?: boolean;
   audioEnabled?: boolean;
   autoFire?: boolean;
   /** Preview-only simulation speed multiplier. The production game stays at 1x. */
@@ -229,6 +230,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   continuousStageBoundaries = false,
   maxPlayerDamagePerHit,
   previewMode = false,
+  previewContinuousWaves = false,
   audioEnabled = !previewMode,
   autoFire = false,
   timeScale = 1,
@@ -369,6 +371,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     maxPlayerDamagePerHit,
     randomSeed: previewMode ? previewSeed : randomSeed,
     previewStartingLives,
+    previewContinuousWaves,
     previewUnlimitedBombs,
     previewShipAbilityNoCooldown,
     previewViewportWidth,
@@ -391,6 +394,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     maxPlayerDamagePerHit,
     randomSeed: previewMode ? previewSeed : randomSeed,
     previewStartingLives,
+    previewContinuousWaves,
     previewUnlimitedBombs,
     previewShipAbilityNoCooldown,
     previewViewportWidth,
@@ -982,6 +986,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       const engine = new GameEngine(initialStats, {
         campaign: setupCampaign,
         previewMode,
+        previewContinuousWaves: setup.previewContinuousWaves,
         previewInvincible: previewInvincibleRef.current,
         previewUnlimitedBombs: setup.previewUnlimitedBombs,
         previewShipAbilityNoCooldown: setup.previewShipAbilityNoCooldown,
@@ -1508,7 +1513,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       pendingRenderer?.destroy();
       pendingRenderer = null;
     };
-  }, [previewMode, previewShipAbilityNoCooldown, previewStartingLives, previewUnlimitedBombs, previewViewportHeight, previewViewportWidth, setupAudioEnabledDependency, setupBossArtworkDependency, setupCampaignDependency, setupContinuousRunDependency, setupDamageCapDependency, setupLifeRefillDependency, setupPlayerShipIdDependency, setupPlayerShipUrlDependency, setupSeedDependency, setupSquadLoadoutDependency]);
+  }, [previewMode, previewContinuousWaves, previewShipAbilityNoCooldown, previewStartingLives, previewUnlimitedBombs, previewViewportHeight, previewViewportWidth, setupAudioEnabledDependency, setupBossArtworkDependency, setupCampaignDependency, setupContinuousRunDependency, setupDamageCapDependency, setupLifeRefillDependency, setupPlayerShipIdDependency, setupPlayerShipUrlDependency, setupSeedDependency, setupSquadLoadoutDependency]);
 
   return (
     <div

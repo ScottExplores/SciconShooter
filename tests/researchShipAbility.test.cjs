@@ -80,15 +80,14 @@ test('Pixi preloads and animates all ship ability sprite sequences', () => {
   assert.match(hud, /abilityDefinition\.iconRotationDegrees/);
   assert.match(renderer, /effect\.effectType === 'sprite'/);
 
-  // BIO, ETH, and BTC used to borrow frames from the primary-weapon FX pack, so
-  // a hull's signature move looked like its ordinary gun. Each now has its own
-  // art in scicon-signature-move-fx-v1.
+  // All three hulls share their clean energy identity across primary and
+  // signature shots. Size, pattern and impact differentiate the signature.
   assert.doesNotMatch(abilities, /getGalleryAbilityFrames/);
-  assert.match(abilities, /SIGNATURE_MOVE_FX_ROOT = '\/game-art\/generated\/scicon-signature-move-fx-v1'/);
+  assert.match(abilities, /SIGNATURE_MOVE_FX_ROOT = '\/game-art\/generated\/scicon-combat-evolution-v1'/);
   for (const ship of ['bio', 'eth', 'btc']) {
     assert.match(abilities, new RegExp(`getSignatureMoveFrames\\('${ship}'\\)`));
     for (let frame = 1; frame <= 6; frame++) {
-      const icon = fs.readFileSync(path.join(root, 'public/game-art/generated/scicon-signature-move-fx-v1', ship, `frame-${frame}.png`));
+      const icon = fs.readFileSync(path.join(root, 'public/game-art/generated/scicon-combat-evolution-v1', `${ship}-${frame}.png`));
       assert.equal(icon[25], 6, `${ship} ability frame ${frame} must retain an alpha channel`);
     }
   }

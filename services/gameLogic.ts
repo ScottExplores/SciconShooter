@@ -69,6 +69,7 @@ import {
 import type { PlayerShipId } from './playerShipService';
 import { sampleTripleShotSideAngleRadians } from './playerShotSpread';
 import { BIO_PRIMARY_DAMAGE_PER_ROUND, getBioPrimaryShotPlan } from './bioPrimaryWeapon';
+import { findSalvageTarget, findInterceptTarget, getInterceptorCooldown } from './supportUtility';
 import {
   FIRE_RATE_LEVELS_PER_TIER,
   FIRE_RATE_MAX_LEVEL,
@@ -1785,6 +1786,8 @@ type EnemyRuntimeOverrides = {
 export interface GameEngineOptions {
   campaign?: GameCampaign;
   previewMode?: boolean;
+  /** Local playtests may chain authored waves, but never leave their Mission. */
+  previewContinuousWaves?: boolean;
   /** Preview ships are invulnerable by default; disable for damage/death testing. */
   previewInvincible?: boolean;
   /** Preview-only resource override. Production bombs always use their real inventory. */
@@ -1851,6 +1854,7 @@ export interface SquadCompanionVisual {
   height: number;
   alpha: number;
   scale: number;
+  utilityActive: boolean;
 }
 
 type ActiveSquadCompanion = RuntimeSquadCompanion & {
@@ -1860,6 +1864,8 @@ type ActiveSquadCompanion = RuntimeSquadCompanion & {
   fireTimer: number;
   shotSequence: number;
   entryProgress: number;
+  utilityCooldown?: number;
+  utilityActive?: boolean;
 };
 type PendingEnemyLaser = {
   sourceId: string;
@@ -2632,6 +2638,7 @@ export class GameEngine {
   campaignWaves: CampaignWaveEntry[] = [];
   currentCampaignIndex: number = 0;
   previewMode: boolean = false;
+  private readonly previewContinuousWaves: boolean;
   previewInvincible: boolean = true;
   previewUnlimitedBombs: boolean = false;
   previewShipAbilityNoCooldown: boolean = false;
@@ -2708,6 +2715,7 @@ export class GameEngine {
     loadImage(this.playerShipUrl);
     this.campaignWaves = this.buildCampaignWaveEntries(this.campaign);
     this.previewMode = options.previewMode ?? false;
+    this.previewContinuousWaves = this.previewMode && options.previewContinuousWaves === true;
     this.previewBossCollisionMask = options.previewBossCollisionMask;
     this.previewBossCollisionEventId = options.previewBossCollisionEventId;
     this.previewBossArtworkDesignSize = options.previewBossArtworkDesignSize
@@ -4645,6 +4653,8 @@ export class GameEngine {
           ? Math.min(previous.fireTimer, companion.fireIntervalFrames)
           : Math.max(8, Math.floor(companion.fireIntervalFrames * (0.42 + index * 0.18))),
         shotSequence: previous?.shotSequence ?? 0,
+        utilityCooldown: previous?.utilityCooldown ?? 0,
+        utilityActive: false,
         entryProgress: previous?.entryProgress ?? 0
       };
     });
@@ -6004,7 +6014,7 @@ export class GameEngine {
     }
 
     this.recordWaveCompletion();
-    if (this.previewMode) {
+    if (this.previewMode && (!this.previewContinuousWaves || this.isCurrentWaveStageFinal())) {
       this.waveDepartureFrames = 0;
       this.stageRewardCollectionFrames = 0;
       this.previewComplete = true;
@@ -6121,13 +6131,11 @@ export class GameEngine {
       boss.isCharging = false;
       this.removeBossCornerAmbushBeams(boss);
     }
-    this.entities.forEach(e => {
-        if (e.type === EntityType.PLAYER) {
-            const bounds = this.getPlayerMovementBounds();
-            e.x = Math.max(bounds.minX, Math.min(bounds.maxX, e.x));
-            e.y = Math.max(bounds.minY, Math.min(bounds.maxY, e.y));
-        }
-    });
+    // The player is owned separately, not stored in entities. Clamping only
+    // entities left the ship below the canvas after a mobile viewport shrink.
+    const bounds = this.getPlayerMovementBounds();
+    this.player.x = clamp(this.player.x, bounds.minX, bounds.maxX);
+    this.player.y = clamp(this.player.y, bounds.minY, bounds.maxY);
   }
 
   getEncounterCameraTransform(): EncounterCameraTransform {
@@ -7407,7 +7415,8 @@ export class GameEngine {
       width: size,
       height: size,
       alpha: this.playerDrawAlpha * companion.entryProgress,
-      scale: this.waveDepartureFrames > 0 ? this.playerDrawScale : 1
+      scale: this.waveDepartureFrames > 0 ? this.playerDrawScale : 1,
+      utilityActive: companion.utilityActive ?? false
     }));
   }
 
@@ -7467,18 +7476,46 @@ export class GameEngine {
 
     this.squadCompanions.forEach((companion, index) => {
       const side = companion.slot === 'left' ? -1 : 1;
-      const targetX = clamp(centerX + side * distance, edgePadding, this.width - edgePadding);
-      const targetY = clamp(
+      let targetX = clamp(centerX + side * distance, edgePadding, this.width - edgePadding);
+      let targetY = clamp(
         centerY + 14 + Math.sin(this.frameCount * 0.055 + index * Math.PI) * 4,
         34,
         this.height - 34
       );
+      companion.utilityActive = false;
+      companion.utilityCooldown = Math.max(0, (companion.utilityCooldown ?? 0) - 1);
+      if (canFire && companion.ability === 'coin-magnet') {
+        const salvage = findSalvageTarget(this.entities, centerX, centerY, companion.level);
+        if (salvage) {
+          targetX = clamp(salvage.x + salvage.width / 2, edgePadding, this.width - edgePadding);
+          targetY = clamp(salvage.y + salvage.height / 2, 42, this.height - 34);
+          companion.utilityActive = true;
+        }
+      }
+      if (canFire && companion.id === 'axiom-orbiter') {
+        // The interceptor flies a forward guard arc; its existing twin guns
+        // remain secondary. One catch per recharge, not permanent immunity.
+        targetX = clamp(centerX + Math.cos(this.frameCount * 0.018 + index * Math.PI) * distance, edgePadding, this.width - edgePadding);
+        targetY = clamp(centerY - 40 - Math.abs(Math.sin(this.frameCount * 0.018)) * 22, 34, this.height - 34);
+        companion.utilityActive = companion.utilityCooldown <= 0;
+        const intercepted = companion.utilityActive
+          ? findInterceptTarget(this.entities, companion.x, companion.y, companion.level) : null;
+        if (intercepted) {
+          intercepted.markedForDeletion = true;
+          companion.utilityCooldown = getInterceptorCooldown(companion.level);
+          companion.utilityActive = false;
+          this.spawnRingEffect(companion.x, companion.y, '#93c5fd');
+          this.spawnBurst(companion.x, companion.y, '#93c5fd', 4, 2, 2);
+        }
+      }
       companion.entryProgress = Math.min(1, companion.entryProgress + 0.045);
       companion.x += (targetX - companion.x) * 0.14;
       companion.y += (targetY - companion.y) * 0.14;
       companion.frameIndex = Math.floor(this.frameCount / 10 + index) % companion.frames.length;
 
       if (!canFire) return;
+      // Salvage excursions are utility work, not a remote turret exploit.
+      if (companion.ability === 'coin-magnet' && companion.utilityActive) return;
       companion.fireTimer--;
       if (companion.fireTimer > 0) return;
       this.spawnSquadCompanionBullet(companion);
@@ -7674,7 +7711,7 @@ export class GameEngine {
     projectile.isMissile = Boolean(options.missile);
     projectile.squadAbilityKind = companion.ability;
     projectile.weaponKind = options.pierceCount ? 'ion' : 'pulse';
-    projectile.weaponVisualLevel = 0;
+    projectile.weaponVisualLevel = companion.level - 1;
     projectile.weaponVisualStartFrame = this.frameCount;
     projectile.damage = companion.projectileDamage * (options.damageScale ?? 1);
     projectile.pierceRemaining = Math.max(0, Math.floor(options.pierceCount ?? 0));

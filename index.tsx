@@ -8,7 +8,8 @@ import { AppProviders } from './providers';
 import { recoverFromModulePreloadFailure } from './services/deploymentUpdateService';
 import { installPlayerReportMonitoring } from './services/playerReportService';
 
-installPlayerReportMonitoring();
+const combatLabRequested = import.meta.env.DEV && new URLSearchParams(window.location.search).get('lab') === 'combat';
+if (!combatLabRequested) installPlayerReportMonitoring();
 
 window.addEventListener('vite:preloadError', (event) => {
   if (recoverFromModulePreloadFailure(event.payload)) {
@@ -22,13 +23,20 @@ if (!rootElement) {
 }
 
 const root = ReactDOM.createRoot(rootElement);
+// Development-only, isolated test surface. Never mounts wallet/profile services.
+const CombatLab = import.meta.env.DEV
+  ? React.lazy(() => import('./components/CombatLab'))
+  : null;
+const showCombatLab = Boolean(CombatLab && combatLabRequested);
 root.render(
   <React.StrictMode>
     <AppErrorBoundary>
       <DesktopMobileLaunchShell>
+        {showCombatLab && CombatLab ? <React.Suspense fallback={<div>Loading Combat Lab…</div>}><CombatLab /></React.Suspense> :
         <AppProviders>
           <App />
         </AppProviders>
+        }
       </DesktopMobileLaunchShell>
     </AppErrorBoundary>
   </React.StrictMode>

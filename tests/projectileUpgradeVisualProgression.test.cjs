@@ -24,13 +24,19 @@ const visuals = loadVisuals();
 
 test('all checked-in weapon levels are preloaded and selectable by hull', () => {
   assert.equal(visuals.PLAYER_WEAPON_FRAME_URLS.length, 128);
-  assert.equal(new Set(visuals.PLAYER_WEAPON_FRAME_URLS).size, 128);
+  assert.equal(new Set(visuals.PLAYER_WEAPON_FRAME_URLS).size, 44, '32 original RSC frames plus four energy animation frames per other hull');
 
   for (const family of ['research', 'bio', 'eth', 'btc']) {
-    for (let level = 0; level <= 5; level += 1) {
+    for (let level = 0; level <= 7; level += 1) {
       const frames = visuals.getPlayerWeaponFrames('pulse', level, family);
       assert.equal(frames.length, 4);
-      assert.ok(frames.every((url) => url.includes(`/${family}/level-${level}/`)));
+      if (family === 'research') assert.ok(frames.every(url => url.includes(`/${family}/level-${level}/`)));
+      else {
+        assert.deepEqual(frames, visuals.getPlayerWeaponFrames('pulse', 0, family), 'upgrades retain the same energy silhouette');
+        assert.ok(frames.every((url, index) => url.endsWith(`/${family}-${index + 1}.png`)));
+      }
+      assert.ok(frames.every(url => visuals.PLAYER_WEAPON_FRAME_URLS.includes(url)));
+      assert.ok(frames.every(url => fs.existsSync(path.join(root, 'public', url))));
     }
   }
 

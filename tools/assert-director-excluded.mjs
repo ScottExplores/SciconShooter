@@ -14,6 +14,7 @@ const forbiddenPathFragments = [
   'director-data',
   '__director',
   'combat-lab',
+  'combatlab',
   'test-packages'
 ];
 const forbiddenPrototypeAssetBasenames = [
@@ -42,6 +43,9 @@ const forbiddenText = [
   '/__director',
   'director-data/',
   'Scicon Combat Lab',
+  'EXPERIMENTAL / NO SAVES',
+  'neon-breakwater-2026',
+  'lab=combat',
   '/combat-lab',
   'scicon-combat-lab-presets-v1',
   ...forbiddenPrototypeAssetBasenames
