@@ -104,6 +104,8 @@ test('Pixi applies the shared presentation sample to every configured formation 
   assert.match(configured, /formationAttackActive: entity\.formationAttackActive/);
   assert.match(configured, /view\.root\.rotation = presentation\.bankRadians/);
   assert.match(configured, /view\.aura\.clear\(\)/);
-  assert.match(configured, /presentation\.telegraphVisible/);
+  assert.doesNotMatch(configured, /presentation\.telegraphVisible/, 'regular fighters must not draw the enclosing pre-attack overlay');
+  assert.doesNotMatch(configured, /\.ellipse\(|\.stroke\(|#fde047|#fef08a/, 'yellow attack rings and brackets must stay removed');
+  assert.match(configured, /view\.aura\.rect\(/, 'the short flight exhaust remains visible');
   assert.doesNotMatch(configured, /entity\.[A-Za-z]+\s*=(?!=)/, 'Pixi must not mutate simulation state');
 });
