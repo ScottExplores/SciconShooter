@@ -17,7 +17,7 @@ const rendererSource = fs.readFileSync(path.join(root, 'services', 'pixi', 'Pixi
 test('configured squads enter, hold formation, dive, and return', () => {
   assert.match(runtimeSource, /type EnemyFormationState = 'entry' \| 'hold' \| 'dive' \| 'return'/);
   assert.match(runtimeSource, /getConfiguredFormationTarget\(/);
-  assert.match(runtimeSource, /const arrivalBatchSize = formationEvent \? Math\.min\(2, count - spawned\) : 1/);
+  assert.match(runtimeSource, /const arrivalBatchSize = formationEvent && !singleFile \? Math\.min\(2, count - spawned\) : 1/);
   assert.match(runtimeSource, /spawnConfiguredEnemyFromEvent\(\s*event,\s*spawned \+ batchIndex,/);
   assert.match(
     runtimeSource,

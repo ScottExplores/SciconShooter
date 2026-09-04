@@ -22,6 +22,7 @@ const CombatLab: React.FC = () => {
   const [noCooldown, setNoCooldown] = useState(false);
   const [audio, setAudio] = useState(false);
   const [shake, setShake] = useState(true);
+  const [watch, setWatch] = useState(false);
   const [panel, setPanel] = useState(true);
   const [paused, setPaused] = useState(false);
   const [ready, setReady] = useState(false);
@@ -41,7 +42,7 @@ const CombatLab: React.FC = () => {
   const encounter = COMBAT_LAB_ENCOUNTERS.find(item => item.id === targetId);
   const level = campaign.levels.find(level => level.id === encounter?.levelId) ?? campaign.levels[0];
   const wave = level.waves.find(wave => wave.id === encounter?.waveId) ?? level.waves[0];
-  const loadout = useMemo(() => createCombatLabLoadout(ship, fireRate, ability, speed, [left, right], supportLevel), [ship, fireRate, ability, speed, left, right, supportLevel]);
+  const loadout = useMemo(() => createCombatLabLoadout(ship, fireRate, ability, speed, watch ? [] : [left, right], supportLevel), [ship, fireRate, ability, speed, left, right, supportLevel, watch]);
   const hull = COMBAT_LAB_HULLS[ship];
   const flightStats = useMemo(() => ({ ...stats, upgrades: { fireRate, ability, speed } }), [stats, fireRate, ability, speed]);
   const signatureDefinition = getShipAbilityDefinition(ship);
@@ -64,7 +65,7 @@ const CombatLab: React.FC = () => {
   return <main className="combat-lab" style={{ '--lab-accent': hull.color } as React.CSSProperties}>
     <div className="combat-lab-stage">
       <GameStage key={run} canvas={{ stats: flightStats, onStatsChange: setStats, running: !panel && !paused,
-        previewMode: true, previewContinuousWaves: targetId === 'showcase', autoFire: true, audioEnabled: audio,
+        previewMode: true, previewContinuousWaves: targetId === 'showcase', autoFire: !watch, audioEnabled: audio,
         previewInvincible: invincible, previewUnlimitedBombs: true,
         previewShipAbilityNoCooldown: noCooldown, previewStartingLives: 10,
         previewSeed: 'neon-breakwater-2026', previewCommand: command,
@@ -115,9 +116,10 @@ const CombatLab: React.FC = () => {
       </select><small>Showcase: ribbon swarm → crossfire → salvage → elite → carousel → boss.</small></label>
       <div className="combat-lab-toggles">{([
         ['Invincible', invincible, setInvincible], ['Instant signatures', noCooldown, setNoCooldown],
-        ['Sound', audio, setAudio], ['Impact shake', shake, setShake]
+        ['Sound', audio, setAudio], ['Impact shake', shake, setShake], ['Watch squadrons', watch, setWatch]
       ] as const).map(([label, value, setter]) => <label key={label}><input type="checkbox" checked={value} onChange={event => setter(event.target.checked)} />{label}</label>)}</div>
       <p className="combat-lab-note">Drag to steer in the flight area; your ship flies above your finger. Use your signature to compare ship identities.</p>
+      {watch && <p className="combat-lab-note">Hands-off choreography view: auto-fire and support ships are off. Watch squads arrive, signal attacks, dive and circle back. Drag to shoot; relaunch with this off for normal combat.</p>}
       {error && <p role="alert">{error}</p>}
       <div className="combat-lab-launch"><button className="combat-lab-primary" onClick={relaunch}>LAUNCH TEST FLIGHT →</button>{run > 0 && !finished && stats.lives > 0 && <button onClick={() => setPanel(false)}>KEEP CURRENT FIGHT</button>}</div>
       {run > 0 && <div className="combat-lab-debug">{level.waves.map(item => <button key={item.id} onClick={() => { completedWave.current = ''; setFinished(false); setPaused(false); setCommand({ type: 'load-target', levelId: level.id, waveId: item.id, nonce: Date.now() }); setPanel(false); }}>Jump: {item.name}</button>)}<small>{snapshot ? 'Runtime connected · seeded 60 Hz simulation' : 'Waiting for runtime'}</small></div>}

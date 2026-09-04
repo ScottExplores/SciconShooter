@@ -1120,7 +1120,7 @@ export const resolveConfiguredFormationSpawnPoint = ({
         : direction === 'split'
           ? side
           : (getFormationGroupSeed(event.id) % 2 === 0 ? -1 : 1);
-    const gateX = gateSide < 0 ? -70 : width + 70;
+    const gateX = gateSide < 0 ? -40 : width + 40;
     const gateY = entryPathId === 'loop-the-loop'
       ? height * 0.62
       : Math.max(20, height * 0.07);
@@ -1134,8 +1134,8 @@ export const resolveConfiguredFormationSpawnPoint = ({
     const resolvedSide = direction === 'left' ? -1 : direction === 'right' ? 1 : side;
     const sideDepth = pair % 5;
     x = resolvedSide < 0
-      ? -76 - sideDepth * 16
-      : width + 76 + sideDepth * 16;
+      ? -56
+      : width + 56;
     y = Math.max(18, height * 0.065) + sideDepth * Math.min(28, height * 0.032);
   } else if (entryPathId === 'formation-drop' || entryPathId === 'armored-grid') {
     // Grid members enter as a compact three-lane procession and bloom outward
@@ -1466,7 +1466,9 @@ const buildTrainRouteSegments = (
   const amplitude = width * 0.5 - margin;
   const crossings = 4.5;
   const sweepTop = Math.max(24, height * 0.075);
-  const sweepFloor = Math.max(sweepTop + height * 0.12, target.y - height * 0.04);
+  // The shared ribbon cannot depend on a member's eventual row. Otherwise
+  // the back row follows a different snake and overtakes the front row.
+  const sweepFloor = height * 0.245;
   // The quarter-phase vertical component rounds each turnaround into an arc
   // instead of a hairpin, the way the classic snake banks through its turns.
   const rounding = Math.min(30, height * 0.034);
@@ -1495,17 +1497,26 @@ const buildTrainRouteSegments = (
   return [approach, sweep, glide];
 };
 
+const trainRouteCache = new Map<string, TrainRouteSegment[]>();
+const cachedTrainRoute = (path: FormationEntryPathId, input: FormationCohortEntryPoseInput) => {
+  const side = trainRouteSide(normalizeEntryDirection(input.entryDirection), input.groupSeed, input.index);
+  const key = [path, side, input.viewport.width, input.viewport.height, input.start.x, input.start.y, input.target.x, input.target.y].join(':');
+  let segments = trainRouteCache.get(key);
+  if (!segments) {
+    segments = buildTrainRouteSegments(path, input, side);
+    // Bound retained geometry across waves, previews and device resizes.
+    if (trainRouteCache.size >= 128) trainRouteCache.delete(trainRouteCache.keys().next().value!);
+    trainRouteCache.set(key, segments);
+  }
+  return segments;
+};
+
 const sampleTrainRoutePoint = (
   path: FormationEntryPathId,
   input: FormationCohortEntryPoseInput,
   progress: number
 ): FormationPoint & { assemblyProgress: number } => {
-  const routeSide = trainRouteSide(
-    normalizeEntryDirection(input.entryDirection),
-    input.groupSeed,
-    input.index
-  );
-  const segments = buildTrainRouteSegments(path, input, routeSide);
+  const segments = cachedTrainRoute(path, input);
   const totalLength = segments.reduce((sum, segment) => sum + segment.length, 0);
   // Constant cruise: equal progress covers equal distance across the whole
   // route, so the entry reads calm instead of bursting through its easing.
@@ -1522,6 +1533,15 @@ const sampleTrainRoutePoint = (
     ...point,
     assemblyProgress: smoothUnit((progress - 0.86) / 0.14)
   };
+};
+
+/** Shared cruise speed gives followers the exact same ribbon at the same age,
+ * regardless of the length of their individual final glide into rank. */
+export const resolveFormationTrainDuration = (input: FormationCohortEntryPoseInput): number | undefined => {
+  const path = normalizeEntryPath(input.entryPath) as FormationEntryPathId | undefined;
+  if (!path || !isTrainEntryPath(path)) return undefined;
+  const speed = (path === 'loop-the-loop' ? 4.8 : 5.3) * Math.max(0.8, input.viewport.width / 390);
+  return cachedTrainRoute(path, input).reduce((sum, segment) => sum + segment.length, 0) / speed;
 };
 
 const sampleFormationCohortRoutePoint = (
@@ -1913,7 +1933,7 @@ export const resolveFormationEntryPlan = ({
   const entryFrames = looseFormation
     ? 44 + (index % 4) * 4 + (mode === 'spiral' ? 12 : 0)
     : entryProfile.entryFrames
-      + (index % 3) * 3
+      + (isTrainEntryPath(resolvedEntryPath) ? 0 : (index % 3) * 3)
       + (resolvedEntryPath === 'convoy-column' ? Math.floor(index / 2) * 2 : 0);
   const diveCadence = looseFormation
     ? mode === 'grid' || mode === 'row'
@@ -1975,7 +1995,7 @@ export const resolveFormationMovementPoint = ({
     relativeY *= scale;
     groupX = Math.sin(phase * 0.72) * 10;
   } else if (movementId === 'rotating-wheel') {
-    const angle = Math.sin(phase * 0.72) * 0.34 + transformCycle * 0.18;
+    const angle = phase * 0.3 + transformCycle * 0.18;
     const cos = Math.cos(angle);
     const sin = Math.sin(angle);
     const rotatedX = relativeX * cos - relativeY * sin;

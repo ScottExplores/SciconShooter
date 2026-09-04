@@ -71,6 +71,38 @@ lab lets players compare all four Scicon hulls without owning or buying them.
 The user's clarification takes priority: upgrades strengthen simple energy
 shots rather than turning them into mechanical rockets.
 
+## Shared formation-flight pass — September 4
+
+The first lab pass reused the existing attack system. This follow-up changes
+the shared Campaign runtime as well, without replacing Pixi, player movement,
+projectiles, collisions, hull weapons, scoring or boss rigs:
+
+- Ribbon/loop arrivals spawn single-file. Members share the same cruise speed
+  and procession geometry before taking their own final formation slots.
+- Cached arc-length geometry replaces rebuilding train curves twice per hull
+  on every simulation frame; retained entry geometry is bounded to 128 routes.
+- Authored diving squads use committed curved attack routes: paired breaks,
+  pincers, crossing strafes, lane passes, leader feints and ring collapses.
+  Target position is captured at the pre-attack warning rather than homing
+  after a dodge. Existing shooter limits and collision geometry remain intact.
+- Survivors fly around a visible flank to reform instead of teleporting to a
+  random top-edge return position. Flight clocks advance with simulation
+  updates, so hit-stop cannot skip ahead on these new attack/return routes.
+- Pixel hulls turn through their actual flight tangent, with rate-limited yaw
+  and short exhaust pixels. Retraction Fleet neutral/charge/fire frames now
+  represent those states instead of cycling fire frames as idle animation.
+- Rotating-wheel formations genuinely rotate. Gate warnings use the authored
+  entry location rather than an unrelated left/right text placement.
+
+Neon Breakwater now includes armed interceptors and separate crossing
+flankers, with matching role/threat budgets and true split-side entries.
+Loadout's **Watch squadrons** turns off automatic primary fire and companions
+for hands-off observation; dragging still fires. Turn it off and relaunch for
+normal combat. Jump buttons allow direct comparison of each encounter.
+
+These are movement/choreography changes, not a new boss-art pass or a claim
+that every campaign encounter has been individually redesigned.
+
 Remaining product judgement: whether the density/contrast is enjoyable on a
 physical phone, whether utility supports need balance changes, and which lab
 formations deserve promotion into normal Missions. No claim of commercial

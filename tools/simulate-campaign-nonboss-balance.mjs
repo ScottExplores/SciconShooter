@@ -25,6 +25,7 @@ const SOURCE_DIGEST_PATHS = Object.freeze([
   // this matrix reports.
   'services/waveCompletion.ts',
   'services/gameplay/formations/FormationRuntime.ts',
+  'services/gameplay/formations/FormationFlight.ts',
   'services/gameplay/mini-bosses/MiniBossEncounterRegistry.ts',
   'services/gameplay/mini-bosses/MiniBossEncounterRuntime.ts',
   'services/gameplay/mini-bosses/types.ts',

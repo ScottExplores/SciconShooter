@@ -1132,6 +1132,11 @@ const isFormationMotionEnemy = (entity: Entity) => (
 );
 
 const getFormationMotionFrameIndex = (engine: GameEngine, entity: Entity) => {
+  if (entity.spriteUrl?.includes('/scicon-retraction-fleet-v2/')) {
+    if (engine.frameCount - entity.campaignLastFireFrame < 7) return 2;
+    if (entity.formationAttackSelected && !entity.formationAttackActive) return 1;
+    return 0;
+  }
   const stateAge = Math.max(0, engine.frameCount - entity.formationStateFrame);
   const pingPong = [0, 1, 2, 1] as const;
   const phaseOffset = Math.abs(entity.variant * 13 + entity.formationIndex * 7);
@@ -6526,6 +6531,7 @@ export class PixiGameRenderer {
     } else if (isFormationMotionEnemy(entity) && entity.formationState) {
       const presentation = sampleFormationEnemyPresentation({
         angle: entity.angle,
+        flightHeading: entity.formationHeading,
         formationState: entity.formationState,
         formationAttackSelected: entity.formationAttackSelected,
         formationAttackActive: entity.formationAttackActive,
@@ -6536,6 +6542,16 @@ export class PixiGameRenderer {
       });
       view.aura.clear();
       view.root.rotation = presentation.bankRadians;
+
+      // Tiny exhaust pixels belong to the rotating hull, not screen space.
+      // Keep enemy wake length short so it cannot masquerade as a projectile.
+      if (entity.formationFlightSpeed > 1.2 && entity.formationState !== 'hold') {
+        const wakeColor = entity.formationState === 'dive' ? '#ff897d' : '#75dce8';
+        const length = Math.min(13, 3 + entity.formationFlightSpeed * 1.3);
+        const flicker = (engine.frameCount + entity.formationIndex) % 4 < 2 ? 2 : 0;
+        view.aura.rect(-2, entity.height * 0.39, 4, length + flicker).fill({ color: wakeColor, alpha: 0.58 });
+        view.aura.rect(-1, entity.height * 0.39, 2, length * 0.55).fill({ color: '#edffff', alpha: 0.85 });
+      }
 
       if (presentation.telegraphVisible) {
         const pulseAlpha = 0.24 + presentation.telegraphPulse * 0.2;

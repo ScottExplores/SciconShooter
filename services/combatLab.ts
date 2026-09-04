@@ -45,6 +45,11 @@ export const createCombatLabCampaign = () => {
   const campaign = cloneGameCampaign();
   const level = campaign.levels[0];
   const template = level.waves[0].events.find((event): event is SpawnEvent => event.kind === 'spawn')!;
+  campaign.enemyRoles.push({ ...structuredClone(campaign.enemyRoles.find(role => role.id === 'role-orbit-scout')!),
+    id: 'lab-neon-interceptor', label: 'Neon interceptor', fireBehavior: 'post-formation',
+    threatCost: 2, fireDelaySeconds: 0.7, maximumSimultaneousCount: 12 });
+  campaign.enemyRoles.push({ ...structuredClone(campaign.enemyRoles.find(role => role.id === 'role-jet-scout')!),
+    id: 'lab-crosscut-flanker', label: 'Crosscut flanker', introductionSector: 1, introductionMission: 1 });
   const events = DEFAULT_GAME_CAMPAIGN.levels.flatMap(level => level.waves.flatMap(wave => wave.events));
   const elite = events.find(event => event.kind === 'boss' && !isMajorBossId(event.bossId));
   const boss = events.find(event => event.kind === 'boss' && isMajorBossId(event.bossId));
@@ -60,7 +65,8 @@ export const createCombatLabCampaign = () => {
     wave.introSeconds = index === 0 ? 1 : 0.3;
     wave.delayAfterSeconds = 0.25;
     wave.durationSeconds = i === 3 || i === 5 ? 22 : 12;
-    wave.threatCap = 24;
+    wave.threatCap = 40;
+    wave.combatBudget = Math.max(wave.combatBudget, 40);
     wave.formationPackIds = [];
     const spawn: SpawnEvent = {
       ...structuredClone(template), id: `${wave.id}-lab-ribbon`, label: names[i],
@@ -68,12 +74,13 @@ export const createCombatLabCampaign = () => {
       patternId: patterns[i], spawnIntervalSeconds: 0.13,
       formationBehavior: {
         entryPathId: paths[i], movementId: i === 4 ? 'rotating-wheel' : 'lateral-sweep',
-        attackId: i === 1 ? 'alternating-wings' : 'paired-dive',
+        attackId: i === 1 ? 'pincer-pass' : i === 2 ? 'leader-escorts' : i === 4 ? 'ring-collapse' : 'paired-dive',
         firingBehavior: 'post-formation', returnId: 'reform', holdSeconds: 1.2,
         telegraphSeconds: 0.8, attackDurationSeconds: 1.4,
-        recoverySeconds: 0.9, attackGroupSize: 2, attackCycles: 2
+        recoverySeconds: 0.6, attackGroupSize: i === 4 ? 3 : 2, attackCycles: 3
       },
       enemies: template.enemies.map(enemy => ({ ...enemy, health: 7, speed: 2.7,
+        roleId: i === 0 ? 'role-orbit-scout' : 'lab-neon-interceptor',
         spriteKey: i % 2 ? 'SCICON_ENEMY_CROSSCUT_RAIDER_FRAMES' : 'SCICON_ENEMY_REDLINE_SKIRMISHER_FRAMES',
         attackIntervalSeconds: 2.8, projectileSpeed: 3.8, scoreValue: 30, powerupDropChance: 0.08 }))
     };
@@ -81,7 +88,9 @@ export const createCombatLabCampaign = () => {
     if (i === 0 || i === 1 || i === 4) authored.push({
       ...structuredClone(spawn), id: `${wave.id}-lab-echo`, startSeconds: 5.5, durationSeconds: 6.5,
       count: 8, patternId: i === 4 ? 'crescent' : 'arc',
-      formationBehavior: { ...spawn.formationBehavior, entryPathId: 'paired-flank' }
+      formationBehavior: { ...spawn.formationBehavior, entryPathId: 'paired-flank', attackId: 'sweep-strafe' },
+      enemies: spawn.enemies.map(enemy => ({ ...enemy, roleId: 'lab-crosscut-flanker',
+        spriteKey: 'SCICON_ENEMY_CROSSCUT_RAIDER_FRAMES', health: 9 }))
     });
     if (i === 2) authored.push({ id: `${wave.id}-lab-salvage`, kind: 'recovery',
       label: 'Salvage drone trial', startSeconds: 2, durationSeconds: 4,
@@ -97,11 +106,15 @@ export const createCombatLabCampaign = () => {
     for (const event of authored) {
       if (event.kind !== 'spawn') continue;
       const packId = `lab-${event.id}`;
+      const roleId = event.enemies[0].roleId!;
+      const role = campaign.enemyRoles.find(role => role.id === roleId)!;
       campaign.formationPacks.push({ ...structuredClone(campaign.formationPacks[0]),
         id: packId, label: event.label, enemyCount: event.count,
-        totalThreatCost: event.count, formationShape: event.patternId,
+        totalThreatCost: event.count * role.threatCost, formationShape: event.patternId,
+        entryDirection: event.formationBehavior?.entryPathId === 'serpentine-weave' ? 'left'
+          : event.formationBehavior?.entryPathId === 'ring-assemble' ? 'right' : 'split',
         entryPath: event.formationBehavior?.entryPathId ?? 'formation-drop',
-        enemyRoleIds: ['role-orbit-scout'] });
+        enemyRoleIds: [roleId] });
       wave.formationPackIds.push(packId);
     }
   });

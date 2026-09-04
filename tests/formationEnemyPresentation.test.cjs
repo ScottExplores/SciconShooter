@@ -105,5 +105,5 @@ test('Pixi applies the shared presentation sample to every configured formation 
   assert.match(configured, /view\.root\.rotation = presentation\.bankRadians/);
   assert.match(configured, /view\.aura\.clear\(\)/);
   assert.match(configured, /presentation\.telegraphVisible/);
-  assert.doesNotMatch(configured, /entity\.[A-Za-z]+\s*=/, 'Pixi must not mutate simulation state');
+  assert.doesNotMatch(configured, /entity\.[A-Za-z]+\s*=(?!=)/, 'Pixi must not mutate simulation state');
 });

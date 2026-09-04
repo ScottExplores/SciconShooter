@@ -7,6 +7,7 @@ export const FORMATION_ATTACK_TELEGRAPH_WINDOW_FRAMES = 60;
 
 export interface FormationEnemyPresentationInput {
   angle?: number;
+  flightHeading?: number;
   formationState?: string;
   formationAttackSelected?: boolean;
   formationAttackActive?: boolean;
@@ -34,7 +35,9 @@ export const sampleFormationEnemyPresentation = (
 ): FormationEnemyPresentationSample => {
   const configured = Boolean(input.formationState);
   const authoredAngle = Number(input.angle);
-  const bankRadians = configured && Number.isFinite(authoredAngle)
+  const bankRadians = configured && Number.isFinite(input.flightHeading)
+    ? input.flightHeading!
+    : configured && Number.isFinite(authoredAngle)
     ? clamp(authoredAngle, -FORMATION_ENEMY_MAX_BANK_RADIANS, FORMATION_ENEMY_MAX_BANK_RADIANS)
     : 0;
   const telegraphVisible = configured

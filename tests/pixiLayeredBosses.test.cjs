@@ -417,6 +417,7 @@ test('later authored Mission tiers keep bosses and add telegraphed escalation pa
   assert.match(engine, /spawnBossGapRing\(boss: Entity\)/);
   assert.match(engine, /queueBossTargetStrike\(boss: Entity, warningFrames = 54\)/);
   assert.match(engine, /MISSILE LOCK/);
-  assert.match(engine, /SIDE ENTRY/);
+  assert.match(engine, /const gate = resolveConfiguredFormationSpawnPoint/);
+  assert.match(engine, /this\.spawnRingEffect\(warningX, warningY, warningColor\)/);
   assert.match(engine, /resolveCampaignDifficulty/);
 });

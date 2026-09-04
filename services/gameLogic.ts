@@ -302,9 +302,12 @@ import {
 import {
   ESCORT_POD_SIZE,
   resolveFormationDiveMotion,
+  resolveFormationTrainDuration,
   shouldEndFormationDivePass
 } from './gameplay/formations/FormationRuntime';
 import { resolveKamikazeSpinnerFrameIndex } from './gameplay/enemies/KamikazeSpinnerRuntime';
+import { createFormationAttackFlight, createFormationReturnFlight, sampleFormationFlight,
+  followFormationHeading, type FormationFlight } from './gameplay/formations/FormationFlight';
 import {
   BTC_BOLT_COLOR,
   BTC_BOLT_HEIGHT,
@@ -1013,6 +1016,12 @@ export class Entity {
   formationSeed: number = 0;
   formationGroupSeed: number = 0;
   formationState?: EnemyFormationState;
+  formationFlight?: FormationFlight;
+  formationFlightAge: number = 0;
+  formationHeading?: number;
+  formationFlightSpeed: number = 0;
+  formationAimX?: number;
+  formationAimY?: number;
   formationTargetX?: number;
   formationTargetY?: number;
   formationStartX?: number;
@@ -4958,6 +4967,10 @@ export class GameEngine {
       formationIndex: entity.formationIndex
     });
     if (spinnerFrameIndex !== null) return frames[spinnerFrameIndex];
+    if (frames.length === 3 && entity.spriteUrl?.includes('/scicon-retraction-fleet-v2/')) {
+      if (this.frameCount - entity.campaignLastFireFrame < 7) return frames[2];
+      return frames[entity.formationAttackSelected && !entity.formationAttackActive ? 1 : 0];
+    }
     if (frames.length === 3 && entity.formationState) {
       const stateAge = Math.max(0, this.frameCount - entity.formationStateFrame);
       const pingPong = [0, 1, 2, 1] as const;
@@ -10272,6 +10285,16 @@ export class GameEngine {
     enemy.formationStateFrame = this.frameCount;
     enemy.formationAttackActive = true;
     enemy.formationAttackStartedCycle = attackCycle;
+    enemy.formationFlight = createFormationAttackFlight({
+      start: { x: enemy.x, y: enemy.y },
+      target: { x: enemy.formationAimX ?? aimX, y: enemy.formationAimY ?? aimY },
+      width: this.width, height: this.height, hullHeight: enemy.height,
+      index: enemy.formationIndex, cycle: attackCycle, attack: choreography.attackId,
+      speed: Math.min(7, diveSpeed * 1.12)
+    });
+    enemy.formationFlightAge = 0;
+    enemy.vx = 0;
+    enemy.vy = 0;
   }
 
   setCampaignFormationInstancePhase(
@@ -10341,6 +10364,10 @@ export class GameEngine {
         members.forEach((member) => {
           member.formationAttackSelected = selected.has(member.formationIndex);
           member.formationDiveFrame = this.frameCount + frames(choreography.telegraphSeconds);
+          // Lock the aim when the yellow cue begins. The route must not home
+          // after the player has already responded to that warning.
+          member.formationAimX = this.player.x + ((member.formationIndex % 3) - 1) * 18;
+          member.formationAimY = this.player.y;
         });
         this.setCampaignFormationInstancePhase(instance, 'telegraph');
       }
@@ -10463,6 +10490,12 @@ export class GameEngine {
     enemy.formationSeed = plan.seed;
     enemy.formationGroupSeed = plan.groupSeed;
     enemy.formationState = 'entry';
+    enemy.formationFlight = undefined;
+    enemy.formationFlightAge = 0;
+    enemy.formationHeading = undefined;
+    enemy.formationFlightSpeed = 0;
+    enemy.formationAimX = undefined;
+    enemy.formationAimY = undefined;
     enemy.formationTargetX = plan.target.x;
     enemy.formationTargetY = plan.target.y;
     enemy.formationStartX = enemy.x;
@@ -10585,13 +10618,29 @@ export class GameEngine {
   }
 
   updateConfiguredEnemyFormation(enemy: Entity) {
-    const state = enemy.formationState;
+    const beforeX = enemy.x;
+    const beforeY = enemy.y;
+    const handled = this.stepConfiguredEnemyFormation(enemy);
+    if (handled) {
+      const diving = enemy.formationState === 'dive' && !enemy.formationFlight;
+      const dx = diving ? enemy.vx : enemy.x - beforeX;
+      const dy = diving ? enemy.vy : enemy.y - beforeY;
+      enemy.formationFlightSpeed = Math.hypot(dx, dy);
+      enemy.formationHeading = followFormationHeading(enemy.formationHeading, dx, dy,
+        enemy.formationState !== 'hold');
+    }
+    return handled;
+  }
+
+  stepConfiguredEnemyFormation(enemy: Entity) {
     const formation = enemy.formation;
     const targetX = enemy.formationTargetX;
     const targetY = enemy.formationTargetY;
-    if (!state || !formation || formation === 'orbit' || targetX === undefined || targetY === undefined) return false;
+    if (!enemy.formationState || !formation || formation === 'orbit' || targetX === undefined || targetY === undefined) return false;
     const instanceId = enemy.campaignFormationPackInstanceId;
     const instance = instanceId ? this.updateCampaignFormationPackInstance(instanceId) : undefined;
+    // The cohort controller can launch this hull on this very frame.
+    const state = enemy.formationState;
     const choreography = enemy.formationChoreography;
 
     if (instance?.phase === 'exiting') {
@@ -10608,11 +10657,27 @@ export class GameEngine {
     }
 
     if (state === 'entry' || state === 'return') {
-      const duration = Math.max(1, enemy.formationEntryFrames || 54);
-      const progress = clamp((this.frameCount - enemy.formationStateFrame) / duration, 0, 1);
-      const eased = progress * progress * (3 - 2 * progress);
       const startX = enemy.formationStartX ?? enemy.x;
       const startY = enemy.formationStartY ?? enemy.y;
+      const cohortInput = {
+        mode: formation, index: enemy.formationIndex, count: enemy.encounterGroupSize,
+        groupSeed: enemy.formationGroupSeed, progress: 0,
+        viewport: { width: this.width, height: this.height },
+        entityWidth: enemy.width, entityHeight: enemy.height,
+        start: { x: startX, y: startY }, target: { x: targetX, y: targetY },
+        entryDirection: enemy.formationEntryDirection, entryPath: enemy.formationEntryPath,
+        entryBehavior: enemy.formationEntryBehavior
+      };
+      const trainDuration = state === 'entry' && enemy.formationCohortEntry && !enemy.formationSlotTransitionActive
+        ? resolveFormationTrainDuration(cohortInput) : undefined;
+      const duration = Math.max(1, trainDuration ?? (enemy.formationEntryFrames || 54));
+      const flightAge = state === 'return' && enemy.formationFlight
+        ? ++enemy.formationFlightAge : this.frameCount - enemy.formationStateFrame;
+      const progress = clamp(flightAge / duration, 0, 1);
+      const eased = progress * progress * (3 - 2 * progress);
+      const returnPoint = state === 'return' && enemy.formationFlight
+        ? sampleFormationFlight(enemy.formationFlight, flightAge)
+        : null;
       const slotTransitionPoint = enemy.formationSlotTransitionActive
         ? sampleFormationSlotTransition({
             start: { x: startX, y: startY },
@@ -10623,21 +10688,7 @@ export class GameEngine {
       const cohortEntryPose = !slotTransitionPoint
         && state === 'entry'
         && enemy.formationCohortEntry
-        ? resolveFormationCohortEntryPose({
-            mode: formation,
-            index: enemy.formationIndex,
-            count: enemy.encounterGroupSize,
-            groupSeed: enemy.formationGroupSeed,
-            progress,
-            viewport: { width: this.width, height: this.height },
-            entityWidth: enemy.width,
-            entityHeight: enemy.height,
-            start: { x: startX, y: startY },
-            target: { x: targetX, y: targetY },
-            entryDirection: enemy.formationEntryDirection,
-            entryPath: enemy.formationEntryPath,
-            entryBehavior: enemy.formationEntryBehavior
-          })
+        ? resolveFormationCohortEntryPose({ ...cohortInput, progress })
         : null;
       const entryMotion = slotTransitionPoint || cohortEntryPose
         ? null
@@ -10651,10 +10702,10 @@ export class GameEngine {
             entryPath: enemy.formationEntryPath,
             entryBehavior: enemy.formationEntryBehavior
           });
-      enemy.x = slotTransitionPoint?.x
+      enemy.x = returnPoint?.x ?? slotTransitionPoint?.x
         ?? cohortEntryPose?.x
         ?? (lerp(startX, targetX, eased) + (entryMotion?.xOffset ?? 0));
-      enemy.y = slotTransitionPoint?.y
+      enemy.y = returnPoint?.y ?? slotTransitionPoint?.y
         ?? cohortEntryPose?.y
         ?? (lerp(startY, targetY, eased) + (entryMotion?.yOffset ?? 0));
       enemy.vx = 0;
@@ -10666,6 +10717,7 @@ export class GameEngine {
         enemy.y = targetY;
         enemy.angle = 0;
         enemy.formationSlotTransitionActive = false;
+        enemy.formationFlight = undefined;
         enemy.formationState = 'hold';
         enemy.formationStateFrame = this.frameCount;
         if (state === 'return') enemy.formationAttackActive = false;
@@ -10814,10 +10866,21 @@ export class GameEngine {
     }
 
     const diveAge = this.frameCount - enemy.formationStateFrame;
-    const diveMotion = this.resolveConfiguredFormationDiveMotion(enemy, formation, diveAge);
-    enemy.vx = lerp(enemy.vx, diveMotion.velocityX, diveMotion.steering);
-    enemy.vy = lerp(enemy.vy, diveMotion.velocityY, diveMotion.steering);
-    enemy.angle = diveMotion.angle;
+    if (enemy.formationFlight) {
+      // The general entity loop integrates velocity BEFORE formation logic.
+      // Flight geometry owns the absolute pose, like entry/return, so leaving
+      // a corrective velocity here would integrate it again next frame.
+      const next = sampleFormationFlight(enemy.formationFlight, ++enemy.formationFlightAge);
+      enemy.x = next.x;
+      enemy.y = next.y;
+      enemy.vx = 0;
+      enemy.vy = 0;
+    } else {
+      const diveMotion = this.resolveConfiguredFormationDiveMotion(enemy, formation, diveAge);
+      enemy.vx = lerp(enemy.vx, diveMotion.velocityX, diveMotion.steering);
+      enemy.vy = lerp(enemy.vy, diveMotion.velocityY, diveMotion.steering);
+      enemy.angle = diveMotion.angle;
+    }
 
     if (shouldEndFormationDivePass({
       current: { x: enemy.x, y: enemy.y },
@@ -10833,18 +10896,21 @@ export class GameEngine {
         enemy.markedForDeletion = true;
         return true;
       }
-      const returnDirection = (enemy.formationIndex + enemy.formationCycle) % 2 === 0 ? -1 : 1;
-      enemy.formationStartX = clamp(targetX + returnDirection * Math.min(this.width * 0.18, 78), -60, this.width + 60);
-      enemy.formationStartY = -72 - (enemy.formationIndex % 3) * 18;
-      enemy.x = enemy.formationStartX;
-      enemy.y = enemy.formationStartY;
+      enemy.formationStartX = enemy.x;
+      enemy.formationStartY = enemy.y;
+      enemy.formationFlight = createFormationReturnFlight({
+        start: { x: enemy.x, y: enemy.y }, target: { x: targetX, y: targetY },
+        width: this.width, height: this.height, hullWidth: enemy.width,
+        speed: Math.min(7, Math.max(4.5, enemy.formationBaseSpeed * 1.8))
+      });
+      enemy.formationFlightAge = 0;
       enemy.vx = 0;
       enemy.vy = 0;
       enemy.angle = 0;
       enemy.formationState = 'return';
       enemy.formationStateFrame = this.frameCount;
       enemy.formationAttackActive = false;
-      enemy.formationEntryFrames = 46 + (enemy.formationIndex % 4) * 4;
+      enemy.formationEntryFrames = enemy.formationFlight.duration;
       enemy.formationCycle++;
       enemy.formationDiveFrame = this.frameCount
         + enemy.formationEntryFrames
@@ -11146,7 +11212,10 @@ export class GameEngine {
       ) continue;
       if (this.getActiveThreatCount() >= threatCap) break;
 
-      const intervalFrames = Math.max(1, Math.round(
+      const pack = this.getCampaignFormationPackForSpawn(event);
+      const entryPath = resolveFormationChoreography(event, pack).entryPathId;
+      const singleFile = entryPath === 'loop-the-loop' || entryPath === 'serpentine-weave';
+      const intervalFrames = Math.max(singleFile ? 8 : 1, Math.round(
         ((Number(event.spawnIntervalSeconds) || 0.8) * GAME_CONFIG.FPS) / difficultyMultiplier
       ));
       const previousFrame = this.configuredSpawnFrames.get(event.id);
@@ -11159,7 +11228,7 @@ export class GameEngine {
       // inside the mobile budget.
       const currentBeatWaiting = previousFrame !== undefined
         && this.waveProgressFrames - previousFrame < intervalFrames;
-      const canAdvanceCurrentBeat = currentBeatWaiting
+      const canAdvanceCurrentBeat = currentBeatWaiting && !singleFile
         && spawned > 0
         && this.getVisibleActiveThreatCount() === 0
         && this.getActiveThreatCount() <= CLEAR_FIELD_CURRENT_SQUADRON_BEAT_CEILING
@@ -11171,19 +11240,23 @@ export class GameEngine {
         && !String(event.patternId || '').toLowerCase().includes('random');
       if (formationEvent && spawned === 0 && !this.escalationWarningsShown.has(event.id)) {
         this.escalationWarningsShown.add(event.id);
-        const entersFromLeft = (event.id.length + cycle) % 2 === 0;
-        const warningX = entersFromLeft ? 36 : this.width - 36;
+        const gate = resolveConfiguredFormationSpawnPoint({
+          event: { ...event, entryDirection: pack?.entryDirection, entryPathId: entryPath },
+          index: 0, count, viewport: { width: this.width, height: this.height }, randomSample: 0.5
+        });
+        const warningX = clamp(gate.x, 20, this.width - 20);
+        const warningY = clamp(gate.y, 58, this.height * 0.65);
         const warningColor = cycle > 0 ? '#fb7185' : '#67e8f9';
         this.spawnFloatingText(
           warningX,
-          this.height * 0.22,
-          cycle > 0 ? 'SIDE ENTRY' : 'FORMATION INBOUND',
+          warningY,
+          gate.x < 0 ? '››' : gate.x > this.width ? '‹‹' : '⌄',
           warningColor,
           15
         );
-        this.spawnRingEffect(warningX, this.height * 0.22, warningColor);
+        this.spawnRingEffect(warningX, warningY, warningColor);
       }
-      const arrivalBatchSize = formationEvent ? Math.min(2, count - spawned) : 1;
+      const arrivalBatchSize = formationEvent && !singleFile ? Math.min(2, count - spawned) : 1;
       for (let batchIndex = 0; batchIndex < arrivalBatchSize; batchIndex++) {
         if (this.getActiveThreatCount() >= threatCap) break;
         const didSpawn = this.spawnConfiguredEnemyFromEvent(
