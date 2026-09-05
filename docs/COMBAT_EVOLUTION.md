@@ -184,3 +184,55 @@ sector restrictions and reserve enough time for every spawn train. Legacy
 authoring helpers now preserve explicit sector choreography and existing
 late-game escort tuning instead of rebinding them when new packs are added.
 Guest proof, continuity and advanced-enemy debut regressions pass locally.
+
+## Reference-clip combat feedback pass — September 5, 2026
+
+Reference: Scott's supplied 24-second Galaxiga boss clip. This pass targets the
+feel of sustained fire and readable impacts, not a copy of its artwork, monetized
+revive screen, or boss attack patterns. The existing Breakwater formations and
+campaign route remain active; this pass does not replace their choreography.
+
+Reference-to-runtime comparison:
+
+- Slim, independently spaced rounds: BIO/ETH/BTC keep the live staggered pulse
+  planner but use smaller energy sprites, a narrow bright core and a 12–14 px
+  age-grown wake. No new fins, rocket silhouettes, collision changes or DPS boost.
+  The Hangar uses the same visual dimensions; RSC retains its existing look.
+- Local flashes along the boss under sustained fire: accepted collision receipts
+  now play the registered pixel impact frames at the projectile contact position,
+  including component hits and killing shots. Misses and blocked hits do not fake
+  damage. Ordinary enemies brighten through their sprite's transparent silhouette
+  instead of a full white ellipse; repeated hit rings are removed.
+- Clear swarm destruction: ordinary kills now have their own presentation
+  receipts. Previously, an enemy removed between renders could retain positive HP
+  in its old view and silently skip the pixel explosion. Primary and signature
+  kills now share reliable destruction feedback; offscreen departures do not.
+- Readable boss damage: actual health responds immediately and a pale damage
+  segment settles within 450 ms. Sustained fire cannot indefinitely delay it.
+  Pause, healing, identity changes and reduced motion are handled explicitly.
+  The Lab's duplicate DOM health bar was removed from above the canonical bar.
+- Distinct firing voices: BIO has a softer plasma sweep, ETH a crystalline chirp,
+  BTC a lower punch. These use the existing event rate, mute/volume controls and
+  one oscillator; mounted audio-enabled canvases release their family scope.
+
+The shared renderer caps recent hit/death presentation to eight each per render
+(four with reduced effects), skips stale receipts, and reuses the mobile effect
+pool. Receipts never become collision entities or consume the combat RNG. Boss
+rigs, timelines, hitboxes, player movement, damage, rewards and wallet systems are
+unchanged. Mobile HUD readiness labels also distinguish READY, recharge, LOCKED
+and PAUSED; pause supports a second finger without duplicate activation.
+
+Verification includes real collision tests for one-hit kills, component/hull
+hits, special-weapon kills, invulnerability, offscreen departures and resets;
+bounded presentation, health-trail timing, ship DPS/cadence and audio cleanup
+tests; plus portrait built-in-browser playtests. The refreshed 600-trial non-boss
+matrix retains 566 clears, 33 deaths and one existing timeout, with identical
+gameplay/pacing/reward outcomes. Cosmetic particle counts fluctuate because their
+pre-existing lifetimes are unseeded. Browser checks do not certify physical-phone
+frame rate, two-finger hardware behavior or perceived audio quality on speakers.
+
+Final checks: `npm test` 1,781/1,781; `npm run typecheck` and `npm run build`
+pass. Root distribution still excludes the Lab and Director. Focused ESLint
+reports no errors and four pre-existing unused-symbol warnings. Built-in-browser
+390×844 checks exercised BIO/ETH boss flights, maximum BTC swarm combat, diagonal
+drag, pause/resume and loadout changes with no Lab console warnings/errors.

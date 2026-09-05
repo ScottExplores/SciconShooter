@@ -41,6 +41,15 @@ test('Lab defaults to ordinary Mission 1 and exposes every real first-sector Mis
   assert.deepEqual(ids.map((id) => DEFAULT_GAME_CAMPAIGN.levels.find((level) => level.id === id).order), [1, 2, 3, 4, 5]);
 });
 
+test('Lab leaves boss health to the same canonical Pixi HUD instead of stacking a second meter over it', () => {
+  assert.match(labSource, /<GameStage key=\{run\}/);
+  assert.doesNotMatch(labSource, /combat-lab-boss|BOSS HULL|<meter/);
+  const renderer = read('services/pixi/PixiGameRenderer.ts');
+  assert.match(renderer, /this\.syncBossHealthHud\(engine\)/);
+  assert.match(renderer, /this\.bossHealthPresentation\.update\(boss\.id, boss\.hp, boss\.maxHp, engine\.frameCount, this\.reducedMotion\)/);
+  assert.match(renderer, /this\.bossHealthName\.text = name/);
+});
+
 test('all five real Mission previews preserve in-flight state across internal boundaries and stop at their own finale', () => {
   // This tests boundary semantics, not autonomous combat completion: enemies
   // are not fought or silently marked defeated to claim a successful run.

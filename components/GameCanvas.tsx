@@ -9,6 +9,7 @@ import {
 import type { GameCampaign } from '../game-config/types';
 import { Stats, GamePolishSettings } from '../types';
 import { getFlaskProgress } from '../services/flaskProgress';
+import { audioService } from '../services/audioService';
 import {
   PixiGameRenderer,
   preloadPixiGameplayTextures,
@@ -311,6 +312,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     : productionSessionDependency;
   const setupSeedDependency = previewMode ? previewSeed : productionSessionDependency;
   const runtimeCampaignRef = useRef(campaign);
+  useEffect(() => {
+    if (!audioEnabled) return undefined;
+    return audioService.bindPlayerWeaponFamily(playerShipId);
+  }, [audioEnabled, playerShipId]);
   runtimeCampaignRef.current = campaign;
   const hostRef = useRef<HTMLDivElement>(null);
   const pixiRendererRef = useRef<PixiGameRenderer | null>(null);

@@ -87,7 +87,6 @@ const CombatLab: React.FC = () => {
     </header>
     {!panel && <>
       <div className="combat-lab-telemetry" aria-live="off"><span>T{getFireRateTier(fireRate)} · {invincible ? 'SHIELD ∞' : `${stats.lives} HP`}<small>{runtime?.waveName}</small></span><span>{stats.enemiesDefeated} KILLS · {stats.coins} COINS</span></div>
-      {stats.isBossActive && <div className="combat-lab-boss"><span>BOSS HULL</span><meter min={0} max={stats.bossMaxHp || 1} value={stats.bossHp} /></div>}
       {(!ready || error) && <div className="combat-lab-status" role="status">{error || 'Warming sprites & flight systems…'}</div>}
       {(paused || stats.lives <= 0) && <div className="combat-lab-status">{finished ? 'TEST FLIGHT COMPLETE' : stats.lives <= 0 ? 'TEST FLIGHT ENDED' : 'PAUSED'}<button onClick={() => finished || stats.lives <= 0 ? setPanel(true) : setPaused(false)}>{finished || stats.lives <= 0 ? 'TRY ANOTHER LOADOUT' : 'RESUME FLIGHT'}</button></div>}
       <footer className="combat-lab-controls">

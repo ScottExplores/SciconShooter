@@ -189,15 +189,17 @@ const useMultitouchAction = (onActivate?: () => void) => {
   const suppressSyntheticClickUntilRef = useRef(0);
 
   const activate = (button: HTMLButtonElement) => {
-    if (!onActivate) return;
+    if (!onActivate || button.disabled) return;
     onActivate();
     // The guide listens to the same successful activation used by every input
     // path. A raw pointer event can otherwise advance before the gameplay
     // callback runs or miss keyboard/legacy touch activation entirely.
-    button.dispatchEvent(new CustomEvent(ONBOARDING_GAMEPLAY_ACTION_EVENT, {
-      bubbles: true,
-      detail: { target: button.dataset.onboardingTarget }
-    }));
+    if (button.dataset.onboardingTarget) {
+      button.dispatchEvent(new CustomEvent(ONBOARDING_GAMEPLAY_ACTION_EVENT, {
+        bubbles: true,
+        detail: { target: button.dataset.onboardingTarget }
+      }));
+    }
   };
 
   return {
@@ -273,7 +275,6 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
   const flaskCharge = Math.max(0, stats.bombCharge || 0);
   const flaskProgress = getFlaskProgress(flaskCharge, bombChargeMax);
   const flaskCount = flaskProgress.storedFlasks;
-  const nextFlaskPct = flaskProgress.nextFlaskPct;
   const bombs = stats.bombs || 0;
   const canUseBomb = (unlimitedBombs || bombs > 0) && !bombLocked;
   const abilityDefinition = getShipAbilityDefinition(selectedShipId ?? 'researchhub');
@@ -281,11 +282,21 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
   const abilityIconUrl = selectedShipId === 'researchhub'
     ? abilityUpgradeProfile.projectileIconUrl
     : abilityDefinition.iconUrl;
-  const abilityCooldownMax = stats.shipAbilityCooldownMax || abilityDefinition.cooldownFrames;
+  const abilityCooldownMax = Math.max(1, stats.shipAbilityCooldownMax || abilityDefinition.cooldownFrames);
   const abilityCooldown = Math.max(0, stats.shipAbilityCooldown || 0);
-  const abilityReady = abilityCooldown <= 0 && !shipAbilityLocked;
+  const abilityLocked = shipAbilityLocked || paused || frozen;
+  const abilityReady = abilityCooldown <= 0 && !abilityLocked;
+  const abilityState = abilityLocked ? 'locked' : abilityReady ? 'ready' : 'recharging';
   const abilityRevealDegrees = Math.round((1 - Math.min(1, abilityCooldown / abilityCooldownMax)) * 360);
-  const abilitySeconds = Math.max(1, Math.ceil(abilityCooldown / 60));
+  const abilitySeconds = Math.ceil(abilityCooldown / 60);
+  const abilityStatusLabel = abilityLocked
+    ? paused || frozen ? 'PAUSED' : 'LOCKED'
+    : abilityReady ? 'READY' : `${abilitySeconds}s`;
+  const abilityAccessibleLabel = abilityLocked
+    ? `${abilityDefinition.name} unavailable while ${paused || frozen ? 'paused' : 'controls are locked'}`
+    : abilityReady
+      ? abilityDefinition.actionLabel
+      : `${abilityDefinition.name} ready in ${abilitySeconds} second${abilitySeconds === 1 ? '' : 's'}`;
   const lifeCapacityMissionRef = useRef(stats.wave);
   const lifeCapacityRef = useRef(Math.max(1, lifeCapacity ?? stats.lives));
   if (lifeCapacityMissionRef.current !== stats.wave) {
@@ -297,6 +308,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
   const remainingLifePct = Math.max(0, Math.min(100, (stats.lives / lifeCapacityRef.current) * 100));
   const bombActionHandlers = useMultitouchAction(onUseBomb);
   const shipAbilityActionHandlers = useMultitouchAction(onUseShipAbility);
+  const pauseActionHandlers = useMultitouchAction(onPause);
 
   return (
     <div className="scicon-hud-shell pointer-events-none absolute inset-0 z-10 flex flex-col justify-between p-1.5 sm:p-3">
@@ -363,8 +375,8 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
           <div className="flex flex-col gap-1">
             <button
               type="button"
-              onClick={onPause}
-              className="group relative h-[2.625rem] w-[2.625rem] shrink-0 transition-transform active:scale-90"
+              {...pauseActionHandlers}
+              className="scicon-pause-control group relative h-[2.625rem] w-[2.625rem] shrink-0 transition-transform active:scale-90"
               aria-label={paused ? 'Resume mission' : 'Pause mission'}
               aria-pressed={paused}
             >
@@ -410,9 +422,6 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
           }`}
           aria-label="Use RSC bomb"
         >
-          {nextFlaskPct > 84 ? (
-            <span className="pointer-events-none absolute -inset-2 rounded-[28px] border border-yellow-200/35 bg-yellow-300/12 animate-ping" />
-          ) : null}
           <span className="absolute -left-1.5 -top-1.5 z-10 flex h-6 min-w-6 items-center justify-center rounded-full border border-cyan-100/60 bg-slate-950 px-1 text-xs font-black text-cyan-100">
             {unlimitedBombs ? '∞' : bombs}
           </span>
@@ -424,6 +433,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
             type="button"
             data-audio="none"
             data-onboarding-target="flight-special"
+            data-ability-state={abilityState}
             {...shipAbilityActionHandlers}
             disabled={!abilityReady}
             className={`relative flex h-[4.375rem] w-[4.375rem] items-center justify-center overflow-hidden rounded-[22px] border shadow-[0_18px_44px_rgba(0,0,0,0.38)] backdrop-blur-md transition active:scale-95 ${
@@ -431,8 +441,8 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
                 ? 'border-cyan-200/75 bg-slate-950/72 shadow-[0_0_34px_rgba(34,211,238,0.26)] hover:border-cyan-100 hover:brightness-110'
                 : 'border-slate-400/20 bg-slate-900/62'
             }`}
-            aria-label={abilityReady ? abilityDefinition.actionLabel : `${abilityDefinition.name} ready in ${abilitySeconds} seconds`}
-            title={abilityReady ? abilityDefinition.name : `${abilitySeconds}s recharge`}
+            aria-label={abilityAccessibleLabel}
+            title={abilityAccessibleLabel}
             style={abilityReady ? { boxShadow: `0 0 34px ${abilityDefinition.glow}, 0 18px 44px rgba(0,0,0,0.38)` } : undefined}
           >
             <div
@@ -455,13 +465,9 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
                 maskImage: `conic-gradient(from 0deg, #000 0deg ${abilityRevealDegrees}deg, transparent ${abilityRevealDegrees}deg 360deg)`
               }}
             />
-            {!abilityReady ? (
-              <span className="absolute bottom-1.5 right-1.5 rounded-full border border-cyan-100/35 bg-slate-950/88 px-1.5 py-0.5 text-[10px] font-black text-cyan-100">
-                {abilitySeconds}s
-              </span>
-            ) : (
-              <span className="absolute bottom-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-emerald-300 shadow-[0_0_12px_rgba(110,231,183,0.9)]" />
-            )}
+            <span className={`scicon-ability-status scicon-ability-status--${abilityState}`} aria-hidden="true">
+              {abilityStatusLabel}
+            </span>
           </button>
         ) : null}
       </div>

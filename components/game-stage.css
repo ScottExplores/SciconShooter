@@ -12,6 +12,37 @@
   font-family: Orbitron, Inter, ui-sans-serif, system-ui, sans-serif;
 }
 
+.scicon-pause-control {
+  min-width: 44px;
+  min-height: 44px;
+  touch-action: manipulation;
+}
+
+.scicon-ability-status {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  padding: 2px 4px;
+  border: 1px solid #376375;
+  background: #06101f;
+  color: #cffafe;
+  font: 900 9px/1.15 ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.015em;
+  pointer-events: none;
+}
+
+.scicon-ability-status--ready {
+  border-color: #6ee7b7;
+  background: #123a31;
+  color: #d1fae5;
+}
+
+.scicon-ability-status--locked {
+  border-color: #475569;
+  color: #cbd5e1;
+}
+
 @keyframes scicon-resume-countdown-arrive {
   0% {
     opacity: 0;

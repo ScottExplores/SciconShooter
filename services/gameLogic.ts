@@ -1,6 +1,7 @@
 
 
 import { EntityType, GamePolishSettings, PowerupType, Stats } from '../types';
+import { CombatImpactBuffer, getProjectileCombatContact } from './gameplay/CombatImpactBuffer';
 import { ASSETS, GAME_CONFIG, COLORS } from '../constants';
 import type {
   AssetKey,
@@ -2671,6 +2672,10 @@ export class GameEngine {
   /** Spawn groups allowed to launch ahead of schedule because the player cleared the field early. */
   earlyReleasedSpawnEventIds: Set<string> = new Set();
   pendingBossStrikes: PendingBossStrike[] = [];
+  /** Bounded presentation receipts; never enter collision, entity, or score budgets. */
+  readonly combatImpacts = new CombatImpactBuffer();
+  /** Ordinary death receipts survive entity compaction between rendered frames. */
+  readonly combatDestructions = new CombatImpactBuffer();
   pendingEnemyLasers: PendingEnemyLaser[] = [];
   pendingConfiguredEncounter: RuntimeEncounterEvent | null = null;
   initialLevelId?: string;
@@ -4690,6 +4695,8 @@ export class GameEngine {
 
     const targetIndex = this.getFirstCampaignWaveIndexForStage(stageNumber);
     if (targetIndex < 0) return false;
+    this.combatImpacts.clear();
+    this.combatDestructions.clear();
     if (this.previewMode) this.gameplayRandom = createGameplayRandom(this.gameplayRandomSeed);
     this.currentCampaignIndex = targetIndex;
     this.wave = this.getStageNumberForCampaignIndex(targetIndex);
@@ -4902,6 +4909,8 @@ export class GameEngine {
   }
 
   restartPreview() {
+    this.combatImpacts.clear();
+    this.combatDestructions.clear();
     this.previewBossAttackLoop = null;
     this.gameplayRandom = createGameplayRandom(this.gameplayRandomSeed);
     this.entities
@@ -5578,6 +5587,8 @@ export class GameEngine {
   }
 
   init(width: number, height: number) {
+    this.combatImpacts.clear();
+    this.combatDestructions.clear();
     this.width = width;
     this.height = height;
     if (!this.previewEncounterCamera) {
@@ -9350,6 +9361,27 @@ export class GameEngine {
       this.recordWaveVictoryKill(target);
     }
     target.markedForDeletion = true;
+    if (
+      target.type === EntityType.ENEMY_DRONE
+      || target.type === EntityType.ENEMY_SWARM
+      || target.type === EntityType.ENEMY_BRICK
+      || target.type === EntityType.ENEMY_JOURNAL
+      || target.type === EntityType.ENEMY_INVADER
+      || target.type === EntityType.SUPPLY_DROP
+    ) {
+      this.combatDestructions.record({
+        frame: this.frameCount,
+        x: target.x + target.width / 2,
+        y: target.y + target.height / 2,
+        color: target.color || '#67e8f9',
+        size: 32,
+        vx: 0,
+        vy: 0,
+        targetId: target.id,
+        projectileId: '',
+        boss: false
+      });
+    }
     const destructionIntensity = target.type === EntityType.BOSS
       ? 2.2
       : target.type === EntityType.MINI_BOSS
@@ -23731,6 +23763,10 @@ export class GameEngine {
           }
         }
         const previousTargetHealth = target.hp;
+        const previousComponentHealth = bossComponent?.hp;
+        const impactBounds = !shot.isBeam && shot.isPlayerShot
+          ? bossComponent ? this.getBossComponentBox(target, bossComponent) : getBox(target)
+          : undefined;
         if (bossComponent) {
           this.damageBossComponent(target, bossComponent, dmg);
         } else if (isBossTarget) {
@@ -23739,6 +23775,24 @@ export class GameEngine {
           target.hp -= dmg;
           this.recordEntityDamage(target, previousTargetHealth);
           this.flashDamageTarget(target);
+        }
+        if (impactBounds && (
+          target.hp < previousTargetHealth
+          || (bossComponent && previousComponentHealth !== undefined && bossComponent.hp < previousComponentHealth)
+        )) {
+          const contact = getProjectileCombatContact(shotBox, impactBounds, shot.vx, shot.vy);
+          this.combatImpacts.record({
+            frame: this.frameCount,
+            ...contact,
+            color: shot.color || '#67e8f9',
+            size: shot.type === EntityType.MISSILE ? 20 : isBossTarget ? 16 : 12,
+            vx: shot.vx,
+            vy: shot.vy,
+            targetId: target.id,
+            projectileId: shot.id,
+            componentId: bossComponent?.id,
+            boss: isBossTarget
+          });
         }
         this.registerPrimaryWeaponImpact(target, shot);
         this.spawnBurst(shot.x + shot.width / 2, shot.y + shot.height / 2, shot.color || '#67e8f9', shot.type === EntityType.MISSILE ? 8 : 3, shot.type === EntityType.MISSILE ? 3.8 : 1.6, shot.type === EntityType.MISSILE ? 4 : 2.5);

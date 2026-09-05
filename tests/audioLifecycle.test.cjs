@@ -22,6 +22,9 @@ const loadAudioService = (options = {}) => {
   const fetchCalls = [];
   const decodedSampleData = [];
   const bufferSources = [];
+  const oscillators = [];
+  const gainNodes = [];
+  let clockMs = 10_000;
   const storedValues = new Map(Object.entries(options.storedValues ?? {}));
 
   const addListener = (registry, type, listener) => {
@@ -52,6 +55,7 @@ const loadAudioService = (options = {}) => {
     constructor() {
       super();
       this.gain = new FakeAudioParam();
+      gainNodes.push(this);
     }
   }
 
@@ -62,9 +66,11 @@ const loadAudioService = (options = {}) => {
       this.detune = new FakeAudioParam();
       this.onended = null;
       this.stopCalls = 0;
+      this.stopTimes = [];
+      oscillators.push(this);
     }
     start() {}
-    stop() { this.stopCalls += 1; }
+    stop(time) { this.stopCalls += 1; this.stopTimes.push(time); }
   }
 
   class FakeBufferSourceNode extends FakeAudioNode {
@@ -140,7 +146,7 @@ const loadAudioService = (options = {}) => {
     module: { exports: {} },
     exports: {},
     console,
-    performance: { now: () => 10_000 },
+    performance: { now: () => clockMs },
     document,
     window,
     ...(!options.withoutMediaElement ? { Audio: FakeAudio } : {}),
@@ -170,6 +176,13 @@ const loadAudioService = (options = {}) => {
     fetchCalls,
     decodedSampleData,
     bufferSources,
+    oscillators,
+    gainNodes,
+    advanceTime: (milliseconds) => {
+      clockMs += milliseconds;
+      for (const ctx of audioContexts) ctx.currentTime += milliseconds / 1000;
+    },
+    playerWeaponVoiceProfiles: context.module.exports.PLAYER_WEAPON_VOICE_PROFILES,
     storedValues,
     flushPromises,
     dispatchDocument: (type) => dispatchAll(documentListeners, type),
@@ -195,6 +208,72 @@ test('match music arrows wrap and Campaign sectors advance from the selected tra
   assert.equal(getSectorMatchMusicTrackId(1, 'open-orbit-relay'), 'open-orbit-relay');
   assert.equal(getSectorMatchMusicTrackId(2, 'open-orbit-relay'), 'ion-veil-pursuit');
   assert.equal(getSectorMatchMusicTrackId(5, 'open-orbit-relay'), 'open-orbit-relay');
+});
+
+test('non-RSC primary voice identity uses one click-safe oscillator per existing event', () => {
+  for (const family of ['bio', 'eth', 'btc']) {
+    const harness = loadAudioService();
+    const release = harness.audioService.bindPlayerWeaponFamily(family);
+    harness.audioService.playSound('shoot', 1, { pitchJitter: 0, pitchOffset: 0 });
+    const profile = harness.playerWeaponVoiceProfiles[family];
+    assert.equal(harness.oscillators.length, 1);
+    assert.equal(harness.bufferSources.length, 0);
+    assert.equal(harness.oscillators[0].type, profile.waveform);
+    assert.equal(harness.oscillators[0].frequency.setValues[0], profile.startHz);
+    const envelope = harness.gainNodes.at(-1).gain;
+    assert.equal(envelope.setValues[0], 0.0001, 'no abrupt full-volume attack');
+    assert.equal(envelope.rampValues[0], profile.gain);
+    assert.equal(envelope.rampValues.at(-1), 0.0001, 'release reaches silence before stop');
+    assert.ok(profile.gain <= 0.13);
+    assert.ok(harness.oscillators[0].stopTimes[0] <= 0.096);
+    harness.oscillators[0].onended();
+    assert.equal(harness.audioService.activeProceduralNodes.size, 0);
+    release();
+  }
+});
+
+test('voice ownership restores RSC and older preview cleanup cannot clobber a new canvas', () => {
+  const harness = loadAudioService();
+  const releaseBio = harness.audioService.bindPlayerWeaponFamily('bio');
+  const releaseEth = harness.audioService.bindPlayerWeaponFamily('eth');
+  releaseBio();
+  harness.audioService.playSound('shoot', 1, { pitchJitter: 0, pitchOffset: 0 });
+  assert.equal(harness.oscillators.at(-1).frequency.setValues[0], 1320);
+  releaseEth();
+  harness.advanceTime(100);
+  harness.audioService.playSound('shoot', 1, { pitchJitter: 0, pitchOffset: 0 });
+  assert.equal(harness.oscillators.at(-1).frequency.setValues[0], 520);
+  assert.equal(harness.oscillators.at(-1).type, 'triangle');
+  assert.equal(harness.gainNodes.at(-1).gain.setValues[0], 0.12, 'original RSC attack remains unchanged');
+});
+
+test('primary voice polish preserves rapid-fire throttling, mute, and hidden-page silence', () => {
+  const harness = loadAudioService();
+  harness.audioService.bindPlayerWeaponFamily('btc');
+  for (let millisecond = 0; millisecond < 280; millisecond++) {
+    harness.audioService.playSound('shoot');
+    harness.advanceTime(1);
+  }
+  assert.equal(harness.oscillators.length, 10, 'same one-event-per-28ms admission');
+  harness.audioService.toggleMute();
+  harness.advanceTime(100);
+  harness.audioService.playSound('shoot');
+  assert.equal(harness.oscillators.length, 10);
+  harness.audioService.toggleMute();
+  harness.audioService.setSfxVolumeLevel(0);
+  harness.advanceTime(100);
+  harness.audioService.playSound('shoot');
+  assert.equal(harness.oscillators.length, 10);
+  harness.audioService.setSfxVolumeLevel(5);
+  harness.dispatchWindow('blur');
+  harness.advanceTime(100);
+  harness.audioService.playSound('shoot');
+  assert.equal(harness.oscillators.length, 10);
+});
+
+test('only audio-enabled canvases bind a voice and React cleanup releases the owned scope', () => {
+  const canvas = fs.readFileSync(path.join(root, 'components/GameCanvas.tsx'), 'utf8');
+  assert.match(canvas, /useEffect\(\(\) => \{\s*if \(!audioEnabled\) return undefined;\s*return audioService\.bindPlayerWeaponFamily\(playerShipId\);\s*\}, \[audioEnabled, playerShipId\]\)/);
 });
 
 test('UI interaction initializes only WebAudio and never creates or plays background media', async () => {

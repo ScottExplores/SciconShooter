@@ -99,6 +99,14 @@ const MAX_SFX_GAIN = 0.3;
 // still needs enough level to survive small phone speakers and the shared SFX
 // bus. The old 0.045 peak was effectively inaudible beside impact cues.
 const PLAYER_SHOT_GAIN = 0.12;
+type PlayerWeaponVoiceFamily = 'research' | 'bio' | 'eth' | 'btc';
+// One short oscillator per existing fire event; no added timers, samples or
+// voices. RSC continues through its original triangle-chirp implementation.
+export const PLAYER_WEAPON_VOICE_PROFILES = {
+  bio: { waveform: 'triangle', startHz: 760, shoulderHz: 560, endHz: 240, duration: 0.068, attack: 0.0025, gain: 0.12 },
+  eth: { waveform: 'sine', startHz: 1320, shoulderHz: 1760, endHz: 620, duration: 0.055, attack: 0.0015, gain: 0.11 },
+  btc: { waveform: 'triangle', startHz: 510, shoulderHz: 330, endHz: 155, duration: 0.09, attack: 0.003, gain: 0.13 }
+} as const;
 const MAX_VOLUME_LEVEL = 5;
 /**
  * Background music. Menu is the home-screen bed, combat runs under normal
@@ -165,6 +173,41 @@ class AudioService {
   private pageActive: boolean = typeof document === 'undefined' ? true : !document.hidden;
   private lastSoundTime: Partial<Record<GameSoundType, number>> = {};
   private lastUiSoundTime: Partial<Record<UiSoundType, number>> = {};
+  private playerWeaponVoiceScopes = new Map<object, PlayerWeaponVoiceFamily>();
+
+  /** An audio-enabled canvas owns this presentation scope. A preview cleanup
+   * cannot erase a newer canvas's family; unmounting restores the prior scope. */
+  public bindPlayerWeaponFamily(shipId: string) {
+    const family: PlayerWeaponVoiceFamily = shipId === 'bio' || shipId === 'eth' || shipId === 'btc'
+      ? shipId : 'research';
+    const token = {};
+    this.playerWeaponVoiceScopes.set(token, family);
+    return () => { this.playerWeaponVoiceScopes.delete(token); };
+  }
+
+  private playHullPrimarySound(start: number, pitch: number) {
+    let family: PlayerWeaponVoiceFamily = 'research';
+    for (const scopedFamily of this.playerWeaponVoiceScopes.values()) family = scopedFamily;
+    if (family === 'research' || !this.ctx || !this.sfxGain) return false;
+    const voice = PLAYER_WEAPON_VOICE_PROFILES[family];
+    const oscillator = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    const safePitch = Math.max(0.5, Math.min(1.5, pitch));
+    oscillator.type = voice.waveform;
+    oscillator.frequency.setValueAtTime(voice.startHz * safePitch, start);
+    oscillator.frequency.exponentialRampToValueAtTime(voice.shoulderHz * safePitch, start + 0.012);
+    oscillator.frequency.exponentialRampToValueAtTime(voice.endHz * safePitch, start + voice.duration);
+    gain.gain.setValueAtTime(SILENCE_GAIN, start);
+    gain.gain.linearRampToValueAtTime(voice.gain, start + voice.attack);
+    gain.gain.exponentialRampToValueAtTime(SILENCE_GAIN, start + voice.duration);
+    oscillator.connect(gain);
+    gain.connect(this.sfxGain);
+    oscillator.onended = () => this.activeProceduralNodes.delete(oscillator);
+    this.activeProceduralNodes.add(oscillator);
+    oscillator.start(start);
+    oscillator.stop(start + voice.duration + 0.006);
+    return true;
+  }
 
   constructor() {
     this.sfxVolumeLevel = this.readStoredVolumeLevel(SFX_VOLUME_STORAGE_KEY, MAX_VOLUME_LEVEL);
@@ -632,6 +675,7 @@ class AudioService {
     const pitch = (1 - (pitchJitter / 2)) + (Math.random() * pitchJitter) + pitchOffset;
     const comboLift = Math.min(Math.max(intensity - 1, 0), 8) * 0.07;
     if (this.playSample(type, intensity, pitch)) return;
+    if (type === 'shoot' && this.playHullPrimarySound(t, pitch)) return;
     if (type === 'boss_alert') {
       this.playBossWarningSiren(t);
       return;

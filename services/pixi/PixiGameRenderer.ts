@@ -34,6 +34,7 @@ import {
   getPlayerWeaponFlightFrameIndex,
   getPlayerWeaponLaunchFrameIndex,
   getPlayerWeaponFrameAnchor,
+  getPlayerEnergyBoltPresentation,
   getPlayerWeaponVisualFamily
 } from '../playerWeaponVisuals';
 import { getPlayerPrimaryPulseLayout } from '../playerPrimaryBurst';
@@ -43,6 +44,8 @@ import {
   runRequiredGameplayAssetPreloadQueue
 } from '../gameplayAssetPreloadBudget';
 import { ArcadeEffectPool } from './ArcadeEffectPool';
+import { CombatImpactPresentation } from './CombatImpactPresentation';
+import { BossHealthPresentation } from './BossHealthPresentation';
 import { sampleBossLowHealthDamageCue } from './BossDamagePresentation';
 import {
   PIXI_ENVIRONMENT_TEXTURE_URLS,
@@ -193,6 +196,7 @@ type EntityView = {
   projectileCopies?: Sprite[];
   body: Graphics;
   flash: Graphics;
+  hitFlash?: Sprite;
   health: Graphics;
   label: Text;
   textureKey: string | null;
@@ -1431,6 +1435,9 @@ export class PixiGameRenderer {
   private readonly wallHealthBar = new Graphics();
   private readonly wallHealthLabel = createText(9, '#fef08a');
   private readonly bossHealthRoot = new Container();
+  private readonly bossHealthPresentation = new BossHealthPresentation();
+  private readonly combatImpactPresentation = new CombatImpactPresentation();
+  private readonly combatDestructionPresentation = new CombatImpactPresentation();
   private readonly bossHealthFrame = new Sprite(Texture.WHITE);
   private readonly bossHealthBar = new Graphics();
   private readonly bossHealthName = createText(10, '#fef08a');
@@ -2896,6 +2903,10 @@ export class PixiGameRenderer {
     view.body.clear();
     view.flash.clear();
     view.health.clear();
+    if (view.hitFlash) {
+      view.hitFlash.visible = false;
+      view.hitFlash.texture = Texture.WHITE;
+    }
     view.label.text = '';
     view.hasFallbackBody = false;
     if (view.bossRig) {
@@ -3524,19 +3535,24 @@ export class PixiGameRenderer {
         const family = entity.weaponVisualFamily ?? getPlayerWeaponVisualFamily(entity.weaponKind);
         const anchor = getPlayerWeaponFrameAnchor(family, launchFrame);
         const layout = getPlayerPrimaryPulseLayout(unitWidth, unitHeight, entity.weaponVisualLevel);
+        const speed = Math.hypot(entity.vx, entity.vy);
+        const energy = getPlayerEnergyBoltPresentation(family, entity.weaponVisualLevel, weaponAge, speed, layout);
         view.sprite.anchor.set(anchor.x, anchor.y);
-        view.sprite.width = layout.width;
-        view.sprite.height = layout.height;
+        view.sprite.width = energy?.spriteWidth ?? layout.width;
+        view.sprite.height = energy?.spriteHeight ?? layout.height;
         view.root.rotation = Math.atan2(entity.vy, entity.vx) + Math.PI / 2;
         // Grow a wake only after the round has actually cleared its muzzle.
         // No frame-zero 40px trail may be laid back across the player's ship.
-        const speed = Math.hypot(entity.vx, entity.vy);
-        const wake = Math.min(18, Math.max(0, weaponAge * speed * 0.4));
-        const wakeColor = family === 'bio' ? '#a3e635' : family === 'eth' ? '#b7b0ff' : '#ffbf47';
+        const wake = energy?.wakeLength ?? Math.min(18, Math.max(0, weaponAge * speed * 0.4));
+        const wakeColor = energy?.color ?? (family === 'bio' ? '#a3e635' : family === 'eth' ? '#b7b0ff' : '#ffbf47');
+        if (energy) {
+          view.body.rect(-energy.coreWidth / 2, energy.coreY - energy.coreHeight / 2, energy.coreWidth, energy.coreHeight)
+            .fill({ color: energy.coreColor, alpha: 0.92 });
+        }
         for (let segment = 0; segment < 3 && wake > 0; segment++) {
-          const width = 2.2 - segment * 0.5;
-          view.trail.rect(-width / 2, layout.height * 0.3 + segment * wake / 3, width, wake / 3)
-            .fill({ color: wakeColor, alpha: 0.42 - segment * 0.11 });
+          const width = (energy?.wakeWidth ?? 2.2) * (1 - segment * 0.25);
+          view.trail.rect(-width / 2, (energy?.wakeStartY ?? layout.height * 0.3) + segment * wake / 3, width, wake / 3)
+            .fill({ color: wakeColor, alpha: (energy?.wakeAlpha ?? 0.42) - segment * 0.1 });
         }
         return;
       }
@@ -6378,6 +6394,7 @@ export class PixiGameRenderer {
 
   private drawFlash(view: EntityView, entity: Entity) {
     view.flash.clear();
+    if (view.hitFlash) view.hitFlash.visible = false;
     if (entity.type === EntityType.BOSS) {
       view.sprite.filters = null;
       view.body.filters = null;
@@ -6397,6 +6414,25 @@ export class PixiGameRenderer {
       return;
     }
     if (entity.flashFrames <= 0) return;
+    if (view.sprite.visible && view.sprite.texture !== Texture.WHITE && !view.hasFallbackBody) {
+      // Reuse the real silhouette/animation, including its transparent pixels.
+      // One additive sprite avoids white hull bubbles and per-hit filters.
+      if (!view.hitFlash) {
+        view.hitFlash = new Sprite(view.sprite.texture);
+        view.hitFlash.blendMode = 'add';
+        view.hitFlash.roundPixels = true;
+        view.hitFlash.eventMode = 'none';
+        view.root.addChildAt(view.hitFlash, view.root.getChildIndex(view.sprite) + 1);
+      }
+      view.hitFlash.texture = view.sprite.texture;
+      view.hitFlash.anchor.copyFrom(view.sprite.anchor);
+      view.hitFlash.position.copyFrom(view.sprite.position);
+      view.hitFlash.scale.copyFrom(view.sprite.scale);
+      view.hitFlash.rotation = view.sprite.rotation;
+      view.hitFlash.alpha = clamp(entity.flashFrames / 12, 0, 0.52);
+      view.hitFlash.visible = true;
+      return;
+    }
     const alpha = clamp(entity.flashFrames / 10, 0.15, 0.74);
     if (entity.type === EntityType.ENEMY_BRICK || entity.type === EntityType.SUPPLY_DROP) {
       view.flash.roundRect(-entity.width * 0.34, -entity.height * 0.34, entity.width * 0.68, entity.height * 0.68, 7)
@@ -6694,19 +6730,6 @@ export class PixiGameRenderer {
       this.drawFlash(view, entity);
     }
 
-    if (
-      entity.type !== EntityType.BOSS
-      && entity.type !== EntityType.MINI_BOSS
-      && entity.flashFrames > view.lastFlashFrames + 2
-    ) {
-      this.effectPool.spawnImpact(
-        entity.x + entity.width / 2,
-        entity.y + entity.height / 2,
-        Math.max(14, Math.min(34, entity.width * 0.34))
-      );
-      this.effectPool.spawn('ring', entity.x + entity.width / 2, entity.y + entity.height / 2, Math.max(18, entity.width * 0.6), '#ffffff', 180);
-      this.effectPool.spawn('spark', entity.x + entity.width / 2, entity.y + entity.height / 2, Math.max(2, entity.width * 0.04), entity.color || '#ffffff', 220);
-    }
     view.lastFlashFrames = entity.flashFrames;
     view.lastHp = entity.hp;
   }
@@ -6762,13 +6785,25 @@ export class PixiGameRenderer {
         const size = view.type === EntityType.BOSS ? 180 : view.type === EntityType.MINI_BOSS ? 110 : 46;
         if (view.type === EntityType.BOSS) this.effectPool.spawnBossExplosion(view.root.x, view.root.y, size, 2.2);
         else if (view.type === EntityType.MINI_BOSS) this.effectPool.spawnExplosion(view.root.x, view.root.y, size, '#67e8f9', 0.85);
-        else this.effectPool.spawnEnemyExplosion(view.root.x, view.root.y, size, '#67e8f9');
+        // Ordinary deaths are received from the simulation, not a stale view HP.
       }
       this.views.delete(id);
       this.seenBossPhase.delete(id);
       this.seenBossComponents.delete(id);
       this.releaseEntityView(view);
     }
+  }
+
+  private syncCombatImpacts(engine: GameEngine) {
+    const reducedEffects = this.reducedMotion || engine.performanceMode || !engine.polishSettings.highDensityParticles;
+    this.combatImpactPresentation.visitNew(engine.combatImpacts, engine.frameCount, reducedEffects, (impact) => {
+      if (impact.x < -30 || impact.x > this.width + 30 || impact.y < -30 || impact.y > this.height + 30) return;
+      this.effectPool.spawnProjectileHit(impact.x, impact.y, impact.size, impact.color, impact.vx, impact.vy, reducedEffects);
+    });
+    this.combatDestructionPresentation.visitNew(engine.combatDestructions, engine.frameCount, reducedEffects, (impact) => {
+      if (impact.x < -30 || impact.x > this.width + 30 || impact.y < -30 || impact.y > this.height + 30) return;
+      this.effectPool.spawnEnemyExplosion(impact.x, impact.y, 46, impact.color);
+    });
   }
 
   private syncGunPods(engine: GameEngine) {
@@ -7001,11 +7036,15 @@ export class PixiGameRenderer {
     this.bossHealthBar.clear();
     this.abyssalOctarchLimbHud.clear();
     this.bossHealthName.text = '';
-    if (!boss) return;
+    if (!boss) {
+      this.bossHealthPresentation.reset();
+      return;
+    }
 
     const frameWidth = Math.min(clamp(this.width * 0.76, 210, 342), Math.max(180, this.width - 20));
     const frameHeight = frameWidth * (143 / 737);
     const progress = clamp(boss.hp / Math.max(1, boss.maxHp), 0, 1);
+    this.bossHealthPresentation.update(boss.id, boss.hp, boss.maxHp, engine.frameCount, this.reducedMotion);
     const eventId = boss.sourceEventId ?? '';
     const configuredName = boss.text?.trim();
     const name = configuredName && configuredName !== 'GATEKEEPER'
@@ -7028,6 +7067,13 @@ export class PixiGameRenderer {
     this.bossHealthFrame.alpha = 0.96;
     this.bossHealthBar.roundRect(-barWidth / 2, barY, barWidth, barHeight, barRadius)
       .fill({ color: '#170508', alpha: 0.98 });
+    if (this.bossHealthPresentation.trailRatio > progress) {
+      this.bossHealthBar.roundRect(
+        -barWidth / 2 + 1, barY + 1,
+        Math.max(0, (barWidth - 2) * this.bossHealthPresentation.trailRatio),
+        Math.max(1, barHeight - 2), Math.max(1, barRadius - 1)
+      ).fill('#ffd88a');
+    }
     this.bossHealthBar.roundRect(
       -barWidth / 2 + 1,
       barY + 1,
@@ -7939,6 +7985,7 @@ export class PixiGameRenderer {
     this.syncCornerAmbushPresentation(engine);
     this.modularBossDebugSnapshot = null;
     this.syncEntities(engine);
+    this.syncCombatImpacts(engine);
     this.syncPreviewDebugOverlay(engine);
     this.syncMaxShotPresentation(engine);
     this.syncPlayerAfterimages(engine);
@@ -7969,6 +8016,9 @@ export class PixiGameRenderer {
 
   destroy() {
     if (this.destroyed) return;
+    this.combatImpactPresentation.reset();
+    this.combatDestructionPresentation.reset();
+    this.bossHealthPresentation.reset();
     this.setCornerAmbushPlayerLayerRaised(false);
     this.destroyed = true;
     this.initialized = false;

@@ -261,6 +261,21 @@ export class ArcadeEffectPool {
     this.spawnSpriteExplosion(x, y, size, 160);
   }
 
+  /** A short, local pixel hit; regular fire must not fill the arena with rings. */
+  spawnProjectileHit(x: number, y: number, size: number, color: string, vx: number, vy: number, reducedEffects: boolean) {
+    this.spawnBossSpriteExplosion(x, y, Math.min(26, size), reducedEffects ? 100 : 135);
+    const speed = Math.max(1, Math.hypot(vx, vy));
+    const normalX = -vy / speed;
+    const normalY = vx / speed;
+    for (let index = 0; index < (reducedEffects ? 1 : 2); index++) {
+      const side = index === 0 ? -1 : 1;
+      const spark = this.spawn('spark', x, y, 1.8, index === 0 ? '#fff7dc' : color, 110 + index * 25);
+      spark.velocityX = normalX * side * 1.3 - vx / speed * 0.35;
+      spark.velocityY = normalY * side * 1.3 - vy / speed * 0.35;
+      spark.spin = 0;
+    }
+  }
+
   /**
    * Plays the registered five-frame pixel damage pop without procedural lines,
    * shockwaves, lights, or new gameplay entities. Used for recurring boss wear.

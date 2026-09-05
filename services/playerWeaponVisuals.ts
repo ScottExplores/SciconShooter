@@ -15,6 +15,51 @@ export const getPlayerWeaponFrameAnchor = (family: PlayerWeaponVisualFamily, fra
   return { x: point[0] / 128, y: point[1] / 128 };
 };
 
+export interface PlayerEnergyBoltPresentation {
+  readonly spriteWidth: number;
+  readonly spriteHeight: number;
+  readonly color: string;
+  readonly coreColor: string;
+  readonly coreWidth: number;
+  readonly coreHeight: number;
+  readonly coreY: number;
+  readonly wakeLength: number;
+  readonly wakeWidth: number;
+  readonly wakeStartY: number;
+  readonly wakeAlpha: number;
+}
+
+const finiteNonNegative = (value: number) => Number.isFinite(value) ? Math.max(0, value) : 0;
+
+/** Reference-driven, render-only polish. Never use this slimmer silhouette to
+ * alter collision geometry, the live muzzle, projectile speed or firing time. */
+export const getPlayerEnergyBoltPresentation = (
+  family: PlayerWeaponVisualFamily,
+  level: number,
+  ageFrames: number,
+  speed: number,
+  layout: { readonly width: number; readonly height: number }
+): PlayerEnergyBoltPresentation | null => {
+  if (family === 'research') return null;
+  const tier = Math.min(5, finiteNonNegative(level));
+  const heavy = family === 'btc';
+  const spriteWidth = Math.min(heavy ? 22 : 20, Math.max(14, finiteNonNegative(layout.width) * (heavy ? 0.72 : 0.66)));
+  const spriteHeight = Math.min(34, Math.max(22, finiteNonNegative(layout.height) * 0.82));
+  return {
+    spriteWidth, spriteHeight,
+    color: family === 'bio' ? '#a6ff68' : family === 'eth' ? '#b9c7ff' : '#ffc75e',
+    coreColor: family === 'bio' ? '#f3ffe8' : family === 'eth' ? '#f0f7ff' : '#fff8da',
+    coreWidth: (heavy ? 1.4 : 1.1) + tier * 0.08,
+    coreHeight: Math.min(13, spriteHeight * (heavy ? 0.36 : 0.4)),
+    coreY: -spriteHeight * 0.08,
+    wakeLength: Math.min(heavy ? 12 : 14,
+      finiteNonNegative(ageFrames) * finiteNonNegative(speed) * 0.35),
+    wakeWidth: (heavy ? 1.55 : 1.25) + tier * 0.05,
+    wakeStartY: spriteHeight * 0.27,
+    wakeAlpha: 0.38
+  };
+};
+
 const PLAYER_WEAPON_FX_ROOT = '/game-art/generated/scicon-player-weapon-fx-v1';
 
 const research = [

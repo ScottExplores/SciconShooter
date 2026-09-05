@@ -1,11 +1,13 @@
 import { type PlayerShipId } from './playerShipService';
-import { getPlayerPrimaryBurst, getPlayerPrimaryMuzzle } from './playerPrimaryBurst';
+import { getPlayerPrimaryBurst, getPlayerPrimaryMuzzle, getPlayerPrimaryPulseLayout } from './playerPrimaryBurst';
 import {
   getPlayerShipWeaponVisualFamily,
-  getPlayerWeaponFrames
+  getPlayerWeaponFrames,
+  getPlayerEnergyBoltPresentation
 } from './playerWeaponVisuals';
 import {
   getFireRateIntervalFrames,
+  getFireRateTier,
   getFireRateVolleySize,
   getTightVolleyAngleOffsets,
   getTightVolleyOffsets
@@ -43,6 +45,17 @@ const radiansToDegrees = (radians: number) => radians * (180 / Math.PI);
 const getTravelX = (angleRadians: number) => (
   Math.sin(angleRadians) * PLAYER_WEAPON_PREVIEW_TRAVEL_DISTANCE_PX
 );
+
+/** Match the live primary's bounded energy silhouette in the Hangar without
+ * changing the preview's shared firing plan or animation clock. */
+export const getPlayerWeaponPreviewPresentation = (shipId: PlayerShipId, fireRateLevel: number) => {
+  const visualLevel = getFireRateTier(fireRateLevel) - 1;
+  const unitWidth = shipId === 'btc' ? 16 : shipId === 'bio' ? 9 : 10;
+  const unitHeight = shipId === 'btc' ? 40 : 28;
+  return getPlayerEnergyBoltPresentation(getPlayerShipWeaponVisualFamily(shipId), visualLevel,
+    0, PLAYER_WEAPON_PREVIEW_PROJECTILE_SPEED_PX_PER_FRAME,
+    getPlayerPrimaryPulseLayout(unitWidth, unitHeight, visualLevel));
+};
 
 export const getPlayerWeaponPreviewVolleyIntervalMs = (fireRateLevel: number, shipId: PlayerShipId = 'researchhub') => (
   (getPlayerPrimaryBurst(shipId, fireRateLevel, false)?.cycleFrames

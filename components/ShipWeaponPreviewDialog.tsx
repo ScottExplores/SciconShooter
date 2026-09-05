@@ -7,6 +7,7 @@ import {
 import {
   getPlayerWeaponPreviewActiveVolleyLimit,
   getPlayerWeaponPreviewFrames,
+  getPlayerWeaponPreviewPresentation,
   getPlayerWeaponPreviewShots,
   getPlayerWeaponPreviewVolleyIntervalMs,
   getPlayerWeaponPreviewVolleyLifetimeMs,
@@ -174,6 +175,7 @@ const ShipWeaponPreviewDialog: React.FC<ShipWeaponPreviewDialogProps> = ({
   const ship = PLAYER_SHIPS[shipId];
   const shipFrames = PLAYER_SHIP_MOTION[shipId].selectionIdleFrames;
   const projectileFrame = projectileFrames[projectileFrames.length - 1];
+  const energyPresentation = getPlayerWeaponPreviewPresentation(shipId, fireRateLevel);
   const displayedVolleys = reducedMotion ? STATIC_PREVIEW_VOLLEYS : activeVolleys;
   const titleId = `sci-weapon-preview-title-${shipId}`;
   const descriptionId = `sci-weapon-preview-description-${shipId}`;
@@ -257,7 +259,13 @@ const ShipWeaponPreviewDialog: React.FC<ShipWeaponPreviewDialogProps> = ({
                 '--shot-angle': `${shot.angleDegrees}deg`,
                 '--shot-delay': `${shot.delayMs}ms`,
                 '--shot-flight-ms': `${PLAYER_WEAPON_PREVIEW_FLIGHT_MS}ms`,
-                '--shot-travel-y': `-${PLAYER_WEAPON_PREVIEW_TRAVEL_DISTANCE_PX}px`
+                '--shot-travel-y': `-${PLAYER_WEAPON_PREVIEW_TRAVEL_DISTANCE_PX}px`,
+                ...(energyPresentation ? {
+                  width: energyPresentation.spriteWidth,
+                  height: energyPresentation.spriteHeight,
+                  objectFit: 'fill',
+                  filter: `brightness(1.12) drop-shadow(0 0 1.5px ${energyPresentation.color})`
+                } : {})
               };
               return (
                 <img
