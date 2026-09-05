@@ -51,12 +51,13 @@ const spaceRuns = [
   }
 ];
 
-test('campaign revision 24 keeps legacy space runs and their internal Waves authored continuously', () => {
+test('campaign revision 24 layers Breakwater into the first sector while preserving later space runs', () => {
   assert.equal(campaign.revision, 24);
   assert.deepEqual(
     campaign.levels.slice(0, 5).map((level) => level.backgroundId),
-    ['open-orbit', 'citation-storm', 'paywall-siege', 'open-galaxy', 'bastion-protocol']
+    ['breakwater-approach', 'breakwater-wreckfield', 'breakwater-wreckfield', 'breakwater-gate', 'breakwater-gate']
   );
+  assert.ok(campaign.levels.slice(0, 5).every(level => level.waves.every(wave => wave.backgroundId === level.backgroundId)));
 
   for (const run of spaceRuns) {
     for (let order = run.firstStage; order <= run.lastStage; order += 1) {

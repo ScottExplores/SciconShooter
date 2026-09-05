@@ -24,7 +24,7 @@ Weekly leaderboard points and proposal funding are never converted into Campaign
 | Boss Archive challenge | 3 paid clears/day; 100-280 per clear; maximum 840/day after final unlock | Daily charge limit is global. Practice pays zero. Seasonal balance. |
 | Boss Archive mastery | 5,700 across all authored bosses | Three one-time mastery receipts per boss; seasonal balance after claim. |
 | Ordinary combat coin | 1 coin per credited coin entity | Repeatable. Enemy kills, recovery drops, bonus targets, and boss bursts settle through the run boundary. |
-| Main-route configured pickup ceiling | 6,097 (3,542 configured kills + 200 recovery + 0 mini-boss + 2,355 major-boss) | Ceiling, not forecast: formation-generated enemies, missed kills/pickups, bonus targets, and the 128-coin active cap can change realized income. |
+| Main-route configured pickup ceiling | 6,104 (3,549 configured kills + 200 recovery + 0 mini-boss + 2,355 major-boss) | Ceiling, not forecast: formation-generated enemies, missed kills/pickups, bonus targets, and the 128-coin active cap can change realized income. |
 | Alternate-route configured pickup ceiling | 1,280 | Same variable combat conditions as the main route. |
 
 ### Reward Center totals
@@ -65,7 +65,7 @@ Weekly leaderboard points and proposal funding are never converted into Campaign
 
 | Sector | Main Waves | Clear-only | Expected | Alternate full mastery | Branch | Full mastery |
 |---|---:|---:|---:|---:|---:|---:|
-| 1 - OPEN ORBIT | 23 | 982 | 1,117 | 361 | 120-377 | 2,108-2,365 |
+| 1 - BREAKWATER | 23 | 982 | 1,117 | 361 | 120-377 | 2,108-2,365 |
 | 2 - REDLINE FRONTIER | 23 | 1,166 | 1,326 | 428 | 210-210 | 2,574-2,574 |
 | 3 - GRAVITY RIFT | 23 | 1,364 | 1,549 | 502 | 260-260 | 3,021-3,021 |
 | 4 - TERMINUS FRONTIER | 24 | 1,572 | 1,782 | 569 | 330-330 | 3,491-3,491 |
@@ -119,7 +119,7 @@ The expected path supplies **3.71%** of one fully maxed main ship if the player 
 
 | Segment | Expected authored coins | Full-mastery authored coins | Reference-basket purchases by segment end (expected / mastery floor) |
 |---|---:|---:|---:|
-| 1 - OPEN ORBIT | 1,117 | 2,108-2,365 | 6 / 10 |
+| 1 - BREAKWATER | 1,117 | 2,108-2,365 | 6 / 10 |
 | 2 - REDLINE FRONTIER | 1,326 | 2,574-2,574 | 10 / 14 |
 | 3 - GRAVITY RIFT | 1,549 | 3,021-3,021 | 14 / 18 |
 | 4 - TERMINUS FRONTIER | 1,782 | 3,491-3,491 | 15 / 21 |
@@ -157,7 +157,7 @@ Completed Missions can pay one reduced authored replay grant per Mission per UTC
 
 | Sector | Maximum authored replay coins per UTC day after all five Missions are complete |
 |---|---:|
-| 1 - OPEN ORBIT | 47 |
+| 1 - BREAKWATER | 47 |
 | 2 - REDLINE FRONTIER | 54 |
 | 3 - GRAVITY RIFT | 63 |
 | 4 - TERMINUS FRONTIER | 70 |
@@ -181,9 +181,9 @@ The authored daily replay ceiling is **2.02%** of the one-time full-mastery floo
 
 ## Seven-projectile-tier validation
 
-The runtime now supports seven visible Fire Rate tiers across 49 upgrade levels. Each tier still contains seven purchases, existing numeric levels are preserved, and the shipped level-0 through level-21 cadence and costs remain unchanged. Tiers 4-7 add premium long-tail prices and only tighten cadence from five frames to four frames.
+The runtime supports seven Fire Rate tiers across 49 upgrade levels. Each tier still contains seven purchases, existing numeric levels and costs are preserved, and the underlying level-0 through level-21 cadence curve remains unchanged. Tiers 4-7 add premium long-tail prices and tighten that base interval from five frames to four frames; the hull-specific burst planner schedules BIO, ETH, and BTC over longer multi-beat cycles.
 
-Seven-round volleys are simulated as one collision bundle per center or Triple Shot lane. Max Shot doubles each visible pattern without multiplying collision entities or shot audio. Total per-lane damage scales through 1x / 2x / 3x / 3.45x / 3.85x / 4.2x / 4.5x, so Tier 7 does not become seven full-strength hits. Focused headless mobile/desktop tests cover pooled render counts, collision admission, Max Shot, BIO twin rails, audio cadence, and representative boss TTK.
+RSC retains its legacy collision-bundle presentation: Fire Rate adds represented rounds and Max Shot doubles the visible pattern without multiplying collision entities. BIO, ETH, and BTC instead use the bounded primary-pulse planner: upgraded weapons emit two or three sequential beats from the current ship muzzle, with independently colliding pulses rather than delayed visual copies. Their longer cycle redistributes per-bolt energy to preserve sustained hull DPS; Max Shot doubles pulse energy, not sprite count. The shared tier energy curve remains 1x / 2x / 3x / 3.45x / 3.85x / 4.2x / 4.5x. Dedicated production-update tests cover all three pulse hulls, actual collision damage, live muzzle origins, queue cancellation, hit-stop spacing, and sustained firing inside the existing mobile entity cap; legacy bundle tests continue to cover RSC. These deterministic checks do not replace physical-phone feel or boss time-to-kill playtesting.
 
 ## Acceptance and honest limitations
 
@@ -202,7 +202,7 @@ Static economy validation is complete; the following runtime matrix remains open
 
 | Sector | Low power | Expected power | Upgraded power | No support | Support combo A | Support combo B | Mobile | Desktop | Status |
 |---|---|---|---|---|---|---|---|---|---|
-| 1 - OPEN ORBIT | Required | Required | Required | Required | Required | Required | Required | Required | **Not run** |
+| 1 - BREAKWATER | Required | Required | Required | Required | Required | Required | Required | Required | **Not run** |
 | 2 - REDLINE FRONTIER | Required | Required | Required | Required | Required | Required | Required | Required | **Not run** |
 | 3 - GRAVITY RIFT | Required | Required | Required | Required | Required | Required | Required | Required | **Not run** |
 | 4 - TERMINUS FRONTIER | Required | Required | Required | Required | Required | Required | Required | Required | **Not run** |

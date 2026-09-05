@@ -27,7 +27,7 @@ const CombatLab: React.FC = () => {
   const [paused, setPaused] = useState(false);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState('');
-  const [targetId, setTargetId] = useState('showcase');
+  const [targetId, setTargetId] = useState(`mission:${DEFAULT_GAME_CAMPAIGN.levels[0].id}`);
   const [run, setRun] = useState(0);
   const [stats, setStats] = useState(createCombatLabStats);
   const [snapshot, setSnapshot] = useState<PreviewSnapshot | null>(null);
@@ -39,8 +39,12 @@ const CombatLab: React.FC = () => {
   const [bomb, setBomb] = useState<{ nonce: number } | null>(null);
   const showcase = useMemo(createCombatLabCampaign, []);
   const campaign = targetId === 'showcase' ? showcase : DEFAULT_GAME_CAMPAIGN;
+  const campaignMission = targetId.startsWith('mission:')
+    ? DEFAULT_GAME_CAMPAIGN.levels.find(item => item.id === targetId.slice('mission:'.length))
+    : undefined;
+  const continuousMission = targetId === 'showcase' || Boolean(campaignMission);
   const encounter = COMBAT_LAB_ENCOUNTERS.find(item => item.id === targetId);
-  const level = campaign.levels.find(level => level.id === encounter?.levelId) ?? campaign.levels[0];
+  const level = campaignMission ?? campaign.levels.find(level => level.id === encounter?.levelId) ?? campaign.levels[0];
   const wave = level.waves.find(wave => wave.id === encounter?.waveId) ?? level.waves[0];
   const loadout = useMemo(() => createCombatLabLoadout(ship, fireRate, ability, speed, watch ? [] : [left, right], supportLevel), [ship, fireRate, ability, speed, left, right, supportLevel, watch]);
   const hull = COMBAT_LAB_HULLS[ship];
@@ -52,10 +56,10 @@ const CombatLab: React.FC = () => {
     if (!state.complete) { completedWave.current = ''; return; }
     if (panel || paused || completedWave.current === state.waveId) return;
     completedWave.current = state.waveId;
-    const next = targetId === 'showcase' ? showcase.levels[0].waves[state.waveNumber] : null;
-    if (next) setCommand({ type: 'load-target', levelId: showcase.levels[0].id, waveId: next.id, nonce: Date.now() });
+    const next = continuousMission ? level.waves[state.waveNumber] : null;
+    if (next) setCommand({ type: 'load-target', levelId: level.id, waveId: next.id, nonce: Date.now() });
     else { setFinished(true); setPaused(true); }
-  }, [panel, paused, showcase, targetId]);
+  }, [panel, paused, continuousMission, level]);
   const relaunch = () => { completedWave.current = ''; setCommand(null); setSignature(null); setBomb(null); setFinished(false); setReady(false); setError(''); setStats(createCombatLabStats()); setSnapshot(null); setRun(value => value + 1); setPanel(false); setPaused(false); };
   const supportSelector = (label: string, value: MiniShipId | '', setter: (id: MiniShipId | '') => void) => (
     <label className="combat-lab-field">{label}<select value={value} onChange={event => setter(event.target.value as MiniShipId | '')}>
@@ -65,7 +69,7 @@ const CombatLab: React.FC = () => {
   return <main className="combat-lab" style={{ '--lab-accent': hull.color } as React.CSSProperties}>
     <div className="combat-lab-stage">
       <GameStage key={run} canvas={{ stats: flightStats, onStatsChange: setStats, running: !panel && !paused,
-        previewMode: true, previewContinuousWaves: targetId === 'showcase', autoFire: !watch, audioEnabled: audio,
+        previewMode: true, previewContinuousWaves: continuousMission, autoFire: !watch, audioEnabled: audio,
         previewInvincible: invincible, previewUnlimitedBombs: true,
         previewShipAbilityNoCooldown: noCooldown, previewStartingLives: 10,
         previewSeed: 'neon-breakwater-2026', previewCommand: command,
@@ -112,8 +116,9 @@ const CombatLab: React.FC = () => {
       {supportSelector('Left wing', left, setLeft)}{supportSelector('Right wing', right, setRight)}
       <label className="combat-lab-field">Support level · {supportLevel}/5<input aria-label="Support level" type="range" min="1" max="5" value={supportLevel} onChange={event => setSupportLevel(Number(event.target.value))} /></label>
       <h2>Flight plan</h2><label className="combat-lab-field">Encounter<select value={targetId} onChange={event => setTargetId(event.target.value)}>
+        {DEFAULT_GAME_CAMPAIGN.sectors[0].missionIds.map((id, index) => <option key={id} value={`mission:${id}`}>Breakwater · Mission {index + 1} · {DEFAULT_GAME_CAMPAIGN.levels.find(item => item.id === id)?.name}</option>)}
         <option value="showcase">Neon Breakwater · six-wave showcase</option>{COMBAT_LAB_ENCOUNTERS.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}
-      </select><small>Showcase: ribbon swarm → crossfire → salvage → elite → carousel → boss.</small></label>
+      </select><small>Breakwater Missions use the exact regular campaign. Test any ship here without changing your account. The older six-wave remix remains available below them.</small></label>
       <div className="combat-lab-toggles">{([
         ['Invincible', invincible, setInvincible], ['Instant signatures', noCooldown, setNoCooldown],
         ['Sound', audio, setAudio], ['Impact shake', shake, setShake], ['Watch squadrons', watch, setWatch]

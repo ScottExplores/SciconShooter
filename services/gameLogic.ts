@@ -49,6 +49,8 @@ import {
   getPlayerWeaponFrames,
   getPlayerWeaponFlightFrameIndex,
   getPlayerWeaponLaunchFrameIndex,
+  getPlayerWeaponFrameAnchor,
+  getPlayerWeaponVisualFamily,
   getPlayerShipWeaponVisualFamily,
   type PlayerWeaponVisualFamily
 } from './playerWeaponVisuals';
@@ -69,6 +71,7 @@ import {
 import type { PlayerShipId } from './playerShipService';
 import { sampleTripleShotSideAngleRadians } from './playerShotSpread';
 import { BIO_PRIMARY_DAMAGE_PER_ROUND, getBioPrimaryShotPlan } from './bioPrimaryWeapon';
+import { getPlayerPrimaryBurst, getPlayerPrimaryMuzzle, getPlayerPrimaryPulseLayout, isPlayerPrimaryBurstHull } from './playerPrimaryBurst';
 import { findSalvageTarget, findInterceptTarget, getInterceptorCooldown } from './supportUtility';
 import {
   FIRE_RATE_LEVELS_PER_TIER,
@@ -816,6 +819,7 @@ type PendingPlayerShot = {
   damageOverride?: number;
   playSound?: boolean;
   maxShotVisualPattern?: readonly MaxShotVisualRound[];
+  hullPulse?: { barrel: -1 | 0 | 1; loadoutKey: string };
 };
 
 export class Entity {
@@ -1103,6 +1107,8 @@ export class Entity {
   projectileUnitWidth?: number;
   projectileUnitHeight?: number;
   representedRoundsRemaining: number = 0;
+  /** One real temporal primary pulse; no delayed visual copies. */
+  hullPrimaryPulse: boolean = false;
   hitTargetIds?: Set<string>;
   spriteUrl?: string;
   spriteFrames?: string[];
@@ -4622,6 +4628,8 @@ export class GameEngine {
   applyPreviewLoadout(update: PreviewPlayerLoadoutUpdate) {
     if (!this.canUsePreviewControl()) return false;
 
+    this.clearQueuedPrimaryBursts();
+
     this.playerShipId = update.playerShipId;
     this.playerShipUrl = update.playerShipUrl || ASSETS.PLAYER_SHIP;
     loadImage(this.playerShipUrl);
@@ -5480,6 +5488,7 @@ export class GameEngine {
   startDeathSequence() {
     this.syncPlayerLives();
     if (this.deathSequenceFrames > 0 || !this.gameActive) return;
+    this.clearQueuedPrimaryBursts();
 
     if (this.telemetrySink && this.telemetrySessionActive) {
       this.telemetrySink.record({
@@ -6914,6 +6923,7 @@ export class GameEngine {
 
   update(cinematicPause: boolean = false) {
     if (!this.gameActive) {
+      this.clearQueuedPrimaryBursts();
       if (this.previewEncounterCameraRestore) {
         this.frameCount++;
         this.updatePreviewEncounterCameraRestore();
@@ -6921,6 +6931,9 @@ export class GameEngine {
       return;
     }
     this.cinematicPaused = cinematicPause;
+    if (cinematicPause || this.lives <= 0 || this.deathSequenceFrames > 0
+      || this.waveDepartureFrames > 0 || this.introFlightFrames > 0
+      || this.stageRewardCollectionFrames > 0) this.clearQueuedPrimaryBursts();
     this.frameCount++;
     this.updatePreviewEncounterCameraRestore();
     if ((this.stats.shipAbilityCooldown || 0) > 0) {
@@ -6937,6 +6950,9 @@ export class GameEngine {
     this.bgEntities.forEach(bg => bg.update(this.height));
 
     if (this.hitStopFrames > 0) {
+      // Gameplay is frozen, so preserve the burst's spacing instead of
+      // releasing every overdue pulse together when the impact pause ends.
+      for (const shot of this.pendingPlayerShots) if (shot.hullPulse) shot.fireFrame++;
       this.hitStopFrames--;
       this.updatePassiveEntities();
       return;
@@ -7133,6 +7149,7 @@ export class GameEngine {
     tickTimedPowerups(this.activePowerups);
 
     this.updatePlayerMovement(this.getPlayerMovementSpeed());
+    this.flushPendingPlayerShots(true);
     this.updateSquadCompanions();
 
     // Fire Rate has seven seven-upgrade tiers. Cadence improves smoothly at
@@ -7159,7 +7176,8 @@ export class GameEngine {
         this.fireBullet();
         // BTC's heavy bolt fires on a slower cadence than the lighter hulls.
         this.playerFireCooldownFrames += fireInterval
-          * getPlayerShipWeaponProfile(this.playerShipId).cadenceScale;
+          * getPlayerShipWeaponProfile(this.playerShipId).cadenceScale
+          * (getPlayerPrimaryBurst(this.playerShipId, level, false)?.cadenceScale ?? 1);
       }
       this.playerFireCooldownFrames -= 1;
     } else {
@@ -7825,6 +7843,11 @@ export class GameEngine {
   }
 
   getPlayerShotCap() {
+    if (isPlayerPrimaryBurstHull(this.playerShipId)) {
+      // Nine independently colliding ETH pulses per twelve-frame max-tier
+      // cycle fit the existing mobile ceiling, including a support reserve.
+      return this.mobileProfile ? MOBILE_MAX_PLAYER_SHOT_CAP : DESKTOP_MAX_PLAYER_SHOT_CAP;
+    }
     // Triple spread is the ETH hull's identity, not a pickup state.
     const hasSpread = this.playerShipId === 'eth';
     const hasMaxShot = this.hasMaxShotShield();
@@ -7926,7 +7949,8 @@ export class GameEngine {
     playSound: boolean = true,
     weaponKind: PlayerWeaponKind = 'pulse',
     maxShotVisualPattern?: readonly MaxShotVisualRound[],
-    damageOverride?: number
+    damageOverride?: number,
+    hullPulse?: PendingPlayerShot['hullPulse']
   ) {
     if (!this.hasPlayerShotCapacity()) {
       return false;
@@ -8051,6 +8075,17 @@ export class GameEngine {
     b.maxShotVisualPattern = maxShotVisualPattern;
     b.projectileUnitWidth = projectileGeometry.unitWidth;
     b.projectileUnitHeight = projectileGeometry.unitHeight;
+    if (hullPulse) {
+      const muzzle = getPlayerPrimaryMuzzle({
+        shipId: this.playerShipId, ...this.player, drawScale: this.playerDrawScale,
+        barrel: hullPulse.barrel
+      });
+      const layout = getPlayerPrimaryPulseLayout(b.projectileUnitWidth, b.projectileUnitHeight, b.weaponVisualLevel);
+      const clearance = Math.max(layout.height, b.height) / 2 + 2;
+      b.x = muzzle.x + Math.sin(angle) * clearance - b.width / 2;
+      b.y = muzzle.y - Math.cos(angle) * clearance - b.height / 2;
+      b.hullPrimaryPulse = true;
+    }
     if (overdrivePrimary) {
       if (overdriveTier.color) b.color = overdriveTier.color;
     }
@@ -8116,11 +8151,25 @@ export class GameEngine {
     this.pendingPlayerShots.push(shot);
   }
 
-  flushPendingPlayerShots() {
+  clearQueuedPrimaryBursts() {
+    this.pendingPlayerShots = this.pendingPlayerShots.filter(shot => !shot.hullPulse);
+  }
+
+  private getPrimaryBurstLoadoutKey() {
+    return `${this.playerShipId}:${this.stats.upgrades.fireRate || 0}:${this.missionOverdriveLevel}:${this.hasMaxShotShield() ? 1 : 0}`;
+  }
+
+  flushPendingPlayerShots(hullPulses = false) {
     if (this.pendingPlayerShots.length === 0) return;
 
     for (let index = 0; index < this.pendingPlayerShots.length; index++) {
       const shot = this.pendingPlayerShots[index];
+      if (Boolean(shot.hullPulse) !== hullPulses) continue;
+      if (shot.hullPulse && (!this.gameActive || this.cinematicPaused || this.lives <= 0
+        || shot.hullPulse.loadoutKey !== this.getPrimaryBurstLoadoutKey())) {
+        this.pendingPlayerShots.splice(index--, 1);
+        continue;
+      }
       if (shot.fireFrame > this.frameCount) continue;
 
       this.pendingPlayerShots.splice(index, 1);
@@ -8133,13 +8182,41 @@ export class GameEngine {
         shot.playSound ?? true,
         shot.weaponKind,
         shot.maxShotVisualPattern,
-        shot.damageOverride
+        shot.damageOverride,
+        shot.hullPulse
       );
       index--;
     }
   }
 
   fireBullet() {
+    const burst = getPlayerPrimaryBurst(this.playerShipId, this.stats.upgrades.fireRate || 0,
+      this.hasMaxShotShield(), this.weaponVolley);
+    if (burst) {
+      if (!this.gameActive || this.lives <= 0 || this.cinematicPaused
+        || !this.hasPlayerShotCapacity(burst.shots.length)
+        || this.pendingPlayerShots.length + burst.shots.length - 1 > PENDING_PLAYER_SHOT_CAP) return;
+      const weaponKind = getPlayerShipWeaponProfile(this.playerShipId).primaryKind;
+      const loadoutKey = this.getPrimaryBurstLoadoutKey();
+      burst.shots.forEach((pulse, index) => {
+        const shot: PendingPlayerShot = {
+          fireFrame: this.frameCount + pulse.fireDelayFrames,
+          speed: weaponKind === 'btc-bolt' ? 9 : 10,
+          offsetX: 0, yOffset: 0, angleBias: pulse.angle,
+          pitchOffset: this.playerShipId === 'btc' ? -0.08 : pulse.barrel * 0.025,
+          weaponKind, damageOverride: pulse.damage, playSound: index === 0,
+          hullPulse: { barrel: pulse.barrel, loadoutKey }
+        };
+        if (pulse.fireDelayFrames === 0) {
+          this.spawnPlayerBullet(shot.speed, 0, 0, shot.angleBias, shot.pitchOffset,
+            shot.playSound, shot.weaponKind, undefined, shot.damageOverride, shot.hullPulse);
+        } else this.queuePlayerBullet(shot);
+      });
+      this.lastShotFrame = this.frameCount;
+      this.weaponVolley++;
+      this.kickPlayerSquash(-0.02);
+      return;
+    }
     // The hull decides the primary round: RSC and ETH fire the pulse (ETH in
     // three lanes), BTC fires its heavy hash bolt, BIO plans its twin rails
     // below. Per-lane damage scales by hull so the paid ships each pull
@@ -24956,11 +25033,17 @@ export class GameEngine {
               + e.weaponVisualStartFrame * 0.23
             ) * presentation.pulseAmount;
             const visualScale = presentation.spriteScale * pulse;
-            const visualWidth = Math.max(34, (e.projectileUnitWidth || e.width) * 2.05) * visualScale;
-            const visualHeight = Math.max(48, (e.projectileUnitHeight || e.height) * 1.2) * visualScale;
+            const pulseLayout = e.hullPrimaryPulse ? getPlayerPrimaryPulseLayout(
+              e.projectileUnitWidth || e.width, e.projectileUnitHeight || e.height, e.weaponVisualLevel
+            ) : null;
+            const visualWidth = pulseLayout?.width ?? Math.max(34, (e.projectileUnitWidth || e.width) * 2.05) * visualScale;
+            const visualHeight = pulseLayout?.height ?? Math.max(48, (e.projectileUnitHeight || e.height) * 1.2) * visualScale;
+            const opticalAnchor = e.hullPrimaryPulse ? getPlayerWeaponFrameAnchor(
+              e.weaponVisualFamily ?? getPlayerWeaponVisualFamily(e.weaponKind), launchFrame
+            ) : { x: 0.5, y: 0.5 };
             ctx.imageSmoothingEnabled = false;
             ctx.rotate(Math.atan2(e.vy, e.vx) + Math.PI / 2);
-            if (presentation.trailLength > 0) {
+            if (presentation.trailLength > 0 && !e.hullPrimaryPulse) {
               const trailStart = visualHeight * 0.2;
               const reducedTrail = this.shouldUseLeanEffects();
               ctx.save();
@@ -25018,7 +25101,7 @@ export class GameEngine {
                 ctx.restore();
               }
             } else {
-              ctx.drawImage(weaponFrame, -visualWidth / 2, -visualHeight / 2, visualWidth, visualHeight);
+              ctx.drawImage(weaponFrame, -visualWidth * opticalAnchor.x, -visualHeight * opticalAnchor.y, visualWidth, visualHeight);
             }
           } else if (isBtcHashShot) {
             const pulse = 0.84 + Math.sin((this.frameCount + e.variant) * 0.42) * 0.16;

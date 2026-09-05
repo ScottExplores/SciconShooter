@@ -95,12 +95,13 @@ test('wave overrides participate in the same current-and-next preload window', (
 });
 
 test('startup and per-profile URL sets exclude unrelated late-run atlases', () => {
-  assert.equal(PIXI_ENVIRONMENT_TEXTURE_URLS.length, 8);
-  assert.ok(PIXI_ENVIRONMENT_TEXTURE_URLS.includes('PIXI_SPACE_PARALLAX_BG_ION_CLOUD'));
-  assert.ok(PIXI_ENVIRONMENT_TEXTURE_URLS.includes('PIXI_SPACE_PARALLAX_BG_VIOLET_RIFT'));
+  assert.equal(PIXI_ENVIRONMENT_TEXTURE_URLS.length, 3);
+  assert.ok(PIXI_ENVIRONMENT_TEXTURE_URLS.includes('PIXI_BREAKWATER_FAR'));
+  assert.ok(PIXI_ENVIRONMENT_TEXTURE_URLS.includes('PIXI_BREAKWATER_APPROACH'));
+  assert.ok(PIXI_ENVIRONMENT_TEXTURE_URLS.includes('PIXI_BREAKWATER_WRECKFIELD'));
   assert.equal(PIXI_ENVIRONMENT_TEXTURE_URLS.includes('PIXI_SPACE_PARALLAX_DEBRIS_BASALT'), false);
   assert.equal(PIXI_ENVIRONMENT_TEXTURE_URLS.includes('PIXI_SPACE_PARALLAX_DEBRIS_RUST'), false);
-  assert.ok(PIXI_ENVIRONMENT_TEXTURE_URLS.includes('PIXI_TERRAIN_SPACE_PROPS'));
+  assert.equal(PIXI_ENVIRONMENT_TEXTURE_URLS.includes('PIXI_TERRAIN_SPACE_PROPS'), false);
   assert.equal(PIXI_ENVIRONMENT_TEXTURE_URLS.includes('PIXI_TERRAIN_DESERT_MASTER'), false);
   assert.equal(PIXI_ENVIRONMENT_TEXTURE_URLS.includes('PIXI_SPACE_RUN_HELIX_REDLINE_PROPS'), false);
 
@@ -126,6 +127,20 @@ test('startup and per-profile URL sets exclude unrelated late-run atlases', () =
   assert.ok(windowUrls.includes('PIXI_SPACE_RUN_HELIX_REDLINE_PROPS'));
   assert.ok(windowUrls.includes('PIXI_SPACE_RUN_SHATTERED_VOID_PROPS'));
   assert.equal(windowUrls.includes('PIXI_SPACE_RUN_GRAVITY_RIFT_PROPS'), false);
+});
+
+test('Breakwater environments load only their own landmark layer and never inherit planet props', () => {
+  for (const [id, layer] of [
+    ['breakwater-approach', 'PIXI_BREAKWATER_APPROACH'],
+    ['breakwater-wreckfield', 'PIXI_BREAKWATER_WRECKFIELD'],
+    ['breakwater-gate', 'PIXI_BREAKWATER_GATE']
+  ]) {
+    const urls = [...getEnvironmentProfileTextureUrls(id)];
+    assert.deepEqual(urls, ['PIXI_BREAKWATER_FAR', layer]);
+    assert.equal(urls.some(url => /PLANET|TERRAIN_SPACE_PROPS/.test(url)), false);
+  }
+  assert.match(environmentSource, /profile\.propCount > 0 && !this\.configureTerrainProps/,
+    'profiles without props must not wait for an unused planet atlas');
 });
 
 test('terrain props use one bounded reusable pool while route textures warm asynchronously', () => {

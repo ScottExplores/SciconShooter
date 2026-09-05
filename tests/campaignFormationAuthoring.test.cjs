@@ -33,20 +33,45 @@ test('formation normalization is idempotent and never changes Campaign route top
   const campaign = readCampaign();
   const graphBefore = structuredClone(campaign.campaignGraph);
   const sectorsBefore = structuredClone(campaign.sectors);
+  const levelsBefore = structuredClone(campaign.levels);
 
   const first = normalizeCampaignFormationAuthoring(campaign);
   const second = normalizeCampaignFormationAuthoring(campaign);
 
-  // 546 after the sector-aware surge pass, plus 29 deterministic advanced
-  // enemy cohorts across five introductions and both late route trains.
-  assert.equal(first.groupedSpawnCount, 575);
+  // The authored first sector has 33 grouped entries. The remaining Missions
+  // and route alternatives retain their 552 existing grouped entries.
+  assert.equal(first.groupedSpawnCount, 33 + 552);
+  assert.equal(second.groupedSpawnCount, first.groupedSpawnCount);
   assert.deepEqual(first.declarationChanges, []);
   assert.deepEqual(first.cooldownChanges, []);
   assert.deepEqual(second.declarationChanges, []);
   assert.deepEqual(second.cooldownChanges, []);
   assert.deepEqual(campaign.campaignGraph, graphBefore);
   assert.deepEqual(campaign.sectors, sectorsBefore);
-  assert.equal(campaign.formationPacks.length, 16);
+  assert.deepEqual(campaign.levels, levelsBefore, 'normalization must preserve authored sector choreography and timing');
+  assert.equal(campaign.formationPacks.filter((pack) => pack.id.startsWith('pack-breakwater-')).length, 25);
+  assert.equal(campaign.formationPacks.filter((pack) => !pack.id.startsWith('pack-breakwater-')).length, 16);
+});
+
+test('adding a more specific catalog pack never overrides an existing Wave declaration', async () => {
+  const { normalizeCampaignFormationAuthoring } = await import(authoringUrl);
+  const campaign = readCampaign();
+  const wave = campaign.levels.find((level) => level.id === 'stage-last-light-gauntlet').waves
+    .find((candidate) => candidate.id === 'stage-last-light-gauntlet-wave-4');
+  const declaredBefore = [...wave.formationPackIds];
+  assert.ok(declaredBefore.includes('pack-orbit-grid'));
+  const event = wave.events.find((candidate) => candidate.kind === 'spawn'
+    && candidate.enemies.every((enemy) => enemy.roleId === 'role-research-drone'));
+  assert.ok(event, 'fixture is an existing role-bound regular-enemy event');
+  campaign.formationPacks.push({
+    ...structuredClone(campaign.formationPacks.find((pack) => pack.id === 'pack-orbit-grid')),
+    id: 'pack-regression-specific-drone',
+    enemyRoleIds: ['role-research-drone'],
+    formationShape: event.patternId
+  });
+  const result = normalizeCampaignFormationAuthoring(campaign);
+  assert.deepEqual(wave.formationPackIds, declaredBefore);
+  assert.deepEqual(result.declarationChanges, []);
 });
 
 test('authored role reuse satisfies every nonzero internal-Wave cooldown', () => {

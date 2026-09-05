@@ -11,6 +11,7 @@ const campaign = JSON.parse(
 const migration = JSON.parse(
   fs.readFileSync(path.join(root, 'game-config', 'campaign-migration-v24.json'), 'utf8')
 );
+const breakwaterMissionIds = new Set(campaign.sectors[0].missionIds);
 
 test('revision 24 uses compact continuous Missions with authored pressure through every climax', () => {
   assert.equal(campaign.revision, 24);
@@ -45,7 +46,14 @@ test('revision 24 uses compact continuous Missions with authored pressure throug
         ? (firstRemixIds.has(mission.id) && sectorOrder >= 4 ? 8 : 7)
         : 4;
     assert.equal(mission.waves.length, expectedWaves, `${mission.id} keeps its role cadence`);
-    assert.ok(mission.durationSeconds <= 43.1);
+    const isBreakwater = breakwaterMissionIds.has(mission.id);
+    if (isBreakwater) {
+      // The first-sector pass corrects the stale pre-surge Mission estimate;
+      // actual wave scheduling remains bounded and does not add idle time.
+      const duration = mission.waves.reduce((sum, wave) => sum + wave.durationSeconds + wave.introSeconds + wave.delayAfterSeconds, 0);
+      assert.ok(Math.abs(mission.durationSeconds - duration) < .001);
+      assert.ok(mission.waves.every(wave => wave.durationSeconds <= 11.5));
+    } else assert.ok(mission.durationSeconds <= 43.1);
     assert.equal(mission.waves.some((wave) => wave.rhythm === 'recovery'), false);
 
     for (const wave of mission.waves) {
@@ -55,21 +63,37 @@ test('revision 24 uses compact continuous Missions with authored pressure throug
       const starts = [...new Set(spawns.map((event) => event.startSeconds))].sort((a, b) => a - b);
       for (let index = 1; index < starts.length; index += 1) {
         assert.ok(
-          starts[index] - starts[index - 1] <= 2.5,
+          starts[index] - starts[index - 1] <= (isBreakwater ? 3.6 : 2.5),
           `${mission.id}/${wave.id} never leaves a long authored entry gap`
         );
+        if (isBreakwater) assert.ok(spawns.some(event => (
+          event.startSeconds === starts[index - 1]
+          && event.startSeconds + event.durationSeconds >= starts[index]
+        )), 'the incoming wing overlaps the preceding combat beat');
       }
     }
 
     const climaxSpawns = mission.waves.at(-1).events.filter((event) => event.kind === 'spawn');
-    assert.ok(climaxSpawns.length >= 3, `${mission.id} ends with overlapping encounter groups`);
-    assert.ok(Math.max(...climaxSpawns.map((event) => event.startSeconds)) >= 3.1);
+    const checkpoint = mission.waves.at(-1).events.find(event => event.kind === 'boss');
+    if (isBreakwater && checkpoint) {
+      assert.equal(climaxSpawns.length, 1, 'a deliberate escort beat clears the lane for the checkpoint');
+      assert.ok(climaxSpawns[0].count >= 4);
+      assert.ok(climaxSpawns[0].startSeconds + (climaxSpawns[0].count - 1) * climaxSpawns[0].spawnIntervalSeconds < checkpoint.startSeconds);
+    } else {
+      assert.ok(climaxSpawns.length >= 3, `${mission.id} ends with overlapping encounter groups`);
+      assert.ok(Math.max(...climaxSpawns.map((event) => event.startSeconds)) >= 3.1);
+    }
 
     const recoveryPressure = mission.waves.find((wave) => (
       wave.events.some((event) => event.kind === 'recovery')
     ));
     assert.ok(recoveryPressure);
-    assert.ok(recoveryPressure.events.filter((event) => event.kind === 'spawn').length >= 3);
+    const recoverySpawns = recoveryPressure.events.filter((event) => event.kind === 'spawn');
+    if (isBreakwater) {
+      assert.equal(recoverySpawns.length, 2, 'salvage deliberately lowers pressure instead of adding another attack group');
+      const targets = recoverySpawns.reduce((sum, event) => sum + event.count, 0);
+      assert.ok(targets >= 7 && targets <= 9);
+    } else assert.ok(recoverySpawns.length >= 3);
   }
 });
 
@@ -94,8 +118,12 @@ test('major bosses follow one active intercept and a short direct alert', () => 
 });
 
 test('formation concurrency and migration metadata match the faster Campaign', async () => {
-  assert.ok(campaign.formationPacks.every((pack) => pack.maximumSimultaneousInstances === 3));
-  assert.ok(campaign.formationPacks.every((pack) => pack.recoveryRequiredSeconds === 0.4));
+  const originalPacks = campaign.formationPacks.filter(pack => !pack.id.startsWith('pack-breakwater-'));
+  const breakwaterPacks = campaign.formationPacks.filter(pack => pack.id.startsWith('pack-breakwater-'));
+  assert.ok(originalPacks.every((pack) => pack.maximumSimultaneousInstances === 3));
+  assert.ok(originalPacks.every((pack) => pack.recoveryRequiredSeconds === 0.4));
+  assert.equal(breakwaterPacks.length, 25);
+  assert.ok(breakwaterPacks.every(pack => pack.maximumSimultaneousInstances === 2 && pack.recoveryRequiredSeconds === .35));
 
   assert.equal(migration.fromRevision, 23);
   assert.equal(migration.toRevision, 24);
@@ -182,6 +210,11 @@ test('arcade swarms grow by sector and later sectors do not recycle one formatio
   });
   assert.ok(groupedEvents.length >= 380);
   for (const { level, wave, event, minimumCount } of groupedEvents) {
+    if (event.id === 'stage-bastion-protocol-wave-1-breakwater-2') {
+      assert.equal(event.count, 3, 'the final gate lead-in uses three armored escorts before the boss');
+      assert.deepEqual(event.enemies.map(enemy => enemy.roleId), ['role-protocol-vanguard']);
+      continue;
+    }
     assert.ok(
       event.count >= minimumCount,
       `${level.id}/${wave.id}/${event.id} keeps a full ${minimumCount}-enemy arcade group`

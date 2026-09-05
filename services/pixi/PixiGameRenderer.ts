@@ -32,8 +32,11 @@ import {
   getPlayerProjectileUpgradePresentation,
   getPlayerWeaponFrames,
   getPlayerWeaponFlightFrameIndex,
-  getPlayerWeaponLaunchFrameIndex
+  getPlayerWeaponLaunchFrameIndex,
+  getPlayerWeaponFrameAnchor,
+  getPlayerWeaponVisualFamily
 } from '../playerWeaponVisuals';
+import { getPlayerPrimaryPulseLayout } from '../playerPrimaryBurst';
 import { RESEARCH_IMPACT_ALL_FRAME_URLS, SHIP_ABILITY_FRAME_URLS } from '../shipAbilityService';
 import { MINI_SHIP_CATALOG } from '../squadProgression';
 import {
@@ -3219,6 +3222,7 @@ export class PixiGameRenderer {
     view.sprite.visible = false;
     view.sprite.position.set(0, 0);
     view.sprite.rotation = 0;
+    view.sprite.anchor.set(0.5);
     view.projectileCopies?.forEach((sprite) => {
       sprite.visible = false;
       sprite.position.set(0, 0);
@@ -3516,6 +3520,26 @@ export class PixiGameRenderer {
       const unitHeight = entity.projectileUnitHeight || entity.height;
       const visualWidth = Math.max(34, unitWidth * 2.05) * visualScale;
       const visualHeight = Math.max(48, unitHeight * 1.2) * visualScale;
+      if (entity.hullPrimaryPulse) {
+        const family = entity.weaponVisualFamily ?? getPlayerWeaponVisualFamily(entity.weaponKind);
+        const anchor = getPlayerWeaponFrameAnchor(family, launchFrame);
+        const layout = getPlayerPrimaryPulseLayout(unitWidth, unitHeight, entity.weaponVisualLevel);
+        view.sprite.anchor.set(anchor.x, anchor.y);
+        view.sprite.width = layout.width;
+        view.sprite.height = layout.height;
+        view.root.rotation = Math.atan2(entity.vy, entity.vx) + Math.PI / 2;
+        // Grow a wake only after the round has actually cleared its muzzle.
+        // No frame-zero 40px trail may be laid back across the player's ship.
+        const speed = Math.hypot(entity.vx, entity.vy);
+        const wake = Math.min(18, Math.max(0, weaponAge * speed * 0.4));
+        const wakeColor = family === 'bio' ? '#a3e635' : family === 'eth' ? '#b7b0ff' : '#ffbf47';
+        for (let segment = 0; segment < 3 && wake > 0; segment++) {
+          const width = 2.2 - segment * 0.5;
+          view.trail.rect(-width / 2, layout.height * 0.3 + segment * wake / 3, width, wake / 3)
+            .fill({ color: wakeColor, alpha: 0.42 - segment * 0.11 });
+        }
+        return;
+      }
       view.sprite.width = visualWidth;
       view.sprite.height = visualHeight;
       view.root.rotation = Math.atan2(entity.vy, entity.vx) + Math.PI / 2;
@@ -6394,6 +6418,9 @@ export class PixiGameRenderer {
     view.sprite.visible = true;
     view.sprite.alpha = 1;
     view.sprite.tint = '#ffffff';
+
+    // Pooled views may previously have carried an optically anchored bolt.
+    view.sprite.anchor.set(0.5);
 
     if (entity.type === EntityType.PROJECTILE || entity.type === EntityType.MISSILE) {
       this.drawProjectile(view, entity, engine);

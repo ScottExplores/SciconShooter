@@ -210,9 +210,14 @@ const formationPacksForDepth = (
 ): FormationPackDefinition[] => {
   const allowedRoleIds = new Set(rolesForDepth(campaign, stageIndex).map((role) => role.id));
   const sector = getWeeklyRunFormationSector(stageIndex);
+  const lastAuthoredSector = Math.max(1, ...campaign.sectors.map((candidate) => candidate.order));
+  const sectorId = campaign.sectors.find((candidate) => candidate.order === Math.min(sector, lastAuthoredSector))?.id;
   const performanceCeiling = getWeeklyRunFormationPerformanceCeiling(stageIndex);
   return campaign.formationPacks.filter((pack) => (
     pack.minimumSector <= sector
+    // Sector-only entrance variants belong to their authored band; letting
+    // them accumulate forever crowds out later mixed and specialist squads.
+    && (!sectorId || pack.compatibleSectorIds.includes(sectorId))
     && pack.mobilePerformanceCost <= performanceCeiling
     && pack.enemyRoleIds.length > 0
     && pack.enemyRoleIds.every((roleId) => allowedRoleIds.has(roleId))
@@ -300,7 +305,9 @@ const selectFormationPackTrain = (
         + recentUsePenalty(state.recentShapeIds, pack.formationShape) * 0.45
         + (state.packUseCounts.get(pack.id) ?? 0) * 14
         + (state.shapeUseCounts.get(pack.formationShape) ?? 0) * 2
-        + (pack.enemyRoleIds.length < 2 ? 70 : 0)
+        // Single-hull wings are accents, not the default Weekly roster. Keep
+        // that preference meaningful alongside cumulative pack-use balancing.
+        + (pack.enemyRoleIds.length < 2 ? 140 : 0)
       );
       return score(left) - score(right)
         || (randomizedOrder.get(left.id) ?? 0) - (randomizedOrder.get(right.id) ?? 0);
@@ -524,12 +531,13 @@ const buildCombatWave = (
     });
   }
 
-  const lastEvent = events[events.length - 1];
+  // A short final squad can finish its entrance before a larger earlier
+  // squad. Reserve the combat window for every train, not just the last one.
   const waveDurationSeconds = Math.max(
     16,
-    lastEvent.startSeconds
-      + lastEvent.count * lastEvent.spawnIntervalSeconds
-      + 5
+    ...events.map((event) => event.startSeconds
+      + event.count * event.spawnIntervalSeconds
+      + 5)
   );
 
   return {

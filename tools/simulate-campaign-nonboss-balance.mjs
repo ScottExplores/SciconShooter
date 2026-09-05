@@ -20,6 +20,7 @@ const SOURCE_DIGEST_PATHS = Object.freeze([
   // Hull primary profiles set player damage per lane, and sector aggression
   // sets how often formations peel off -- both move time-to-kill.
   'services/playerShipWeapons.ts',
+  'services/playerPrimaryBurst.ts',
   'services/sectorEscalation.ts',
   // Owns when a Wave is allowed to finish, so it changes every pacing number
   // this matrix reports.

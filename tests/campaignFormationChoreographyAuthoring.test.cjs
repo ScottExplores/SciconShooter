@@ -14,6 +14,33 @@ const collectBossEvents = (campaign) => campaign.levels.flatMap((level) => (
 const spawnEvents = (campaign) => campaign.levels.flatMap((level) => (
   level.waves.flatMap((wave) => wave.events.filter((event) => event.kind === 'spawn'))
 ));
+const firstSectorLevels = (campaign) => campaign.levels.filter((level) => level.order <= 5);
+const preservedLevels = (campaign) => campaign.levels.filter((level) => level.order > 5);
+
+// The one-shot v24 recipe is still tested against its original signatures.
+// It must not be reapplied to the independently authored Breakwater sector.
+const legacyRecipeFixture = () => {
+  const campaign = readCampaign();
+  const signatures = [
+    ['stage-citation-storm', 2, 'primary', 'spiral', 8, ['role-citation-swarm', 'role-research-drone']],
+    ['stage-citation-storm', 6, 'primary', 'grid', 5, ['role-research-drone']],
+    ['stage-paywall-siege', 2, 'primary', 'pincer', 8, ['role-jet-interceptor', 'role-jet-scout', 'role-research-drone']],
+    ['stage-open-galaxy', 2, 'primary', 'diamond', 8, ['role-jet-interceptor', 'role-protocol-vanguard']],
+    ['stage-open-orbit-route-b', 2, 'event-1', 'spiral', 8, ['role-citation-swarm', 'role-research-drone']],
+    ['stage-open-orbit-route-b', 6, 'event-1', 'grid', 5, ['role-research-drone']]
+  ];
+  const levels = new Map();
+  for (const [levelId, waveNumber, suffix, patternId, count, roleIds] of signatures) {
+    if (!levels.has(levelId)) levels.set(levelId, { id: levelId, waves: [] });
+    const waveId = `${levelId}-wave-${waveNumber}`;
+    levels.get(levelId).waves.push({ id: waveId, events: [{
+      id: `${waveId}-${suffix}`, kind: 'spawn', patternId, count,
+      enemies: roleIds.map((roleId) => ({ roleId }))
+    }] });
+  }
+  campaign.levels = [...levels.values()];
+  return campaign;
+};
 
 const requiredPackKeys = [
   'movementBehavior', 'attackBehavior', 'returnBehavior', 'holdSeconds', 'telegraphSeconds',
@@ -24,10 +51,14 @@ test('current Campaign retains its newer topology and complete pack choreography
   const campaign = readCampaign();
   assert.equal(campaign.revision, 24);
   assert.equal(campaign.levels.length, 60);
-  // 311 waves / 628 surge-pass spawns + 29 advanced late-game cohorts.
+  // Mission count and route topology are unchanged; only the first five
+  // Missions are reauthored. The other 55 keep all 611 existing spawn events.
   assert.equal(campaign.levels.reduce((sum, level) => sum + level.waves.length, 0), 311);
-  assert.equal(spawnEvents(campaign).length, 657);
-  assert.equal(campaign.formationPacks.length, 16);
+  assert.deepEqual(firstSectorLevels(campaign).map((level) => spawnEvents({ levels: [level] }).length), [11, 15, 6, 7, 3]);
+  assert.equal(spawnEvents({ levels: preservedLevels(campaign) }).length, 611);
+  assert.equal(spawnEvents(campaign).length, 653);
+  assert.equal(campaign.formationPacks.filter((pack) => pack.id.startsWith('pack-breakwater-')).length, 25);
+  assert.equal(campaign.formationPacks.filter((pack) => !pack.id.startsWith('pack-breakwater-')).length, 16);
   campaign.formationPacks.forEach((pack) => {
     requiredPackKeys.forEach((key) => assert.notEqual(pack[key], undefined, `${pack.id}/${key}`));
     assert.ok(pack.holdSeconds >= 0.35, pack.id);
@@ -36,30 +67,31 @@ test('current Campaign retains its newer topology and complete pack choreography
   });
 });
 
-test('surgical Wave overrides are authored only on matching current-main encounters', () => {
+test('the first sector authors every grouped flight while later Mission overrides remain surgical', () => {
   const campaign = readCampaign();
   const overrides = spawnEvents(campaign).filter((event) => event.formationBehavior);
-  assert.equal(overrides.length, 6);
+  assert.equal(overrides.length, 35);
   overrides.forEach((event) => {
     assert.ok(event.formationBehavior.telegraphSeconds >= 0.2, event.id);
     assert.ok(event.formationBehavior.attackGroupSize <= event.count, event.id);
   });
+  const firstSectorSpawns = spawnEvents({ levels: firstSectorLevels(campaign) });
+  const grouped = firstSectorSpawns.filter((event) => !/single|random/.test(event.patternId));
+  assert.equal(grouped.length, 33);
+  assert.ok(grouped.every((event) => event.formationBehavior && event.id.includes('-breakwater-')));
   assert.deepEqual(
-    overrides.map((event) => event.id).sort(),
+    spawnEvents({ levels: preservedLevels(campaign) }).filter((event) => event.formationBehavior).map((event) => event.id).sort(),
     [
-      'stage-citation-storm-wave-2-primary',
-      'stage-citation-storm-wave-6-primary',
-      'stage-open-galaxy-wave-2-primary',
       'stage-open-orbit-route-b-wave-2-event-1',
-      'stage-open-orbit-route-b-wave-6-event-1',
-      'stage-paywall-siege-wave-2-primary'
+      'stage-open-orbit-route-b-wave-6-event-1'
     ]
   );
 });
 
-test('choreography authoring repairs safe drift without rewriting current-main topology', async () => {
+test('legacy choreography authoring repairs its original signatures idempotently without rewriting topology', async () => {
   const { authorCampaignFormationChoreography } = await import(authoringUrl);
-  const campaign = readCampaign();
+  const campaign = legacyRecipeFixture();
+  authorCampaignFormationChoreography(campaign);
   const graphBefore = structuredClone(campaign.campaignGraph);
   const sectorsBefore = structuredClone(campaign.sectors);
   const bossesBefore = structuredClone(collectBossEvents(campaign));
@@ -68,7 +100,7 @@ test('choreography authoring repairs safe drift without rewriting current-main t
   const spawnCount = spawnEvents(campaign).length;
 
   delete campaign.formationPacks[0].movementBehavior;
-  const event = spawnEvents(campaign).find((candidate) => candidate.id === 'stage-citation-storm-wave-2-primary');
+  const event = spawnEvents(campaign).find((candidate) => candidate.id === 'stage-open-orbit-route-b-wave-2-event-1');
   delete event.formationBehavior;
 
   const first = authorCampaignFormationChoreography(campaign);
@@ -84,4 +116,12 @@ test('choreography authoring repairs safe drift without rewriting current-main t
   assert.deepEqual(campaign.campaignGraph, graphBefore);
   assert.deepEqual(campaign.sectors, sectorsBefore);
   assert.deepEqual(collectBossEvents(campaign), bossesBefore);
+});
+
+test('the legacy one-shot recipe refuses changed first-sector authoring instead of overwriting its flights', async () => {
+  const { authorCampaignFormationChoreography } = await import(authoringUrl);
+  const campaign = readCampaign();
+  const levelsBefore = structuredClone(campaign.levels);
+  assert.throws(() => authorCampaignFormationChoreography(campaign), /Missing spawn event|Refusing to author changed spawn event/);
+  assert.deepEqual(campaign.levels, levelsBefore);
 });

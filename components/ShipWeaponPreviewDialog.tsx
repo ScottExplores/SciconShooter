@@ -89,9 +89,9 @@ const ShipWeaponPreviewDialog: React.FC<ShipWeaponPreviewDialogProps> = ({
   const projectileFrames = useMemo(() => (
     shipId ? getPlayerWeaponPreviewFrames(shipId) : []
   ), [shipId]);
-  const volleyIntervalMs = getPlayerWeaponPreviewVolleyIntervalMs(fireRateLevel);
+  const volleyIntervalMs = getPlayerWeaponPreviewVolleyIntervalMs(fireRateLevel, shipId ?? 'researchhub');
   const volleyLifetimeMs = getPlayerWeaponPreviewVolleyLifetimeMs(shots);
-  const activeVolleyLimit = getPlayerWeaponPreviewActiveVolleyLimit(fireRateLevel, shots);
+  const activeVolleyLimit = getPlayerWeaponPreviewActiveVolleyLimit(fireRateLevel, shots, shipId ?? 'researchhub');
 
   useEffect(() => {
     if (!shipId) return undefined;

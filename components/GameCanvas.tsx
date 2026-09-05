@@ -520,6 +520,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         break;
       case 'pause':
         runningRef.current = false;
+        engine.clearQueuedPrimaryBursts();
         engine.handleInput({}, null);
         onPreviewPlayingChangeRef.current?.(false);
         break;
@@ -693,6 +694,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     if (!running) {
       activeTouchIdRef.current = null;
       activePointerIdRef.current = null;
+      engineRef.current?.clearQueuedPrimaryBursts();
       engineRef.current?.handleInput({}, null);
     } else {
       gameOverSentRef.current = false;
@@ -1306,6 +1308,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     const handleWindowBlur = () => {
       activeTouchIdRef.current = null;
       activePointerIdRef.current = null;
+      engine.clearQueuedPrimaryBursts();
       Object.keys(keys).forEach((key) => {
         keys[key] = false;
       });
@@ -1314,6 +1317,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     };
 
     const handleVisibilityChange = () => {
+      if (document.hidden) engine.clearQueuedPrimaryBursts();
       if (!document.hidden) {
         lastTimeRef.current = performance.now();
         simulationAccumulator = 0;
@@ -1466,6 +1470,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         });
       }
       engine.stopTelemetrySession('disposed');
+      engine.clearQueuedPrimaryBursts();
       if (previewMode && telemetrySink) {
         onTelemetrySnapshotRef.current?.(telemetrySink.getSnapshot());
       }

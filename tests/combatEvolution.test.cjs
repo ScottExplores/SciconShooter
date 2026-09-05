@@ -66,7 +66,7 @@ test('local unlocks use isolated preview state, not account or competition write
   assert.match(entry, /const CombatLab = import\.meta\.env\.DEV/);
   assert.match(entry, /if \(!combatLabRequested\) installPlayerReportMonitoring/);
   assert.match(panel, /previewMode: true/);
-  assert.match(panel, /previewContinuousWaves: targetId === 'showcase'/);
+  assert.match(panel, /previewContinuousWaves: continuousMission/);
   assert.match(lab, /const campaign = cloneGameCampaign\(\)/);
   assert.doesNotMatch(panel + lab, /localStorage\.setItem|submitWeekly|saveSquad|fetch\(|walletPurchase/);
   for (const ship of ['researchhub', 'bio', 'eth', 'btc']) {

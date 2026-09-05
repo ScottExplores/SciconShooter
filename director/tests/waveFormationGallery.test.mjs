@@ -110,11 +110,13 @@ test('Wave Gallery summary uses the live formation geometry and campaign role me
   const wave = mission.waves.find((candidate) => candidate.id === 'stage-citation-storm-wave-2');
   const summary = model.buildWaveGallerySummary(wave, campaign);
 
-  assert.equal(summary.enemyCount, 8);
-  assert.equal(summary.formationCount, 1);
+  assert.equal(summary.enemyCount, 12);
+  assert.equal(summary.formationCount, 2);
   assert.equal(summary.enemyTypeCount, 2);
-  assert.equal(summary.spawnEvents[0].formationLabel, 'Spiral entry');
+  assert.equal(summary.spawnEvents[0].formationLabel, 'Double V');
   assert.equal(summary.spawnEvents[0].members.length, 8);
+  assert.equal(summary.spawnEvents[1].members.length, 4);
+  assert.deepEqual(summary.spawnEvents.map(entry => entry.event.patternId), ['double-v', 'arc']);
   assert.ok(summary.spawnEvents[0].allocations.every((allocation) => allocation.role?.label));
   assert.ok(summary.spawnEvents[0].members.every((member) => (
     member.leftPercent >= 0 && member.leftPercent <= 100

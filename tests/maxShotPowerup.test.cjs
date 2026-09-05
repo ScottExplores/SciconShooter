@@ -41,13 +41,13 @@ test('Max Shot is a rare configured double-pattern shield power-up with real gen
   assert.ok(campaign.levels.every((level) => level.availablePowerupIds.includes('max-shot')));
 });
 
-test('Max Shot reserves room for the doubled tier-and-spread pattern before emitting atomically', () => {
+test('legacy RSC Max Shot reserves its complete bundled pattern before emitting atomically', () => {
   assert.match(
     engine,
     /hasPlayerShotCapacity\(projectileCount: number = 1\)[\s\S]*?\+ projectileCount <= this\.getPlayerShotCap\(\)/
   );
 
-  const fireBulletStart = engine.indexOf('\n  fireBullet() {');
+  const fireBulletStart = engine.indexOf('// The hull decides the primary round:');
   const fireBullet = engine.slice(fireBulletStart, engine.indexOf('\n  fireMissile()', fireBulletStart));
   assert.match(fireBullet, /basePatternProjectileCount = volleySize \* \(spreadLanes \? 3 : 1\)/);
   assert.match(fireBullet, /getPrimaryVolleySimulationEntityCount\(spreadLanes\)/);

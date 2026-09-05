@@ -20,7 +20,7 @@ const findCampaignEvent = (level, eventId) => {
   return event;
 };
 
-test('campaign follows a coherent space-to-planet-to-space environment route', () => {
+test('campaign opens with a coherent Breakwater sector and preserves the later environment route', () => {
   const campaign = JSON.parse(read('game-config/campaign.json'));
   const environment = read('services/pixi/PixiEnvironment.ts');
   const mainMissionIds = new Set(campaign.sectors.flatMap((sector) => sector.missionIds));
@@ -32,7 +32,7 @@ test('campaign follows a coherent space-to-planet-to-space environment route', (
   assert.deepEqual(
     mainLevels.map((level) => level.backgroundId),
     [
-      'open-orbit', 'citation-storm', 'paywall-siege', 'open-galaxy', 'bastion-protocol',
+      'breakwater-approach', 'breakwater-wreckfield', 'breakwater-wreckfield', 'breakwater-gate', 'breakwater-gate',
       'helix-redline', 'helix-redline', 'shattered-void', 'shattered-void', 'shattered-void',
       'shattered-void', 'gravity-rift', 'gravity-rift', 'gravity-rift', 'ion-eclipse',
       'ion-eclipse', 'ion-eclipse', 'terminus-frontier', 'terminus-frontier', 'terminus-frontier',
@@ -57,10 +57,10 @@ test('campaign follows a coherent space-to-planet-to-space environment route', (
     'terminus-frontier'
   ]);
   assert.match(environment, /orbital-departure/);
-  assert.match(environment, /deep-nebula/);
-  assert.match(environment, /planetary-descent/);
-  assert.match(environment, /biosphere-expedition/);
-  assert.match(environment, /orbital-return/);
+  assert.match(environment, /salvage-crossfire/);
+  assert.match(environment, /relay-guardian/);
+  assert.match(environment, /station-breach/);
+  assert.match(environment, /gatekeeper-blockade/);
   for (const backgroundId of [
     'helix-redline',
     'shattered-void',

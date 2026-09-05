@@ -84,7 +84,7 @@ export const getWeaponOverdriveProjectileGeometry = (
  */
 export const PLAYER_SHIP_WEAPON_SPECS: Readonly<Record<string, string>> = Object.freeze({
   researchhub: 'Pulse column - one tight centre lane, fastest tier ramp',
-  bio: 'Bio rails - twin straight lanes, +16% output, rails pierce from Tier 4',
+  bio: 'Bio rails - alternating twin lanes, +16% output, rails pierce from Tier 4',
   eth: 'Prism spread - triple lanes, sides angled 15-20 degrees, best coverage',
   btc: 'Hash bolt - heavy gold lane, 2.1x damage, punches through the first hull'
 });

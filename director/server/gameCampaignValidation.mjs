@@ -78,6 +78,7 @@ const BUILT_IN_ASSET_KEYS = [
   'PLAYER_SHIP', 'RSC_TOKEN', 'REAL_RSC_ICON', 'GAME_BG_BACK', 'GAME_BG_STARS',
   'GAME_BG_PLANET', 'GAME_PARALLAX_BACK', 'GAME_PARALLAX_STARS',
   'GAME_PARALLAX_FAR_PLANETS', 'GAME_PARALLAX_BIG_PLANET', 'GAME_PARALLAX_RING_PLANET',
+  'PIXI_BREAKWATER_FAR', 'PIXI_BREAKWATER_APPROACH', 'PIXI_BREAKWATER_WRECKFIELD', 'PIXI_BREAKWATER_GATE',
   'PIXI_SPACE_RUN_HELIX_REDLINE_PROPS', 'PIXI_SPACE_RUN_SHATTERED_VOID_PROPS',
   'PIXI_SPACE_RUN_GRAVITY_RIFT_PROPS', 'PIXI_SPACE_RUN_ION_ECLIPSE_PROPS',
   'PIXI_SPACE_RUN_TERMINUS_FRONTIER_PROPS',
@@ -229,6 +230,9 @@ const MAJOR_BOSS_IDS = new Set([
 const BOSS_RIG_IDS = new Set(['open-orbit', 'citation-storm', 'paywall-siege', 'crown-claw']);
 const POWERUP_IDS = new Set(['projectile-upgrade', 'max-shot', 'magnet', 'shield', 'research-beam', 'extra-life']);
 const BACKGROUND_IDS = new Set([
+  'breakwater-approach',
+  'breakwater-wreckfield',
+  'breakwater-gate',
   'open-orbit',
   'citation-storm',
   'paywall-siege',

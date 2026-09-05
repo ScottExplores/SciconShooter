@@ -34,6 +34,11 @@ const applyPreviewLoadoutMethod = sliceRequired(
   '  applyPreviewLoadout(update: PreviewPlayerLoadoutUpdate)',
   '\n  jumpToCampaignWave('
 );
+const clearQueuedPrimaryBurstsMethod = sliceRequired(
+  engineSource,
+  '  clearQueuedPrimaryBursts()',
+  '\n  private getPrimaryBurstLoadoutKey('
+);
 
 function buildExactMethodHarness() {
   const harnessSource = `
@@ -58,6 +63,7 @@ function buildExactMethodHarness() {
     class PreviewLoadoutHarness {
       previewAllowed = true;
       restartCount = 0;
+      pendingPlayerShots = [];
 
       canUsePreviewControl() {
         return this.previewAllowed;
@@ -74,6 +80,7 @@ function buildExactMethodHarness() {
         this.restartCount += 1;
       }
 
+${clearQueuedPrimaryBurstsMethod}
 ${applyPreviewLoadoutMethod}
     }
 
@@ -101,6 +108,9 @@ test('preview loadout hot-swap preserves the live encounter while updating playe
   const entities = [boss, projectile];
   const pendingBossStrikes = [{ sourceId: boss.id, warningFrames: 18 }];
   const pendingEnemyLasers = [{ sourceId: boss.id, lockFrames: 11 }];
+  const legacyQueuedShot = { fireFrame: 1844, weaponKind: 'pulse' };
+  const queuedOldHullPulse = { fireFrame: 1846, weaponKind: 'bio-primary',
+    hullPulse: { barrel: -1, loadoutKey: 'bio:49:0:0' } };
   const gameplayRandom = { seed: 'unchanged-seed', calls: 47 };
   const player = { x: 222, y: 615, width: 44, height: 52, hp: 3 };
   const companions = [{
@@ -136,6 +146,7 @@ test('preview loadout hot-swap preserves the live encounter while updating playe
     entities,
     pendingBossStrikes,
     pendingEnemyLasers,
+    pendingPlayerShots: [legacyQueuedShot, queuedOldHullPulse],
     squadLoadout: null,
     squadCompanions: companions
   });
@@ -193,6 +204,8 @@ test('preview loadout hot-swap preserves the live encounter while updating playe
   assert.strictEqual(harness.entities[1], preserved.projectile);
   assert.strictEqual(harness.pendingBossStrikes, preserved.pendingBossStrikes);
   assert.strictEqual(harness.pendingEnemyLasers, preserved.pendingEnemyLasers);
+  assert.deepEqual(harness.pendingPlayerShots, [legacyQueuedShot],
+    'only un-emitted hull pulses are recalled; active projectiles and legacy queues remain untouched');
   assert.strictEqual(harness.player, preserved.player);
   assert.deepEqual(harness.player, preserved.playerSnapshot);
   assert.equal(harness.stats.score, preserved.score);

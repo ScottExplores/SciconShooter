@@ -88,7 +88,7 @@ test('Hangar copy describes each hull gun truthfully', () => {
   const specs = loadModule('services/weaponOverdrive.ts').PLAYER_SHIP_WEAPON_SPECS;
   const preview = loadModule('services/playerWeaponPreview.ts').PLAYER_SHIP_WEAPON_PREVIEW_SPECS;
   for (const table of [specs, preview]) {
-    assert.match(table.bio, /twin straight lanes/i);
+    assert.match(table.bio, /twin lanes/i);
     assert.match(table.eth, /triple lanes/i);
     assert.match(table.btc, /2\.1x damage/);
     assert.match(table.btc, /punches through/i);

@@ -73,11 +73,20 @@ test('active Campaign roster contains only the Retraction Fleet replacements', (
 });
 
 test('Campaign waves keep mixed cohorts and avoid repeated copy-paste signatures', () => {
-  const events = spawnEvents(campaign);
+  const breakwaterMissionIds = new Set(campaign.sectors[0].missionIds);
+  const breakwater = campaign.levels.filter(level => breakwaterMissionIds.has(level.id));
+  // Breakwater gives each entering wing a consistent silhouette and mixes
+  // tactical roles between wings. Preserve the mixed-pool contract elsewhere.
+  const events = spawnEvents({ levels: campaign.levels.filter(level => !breakwaterMissionIds.has(level.id)) });
   const homogeneousEvents = events.filter((event) => (
     new Set(event.enemies.map((enemy) => enemy.spriteKey)).size === 1
   ));
   assert.ok(homogeneousEvents.length / events.length <= 0.2, 'homogeneous event ratio regressed');
+  assert.ok(spawnEvents({ levels: breakwater }).every(event => event.enemies.length === 1));
+  const mixedWingWaves = breakwater.flatMap(level => level.waves).filter(wave => new Set(
+    wave.events.filter(event => event.kind === 'spawn').flatMap(event => event.enemies.map(enemy => enemy.roleId))
+  ).size >= 2);
+  assert.ok(mixedWingWaves.length >= 10, 'single-role wings combine into distinct tactical encounters');
 
   const authoredCohorts = events.filter((event) => event.id.includes('-advanced-enemy-v1-'));
   assert.equal(authoredCohorts.length, 29);
@@ -89,7 +98,9 @@ test('Campaign waves keep mixed cohorts and avoid repeated copy-paste signatures
   const diversifiedWaveIds = new Set(campaign.levels.flatMap((level) => level.waves
     .filter((wave) => wave.events.some((event) => event.label?.endsWith(' · Retraction mix')))
     .map((wave) => wave.id)));
-  assert.equal(diversifiedWaveIds.size, 26);
+  // Eight first-sector mix labels were replaced by the authored Breakwater
+  // wings above; the remaining eighteen mixed-pool remixes stay intact.
+  assert.equal(diversifiedWaveIds.size, 18);
 
   let repeatedAdjacentSignatures = 0;
   let repeatedRetractionSignatures = 0;
@@ -119,6 +130,17 @@ test('Weekly Run debuts late packs once per band and cools down recent formation
     if (weekKey === weekKeys[0]) {
       assert.deepEqual(run, generator.buildWeeklyRunCampaign(weekKey, campaign, 48));
     }
+    const packsById = new Map(campaign.formationPacks.map((pack) => [pack.id, pack]));
+    run.levels.forEach((level, stageIndex) => {
+      const sectorOrder = generator.getWeeklyRunFormationSector(stageIndex);
+      const sectorId = campaign.sectors.find((sector) => sector.order === Math.min(sectorOrder, 10)).id;
+      for (const wave of level.waves) {
+        for (const packId of wave.formationPackIds) {
+          assert.ok(packsById.get(packId).compatibleSectorIds.includes(sectorId),
+            `${weekKey} ${packId} cannot crowd a later sector with an opening-only variant`);
+        }
+      }
+    });
 
     const events = spawnEvents(run);
     const homogeneousEvents = events.filter((event) => (

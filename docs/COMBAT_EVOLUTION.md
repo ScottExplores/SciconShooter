@@ -11,9 +11,11 @@ The experimental Hangar also links to Combat Lab in development mode.
 
 1. Compare RSC, BIO, ETH and BTC at Stock, Evolved and Max Out. The sliders
    independently set primary, signature and movement upgrades.
-2. Fly Neon Breakwater: ribbon swarm, mirrored crossfire, salvage, Bottleneck
-   Drone elite, prism carousel and Gatekeeper Prime. Waves carry live health,
-   pickups and score forward and stop at the Mission boundary.
+2. Fly **Breakwater Missions 1–5**: orbital approach, wreck-field crossfire,
+   checkpoint elites and the station gate. These are the exact ordinary
+   campaign levels, not lab substitutes. Waves carry live health, pickups and
+   score forward and stop at the Mission boundary. The older six-wave Neon
+   Breakwater remix remains a separate comparison option.
 3. Compare Salvage + Guard, Hunter + Guard and Solo. Quorum Crab seeks real
    coins within a level-scaled leash, suspending fire while collecting. Axiom
    Orbiter intercepts one ordinary hostile shot per recharge; it cannot erase
@@ -37,9 +39,10 @@ The experimental Hangar also links to Combat Lab in development mode.
   owned player entity to the new bounds.
 - Existing purchased support IDs are preserved, not deleted. Recommended
   utility loadouts narrow the choices without erasing players' fleets.
-- New swarm pacing is a six-wave lab remix, not an untested campaign-wide
-  replacement. Bosses use existing authored encounters; this pass does not
-  claim new boss rigs/animations or modify the unrelated Umbra work.
+- The authored first-sector pass replaces ordinary Missions 1–5 only. The
+  other 55 Missions, progression graph, rewards and purchased equipment stay
+  intact. Bosses use existing authored encounters; this pass does not claim
+  new boss rigs/animations or modify the unrelated Umbra work.
 - Art provenance, prompts and reproducible extraction are in
   [COMBAT_EVOLUTION_ART.md](COMBAT_EVOLUTION_ART.md).
 
@@ -104,6 +107,80 @@ These are movement/choreography changes, not a new boss-art pass or a claim
 that every campaign encounter has been individually redesigned.
 
 Remaining product judgement: whether the density/contrast is enjoyable on a
-physical phone, whether utility supports need balance changes, and which lab
-formations deserve promotion into normal Missions. No claim of commercial
-parity, retention improvement or device-wide frame-rate performance is made.
+physical phone and whether utility supports need balance changes. No claim
+of commercial parity, retention improvement or device-wide frame-rate
+performance is made.
+
+## Ordinary Breakwater sector and real pulse volleys — September 4
+
+Missions 1–5 now use 25 sector-scoped formation packs: streaming ribbons,
+split-side intercepts, salvage recovery beats, crossing shooters, rotating
+formations and an escort-to-Gatekeeper finish. Original role introductions
+are preserved: Mission 1 teaches movement against scouts; Mission 2 introduces
+actual hostile crossfire. Elite/boss frameworks and stats are unchanged.
+
+The new three-environment progression is orbital shipyard approach → wreck
+field → station gate. Layered original pixel artwork replaces the repeated
+planet in this sector. Landmarks stay at the sides; a dim far-space layer and
+the existing pooled stars move at different speeds. This remains the normal
+2D combat viewport, not the abandoned spatial/3D experiment.
+
+BIO, ETH and BTC no longer render upgraded primary fire as delayed visual
+copies of one collision bundle. Their live weapons and Hangar previews share
+a bounded real-pulse planner:
+
+- BIO alternates two narrow nose channels with a gentle oscillation.
+- ETH ripples through a three-lane fan.
+- BTC emits weightier rhythmic gold pulses.
+- Higher tiers add up to three temporal beats; Max Shot doubles energy and
+  modestly grows the same bolt art, rather than stacking ghost copies.
+- Per-frame optical anchors stop the animated energy core wandering sideways.
+  Each delayed pulse originates from the ship's current nose, including after
+  movement. Wakes grow only after launch. The common forward tip stays visible
+  through roll frames; side pods are not assumed visible during hard rolls.
+- RSC keeps its previous firing path. Non-RSC theoretical sustained output is
+  preserved; projectile entity count is bounded by the existing mobile cap.
+- Pending pulses cancel on pause, hidden/blur, teardown, death, loadout change
+  and Max Shot expiry. Hit-stop preserves their remaining spacing.
+
+Tests include actual engine update/collision cadence checks for all three
+changed ships at Stock, Tier 3 and Max, sustained Max Shot shot-cap checks,
+campaign firing eligibility and full Mission 5 first-wave-to-summary lifecycle.
+The latter explicitly uses test-only invincibility and is **not** a boss
+survivability claim. Two exploratory expected-loadout pilots died against the
+unchanged Gatekeeper; low-upgrade boss difficulty remains a tuning risk.
+
+Portrait browser checks cover BIO/ETH/BTC max firing, drag/re-grip and
+pause/resume. Automated simulation is not physical-phone frame-rate or human
+difficulty evidence. The DEV Lab is account-isolated and remains excluded
+from production builds.
+
+### Verification of this pass
+
+- `npm test`: **1,742/1,742 passed**.
+- `npm run typecheck` and `npm run build`: passed; built assets contain neither
+  the DEV Lab labels nor Director code. Scoped lint: zero errors, four
+  pre-existing unused-symbol warnings in the large engine/renderer files.
+- Refreshed real-engine non-boss matrix: 600 trials, 566 clears, 33 deaths,
+  one timeout; every covered Mission has a clear route. This is not an
+  all-loadout or human-play difficulty guarantee. The harness uses RSC;
+  BIO/ETH/BTC cadence and damage have separate actual-engine tests.
+- Director: 457/459 passed. The two remaining local HTTP tests fail with
+  `ECONNRESET` for their foreign-Host request; even a bare Node HTTP server
+  reproduces that reset on this machine. The affected handler/tests are
+  unchanged. Shared schema, campaign and boss validations pass.
+- Built-in browser: ordinary Mission 1 launch and pause, BIO/ETH/BTC upgraded
+  volleys, Lab Mission 2 and full Mission 5 completion, loadout selection,
+  portrait 390×844 gameplay and the centered wide-host Lab were exercised.
+  No rendering/framework error appeared. Ordinary local guest runs logged
+  an unverified-receipt fallback; live score submission was not browser-tested
+  as part of this combat/art pass. The Lab intentionally does not save scores.
+- Concept/render comparison retained the dark center, industrial edge scale,
+  pixel sampling, independent combat effects and stable HUD. Existing ships,
+  boss art and controls deliberately replace the concept's invented UI/art.
+
+The integration pass also makes Weekly formation eligibility respect authored
+sector restrictions and reserve enough time for every spawn train. Legacy
+authoring helpers now preserve explicit sector choreography and existing
+late-game escort tuning instead of rebinding them when new packs are added.
+Guest proof, continuity and advanced-enemy debut regressions pass locally.

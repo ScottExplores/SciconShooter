@@ -29,7 +29,8 @@ test('Citation Storm is a bossless formation-remix Mission with compact authored
 
   assert.equal(stage.campaignProgression.missionRole, 'formation-remix');
   assert.ok(packedSpawns.length >= 4);
-  assert.ok(packedSpawns.some((event) => event.patternId === 'spiral'));
+  assert.ok(packedSpawns.some((event) => event.patternId === 'ring' && event.formationBehavior?.movementId === 'rotating-wheel'));
+  assert.ok(packedSpawns.some((event) => event.patternId === 'double-v' && event.formationBehavior?.attackId === 'pincer-pass'));
   assert.ok(packedSpawns.some((event) => event.patternId === 'diamond'));
   assert.ok(packedSpawns.every((event) => event.count >= 3));
   assert.ok(packedSpawns.every((event) => event.formationPackIds === undefined));

@@ -178,11 +178,21 @@ test('tracked Campaign resolves every grouped spawn to one declared compatible f
   assert.deepEqual(unusedDeclarations, []);
 
   const paywall = campaign.levels.find((level) => level.id === 'stage-paywall-siege');
-  assert.deepEqual(paywall.waves[1].formationPackIds, ['pack-light-jet-pincer']);
-  assert.deepEqual(paywall.waves.at(-1).formationPackIds, ['pack-light-jet-pincer']);
+  assert.deepEqual(paywall.waves[1].formationPackIds, ['pack-breakwater-x-double-v', 'pack-breakwater-r-diamond']);
+  assert.deepEqual(paywall.waves.at(-1).formationPackIds, ['pack-breakwater-f-arc']);
+  assert.deepEqual(
+    paywall.waves[1].formationPackIds.map((packId) => packsById.get(packId).enemyRoleIds),
+    [['role-jet-interceptor'], ['role-research-drone']],
+    'the crossfire combines an early interceptor squad with its distinct drone escort'
+  );
+  assert.deepEqual(
+    packsById.get('pack-breakwater-f-arc').enemyRoleIds,
+    ['role-jet-scout'],
+    'the checkpoint approach keeps light escorts and introduces no late-game roles'
+  );
   assert.deepEqual(
     packsById.get('pack-light-jet-pincer').enemyRoleIds,
     ['role-jet-scout', 'role-jet-interceptor', 'role-research-drone', 'role-citation-swarm'],
-    'the first elite checkpoint mixes early escorts without inheriting the not-yet-introduced Audit Bulwark role'
+    'the preserved legacy scout screen still excludes the not-yet-introduced Audit Bulwark role'
   );
 });

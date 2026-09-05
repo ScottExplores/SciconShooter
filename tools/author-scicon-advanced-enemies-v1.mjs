@@ -420,12 +420,13 @@ const buildRoleSetting = ({
   definitionById,
   roleById,
   settingTemplateByRoleId,
+  existingSetting,
   weight
 }) => {
   const definition = definitionById.get(roleId);
   if (definition) return { ...buildEnemySetting(definition, sectorOrder), weight };
   const role = roleById.get(roleId);
-  const template = settingTemplateByRoleId.get(roleId);
+  const template = existingSetting ?? settingTemplateByRoleId.get(roleId);
   if (!role || !template) {
     throw new Error(`Could not resolve authored enemy setting for themed escort ${roleId}.`);
   }
@@ -521,6 +522,11 @@ const diversifyLightRetractionWaves = ({
   settingTemplateByRoleId
 }) => {
   const targetWaves = campaign.levels.flatMap((level) => level.waves
+    // Sector-specific packs own their choreography and whole-wing role pools.
+    // This legacy remix recipe must not rewrite a newly authored sector.
+    .filter((wave) => !(wave.formationPackIds ?? []).some((packId) => (
+      packById.get(packId)?.compatibleSectorIds.length === 1
+    )))
     .filter((wave) => (
       waveLightRetractionShare(wave) > 0.5
       || (wave.events ?? []).some((event) => event.label?.endsWith(RETRACTION_DIVERSITY_LABEL))
@@ -531,6 +537,9 @@ const diversifyLightRetractionWaves = ({
     const sectorOrder = Number(level.campaignProgression?.sectorOrder || 1);
     (wave.events ?? []).filter((event) => event.kind === 'spawn').forEach((event, eventIndex) => {
       if (!(event.enemies ?? []).some((enemy) => LIGHT_RETRACTION_ROLE_IDS.has(enemy.roleId))) return;
+      // A completed remix is authored content. Re-indexing all later shapes
+      // when an earlier Mission changes would silently replace that content.
+      if (event.label?.endsWith(RETRACTION_DIVERSITY_LABEL)) return;
       const storyExclusions = new Set(STORY_ROLE_EXCLUSIONS_BY_EVENT[event.id] ?? []);
       event.enemies = event.enemies.filter((enemy) => !storyExclusions.has(enemy.roleId));
       const existingRoleIds = new Set(event.enemies.map((enemy) => enemy.roleId));
@@ -617,8 +626,10 @@ const authorWaveTrain = ({
   const newEvents = definitions.map((definition, index) => {
     const packRoleIds = THEMED_PACK_ROLE_IDS[definition.id];
     const weights = [0.5, 0.3, 0.2];
+    const eventId = `${wave.id}${AUTHORED_EVENT_MARKER}${definition.id.replace(/^role-/, '')}-${index + 1}`;
+    const previousEvent = previousEvents.find((event) => event.id === eventId);
     return {
-      id: `${wave.id}${AUTHORED_EVENT_MARKER}${definition.id.replace(/^role-/, '')}-${index + 1}`,
+      id: eventId,
       kind: 'spawn',
       label: `${definition.label} ${trainKind === 'introduction' ? 'arrival' : 'fleet cohort'}`,
       startSeconds: round(firstStart + index * startStride, 2),
@@ -635,6 +646,9 @@ const authorWaveTrain = ({
         definitionById,
         roleById,
         settingTemplateByRoleId,
+        // Rebuilding an advanced lead must not replace tuned late escorts
+        // with whichever early-Mission template was encountered first.
+        existingSetting: previousEvent?.enemies?.find((enemy) => enemy.roleId === roleId),
         weight: weights[roleIndex]
       }))
     };
@@ -706,6 +720,10 @@ export const authorSciconAdvancedEnemies = (campaign) => {
 
   const packById = new Map(campaign.formationPacks.map((pack) => [pack.id, pack]));
   for (const pack of campaign.formationPacks) {
+    // Sector authors bind their own variants at the Wave. This roster recipe
+    // only extends role back-references for portable and owned advanced packs.
+    if (pack.compatibleSectorIds.length === 1
+      && !ADVANCED_ENEMY_DEFINITIONS.some((definition) => definition.packId === pack.id)) continue;
     for (const roleId of pack.enemyRoleIds) {
       const role = roleById.get(roleId);
       if (!role) continue;

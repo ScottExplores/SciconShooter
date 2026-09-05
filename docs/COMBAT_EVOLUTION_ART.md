@@ -59,3 +59,62 @@ projectiles. The entire image behind these separate sprites must be
 completely flat bright pink #FF00FF, identical in every gap. No gradient, no
 shadow, no haze, no glow outside the hard pixel outlines. 1536x1024. Actual
 visible magenta background is essential for extracting the sprites.
+
+## Breakwater sector environment artwork — September 4
+
+Generated with the built-in image tool as original Scicon artwork. No Galaxiga
+assets, new rendering library, or 3D engine were used. Runtime files live in
+`public/game-art/generated/scicon-breakwater-v1/`:
+
+- `far-space.png`: sparse navy star field and dim cyan nebula.
+- `approach.png`: transparent orbital observatory/relay structures.
+- `wreckfield.png`: transparent damaged modules, satellites and cargo.
+- `gate.png`: transparent drydock/relay towers.
+
+All four are 853 × 1844 PNGs, passed through without image post-processing.
+The three landmark strips have actual alpha and an empty central combat lane.
+The existing nearest-neighbor Pixi pipeline loads just the selected strip and
+shared far layer. Initial preloading warms approach plus the upcoming wreck
+field (three textures total), not every campaign background.
+
+Concept and original generation outputs remain in the local generated-images
+folder `C:/Users/scott/.codex/generated_images/019ffe92-376c-7141-81f7-b8717e407916/`:
+
+- Concept: `exec-15ff81fa-00fd-4b8d-a1c8-fb73e2b48082.png`.
+- Far space: `exec-e26d5c00-94ac-4465-b8ad-3d4062ed6ea8.png`.
+- Approach: `exec-5dbbb2b0-aaed-49d4-8739-326053e5bb53.png`.
+- Wreck field: `exec-8a003ec0-0c3e-4a48-a60e-9cf0ed3ba64b.png`.
+- Gate: `exec-70331d21-b63f-4831-b0b6-395a7b7a42c0.png`.
+
+### Prompt direction
+
+Portrait 390:844 concept of an original 16-bit pixel-art orbital shipyard
+arcade shooter. Central 65% is a dark readable combat lane. Navy/slate
+industrial structures frame the edges, with cyan service lights and sparse
+amber beacons. Tiny enemies follow streaming S-shaped entrances. No large
+central planets, decorative lightning frame, realistic smooth 3D or copied
+game art. Preserve room for a fixed mobile HUD and visible player below.
+
+Production far-space edit: remove all ships, HUD, structures and bullets;
+retain only sparse stars and dim nebula, with quiet tile boundaries.
+
+Production overlays: separate approach, wreck field and gate images; real
+transparent background and empty central 65%; no ships, HUD or projectiles.
+Use low-contrast pixel clusters, industrial edge silhouettes, sparse light
+accents and generous transparent top/bottom margins. Different structures
+make the three Missions' environment beats recognizable without hiding fire.
+
+The generated strips did not fully obey the requested empty top/bottom
+margins; a few structures meet the tile edge. They are low-contrast background
+scenery, not collision surfaces. Vertical-loop seam polish remains an art
+refinement, not a reason to alter the combat model.
+
+### Fidelity decisions
+
+1. Keep the concept's dark center and bright combat contrast.
+2. Keep edge-framed industrial scale with three distinct landmark sets.
+3. Keep pixel texture sampling, restrained lighting and slow layer parallax.
+4. Keep actual existing player/enemy sprites and fixed HUD, deliberately not
+   the concept's invented fighter or mock UI.
+5. Give weapons readable independent energy pulses; do not bake concept
+   bullets, enemies or effects into the scenery.

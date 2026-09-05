@@ -2359,13 +2359,13 @@
     {
       "id": "operation-open-galaxy",
       "name": "ORBIT ENTRY",
-      "description": "Chart the first research lanes beyond the command network.",
+      "description": "Follow the incoming ribbons through Breakwater orbital traffic, bank around the wreck lanes, and secure a salvage corridor.",
       "order": 1,
-      "backgroundId": "open-orbit",
+      "backgroundId": "breakwater-approach",
       "musicId": "procedural-main",
       "startingDifficulty": 1,
       "scoreTarget": 0,
-      "durationSeconds": 43.1,
+      "durationSeconds": 62.1,
       "loopWaves": false,
       "availablePowerupIds": [
         "projectile-upgrade",
@@ -2447,10 +2447,10 @@
       "waves": [
         {
           "id": "operation-open-galaxy-wave-1",
-          "name": "INTERCEPT",
+          "name": "RIBBON ARRIVAL",
           "order": 1,
           "accent": "#67e8f9",
-          "backgroundId": "open-orbit",
+          "backgroundId": "breakwater-approach",
           "completionRule": "clear-after-duration",
           "difficultyMultiplier": 1,
           "durationSeconds": 9,
@@ -2461,21 +2461,21 @@
           "combatBudget": 24,
           "rhythm": "warm-up",
           "formationPackIds": [
-            "pack-orbit-v"
+            "pack-breakwater-s-snake"
           ],
           "events": [
             {
-              "id": "operation-open-galaxy-wave-1-primary",
+              "id": "operation-open-galaxy-wave-1-breakwater-1",
               "kind": "spawn",
-              "label": "Opening interceptors",
+              "label": "Breakwater Orbit Scout",
               "startSeconds": 0,
               "durationSeconds": 9,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
-              "count": 6,
-              "patternId": "v",
+              "count": 8,
+              "patternId": "snake",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.16,
+              "spawnIntervalSeconds": 0.18,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -2488,7 +2488,20 @@
                   "powerupDropChance": 0,
                   "roleId": "role-orbit-scout"
                 }
-              ]
+              ],
+              "formationBehavior": {
+                "entryPathId": "serpentine-weave",
+                "movementId": "lateral-sweep",
+                "attackId": "paired-dive",
+                "firingBehavior": "none",
+                "returnId": "reform",
+                "holdSeconds": 1,
+                "telegraphSeconds": 0.8,
+                "attackDurationSeconds": 1.4,
+                "recoverySeconds": 0.8,
+                "attackGroupSize": 2,
+                "attackCycles": 2
+              }
             },
             {
               "id": "operation-open-galaxy-wave-1-powerup",
@@ -2512,10 +2525,10 @@
         },
         {
           "id": "operation-open-galaxy-wave-2",
-          "name": "FORMATION LOCK",
+          "name": "TWIN INTERCEPT",
           "order": 2,
           "accent": "#67e8f9",
-          "backgroundId": "open-orbit",
+          "backgroundId": "breakwater-approach",
           "completionRule": "clear-after-duration",
           "difficultyMultiplier": 1.012,
           "durationSeconds": 9.5,
@@ -2526,19 +2539,20 @@
           "combatBudget": 150,
           "rhythm": "introduce",
           "formationPackIds": [
-            "pack-orbit-v"
+            "pack-breakwater-s-double-v",
+            "pack-breakwater-s-arc"
           ],
           "events": [
             {
-              "id": "operation-open-galaxy-wave-2-primary",
+              "id": "operation-open-galaxy-wave-2-breakwater-1",
               "kind": "spawn",
-              "label": "ORBIT BANK",
+              "label": "Breakwater Orbit Scout",
               "startSeconds": 0,
               "durationSeconds": 9.5,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
-              "count": 8,
-              "patternId": "v",
+              "count": 6,
+              "patternId": "double-v",
               "positionId": "formation-top",
               "spawnIntervalSeconds": 0.28,
               "enemies": [
@@ -2553,16 +2567,68 @@
                   "powerupDropChance": 0,
                   "roleId": "role-orbit-scout"
                 }
-              ]
+              ],
+              "formationBehavior": {
+                "entryPathId": "mirrored-swoop",
+                "movementId": "lateral-sweep",
+                "attackId": "pincer-pass",
+                "firingBehavior": "none",
+                "returnId": "reform",
+                "holdSeconds": 1.3,
+                "telegraphSeconds": 0.8,
+                "attackDurationSeconds": 1.4,
+                "recoverySeconds": 0.8,
+                "attackGroupSize": 2,
+                "attackCycles": 2
+              }
+            },
+            {
+              "id": "operation-open-galaxy-wave-2-breakwater-2",
+              "kind": "spawn",
+              "label": "Breakwater Orbit Scout",
+              "startSeconds": 3.6,
+              "durationSeconds": 5.9,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 4,
+              "patternId": "arc",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.28,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "LEGACY_ENEMY_DRONE_FRAMES",
+                  "weight": 1,
+                  "health": 2,
+                  "speed": 2.5,
+                  "damage": 1,
+                  "scoreValue": 10,
+                  "powerupDropChance": 0,
+                  "roleId": "role-orbit-scout"
+                }
+              ],
+              "formationBehavior": {
+                "entryPathId": "paired-flank",
+                "movementId": "lateral-sweep",
+                "attackId": "sweep-strafe",
+                "firingBehavior": "none",
+                "returnId": "reform",
+                "holdSeconds": 1.3,
+                "telegraphSeconds": 0.8,
+                "attackDurationSeconds": 1.4,
+                "recoverySeconds": 0.8,
+                "attackGroupSize": 2,
+                "attackCycles": 2
+              }
             }
           ]
         },
         {
           "id": "operation-open-galaxy-wave-3",
-          "name": "PRESSURE RUN",
+          "name": "SALVAGE LANE",
           "order": 3,
           "accent": "#67e8f9",
-          "backgroundId": "open-orbit",
+          "backgroundId": "breakwater-approach",
           "completionRule": "clear-after-duration",
           "difficultyMultiplier": 1.024,
           "durationSeconds": 10.5,
@@ -2572,20 +2638,22 @@
           "threatCap": 24,
           "combatBudget": 26,
           "rhythm": "variation",
-          "formationPackIds": [],
+          "formationPackIds": [
+            "pack-breakwater-s-crescent"
+          ],
           "events": [
             {
-              "id": "operation-open-galaxy-wave-3-primary",
+              "id": "operation-open-galaxy-wave-3-breakwater-1",
               "kind": "spawn",
-              "label": "Roaming interceptors",
+              "label": "Breakwater Orbit Scout",
               "startSeconds": 0,
               "durationSeconds": 10.5,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
-              "count": 2,
+              "count": 3,
               "patternId": "single-random",
               "positionId": "random-top",
-              "spawnIntervalSeconds": 0.78,
+              "spawnIntervalSeconds": 0.65,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -2596,75 +2664,22 @@
                   "damage": 1,
                   "scoreValue": 10,
                   "powerupDropChance": 0,
-                  "roleId": "role-orbit-scout",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
+                  "roleId": "role-orbit-scout"
                 }
               ]
             },
             {
-              "id": "operation-open-galaxy-wave-3-support",
+              "id": "operation-open-galaxy-wave-3-breakwater-2",
               "kind": "spawn",
-              "label": "Roaming interceptors",
+              "label": "Breakwater Orbit Scout",
               "startSeconds": 1.9,
               "durationSeconds": 8.6,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
-              "count": 3,
-              "patternId": "single-random",
-              "positionId": "random-top",
-              "spawnIntervalSeconds": 0.5780000000000001,
-              "enemies": [
-                {
-                  "enemyId": "drone",
-                  "spriteKey": "LEGACY_ENEMY_DRONE_FRAMES",
-                  "weight": 1,
-                  "health": 2,
-                  "speed": 2.5,
-                  "damage": 1,
-                  "scoreValue": 10,
-                  "powerupDropChance": 0,
-                  "roleId": "role-orbit-scout",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                }
-              ]
-            }
-          ]
-        },
-        {
-          "id": "operation-open-galaxy-wave-extra-1",
-          "name": "ORBIT ENTRY Surge 1",
-          "order": 4,
-          "accent": "#67e8f9",
-          "backgroundId": "open-orbit",
-          "completionRule": "clear-after-duration",
-          "difficultyMultiplier": 1.024,
-          "durationSeconds": 9,
-          "introSeconds": 0,
-          "delayAfterSeconds": 0,
-          "scoreMultiplier": 1,
-          "threatCap": 24,
-          "combatBudget": 27,
-          "rhythm": "variation",
-          "formationPackIds": [
-            "pack-orbit-v"
-          ],
-          "events": [
-            {
-              "id": "operation-open-galaxy-wave-extra-1-e0",
-              "kind": "spawn",
-              "label": "Orbit V block",
-              "startSeconds": 0,
-              "durationSeconds": 6.5,
-              "delayAfterSeconds": 0,
-              "blocksWaveClock": false,
               "count": 6,
-              "patternId": "v",
+              "patternId": "crescent",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.16,
+              "spawnIntervalSeconds": 0.18,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -2677,161 +2692,20 @@
                   "powerupDropChance": 0,
                   "roleId": "role-orbit-scout"
                 }
-              ]
-            }
-          ]
-        },
-        {
-          "id": "operation-open-galaxy-wave-extra-2",
-          "name": "ORBIT ENTRY Surge 2",
-          "order": 5,
-          "accent": "#67e8f9",
-          "backgroundId": "open-orbit",
-          "completionRule": "clear-after-duration",
-          "difficultyMultiplier": 1.024,
-          "durationSeconds": 9,
-          "introSeconds": 0,
-          "delayAfterSeconds": 0,
-          "scoreMultiplier": 1,
-          "threatCap": 24,
-          "combatBudget": 27,
-          "rhythm": "variation",
-          "formationPackIds": [
-            "pack-orbit-v"
-          ],
-          "events": [
-            {
-              "id": "operation-open-galaxy-wave-extra-2-e0",
-              "kind": "spawn",
-              "label": "Orbit V block",
-              "startSeconds": 0,
-              "durationSeconds": 6.5,
-              "delayAfterSeconds": 0,
-              "blocksWaveClock": false,
-              "count": 7,
-              "patternId": "v",
-              "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.16,
-              "enemies": [
-                {
-                  "enemyId": "drone",
-                  "spriteKey": "LEGACY_ENEMY_DRONE_FRAMES",
-                  "weight": 1,
-                  "health": 2,
-                  "speed": 2.5,
-                  "damage": 1,
-                  "scoreValue": 10,
-                  "powerupDropChance": 0,
-                  "roleId": "role-orbit-scout"
-                }
-              ]
-            }
-          ]
-        },
-        {
-          "id": "operation-open-galaxy-wave-5",
-          "name": "CLIMAX",
-          "order": 6,
-          "accent": "#67e8f9",
-          "backgroundId": "open-orbit",
-          "completionRule": "clear-after-duration",
-          "difficultyMultiplier": 1.048,
-          "durationSeconds": 11.5,
-          "introSeconds": 0.2,
-          "delayAfterSeconds": 1,
-          "scoreMultiplier": 1,
-          "threatCap": 26,
-          "combatBudget": 125,
-          "rhythm": "peak",
-          "formationPackIds": [
-            "pack-orbit-v"
-          ],
-          "events": [
-            {
-              "id": "operation-open-galaxy-wave-4-drifters",
-              "kind": "spawn",
-              "label": "Loose interceptors",
-              "startSeconds": 0,
-              "durationSeconds": 11.5,
-              "delayAfterSeconds": 0,
-              "blocksWaveClock": false,
-              "count": 3,
-              "patternId": "single-random",
-              "positionId": "random-top",
-              "spawnIntervalSeconds": 0.78,
-              "enemies": [
-                {
-                  "enemyId": "drone",
-                  "spriteKey": "LEGACY_ENEMY_DRONE_FRAMES",
-                  "weight": 1,
-                  "health": 2,
-                  "speed": 2.5,
-                  "damage": 1,
-                  "scoreValue": 10,
-                  "powerupDropChance": 0,
-                  "roleId": "role-orbit-scout",
-                  "rank": "standard",
-                  "sizeMultiplier": 1
-                }
-              ]
-            },
-            {
-              "id": "operation-open-galaxy-wave-5-primary",
-              "kind": "spawn",
-              "label": "Phase 2 - Heavy formation",
-              "startSeconds": 1.9,
-              "durationSeconds": 9.6,
-              "delayAfterSeconds": 0,
-              "blocksWaveClock": false,
-              "count": 4,
-              "patternId": "grid",
-              "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.16,
-              "enemies": [
-                {
-                  "enemyId": "drone",
-                  "spriteKey": "LEGACY_ENEMY_DRONE_FRAMES",
-                  "weight": 1,
-                  "health": 2,
-                  "speed": 2.5,
-                  "damage": 1,
-                  "scoreValue": 10,
-                  "powerupDropChance": 0,
-                  "roleId": "role-orbit-scout",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                }
-              ]
-            },
-            {
-              "id": "operation-open-galaxy-wave-5-support",
-              "kind": "spawn",
-              "label": "Roaming interceptors",
-              "startSeconds": 4,
-              "durationSeconds": 7.5,
-              "delayAfterSeconds": 0,
-              "blocksWaveClock": false,
-              "count": 2,
-              "patternId": "single-random",
-              "positionId": "random-top",
-              "spawnIntervalSeconds": 0.78,
-              "enemies": [
-                {
-                  "enemyId": "drone",
-                  "spriteKey": "LEGACY_ENEMY_DRONE_FRAMES",
-                  "weight": 1,
-                  "health": 2,
-                  "speed": 2.5,
-                  "damage": 1,
-                  "scoreValue": 10,
-                  "powerupDropChance": 0,
-                  "roleId": "role-orbit-scout",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                }
-              ]
+              ],
+              "formationBehavior": {
+                "entryPathId": "paired-flank",
+                "movementId": "lateral-sweep",
+                "attackId": "sweep-strafe",
+                "firingBehavior": "none",
+                "returnId": "reform",
+                "holdSeconds": 1,
+                "telegraphSeconds": 0.8,
+                "attackDurationSeconds": 1.4,
+                "recoverySeconds": 0.8,
+                "attackGroupSize": 2,
+                "attackCycles": 2
+              }
             },
             {
               "id": "operation-open-galaxy-wave-4-recovery",
@@ -2848,19 +2722,305 @@
               ]
             }
           ]
+        },
+        {
+          "id": "operation-open-galaxy-wave-extra-1",
+          "name": "CROSSING RIBBONS",
+          "order": 4,
+          "accent": "#67e8f9",
+          "backgroundId": "breakwater-approach",
+          "completionRule": "clear-after-duration",
+          "difficultyMultiplier": 1.024,
+          "durationSeconds": 9,
+          "introSeconds": 0,
+          "delayAfterSeconds": 0,
+          "scoreMultiplier": 1,
+          "threatCap": 24,
+          "combatBudget": 27,
+          "rhythm": "variation",
+          "formationPackIds": [
+            "pack-breakwater-s-snake",
+            "pack-breakwater-s-arc"
+          ],
+          "events": [
+            {
+              "id": "operation-open-galaxy-wave-extra-1-breakwater-1",
+              "kind": "spawn",
+              "label": "Breakwater Orbit Scout",
+              "startSeconds": 0,
+              "durationSeconds": 9,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 6,
+              "patternId": "snake",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.18,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "LEGACY_ENEMY_DRONE_FRAMES",
+                  "weight": 1,
+                  "health": 2,
+                  "speed": 2.5,
+                  "damage": 1,
+                  "scoreValue": 10,
+                  "powerupDropChance": 0,
+                  "roleId": "role-orbit-scout"
+                }
+              ],
+              "formationBehavior": {
+                "entryPathId": "serpentine-weave",
+                "movementId": "lateral-sweep",
+                "attackId": "paired-dive",
+                "firingBehavior": "none",
+                "returnId": "reform",
+                "holdSeconds": 1,
+                "telegraphSeconds": 0.8,
+                "attackDurationSeconds": 1.4,
+                "recoverySeconds": 0.8,
+                "attackGroupSize": 2,
+                "attackCycles": 2
+              }
+            },
+            {
+              "id": "operation-open-galaxy-wave-extra-1-breakwater-2",
+              "kind": "spawn",
+              "label": "Breakwater Orbit Scout",
+              "startSeconds": 3,
+              "durationSeconds": 6,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 6,
+              "patternId": "arc",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.18,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "LEGACY_ENEMY_DRONE_FRAMES",
+                  "weight": 1,
+                  "health": 2,
+                  "speed": 2.5,
+                  "damage": 1,
+                  "scoreValue": 10,
+                  "powerupDropChance": 0,
+                  "roleId": "role-orbit-scout"
+                }
+              ],
+              "formationBehavior": {
+                "entryPathId": "paired-flank",
+                "movementId": "lateral-sweep",
+                "attackId": "sweep-strafe",
+                "firingBehavior": "none",
+                "returnId": "reform",
+                "holdSeconds": 1,
+                "telegraphSeconds": 0.8,
+                "attackDurationSeconds": 1.4,
+                "recoverySeconds": 0.8,
+                "attackGroupSize": 2,
+                "attackCycles": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "operation-open-galaxy-wave-extra-2",
+          "name": "ORBIT CAROUSEL",
+          "order": 5,
+          "accent": "#67e8f9",
+          "backgroundId": "breakwater-approach",
+          "completionRule": "clear-after-duration",
+          "difficultyMultiplier": 1.024,
+          "durationSeconds": 10,
+          "introSeconds": 0,
+          "delayAfterSeconds": 0,
+          "scoreMultiplier": 1,
+          "threatCap": 24,
+          "combatBudget": 27,
+          "rhythm": "variation",
+          "formationPackIds": [
+            "pack-breakwater-s-ring"
+          ],
+          "events": [
+            {
+              "id": "operation-open-galaxy-wave-extra-2-breakwater-1",
+              "kind": "spawn",
+              "label": "Breakwater Orbit Scout",
+              "startSeconds": 0,
+              "durationSeconds": 10,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 12,
+              "patternId": "ring",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.18,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "LEGACY_ENEMY_DRONE_FRAMES",
+                  "weight": 1,
+                  "health": 2,
+                  "speed": 2.5,
+                  "damage": 1,
+                  "scoreValue": 10,
+                  "powerupDropChance": 0,
+                  "roleId": "role-orbit-scout"
+                }
+              ],
+              "formationBehavior": {
+                "entryPathId": "ring-assemble",
+                "movementId": "rotating-wheel",
+                "attackId": "ring-collapse",
+                "firingBehavior": "none",
+                "returnId": "reform",
+                "holdSeconds": 1,
+                "telegraphSeconds": 0.8,
+                "attackDurationSeconds": 1.4,
+                "recoverySeconds": 0.8,
+                "attackGroupSize": 3,
+                "attackCycles": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "operation-open-galaxy-wave-5",
+          "name": "BREAKWATER CLEARANCE",
+          "order": 6,
+          "accent": "#67e8f9",
+          "backgroundId": "breakwater-approach",
+          "completionRule": "clear-after-duration",
+          "difficultyMultiplier": 1.048,
+          "durationSeconds": 11.5,
+          "introSeconds": 0.2,
+          "delayAfterSeconds": 1,
+          "scoreMultiplier": 1,
+          "threatCap": 26,
+          "combatBudget": 125,
+          "rhythm": "peak",
+          "formationPackIds": [
+            "pack-breakwater-s-v",
+            "pack-breakwater-s-crescent"
+          ],
+          "events": [
+            {
+              "id": "operation-open-galaxy-wave-5-breakwater-1",
+              "kind": "spawn",
+              "label": "Breakwater Orbit Scout",
+              "startSeconds": 0,
+              "durationSeconds": 11.5,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 3,
+              "patternId": "single-random",
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 0.65,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "LEGACY_ENEMY_DRONE_FRAMES",
+                  "weight": 1,
+                  "health": 2,
+                  "speed": 2.5,
+                  "damage": 1,
+                  "scoreValue": 10,
+                  "powerupDropChance": 0,
+                  "roleId": "role-orbit-scout"
+                }
+              ]
+            },
+            {
+              "id": "operation-open-galaxy-wave-5-breakwater-2",
+              "kind": "spawn",
+              "label": "Breakwater Orbit Scout",
+              "startSeconds": 1.9,
+              "durationSeconds": 9.6,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 6,
+              "patternId": "v",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.18,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "LEGACY_ENEMY_DRONE_FRAMES",
+                  "weight": 1,
+                  "health": 2,
+                  "speed": 2.5,
+                  "damage": 1,
+                  "scoreValue": 10,
+                  "powerupDropChance": 0,
+                  "roleId": "role-orbit-scout"
+                }
+              ],
+              "formationBehavior": {
+                "entryPathId": "paired-flank",
+                "movementId": "lateral-sweep",
+                "attackId": "lane-pass",
+                "firingBehavior": "none",
+                "returnId": "reform",
+                "holdSeconds": 1,
+                "telegraphSeconds": 0.8,
+                "attackDurationSeconds": 1.4,
+                "recoverySeconds": 0.8,
+                "attackGroupSize": 2,
+                "attackCycles": 2
+              }
+            },
+            {
+              "id": "operation-open-galaxy-wave-5-breakwater-3",
+              "kind": "spawn",
+              "label": "Breakwater Orbit Scout",
+              "startSeconds": 4,
+              "durationSeconds": 7.5,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 4,
+              "patternId": "crescent",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.18,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "LEGACY_ENEMY_DRONE_FRAMES",
+                  "weight": 1,
+                  "health": 2,
+                  "speed": 2.5,
+                  "damage": 1,
+                  "scoreValue": 10,
+                  "powerupDropChance": 0,
+                  "roleId": "role-orbit-scout"
+                }
+              ],
+              "formationBehavior": {
+                "entryPathId": "paired-flank",
+                "movementId": "lateral-sweep",
+                "attackId": "sweep-strafe",
+                "firingBehavior": "none",
+                "returnId": "reform",
+                "holdSeconds": 1,
+                "telegraphSeconds": 0.8,
+                "attackDurationSeconds": 1.4,
+                "recoverySeconds": 0.8,
+                "attackGroupSize": 2,
+                "attackCycles": 2
+              }
+            }
+          ]
         }
       ]
     },
     {
       "id": "stage-citation-storm",
       "name": "CITATION CROSSING",
-      "description": "Read the shifting signal before the formation closes.",
+      "description": "Cross the shipyard debris belt. Separate swarm streams from armed wings, then break the rotating relay formation.",
       "order": 2,
-      "backgroundId": "citation-storm",
+      "backgroundId": "breakwater-wreckfield",
       "musicId": "procedural-main",
       "startingDifficulty": 1.012,
       "scoreTarget": 0,
-      "durationSeconds": 43.1,
+      "durationSeconds": 70.1,
       "loopWaves": false,
       "availablePowerupIds": [
         "projectile-upgrade",
@@ -2942,10 +3102,10 @@
       "waves": [
         {
           "id": "stage-citation-storm-wave-1",
-          "name": "INTERCEPT",
+          "name": "DEEP TRAFFIC",
           "order": 1,
           "accent": "#c4b5fd",
-          "backgroundId": "citation-storm",
+          "backgroundId": "breakwater-wreckfield",
           "completionRule": "clear-after-duration",
           "difficultyMultiplier": 1,
           "durationSeconds": 9,
@@ -2955,44 +3115,49 @@
           "threatCap": 22,
           "combatBudget": 20,
           "rhythm": "warm-up",
-          "formationPackIds": [],
+          "formationPackIds": [
+            "pack-breakwater-w-snake",
+            "pack-breakwater-r-grid"
+          ],
           "events": [
             {
-              "id": "stage-citation-storm-wave-1-primary",
+              "id": "stage-citation-storm-wave-1-breakwater-1",
               "kind": "spawn",
-              "label": "Opening interceptors",
+              "label": "Breakwater Citation Swarm",
               "startSeconds": 0,
               "durationSeconds": 9,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
-              "count": 5,
-              "patternId": "single-random",
-              "positionId": "random-top",
-              "spawnIntervalSeconds": 0.42,
+              "count": 6,
+              "patternId": "snake",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.18,
               "enemies": [
-                {
-                  "enemyId": "drone",
-                  "spriteKey": "LEGACY_ENEMY_DRONE_FRAMES",
-                  "weight": 0.7,
-                  "health": 2,
-                  "speed": 3.05,
-                  "damage": 1,
-                  "scoreValue": 20,
-                  "powerupDropChance": 0,
-                  "roleId": "role-orbit-scout"
-                },
                 {
                   "enemyId": "swarm",
                   "spriteKey": "ENEMY_SWARM_FRAMES",
-                  "weight": 0.3,
+                  "weight": 1,
                   "health": 1.68,
-                  "speed": 3.45,
+                  "speed": 2.8,
                   "damage": 1,
                   "scoreValue": 24,
                   "powerupDropChance": 0,
                   "roleId": "role-citation-swarm"
                 }
-              ]
+              ],
+              "formationBehavior": {
+                "entryPathId": "serpentine-weave",
+                "movementId": "lateral-sweep",
+                "attackId": "paired-dive",
+                "firingBehavior": "none",
+                "returnId": "reform",
+                "holdSeconds": 1,
+                "telegraphSeconds": 0.8,
+                "attackDurationSeconds": 1.4,
+                "recoverySeconds": 0.8,
+                "attackGroupSize": 2,
+                "attackCycles": 2
+              }
             },
             {
               "id": "stage-citation-storm-wave-1-powerup",
@@ -3011,15 +3176,57 @@
                 "shield",
                 "research-beam"
               ]
+            },
+            {
+              "id": "stage-citation-storm-wave-1-breakwater-2",
+              "kind": "spawn",
+              "label": "Breakwater Research Drone",
+              "startSeconds": 3,
+              "durationSeconds": 6,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 4,
+              "patternId": "grid",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.18,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "weight": 1,
+                  "health": 3.36,
+                  "speed": 2.6,
+                  "damage": 1,
+                  "scoreValue": 24,
+                  "powerupDropChance": 0,
+                  "roleId": "role-research-drone",
+                  "attackIntervalSeconds": 3.1,
+                  "projectileSpeed": 3.5,
+                  "burstCount": 1
+                }
+              ],
+              "formationBehavior": {
+                "entryPathId": "formation-drop",
+                "movementId": "gentle-drift",
+                "attackId": "lane-pass",
+                "firingBehavior": "post-formation",
+                "returnId": "reform",
+                "holdSeconds": 1,
+                "telegraphSeconds": 0.8,
+                "attackDurationSeconds": 1.4,
+                "recoverySeconds": 0.8,
+                "attackGroupSize": 2,
+                "attackCycles": 2
+              }
             }
           ]
         },
         {
           "id": "stage-citation-storm-wave-2",
-          "name": "FORMATION LOCK",
+          "name": "MIRRORED CROSSFIRE",
           "order": 2,
           "accent": "#c4b5fd",
-          "backgroundId": "citation-storm",
+          "backgroundId": "breakwater-wreckfield",
           "completionRule": "clear-after-duration",
           "difficultyMultiplier": 1.012,
           "durationSeconds": 9.5,
@@ -3030,70 +3237,99 @@
           "combatBudget": 120,
           "rhythm": "introduce",
           "formationPackIds": [
-            "pack-citation-spiral"
+            "pack-breakwater-r-double-v",
+            "pack-breakwater-w-arc"
           ],
           "events": [
             {
-              "id": "stage-citation-storm-wave-2-primary",
+              "id": "stage-citation-storm-wave-2-breakwater-1",
               "kind": "spawn",
-              "label": "CITATION SPIRAL",
+              "label": "Breakwater Research Drone",
               "startSeconds": 0,
               "durationSeconds": 9.5,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
               "count": 8,
-              "patternId": "spiral",
+              "patternId": "double-v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.40800000000000003,
-              "formationBehavior": {
-                "entryPathId": "spiral-entry",
-                "movementId": "rotating-wheel",
-                "attackId": "ring-collapse",
-                "firingBehavior": "staggered",
-                "returnId": "transform",
-                "holdSeconds": 1.5,
-                "telegraphSeconds": 0.75,
-                "attackDurationSeconds": 1.4,
-                "recoverySeconds": 1.2,
-                "attackGroupSize": 3,
-                "attackCycles": 3
-              },
+              "spawnIntervalSeconds": 0.28,
               "enemies": [
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "ENEMY_SWARM_FRAMES",
-                  "weight": 0.58,
-                  "health": 3.36,
-                  "speed": 3.05,
-                  "damage": 1,
-                  "scoreValue": 20,
-                  "powerupDropChance": 0,
-                  "roleId": "role-citation-swarm"
-                },
                 {
                   "enemyId": "drone",
                   "spriteKey": "ENEMY_DRONE_FRAMES",
-                  "weight": 0.42,
-                  "health": 1.68,
-                  "speed": 3.45,
+                  "weight": 1,
+                  "health": 3.36,
+                  "speed": 2.6,
                   "damage": 1,
                   "scoreValue": 24,
                   "powerupDropChance": 0,
                   "roleId": "role-research-drone",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
+                  "attackIntervalSeconds": 3.1,
+                  "projectileSpeed": 3.5,
                   "burstCount": 1
                 }
-              ]
+              ],
+              "formationBehavior": {
+                "entryPathId": "mirrored-swoop",
+                "movementId": "lateral-sweep",
+                "attackId": "pincer-pass",
+                "firingBehavior": "post-formation",
+                "returnId": "reform",
+                "holdSeconds": 1.3,
+                "telegraphSeconds": 0.8,
+                "attackDurationSeconds": 1.4,
+                "recoverySeconds": 0.8,
+                "attackGroupSize": 2,
+                "attackCycles": 2
+              }
+            },
+            {
+              "id": "stage-citation-storm-wave-2-breakwater-2",
+              "kind": "spawn",
+              "label": "Breakwater Citation Swarm",
+              "startSeconds": 3.4,
+              "durationSeconds": 6.1,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 4,
+              "patternId": "arc",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.28,
+              "enemies": [
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "weight": 1,
+                  "health": 1.68,
+                  "speed": 2.8,
+                  "damage": 1,
+                  "scoreValue": 24,
+                  "powerupDropChance": 0,
+                  "roleId": "role-citation-swarm"
+                }
+              ],
+              "formationBehavior": {
+                "entryPathId": "paired-flank",
+                "movementId": "lateral-sweep",
+                "attackId": "sweep-strafe",
+                "firingBehavior": "none",
+                "returnId": "reform",
+                "holdSeconds": 1.3,
+                "telegraphSeconds": 0.8,
+                "attackDurationSeconds": 1.4,
+                "recoverySeconds": 0.8,
+                "attackGroupSize": 2,
+                "attackCycles": 2
+              }
             }
           ]
         },
         {
           "id": "stage-citation-storm-wave-3",
-          "name": "PRESSURE RUN",
+          "name": "SALVAGE RUN",
           "order": 3,
           "accent": "#c4b5fd",
-          "backgroundId": "citation-storm",
+          "backgroundId": "breakwater-wreckfield",
           "completionRule": "clear-after-duration",
           "difficultyMultiplier": 1.024,
           "durationSeconds": 10.5,
@@ -3104,556 +3340,76 @@
           "combatBudget": 262.08,
           "rhythm": "variation",
           "formationPackIds": [
-            "pack-citation-spiral"
+            "pack-breakwater-r-diamond"
           ],
           "events": [
             {
-              "id": "stage-citation-storm-wave-3-primary",
+              "id": "stage-citation-storm-wave-3-breakwater-1",
               "kind": "spawn",
-              "label": "Roaming interceptors",
+              "label": "Breakwater Orbit Scout",
               "startSeconds": 0,
               "durationSeconds": 10.5,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
-              "count": 2,
-              "patternId": "single-random",
-              "positionId": "random-top",
-              "spawnIntervalSeconds": 0.78,
-              "enemies": [
-                {
-                  "enemyId": "drone",
-                  "spriteKey": "ENEMY_DRONE_FRAMES",
-                  "weight": 0.7,
-                  "health": 3.36,
-                  "speed": 3.05,
-                  "damage": 1,
-                  "scoreValue": 20,
-                  "powerupDropChance": 0,
-                  "roleId": "role-research-drone",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "ENEMY_SWARM_FRAMES",
-                  "weight": 0.3,
-                  "health": 1.68,
-                  "speed": 3.45,
-                  "damage": 1,
-                  "scoreValue": 24,
-                  "powerupDropChance": 0,
-                  "roleId": "role-citation-swarm"
-                }
-              ]
-            },
-            {
-              "id": "stage-citation-storm-wave-3-support",
-              "kind": "spawn",
-              "label": "Citation hunter cell",
-              "startSeconds": 1.9,
-              "durationSeconds": 8.6,
-              "delayAfterSeconds": 0,
-              "blocksWaveClock": false,
-              "count": 4,
-              "patternId": "diamond",
-              "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.54,
-              "enemies": [
-                {
-                  "enemyId": "drone",
-                  "spriteKey": "ENEMY_DRONE_FRAMES",
-                  "weight": 0.58,
-                  "health": 2,
-                  "speed": 2.2,
-                  "damage": 1,
-                  "scoreValue": 32,
-                  "powerupDropChance": 0.02,
-                  "attackPatternId": "aimed-burst",
-                  "attackIntervalSeconds": 3.15,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1,
-                  "roleId": "role-research-drone"
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "ENEMY_SWARM_FRAMES",
-                  "weight": 0.42,
-                  "health": 2,
-                  "speed": 2.2,
-                  "damage": 1,
-                  "scoreValue": 32,
-                  "powerupDropChance": 0.02,
-                  "roleId": "role-citation-swarm"
-                }
-              ]
-            },
-            {
-              "id": "stage-citation-storm-wave-4-primary",
-              "kind": "spawn",
-              "label": "Citation hunter cell",
-              "startSeconds": 4,
-              "durationSeconds": 6.5,
-              "delayAfterSeconds": 0,
-              "blocksWaveClock": false,
-              "count": 4,
-              "patternId": "diamond",
-              "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.54,
-              "enemies": [
-                {
-                  "enemyId": "drone",
-                  "spriteKey": "ENEMY_DRONE_FRAMES",
-                  "weight": 0.58,
-                  "health": 2,
-                  "speed": 2.2,
-                  "damage": 1,
-                  "scoreValue": 32,
-                  "powerupDropChance": 0.02,
-                  "attackPatternId": "aimed-burst",
-                  "attackIntervalSeconds": 3.15,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1,
-                  "roleId": "role-research-drone"
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "ENEMY_SWARM_FRAMES",
-                  "weight": 0.42,
-                  "health": 2,
-                  "speed": 2.2,
-                  "damage": 1,
-                  "scoreValue": 32,
-                  "powerupDropChance": 0.02,
-                  "roleId": "role-citation-swarm"
-                }
-              ]
-            },
-            {
-              "id": "stage-citation-storm-wave-4-support",
-              "kind": "spawn",
-              "label": "Roaming interceptors",
-              "startSeconds": 6,
-              "durationSeconds": 4.5,
-              "delayAfterSeconds": 0,
-              "blocksWaveClock": false,
               "count": 3,
               "patternId": "single-random",
               "positionId": "random-top",
-              "spawnIntervalSeconds": 0.5780000000000001,
-              "enemies": [
-                {
-                  "enemyId": "drone",
-                  "spriteKey": "ENEMY_DRONE_FRAMES",
-                  "weight": 0.7143,
-                  "health": 3.36,
-                  "speed": 3.05,
-                  "damage": 1,
-                  "scoreValue": 20,
-                  "powerupDropChance": 0,
-                  "roleId": "role-research-drone",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "ENEMY_SWARM_FRAMES",
-                  "weight": 0.2857,
-                  "health": 1.68,
-                  "speed": 3.45,
-                  "damage": 1,
-                  "scoreValue": 24,
-                  "powerupDropChance": 0,
-                  "roleId": "role-citation-swarm"
-                }
-              ]
-            }
-          ]
-        },
-        {
-          "id": "stage-citation-storm-wave-extra-1",
-          "name": "CITATION CROSSING Surge 1",
-          "order": 4,
-          "accent": "#c4b5fd",
-          "backgroundId": "citation-storm",
-          "completionRule": "clear-after-duration",
-          "difficultyMultiplier": 1.024,
-          "durationSeconds": 9,
-          "introSeconds": 0,
-          "delayAfterSeconds": 0,
-          "scoreMultiplier": 2,
-          "threatCap": 25,
-          "combatBudget": 263.08,
-          "rhythm": "variation",
-          "formationPackIds": [
-            "pack-citation-spiral",
-            "pack-orbit-grid"
-          ],
-          "events": [
-            {
-              "id": "stage-citation-storm-wave-extra-1-e0",
-              "kind": "spawn",
-              "label": "Citation Spiral block",
-              "startSeconds": 0,
-              "durationSeconds": 6.5,
-              "delayAfterSeconds": 0,
-              "blocksWaveClock": false,
-              "count": 6,
-              "patternId": "spiral",
-              "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
-              "enemies": [
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "ENEMY_SWARM_FRAMES",
-                  "weight": 0.5,
-                  "health": 1.68,
-                  "speed": 3.45,
-                  "damage": 1,
-                  "scoreValue": 24,
-                  "powerupDropChance": 0,
-                  "roleId": "role-citation-swarm"
-                },
-                {
-                  "enemyId": "drone",
-                  "spriteKey": "ENEMY_DRONE_FRAMES",
-                  "weight": 0.5,
-                  "health": 1.68,
-                  "speed": 3.45,
-                  "damage": 1,
-                  "scoreValue": 24,
-                  "powerupDropChance": 0,
-                  "roleId": "role-research-drone"
-                }
-              ]
-            },
-            {
-              "id": "stage-citation-storm-wave-extra-1-e1",
-              "kind": "spawn",
-              "label": "Orbit Grid block",
-              "startSeconds": 2.2,
-              "durationSeconds": 6.6,
-              "delayAfterSeconds": 0,
-              "blocksWaveClock": false,
-              "count": 6,
-              "patternId": "grid",
-              "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
-              "enemies": [
-                {
-                  "enemyId": "drone",
-                  "spriteKey": "ENEMY_DRONE_FRAMES",
-                  "weight": 1,
-                  "health": 1.68,
-                  "speed": 3.45,
-                  "damage": 1,
-                  "scoreValue": 24,
-                  "powerupDropChance": 0,
-                  "roleId": "role-research-drone"
-                }
-              ]
-            }
-          ]
-        },
-        {
-          "id": "stage-citation-storm-wave-extra-2",
-          "name": "CITATION CROSSING Surge 2",
-          "order": 5,
-          "accent": "#c4b5fd",
-          "backgroundId": "citation-storm",
-          "completionRule": "clear-after-duration",
-          "difficultyMultiplier": 1.024,
-          "durationSeconds": 9,
-          "introSeconds": 0,
-          "delayAfterSeconds": 0,
-          "scoreMultiplier": 2,
-          "threatCap": 25,
-          "combatBudget": 263.08,
-          "rhythm": "variation",
-          "formationPackIds": [
-            "pack-orbit-grid",
-            "pack-citation-spiral"
-          ],
-          "events": [
-            {
-              "id": "stage-citation-storm-wave-extra-2-e0",
-              "kind": "spawn",
-              "label": "Orbit Grid block",
-              "startSeconds": 0,
-              "durationSeconds": 6.5,
-              "delayAfterSeconds": 0,
-              "blocksWaveClock": false,
-              "count": 7,
-              "patternId": "grid",
-              "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
-              "enemies": [
-                {
-                  "enemyId": "drone",
-                  "spriteKey": "ENEMY_DRONE_FRAMES",
-                  "weight": 1,
-                  "health": 1.68,
-                  "speed": 3.45,
-                  "damage": 1,
-                  "scoreValue": 24,
-                  "powerupDropChance": 0,
-                  "roleId": "role-research-drone"
-                }
-              ]
-            },
-            {
-              "id": "stage-citation-storm-wave-extra-2-e1",
-              "kind": "spawn",
-              "label": "Citation Spiral block",
-              "startSeconds": 2.2,
-              "durationSeconds": 6.6,
-              "delayAfterSeconds": 0,
-              "blocksWaveClock": false,
-              "count": 7,
-              "patternId": "spiral",
-              "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
-              "enemies": [
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "ENEMY_SWARM_FRAMES",
-                  "weight": 0.5,
-                  "health": 1.68,
-                  "speed": 3.45,
-                  "damage": 1,
-                  "scoreValue": 24,
-                  "powerupDropChance": 0,
-                  "roleId": "role-citation-swarm"
-                },
-                {
-                  "enemyId": "drone",
-                  "spriteKey": "ENEMY_DRONE_FRAMES",
-                  "weight": 0.5,
-                  "health": 1.68,
-                  "speed": 3.45,
-                  "damage": 1,
-                  "scoreValue": 24,
-                  "powerupDropChance": 0,
-                  "roleId": "role-research-drone"
-                }
-              ]
-            }
-          ]
-        },
-        {
-          "id": "stage-citation-storm-wave-extra-3",
-          "name": "CITATION CROSSING Surge 3",
-          "order": 6,
-          "accent": "#c4b5fd",
-          "backgroundId": "citation-storm",
-          "completionRule": "clear-after-duration",
-          "difficultyMultiplier": 1.024,
-          "durationSeconds": 9,
-          "introSeconds": 0,
-          "delayAfterSeconds": 0,
-          "scoreMultiplier": 2,
-          "threatCap": 25,
-          "combatBudget": 263.08,
-          "rhythm": "variation",
-          "formationPackIds": [
-            "pack-citation-spiral",
-            "pack-orbit-grid"
-          ],
-          "events": [
-            {
-              "id": "stage-citation-storm-wave-extra-3-e0",
-              "kind": "spawn",
-              "label": "Citation Spiral block",
-              "startSeconds": 0,
-              "durationSeconds": 6.5,
-              "delayAfterSeconds": 0,
-              "blocksWaveClock": false,
-              "count": 8,
-              "patternId": "spiral",
-              "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
-              "enemies": [
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "ENEMY_SWARM_FRAMES",
-                  "weight": 0.5,
-                  "health": 1.68,
-                  "speed": 3.45,
-                  "damage": 1,
-                  "scoreValue": 24,
-                  "powerupDropChance": 0,
-                  "roleId": "role-citation-swarm"
-                },
-                {
-                  "enemyId": "drone",
-                  "spriteKey": "ENEMY_DRONE_FRAMES",
-                  "weight": 0.5,
-                  "health": 1.68,
-                  "speed": 3.45,
-                  "damage": 1,
-                  "scoreValue": 24,
-                  "powerupDropChance": 0,
-                  "roleId": "role-research-drone"
-                }
-              ]
-            },
-            {
-              "id": "stage-citation-storm-wave-extra-3-e1",
-              "kind": "spawn",
-              "label": "Orbit Grid block",
-              "startSeconds": 2.2,
-              "durationSeconds": 6.6,
-              "delayAfterSeconds": 0,
-              "blocksWaveClock": false,
-              "count": 8,
-              "patternId": "grid",
-              "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.24,
-              "enemies": [
-                {
-                  "enemyId": "drone",
-                  "spriteKey": "ENEMY_DRONE_FRAMES",
-                  "weight": 1,
-                  "health": 1.68,
-                  "speed": 3.45,
-                  "damage": 1,
-                  "scoreValue": 24,
-                  "powerupDropChance": 0,
-                  "roleId": "role-research-drone"
-                }
-              ]
-            }
-          ]
-        },
-        {
-          "id": "stage-citation-storm-wave-6",
-          "name": "CLIMAX",
-          "order": 7,
-          "accent": "#c4b5fd",
-          "backgroundId": "citation-storm",
-          "completionRule": "clear-after-duration",
-          "difficultyMultiplier": 1.06,
-          "durationSeconds": 11.5,
-          "introSeconds": 0.2,
-          "delayAfterSeconds": 1,
-          "scoreMultiplier": 2,
-          "threatCap": 27,
-          "combatBudget": 128,
-          "rhythm": "peak",
-          "formationPackIds": [
-            "pack-orbit-grid"
-          ],
-          "events": [
-            {
-              "id": "stage-citation-storm-wave-5-drifters",
-              "kind": "spawn",
-              "label": "Loose interceptors",
-              "startSeconds": 0,
-              "durationSeconds": 11.5,
-              "delayAfterSeconds": 0,
-              "blocksWaveClock": false,
-              "count": 3,
-              "patternId": "single-random",
-              "positionId": "random-top",
-              "spawnIntervalSeconds": 0.78,
+              "spawnIntervalSeconds": 0.65,
               "enemies": [
                 {
                   "enemyId": "drone",
                   "spriteKey": "LEGACY_ENEMY_DRONE_FRAMES",
                   "weight": 1,
                   "health": 2,
-                  "speed": 3.05,
+                  "speed": 2.5,
                   "damage": 1,
-                  "scoreValue": 20,
+                  "scoreValue": 10,
                   "powerupDropChance": 0,
-                  "roleId": "role-orbit-scout",
-                  "rank": "standard",
-                  "sizeMultiplier": 1
+                  "roleId": "role-orbit-scout"
                 }
               ]
             },
             {
-              "id": "stage-citation-storm-wave-6-primary",
+              "id": "stage-citation-storm-wave-3-breakwater-2",
               "kind": "spawn",
-              "label": "Phase 2 - Citation pressure",
-              "startSeconds": 1.8,
-              "durationSeconds": 9.6,
+              "label": "Breakwater Research Drone",
+              "startSeconds": 1.9,
+              "durationSeconds": 8.6,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
-              "count": 5,
-              "patternId": "grid",
+              "count": 6,
+              "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48960000000000004,
-              "formationBehavior": {
-                "entryPathId": "formation-drop",
-                "movementId": "lateral-sweep",
-                "attackId": "row-sequence",
-                "firingBehavior": "staggered",
-                "returnId": "reform",
-                "holdSeconds": 1.5,
-                "telegraphSeconds": 0.75,
-                "attackDurationSeconds": 1.4,
-                "recoverySeconds": 1.2,
-                "attackGroupSize": 3,
-                "attackCycles": 3
-              },
+              "spawnIntervalSeconds": 0.18,
               "enemies": [
                 {
                   "enemyId": "drone",
                   "spriteKey": "ENEMY_DRONE_FRAMES",
                   "weight": 1,
                   "health": 3.36,
-                  "speed": 3.05,
-                  "damage": 1,
-                  "scoreValue": 20,
-                  "powerupDropChance": 0,
-                  "roleId": "role-research-drone",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                }
-              ]
-            },
-            {
-              "id": "stage-citation-storm-wave-6-support",
-              "kind": "spawn",
-              "label": "Roaming interceptors",
-              "startSeconds": 3.6,
-              "durationSeconds": 7.5,
-              "delayAfterSeconds": 0,
-              "blocksWaveClock": false,
-              "count": 2,
-              "patternId": "single-random",
-              "positionId": "random-top",
-              "spawnIntervalSeconds": 0.48,
-              "enemies": [
-                {
-                  "enemyId": "drone",
-                  "spriteKey": "ENEMY_DRONE_FRAMES",
-                  "weight": 0.7143,
-                  "health": 3.36,
-                  "speed": 3.05,
-                  "damage": 1,
-                  "scoreValue": 20,
-                  "powerupDropChance": 0,
-                  "roleId": "role-research-drone",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "ENEMY_SWARM_FRAMES",
-                  "weight": 0.2857,
-                  "health": 1.68,
-                  "speed": 3.45,
+                  "speed": 2.6,
                   "damage": 1,
                   "scoreValue": 24,
                   "powerupDropChance": 0,
-                  "roleId": "role-citation-swarm"
+                  "roleId": "role-research-drone",
+                  "attackIntervalSeconds": 3.1,
+                  "projectileSpeed": 3.5,
+                  "burstCount": 1
                 }
-              ]
+              ],
+              "formationBehavior": {
+                "entryPathId": "diamond-lock",
+                "movementId": "gentle-drift",
+                "attackId": "leader-escorts",
+                "firingBehavior": "post-formation",
+                "returnId": "reform",
+                "holdSeconds": 1,
+                "telegraphSeconds": 0.8,
+                "attackDurationSeconds": 1.4,
+                "recoverySeconds": 0.8,
+                "attackGroupSize": 2,
+                "attackCycles": 2
+              }
             },
             {
               "id": "stage-citation-storm-wave-5-recovery",
@@ -3670,15 +3426,453 @@
               ]
             }
           ]
+        },
+        {
+          "id": "stage-citation-storm-wave-extra-1",
+          "name": "THREAD THE NEEDLE",
+          "order": 4,
+          "accent": "#c4b5fd",
+          "backgroundId": "breakwater-wreckfield",
+          "completionRule": "clear-after-duration",
+          "difficultyMultiplier": 1.024,
+          "durationSeconds": 9,
+          "introSeconds": 0,
+          "delayAfterSeconds": 0,
+          "scoreMultiplier": 2,
+          "threatCap": 25,
+          "combatBudget": 263.08,
+          "rhythm": "variation",
+          "formationPackIds": [
+            "pack-breakwater-r-v",
+            "pack-breakwater-w-crescent"
+          ],
+          "events": [
+            {
+              "id": "stage-citation-storm-wave-extra-1-breakwater-1",
+              "kind": "spawn",
+              "label": "Breakwater Research Drone",
+              "startSeconds": 0,
+              "durationSeconds": 9,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 6,
+              "patternId": "v",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.18,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "weight": 1,
+                  "health": 3.36,
+                  "speed": 2.6,
+                  "damage": 1,
+                  "scoreValue": 24,
+                  "powerupDropChance": 0,
+                  "roleId": "role-research-drone",
+                  "attackIntervalSeconds": 3.1,
+                  "projectileSpeed": 3.5,
+                  "burstCount": 1
+                }
+              ],
+              "formationBehavior": {
+                "entryPathId": "paired-flank",
+                "movementId": "lateral-sweep",
+                "attackId": "lane-pass",
+                "firingBehavior": "post-formation",
+                "returnId": "reform",
+                "holdSeconds": 1,
+                "telegraphSeconds": 0.8,
+                "attackDurationSeconds": 1.4,
+                "recoverySeconds": 0.8,
+                "attackGroupSize": 2,
+                "attackCycles": 2
+              }
+            },
+            {
+              "id": "stage-citation-storm-wave-extra-1-breakwater-2",
+              "kind": "spawn",
+              "label": "Breakwater Citation Swarm",
+              "startSeconds": 3,
+              "durationSeconds": 6,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 6,
+              "patternId": "crescent",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.18,
+              "enemies": [
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "weight": 1,
+                  "health": 1.68,
+                  "speed": 2.8,
+                  "damage": 1,
+                  "scoreValue": 24,
+                  "powerupDropChance": 0,
+                  "roleId": "role-citation-swarm"
+                }
+              ],
+              "formationBehavior": {
+                "entryPathId": "paired-flank",
+                "movementId": "lateral-sweep",
+                "attackId": "sweep-strafe",
+                "firingBehavior": "none",
+                "returnId": "reform",
+                "holdSeconds": 1,
+                "telegraphSeconds": 0.8,
+                "attackDurationSeconds": 1.4,
+                "recoverySeconds": 0.8,
+                "attackGroupSize": 2,
+                "attackCycles": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "stage-citation-storm-wave-extra-2",
+          "name": "RELAY AMBUSH",
+          "order": 5,
+          "accent": "#c4b5fd",
+          "backgroundId": "breakwater-wreckfield",
+          "completionRule": "clear-after-duration",
+          "difficultyMultiplier": 1.024,
+          "durationSeconds": 9,
+          "introSeconds": 0,
+          "delayAfterSeconds": 0,
+          "scoreMultiplier": 2,
+          "threatCap": 25,
+          "combatBudget": 263.08,
+          "rhythm": "variation",
+          "formationPackIds": [
+            "pack-breakwater-w-ring",
+            "pack-breakwater-r-arc"
+          ],
+          "events": [
+            {
+              "id": "stage-citation-storm-wave-extra-2-breakwater-1",
+              "kind": "spawn",
+              "label": "Breakwater Citation Swarm",
+              "startSeconds": 0,
+              "durationSeconds": 9,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 8,
+              "patternId": "ring",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.18,
+              "enemies": [
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "weight": 1,
+                  "health": 1.68,
+                  "speed": 2.8,
+                  "damage": 1,
+                  "scoreValue": 24,
+                  "powerupDropChance": 0,
+                  "roleId": "role-citation-swarm"
+                }
+              ],
+              "formationBehavior": {
+                "entryPathId": "ring-assemble",
+                "movementId": "rotating-wheel",
+                "attackId": "ring-collapse",
+                "firingBehavior": "none",
+                "returnId": "reform",
+                "holdSeconds": 1,
+                "telegraphSeconds": 0.8,
+                "attackDurationSeconds": 1.4,
+                "recoverySeconds": 0.8,
+                "attackGroupSize": 3,
+                "attackCycles": 2
+              }
+            },
+            {
+              "id": "stage-citation-storm-wave-extra-2-breakwater-2",
+              "kind": "spawn",
+              "label": "Breakwater Research Drone",
+              "startSeconds": 3.2,
+              "durationSeconds": 5.8,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 4,
+              "patternId": "arc",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.18,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "weight": 1,
+                  "health": 3.36,
+                  "speed": 2.6,
+                  "damage": 1,
+                  "scoreValue": 24,
+                  "powerupDropChance": 0,
+                  "roleId": "role-research-drone",
+                  "attackIntervalSeconds": 3.1,
+                  "projectileSpeed": 3.5,
+                  "burstCount": 1
+                }
+              ],
+              "formationBehavior": {
+                "entryPathId": "paired-flank",
+                "movementId": "lateral-sweep",
+                "attackId": "sweep-strafe",
+                "firingBehavior": "post-formation",
+                "returnId": "reform",
+                "holdSeconds": 1,
+                "telegraphSeconds": 0.8,
+                "attackDurationSeconds": 1.4,
+                "recoverySeconds": 0.8,
+                "attackGroupSize": 2,
+                "attackCycles": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "stage-citation-storm-wave-extra-3",
+          "name": "SPIRAL COLLAPSE",
+          "order": 6,
+          "accent": "#c4b5fd",
+          "backgroundId": "breakwater-wreckfield",
+          "completionRule": "clear-after-duration",
+          "difficultyMultiplier": 1.024,
+          "durationSeconds": 9,
+          "introSeconds": 0,
+          "delayAfterSeconds": 0,
+          "scoreMultiplier": 2,
+          "threatCap": 25,
+          "combatBudget": 263.08,
+          "rhythm": "variation",
+          "formationPackIds": [
+            "pack-breakwater-r-ring",
+            "pack-breakwater-w-v"
+          ],
+          "events": [
+            {
+              "id": "stage-citation-storm-wave-extra-3-breakwater-1",
+              "kind": "spawn",
+              "label": "Breakwater Research Drone",
+              "startSeconds": 0,
+              "durationSeconds": 9,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 8,
+              "patternId": "ring",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.18,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "weight": 1,
+                  "health": 3.36,
+                  "speed": 2.6,
+                  "damage": 1,
+                  "scoreValue": 24,
+                  "powerupDropChance": 0,
+                  "roleId": "role-research-drone",
+                  "attackIntervalSeconds": 3.1,
+                  "projectileSpeed": 3.5,
+                  "burstCount": 1
+                }
+              ],
+              "formationBehavior": {
+                "entryPathId": "ring-assemble",
+                "movementId": "rotating-wheel",
+                "attackId": "ring-collapse",
+                "firingBehavior": "post-formation",
+                "returnId": "reform",
+                "holdSeconds": 1,
+                "telegraphSeconds": 0.8,
+                "attackDurationSeconds": 1.4,
+                "recoverySeconds": 0.8,
+                "attackGroupSize": 3,
+                "attackCycles": 2
+              }
+            },
+            {
+              "id": "stage-citation-storm-wave-extra-3-breakwater-2",
+              "kind": "spawn",
+              "label": "Breakwater Citation Swarm",
+              "startSeconds": 3,
+              "durationSeconds": 6,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 4,
+              "patternId": "v",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.18,
+              "enemies": [
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "weight": 1,
+                  "health": 1.68,
+                  "speed": 2.8,
+                  "damage": 1,
+                  "scoreValue": 24,
+                  "powerupDropChance": 0,
+                  "roleId": "role-citation-swarm"
+                }
+              ],
+              "formationBehavior": {
+                "entryPathId": "paired-flank",
+                "movementId": "lateral-sweep",
+                "attackId": "lane-pass",
+                "firingBehavior": "none",
+                "returnId": "reform",
+                "holdSeconds": 1,
+                "telegraphSeconds": 0.8,
+                "attackDurationSeconds": 1.4,
+                "recoverySeconds": 0.8,
+                "attackGroupSize": 2,
+                "attackCycles": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "stage-citation-storm-wave-6",
+          "name": "CROSSING SECURED",
+          "order": 7,
+          "accent": "#c4b5fd",
+          "backgroundId": "breakwater-wreckfield",
+          "completionRule": "clear-after-duration",
+          "difficultyMultiplier": 1.06,
+          "durationSeconds": 11.5,
+          "introSeconds": 0.2,
+          "delayAfterSeconds": 1,
+          "scoreMultiplier": 2,
+          "threatCap": 27,
+          "combatBudget": 128,
+          "rhythm": "peak",
+          "formationPackIds": [
+            "pack-breakwater-r-diamond",
+            "pack-breakwater-w-arc"
+          ],
+          "events": [
+            {
+              "id": "stage-citation-storm-wave-6-breakwater-1",
+              "kind": "spawn",
+              "label": "Breakwater Orbit Scout",
+              "startSeconds": 0,
+              "durationSeconds": 11.5,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 3,
+              "patternId": "single-random",
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 0.65,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "LEGACY_ENEMY_DRONE_FRAMES",
+                  "weight": 1,
+                  "health": 2,
+                  "speed": 2.5,
+                  "damage": 1,
+                  "scoreValue": 10,
+                  "powerupDropChance": 0,
+                  "roleId": "role-orbit-scout"
+                }
+              ]
+            },
+            {
+              "id": "stage-citation-storm-wave-6-breakwater-2",
+              "kind": "spawn",
+              "label": "Breakwater Research Drone",
+              "startSeconds": 1.8,
+              "durationSeconds": 9.7,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 6,
+              "patternId": "diamond",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.18,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "weight": 1,
+                  "health": 3.36,
+                  "speed": 2.6,
+                  "damage": 1,
+                  "scoreValue": 24,
+                  "powerupDropChance": 0,
+                  "roleId": "role-research-drone",
+                  "attackIntervalSeconds": 3.1,
+                  "projectileSpeed": 3.5,
+                  "burstCount": 1
+                }
+              ],
+              "formationBehavior": {
+                "entryPathId": "diamond-lock",
+                "movementId": "gentle-drift",
+                "attackId": "leader-escorts",
+                "firingBehavior": "post-formation",
+                "returnId": "reform",
+                "holdSeconds": 1,
+                "telegraphSeconds": 0.8,
+                "attackDurationSeconds": 1.4,
+                "recoverySeconds": 0.8,
+                "attackGroupSize": 2,
+                "attackCycles": 2
+              }
+            },
+            {
+              "id": "stage-citation-storm-wave-6-breakwater-3",
+              "kind": "spawn",
+              "label": "Breakwater Citation Swarm",
+              "startSeconds": 3.6,
+              "durationSeconds": 7.9,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 4,
+              "patternId": "arc",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.18,
+              "enemies": [
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "weight": 1,
+                  "health": 1.68,
+                  "speed": 2.8,
+                  "damage": 1,
+                  "scoreValue": 24,
+                  "powerupDropChance": 0,
+                  "roleId": "role-citation-swarm"
+                }
+              ],
+              "formationBehavior": {
+                "entryPathId": "paired-flank",
+                "movementId": "lateral-sweep",
+                "attackId": "sweep-strafe",
+                "firingBehavior": "none",
+                "returnId": "reform",
+                "holdSeconds": 1,
+                "telegraphSeconds": 0.8,
+                "attackDurationSeconds": 1.4,
+                "recoverySeconds": 0.8,
+                "attackGroupSize": 2,
+                "attackCycles": 2
+              }
+            }
+          ]
         }
       ]
     },
     {
       "id": "stage-paywall-siege",
       "name": "PAYWALL CHECKPOINT",
-      "description": "Break the command pattern and secure the checkpoint.",
+      "description": "The Redline patrol guards the inner checkpoint. Pick apart its crossfire, collect repairs, and challenge the Bottleneck Drone.",
       "order": 3,
-      "backgroundId": "paywall-siege",
+      "backgroundId": "breakwater-wreckfield",
       "musicId": "procedural-main",
       "startingDifficulty": 1.024,
       "scoreTarget": 0,
@@ -3764,10 +3958,10 @@
       "waves": [
         {
           "id": "stage-paywall-siege-wave-1",
-          "name": "INTERCEPT",
+          "name": "REDLINE PATROL",
           "order": 1,
           "accent": "#fde68a",
-          "backgroundId": "paywall-siege",
+          "backgroundId": "breakwater-wreckfield",
           "completionRule": "clear-after-duration",
           "difficultyMultiplier": 1,
           "durationSeconds": 9,
@@ -3778,65 +3972,50 @@
           "combatBudget": 62,
           "rhythm": "warm-up",
           "formationPackIds": [
-            "pack-light-jet-pincer"
+            "pack-breakwater-f-snake"
           ],
           "events": [
             {
-              "id": "stage-paywall-siege-wave-1-primary",
+              "id": "stage-paywall-siege-wave-1-breakwater-1",
               "kind": "spawn",
-              "label": "Opening interceptors · Retraction mix",
+              "label": "Breakwater Redline Skirmisher",
               "startSeconds": 0,
               "durationSeconds": 9,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
-              "count": 6,
-              "patternId": "sine",
+              "count": 8,
+              "patternId": "snake",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.54,
+              "spawnIntervalSeconds": 0.18,
               "enemies": [
                 {
                   "enemyId": "drone",
                   "spriteKey": "SCICON_ENEMY_REDLINE_SKIRMISHER_FRAMES",
-                  "weight": 0.4176,
+                  "weight": 1,
                   "health": 4,
-                  "speed": 3.325,
+                  "speed": 2.8,
                   "damage": 1,
                   "scoreValue": 40,
                   "powerupDropChance": 0,
                   "roleId": "role-jet-scout",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "SCICON_ENEMY_CROSSCUT_RAIDER_FRAMES",
-                  "weight": 0.1624,
-                  "health": 2.02,
-                  "speed": 3.45,
-                  "damage": 1,
-                  "scoreValue": 48,
-                  "powerupDropChance": 0,
-                  "roleId": "role-jet-interceptor",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "drone",
-                  "spriteKey": "ENEMY_DRONE_FRAMES",
-                  "weight": 0.42,
-                  "health": 1.68,
-                  "speed": 3.45,
-                  "damage": 1,
-                  "scoreValue": 24,
-                  "powerupDropChance": 0,
-                  "roleId": "role-research-drone",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
+                  "attackIntervalSeconds": 3.1,
+                  "projectileSpeed": 3.5,
                   "burstCount": 1
                 }
-              ]
+              ],
+              "formationBehavior": {
+                "entryPathId": "serpentine-weave",
+                "movementId": "lateral-sweep",
+                "attackId": "paired-dive",
+                "firingBehavior": "post-formation",
+                "returnId": "reform",
+                "holdSeconds": 1,
+                "telegraphSeconds": 0.8,
+                "attackDurationSeconds": 1.4,
+                "recoverySeconds": 0.8,
+                "attackGroupSize": 2,
+                "attackCycles": 2
+              }
             },
             {
               "id": "stage-paywall-siege-wave-1-powerup",
@@ -3860,10 +4039,10 @@
         },
         {
           "id": "stage-paywall-siege-wave-2",
-          "name": "FORMATION LOCK",
+          "name": "PINCER GUARD",
           "order": 2,
           "accent": "#fde68a",
-          "backgroundId": "paywall-siege",
+          "backgroundId": "breakwater-wreckfield",
           "completionRule": "clear-after-duration",
           "difficultyMultiplier": 1.012,
           "durationSeconds": 9.5,
@@ -3874,87 +4053,102 @@
           "combatBudget": 120,
           "rhythm": "introduce",
           "formationPackIds": [
-            "pack-light-jet-pincer"
+            "pack-breakwater-x-double-v",
+            "pack-breakwater-r-diamond"
           ],
           "events": [
             {
-              "id": "stage-paywall-siege-wave-2-primary",
+              "id": "stage-paywall-siege-wave-2-breakwater-1",
               "kind": "spawn",
-              "label": "INTERCEPTOR PINCER · Retraction mix",
+              "label": "Breakwater Crosscut Raider",
               "startSeconds": 0,
               "durationSeconds": 9.5,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
-              "count": 8,
-              "patternId": "pincer",
+              "count": 6,
+              "patternId": "double-v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.40800000000000003,
-              "formationBehavior": {
-                "entryPathId": "paired-flank",
-                "movementId": "lateral-sweep",
-                "attackId": "pincer-pass",
-                "firingBehavior": "priority",
-                "returnId": "reform",
-                "holdSeconds": 1.5,
-                "telegraphSeconds": 0.75,
-                "attackDurationSeconds": 1.4,
-                "recoverySeconds": 1.2,
-                "attackGroupSize": 2,
-                "attackCycles": 3
-              },
+              "spawnIntervalSeconds": 0.28,
               "enemies": [
-                {
-                  "enemyId": "drone",
-                  "spriteKey": "SCICON_ENEMY_REDLINE_SKIRMISHER_FRAMES",
-                  "weight": 0.3828,
-                  "health": 4,
-                  "speed": 3.325,
-                  "damage": 1,
-                  "scoreValue": 40,
-                  "powerupDropChance": 0,
-                  "roleId": "role-jet-scout",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                },
                 {
                   "enemyId": "swarm",
                   "spriteKey": "SCICON_ENEMY_CROSSCUT_RAIDER_FRAMES",
-                  "weight": 0.1972,
-                  "health": 2.02,
-                  "speed": 3.45,
+                  "weight": 1,
+                  "health": 2.36,
+                  "speed": 2.8,
                   "damage": 1,
                   "scoreValue": 48,
                   "powerupDropChance": 0,
                   "roleId": "role-jet-interceptor",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                },
+                  "attackIntervalSeconds": 3.3,
+                  "projectileSpeed": 3.5,
+                  "burstCount": 2
+                }
+              ],
+              "formationBehavior": {
+                "entryPathId": "mirrored-swoop",
+                "movementId": "lateral-sweep",
+                "attackId": "pincer-pass",
+                "firingBehavior": "staggered",
+                "returnId": "reform",
+                "holdSeconds": 1.3,
+                "telegraphSeconds": 0.8,
+                "attackDurationSeconds": 1.4,
+                "recoverySeconds": 0.8,
+                "attackGroupSize": 2,
+                "attackCycles": 2
+              }
+            },
+            {
+              "id": "stage-paywall-siege-wave-2-breakwater-2",
+              "kind": "spawn",
+              "label": "Breakwater Research Drone",
+              "startSeconds": 3.4,
+              "durationSeconds": 6.1,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 4,
+              "patternId": "diamond",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.28,
+              "enemies": [
                 {
                   "enemyId": "drone",
                   "spriteKey": "ENEMY_DRONE_FRAMES",
-                  "weight": 0.42,
-                  "health": 1.68,
-                  "speed": 3.45,
+                  "weight": 1,
+                  "health": 3.36,
+                  "speed": 2.6,
                   "damage": 1,
                   "scoreValue": 24,
                   "powerupDropChance": 0,
                   "roleId": "role-research-drone",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
+                  "attackIntervalSeconds": 3.1,
+                  "projectileSpeed": 3.5,
                   "burstCount": 1
                 }
-              ]
+              ],
+              "formationBehavior": {
+                "entryPathId": "diamond-lock",
+                "movementId": "gentle-drift",
+                "attackId": "leader-escorts",
+                "firingBehavior": "post-formation",
+                "returnId": "reform",
+                "holdSeconds": 1.3,
+                "telegraphSeconds": 0.8,
+                "attackDurationSeconds": 1.4,
+                "recoverySeconds": 0.8,
+                "attackGroupSize": 2,
+                "attackCycles": 2
+              }
             }
           ]
         },
         {
           "id": "stage-paywall-siege-wave-3",
-          "name": "PRESSURE RUN",
+          "name": "CHECKPOINT SALVAGE",
           "order": 3,
           "accent": "#fde68a",
-          "backgroundId": "paywall-siege",
+          "backgroundId": "breakwater-wreckfield",
           "completionRule": "clear-after-duration",
           "difficultyMultiplier": 1.024,
           "durationSeconds": 10.5,
@@ -3964,315 +4158,80 @@
           "threatCap": 24,
           "combatBudget": 26,
           "rhythm": "variation",
-          "formationPackIds": [],
+          "formationPackIds": [
+            "pack-breakwater-f-crescent"
+          ],
           "events": [
             {
-              "id": "stage-paywall-siege-wave-3-primary",
+              "id": "stage-paywall-siege-wave-3-breakwater-1",
               "kind": "spawn",
-              "label": "Roaming interceptors · Retraction mix",
+              "label": "Breakwater Redline Skirmisher",
               "startSeconds": 0,
               "durationSeconds": 10.5,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
-              "count": 2,
+              "count": 3,
               "patternId": "single-random",
               "positionId": "random-top",
-              "spawnIntervalSeconds": 0.78,
+              "spawnIntervalSeconds": 0.65,
               "enemies": [
                 {
                   "enemyId": "drone",
                   "spriteKey": "SCICON_ENEMY_REDLINE_SKIRMISHER_FRAMES",
-                  "weight": 0.4176,
+                  "weight": 1,
                   "health": 4,
-                  "speed": 3.325,
+                  "speed": 2.8,
                   "damage": 1,
                   "scoreValue": 40,
                   "powerupDropChance": 0,
                   "roleId": "role-jet-scout",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "SCICON_ENEMY_CROSSCUT_RAIDER_FRAMES",
-                  "weight": 0.1624,
-                  "health": 2.02,
-                  "speed": 3.45,
-                  "damage": 1,
-                  "scoreValue": 48,
-                  "powerupDropChance": 0,
-                  "roleId": "role-jet-interceptor",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "drone",
-                  "spriteKey": "ENEMY_DRONE_FRAMES",
-                  "weight": 0.42,
-                  "health": 1.68,
-                  "speed": 3.45,
-                  "damage": 1,
-                  "scoreValue": 24,
-                  "powerupDropChance": 0,
-                  "roleId": "role-research-drone",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
+                  "attackIntervalSeconds": 3.1,
+                  "projectileSpeed": 3.5,
                   "burstCount": 1
                 }
               ]
             },
             {
-              "id": "stage-paywall-siege-wave-3-support",
+              "id": "stage-paywall-siege-wave-3-breakwater-2",
               "kind": "spawn",
-              "label": "Roaming interceptors · Retraction mix",
+              "label": "Breakwater Redline Skirmisher",
               "startSeconds": 1.9,
               "durationSeconds": 8.6,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
-              "count": 3,
-              "patternId": "single-random",
-              "positionId": "random-top",
-              "spawnIntervalSeconds": 0.5780000000000001,
-              "enemies": [
-                {
-                  "enemyId": "drone",
-                  "spriteKey": "SCICON_ENEMY_REDLINE_SKIRMISHER_FRAMES",
-                  "weight": 0.435,
-                  "health": 4,
-                  "speed": 3.325,
-                  "damage": 1,
-                  "scoreValue": 40,
-                  "powerupDropChance": 0,
-                  "roleId": "role-jet-scout",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "SCICON_ENEMY_CROSSCUT_RAIDER_FRAMES",
-                  "weight": 0.145,
-                  "health": 2.02,
-                  "speed": 3.45,
-                  "damage": 1,
-                  "scoreValue": 48,
-                  "powerupDropChance": 0,
-                  "roleId": "role-jet-interceptor",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "drone",
-                  "spriteKey": "ENEMY_DRONE_FRAMES",
-                  "weight": 0.42,
-                  "health": 1.68,
-                  "speed": 3.45,
-                  "damage": 1,
-                  "scoreValue": 24,
-                  "powerupDropChance": 0,
-                  "roleId": "role-research-drone",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                }
-              ]
-            }
-          ]
-        },
-        {
-          "id": "stage-paywall-siege-wave-5",
-          "name": "CLIMAX",
-          "order": 4,
-          "accent": "#fde68a",
-          "backgroundId": "paywall-siege",
-          "completionRule": "clear-after-duration",
-          "difficultyMultiplier": 1.048,
-          "durationSeconds": 11.5,
-          "introSeconds": 0.2,
-          "delayAfterSeconds": 1,
-          "scoreMultiplier": 3,
-          "threatCap": 26,
-          "combatBudget": 149,
-          "rhythm": "peak",
-          "formationPackIds": [
-            "pack-light-jet-pincer"
-          ],
-          "events": [
-            {
-              "id": "stage-paywall-siege-wave-4-drifters",
-              "kind": "spawn",
-              "label": "Loose interceptors · Retraction mix",
-              "startSeconds": 0,
-              "durationSeconds": 11.5,
-              "delayAfterSeconds": 0,
-              "blocksWaveClock": false,
-              "count": 3,
-              "patternId": "single-random",
-              "positionId": "random-top",
-              "spawnIntervalSeconds": 0.78,
-              "enemies": [
-                {
-                  "enemyId": "drone",
-                  "spriteKey": "SCICON_ENEMY_REDLINE_SKIRMISHER_FRAMES",
-                  "weight": 0.29,
-                  "health": 4,
-                  "speed": 3.325,
-                  "damage": 1,
-                  "scoreValue": 40,
-                  "powerupDropChance": 0,
-                  "roleId": "role-jet-scout",
-                  "rank": "standard",
-                  "sizeMultiplier": 1,
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "SCICON_ENEMY_CROSSCUT_RAIDER_FRAMES",
-                  "weight": 0.29,
-                  "health": 2.02,
-                  "speed": 3.45,
-                  "damage": 1,
-                  "scoreValue": 48,
-                  "powerupDropChance": 0,
-                  "roleId": "role-jet-interceptor",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "drone",
-                  "spriteKey": "ENEMY_DRONE_FRAMES",
-                  "weight": 0.42,
-                  "health": 1.68,
-                  "speed": 3.45,
-                  "damage": 1,
-                  "scoreValue": 24,
-                  "powerupDropChance": 0,
-                  "roleId": "role-research-drone",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                }
-              ]
-            },
-            {
-              "id": "stage-paywall-siege-wave-5-primary",
-              "kind": "spawn",
-              "label": "Phase 2 - Pincer pressure · Retraction mix",
-              "startSeconds": 1.9,
-              "durationSeconds": 9.6,
-              "delayAfterSeconds": 0,
-              "blocksWaveClock": false,
-              "count": 4,
-              "patternId": "sine",
+              "count": 6,
+              "patternId": "crescent",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48960000000000004,
+              "spawnIntervalSeconds": 0.18,
               "enemies": [
                 {
                   "enemyId": "drone",
                   "spriteKey": "SCICON_ENEMY_REDLINE_SKIRMISHER_FRAMES",
-                  "weight": 0.3828,
+                  "weight": 1,
                   "health": 4,
-                  "speed": 3.325,
+                  "speed": 2.8,
                   "damage": 1,
                   "scoreValue": 40,
                   "powerupDropChance": 0,
                   "roleId": "role-jet-scout",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "SCICON_ENEMY_CROSSCUT_RAIDER_FRAMES",
-                  "weight": 0.1972,
-                  "health": 2.02,
-                  "speed": 3.45,
-                  "damage": 1,
-                  "scoreValue": 48,
-                  "powerupDropChance": 0,
-                  "roleId": "role-jet-interceptor",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "drone",
-                  "spriteKey": "ENEMY_DRONE_FRAMES",
-                  "weight": 0.42,
-                  "health": 1.68,
-                  "speed": 3.45,
-                  "damage": 1,
-                  "scoreValue": 24,
-                  "powerupDropChance": 0,
-                  "roleId": "role-research-drone",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
+                  "attackIntervalSeconds": 3.1,
+                  "projectileSpeed": 3.5,
                   "burstCount": 1
                 }
-              ]
-            },
-            {
-              "id": "stage-paywall-siege-wave-5-support",
-              "kind": "spawn",
-              "label": "Roaming interceptors · Retraction mix",
-              "startSeconds": 4,
-              "durationSeconds": 7.5,
-              "delayAfterSeconds": 0,
-              "blocksWaveClock": false,
-              "count": 2,
-              "patternId": "single-random",
-              "positionId": "random-top",
-              "spawnIntervalSeconds": 0.78,
-              "enemies": [
-                {
-                  "enemyId": "drone",
-                  "spriteKey": "SCICON_ENEMY_REDLINE_SKIRMISHER_FRAMES",
-                  "weight": 0.435,
-                  "health": 4,
-                  "speed": 3.325,
-                  "damage": 1,
-                  "scoreValue": 40,
-                  "powerupDropChance": 0,
-                  "roleId": "role-jet-scout",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "SCICON_ENEMY_CROSSCUT_RAIDER_FRAMES",
-                  "weight": 0.145,
-                  "health": 2.02,
-                  "speed": 3.45,
-                  "damage": 1,
-                  "scoreValue": 48,
-                  "powerupDropChance": 0,
-                  "roleId": "role-jet-interceptor",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "drone",
-                  "spriteKey": "ENEMY_DRONE_FRAMES",
-                  "weight": 0.42,
-                  "health": 1.68,
-                  "speed": 3.45,
-                  "damage": 1,
-                  "scoreValue": 24,
-                  "powerupDropChance": 0,
-                  "roleId": "role-research-drone",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                }
-              ]
+              ],
+              "formationBehavior": {
+                "entryPathId": "paired-flank",
+                "movementId": "lateral-sweep",
+                "attackId": "sweep-strafe",
+                "firingBehavior": "post-formation",
+                "returnId": "reform",
+                "holdSeconds": 1,
+                "telegraphSeconds": 0.8,
+                "attackDurationSeconds": 1.4,
+                "recoverySeconds": 0.8,
+                "attackGroupSize": 2,
+                "attackCycles": 2
+              }
             },
             {
               "id": "stage-paywall-siege-wave-4-recovery",
@@ -4287,12 +4246,75 @@
               "powerupIds": [
                 "shield"
               ]
+            }
+          ]
+        },
+        {
+          "id": "stage-paywall-siege-wave-5",
+          "name": "BOTTLENECK BREAKER",
+          "order": 4,
+          "accent": "#fde68a",
+          "backgroundId": "breakwater-wreckfield",
+          "completionRule": "clear-after-duration",
+          "difficultyMultiplier": 1.048,
+          "durationSeconds": 11.5,
+          "introSeconds": 0.2,
+          "delayAfterSeconds": 1,
+          "scoreMultiplier": 3,
+          "threatCap": 26,
+          "combatBudget": 149,
+          "rhythm": "peak",
+          "formationPackIds": [
+            "pack-breakwater-f-arc"
+          ],
+          "events": [
+            {
+              "id": "stage-paywall-siege-wave-5-breakwater-1",
+              "kind": "spawn",
+              "label": "Breakwater Redline Skirmisher",
+              "startSeconds": 0,
+              "durationSeconds": 11.5,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 4,
+              "patternId": "arc",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.18,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "SCICON_ENEMY_REDLINE_SKIRMISHER_FRAMES",
+                  "weight": 1,
+                  "health": 4,
+                  "speed": 2.8,
+                  "damage": 1,
+                  "scoreValue": 40,
+                  "powerupDropChance": 0,
+                  "roleId": "role-jet-scout",
+                  "attackIntervalSeconds": 3.1,
+                  "projectileSpeed": 3.5,
+                  "burstCount": 1
+                }
+              ],
+              "formationBehavior": {
+                "entryPathId": "paired-flank",
+                "movementId": "lateral-sweep",
+                "attackId": "sweep-strafe",
+                "firingBehavior": "post-formation",
+                "returnId": "reform",
+                "holdSeconds": 1,
+                "telegraphSeconds": 0.8,
+                "attackDurationSeconds": 1.4,
+                "recoverySeconds": 0.8,
+                "attackGroupSize": 2,
+                "attackCycles": 2
+              }
             },
             {
               "id": "stage-paywall-siege-wave-5-checkpoint",
               "kind": "boss",
               "label": "BOTTLENECK DRONE",
-              "startSeconds": 5.880000000000001,
+              "startSeconds": 5.5,
               "durationSeconds": 14,
               "delayAfterSeconds": 0,
               "blocksWaveClock": true,
@@ -4341,9 +4363,9 @@
     {
       "id": "stage-open-galaxy",
       "name": "BASTION APPROACH",
-      "description": "Trace the boss signal through the sector perimeter.",
+      "description": "Breach the derelict shipyard gate. Break the armored phalanx before the Paywall Wall closes the approach.",
       "order": 4,
-      "backgroundId": "open-galaxy",
+      "backgroundId": "breakwater-gate",
       "musicId": "procedural-main",
       "startingDifficulty": 1.036,
       "scoreTarget": 0,
@@ -4429,10 +4451,10 @@
       "waves": [
         {
           "id": "stage-open-galaxy-wave-1",
-          "name": "INTERCEPT",
+          "name": "OUTER DEFENSE",
           "order": 1,
           "accent": "#6ee7b7",
-          "backgroundId": "open-galaxy",
+          "backgroundId": "breakwater-gate",
           "completionRule": "clear-after-duration",
           "difficultyMultiplier": 1,
           "durationSeconds": 9,
@@ -4442,64 +4464,51 @@
           "threatCap": 22,
           "combatBudget": 35,
           "rhythm": "warm-up",
-          "formationPackIds": [],
+          "formationPackIds": [
+            "pack-breakwater-f-snake"
+          ],
           "events": [
             {
-              "id": "stage-open-galaxy-wave-1-primary",
+              "id": "stage-open-galaxy-wave-1-breakwater-1",
               "kind": "spawn",
-              "label": "Opening interceptors · Retraction mix",
+              "label": "Breakwater Redline Skirmisher",
               "startSeconds": 0,
               "durationSeconds": 9,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
-              "count": 7,
-              "patternId": "single-random",
-              "positionId": "random-top",
-              "spawnIntervalSeconds": 0.5576,
+              "count": 6,
+              "patternId": "snake",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.18,
               "enemies": [
                 {
                   "enemyId": "drone",
                   "spriteKey": "SCICON_ENEMY_REDLINE_SKIRMISHER_FRAMES",
-                  "weight": 0.357534,
+                  "weight": 1,
                   "health": 4,
-                  "speed": 3.45,
+                  "speed": 2.8,
                   "damage": 1,
-                  "scoreValue": 80,
+                  "scoreValue": 40,
                   "powerupDropChance": 0,
                   "roleId": "role-jet-scout",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "SCICON_ENEMY_CROSSCUT_RAIDER_FRAMES",
-                  "weight": 0.222466,
-                  "health": 2.36,
-                  "speed": 3.45,
-                  "damage": 1,
-                  "scoreValue": 96,
-                  "powerupDropChance": 0,
-                  "roleId": "role-jet-interceptor",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "brick",
-                  "spriteKey": "SCICON_ENEMY_AUDIT_BULWARK_FRAMES",
-                  "weight": 0.42,
-                  "health": 4,
-                  "speed": 2.16,
-                  "damage": 1,
-                  "scoreValue": 160,
-                  "powerupDropChance": 0.08,
-                  "roleId": "role-jet-heavy",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
+                  "attackIntervalSeconds": 3.1,
+                  "projectileSpeed": 3.5,
                   "burstCount": 1
                 }
-              ]
+              ],
+              "formationBehavior": {
+                "entryPathId": "serpentine-weave",
+                "movementId": "lateral-sweep",
+                "attackId": "paired-dive",
+                "firingBehavior": "post-formation",
+                "returnId": "reform",
+                "holdSeconds": 1,
+                "telegraphSeconds": 0.8,
+                "attackDurationSeconds": 1.4,
+                "recoverySeconds": 0.8,
+                "attackGroupSize": 2,
+                "attackCycles": 2
+              }
             },
             {
               "id": "stage-open-galaxy-wave-1-powerup",
@@ -4518,15 +4527,44 @@
                 "shield",
                 "research-beam"
               ]
+            },
+            {
+              "id": "stage-open-galaxy-wave-1-breakwater-2",
+              "kind": "spawn",
+              "label": "Breakwater Audit Bulwark",
+              "startSeconds": 3.6,
+              "durationSeconds": 5.4,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 2,
+              "patternId": "single-random",
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 0.65,
+              "enemies": [
+                {
+                  "enemyId": "brick",
+                  "spriteKey": "SCICON_ENEMY_AUDIT_BULWARK_FRAMES",
+                  "weight": 1,
+                  "health": 4,
+                  "speed": 2.2,
+                  "damage": 1,
+                  "scoreValue": 160,
+                  "powerupDropChance": 0,
+                  "roleId": "role-jet-heavy",
+                  "attackIntervalSeconds": 3.1,
+                  "projectileSpeed": 3.7,
+                  "burstCount": 1
+                }
+              ]
             }
           ]
         },
         {
           "id": "stage-open-galaxy-wave-2",
-          "name": "FORMATION LOCK",
+          "name": "BASTION PHALANX",
           "order": 2,
           "accent": "#6ee7b7",
-          "backgroundId": "open-galaxy",
+          "backgroundId": "breakwater-gate",
           "completionRule": "clear-after-duration",
           "difficultyMultiplier": 1.012,
           "durationSeconds": 9.5,
@@ -4537,163 +4575,103 @@
           "combatBudget": 262.08,
           "rhythm": "introduce",
           "formationPackIds": [
-            "pack-priority-diamond"
+            "pack-breakwater-v-diamond",
+            "pack-breakwater-x-crescent"
           ],
           "events": [
             {
-              "id": "stage-open-galaxy-wave-2-primary",
+              "id": "stage-open-galaxy-wave-2-breakwater-1",
               "kind": "spawn",
-              "label": "PRIORITY LOCK · Retraction mix",
+              "label": "Breakwater Protocol Vanguard",
               "startSeconds": 0,
               "durationSeconds": 9.5,
-              "delayAfterSeconds": 0,
-              "blocksWaveClock": false,
-              "count": 8,
-              "patternId": "diamond",
-              "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.28,
-              "formationBehavior": {
-                "entryPathId": "diamond-lock",
-                "movementId": "expand-collapse",
-                "attackId": "leader-escorts",
-                "firingBehavior": "priority",
-                "returnId": "reform",
-                "holdSeconds": 1.7,
-                "telegraphSeconds": 0.9,
-                "attackDurationSeconds": 1.4,
-                "recoverySeconds": 1.2,
-                "attackGroupSize": 3,
-                "attackCycles": 3
-              },
-              "enemies": [
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "SCICON_ENEMY_CROSSCUT_RAIDER_FRAMES",
-                  "weight": 0.58,
-                  "health": 2.36,
-                  "speed": 3.45,
-                  "damage": 1,
-                  "scoreValue": 96,
-                  "powerupDropChance": 0,
-                  "roleId": "role-jet-interceptor",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_PROTOCOL_VANGUARD_FRAMES",
-                  "weight": 0.42,
-                  "health": 5,
-                  "speed": 2.35,
-                  "damage": 1,
-                  "scoreValue": 90,
-                  "powerupDropChance": 0,
-                  "sizeMultiplier": 1.06,
-                  "attackPatternId": "aimed-burst",
-                  "attackIntervalSeconds": 2.85,
-                  "projectileSpeed": 4.9,
-                  "burstCount": 2,
-                  "roleId": "role-protocol-vanguard"
-                }
-              ]
-            },
-            {
-              "id": "stage-open-galaxy-wave-3-primary",
-              "kind": "spawn",
-              "label": "Roaming interceptors · Retraction mix",
-              "startSeconds": 1.9,
-              "durationSeconds": 7.6,
-              "delayAfterSeconds": 0,
-              "blocksWaveClock": false,
-              "count": 2,
-              "patternId": "single-random",
-              "positionId": "random-top",
-              "spawnIntervalSeconds": 0.78,
-              "enemies": [
-                {
-                  "enemyId": "drone",
-                  "spriteKey": "SCICON_ENEMY_REDLINE_SKIRMISHER_FRAMES",
-                  "weight": 0.348,
-                  "health": 4,
-                  "speed": 3.45,
-                  "damage": 1,
-                  "scoreValue": 80,
-                  "powerupDropChance": 0,
-                  "roleId": "role-jet-scout",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "SCICON_ENEMY_CROSSCUT_RAIDER_FRAMES",
-                  "weight": 0.232,
-                  "health": 2.36,
-                  "speed": 3.45,
-                  "damage": 1,
-                  "scoreValue": 96,
-                  "powerupDropChance": 0,
-                  "roleId": "role-jet-interceptor",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "brick",
-                  "spriteKey": "SCICON_ENEMY_AUDIT_BULWARK_FRAMES",
-                  "weight": 0.42,
-                  "health": 4,
-                  "speed": 2.16,
-                  "damage": 1,
-                  "scoreValue": 160,
-                  "powerupDropChance": 0.08,
-                  "roleId": "role-jet-heavy",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                }
-              ]
-            },
-            {
-              "id": "stage-open-galaxy-wave-3-support",
-              "kind": "spawn",
-              "label": "Protocol Vanguard cell",
-              "startSeconds": 4,
-              "durationSeconds": 5.5,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
               "count": 4,
               "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.28,
+              "spawnIntervalSeconds": 0.32,
               "enemies": [
                 {
                   "enemyId": "drone",
                   "spriteKey": "CAMPAIGN_ENEMY_PROTOCOL_VANGUARD_FRAMES",
                   "weight": 1,
                   "health": 5,
-                  "speed": 2.35,
+                  "speed": 2.3,
                   "damage": 1,
                   "scoreValue": 90,
-                  "powerupDropChance": 0.04,
-                  "sizeMultiplier": 1.06,
+                  "powerupDropChance": 0,
                   "attackPatternId": "aimed-burst",
-                  "attackIntervalSeconds": 2.85,
-                  "projectileSpeed": 4.9,
-                  "burstCount": 2,
+                  "attackIntervalSeconds": 3.1,
+                  "projectileSpeed": 3.5,
+                  "burstCount": 1,
                   "roleId": "role-protocol-vanguard"
                 }
-              ]
+              ],
+              "formationBehavior": {
+                "entryPathId": "diamond-lock",
+                "movementId": "gentle-drift",
+                "attackId": "leader-escorts",
+                "firingBehavior": "staggered",
+                "returnId": "reform",
+                "holdSeconds": 1.3,
+                "telegraphSeconds": 0.8,
+                "attackDurationSeconds": 1.4,
+                "recoverySeconds": 0.8,
+                "attackGroupSize": 2,
+                "attackCycles": 2
+              }
+            },
+            {
+              "id": "stage-open-galaxy-wave-2-breakwater-2",
+              "kind": "spawn",
+              "label": "Breakwater Crosscut Raider",
+              "startSeconds": 3.2,
+              "durationSeconds": 6.3,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 6,
+              "patternId": "crescent",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.28,
+              "enemies": [
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "SCICON_ENEMY_CROSSCUT_RAIDER_FRAMES",
+                  "weight": 1,
+                  "health": 2.36,
+                  "speed": 2.8,
+                  "damage": 1,
+                  "scoreValue": 48,
+                  "powerupDropChance": 0,
+                  "roleId": "role-jet-interceptor",
+                  "attackIntervalSeconds": 3.3,
+                  "projectileSpeed": 3.5,
+                  "burstCount": 2
+                }
+              ],
+              "formationBehavior": {
+                "entryPathId": "paired-flank",
+                "movementId": "lateral-sweep",
+                "attackId": "sweep-strafe",
+                "firingBehavior": "staggered",
+                "returnId": "reform",
+                "holdSeconds": 1.3,
+                "telegraphSeconds": 0.8,
+                "attackDurationSeconds": 1.4,
+                "recoverySeconds": 0.8,
+                "attackGroupSize": 2,
+                "attackCycles": 2
+              }
             }
           ]
         },
         {
           "id": "stage-open-galaxy-wave-4",
-          "name": "PRESSURE RUN",
+          "name": "ARMOR SALVAGE",
           "order": 3,
           "accent": "#6ee7b7",
-          "backgroundId": "open-galaxy",
+          "backgroundId": "breakwater-gate",
           "completionRule": "clear-after-duration",
           "difficultyMultiplier": 1.036,
           "durationSeconds": 10.5,
@@ -4704,102 +4682,85 @@
           "combatBudget": 163.04,
           "rhythm": "variation",
           "formationPackIds": [
-            "pack-priority-diamond"
+            "pack-breakwater-h-grid"
           ],
           "events": [
             {
-              "id": "stage-open-galaxy-wave-4-primary",
+              "id": "stage-open-galaxy-wave-4-breakwater-1",
               "kind": "spawn",
-              "label": "Protocol Vanguard cell",
+              "label": "Breakwater Redline Skirmisher",
               "startSeconds": 0,
               "durationSeconds": 10.5,
-              "delayAfterSeconds": 0,
-              "blocksWaveClock": false,
-              "count": 4,
-              "patternId": "diamond",
-              "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.16,
-              "enemies": [
-                {
-                  "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_PROTOCOL_VANGUARD_FRAMES",
-                  "weight": 1,
-                  "health": 5,
-                  "speed": 2.35,
-                  "damage": 1,
-                  "scoreValue": 90,
-                  "powerupDropChance": 0.04,
-                  "sizeMultiplier": 1.06,
-                  "attackPatternId": "aimed-burst",
-                  "attackIntervalSeconds": 2.85,
-                  "projectileSpeed": 4.9,
-                  "burstCount": 2,
-                  "roleId": "role-protocol-vanguard"
-                }
-              ]
-            },
-            {
-              "id": "stage-open-galaxy-wave-4-support",
-              "kind": "spawn",
-              "label": "Roaming interceptors",
-              "startSeconds": 1.9,
-              "durationSeconds": 8.6,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
               "count": 3,
               "patternId": "single-random",
               "positionId": "random-top",
-              "spawnIntervalSeconds": 0.5780000000000001,
+              "spawnIntervalSeconds": 0.65,
               "enemies": [
                 {
                   "enemyId": "drone",
                   "spriteKey": "SCICON_ENEMY_REDLINE_SKIRMISHER_FRAMES",
-                  "weight": 0.384615,
+                  "weight": 1,
                   "health": 4,
-                  "speed": 3.45,
+                  "speed": 2.8,
                   "damage": 1,
-                  "scoreValue": 80,
+                  "scoreValue": 40,
                   "powerupDropChance": 0,
                   "roleId": "role-jet-scout",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "SCICON_ENEMY_CROSSCUT_RAIDER_FRAMES",
-                  "weight": 0.25641,
-                  "health": 2.36,
-                  "speed": 3.45,
-                  "damage": 1,
-                  "scoreValue": 96,
-                  "powerupDropChance": 0,
-                  "roleId": "role-jet-interceptor",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "brick",
-                  "spriteKey": "SCICON_ENEMY_AUDIT_BULWARK_FRAMES",
-                  "weight": 0.358975,
-                  "health": 4,
-                  "speed": 2.16,
-                  "damage": 1,
-                  "scoreValue": 160,
-                  "powerupDropChance": 0.08,
-                  "roleId": "role-jet-heavy",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
+                  "attackIntervalSeconds": 3.1,
+                  "projectileSpeed": 3.5,
                   "burstCount": 1
                 }
               ]
             },
             {
+              "id": "stage-open-galaxy-wave-4-breakwater-2",
+              "kind": "spawn",
+              "label": "Breakwater Audit Bulwark",
+              "startSeconds": 1.9,
+              "durationSeconds": 8.6,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 4,
+              "patternId": "grid",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.18,
+              "enemies": [
+                {
+                  "enemyId": "brick",
+                  "spriteKey": "SCICON_ENEMY_AUDIT_BULWARK_FRAMES",
+                  "weight": 1,
+                  "health": 4,
+                  "speed": 2.2,
+                  "damage": 1,
+                  "scoreValue": 160,
+                  "powerupDropChance": 0,
+                  "roleId": "role-jet-heavy",
+                  "attackIntervalSeconds": 3.1,
+                  "projectileSpeed": 3.7,
+                  "burstCount": 1
+                }
+              ],
+              "formationBehavior": {
+                "entryPathId": "formation-drop",
+                "movementId": "gentle-drift",
+                "attackId": "lane-pass",
+                "firingBehavior": "post-formation",
+                "returnId": "reform",
+                "holdSeconds": 1,
+                "telegraphSeconds": 0.8,
+                "attackDurationSeconds": 1.4,
+                "recoverySeconds": 0.8,
+                "attackGroupSize": 2,
+                "attackCycles": 2
+              }
+            },
+            {
               "id": "stage-open-galaxy-wave-5-recovery",
               "kind": "recovery",
               "label": "Research recovery window",
-              "startSeconds": 3.99,
+              "startSeconds": 4.2,
               "durationSeconds": 3.5,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
@@ -4808,46 +4769,15 @@
               "powerupIds": [
                 "shield"
               ]
-            },
-            {
-              "id": "stage-open-galaxy-wave-5-drifters",
-              "kind": "spawn",
-              "label": "Loose interceptors",
-              "startSeconds": 4,
-              "durationSeconds": 6.5,
-              "delayAfterSeconds": 0,
-              "blocksWaveClock": false,
-              "count": 3,
-              "patternId": "single-random",
-              "positionId": "random-top",
-              "spawnIntervalSeconds": 0.78,
-              "enemies": [
-                {
-                  "enemyId": "drone",
-                  "spriteKey": "SCICON_ENEMY_REDLINE_SKIRMISHER_FRAMES",
-                  "weight": 1,
-                  "health": 4,
-                  "speed": 3.45,
-                  "damage": 1,
-                  "scoreValue": 80,
-                  "powerupDropChance": 0,
-                  "roleId": "role-jet-scout",
-                  "rank": "standard",
-                  "sizeMultiplier": 1,
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                }
-              ]
             }
           ]
         },
         {
           "id": "stage-open-galaxy-wave-7",
-          "name": "CLIMAX",
+          "name": "PAYWALL BREACH",
           "order": 4,
           "accent": "#6ee7b7",
-          "backgroundId": "open-galaxy",
+          "backgroundId": "breakwater-gate",
           "completionRule": "clear-after-duration",
           "difficultyMultiplier": 1.072,
           "durationSeconds": 11.5,
@@ -4858,242 +4788,56 @@
           "combatBudget": 173.46,
           "rhythm": "clear",
           "formationPackIds": [
-            "pack-jet-pincer"
+            "pack-breakwater-f-double-v"
           ],
           "events": [
             {
-              "id": "stage-open-galaxy-wave-6-primary",
+              "id": "stage-open-galaxy-wave-7-breakwater-1",
               "kind": "spawn",
-              "label": "Phase 2 - Pincer pressure · Retraction mix",
+              "label": "Breakwater Redline Skirmisher",
               "startSeconds": 0,
               "durationSeconds": 11.5,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
-              "count": 5,
-              "patternId": "v",
+              "count": 6,
+              "patternId": "double-v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.48960000000000004,
+              "spawnIntervalSeconds": 0.18,
               "enemies": [
                 {
                   "enemyId": "drone",
                   "spriteKey": "SCICON_ENEMY_REDLINE_SKIRMISHER_FRAMES",
-                  "weight": 0.313514,
+                  "weight": 1,
                   "health": 4,
-                  "speed": 3.45,
+                  "speed": 2.8,
                   "damage": 1,
-                  "scoreValue": 80,
+                  "scoreValue": 40,
                   "powerupDropChance": 0,
                   "roleId": "role-jet-scout",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "SCICON_ENEMY_CROSSCUT_RAIDER_FRAMES",
-                  "weight": 0.266486,
-                  "health": 2.36,
-                  "speed": 3.45,
-                  "damage": 1,
-                  "scoreValue": 96,
-                  "powerupDropChance": 0,
-                  "roleId": "role-jet-interceptor",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "brick",
-                  "spriteKey": "SCICON_ENEMY_AUDIT_BULWARK_FRAMES",
-                  "weight": 0.42,
-                  "health": 4,
-                  "speed": 2.16,
-                  "damage": 1,
-                  "scoreValue": 160,
-                  "powerupDropChance": 0.08,
-                  "roleId": "role-jet-heavy",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
+                  "attackIntervalSeconds": 3.1,
+                  "projectileSpeed": 3.5,
                   "burstCount": 1
                 }
-              ]
-            },
-            {
-              "id": "stage-open-galaxy-wave-6-support",
-              "kind": "spawn",
-              "label": "Roaming interceptors · Retraction mix",
-              "startSeconds": 1.8,
-              "durationSeconds": 9.6,
-              "delayAfterSeconds": 0,
-              "blocksWaveClock": false,
-              "count": 2,
-              "patternId": "single-random",
-              "positionId": "random-top",
-              "spawnIntervalSeconds": 0.78,
-              "enemies": [
-                {
-                  "enemyId": "drone",
-                  "spriteKey": "SCICON_ENEMY_REDLINE_SKIRMISHER_FRAMES",
-                  "weight": 0.348,
-                  "health": 4,
-                  "speed": 3.45,
-                  "damage": 1,
-                  "scoreValue": 80,
-                  "powerupDropChance": 0,
-                  "roleId": "role-jet-scout",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "SCICON_ENEMY_CROSSCUT_RAIDER_FRAMES",
-                  "weight": 0.232,
-                  "health": 2.36,
-                  "speed": 3.45,
-                  "damage": 1,
-                  "scoreValue": 96,
-                  "powerupDropChance": 0,
-                  "roleId": "role-jet-interceptor",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "brick",
-                  "spriteKey": "SCICON_ENEMY_AUDIT_BULWARK_FRAMES",
-                  "weight": 0.42,
-                  "health": 4,
-                  "speed": 2.16,
-                  "damage": 1,
-                  "scoreValue": 160,
-                  "powerupDropChance": 0.08,
-                  "roleId": "role-jet-heavy",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                }
-              ]
-            },
-            {
-              "id": "stage-open-galaxy-wave-7-primary",
-              "kind": "spawn",
-              "label": "Roaming interceptors · Retraction mix",
-              "startSeconds": 3.6,
-              "durationSeconds": 7.5,
-              "delayAfterSeconds": 0,
-              "blocksWaveClock": false,
-              "count": 2,
-              "patternId": "single-random",
-              "positionId": "random-top",
-              "spawnIntervalSeconds": 0.78,
-              "enemies": [
-                {
-                  "enemyId": "drone",
-                  "spriteKey": "SCICON_ENEMY_REDLINE_SKIRMISHER_FRAMES",
-                  "weight": 0.348,
-                  "health": 4,
-                  "speed": 3.45,
-                  "damage": 1,
-                  "scoreValue": 80,
-                  "powerupDropChance": 0,
-                  "roleId": "role-jet-scout",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "SCICON_ENEMY_CROSSCUT_RAIDER_FRAMES",
-                  "weight": 0.232,
-                  "health": 2.36,
-                  "speed": 3.45,
-                  "damage": 1,
-                  "scoreValue": 96,
-                  "powerupDropChance": 0,
-                  "roleId": "role-jet-interceptor",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "brick",
-                  "spriteKey": "SCICON_ENEMY_AUDIT_BULWARK_FRAMES",
-                  "weight": 0.42,
-                  "health": 4,
-                  "speed": 2.16,
-                  "damage": 1,
-                  "scoreValue": 160,
-                  "powerupDropChance": 0.08,
-                  "roleId": "role-jet-heavy",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                }
-              ]
-            },
-            {
-              "id": "stage-open-galaxy-wave-7-support",
-              "kind": "spawn",
-              "label": "River research ambush · Retraction mix",
-              "startSeconds": 5.2,
-              "durationSeconds": 5.5,
-              "delayAfterSeconds": 0,
-              "blocksWaveClock": false,
-              "count": 5,
-              "patternId": "single-random",
-              "positionId": "random-top",
-              "spawnIntervalSeconds": 0.48960000000000004,
-              "enemies": [
-                {
-                  "enemyId": "drone",
-                  "spriteKey": "SCICON_ENEMY_REDLINE_SKIRMISHER_FRAMES",
-                  "weight": 0.29,
-                  "health": 4,
-                  "speed": 3.45,
-                  "damage": 1,
-                  "scoreValue": 80,
-                  "powerupDropChance": 0.04,
-                  "roleId": "role-jet-scout",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "SCICON_ENEMY_CROSSCUT_RAIDER_FRAMES",
-                  "weight": 0.29,
-                  "health": 2.02,
-                  "speed": 3.45,
-                  "damage": 1,
-                  "scoreValue": 48,
-                  "powerupDropChance": 0,
-                  "roleId": "role-jet-interceptor",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "brick",
-                  "spriteKey": "SCICON_ENEMY_AUDIT_BULWARK_FRAMES",
-                  "weight": 0.42,
-                  "health": 4,
-                  "speed": 2.16,
-                  "damage": 1,
-                  "scoreValue": 160,
-                  "powerupDropChance": 0,
-                  "roleId": "role-jet-heavy",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                }
-              ]
+              ],
+              "formationBehavior": {
+                "entryPathId": "mirrored-swoop",
+                "movementId": "lateral-sweep",
+                "attackId": "pincer-pass",
+                "firingBehavior": "post-formation",
+                "returnId": "reform",
+                "holdSeconds": 1,
+                "telegraphSeconds": 0.8,
+                "attackDurationSeconds": 1.4,
+                "recoverySeconds": 0.8,
+                "attackGroupSize": 2,
+                "attackCycles": 2
+              }
             },
             {
               "id": "stage-open-galaxy-wave-7-checkpoint",
               "kind": "boss",
               "label": "PAYWALL WALL",
-              "startSeconds": 9.0584,
+              "startSeconds": 6.5,
               "durationSeconds": 14,
               "delayAfterSeconds": 0,
               "blocksWaveClock": true,
@@ -5139,9 +4883,9 @@
     {
       "id": "stage-bastion-protocol",
       "name": "BASTION PROTOCOL",
-      "description": "A major hostile signature blocks the research route.",
+      "description": "Cut through the last gate patrol and dismantle Gatekeeper Prime at the heart of Breakwater.",
       "order": 5,
-      "backgroundId": "bastion-protocol",
+      "backgroundId": "breakwater-gate",
       "musicId": "procedural-main",
       "startingDifficulty": 1.048,
       "scoreTarget": 0,
@@ -5227,10 +4971,10 @@
       "waves": [
         {
           "id": "stage-bastion-protocol-wave-1",
-          "name": "BOSS INTERCEPT",
+          "name": "GATE DEFENSE",
           "order": 1,
           "accent": "#6ee7b7",
-          "backgroundId": "bastion-protocol",
+          "backgroundId": "breakwater-gate",
           "completionRule": "clear-after-duration",
           "difficultyMultiplier": 1,
           "durationSeconds": 12,
@@ -5241,197 +4985,107 @@
           "combatBudget": 183.97,
           "rhythm": "variation",
           "formationPackIds": [
-            "pack-priority-diamond"
+            "pack-breakwater-v-diamond"
           ],
           "events": [
             {
-              "id": "stage-bastion-protocol-wave-1-event-1",
+              "id": "stage-bastion-protocol-wave-1-breakwater-1",
               "kind": "spawn",
-              "label": "Opening interceptors · Retraction mix",
+              "label": "Breakwater Redline Skirmisher",
               "startSeconds": 0,
               "durationSeconds": 12,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
-              "count": 7,
+              "count": 3,
               "patternId": "single-random",
               "positionId": "random-top",
-              "spawnIntervalSeconds": 0.5576,
+              "spawnIntervalSeconds": 0.65,
               "enemies": [
                 {
                   "enemyId": "drone",
                   "spriteKey": "SCICON_ENEMY_REDLINE_SKIRMISHER_FRAMES",
-                  "weight": 0.357534,
+                  "weight": 1,
                   "health": 4,
-                  "speed": 3.45,
+                  "speed": 2.8,
                   "damage": 1,
-                  "scoreValue": 80,
+                  "scoreValue": 40,
                   "powerupDropChance": 0,
                   "roleId": "role-jet-scout",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "SCICON_ENEMY_CROSSCUT_RAIDER_FRAMES",
-                  "weight": 0.222466,
-                  "health": 2.36,
-                  "speed": 3.45,
-                  "damage": 1,
-                  "scoreValue": 96,
-                  "powerupDropChance": 0,
-                  "roleId": "role-jet-interceptor",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "brick",
-                  "spriteKey": "SCICON_ENEMY_AUDIT_BULWARK_FRAMES",
-                  "weight": 0.264444,
-                  "health": 4,
-                  "speed": 2.16,
-                  "damage": 1,
-                  "scoreValue": 160,
-                  "powerupDropChance": 0.08,
-                  "roleId": "role-jet-heavy",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "journal",
-                  "spriteKey": "ENEMY_JOURNAL_FRAMES",
-                  "weight": 0.155556,
-                  "health": 4,
-                  "speed": 3.45,
-                  "damage": 1,
-                  "scoreValue": 240,
-                  "powerupDropChance": 0.08,
-                  "roleId": "role-journal-priority",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
+                  "attackIntervalSeconds": 3.1,
+                  "projectileSpeed": 3.5,
                   "burstCount": 1
                 }
               ]
             },
             {
-              "id": "stage-bastion-protocol-wave-1-event-2",
-              "kind": "powerup",
-              "label": "Ambient power-up signal",
-              "startSeconds": 0.9,
-              "durationSeconds": 4,
-              "delayAfterSeconds": 0,
-              "blocksWaveClock": false,
-              "positionId": "random-top",
-              "spawnIntervalSeconds": 35,
-              "powerupIds": [
-                "projectile-upgrade",
-                "max-shot",
-                "magnet",
-                "shield",
-                "research-beam"
-              ]
-            },
-            {
-              "id": "stage-bastion-protocol-wave-2-event-1",
+              "id": "stage-bastion-protocol-wave-1-breakwater-2",
               "kind": "spawn",
-              "label": "Roaming interceptors · Retraction mix",
+              "label": "Breakwater Protocol Vanguard",
               "startSeconds": 1.9,
               "durationSeconds": 10.1,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
-              "count": 2,
-              "patternId": "single-random",
-              "positionId": "random-top",
-              "spawnIntervalSeconds": 0.78,
-              "enemies": [
-                {
-                  "enemyId": "drone",
-                  "spriteKey": "SCICON_ENEMY_REDLINE_SKIRMISHER_FRAMES",
-                  "weight": 0.348,
-                  "health": 4,
-                  "speed": 3.45,
-                  "damage": 1,
-                  "scoreValue": 80,
-                  "powerupDropChance": 0,
-                  "roleId": "role-jet-scout",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "SCICON_ENEMY_CROSSCUT_RAIDER_FRAMES",
-                  "weight": 0.232,
-                  "health": 2.36,
-                  "speed": 3.45,
-                  "damage": 1,
-                  "scoreValue": 96,
-                  "powerupDropChance": 0,
-                  "roleId": "role-jet-interceptor",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "brick",
-                  "spriteKey": "SCICON_ENEMY_AUDIT_BULWARK_FRAMES",
-                  "weight": 0.252,
-                  "health": 4,
-                  "speed": 2.16,
-                  "damage": 1,
-                  "scoreValue": 160,
-                  "powerupDropChance": 0.08,
-                  "roleId": "role-jet-heavy",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "journal",
-                  "spriteKey": "ENEMY_JOURNAL_FRAMES",
-                  "weight": 0.168,
-                  "health": 4,
-                  "speed": 3.45,
-                  "damage": 1,
-                  "scoreValue": 240,
-                  "powerupDropChance": 0.08,
-                  "roleId": "role-journal-priority",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                }
-              ]
-            },
-            {
-              "id": "stage-bastion-protocol-wave-2-event-2",
-              "kind": "spawn",
-              "label": "Protocol Vanguard cell",
-              "startSeconds": 4,
-              "durationSeconds": 8,
-              "delayAfterSeconds": 0,
-              "blocksWaveClock": false,
-              "count": 4,
+              "count": 3,
               "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.16,
+              "spawnIntervalSeconds": 0.18,
               "enemies": [
                 {
                   "enemyId": "drone",
                   "spriteKey": "CAMPAIGN_ENEMY_PROTOCOL_VANGUARD_FRAMES",
                   "weight": 1,
                   "health": 5,
-                  "speed": 2.35,
+                  "speed": 2.3,
                   "damage": 1,
                   "scoreValue": 90,
-                  "powerupDropChance": 0.04,
-                  "sizeMultiplier": 1.06,
+                  "powerupDropChance": 0,
                   "attackPatternId": "aimed-burst",
-                  "attackIntervalSeconds": 2.85,
-                  "projectileSpeed": 4.9,
-                  "burstCount": 2,
+                  "attackIntervalSeconds": 3.1,
+                  "projectileSpeed": 3.5,
+                  "burstCount": 1,
                   "roleId": "role-protocol-vanguard"
+                }
+              ],
+              "formationBehavior": {
+                "entryPathId": "diamond-lock",
+                "movementId": "gentle-drift",
+                "attackId": "leader-escorts",
+                "firingBehavior": "staggered",
+                "returnId": "reform",
+                "holdSeconds": 1,
+                "telegraphSeconds": 0.8,
+                "attackDurationSeconds": 1.4,
+                "recoverySeconds": 0.8,
+                "attackGroupSize": 2,
+                "attackCycles": 2
+              }
+            },
+            {
+            "id": "stage-bastion-protocol-wave-1-breakwater-3",
+            "kind": "spawn",
+            "label": "Breakwater command couriers",
+            "startSeconds": 4,
+            "durationSeconds": 8,
+            "delayAfterSeconds": 0,
+            "blocksWaveClock": false,
+            "count": 3,
+            "patternId": "single-random",
+            "positionId": "random-top",
+            "spawnIntervalSeconds": 0.65,
+            "enemies": [
+              {
+                "enemyId": "journal",
+                "spriteKey": "ENEMY_JOURNAL_FRAMES",
+                "weight": 1,
+                "health": 4,
+                "speed": 2.8,
+                "damage": 1,
+                "scoreValue": 80,
+                "powerupDropChance": 0,
+                "roleId": "role-journal-priority",
+                "attackIntervalSeconds": 3.3,
+                "projectileSpeed": 3.5,
+                "burstCount": 1
                 }
               ]
             },
@@ -5448,71 +5102,15 @@
               "powerupIds": [
                 "shield"
               ]
-            },
-            {
-              "id": "stage-bastion-protocol-wave-3-event-1",
-              "kind": "spawn",
-              "label": "Loose interceptors · Retraction mix",
-              "startSeconds": 6,
-              "durationSeconds": 6,
-              "delayAfterSeconds": 0,
-              "blocksWaveClock": false,
-              "count": 3,
-              "patternId": "single-random",
-              "positionId": "random-top",
-              "spawnIntervalSeconds": 0.78,
-              "enemies": [
-                {
-                  "enemyId": "drone",
-                  "spriteKey": "SCICON_ENEMY_REDLINE_SKIRMISHER_FRAMES",
-                  "weight": 0.58,
-                  "health": 4,
-                  "speed": 3.45,
-                  "damage": 1,
-                  "scoreValue": 80,
-                  "powerupDropChance": 0,
-                  "roleId": "role-jet-scout",
-                  "rank": "standard",
-                  "sizeMultiplier": 1,
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "drone",
-                  "spriteKey": "ENEMY_DRONE_FRAMES",
-                  "weight": 0.21,
-                  "health": 1.68,
-                  "speed": 3.45,
-                  "damage": 1,
-                  "scoreValue": 24,
-                  "powerupDropChance": 0,
-                  "roleId": "role-research-drone",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.7,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "ENEMY_SWARM_FRAMES",
-                  "weight": 0.21,
-                  "health": 1.68,
-                  "speed": 3.45,
-                  "damage": 1,
-                  "scoreValue": 24,
-                  "powerupDropChance": 0,
-                  "roleId": "role-citation-swarm"
-                }
-              ]
             }
           ]
         },
         {
           "id": "stage-bastion-protocol-wave-4",
-          "name": "OPEN ORBIT COMMANDER",
+          "name": "GATEKEEPER PRIME",
           "order": 2,
           "accent": "#f9a8d4",
-          "backgroundId": "bastion-protocol",
+          "backgroundId": "breakwater-gate",
           "completionRule": "boss-defeat",
           "difficultyMultiplier": 1,
           "durationSeconds": 180,
@@ -58646,7 +58244,7 @@
     {
       "id": "sector-open-orbit",
       "order": 1,
-      "name": "OPEN ORBIT",
+      "name": "BREAKWATER",
       "themeId": "theme-open-orbit",
       "missionIds": [
         "operation-open-galaxy",
@@ -58917,10 +58515,10 @@
   "visualThemes": [
     {
       "id": "theme-open-orbit",
-      "label": "Open Orbit",
-      "backgroundId": "open-orbit",
+      "label": "Breakwater shipyard",
+      "backgroundId": "breakwater-approach",
       "accent": "#35f2d0",
-      "description": "Clean orbital lanes and research traffic."
+      "description": "Orbital traffic thins into a wreck belt and the illuminated gates of a derelict shipyard."
     },
     {
       "id": "theme-redline",
@@ -60326,6 +59924,906 @@
       "attackRecoverySeconds": 1.6,
       "attackGroupSize": 3,
       "attackCycles": 3
+    },
+    {
+      "id": "pack-breakwater-s-snake",
+      "label": "Breakwater Orbit Scout snake",
+      "enemyRoleIds": [
+        "role-orbit-scout"
+      ],
+      "enemyCount": 8,
+      "totalThreatCost": 8,
+      "entryDirection": "left",
+      "entryPath": "serpentine-weave",
+      "formationShape": "snake",
+      "firingBehavior": "none",
+      "synergyAdjustment": 0,
+      "minimumSector": 1,
+      "maximumSimultaneousInstances": 2,
+      "recoveryRequiredSeconds": 0.35,
+      "compatibleMissionRoles": [
+        "introduction",
+        "formation-remix",
+        "elite-checkpoint",
+        "boss-preparation"
+      ],
+      "compatibleSectorIds": [
+        "sector-open-orbit"
+      ],
+      "mobilePerformanceCost": 8,
+      "movementBehavior": "lateral-sweep",
+      "attackBehavior": "paired-dive",
+      "returnBehavior": "reform",
+      "holdSeconds": 1.1,
+      "telegraphSeconds": 0.8,
+      "attackDurationSeconds": 1.3,
+      "attackRecoverySeconds": 0.8,
+      "attackGroupSize": 2,
+      "attackCycles": 2
+    },
+    {
+      "id": "pack-breakwater-s-double-v",
+      "label": "Breakwater Orbit Scout double-v",
+      "enemyRoleIds": [
+        "role-orbit-scout"
+      ],
+      "enemyCount": 6,
+      "totalThreatCost": 6,
+      "entryDirection": "split",
+      "entryPath": "mirrored-swoop",
+      "formationShape": "double-v",
+      "firingBehavior": "none",
+      "synergyAdjustment": 0,
+      "minimumSector": 1,
+      "maximumSimultaneousInstances": 2,
+      "recoveryRequiredSeconds": 0.35,
+      "compatibleMissionRoles": [
+        "introduction",
+        "formation-remix",
+        "elite-checkpoint",
+        "boss-preparation"
+      ],
+      "compatibleSectorIds": [
+        "sector-open-orbit"
+      ],
+      "mobilePerformanceCost": 6,
+      "movementBehavior": "lateral-sweep",
+      "attackBehavior": "pincer-pass",
+      "returnBehavior": "reform",
+      "holdSeconds": 1.1,
+      "telegraphSeconds": 0.8,
+      "attackDurationSeconds": 1.3,
+      "attackRecoverySeconds": 0.8,
+      "attackGroupSize": 2,
+      "attackCycles": 2
+    },
+    {
+      "id": "pack-breakwater-s-arc",
+      "label": "Breakwater Orbit Scout arc",
+      "enemyRoleIds": [
+        "role-orbit-scout"
+      ],
+      "enemyCount": 6,
+      "totalThreatCost": 6,
+      "entryDirection": "right",
+      "entryPath": "paired-flank",
+      "formationShape": "arc",
+      "firingBehavior": "none",
+      "synergyAdjustment": 0,
+      "minimumSector": 1,
+      "maximumSimultaneousInstances": 2,
+      "recoveryRequiredSeconds": 0.35,
+      "compatibleMissionRoles": [
+        "introduction",
+        "formation-remix",
+        "elite-checkpoint",
+        "boss-preparation"
+      ],
+      "compatibleSectorIds": [
+        "sector-open-orbit"
+      ],
+      "mobilePerformanceCost": 6,
+      "movementBehavior": "lateral-sweep",
+      "attackBehavior": "sweep-strafe",
+      "returnBehavior": "reform",
+      "holdSeconds": 1.1,
+      "telegraphSeconds": 0.8,
+      "attackDurationSeconds": 1.3,
+      "attackRecoverySeconds": 0.8,
+      "attackGroupSize": 2,
+      "attackCycles": 2
+    },
+    {
+      "id": "pack-breakwater-s-crescent",
+      "label": "Breakwater Orbit Scout crescent",
+      "enemyRoleIds": [
+        "role-orbit-scout"
+      ],
+      "enemyCount": 6,
+      "totalThreatCost": 6,
+      "entryDirection": "left",
+      "entryPath": "paired-flank",
+      "formationShape": "crescent",
+      "firingBehavior": "none",
+      "synergyAdjustment": 0,
+      "minimumSector": 1,
+      "maximumSimultaneousInstances": 2,
+      "recoveryRequiredSeconds": 0.35,
+      "compatibleMissionRoles": [
+        "introduction",
+        "formation-remix",
+        "elite-checkpoint",
+        "boss-preparation"
+      ],
+      "compatibleSectorIds": [
+        "sector-open-orbit"
+      ],
+      "mobilePerformanceCost": 6,
+      "movementBehavior": "lateral-sweep",
+      "attackBehavior": "sweep-strafe",
+      "returnBehavior": "reform",
+      "holdSeconds": 1.1,
+      "telegraphSeconds": 0.8,
+      "attackDurationSeconds": 1.3,
+      "attackRecoverySeconds": 0.8,
+      "attackGroupSize": 2,
+      "attackCycles": 2
+    },
+    {
+      "id": "pack-breakwater-s-ring",
+      "label": "Breakwater Orbit Scout ring",
+      "enemyRoleIds": [
+        "role-orbit-scout"
+      ],
+      "enemyCount": 12,
+      "totalThreatCost": 12,
+      "entryDirection": "right",
+      "entryPath": "ring-assemble",
+      "formationShape": "ring",
+      "firingBehavior": "none",
+      "synergyAdjustment": 0,
+      "minimumSector": 1,
+      "maximumSimultaneousInstances": 2,
+      "recoveryRequiredSeconds": 0.35,
+      "compatibleMissionRoles": [
+        "introduction",
+        "formation-remix",
+        "elite-checkpoint",
+        "boss-preparation"
+      ],
+      "compatibleSectorIds": [
+        "sector-open-orbit"
+      ],
+      "mobilePerformanceCost": 12,
+      "movementBehavior": "rotating-wheel",
+      "attackBehavior": "ring-collapse",
+      "returnBehavior": "reform",
+      "holdSeconds": 1.1,
+      "telegraphSeconds": 0.8,
+      "attackDurationSeconds": 1.3,
+      "attackRecoverySeconds": 0.8,
+      "attackGroupSize": 2,
+      "attackCycles": 2
+    },
+    {
+      "id": "pack-breakwater-s-v",
+      "label": "Breakwater Orbit Scout v",
+      "enemyRoleIds": [
+        "role-orbit-scout"
+      ],
+      "enemyCount": 6,
+      "totalThreatCost": 6,
+      "entryDirection": "split",
+      "entryPath": "paired-flank",
+      "formationShape": "v",
+      "firingBehavior": "none",
+      "synergyAdjustment": 0,
+      "minimumSector": 1,
+      "maximumSimultaneousInstances": 2,
+      "recoveryRequiredSeconds": 0.35,
+      "compatibleMissionRoles": [
+        "introduction",
+        "formation-remix",
+        "elite-checkpoint",
+        "boss-preparation"
+      ],
+      "compatibleSectorIds": [
+        "sector-open-orbit"
+      ],
+      "mobilePerformanceCost": 6,
+      "movementBehavior": "lateral-sweep",
+      "attackBehavior": "lane-pass",
+      "returnBehavior": "reform",
+      "holdSeconds": 1.1,
+      "telegraphSeconds": 0.8,
+      "attackDurationSeconds": 1.3,
+      "attackRecoverySeconds": 0.8,
+      "attackGroupSize": 2,
+      "attackCycles": 2
+    },
+    {
+      "id": "pack-breakwater-w-snake",
+      "label": "Breakwater Citation Swarm snake",
+      "enemyRoleIds": [
+        "role-citation-swarm"
+      ],
+      "enemyCount": 6,
+      "totalThreatCost": 6,
+      "entryDirection": "left",
+      "entryPath": "serpentine-weave",
+      "formationShape": "snake",
+      "firingBehavior": "none",
+      "synergyAdjustment": 0,
+      "minimumSector": 1,
+      "maximumSimultaneousInstances": 2,
+      "recoveryRequiredSeconds": 0.35,
+      "compatibleMissionRoles": [
+        "introduction",
+        "formation-remix",
+        "elite-checkpoint",
+        "boss-preparation"
+      ],
+      "compatibleSectorIds": [
+        "sector-open-orbit"
+      ],
+      "mobilePerformanceCost": 6,
+      "movementBehavior": "lateral-sweep",
+      "attackBehavior": "paired-dive",
+      "returnBehavior": "reform",
+      "holdSeconds": 1.1,
+      "telegraphSeconds": 0.8,
+      "attackDurationSeconds": 1.3,
+      "attackRecoverySeconds": 0.8,
+      "attackGroupSize": 2,
+      "attackCycles": 2
+    },
+    {
+      "id": "pack-breakwater-r-grid",
+      "label": "Breakwater Research Drone grid",
+      "enemyRoleIds": [
+        "role-research-drone"
+      ],
+      "enemyCount": 4,
+      "totalThreatCost": 8,
+      "entryDirection": "top",
+      "entryPath": "formation-drop",
+      "formationShape": "grid",
+      "firingBehavior": "post-formation",
+      "synergyAdjustment": 0,
+      "minimumSector": 1,
+      "maximumSimultaneousInstances": 2,
+      "recoveryRequiredSeconds": 0.35,
+      "compatibleMissionRoles": [
+        "introduction",
+        "formation-remix",
+        "elite-checkpoint",
+        "boss-preparation"
+      ],
+      "compatibleSectorIds": [
+        "sector-open-orbit"
+      ],
+      "mobilePerformanceCost": 6,
+      "movementBehavior": "gentle-drift",
+      "attackBehavior": "lane-pass",
+      "returnBehavior": "reform",
+      "holdSeconds": 1.1,
+      "telegraphSeconds": 0.8,
+      "attackDurationSeconds": 1.3,
+      "attackRecoverySeconds": 0.8,
+      "attackGroupSize": 2,
+      "attackCycles": 2
+    },
+    {
+      "id": "pack-breakwater-r-double-v",
+      "label": "Breakwater Research Drone double-v",
+      "enemyRoleIds": [
+        "role-research-drone"
+      ],
+      "enemyCount": 8,
+      "totalThreatCost": 16,
+      "entryDirection": "split",
+      "entryPath": "mirrored-swoop",
+      "formationShape": "double-v",
+      "firingBehavior": "post-formation",
+      "synergyAdjustment": 0,
+      "minimumSector": 1,
+      "maximumSimultaneousInstances": 2,
+      "recoveryRequiredSeconds": 0.35,
+      "compatibleMissionRoles": [
+        "introduction",
+        "formation-remix",
+        "elite-checkpoint",
+        "boss-preparation"
+      ],
+      "compatibleSectorIds": [
+        "sector-open-orbit"
+      ],
+      "mobilePerformanceCost": 8,
+      "movementBehavior": "lateral-sweep",
+      "attackBehavior": "pincer-pass",
+      "returnBehavior": "reform",
+      "holdSeconds": 1.1,
+      "telegraphSeconds": 0.8,
+      "attackDurationSeconds": 1.3,
+      "attackRecoverySeconds": 0.8,
+      "attackGroupSize": 2,
+      "attackCycles": 2
+    },
+    {
+      "id": "pack-breakwater-w-arc",
+      "label": "Breakwater Citation Swarm arc",
+      "enemyRoleIds": [
+        "role-citation-swarm"
+      ],
+      "enemyCount": 4,
+      "totalThreatCost": 4,
+      "entryDirection": "right",
+      "entryPath": "paired-flank",
+      "formationShape": "arc",
+      "firingBehavior": "none",
+      "synergyAdjustment": 0,
+      "minimumSector": 1,
+      "maximumSimultaneousInstances": 2,
+      "recoveryRequiredSeconds": 0.35,
+      "compatibleMissionRoles": [
+        "introduction",
+        "formation-remix",
+        "elite-checkpoint",
+        "boss-preparation"
+      ],
+      "compatibleSectorIds": [
+        "sector-open-orbit"
+      ],
+      "mobilePerformanceCost": 6,
+      "movementBehavior": "lateral-sweep",
+      "attackBehavior": "sweep-strafe",
+      "returnBehavior": "reform",
+      "holdSeconds": 1.1,
+      "telegraphSeconds": 0.8,
+      "attackDurationSeconds": 1.3,
+      "attackRecoverySeconds": 0.8,
+      "attackGroupSize": 2,
+      "attackCycles": 2
+    },
+    {
+      "id": "pack-breakwater-r-diamond",
+      "label": "Breakwater Research Drone diamond",
+      "enemyRoleIds": [
+        "role-research-drone"
+      ],
+      "enemyCount": 6,
+      "totalThreatCost": 12,
+      "entryDirection": "top",
+      "entryPath": "diamond-lock",
+      "formationShape": "diamond",
+      "firingBehavior": "post-formation",
+      "synergyAdjustment": 0,
+      "minimumSector": 1,
+      "maximumSimultaneousInstances": 2,
+      "recoveryRequiredSeconds": 0.35,
+      "compatibleMissionRoles": [
+        "introduction",
+        "formation-remix",
+        "elite-checkpoint",
+        "boss-preparation"
+      ],
+      "compatibleSectorIds": [
+        "sector-open-orbit"
+      ],
+      "mobilePerformanceCost": 6,
+      "movementBehavior": "gentle-drift",
+      "attackBehavior": "leader-escorts",
+      "returnBehavior": "reform",
+      "holdSeconds": 1.1,
+      "telegraphSeconds": 0.8,
+      "attackDurationSeconds": 1.3,
+      "attackRecoverySeconds": 0.8,
+      "attackGroupSize": 2,
+      "attackCycles": 2
+    },
+    {
+      "id": "pack-breakwater-r-v",
+      "label": "Breakwater Research Drone v",
+      "enemyRoleIds": [
+        "role-research-drone"
+      ],
+      "enemyCount": 6,
+      "totalThreatCost": 12,
+      "entryDirection": "split",
+      "entryPath": "paired-flank",
+      "formationShape": "v",
+      "firingBehavior": "post-formation",
+      "synergyAdjustment": 0,
+      "minimumSector": 1,
+      "maximumSimultaneousInstances": 2,
+      "recoveryRequiredSeconds": 0.35,
+      "compatibleMissionRoles": [
+        "introduction",
+        "formation-remix",
+        "elite-checkpoint",
+        "boss-preparation"
+      ],
+      "compatibleSectorIds": [
+        "sector-open-orbit"
+      ],
+      "mobilePerformanceCost": 6,
+      "movementBehavior": "lateral-sweep",
+      "attackBehavior": "lane-pass",
+      "returnBehavior": "reform",
+      "holdSeconds": 1.1,
+      "telegraphSeconds": 0.8,
+      "attackDurationSeconds": 1.3,
+      "attackRecoverySeconds": 0.8,
+      "attackGroupSize": 2,
+      "attackCycles": 2
+    },
+    {
+      "id": "pack-breakwater-w-crescent",
+      "label": "Breakwater Citation Swarm crescent",
+      "enemyRoleIds": [
+        "role-citation-swarm"
+      ],
+      "enemyCount": 6,
+      "totalThreatCost": 6,
+      "entryDirection": "left",
+      "entryPath": "paired-flank",
+      "formationShape": "crescent",
+      "firingBehavior": "none",
+      "synergyAdjustment": 0,
+      "minimumSector": 1,
+      "maximumSimultaneousInstances": 2,
+      "recoveryRequiredSeconds": 0.35,
+      "compatibleMissionRoles": [
+        "introduction",
+        "formation-remix",
+        "elite-checkpoint",
+        "boss-preparation"
+      ],
+      "compatibleSectorIds": [
+        "sector-open-orbit"
+      ],
+      "mobilePerformanceCost": 6,
+      "movementBehavior": "lateral-sweep",
+      "attackBehavior": "sweep-strafe",
+      "returnBehavior": "reform",
+      "holdSeconds": 1.1,
+      "telegraphSeconds": 0.8,
+      "attackDurationSeconds": 1.3,
+      "attackRecoverySeconds": 0.8,
+      "attackGroupSize": 2,
+      "attackCycles": 2
+    },
+    {
+      "id": "pack-breakwater-w-ring",
+      "label": "Breakwater Citation Swarm ring",
+      "enemyRoleIds": [
+        "role-citation-swarm"
+      ],
+      "enemyCount": 8,
+      "totalThreatCost": 8,
+      "entryDirection": "right",
+      "entryPath": "ring-assemble",
+      "formationShape": "ring",
+      "firingBehavior": "none",
+      "synergyAdjustment": 0,
+      "minimumSector": 1,
+      "maximumSimultaneousInstances": 2,
+      "recoveryRequiredSeconds": 0.35,
+      "compatibleMissionRoles": [
+        "introduction",
+        "formation-remix",
+        "elite-checkpoint",
+        "boss-preparation"
+      ],
+      "compatibleSectorIds": [
+        "sector-open-orbit"
+      ],
+      "mobilePerformanceCost": 8,
+      "movementBehavior": "rotating-wheel",
+      "attackBehavior": "ring-collapse",
+      "returnBehavior": "reform",
+      "holdSeconds": 1.1,
+      "telegraphSeconds": 0.8,
+      "attackDurationSeconds": 1.3,
+      "attackRecoverySeconds": 0.8,
+      "attackGroupSize": 2,
+      "attackCycles": 2
+    },
+    {
+      "id": "pack-breakwater-r-arc",
+      "label": "Breakwater Research Drone arc",
+      "enemyRoleIds": [
+        "role-research-drone"
+      ],
+      "enemyCount": 4,
+      "totalThreatCost": 8,
+      "entryDirection": "right",
+      "entryPath": "paired-flank",
+      "formationShape": "arc",
+      "firingBehavior": "post-formation",
+      "synergyAdjustment": 0,
+      "minimumSector": 1,
+      "maximumSimultaneousInstances": 2,
+      "recoveryRequiredSeconds": 0.35,
+      "compatibleMissionRoles": [
+        "introduction",
+        "formation-remix",
+        "elite-checkpoint",
+        "boss-preparation"
+      ],
+      "compatibleSectorIds": [
+        "sector-open-orbit"
+      ],
+      "mobilePerformanceCost": 6,
+      "movementBehavior": "lateral-sweep",
+      "attackBehavior": "sweep-strafe",
+      "returnBehavior": "reform",
+      "holdSeconds": 1.1,
+      "telegraphSeconds": 0.8,
+      "attackDurationSeconds": 1.3,
+      "attackRecoverySeconds": 0.8,
+      "attackGroupSize": 2,
+      "attackCycles": 2
+    },
+    {
+      "id": "pack-breakwater-r-ring",
+      "label": "Breakwater Research Drone ring",
+      "enemyRoleIds": [
+        "role-research-drone"
+      ],
+      "enemyCount": 8,
+      "totalThreatCost": 16,
+      "entryDirection": "right",
+      "entryPath": "ring-assemble",
+      "formationShape": "ring",
+      "firingBehavior": "post-formation",
+      "synergyAdjustment": 0,
+      "minimumSector": 1,
+      "maximumSimultaneousInstances": 2,
+      "recoveryRequiredSeconds": 0.35,
+      "compatibleMissionRoles": [
+        "introduction",
+        "formation-remix",
+        "elite-checkpoint",
+        "boss-preparation"
+      ],
+      "compatibleSectorIds": [
+        "sector-open-orbit"
+      ],
+      "mobilePerformanceCost": 8,
+      "movementBehavior": "rotating-wheel",
+      "attackBehavior": "ring-collapse",
+      "returnBehavior": "reform",
+      "holdSeconds": 1.1,
+      "telegraphSeconds": 0.8,
+      "attackDurationSeconds": 1.3,
+      "attackRecoverySeconds": 0.8,
+      "attackGroupSize": 2,
+      "attackCycles": 2
+    },
+    {
+      "id": "pack-breakwater-w-v",
+      "label": "Breakwater Citation Swarm v",
+      "enemyRoleIds": [
+        "role-citation-swarm"
+      ],
+      "enemyCount": 4,
+      "totalThreatCost": 4,
+      "entryDirection": "split",
+      "entryPath": "paired-flank",
+      "formationShape": "v",
+      "firingBehavior": "none",
+      "synergyAdjustment": 0,
+      "minimumSector": 1,
+      "maximumSimultaneousInstances": 2,
+      "recoveryRequiredSeconds": 0.35,
+      "compatibleMissionRoles": [
+        "introduction",
+        "formation-remix",
+        "elite-checkpoint",
+        "boss-preparation"
+      ],
+      "compatibleSectorIds": [
+        "sector-open-orbit"
+      ],
+      "mobilePerformanceCost": 6,
+      "movementBehavior": "lateral-sweep",
+      "attackBehavior": "lane-pass",
+      "returnBehavior": "reform",
+      "holdSeconds": 1.1,
+      "telegraphSeconds": 0.8,
+      "attackDurationSeconds": 1.3,
+      "attackRecoverySeconds": 0.8,
+      "attackGroupSize": 2,
+      "attackCycles": 2
+    },
+    {
+      "id": "pack-breakwater-f-snake",
+      "label": "Breakwater Redline Skirmisher snake",
+      "enemyRoleIds": [
+        "role-jet-scout"
+      ],
+      "enemyCount": 8,
+      "totalThreatCost": 16,
+      "entryDirection": "left",
+      "entryPath": "serpentine-weave",
+      "formationShape": "snake",
+      "firingBehavior": "post-formation",
+      "synergyAdjustment": 0,
+      "minimumSector": 1,
+      "maximumSimultaneousInstances": 2,
+      "recoveryRequiredSeconds": 0.35,
+      "compatibleMissionRoles": [
+        "introduction",
+        "formation-remix",
+        "elite-checkpoint",
+        "boss-preparation"
+      ],
+      "compatibleSectorIds": [
+        "sector-open-orbit"
+      ],
+      "mobilePerformanceCost": 8,
+      "movementBehavior": "lateral-sweep",
+      "attackBehavior": "paired-dive",
+      "returnBehavior": "reform",
+      "holdSeconds": 1.1,
+      "telegraphSeconds": 0.8,
+      "attackDurationSeconds": 1.3,
+      "attackRecoverySeconds": 0.8,
+      "attackGroupSize": 2,
+      "attackCycles": 2
+    },
+    {
+      "id": "pack-breakwater-x-double-v",
+      "label": "Breakwater Crosscut Raider double-v",
+      "enemyRoleIds": [
+        "role-jet-interceptor"
+      ],
+      "enemyCount": 6,
+      "totalThreatCost": 18,
+      "entryDirection": "split",
+      "entryPath": "mirrored-swoop",
+      "formationShape": "double-v",
+      "firingBehavior": "staggered",
+      "synergyAdjustment": 0,
+      "minimumSector": 1,
+      "maximumSimultaneousInstances": 2,
+      "recoveryRequiredSeconds": 0.35,
+      "compatibleMissionRoles": [
+        "introduction",
+        "formation-remix",
+        "elite-checkpoint",
+        "boss-preparation"
+      ],
+      "compatibleSectorIds": [
+        "sector-open-orbit"
+      ],
+      "mobilePerformanceCost": 12,
+      "movementBehavior": "lateral-sweep",
+      "attackBehavior": "pincer-pass",
+      "returnBehavior": "reform",
+      "holdSeconds": 1.1,
+      "telegraphSeconds": 0.8,
+      "attackDurationSeconds": 1.3,
+      "attackRecoverySeconds": 0.8,
+      "attackGroupSize": 2,
+      "attackCycles": 2
+    },
+    {
+      "id": "pack-breakwater-f-crescent",
+      "label": "Breakwater Redline Skirmisher crescent",
+      "enemyRoleIds": [
+        "role-jet-scout"
+      ],
+      "enemyCount": 6,
+      "totalThreatCost": 12,
+      "entryDirection": "left",
+      "entryPath": "paired-flank",
+      "formationShape": "crescent",
+      "firingBehavior": "post-formation",
+      "synergyAdjustment": 0,
+      "minimumSector": 1,
+      "maximumSimultaneousInstances": 2,
+      "recoveryRequiredSeconds": 0.35,
+      "compatibleMissionRoles": [
+        "introduction",
+        "formation-remix",
+        "elite-checkpoint",
+        "boss-preparation"
+      ],
+      "compatibleSectorIds": [
+        "sector-open-orbit"
+      ],
+      "mobilePerformanceCost": 6,
+      "movementBehavior": "lateral-sweep",
+      "attackBehavior": "sweep-strafe",
+      "returnBehavior": "reform",
+      "holdSeconds": 1.1,
+      "telegraphSeconds": 0.8,
+      "attackDurationSeconds": 1.3,
+      "attackRecoverySeconds": 0.8,
+      "attackGroupSize": 2,
+      "attackCycles": 2
+    },
+    {
+      "id": "pack-breakwater-f-arc",
+      "label": "Breakwater Redline Skirmisher arc",
+      "enemyRoleIds": [
+        "role-jet-scout"
+      ],
+      "enemyCount": 4,
+      "totalThreatCost": 8,
+      "entryDirection": "right",
+      "entryPath": "paired-flank",
+      "formationShape": "arc",
+      "firingBehavior": "post-formation",
+      "synergyAdjustment": 0,
+      "minimumSector": 1,
+      "maximumSimultaneousInstances": 2,
+      "recoveryRequiredSeconds": 0.35,
+      "compatibleMissionRoles": [
+        "introduction",
+        "formation-remix",
+        "elite-checkpoint",
+        "boss-preparation"
+      ],
+      "compatibleSectorIds": [
+        "sector-open-orbit"
+      ],
+      "mobilePerformanceCost": 6,
+      "movementBehavior": "lateral-sweep",
+      "attackBehavior": "sweep-strafe",
+      "returnBehavior": "reform",
+      "holdSeconds": 1.1,
+      "telegraphSeconds": 0.8,
+      "attackDurationSeconds": 1.3,
+      "attackRecoverySeconds": 0.8,
+      "attackGroupSize": 2,
+      "attackCycles": 2
+    },
+    {
+      "id": "pack-breakwater-v-diamond",
+      "label": "Breakwater Protocol Vanguard diamond",
+      "enemyRoleIds": [
+        "role-protocol-vanguard"
+      ],
+      "enemyCount": 4,
+      "totalThreatCost": 20,
+      "entryDirection": "top",
+      "entryPath": "diamond-lock",
+      "formationShape": "diamond",
+      "firingBehavior": "staggered",
+      "synergyAdjustment": 0,
+      "minimumSector": 1,
+      "maximumSimultaneousInstances": 2,
+      "recoveryRequiredSeconds": 0.35,
+      "compatibleMissionRoles": [
+        "introduction",
+        "formation-remix",
+        "elite-checkpoint",
+        "boss-preparation"
+      ],
+      "compatibleSectorIds": [
+        "sector-open-orbit"
+      ],
+      "mobilePerformanceCost": 12,
+      "movementBehavior": "gentle-drift",
+      "attackBehavior": "leader-escorts",
+      "returnBehavior": "reform",
+      "holdSeconds": 1.1,
+      "telegraphSeconds": 0.8,
+      "attackDurationSeconds": 1.3,
+      "attackRecoverySeconds": 0.8,
+      "attackGroupSize": 2,
+      "attackCycles": 2
+    },
+    {
+      "id": "pack-breakwater-x-crescent",
+      "label": "Breakwater Crosscut Raider crescent",
+      "enemyRoleIds": [
+        "role-jet-interceptor"
+      ],
+      "enemyCount": 6,
+      "totalThreatCost": 18,
+      "entryDirection": "left",
+      "entryPath": "paired-flank",
+      "formationShape": "crescent",
+      "firingBehavior": "staggered",
+      "synergyAdjustment": 0,
+      "minimumSector": 1,
+      "maximumSimultaneousInstances": 2,
+      "recoveryRequiredSeconds": 0.35,
+      "compatibleMissionRoles": [
+        "introduction",
+        "formation-remix",
+        "elite-checkpoint",
+        "boss-preparation"
+      ],
+      "compatibleSectorIds": [
+        "sector-open-orbit"
+      ],
+      "mobilePerformanceCost": 12,
+      "movementBehavior": "lateral-sweep",
+      "attackBehavior": "sweep-strafe",
+      "returnBehavior": "reform",
+      "holdSeconds": 1.1,
+      "telegraphSeconds": 0.8,
+      "attackDurationSeconds": 1.3,
+      "attackRecoverySeconds": 0.8,
+      "attackGroupSize": 2,
+      "attackCycles": 2
+    },
+    {
+      "id": "pack-breakwater-h-grid",
+      "label": "Breakwater Audit Bulwark grid",
+      "enemyRoleIds": [
+        "role-jet-heavy"
+      ],
+      "enemyCount": 4,
+      "totalThreatCost": 20,
+      "entryDirection": "top",
+      "entryPath": "formation-drop",
+      "formationShape": "grid",
+      "firingBehavior": "post-formation",
+      "synergyAdjustment": 0,
+      "minimumSector": 1,
+      "maximumSimultaneousInstances": 2,
+      "recoveryRequiredSeconds": 0.35,
+      "compatibleMissionRoles": [
+        "introduction",
+        "formation-remix",
+        "elite-checkpoint",
+        "boss-preparation"
+      ],
+      "compatibleSectorIds": [
+        "sector-open-orbit"
+      ],
+      "mobilePerformanceCost": 12,
+      "movementBehavior": "gentle-drift",
+      "attackBehavior": "lane-pass",
+      "returnBehavior": "reform",
+      "holdSeconds": 1.1,
+      "telegraphSeconds": 0.8,
+      "attackDurationSeconds": 1.3,
+      "attackRecoverySeconds": 0.8,
+      "attackGroupSize": 2,
+      "attackCycles": 2
+    },
+    {
+      "id": "pack-breakwater-f-double-v",
+      "label": "Breakwater Redline Skirmisher double-v",
+      "enemyRoleIds": [
+        "role-jet-scout"
+      ],
+      "enemyCount": 6,
+      "totalThreatCost": 12,
+      "entryDirection": "split",
+      "entryPath": "mirrored-swoop",
+      "formationShape": "double-v",
+      "firingBehavior": "post-formation",
+      "synergyAdjustment": 0,
+      "minimumSector": 1,
+      "maximumSimultaneousInstances": 2,
+      "recoveryRequiredSeconds": 0.35,
+      "compatibleMissionRoles": [
+        "introduction",
+        "formation-remix",
+        "elite-checkpoint",
+        "boss-preparation"
+      ],
+      "compatibleSectorIds": [
+        "sector-open-orbit"
+      ],
+      "mobilePerformanceCost": 6,
+      "movementBehavior": "lateral-sweep",
+      "attackBehavior": "pincer-pass",
+      "returnBehavior": "reform",
+      "holdSeconds": 1.1,
+      "telegraphSeconds": 0.8,
+      "attackDurationSeconds": 1.3,
+      "attackRecoverySeconds": 0.8,
+      "attackGroupSize": 2,
+      "attackCycles": 2
     }
   ],
   "miniBosses": [

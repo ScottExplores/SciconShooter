@@ -54,6 +54,10 @@ export const BUILT_IN_ASSET_CATALOG: Readonly<Record<BuiltInAssetKey, AssetCatal
   PLAYER_SHIP: asset('PLAYER_SHIP', 'ResearchHub ship', ASSETS.PLAYER_SHIP, ['player', 'scorecard']),
   RSC_TOKEN: asset('RSC_TOKEN', 'RSC token', ASSETS.RSC_TOKEN, ['hud', 'scorecard']),
   REAL_RSC_ICON: asset('REAL_RSC_ICON', 'RSC flask', ASSETS.REAL_RSC_ICON, ['hud', 'scorecard']),
+  PIXI_BREAKWATER_FAR: asset('PIXI_BREAKWATER_FAR', 'Breakwater distant space', ASSETS.PIXI_BREAKWATER_FAR, ['background']),
+  PIXI_BREAKWATER_APPROACH: asset('PIXI_BREAKWATER_APPROACH', 'Breakwater orbital approach', ASSETS.PIXI_BREAKWATER_APPROACH, ['background']),
+  PIXI_BREAKWATER_WRECKFIELD: asset('PIXI_BREAKWATER_WRECKFIELD', 'Breakwater wreck field', ASSETS.PIXI_BREAKWATER_WRECKFIELD, ['background']),
+  PIXI_BREAKWATER_GATE: asset('PIXI_BREAKWATER_GATE', 'Breakwater station gate', ASSETS.PIXI_BREAKWATER_GATE, ['background']),
   GAME_BG_BACK: asset('GAME_BG_BACK', 'Deep space', ASSETS.GAME_BG_BACK, ['background']),
   GAME_BG_STARS: asset('GAME_BG_STARS', 'Star field', ASSETS.GAME_BG_STARS, ['background']),
   GAME_BG_PLANET: asset('GAME_BG_PLANET', 'Planet horizon', ASSETS.GAME_BG_PLANET, ['background']),
@@ -592,6 +596,9 @@ const commonBackgroundLayers: AssetKey[] = [
 ];
 
 export const BACKGROUND_CATALOG: Record<BackgroundId, BackgroundCatalogEntry> = {
+  'breakwater-approach': { id: 'breakwater-approach', label: 'Breakwater · Orbital Approach', layerAssetKeys: ['PIXI_BREAKWATER_FAR', 'PIXI_BREAKWATER_APPROACH'], tint: '#081a29' },
+  'breakwater-wreckfield': { id: 'breakwater-wreckfield', label: 'Breakwater · Salvage Field', layerAssetKeys: ['PIXI_BREAKWATER_FAR', 'PIXI_BREAKWATER_WRECKFIELD'], tint: '#10222c' },
+  'breakwater-gate': { id: 'breakwater-gate', label: 'Breakwater · Station Gate', layerAssetKeys: ['PIXI_BREAKWATER_FAR', 'PIXI_BREAKWATER_GATE'], tint: '#081a29' },
   'open-orbit': { id: 'open-orbit', label: 'Open Orbit', layerAssetKeys: [...commonBackgroundLayers], tint: '#0f4c81' },
   'citation-storm': { id: 'citation-storm', label: 'Citation Storm', layerAssetKeys: [...commonBackgroundLayers], tint: '#4f46e5' },
   'paywall-siege': { id: 'paywall-siege', label: 'Paywall Siege', layerAssetKeys: [...commonBackgroundLayers], tint: '#d97706' },

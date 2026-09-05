@@ -128,10 +128,19 @@ test('authored formation metadata, weighted budgets, and teaching encounters mat
       return {
         pattern: spawn.patternId,
         label: spawn.label,
+        choreography: JSON.stringify(spawn.formationBehavior ?? {}),
         roles: spawn.enemies.map((enemy) => enemy.roleId).sort().join('|')
       };
     });
-    assert.equal(new Set(teachingEncounters.map((entry) => entry.pattern)).size, 4, `${sector.id} teaching patterns must differ`);
+    if (sector.id === 'sector-open-orbit') {
+      // Breakwater reuses a readable paired silhouette to teach no-fire dives,
+      // hold-fire wings, then committed firing dives before the armored lock.
+      assert.ok(new Set(teachingEncounters.map(entry => entry.pattern)).size >= 2);
+      assert.equal(new Set(teachingEncounters.map(entry => `${entry.pattern}|${entry.choreography}`)).size, 4,
+        'Breakwater teaches four distinct movement/attack/fire policies');
+    } else {
+      assert.equal(new Set(teachingEncounters.map((entry) => entry.pattern)).size, 4, `${sector.id} teaching patterns must differ`);
+    }
     assert.ok(
       new Set(teachingEncounters.map((entry) => entry.roles)).size >= 2,
       `${sector.id} teaching encounters must use at least two role loadouts`

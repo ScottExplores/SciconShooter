@@ -14,6 +14,10 @@ export type BuiltInAssetKey =
   | 'GAME_PARALLAX_FAR_PLANETS'
   | 'GAME_PARALLAX_BIG_PLANET'
   | 'GAME_PARALLAX_RING_PLANET'
+  | 'PIXI_BREAKWATER_FAR'
+  | 'PIXI_BREAKWATER_APPROACH'
+  | 'PIXI_BREAKWATER_WRECKFIELD'
+  | 'PIXI_BREAKWATER_GATE'
   | 'PIXI_SPACE_RUN_HELIX_REDLINE_PROPS'
   | 'PIXI_SPACE_RUN_SHATTERED_VOID_PROPS'
   | 'PIXI_SPACE_RUN_GRAVITY_RIFT_PROPS'
@@ -145,6 +149,9 @@ export type CampaignMiniBossId = Extract<
 export type BossRigId = 'open-orbit' | 'citation-storm' | 'paywall-siege' | 'crown-claw';
 export type PowerupId = 'projectile-upgrade' | 'max-shot' | 'magnet' | 'shield' | 'research-beam' | 'extra-life';
 export type BackgroundId =
+  | 'breakwater-approach'
+  | 'breakwater-wreckfield'
+  | 'breakwater-gate'
   | 'open-orbit'
   | 'citation-storm'
   | 'paywall-siege'

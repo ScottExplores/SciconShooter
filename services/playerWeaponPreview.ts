@@ -1,6 +1,5 @@
-import { getBioPrimaryShotPlan } from './bioPrimaryWeapon';
 import { type PlayerShipId } from './playerShipService';
-import { sampleTripleShotSideAngleRadians } from './playerShotSpread';
+import { getPlayerPrimaryBurst, getPlayerPrimaryMuzzle } from './playerPrimaryBurst';
 import {
   getPlayerShipWeaponVisualFamily,
   getPlayerWeaponFrames
@@ -28,7 +27,6 @@ export const PLAYER_WEAPON_PREVIEW_FLIGHT_MS = (
   / PLAYER_WEAPON_PREVIEW_PROJECTILE_SPEED_PX_PER_FRAME
 ) * PLAYER_WEAPON_PREVIEW_FRAME_MS;
 export const PLAYER_WEAPON_PREVIEW_MAX_ACTIVE_VOLLEYS = 8;
-const MIDPOINT_SPREAD_SAMPLE = 0.5;
 
 /**
  * Preview-only copy stays outside the balance-proofed Overdrive module. These
@@ -36,9 +34,9 @@ const MIDPOINT_SPREAD_SAMPLE = 0.5;
  */
 export const PLAYER_SHIP_WEAPON_PREVIEW_SPECS: Readonly<Record<PlayerShipId, string>> = Object.freeze({
   researchhub: 'Pulse column - tight centre rounds; each Fire Rate tier adds another bolt',
-  bio: 'Bio rails - twin straight lanes, +16% output; rails pierce from Tier 4',
-  eth: 'Prism spread - triple lanes, sides angled 15-20 degrees; best crowd coverage',
-  btc: 'Hash bolt - heavy gold lane, 2.1x damage, punches through the first hull'
+  bio: 'Bio rails - alternating twin lanes, +16% output; rails pierce from Tier 4',
+  eth: 'Prism spread - triple lanes fired in a rippling fan; best crowd coverage',
+  btc: 'Hash bolt - rhythmic gold pulses, 2.1x damage, punches through the first hull'
 });
 
 const radiansToDegrees = (radians: number) => radians * (180 / Math.PI);
@@ -46,8 +44,9 @@ const getTravelX = (angleRadians: number) => (
   Math.sin(angleRadians) * PLAYER_WEAPON_PREVIEW_TRAVEL_DISTANCE_PX
 );
 
-export const getPlayerWeaponPreviewVolleyIntervalMs = (fireRateLevel: number) => (
-  getFireRateIntervalFrames(fireRateLevel) * PLAYER_WEAPON_PREVIEW_FRAME_MS
+export const getPlayerWeaponPreviewVolleyIntervalMs = (fireRateLevel: number, shipId: PlayerShipId = 'researchhub') => (
+  (getPlayerPrimaryBurst(shipId, fireRateLevel, false)?.cycleFrames
+    ?? getFireRateIntervalFrames(fireRateLevel)) * PLAYER_WEAPON_PREVIEW_FRAME_MS
 );
 
 export const getPlayerWeaponPreviewVolleyLifetimeMs = (
@@ -59,12 +58,13 @@ export const getPlayerWeaponPreviewVolleyLifetimeMs = (
 
 export const getPlayerWeaponPreviewActiveVolleyLimit = (
   fireRateLevel: number,
-  shots: readonly PlayerWeaponPreviewShot[]
+  shots: readonly PlayerWeaponPreviewShot[],
+  shipId: PlayerShipId = 'researchhub'
 ) => Math.min(
   PLAYER_WEAPON_PREVIEW_MAX_ACTIVE_VOLLEYS,
   Math.max(1, Math.ceil(
     getPlayerWeaponPreviewVolleyLifetimeMs(shots)
-    / getPlayerWeaponPreviewVolleyIntervalMs(fireRateLevel)
+    / getPlayerWeaponPreviewVolleyIntervalMs(fireRateLevel, shipId)
   ))
 );
 
@@ -101,34 +101,16 @@ export const getPlayerWeaponPreviewShots = (
   shipId: PlayerShipId,
   fireRateLevel: number
 ): readonly PlayerWeaponPreviewShot[] => {
-  if (shipId === 'bio') {
-    const plan = getBioPrimaryShotPlan(
-      fireRateLevel,
-      false,
-      false,
-      MIDPOINT_SPREAD_SAMPLE,
-      MIDPOINT_SPREAD_SAMPLE
-    );
-
-    return Object.freeze(plan.shots.flatMap((shot, shotIndex) => (
-      shot.visualPattern.map((round, roundIndex) => Object.freeze({
-        id: `bio-${shotIndex}-${roundIndex}`,
-        startX: shot.offsetX + round.offsetX,
-        travelX: getTravelX(shot.angleBias + round.angleOffset),
-        angleDegrees: radiansToDegrees(shot.angleBias + round.angleOffset),
-        delayMs: (shot.fireDelayFrames + round.launchDelayFrames) * PLAYER_WEAPON_PREVIEW_FRAME_MS
-      }))
-    )));
-  }
-
-  if (shipId === 'eth') {
-    const leftAngle = sampleTripleShotSideAngleRadians(-1, MIDPOINT_SPREAD_SAMPLE);
-    const rightAngle = sampleTripleShotSideAngleRadians(1, MIDPOINT_SPREAD_SAMPLE);
-    return Object.freeze([
-      ...buildTightVolleyShots(shipId, fireRateLevel, 'left', -4, leftAngle, PLAYER_WEAPON_PREVIEW_FRAME_MS),
-      ...buildTightVolleyShots(shipId, fireRateLevel, 'centre'),
-      ...buildTightVolleyShots(shipId, fireRateLevel, 'right', 4, rightAngle, PLAYER_WEAPON_PREVIEW_FRAME_MS * 2)
-    ]);
+  const burst = getPlayerPrimaryBurst(shipId, fireRateLevel, false);
+  if (burst) {
+    return Object.freeze(burst.shots.map((shot, index) => Object.freeze({
+      id: `${shipId}-pulse-${index}`,
+      startX: getPlayerPrimaryMuzzle({ shipId, x: -40, y: 0, width: 80, height: 80,
+        drawScale: 1, barrel: shot.barrel }).x,
+      travelX: getTravelX(shot.angle),
+      angleDegrees: radiansToDegrees(shot.angle),
+      delayMs: shot.fireDelayFrames * PLAYER_WEAPON_PREVIEW_FRAME_MS
+    })));
   }
 
   return Object.freeze(buildTightVolleyShots(shipId, fireRateLevel, 'centre'));

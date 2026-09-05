@@ -1,5 +1,20 @@
 export type PlayerWeaponVisualFamily = 'research' | 'bio' | 'eth' | 'btc';
 
+// Optical centers measured from the checked-in alpha silhouettes (threshold
+// 32/255). The artwork's energy core shifts inside its 128px source cell;
+// anchoring every frame at 0.5 made the gun wobble sideways over the hull.
+const ENERGY_FRAME_CENTERS = {
+  bio: [[76.5, 67], [74.5, 67.5], [68.5, 67], [61.5, 68]],
+  eth: [[76.5, 65.5], [73.5, 64.5], [68, 65.5], [60.5, 66]],
+  btc: [[77, 62], [73.5, 64.5], [68, 64.5], [60.5, 64.5]]
+} as const;
+
+export const getPlayerWeaponFrameAnchor = (family: PlayerWeaponVisualFamily, frame: number) => {
+  if (family === 'research') return { x: 0.5, y: 0.5 };
+  const point = ENERGY_FRAME_CENTERS[family][Math.max(0, Math.min(3, Math.floor(frame)))];
+  return { x: point[0] / 128, y: point[1] / 128 };
+};
+
 const PLAYER_WEAPON_FX_ROOT = '/game-art/generated/scicon-player-weapon-fx-v1';
 
 const research = [

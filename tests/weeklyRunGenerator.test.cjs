@@ -333,6 +333,7 @@ test('regular waves use eligible authored packs as readable formation trains', (
 
   run.levels.forEach((level, stageIndex) => {
     const formationSector = generator.getWeeklyRunFormationSector(stageIndex);
+    const sectorId = campaign.sectors.find((sector) => sector.order === formationSector).id;
     const threatCeiling = generator.getWeeklyRunRoleThreatCeiling(stageIndex);
     level.waves.filter((wave) => wave.events[0]?.kind === 'spawn').forEach((wave) => {
       assert.ok(wave.formationPackIds.length > 0, `${wave.id} declares its authored packs`);
@@ -346,6 +347,7 @@ test('regular waves use eligible authored packs as readable formation trains', (
         assert.ok(pack, `${wave.id} references real pack ${packId}`);
         usedPackIds.add(packId);
         assert.ok(pack.minimumSector <= formationSector, `${packId} is unlocked for depth ${stageIndex + 1}`);
+        assert.ok(pack.compatibleSectorIds.includes(sectorId), `${packId} belongs to this Weekly sector band`);
         return pack;
       });
 
@@ -393,7 +395,34 @@ test('regular waves use eligible authored packs as readable formation trains', (
     });
   });
 
-  assert.equal(usedPackIds.size, campaign.formationPacks.length, 'the deep runway unlocks the full formation catalog');
+  const finalSectorId = campaign.sectors.find((sector) => sector.order === 10).id;
+  const portablePacks = campaign.formationPacks.filter((pack) => pack.compatibleSectorIds.includes(finalSectorId));
+  assert.equal(portablePacks.length, 16, 'the sixteen established portable packs remain in the Weekly vocabulary');
+  for (const pack of portablePacks) assert.ok(usedPackIds.has(pack.id), `${pack.id} appears in the deep runway`);
+  assert.ok([...usedPackIds].some((id) => id.startsWith('pack-breakwater-')), 'opening-band variants remain available in their own band');
+});
+
+test('a short final Weekly squad cannot close the wave before an earlier long formation enters', () => {
+  const unevenPacks = structuredClone(campaign);
+  unevenPacks.formationPacks.forEach((pack, index) => {
+    pack.enemyCount = index % 2 === 0 ? 24 : 1;
+    pack.attackGroupSize = Math.min(pack.attackGroupSize, pack.enemyCount);
+  });
+  const run = generator.buildWeeklyRunCampaign('2026-W31', unevenPacks, 48);
+  let earlierTrainFinishesLast = 0;
+  for (const level of run.levels) {
+    for (const wave of level.waves) {
+      const trains = wave.events.filter((event) => event.kind === 'spawn');
+      if (trains.length === 0) continue;
+      const endTimes = trains.map((event) => (
+        event.startSeconds + event.count * event.spawnIntervalSeconds + 5
+      ));
+      const requiredEnd = Math.max(...endTimes);
+      if (requiredEnd > endTimes.at(-1) + 0.01) earlierTrainFinishesLast++;
+      assert.ok(wave.durationSeconds + 0.01 >= requiredEnd, `${wave.id} gives every squad its full entrance`);
+    }
+  }
+  assert.ok(earlierTrainFinishesLast > 0, 'fixture must exercise a long train followed by a shorter train');
 });
 
 test('the first elite and major use complete authored spawn-safe boss schemas', () => {

@@ -49,9 +49,9 @@ test('the selected hull has an explicit replay control above the fleet', () => {
 test('weapon preview reuses gameplay lane plans and the live base projectile families', () => {
   const preview = read('services', 'playerWeaponPreview.ts');
 
-  assert.match(preview, /getBioPrimaryShotPlan/);
-  assert.match(preview, /sampleTripleShotSideAngleRadians\(-1, MIDPOINT_SPREAD_SAMPLE\)/);
-  assert.match(preview, /sampleTripleShotSideAngleRadians\(1, MIDPOINT_SPREAD_SAMPLE\)/);
+  assert.match(preview, /getPlayerPrimaryBurst\(shipId, fireRateLevel, false\)/);
+  assert.match(preview, /getPlayerPrimaryMuzzle/);
+  assert.match(preview, /shot\.fireDelayFrames \* PLAYER_WEAPON_PREVIEW_FRAME_MS/);
   assert.match(preview, /getTightVolleyOffsets\(volleySize\)/);
   assert.match(preview, /getTightVolleyAngleOffsets\(volleySize\)/);
   // Every hull previews its own family; BTC previews its bolt.
@@ -75,6 +75,9 @@ test('weapon preview cadence and travel duration match the live fixed-step weapo
 
   near(previewService.getPlayerWeaponPreviewVolleyIntervalMs(0), 15 * 1000 / 60);
   near(previewService.getPlayerWeaponPreviewVolleyIntervalMs(49), 4 * 1000 / 60);
+  near(previewService.getPlayerWeaponPreviewVolleyIntervalMs(49, 'eth'), 12 * 1000 / 60);
+  near(previewService.getPlayerWeaponPreviewVolleyIntervalMs(49, 'bio'), 12 * 1000 / 60);
+  near(previewService.getPlayerWeaponPreviewVolleyIntervalMs(49, 'btc'), 13.8 * 1000 / 60);
   near(
     previewService.PLAYER_WEAPON_PREVIEW_FLIGHT_MS,
     190 / 10 * 1000 / 60
@@ -86,7 +89,7 @@ test('overlapping preview volleys are bounded across every hull and fire-rate ex
   for (const shipId of shipIds) {
     for (const level of [0, 49]) {
       const shots = previewService.getPlayerWeaponPreviewShots(shipId, level);
-      const limit = previewService.getPlayerWeaponPreviewActiveVolleyLimit(level, shots);
+      const limit = previewService.getPlayerWeaponPreviewActiveVolleyLimit(level, shots, shipId);
       assert.ok(limit >= 1, `${shipId} L${level} keeps a visible volley`);
       assert.ok(
         limit <= previewService.PLAYER_WEAPON_PREVIEW_MAX_ACTIVE_VOLLEYS,
@@ -101,12 +104,12 @@ test('overlapping preview volleys are bounded across every hull and fire-rate ex
   ), 5);
   assert.equal(previewService.getPlayerWeaponPreviewActiveVolleyLimit(
     49,
-    previewService.getPlayerWeaponPreviewShots('eth', 49)
-  ), 6);
+    previewService.getPlayerWeaponPreviewShots('eth', 49), 'eth'
+  ), 3);
   assert.equal(previewService.getPlayerWeaponPreviewActiveVolleyLimit(
     49,
-    previewService.getPlayerWeaponPreviewShots('bio', 49)
-  ), 8);
+    previewService.getPlayerWeaponPreviewShots('bio', 49), 'bio'
+  ), 3);
 });
 
 test('weapon preview dialog is keyboard-safe, mobile-bounded, and reduced-motion aware', () => {

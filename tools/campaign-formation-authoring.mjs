@@ -135,8 +135,10 @@ export const normalizeCampaignFormationAuthoring = (campaign) => {
       (Array.isArray(wave.events) ? wave.events : []).forEach((event) => {
         if (event?.kind !== 'spawn' || !isGroupedCampaignFormationPattern(event.patternId)) return;
         groupedSpawnCount += 1;
-        const resolved = resolveAuthoredFormationPack(event, campaign.formationPacks)
-          ?? resolveAuthoredFormationPack(event, declaredPacks);
+        // Explicit Wave declarations are authoritative. Adding a compatible
+        // pack for another sector must not rebind a previously authored Wave.
+        const resolved = resolveAuthoredFormationPack(event, declaredPacks)
+          ?? resolveAuthoredFormationPack(event, campaign.formationPacks);
         if (!resolved) {
           const roleIds = uniqueRoleIdsForEvent(event);
           throw new Error(

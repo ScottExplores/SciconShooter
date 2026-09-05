@@ -59,7 +59,7 @@ test('advanced roster authoring is idempotent and keeps a valid Campaign contrac
     roleCount: 5,
     packCount: 5,
     authoredEventCount: 29,
-    diversifiedWaveCount: 26
+    diversifiedWaveCount: 18
   });
   assert.deepEqual(second, first);
   assert.equal(JSON.stringify(authored), once);
@@ -70,11 +70,33 @@ test('advanced roster authoring is idempotent and keeps a valid Campaign contrac
   assert.equal(validation.valid, true, JSON.stringify(validation.issues.slice(0, 20), null, 2));
 });
 
+test('legacy roster reauthoring preserves sector choreography and each late escort tuning', async () => {
+  const { authorSciconAdvancedEnemies } = await import(authoringUrl);
+  const authored = structuredClone(campaign);
+  const firstSectorIds = new Set(authored.sectors.find((sector) => sector.order === 1).missionIds);
+  const opening = structuredClone(authored.levels.filter((level) => firstSectorIds.has(level.id)));
+  assert.ok(opening.some((level) => level.waves.some((wave) => (
+    wave.formationPackIds.some((id) => id.startsWith('pack-breakwater-'))
+  ))));
+  const late = authoredAdvancedEvents(authored).find(({ enemy }) => enemy.roleId === 'role-quasar-lancer');
+  const escort = late.event.enemies.find((enemy) => enemy.roleId === 'role-jet-scout');
+  assert.ok(escort);
+  escort.speed = 3.17;
+  escort.attackIntervalSeconds = 2.71;
+  const tunedEscort = structuredClone(escort);
+  authorSciconAdvancedEnemies(authored);
+  assert.deepEqual(authored.levels.filter((level) => firstSectorIds.has(level.id)), opening);
+  const rebuilt = authoredAdvancedEvents(authored).find(({ event }) => event.id === late.event.id);
+  assert.deepEqual(rebuilt.event.enemies.find((enemy) => enemy.roleId === escort.roleId), tunedEscort,
+    'a rebuilt late train retains its escort tuning instead of borrowing the opening Mission template');
+});
+
 test('five generated hulls have unique sector-gated roles and formation packs', () => {
   const roleById = new Map(campaign.enemyRoles.map((role) => [role.id, role]));
   const packById = new Map(campaign.formationPacks.map((pack) => [pack.id, pack]));
   assert.equal(campaign.enemyRoles.length, 25);
-  assert.equal(campaign.formationPacks.length, 16);
+  assert.equal(campaign.formationPacks.length, 41);
+  assert.equal(campaign.formationPacks.filter((pack) => pack.id.startsWith('pack-breakwater-')).length, 25);
 
   for (const expected of EXPECTED) {
     const role = roleById.get(expected.roleId);

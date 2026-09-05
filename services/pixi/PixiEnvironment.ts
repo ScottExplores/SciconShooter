@@ -227,11 +227,11 @@ export const TERRAIN_PROP_POOL_SIZE = Math.max(
 );
 
 export const CAMPAIGN_ENVIRONMENT_ROUTE = [
-  { stage: 1, backgroundId: 'open-orbit', terrain: 'space', storyBeat: 'orbital-departure' },
-  { stage: 2, backgroundId: 'citation-storm', terrain: 'space', storyBeat: 'deep-nebula' },
-  { stage: 3, backgroundId: 'paywall-siege', terrain: 'desert', storyBeat: 'planetary-descent' },
-  { stage: 4, backgroundId: 'open-galaxy', terrain: 'river', storyBeat: 'biosphere-expedition' },
-  { stage: 5, backgroundId: 'bastion-protocol', terrain: 'space', storyBeat: 'orbital-return' },
+  { stage: 1, backgroundId: 'breakwater-approach', terrain: 'space', storyBeat: 'orbital-departure' },
+  { stage: 2, backgroundId: 'breakwater-wreckfield', terrain: 'space', storyBeat: 'salvage-crossfire' },
+  { stage: 3, backgroundId: 'breakwater-wreckfield', terrain: 'space', storyBeat: 'relay-guardian' },
+  { stage: 4, backgroundId: 'breakwater-gate', terrain: 'space', storyBeat: 'station-breach' },
+  { stage: 5, backgroundId: 'breakwater-gate', terrain: 'space', storyBeat: 'gatekeeper-blockade' },
   { stage: 6, backgroundId: 'helix-redline', terrain: 'space', storyBeat: 'helix-convergence' },
   { stage: 7, backgroundId: 'helix-redline', terrain: 'space', storyBeat: 'redline-corridor' },
   { stage: 8, backgroundId: 'shattered-void', terrain: 'space', storyBeat: 'dark-matter-run' },
@@ -341,7 +341,24 @@ const createSpaceLayers = (
   return layers;
 };
 
+// These backgrounds are authored as separate transparent landmark strips.
+// Unlike the legacy space profiles they never inherit the same pair of planets.
+const createBreakwaterProfile = (landmarks: string, speed: number): EnvironmentProfile => ({
+  tint: '#081a29', accent: '#67e8f9', family: 0, colorGradeAlpha: 0,
+  layers: [
+    { url: ASSETS.PIXI_BREAKWATER_FAR, speed: 0.035, alpha: 1,
+      loop: true, tilePoolSize: 2, coverViewport: true, scrollDirection: 'down' },
+    { url: landmarks, speed, alpha: 0.74,
+      loop: true, tilePoolSize: 3, scrollDirection: 'down', widthScale: 1 }
+  ],
+  horizonAlpha: 0, planetTint: '#ffffff', starSpeedMultiplier: 2.4,
+  terrain: 'space', propSet: 'space', propAlpha: 0, propCount: 0, glyphAlpha: 0
+});
+
 const BACKGROUND_PROFILES = {
+  'breakwater-approach': createBreakwaterProfile(ASSETS.PIXI_BREAKWATER_APPROACH, 0.28),
+  'breakwater-wreckfield': createBreakwaterProfile(ASSETS.PIXI_BREAKWATER_WRECKFIELD, 0.37),
+  'breakwater-gate': createBreakwaterProfile(ASSETS.PIXI_BREAKWATER_GATE, 0.22),
   'open-orbit': {
     tint: '#082f49',
     accent: '#67e8f9',
@@ -555,7 +572,7 @@ export const getEnvironmentProfileTextureUrls = (backgroundId: string): readonly
   return Object.freeze([...new Set([
     ...profile.layers.map((layer) => layer.url),
     ...(profile.horizonAlpha > 0 ? [ASSETS.GAME_BG_PLANET] : []),
-    TERRAIN_PROP_ATLASES[profile.propSet],
+    ...(profile.propCount > 0 ? [TERRAIN_PROP_ATLASES[profile.propSet]] : []),
     ...(perspectiveSheet ? [perspectiveSheet] : [])
   ].filter(Boolean))]);
 };
@@ -568,8 +585,8 @@ export const getEnvironmentWindowTextureUrls = (
 ])]);
 
 const INITIAL_ENVIRONMENT_WINDOW: PixiEnvironmentWindow = Object.freeze({
-  currentBackgroundId: DEFAULT_BACKGROUND_ID,
-  nextBackgroundId: 'citation-storm'
+  currentBackgroundId: 'breakwater-approach',
+  nextBackgroundId: 'breakwater-wreckfield'
 });
 
 /** Initial production route only; later environments are warmed on demand. */
@@ -892,7 +909,7 @@ export class PixiEnvironment {
     const resolvedId = resolveBackgroundId(backgroundId);
     const profile = BACKGROUND_PROFILES[resolvedId as keyof typeof BACKGROUND_PROFILES];
     if (!force && this.activeBackgroundId === resolvedId) return profile;
-    if (!this.isProfileReady(resolvedId) || !this.configureTerrainProps(profile.propSet)) {
+    if (!this.isProfileReady(resolvedId) || (profile.propCount > 0 && !this.configureTerrainProps(profile.propSet))) {
       const fallbackId = resolveBackgroundId(this.activeBackgroundId);
       return BACKGROUND_PROFILES[fallbackId as keyof typeof BACKGROUND_PROFILES];
     }
