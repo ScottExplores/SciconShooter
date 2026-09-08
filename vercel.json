@@ -97,6 +97,10 @@
   ],
   "rewrites": [
     {
+      "source": "/android-privacy.html",
+      "destination": "/android-privacy.html"
+    },
+    {
       "source": "/api/player-runs",
       "destination": "/api/mint-records?route=player-runs"
     },
