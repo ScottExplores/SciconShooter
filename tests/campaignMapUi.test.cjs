@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const esbuild = require('esbuild');
 
 const root = path.resolve(__dirname, '..');
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), 'utf8');
@@ -12,6 +13,24 @@ const appSource = read('App.tsx');
 const startScreenSource = read('components/StartScreen.tsx');
 const homeStyles = read('styles/tailwind.input.css');
 const campaign = JSON.parse(read('game-config/campaign.json'));
+
+const compiled = esbuild.buildSync({
+  stdin: {
+    contents: "export { formatCampaignObjectiveLabel } from './components/CampaignMap.tsx';",
+    resolveDir: root,
+    sourcefile: 'campaign-map-objective-test.ts'
+  },
+  bundle: true,
+  platform: 'node',
+  format: 'cjs',
+  write: false,
+  external: ['react', 'react-dom'],
+  loader: { '.css': 'empty' },
+  logLevel: 'silent'
+});
+const mapModule = { exports: {} };
+Function('require', 'module', 'exports', compiled.outputFiles[0].text)(require, mapModule, mapModule.exports);
+const { formatCampaignObjectiveLabel } = mapModule.exports;
 
 test('Campaign Map labels configured bosses and elite enemies without restoring the removed environment briefing', () => {
   assert.match(mapSource, /selectedEncounter\.encounterClass === 'boss' \? 'BOSS' : 'ELITE ENEMY'/);
@@ -103,28 +122,75 @@ test('Campaign Map treats waves as one Mission lineup instead of durable checkpo
   assert.doesNotMatch(mapSource, /campaign-map-node-progress/);
 });
 
-test('Campaign Map prioritizes actionable records and mastery details over redundant briefing panels', () => {
+test('Campaign Map keeps only personal best score and time beside its three-star reward list', () => {
   assert.doesNotMatch(mapSource, /campaign-map-role-line/);
   assert.doesNotMatch(mapSource, /campaign-map-wave-list/);
   assert.doesNotMatch(mapSource, /campaign-map-loadout-guide/);
   assert.doesNotMatch(mapSource, /campaign-map-power-guide/);
   assert.doesNotMatch(mapSource, /campaign-map-support-tags/);
-  assert.match(mapSource, /campaign-map-records/);
+  const personalRecords = mapSource.match(/<div className="campaign-map-records campaign-map-records--personal">([\s\S]*?)<\/div>/)?.[1];
+  assert.ok(personalRecords, 'selected Mission includes a personal-records panel');
+  assert.deepEqual(
+    [...personalRecords.matchAll(/<small>([^<]+)<\/small>/g)].map((match) => match[1]),
+    ['Best score', 'Best time']
+  );
   assert.match(mapSource, /campaign-map-selection-stars/);
-  assert.match(mapSource, /campaign-map-objectives campaign-map-objectives--compact/);
+  assert.match(mapSource, /className="campaign-map-objectives" role="list" aria-label="Mission star rewards"/);
+  assert.match(mapSource, /role="listitem" className=\{`campaign-map-objective \$\{earned \? 'is-earned' : ''\}`\}/);
   assert.ok(
-    mapSource.indexOf('campaign-map-objectives--compact') < mapSource.indexOf('campaign-map-records'),
-    'mastery stars should sit beside the selected Mission heading before the records grid'
+    mapSource.indexOf('className="campaign-map-objectives"') < mapSource.indexOf('campaign-map-records--personal'),
+    'three-star rewards should precede the compact personal records'
   );
   assert.doesNotMatch(mapSource, /<span><small>Stars<\/small><strong>/);
-  assert.match(mapSource, /3-star mastery set/);
+  assert.doesNotMatch(mapSource, /Base clear|Replay total|First-clear bonus|Boss first-clear|3-star mastery set/);
 });
 
-test('each mastery objective identifies its payout as Tokens with the compact token sprite', () => {
+test('each star reward has a visible star, token payout, and accessible full objective', () => {
   assert.match(mapSource, /CAMPAIGN_TOKEN_ICON_URL = '\/game-art\/generated\/rsc-coin-flip-v1\/rsc-coin-pixel-front\.png'/);
+  assert.match(mapSource, /className="campaign-map-objective__star" aria-hidden="true"/);
+  assert.match(mapSource, /aria-label=\{`Star \$\{index \+ 1\}: \$\{toTokenTerminology\(objective\.label\)\}/);
   assert.match(mapSource, /aria-label=\{`\$\{formatTokenAmount\(objective\.rewardCoins\)\} reward`\}/);
   assert.match(mapSource, /<img src=\{CAMPAIGN_TOKEN_ICON_URL\} alt="" aria-hidden="true" draggable=\{false\} \/>/);
-  assert.match(mapStyles, /\.campaign-map-objectives em img[\s\S]*?width: 0\.78rem;[\s\S]*?image-rendering: pixelated/);
+  assert.match(mapSource, /className="campaign-map-objective__label">\{formatCampaignObjectiveLabel\(objective\)\}/);
+  assert.match(mapStyles, /\.campaign-map-objective__star\s*\{/);
+  assert.match(mapStyles, /\.campaign-map-objectives em img\s*\{[^}]*width: 1\.35rem;[^}]*image-rendering: pixelated/);
+});
+
+test('compact objective labels preserve every authored kind and its exact threshold without mutating input', () => {
+  const cases = [
+    ['complete', 1, 'Clear mission'],
+    ['damage-at-most', 0, 'No damage'],
+    ['damage-at-most', 1, '≤ 1 damage'],
+    ['damage-at-most', 2.5, '≤ 2.5 damage'],
+    ['coins-at-least', 0, 'Collect 0 Tokens'],
+    ['coins-at-least', 12500, `Collect ${(12500).toLocaleString()} Tokens`],
+    ['score-at-least', 0, 'Score 0'],
+    ['score-at-least', 27500, `Score ${(27500).toLocaleString()}`],
+    ['time-at-most', 0, 'Clear in ≤ 0s'],
+    ['time-at-most', 75, 'Clear in ≤ 75s'],
+    ['time-at-most', 45.5, 'Clear in ≤ 45.5s']
+  ];
+  for (const [kind, target, expected] of cases) {
+    const objective = {
+      id: `test:${kind}:${target}`,
+      kind,
+      target,
+      label: 'The original detailed Mission objective',
+      rewardCoins: 60
+    };
+    const original = { ...objective };
+    assert.equal(formatCampaignObjectiveLabel(Object.freeze(objective)), expected, `${kind} with target ${target}`);
+    assert.deepEqual(objective, original, 'display formatting must not change the persisted objective or reward');
+  }
+});
+
+test('unknown future objective kinds retain authored copy with current Token terminology', () => {
+  const objective = Object.freeze({
+    id: 'test:future', kind: 'future-objective', target: 3,
+    label: 'Recover 3 research coins without using a bomb', rewardCoins: 75
+  });
+  assert.equal(formatCampaignObjectiveLabel(objective), 'Recover 3 Tokens without using a bomb');
+  assert.equal(objective.label, 'Recover 3 research coins without using a bomb');
 });
 
 test('locked boss and elite nodes preserve encounter class while encrypting their identity', () => {
@@ -226,12 +292,32 @@ test('Home Campaign calls require an authored dynamic checkpoint and never fall 
   assert.doesNotMatch(startScreenSource, /waveTotal:\s*3/);
 });
 
-test('short and narrow mobile Campaign details preserve objectives', () => {
-  const shortViewportStyles = mapStyles.slice(mapStyles.indexOf('@media (max-height: 740px)'));
-  assert.doesNotMatch(shortViewportStyles, /\.campaign-map-objectives\s*\{[\s\S]*?display:\s*none/);
+test('short and narrow mobile Campaign details keep all three rewards side by side', () => {
+  const objectiveRules = [...mapStyles.matchAll(/(?:^|\n)\s*\.campaign-map-objectives\s*\{([^}]*)\}/g)];
+  assert.ok(objectiveRules.length > 0, 'three-star reward layout is styled');
+  assert.ok(objectiveRules.some(([, rule]) => /grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/.test(rule)));
+  for (const [, rule] of objectiveRules) {
+    assert.doesNotMatch(rule, /display:\s*none/);
+    const columns = rule.match(/grid-template-columns:\s*([^;]+)/)?.[1];
+    if (columns) assert.equal(columns, 'repeat(3, minmax(0, 1fr))', 'viewport overrides must not stack star rewards');
+  }
+  assert.doesNotMatch(mapStyles, /campaign-map-objectives--compact/);
   assert.doesNotMatch(mapStyles, /\.campaign-map-loadout-guide|\.campaign-map-power-guide|\.campaign-map-support-tags/);
-  assert.match(mapStyles, /@media \(max-width: 350px\)[\s\S]*?\.campaign-map-selection-topline[\s\S]*?grid-template-columns: minmax\(0, 1fr\) auto/);
-  assert.match(mapStyles, /\.campaign-map-selection-topline > :last-child[\s\S]*?grid-column: 1 \/ -1/);
+  assert.match(mapStyles, /\.campaign-map-selection--mission \.campaign-map-selection-topline\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\) auto auto/);
+  assert.match(mapStyles, /\.campaign-map-selection--mission \.campaign-map-selection-topline > :last-child\s*\{[^}]*grid-column: auto/);
+});
+
+test('Campaign route allows vertical exploration without enabling horizontal scrolling', () => {
+  const routeScrollStyles = mapStyles.match(/\.campaign-map-route-scroll\s*\{([^}]*)\}/)?.[1];
+  assert.ok(routeScrollStyles);
+  assert.match(routeScrollStyles, /min-width:\s*0/);
+  assert.match(routeScrollStyles, /overflow-x:\s*hidden/);
+  assert.match(routeScrollStyles, /overflow-y:\s*auto/);
+  assert.match(routeScrollStyles, /touch-action:\s*pan-y/);
+  assert.doesNotMatch(routeScrollStyles, /(?:^|;)\s*overflow:\s*auto/);
+  assert.match(mapSource, /onPointerDown=\{beginDrag\}[\s\S]*?onPointerMove=\{moveDrag\}/);
+  assert.match(mapSource, /\['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'\]/);
+  assert.match(mapSource, /focus\(\{ preventScroll: true \}\)/);
 });
 
 test('Campaign developer controls expose Mission and full-map result previews without Wave checkpoints', () => {

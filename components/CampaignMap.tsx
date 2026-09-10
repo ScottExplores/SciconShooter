@@ -10,6 +10,7 @@ import {
   CAMPAIGN_MISSIONS,
   getCampaignCheckpointLabel,
   type CampaignMissionDefinition,
+  type CampaignStarObjective,
   type CampaignProgress
 } from '../services/campaignProgression';
 import { DEFAULT_GAME_CAMPAIGN } from '../services/levelConfig';
@@ -471,14 +472,16 @@ const formatTime = (milliseconds: number | null) => {
   return `${seconds.toFixed(1)}s`;
 };
 
-const getMissionBaseClearReward = (mission: CampaignMissionDefinition) => (
-  (mission.reward.waveClearCoins * mission.waveIds.length) + mission.reward.missionClearCoins
-);
-
-const getMissionReplayReward = (mission: CampaignMissionDefinition) => (
-  (Math.max(1, Math.round(mission.reward.waveClearCoins * mission.reward.replayMultiplier)) * mission.waveIds.length)
-  + Math.max(1, Math.round(mission.reward.missionClearCoins * mission.reward.replayMultiplier))
-);
+export const formatCampaignObjectiveLabel = (objective: CampaignStarObjective) => {
+  switch (objective.kind) {
+    case 'complete': return 'Clear mission';
+    case 'damage-at-most': return objective.target === 0 ? 'No damage' : `≤ ${objective.target} damage`;
+    case 'coins-at-least': return `Collect ${objective.target.toLocaleString()} Tokens`;
+    case 'score-at-least': return `Score ${objective.target.toLocaleString()}`;
+    case 'time-at-most': return `Clear in ≤ ${objective.target}s`;
+    default: return toTokenTerminology(objective.label);
+  }
+};
 
 const getMissionState = (mission: CampaignMissionDefinition, progress: CampaignProgress) => {
   const record = progress.missionRecords[mission.id];
@@ -827,9 +830,6 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
   const selectedEncounter = selectedMission?.encounter ?? null;
   const selectedSector = selectedMission ? getCampaignSectorPreset(selectedMission) : null;
   const selectedPowerGuide = selectedMission ? getCampaignPowerGuide(selectedMission) : null;
-  const selectedMasterySetBonus = selectedMission
-    ? Math.max(0, Math.round(getCampaignMissionMetadata(selectedMission).masterySetBonusCoins ?? 0))
-    : 0;
   const developerShipOptions = developerControls?.shipOptions?.length
     ? developerControls.shipOptions
     : DEFAULT_CAMPAIGN_LAB_SHIPS;
@@ -857,8 +857,6 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
     : [];
   const selectedRecord = selectedMission ? progress.missionRecords[selectedMission.id] : null;
   const selectedPermanentlyRevealed = Boolean(selectedState?.unlocked || previewLocked);
-  const selectedBaseClearReward = selectedMission ? getMissionBaseClearReward(selectedMission) : 0;
-  const selectedReplayReward = selectedMission ? getMissionReplayReward(selectedMission) : 0;
   const selectedLaunchWaveId = selectedMission?.waveIds[0] ?? null;
   // Route choice is committed only from the action button below. Until then,
   // an unlocked node click is a visual navigation choice: move the pilot marker
@@ -1026,8 +1024,10 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
       setRouteAwayFromCurrent(false);
       return;
     }
-    const currentCenter = currentNode.offsetTop + (currentNode.offsetHeight / 2);
-    const viewportCenter = scroller.scrollTop + (scroller.clientHeight / 2);
+    const nodeRect = currentNode.getBoundingClientRect();
+    const viewportRect = scroller.getBoundingClientRect();
+    const currentCenter = nodeRect.top + (nodeRect.height / 2);
+    const viewportCenter = viewportRect.top + (scroller.clientHeight / 2);
     setRouteAwayFromCurrent(
       Math.abs(currentCenter - viewportCenter) > Math.max(96, scroller.clientHeight * 0.46)
     );
@@ -1207,8 +1207,8 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
             <p id="campaign-map-instructions">Select an unlocked Mission. Use arrow keys, touch drag, or the mouse wheel to navigate.</p>
           </div>
           <div className="campaign-map-checkpoint" aria-label={`Current Mission ${checkpoint.missionNumber}, ${checkpoint.waveTotal} waves`}>
-            <small>Current Mission</small>
-            <strong>M{String(checkpoint.missionNumber).padStart(2, '0')} / {checkpoint.waveTotal} WAVES</strong>
+            <small>Current</small>
+            <strong>M{String(checkpoint.missionNumber).padStart(2, '0')}</strong>
           </div>
         </header>
 
@@ -1583,7 +1583,7 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
               </section>
             ) : selectedMission && selectedState ? (
               <section
-                className="campaign-map-selection"
+                className="campaign-map-selection campaign-map-selection--mission"
                 aria-labelledby="campaign-map-selection-title"
               >
                 <p className="campaign-map-sr-only" role="status">
@@ -1598,17 +1598,17 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
                         : 'Locked.'}
                 </p>
                 <div className="campaign-map-selection-topline">
-                  <span>{selectedSector?.name ?? 'Campaign'} / Mission {selectedMissionDisplayLabel}</span>
+                  <span>{selectedSector?.name ?? 'Campaign'} · M{selectedMissionDisplayLabel}</span>
                   <span className={`campaign-map-selection-state campaign-map-selection-state--${selectedMapCurrent ? 'current' : selectedState.completed ? 'completed' : selectedState.unlocked ? 'unlocked' : 'locked'}`}>
                     {selectedMapCurrent
-                      ? selectedState.completed ? 'Current / completed' : 'Current Mission'
+                      ? selectedState.completed ? 'Cleared' : 'Current'
                       : selectedState.completed
                         ? 'Completed'
                         : selectedState.unlocked
                           ? 'Unlocked'
                           : 'Locked'}
                   </span>
-                  <span>{selectedState.completedWaves}/{selectedMission.waveIds.length} waves cleared</span>
+                  <span aria-label={`${selectedState.completedWaves} of ${selectedMission.waveIds.length} waves cleared`}>{selectedState.completedWaves}/{selectedMission.waveIds.length} waves</span>
                 </div>
                 <div className={`campaign-map-selection-grid campaign-map-selection-grid--${selectedMissionRole}`}>
                   <div
@@ -1646,34 +1646,27 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
                         </span>
                       ) : null}
                     </div>
-                    {selectedRevealed ? (
-                      <div className="campaign-map-objectives campaign-map-objectives--compact" aria-label="Mission mastery objectives">
-                        {selectedMission.starObjectives.map((objective, index) => (
-                          <span key={objective.id} className={selectedRecord?.earnedStarIds.includes(objective.id) ? 'is-earned' : ''}>
-                            <b aria-hidden="true">{index + 1}</b>{toTokenTerminology(objective.label)}
-                            <em aria-label={`${formatTokenAmount(objective.rewardCoins)} reward`}>
-                              <img src={CAMPAIGN_TOKEN_ICON_URL} alt="" aria-hidden="true" draggable={false} />
-                              +{objective.rewardCoins}
-                            </em>
-                          </span>
-                        ))}
-                      </div>
-                    ) : null}
                   </div>
                 </div>
                 {selectedRevealed ? (
                   <>
-                    <div className="campaign-map-records">
+                    <div className="campaign-map-objectives" role="list" aria-label="Mission star rewards">
+                      {selectedMission.starObjectives.map((objective, index) => {
+                        const earned = Boolean(selectedRecord?.earnedStarIds.includes(objective.id));
+                        return <div key={objective.id} role="listitem" className={`campaign-map-objective ${earned ? 'is-earned' : ''}`}
+                          aria-label={`Star ${index + 1}: ${toTokenTerminology(objective.label)}. ${formatTokenAmount(objective.rewardCoins)} reward. ${earned ? 'Earned' : 'Not earned'}`}>
+                          <b className="campaign-map-objective__star" aria-hidden="true">{index + 1}<small>{earned ? '★' : '☆'}</small></b>
+                          <em aria-label={`${formatTokenAmount(objective.rewardCoins)} reward`}>
+                            <img src={CAMPAIGN_TOKEN_ICON_URL} alt="" aria-hidden="true" draggable={false} />
+                            +{objective.rewardCoins}
+                          </em>
+                          <span className="campaign-map-objective__label">{formatCampaignObjectiveLabel(objective)}</span>
+                        </div>;
+                      })}
+                    </div>
+                    <div className="campaign-map-records campaign-map-records--personal">
                       <span><small>Best score</small><strong>{(selectedRecord?.bestScore ?? 0).toLocaleString()}</strong></span>
                       <span><small>Best time</small><strong>{formatTime(selectedRecord?.bestClearTimeMs ?? null)}</strong></span>
-                      <span><small>{selectedState.completed ? 'Replay total' : 'Base clear'}</small><strong>{formatTokenAmount(selectedState.completed ? selectedReplayReward : selectedBaseClearReward)}</strong></span>
-                      <span><small>First-clear bonus</small><strong>{formatTokenAmount(selectedMission.reward.firstClearCoins)}</strong></span>
-                      {selectedMission.bossEventId ? (
-                        <span><small>Boss first-clear</small><strong>{formatTokenAmount(selectedMission.reward.bossFirstClearCoins)}</strong></span>
-                      ) : null}
-                      {selectedMasterySetBonus > 0 ? (
-                        <span><small>3-star mastery set</small><strong>+{formatTokenAmount(selectedMasterySetBonus)}</strong></span>
-                      ) : null}
                     </div>
                     {selectedMissionBranches.map((branch) => {
                       const branchState = getDisplayedBranchState(branch);
