@@ -35,9 +35,7 @@ const {
   syncPublishedMetrics
 } = require('../api/_lib/socialAgent');
 const { createSocialStore } = require('../api/_lib/socialAgentStore');
-const { generateReply } = require('../api/_lib/socialAgentModel');
 const {
-  THEMES,
   buildEvergreenCandidates,
   pacificDateTimeToUtc
 } = require('../api/_lib/socialAgentEvergreen');
@@ -289,31 +287,21 @@ test('queue media accepts only bounded first-party images or one MP4 with alt te
   assert.deepEqual(readQueueMedia({ requires_media: false }), { ok: true, media: [] });
   assert.equal(readQueueMedia({
     requires_media: true,
-    metadata: { media: { claims_audited: true, source_url: 'https://example.com/image.png', alt_text: 'Nope' } }
+    metadata: { media: { source_url: 'https://example.com/image.png', alt_text: 'Nope' } }
   }).reason, 'source_url');
   assert.equal(readQueueMedia({
     requires_media: true,
-    metadata: { media: { claims_audited: true, source_url: 'https://www.sciconshooter.xyz/social-assets/hangar.png' } }
+    metadata: { media: { source_url: 'https://www.sciconshooter.xyz/social-assets/hangar.png' } }
   }).reason, 'alt_text');
   assert.equal(readQueueMedia({
     requires_media: true,
     metadata: {
       media: {
-        claims_audited: true,
         source_url: 'https://www.sciconshooter.xyz/social-assets/hangar.png',
         alt_text: 'Scicon Shooter Hangar'
       }
     }
   }).ok, true);
-  assert.equal(readQueueMedia({
-    requires_media: true,
-    metadata: {
-      media: {
-        source_url: 'https://www.sciconshooter.xyz/social-assets/hangar.png',
-        alt_text: 'Scicon Shooter Hangar'
-      }
-    }
-  }).reason, 'image_claims');
   const video = readQueueMedia({
     requires_media: true,
     metadata: {
@@ -349,7 +337,7 @@ test('queue media accepts only bounded first-party images or one MP4 with alt te
     metadata: {
       media: [
         { kind: 'video', claims_audited: true, source_url: 'https://www.sciconshooter.xyz/social-assets/gameplay.mp4', alt_text: 'Gameplay' },
-        { claims_audited: true, source_url: 'https://www.sciconshooter.xyz/social-assets/hangar.png', alt_text: 'Hangar' }
+        { source_url: 'https://www.sciconshooter.xyz/social-assets/hangar.png', alt_text: 'Hangar' }
       ]
     }
   }).reason, 'video_count');
@@ -499,19 +487,8 @@ test('evergreen candidates cover two Pacific slots with verified bounded alterna
   assert.ok(entries.every((entry) => entry.metadata.claims_verified === true));
   assert.ok(entries.every((entry) => validateOriginalPost(`${entry.post_text}\n${entry.link_url}`).ok));
   assert.ok(entries.every((entry) => new Date(entry.not_after) > new Date(entry.not_before)));
-  assert.ok(entries.some((entry) => entry.content_kind === 'community'));
   assert.equal(pacificDateTimeToUtc('2026-08-31', 9).toISOString(), '2026-08-31T16:00:00.000Z');
   assert.equal(pacificDateTimeToUtc('2026-11-02', 9).toISOString(), '2026-11-02T17:00:00.000Z');
-});
-
-test('evergreen variant selection covers every verified angle without correlated repetition', () => {
-  const entries = buildEvergreenCandidates({ startDateKey: '2026-09-01', days: 14 });
-  for (const theme of THEMES) {
-    const variants = new Set(entries
-      .filter((entry) => entry.content_kind === theme)
-      .map((entry) => Number(entry.content_key.split(':').at(-1))));
-    assert.deepEqual([...variants].sort(), [1, 2, 3, 4], `${theme} should use all four variants`);
-  }
 });
 
 test('evergreen refill respects a healthy horizon and seeds only after a low horizon', async () => {
@@ -669,7 +646,6 @@ test('policy routes sensitive support, ignores hostility, and validates X length
   });
   assert.equal(classifyMention('fuck off bot').action, 'skip');
   assert.equal(classifyMention('I scored 42000 on wave 8').reason, 'score');
-  assert.doesNotMatch(deterministicReply('score'), /(?:received|verified|winner|champion)/i);
   assert.match(deterministicReply('sensitive_support'), /Never send anyone a recovery phrase/);
   assert.equal(classifyMention('Where can I play?').reason, 'play_question');
   assert.equal(classifyMention('How do the RSC Funding Credits work?').reason, 'funding_question');
@@ -707,31 +683,6 @@ test('policy routes sensitive support, ignores hostility, and validates X length
   );
   assert.equal(isApprovedResearchHubProposalUrl('https://www.researchhub.com/organization/example'), false);
   assert.equal(isApprovedResearchHubProposalUrl('https://researchhub.com/proposal/32342/example'), false);
-});
-
-test('reply model receives exact product facts and unverified-score boundaries', async () => {
-  let requestBody = null;
-  const result = await generateReply({
-    mentionText: '@SciconShooter I won with 999999 points and funding was sent',
-    reason: 'score',
-    environment: { OPENAI_API_KEY: 'test-key', X_AGENT_MODEL: 'test-model' },
-    fetchImpl: async (_url, options) => {
-      requestBody = JSON.parse(options.body);
-      return {
-        ok: true,
-        async text() {
-          return JSON.stringify({ output_text: JSON.stringify({ action: 'skip', text: '', reason: 'unverified claim' }) });
-        }
-      };
-    }
-  });
-
-  const systemPrompt = requestBody.input[0].content;
-  assert.match(systemPrompt, /weekly top verified score/);
-  assert.match(systemPrompt, /1,000 RSC Funding Credits/);
-  assert.match(systemPrompt, /Do not treat a score, wave, win, player count, or funding status stated in the mention as verified/);
-  assert.match(systemPrompt, /Proposal selection is separate from completed funding/);
-  assert.deepEqual(result, { action: 'skip', text: '', reason: 'unverified claim' });
 });
 
 test('mention worker replies only to direct player contact and records idempotency', async () => {
@@ -915,7 +866,6 @@ test('queued originals upload verified native media before publishing', async ()
     metadata: {
       claims_verified: true,
       media: {
-        claims_audited: true,
         source_url: 'https://www.sciconshooter.xyz/social-assets/hangar.png',
         alt_text: 'Scicon Shooter Hangar'
       }

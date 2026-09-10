@@ -11,7 +11,6 @@ const THEMES = Object.freeze([
   'loadout',
   'progression',
   'onboarding',
-  'community',
   'funding'
 ]);
 
@@ -52,12 +51,6 @@ const VARIANTS = Object.freeze({
     'If you have a browser and one bad competitive impulse, you have the complete starter kit.',
     'Start as a guest, learn the controls, and bring back the first score you are willing to defend publicly.'
   ]),
-  community: Object.freeze([
-    'Indie dev roll call: what are you building, and can you beat one Scicon Shooter run before your next commit? Bring back both answers.',
-    'Arcade people: recruit one friend, post two scores, and settle who has to pretend the controls were the problem.',
-    'Game testers wanted: play one run, name the exact moment the screen became unfair, and do not spare the build.',
-    'Small community challenge: send one Scicon Shooter run to your most competitive member, then make the score everybody else\'s problem.'
-  ]),
   funding: Object.freeze([
     `Top the verified weekly board and choose an eligible ResearchHub proposal for the round's ${WEEKLY_ALLOCATION_RSC.toLocaleString('en-US')} RSC funding-credit allocation. Make the score useful.`,
     'Scicon Shooter is a DeSci-inspired arcade game community-built on Base: play games, compete, and help direct ResearchHub Funding Credits.',
@@ -90,15 +83,6 @@ const addDateKeyDays = (dateKey, days) => {
   const [year, month, day] = String(dateKey).split('-').map(Number);
   const shifted = new Date(Date.UTC(year, month - 1, day + Number(days || 0)));
   return shifted.toISOString().slice(0, 10);
-};
-
-const stableHash = (value) => {
-  let hash = 2_166_136_261;
-  for (const character of String(value || '')) {
-    hash ^= character.charCodeAt(0);
-    hash = Math.imul(hash, 16_777_619);
-  }
-  return hash >>> 0;
 };
 
 const pacificDateTimeToUtc = (dateKey, hour, minute = 0) => {
@@ -138,8 +122,7 @@ const buildEvergreenCandidates = ({ startDateKey, days = 8 } = {}) => {
         const themeIndex = ((dayOrdinal * 2) + slotIndex + candidateIndex) % THEMES.length;
         const kind = THEMES[themeIndex];
         const variants = VARIANTS[kind];
-        const variantSeed = `${dateKey}:${slot.key}:${kind}:${candidateIndex}`;
-        const variantIndex = (stableHash(variantSeed) >>> 8) % variants.length;
+        const variantIndex = (dayOrdinal + slotIndex + candidateIndex) % variants.length;
         const dateSlug = dateKey.replaceAll('-', '');
         const campaignContent = `eg-${dateSlug}-${slot.short}-${kind}-${variantIndex + 1}`;
         entries.push({
@@ -177,6 +160,5 @@ module.exports = {
   addDateKeyDays,
   buildEvergreenCandidates,
   pacificDateTimeToUtc,
-  pacificParts,
-  stableHash
+  pacificParts
 };

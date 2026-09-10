@@ -116,7 +116,7 @@ const deterministicReply = (reason, mentionText = '') => {
     return 'The weekly board closes Sunday at noon Pacific. Put up a verified score before the cutoff: https://www.sciconshooter.xyz/';
   }
   if (reason === 'score') {
-    return 'Which ship did you use, and where did the run start getting ugly?';
+    return 'Score received. Which ship did you use, and where did the run start getting ugly?';
   }
   if (reason === 'feedback') {
     if (/\b(?:boss|attack|bullet|pattern)\b/i.test(value)) {

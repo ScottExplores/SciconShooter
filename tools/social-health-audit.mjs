@@ -8,7 +8,6 @@ const { validateOriginalPost } = require('../api/_lib/socialAgentPolicy');
 const DEFAULT_SINCE_HOURS = 24;
 const MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
 const MAX_MEDIA_SOURCE_CHECKS = 32;
-const MAX_EXTERNAL_LINK_CHECKS = 8;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 15 * 1024 * 1024;
 const MIN_ATTRIBUTED_SESSIONS = 3;
@@ -59,25 +58,11 @@ const buildRecentPublishedSummary = (actions) => actions
         ? new Date(action.published_at).toISOString()
         : null,
       actionType: boundedText(action?.action_type, 24) || 'unknown',
-      contentKey: boundedText(action?.metadata?.contentKey, 100) || null,
       contentKind: boundedText(action?.metadata?.contentKind || action?.reason, 32) || 'unknown',
       campaignContent: safeCampaignContent(action?.metadata?.campaignContent) || null,
       metrics: readPublicMetrics(action)
     };
   });
-
-const buildRecentNonPublishedSummary = (actions) => actions
-  .filter((action) => action?.status !== 'published')
-  .slice(0, 10)
-  .map((action) => ({
-    status: boundedText(action?.status, 24) || 'unknown',
-    reason: boundedText(action?.reason, 160) || 'unknown',
-    actionType: boundedText(action?.action_type, 24) || 'unknown',
-    contentKey: boundedText(action?.metadata?.contentKey, 100) || null,
-    createdAt: Number.isFinite(Date.parse(String(action?.created_at || '')))
-      ? new Date(action.created_at).toISOString()
-      : null
-  }));
 
 const isTestProductEvent = (event) => {
   const properties = objectValue(event?.properties);
@@ -212,51 +197,6 @@ const queueBlocker = (entry, checkedAt) => {
   return post.ok ? '' : `post_validation:${post.reason}`;
 };
 
-export const buildUpcomingQueueSummary = (queue = [], checkedAt = new Date(), maximum = 5) => {
-  const groups = new Map();
-  for (const entry of queue) {
-    if (queueBlocker(entry, checkedAt)) continue;
-    const notBefore = Date.parse(String(entry?.not_before || ''));
-    const notAfter = Date.parse(String(entry?.not_after || ''));
-    if (!Number.isFinite(notBefore) || !Number.isFinite(notAfter) || notAfter < checkedAt.getTime()) continue;
-    const key = new Date(notBefore).toISOString();
-    const group = groups.get(key) || [];
-    group.push(entry);
-    groups.set(key, group);
-  }
-
-  return [...groups.entries()]
-    .sort(([left], [right]) => left.localeCompare(right))
-    .slice(0, Math.max(1, Math.min(10, Math.floor(Number(maximum) || 5))))
-    .map(([slotStart, entries]) => {
-      const ordered = entries.sort((left, right) => (
-        (Number(right?.priority) || 0) - (Number(left?.priority) || 0)
-        || boundedText(left?.content_key, 100).localeCompare(boundedText(right?.content_key, 100))
-      ));
-      const entry = ordered[0];
-      const media = readQueueMedia(entry);
-      const topPriority = Number(entry?.priority) || 0;
-      return {
-        slotStart,
-        slotEnd: new Date(entry.not_after).toISOString(),
-        contentKey: boundedText(entry?.content_key, 100),
-        contentKind: boundedText(entry?.content_kind, 32) || 'unknown',
-        campaignContent: safeCampaignContent(entry?.metadata?.campaign_content) || null,
-        priority: Math.max(-100, Math.min(100, Math.floor(Number(entry?.priority) || 0))),
-        mediaCount: media.ok ? media.media.length : 0,
-        slotAlternatives: Math.max(0, ordered.length - 1),
-        alternativeKeys: ordered.slice(1, 5)
-          .map((alternative) => boundedText(alternative?.content_key, 100))
-          .filter(Boolean),
-        learningEligibleAlternativeKeys: ordered.slice(1)
-          .filter((alternative) => (Number(alternative?.priority) || 0) >= topPriority - 5)
-          .slice(0, 4)
-          .map((alternative) => boundedText(alternative?.content_key, 100))
-          .filter(Boolean)
-      };
-    });
-};
-
 export const checkQueueMediaSources = async (queue = [], { fetchImpl = fetch } = {}) => {
   const references = [];
   for (const entry of queue) {
@@ -313,42 +253,12 @@ export const checkQueueMediaSources = async (queue = [], { fetchImpl = fetch } =
   })).filter((item) => item.reason);
 };
 
-export const checkQueueExternalLinks = async (queue = [], { fetchImpl = fetch } = {}) => {
-  const references = queue.filter((entry) => (
-    entry?.metadata?.allow_researchhub_proposal === true
-  )).map((entry) => ({
-    contentKey: boundedText(entry?.content_key, 100),
-    sourceUrl: String(entry?.link_url || '').trim()
-  }));
-  if (references.length > MAX_EXTERNAL_LINK_CHECKS) {
-    return [{ contentKey: 'queue', reason: 'external_source:check_limit' }];
-  }
-  return (await Promise.all(references.map(async ({ contentKey, sourceUrl }) => {
-    try {
-      const response = await fetchImpl(sourceUrl, {
-        method: 'HEAD',
-        headers: { Accept: 'text/html' },
-        redirect: 'error',
-        signal: AbortSignal.timeout(12_000)
-      });
-      if (!response.ok) return { contentKey, reason: `external_source:http_${response.status}` };
-      const mediaType = String(response.headers?.get?.('content-type') || '')
-        .split(';')[0].trim().toLowerCase();
-      if (mediaType !== 'text/html') return { contentKey, reason: 'external_source:content_type' };
-      return { contentKey, reason: '' };
-    } catch {
-      return { contentKey, reason: 'external_source:request_failed' };
-    }
-  }))).filter((item) => item.reason);
-};
-
 export const buildSocialHealthSummary = ({
   queue = [],
   actions = [],
   events = [],
   leaderboard = {},
   mediaSourceBlockers = [],
-  externalLinkBlockers = [],
   checkedAt = new Date(),
   since = new Date(checkedAt.getTime() - DEFAULT_SINCE_HOURS * 3_600_000)
 } = {}) => {
@@ -356,9 +266,6 @@ export const buildSocialHealthSummary = ({
     contentKey: boundedText(entry?.content_key, 100),
     reason: queueBlocker(entry, checkedAt)
   })).filter((entry) => entry.reason).concat(mediaSourceBlockers.map((entry) => ({
-    contentKey: boundedText(entry?.contentKey, 100),
-    reason: boundedText(entry?.reason, 100)
-  })).filter((entry) => entry.contentKey && entry.reason), externalLinkBlockers.map((entry) => ({
     contentKey: boundedText(entry?.contentKey, 100),
     reason: boundedText(entry?.reason, 100)
   })).filter((entry) => entry.contentKey && entry.reason));
@@ -394,14 +301,12 @@ export const buildSocialHealthSummary = ({
       queued: queue.length,
       blockers,
       mediaPosts: queue.filter((entry) => entry?.requires_media === true).length,
-      proposalPosts: queue.filter((entry) => entry?.metadata?.allow_researchhub_proposal === true).length,
-      upcoming: buildUpcomingQueueSummary(queue, checkedAt)
+      proposalPosts: queue.filter((entry) => entry?.metadata?.allow_researchhub_proposal === true).length
     },
     actions: {
       total: actions.length,
       byStatus: actionStatuses,
-      recentPublished: buildRecentPublishedSummary(actions),
-      recentNonPublished: buildRecentNonPublishedSummary(actions)
+      recentPublished: buildRecentPublishedSummary(actions)
     },
     conversion: {
       sessions: sessions.size,
@@ -447,17 +352,13 @@ export const readSocialHealth = async ({
     fetchJson(`${rest}/scicon_product_events?select=event_name,session_id,properties,occurred_at&occurred_at=gte.${encodeURIComponent(since.toISOString())}&order=occurred_at.asc&limit=5000`, { headers, fetchImpl }),
     fetchJson('https://www.sciconshooter.xyz/api/leaderboard', { fetchImpl })
   ]);
-  const [mediaSourceBlockers, externalLinkBlockers] = await Promise.all([
-    checkQueueMediaSources(queue, { fetchImpl }),
-    checkQueueExternalLinks(queue, { fetchImpl })
-  ]);
+  const mediaSourceBlockers = await checkQueueMediaSources(queue, { fetchImpl });
   return buildSocialHealthSummary({
     queue,
     actions,
     events,
     leaderboard,
     mediaSourceBlockers,
-    externalLinkBlockers,
     checkedAt: now,
     since
   });

@@ -124,8 +124,8 @@ const readQueueMedia = (entry) => {
   for (const item of items) {
     const kind = String(item?.kind || 'image').trim().toLowerCase();
     if (!['image', 'video'].includes(kind)) return { ok: false, reason: 'kind' };
-    if (item?.claims_audited !== true) {
-      return { ok: false, reason: kind === 'video' ? 'video_claims' : 'image_claims' };
+    if (kind === 'video' && item?.claims_audited !== true) {
+      return { ok: false, reason: 'video_claims' };
     }
     const sourceUrl = String(item?.source_url || '').trim();
     const altText = String(item?.alt_text || '').trim();

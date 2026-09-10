@@ -13,10 +13,8 @@ test('social health summary reports blockers and aggregate conversion without se
         link_url: 'https://www.sciconshooter.xyz/',
         not_before: '2026-08-21T20:15:00.000Z',
         not_after: '2026-08-21T20:45:00.000Z',
-        content_kind: 'challenge',
-        priority: 90,
         requires_media: false,
-        metadata: { claims_verified: true, campaign_content: 'verified-score' }
+        metadata: { claims_verified: true }
       },
       {
         content_key: 'blocked',
@@ -25,17 +23,6 @@ test('social health summary reports blockers and aggregate conversion without se
         not_after: '2026-08-21T20:45:00.000Z',
         requires_media: false,
         metadata: { claims_verified: false }
-      },
-      {
-        content_key: 'backup',
-        post_text: 'Bring back a score:',
-        link_url: 'https://www.sciconshooter.xyz/',
-        not_before: '2026-08-21T20:15:00.000Z',
-        not_after: '2026-08-21T20:45:00.000Z',
-        content_kind: 'competition',
-        priority: 87,
-        requires_media: false,
-        metadata: { claims_verified: true, campaign_content: 'backup-score' }
       }
     ],
     actions: [
@@ -46,7 +33,6 @@ test('social health summary reports blockers and aggregate conversion without se
         x_post_id: '1234567890',
         published_at: '2026-08-21T19:30:00.000Z',
         metadata: {
-          contentKey: 'score-means-something-v1',
           contentKind: 'challenge',
           campaignContent: 'score-challenge',
           latestMetrics: {
@@ -58,13 +44,7 @@ test('social health summary reports blockers and aggregate conversion without se
           }
         }
       },
-      {
-        status: 'failed',
-        reason: 'x_publish_failed',
-        action_type: 'original',
-        created_at: '2026-08-21T19:31:00.000Z',
-        metadata: { contentKey: 'failed-post' }
-      }
+      { status: 'failed' }
     ],
     events: [
       {
@@ -92,37 +72,17 @@ test('social health summary reports blockers and aggregate conversion without se
     leaderboard: { monthlyScores: [{ name: 'PILOT', score: 1234, wave: 3 }] }
   });
 
-  assert.equal(summary.queue.queued, 3);
+  assert.equal(summary.queue.queued, 2);
   assert.deepEqual(summary.queue.blockers, [{ contentKey: 'blocked', reason: 'claims_not_verified' }]);
-  assert.deepEqual(summary.queue.upcoming, [{
-    slotStart: '2026-08-21T20:15:00.000Z',
-    slotEnd: '2026-08-21T20:45:00.000Z',
-    contentKey: 'verified',
-    contentKind: 'challenge',
-    campaignContent: 'verified-score',
-    priority: 90,
-    mediaCount: 0,
-    slotAlternatives: 1,
-    alternativeKeys: ['backup'],
-    learningEligibleAlternativeKeys: ['backup']
-  }]);
   assert.deepEqual(summary.actions.byStatus, { published: 1, failed: 1 });
   assert.deepEqual(summary.actions.recentPublished, [{
     postId: '1234567890',
     url: 'https://x.com/SciconShooter/status/1234567890',
     publishedAt: '2026-08-21T19:30:00.000Z',
     actionType: 'original',
-    contentKey: 'score-means-something-v1',
     contentKind: 'challenge',
     campaignContent: 'score-challenge',
     metrics: { impressions: 120, likes: 3, replies: 2, reposts: 1, quotes: 1 }
-  }]);
-  assert.deepEqual(summary.actions.recentNonPublished, [{
-    status: 'failed',
-    reason: 'x_publish_failed',
-    actionType: 'original',
-    contentKey: 'failed-post',
-    createdAt: '2026-08-21T19:31:00.000Z'
   }]);
   assert.equal(summary.conversion.sessions, 1);
   assert.equal(summary.conversion.xSessions, 1);
@@ -223,37 +183,4 @@ test('social health audit verifies queued media response type and bounded length
   });
 
   assert.deepEqual(blockers, [{ contentKey: 'stale-video', reason: 'media_source:content_type' }]);
-});
-
-test('social health audit verifies explicitly allowed proposal links without downloading them', async () => {
-  const { checkQueueExternalLinks } = await import('../tools/social-health-audit.mjs');
-  const queue = [
-    {
-      content_key: 'live-proposal',
-      link_url: 'https://www.researchhub.com/proposal/32342/precision-phenotyping',
-      metadata: { allow_researchhub_proposal: true }
-    },
-    {
-      content_key: 'game-post',
-      link_url: 'https://www.sciconshooter.xyz/',
-      metadata: { claims_verified: true }
-    }
-  ];
-  const calls = [];
-  const blockers = await checkQueueExternalLinks(queue, {
-    fetchImpl: async (url, options) => {
-      calls.push({ url, options });
-      return {
-        ok: true,
-        status: 200,
-        headers: { get: (name) => (name === 'content-type' ? 'text/html; charset=utf-8' : null) }
-      };
-    }
-  });
-
-  assert.deepEqual(blockers, []);
-  assert.equal(calls.length, 1);
-  assert.equal(calls[0].options.method, 'HEAD');
-  assert.equal(calls[0].options.redirect, 'error');
-  assert.match(calls[0].url, /^https:\/\/www\.researchhub\.com\/proposal\/32342\//);
 });

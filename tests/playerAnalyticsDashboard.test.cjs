@@ -246,6 +246,21 @@ test('the bounded Supabase reader requests newest events first', async () => {
   assert.equal(new URL(requestedUrl).searchParams.get('order'), 'occurred_at.desc');
 });
 
+test('social campaign attribution accepts only bounded X campaign parameters', async () => {
+  const { readSocialCampaignAttribution } = await import(pathToFileURL(
+    path.join(__dirname, '..', 'shared', 'socialCampaignAttribution.mjs')
+  ).href);
+  assert.deepEqual(
+    readSocialCampaignAttribution('?utm_source=x&utm_medium=social&utm_campaign=growth-sprint-2026-08&utm_content=boss-archive'),
+    { campaign_source: 'x', campaign_medium: 'social', campaign_name: 'growth-sprint-2026-08', campaign_content: 'boss-archive' }
+  );
+  assert.deepEqual(readSocialCampaignAttribution('?utm_source=newsletter&utm_medium=email'), {});
+  assert.deepEqual(
+    readSocialCampaignAttribution('?utm_source=x&utm_medium=social&utm_campaign=../../private'),
+    { campaign_source: 'x', campaign_medium: 'social' }
+  );
+});
+
 test('the self-contained dashboard renders aggregates without credentials or raw identifiers', async () => {
   const [{ aggregateProductAnalytics }, { renderPlayerAnalyticsDashboard }] = await Promise.all([
     importTool('product-analytics-reader.mjs'),

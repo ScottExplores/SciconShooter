@@ -2414,7 +2414,7 @@ const App: React.FC = () => {
       setPermanentSquadState(saved.permanentState);
       setLocalHangarSaveError('');
     } catch {
-      setLocalHangarSaveError('Device storage could not finish saving. Free up browser storage, keep this tab open, then retry. A wallet is not required.');
+      setLocalHangarSaveError("Could not finish saving on this device. Keep this tab open, check free device space and site-storage settings, then retry. Do not clear this game's site data.");
     }
   }, [pilotProfile.id]);
 
