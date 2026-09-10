@@ -77,7 +77,7 @@ const SupportShipPreviewDialog: React.FC<Props> = ({ miniId, mainShipId, state, 
     </div>
     <p className="support-preview__hint">Support fires automatically · Main ship weapons off</p>
     <div className="support-preview__controls">
-      <label>Test level <select aria-label="Support preview level" value={level} onChange={event => setLevel(Number(event.target.value))}>
+      <label>Test level <select aria-label="Support preview level" value={level} disabled={!ready || failed} onChange={event => setLevel(Number(event.target.value))}>
         {[1, 2, 3, 4, 5].map(value => <option key={value} value={value}>{value}{value === ownedLevel ? ' · Owned' : ''}</option>)}
       </select></label>
       <button type="button" disabled={!ready || failed || complete} onClick={() => setPaused(value => !value)}>{paused ? 'Play' : 'Pause'}</button>

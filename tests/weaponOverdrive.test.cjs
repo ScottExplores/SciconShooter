@@ -74,8 +74,8 @@ test('fire patterns belong to the hull: ETH flies the triple spread', () => {
   assert.doesNotMatch(engine, /isPowerupActive\(PowerupType\.TRIPLE_SHOT\)/);
   assert.doesNotMatch(engine, /isPowerupActive\(PowerupType\.DOUBLE_SHOT\)/);
 
-  // The balance module retains its established copy contract, while the Hangar
-  // reads truthful preview wording from its presentation-only service.
+  // The balance module retains its established copy contract. Hangar opens the
+  // shared preview dialog for truthful weapon wording, without a duplicate strip.
   const specs = overdrive.PLAYER_SHIP_WEAPON_SPECS;
   for (const ship of ['researchhub', 'bio', 'eth', 'btc']) {
     assert.ok(specs[ship], `${ship} has a weapon spec`);
@@ -83,8 +83,11 @@ test('fire patterns belong to the hull: ETH flies the triple spread', () => {
   assert.match(specs.eth, /triple/i);
   const hangar = read('components', 'SquadHangar.tsx');
   const preview = read('services', 'playerWeaponPreview.ts');
+  const previewDialog = read('components', 'ShipWeaponPreviewDialog.tsx');
   assert.match(preview, /PLAYER_SHIP_WEAPON_PREVIEW_SPECS/);
-  assert.match(hangar, /PLAYER_SHIP_WEAPON_PREVIEW_SPECS\[mainShipId\]/);
+  assert.match(hangar, /<ShipWeaponPreviewDialog[\s\S]*?shipId=\{weaponPreviewShipId\}/);
+  assert.match(previewDialog, /PLAYER_SHIP_WEAPON_PREVIEW_SPECS\[shipId\]/);
+  assert.doesNotMatch(hangar, /PLAYER_SHIP_WEAPON_PREVIEW_SPECS\[mainShipId\]/);
 });
 
 test('Projectile Upgrade scales each round without widening its authored lane radius', () => {

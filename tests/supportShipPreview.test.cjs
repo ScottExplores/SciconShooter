@@ -112,3 +112,11 @@ test('Hangar preview is lazy, modal, passive, and has explicit return navigation
   assert.match(dialog, /previousFocus\.focus\(\)/);
   assert.doesNotMatch(dialog, /onPurchase|onEquip|saveWeekly|localStorage/);
 });
+
+test('test level cannot diverge from the startup loadout while a preview initializes or retries', () => {
+  const dialog = fs.readFileSync('components/SupportShipPreviewDialog.tsx', 'utf8');
+  assert.match(dialog, /const \[ready, setReady\] = useState\(false\)/);
+  assert.match(dialog, /<select aria-label="Support preview level"[^>]*disabled=\{!ready \|\| failed\}/);
+  assert.match(dialog, /const replay = \(\) => \{[\s\S]*?setReady\(false\);[\s\S]*?setRun\(/);
+  assert.match(dialog, /onReady: \(\) => setReady\(true\)/);
+});
