@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import {
   ASSETS,
   RSC_PURCHASE_SKUS,
@@ -47,15 +47,14 @@ import {
   getShipAbilityDefinition,
   getShipAbilityUpgradeProfile
 } from '../services/shipAbilityService';
-import {
-  getPlayerWeaponPreviewFrames,
-  PLAYER_SHIP_WEAPON_PREVIEW_SPECS
-} from '../services/playerWeaponPreview';
+import { getPlayerWeaponPreviewFrames } from '../services/playerWeaponPreview';
 import { FIRE_RATE_TIER_COUNT } from '../services/weaponTierProgression';
 import PixelActionButton from './PixelActionButton';
 import PlayerShipAccessDialog, { type PlayerShipAccessId } from './PlayerShipAccessDialog';
 import ShipWeaponPreviewDialog from './ShipWeaponPreviewDialog';
 import { preloadDecodedImageUrls } from '../services/browserImagePreload';
+
+const SupportShipPreviewDialog = lazy(() => import('./SupportShipPreviewDialog'));
 
 type HangarPosition = 'main' | SquadSlotId;
 type HangarMode = 'catalog' | 'upgrades';
@@ -299,6 +298,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
   const [selectedMiniId, setSelectedMiniId] = useState<MiniShipId | null>(null);
   const [showTokenExchange, setShowTokenExchange] = useState(false);
   const [weaponPreviewShipId, setWeaponPreviewShipId] = useState<PlayerShipId | null>(null);
+  const [supportPreviewId, setSupportPreviewId] = useState<MiniShipId | null>(null);
   const [lockedPlayerShipId, setLockedPlayerShipId] = useState<PlayerShipAccessId | null>(null);
   const [upgradeFeedback, setUpgradeFeedback] = useState<{ target: string; label: string; nonce: number } | null>(null);
   const playerSelectionFrame = useAnimationFrame(
@@ -748,7 +748,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
                 </PixelActionButton>
               </div>
             ) : activeMini && activeMiniId ? activeMiniOwned ? (
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2" role="group" aria-label="Support ship actions">
                 <PixelActionButton
                   onClick={() => onEquipMini(activePosition, activeMiniId)}
                   disabled={activeMiniEquipped}
@@ -767,8 +767,17 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
                 >
                   Upgrade
                 </PixelActionButton>
+                <PixelActionButton
+                  type="button" tone="cyan"
+                  onClick={() => setSupportPreviewId(activeMiniId)}
+                  aria-label={`Preview ${activeMini.name} support ability`}
+                  className="min-h-11 min-w-0 px-1 text-[0.65rem] font-black uppercase"
+                >
+                  Preview
+                </PixelActionButton>
               </div>
             ) : (
+              <div className="grid grid-cols-2 gap-2" role="group" aria-label="Locked support ship actions">
               <PixelActionButton
                 onClick={() => onPurchaseMini(activeMiniId)}
                 disabled={!founderSandbox && state.coins < activeMini.purchaseCost}
@@ -783,6 +792,15 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
                   <span>{activeMini.purchaseCost === 0 ? 'Free' : activeMini.purchaseCost.toLocaleString()}</span>
                 </span>
               </PixelActionButton>
+                <PixelActionButton
+                  type="button" tone="cyan"
+                  onClick={() => setSupportPreviewId(activeMiniId)}
+                  aria-label={`Preview ${activeMini.name} support ability before unlocking`}
+                  className="min-h-11 min-w-0 px-2 text-[0.65rem] font-black uppercase"
+                >
+                  Preview
+                </PixelActionButton>
+              </div>
             ) : (
               <span className="text-[0.6rem] font-black uppercase text-slate-500">Select a mini ship</span>
             )}
@@ -795,25 +813,26 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
         </section>
 
         <section className="bg-[#080f2c] px-3 pb-4 pt-3 sm:px-5">
-          {mode === 'upgrades' ? (
-            <div className="mb-3 flex justify-end">
+          {activePosition !== 'main' || mode === 'upgrades' ? (
+            <nav className="mb-2 flex flex-wrap gap-2" aria-label="Hangar ship navigation">
+              {activePosition !== 'main' ? (
+                <button type="button" onClick={() => { setActivePosition('main'); setMode('catalog'); }}
+                  className="min-h-11 border border-cyan-200/30 bg-cyan-300/8 px-3 text-[0.62rem] font-black uppercase text-cyan-100">
+                  ← Main ships
+                </button>
+              ) : null}
+              {mode === 'upgrades' ? (
               <button
                 type="button"
                 data-onboarding-target="hangar-fleet"
                 onClick={() => setMode('catalog')}
-                className="min-h-9 border border-cyan-200/30 bg-cyan-300/8 px-3 text-[0.62rem] font-black uppercase text-cyan-100"
+                className="min-h-11 border border-cyan-200/30 bg-cyan-300/8 px-3 text-[0.62rem] font-black uppercase text-cyan-100"
               >
-                Fleet
+                {activePosition === 'main' ? '← All main ships' : '← All support ships'}
               </button>
-            </div>
+              ) : null}
+            </nav>
           ) : null}
-          {/* Patterns belong to the selected hull, and Overdrive amplifies them
-              without replacing that ship's primary-weapon identity. */}
-          <div className="sci-weapon-spec-row">
-            <p className="sci-weapon-spec">
-              Weapon: {PLAYER_SHIP_WEAPON_PREVIEW_SPECS[mainShipId]}
-            </p>
-          </div>
 
           {mode === 'catalog' ? (
             <>
@@ -1008,6 +1027,13 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
         onClose={() => setWeaponPreviewShipId(null)}
         onSelect={onSelectMainShip}
       />
+      {supportPreviewId ? (
+        <Suspense fallback={<div className="fixed inset-0 z-[95] grid place-items-center bg-black/90 text-cyan-100" role="status">
+          <div className="text-center"><p>Loading support preview…</p><button type="button" className="mt-3 min-h-11 px-4" onClick={() => setSupportPreviewId(null)}>← Back to Hangar</button></div>
+        </div>}>
+          <SupportShipPreviewDialog miniId={supportPreviewId} mainShipId={mainShipId} state={state} onClose={() => setSupportPreviewId(null)} />
+        </Suspense>
+      ) : null}
     </>
   );
 };

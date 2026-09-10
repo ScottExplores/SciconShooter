@@ -40,7 +40,7 @@ test('Hangar previews a new hull before committing the selection', () => {
 test('the selected hull has an explicit replay control above the fleet', () => {
   const hangar = read('components', 'SquadHangar.tsx');
 
-  assert.match(hangar, /className="sci-weapon-spec-row"/);
+  assert.doesNotMatch(hangar, /sci-weapon-spec-row|PLAYER_SHIP_WEAPON_PREVIEW_SPECS/);
   assert.match(hangar, /onClick=\{\(\) => setWeaponPreviewShipId\(mainShipId\)\}/);
   assert.match(hangar, />\s*Preview fire\s*<\/PixelActionButton>/);
   assert.match(hangar, /fireRateLevel=\{weaponPreviewShipId \? state\.shipUpgrades\[weaponPreviewShipId\]\.fireRate : 0\}/);

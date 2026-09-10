@@ -1,0 +1,25 @@
+.support-preview {
+  margin: auto; padding: 12px; width: min(390px, calc(100vw - 20px));
+  max-height: calc(100dvh - 24px); overflow-y: auto; overscroll-behavior: contain;
+  color: #e2f5ff; background: #030817; border: 1px solid #39738a;
+  box-shadow: 0 0 40px #22d3ee30; font-family: inherit;
+}
+.support-preview::backdrop { background: #000d; }
+.support-preview__header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.support-preview__header small { font-size: 9px; letter-spacing: .12em; color: #67e8f9; }
+.support-preview h2 { font-size: 18px; font-weight: 900; margin: 3px 0; }
+.support-preview__header p { font-size: 11px; color: #fde68a; }
+.support-preview button, .support-preview select {
+  min-height: 44px; padding: 7px 10px; border: 1px solid #39738a; background: #10263b;
+  color: #cffafe; font-size: 11px; font-weight: 800; cursor: pointer; touch-action: manipulation;
+}
+.support-preview button:disabled { opacity: .45; cursor: default; }
+.support-preview button:focus-visible, .support-preview select:focus-visible { outline: 2px solid #a3e635; outline-offset: 2px; }
+.support-preview__description { margin: 8px 0; font-size: 11px; line-height: 1.5; color: #a8bace; }
+.support-preview__stage { position: relative; height: min(46dvh, 390px); min-height: 200px; border: 1px solid #204456; }
+.support-preview__status { position: absolute; inset: 0; display: grid; place-items: center; padding: 20px; background: #03081799; text-align: center; font-size: 12px; pointer-events: none; }
+.support-preview__controls { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 6px; align-items: end; }
+.support-preview__controls label { font-size: 10px; color: #a8bace; }
+.support-preview__controls select { display: block; width: 100%; }
+.support-preview__hint { margin: 8px 0; text-align: center; font-size: 10px; color: #a8bace; }
+.support-preview__back { width: 100%; }
