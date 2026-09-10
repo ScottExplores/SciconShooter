@@ -40,6 +40,11 @@ clearing site data, or changing browsers does not provide cloud recovery.
   rollover, legacy saves, corrupt saves, sequential purchases, interrupted
   mission/purchase journals, unavailable storage, and wallet-profile isolation.
 - Production build checks exclude Combat Lab and Director assets/code.
+- TypeScript checking and every root test file passed (the matrix test ran
+  separately after regeneration). The real-engine matrix covered 50 non-boss
+  Missions / 600 trials: 566 clears, 33 deaths, one simulation timeout, matching
+  the previous aggregate outcomes. These are automated pilot trials, not a
+  claim of full physical-device coverage.
 
 ## Supabase check
 
