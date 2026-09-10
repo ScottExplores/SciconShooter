@@ -51,7 +51,6 @@ import {
   getPlayerWeaponPreviewFrames,
   PLAYER_SHIP_WEAPON_PREVIEW_SPECS
 } from '../services/playerWeaponPreview';
-import { calculateSquadPowerRating } from '../services/squadPowerRating';
 import { FIRE_RATE_TIER_COUNT } from '../services/weaponTierProgression';
 import PixelActionButton from './PixelActionButton';
 import PlayerShipAccessDialog, { type PlayerShipAccessId } from './PlayerShipAccessDialog';
@@ -344,17 +343,6 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
     && Boolean(activeMiniId)
     && state.equipped[activePosition] === activeMiniId;
   const activeMainShipUpgrades = state.shipUpgrades[mainShipId];
-  const equippedPowerSupports = (['left', 'right'] as const).flatMap((slot) => {
-    const id = state.equipped[slot];
-    if (!state.unlockedSlots[slot] || !id) return [];
-    return [{ id, level: state.ownedMiniShips[id] ?? 1 }];
-  });
-  const power = calculateSquadPowerRating(activeMainShipUpgrades, equippedPowerSupports);
-  const tier = getMainShipFireRateTier(activeMainShipUpgrades.fireRate);
-  const fireRateTierProgress = getMainShipFireRateTierProgress(activeMainShipUpgrades.fireRate);
-  const activeTier = activePosition === 'main'
-    ? tier
-    : Math.min(3, Math.max(1, Math.ceil(activeMiniLevel / 2)));
   const canAffordMainUpgrade = (shipId: PlayerShipId, upgradeId: MainShipUpgradeId) => {
     const shipUpgrades = state.shipUpgrades[shipId];
     const level = shipUpgrades[upgradeId];
@@ -737,32 +725,28 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
         </section>
 
         <section className="border-b border-violet-200/18 bg-[#24234d]/95">
-          <div className="flex items-center justify-between gap-3 border-b border-violet-100/16 bg-[#171834] px-3 py-2 sm:px-5">
-            <p className="min-w-0 truncate text-sm font-black uppercase text-white">
-              {activePosition === 'main' ? 'Starship' : `${activePosition} wing`}: <span className="text-yellow-200">{activeName}</span>
-            </p>
-            <p className="shrink-0 text-sm font-black uppercase text-white">Power <span className="text-yellow-200">{power}</span></p>
-          </div>
-          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 py-3 sm:px-5">
-            <div className="min-w-0">
-              <p className="text-sm font-black uppercase text-white">Tier {activeTier}</p>
-              <div className="mt-1 max-w-[13rem]"><LevelPips level={activePosition === 'main' ? fireRateTierProgress : activeMiniLevel} max={activePosition === 'main' ? MAIN_SHIP_UPGRADE_MAX_LEVEL : MINI_SHIP_MAX_LEVEL} /></div>
-              <p className="mt-1 text-[0.58rem] font-bold uppercase text-cyan-100/70">
-                {walletConnected
-                  ? 'Saved on this device · onchain items linked'
-                  : 'Saved on this device · connect for minted/onchain items'}
-              </p>
-            </div>
+          <div className="px-3 py-3 sm:px-5">
             {activePosition === 'main' ? (
-              <PixelActionButton
-                data-onboarding-target="hangar-upgrades"
-                onClick={() => setMode('upgrades')}
-                tone="gold"
-                ready={activeMainUpgradeReady}
-                className="min-h-11 min-w-[7rem] px-4 text-xs font-black uppercase"
-              >
-                Upgrade
-              </PixelActionButton>
+              <div className="grid grid-cols-2 gap-2" role="group" aria-label="Starship actions">
+                <PixelActionButton
+                  data-onboarding-target="hangar-upgrades"
+                  onClick={() => setMode('upgrades')}
+                  tone="gold"
+                  ready={activeMainUpgradeReady}
+                  className="min-h-11 min-w-0 px-3 text-xs font-black uppercase"
+                >
+                  Upgrade
+                </PixelActionButton>
+                <PixelActionButton
+                  type="button"
+                  tone="cyan"
+                  onClick={() => setWeaponPreviewShipId(mainShipId)}
+                  aria-label={`Preview ${PLAYER_SHIPS[mainShipId].name} primary weapon`}
+                  className="min-h-11 min-w-0 px-3 text-xs font-black uppercase"
+                >
+                  Preview fire
+                </PixelActionButton>
+              </div>
             ) : activeMini && activeMiniId ? activeMiniOwned ? (
               <div className="grid grid-cols-2 gap-2">
                 <PixelActionButton
@@ -802,6 +786,11 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
             ) : (
               <span className="text-[0.6rem] font-black uppercase text-slate-500">Select a mini ship</span>
             )}
+            <p className="mt-1 text-center text-[0.58rem] font-bold uppercase text-cyan-100/70">
+              {walletConnected
+                ? 'Saved on this device · onchain items linked'
+                : 'Saved on this device · connect for minted/onchain items'}
+            </p>
           </div>
         </section>
 
@@ -824,15 +813,6 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
             <p className="sci-weapon-spec">
               Weapon: {PLAYER_SHIP_WEAPON_PREVIEW_SPECS[mainShipId]}
             </p>
-            <PixelActionButton
-              type="button"
-              tone="cyan"
-              onClick={() => setWeaponPreviewShipId(mainShipId)}
-              aria-label={`Preview ${PLAYER_SHIPS[mainShipId].name} primary weapon`}
-              className="min-h-10 shrink-0 px-2 text-[0.58rem] font-black uppercase"
-            >
-              Preview fire
-            </PixelActionButton>
           </div>
 
           {mode === 'catalog' ? (

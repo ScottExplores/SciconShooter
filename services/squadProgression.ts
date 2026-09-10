@@ -788,26 +788,43 @@ export const recoverPendingCampaignSquadSettlement = (requestedProfileId?: strin
 export const loadWeeklySquadState = (requestedProfileId?: string | null): WeeklySquadState => {
   const profileId = normalizeProfileId(requestedProfileId);
   recoverPendingCampaignSquadSettlement(profileId);
+  if (typeof window !== 'undefined' && window.localStorage.getItem(campaignSettlementJournalKey(profileId))) {
+    throw new Error('Device storage could not finish recovering your saved progress. Please free up storage and retry.');
+  }
   const currentWeek = getWeeklyBoundaryMeta(new Date()).weekKey;
   let state = createWeeklySquadState(profileId, currentWeek);
-
+  let needsSave = false;
+  const currentKey = weeklyStorageKey(profileId);
+  // Read the newest schema first, then migrate an older save for this same
+  // identity. Never delete the only copy of a device-only player's upgrades.
+  const candidateKeys = [currentKey, ...retiredWeeklyStorageKeys(profileId).reverse()];
   try {
-    const saved = typeof window !== 'undefined' ? window.localStorage.getItem(weeklyStorageKey(profileId)) : null;
-    if (saved) state = sanitizeWeeklyState(JSON.parse(saved) as StoredWeeklySquadState, profileId);
+    if (typeof window !== 'undefined') {
+      for (const key of candidateKeys) {
+        const saved = window.localStorage.getItem(key);
+        if (!saved) continue;
+        const parsed = JSON.parse(saved) as StoredWeeklySquadState;
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)
+          || (parsed.profileId && normalizeProfileId(parsed.profileId) !== profileId)) {
+          throw new Error('Invalid saved Hangar profile.');
+        }
+        state = sanitizeWeeklyState(parsed, profileId);
+        needsSave = key !== currentKey;
+        break;
+      }
+    }
   } catch {
-    state = createWeeklySquadState(profileId, currentWeek);
+    // Leave the original bytes intact for recovery, not a new empty profile.
+    throw new Error('Your device save could not be read. It has not been erased. Please retry or report this problem.');
   }
 
   if (state.weekKey !== currentWeek) {
     state = rollWeeklySquadStateForward(state, currentWeek);
+    needsSave = true;
     emitSquadDomainEvent('weekly_state_reset', { profileId, weekKey: currentWeek });
   }
 
-  if (typeof window !== 'undefined') {
-    retiredWeeklyStorageKeys(profileId).forEach((key) => window.localStorage.removeItem(key));
-  }
-
-  saveWeeklySquadState(state);
+  if (needsSave) saveWeeklySquadState(state);
   emitSquadDomainEvent('pilot_profile_loaded', { profileId, weekKey: state.weekKey });
   return state;
 };
@@ -995,6 +1012,58 @@ export const commitCampaignSquadSettlement = ({
   window.localStorage.setItem(key, JSON.stringify(record));
   writeStoredSquadPair(weeklyState, permanentState);
   window.localStorage.removeItem(key);
+};
+
+export type LocalHangarChange =
+  | { kind: 'upgrade-main-ship'; shipId: PlayerShipId; upgradeId: MainShipUpgradeId }
+  | { kind: 'unlock-slot'; slot: SquadSlotId }
+  | { kind: 'purchase-mini-ship'; miniShipId: MiniShipId }
+  | { kind: 'upgrade-mini-ship'; miniShipId: MiniShipId }
+  | { kind: 'equip-mini-ship'; slot: SquadSlotId; miniShipId: MiniShipId | null };
+
+/** Commit a device purchase before publishing it to React. No wallet/network required. */
+export const commitLocalHangarChange = (profileId: string, change: LocalHangarChange) => {
+  if (!normalizeProfileId(profileId).startsWith('pilot:') || typeof window === 'undefined') {
+    throw new Error('Local Hangar changes require a device Pilot profile.');
+  }
+  // Recover any interrupted mission first; otherwise its journal could replay
+  // after this purchase and replace the new upgrade with the pre-purchase save.
+  // Reading the latest snapshot also avoids spending from a stale open Hangar.
+  const current = loadWeeklySquadState(profileId);
+  const permanent = loadPermanentSquadState(profileId);
+  const next = change.kind === 'upgrade-main-ship'
+    ? upgradeMainShip(current, change.shipId, change.upgradeId)
+    : change.kind === 'unlock-slot'
+      ? unlockSquadSlot(current, change.slot)
+      : change.kind === 'purchase-mini-ship'
+        ? purchaseMiniShip(current, change.miniShipId)
+        : change.kind === 'upgrade-mini-ship'
+          ? upgradeMiniShip(current, change.miniShipId)
+          : equipMiniShip(current, change.slot, change.miniShipId);
+  const nextPermanent = next !== current && change.kind === 'upgrade-main-ship'
+    ? {
+        ...permanent,
+        lifetimeStats: {
+          ...permanent.lifetimeStats,
+          hangarUpgradesPurchased: permanent.lifetimeStats.hangarUpgradesPurchased + 1
+        },
+        updatedAt: nowIso()
+      }
+    : permanent;
+  if (next !== current) {
+    try {
+      commitCampaignSquadSettlement({
+        resultId: `local-hangar:${nowIso()}`,
+        weeklyState: next,
+        permanentState: nextPermanent
+      });
+    } catch (error) {
+      // Once the journal is written the transaction is committed. Finish its
+      // mirrors if possible instead of asking the player to buy it twice.
+      if (!recoverPendingCampaignSquadSettlement(profileId)) throw error;
+    }
+  }
+  return { weeklyState: next, permanentState: nextPermanent };
 };
 
 export interface SquadProfileMigrationResult {

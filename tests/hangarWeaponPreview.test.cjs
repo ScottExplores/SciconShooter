@@ -46,6 +46,19 @@ test('the selected hull has an explicit replay control above the fleet', () => {
   assert.match(hangar, /fireRateLevel=\{weaponPreviewShipId \? state\.shipUpgrades\[weaponPreviewShipId\]\.fireRate : 0\}/);
 });
 
+test('Hangar groups upgrade and preview actions without repeating the fleet tier summary', () => {
+  const hangar = read('components', 'SquadHangar.tsx');
+  const actions = hangar.match(/<div className="grid grid-cols-2 gap-2" role="group" aria-label="Starship actions">([\s\S]*?)<\/div>/)?.[1];
+
+  assert.ok(actions, 'main ship actions share one two-column row');
+  assert.match(actions, /setMode\('upgrades'\)/);
+  assert.match(actions, /setWeaponPreviewShipId\(mainShipId\)/);
+  assert.equal((actions.match(/min-h-11/g) || []).length, 2);
+  assert.doesNotMatch(hangar, /Tier \{activeTier\}|Power <span|\? 'Starship' :/);
+  assert.match(hangar, /T\{shipTier\}/);
+  assert.match(hangar, /LevelPips level=\{shipTier\}/);
+});
+
 test('weapon preview reuses gameplay lane plans and the live base projectile families', () => {
   const preview = read('services', 'playerWeaponPreview.ts');
 

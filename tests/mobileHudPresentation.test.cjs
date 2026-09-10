@@ -28,10 +28,11 @@ const render = (props = {}) => renderToStaticMarkup(React.createElement(UIOverla
 }));
 const abilityButton = (html) => html.match(/<button[^>]*data-onboarding-target="flight-special"[\s\S]*?<\/button>/)[0];
 
-test('the ability badge distinguishes ready, actual recharge, locked, and paused without a false one-second promise', () => {
+test('ready ability uses its bright icon without a badge; recharge, locked, and paused keep their status', () => {
   const ready = abilityButton(render());
   assert.match(ready, /data-ability-state="ready"/);
-  assert.match(ready, />READY<\/span>/);
+  assert.doesNotMatch(ready, /scicon-ability-status|>READY</);
+  assert.match(ready, /aria-label="[^"]+"/);
   assert.doesNotMatch(ready, /disabled=""/);
   for (const [frames, seconds] of [[1, 1], [60, 1], [61, 2], [960, 16]]) {
     const recharging = abilityButton(render({ stats: { ...stats, shipAbilityCooldown: frames } }));

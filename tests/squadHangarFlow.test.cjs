@@ -48,7 +48,8 @@ test('weekly competition rollover preserves permanent Hangar progression and res
   assert.match(source, /equipped: \{ left: null, right: null \}/);
   assert.match(source, /shipUpgrades: createMainShipUpgradesByShip\(\)/);
   assert.match(source, /RETIRED_WEEKLY_SQUAD_PROFILE_VERSIONS = \[1, 2, 3\]/);
-  assert.match(source, /retiredWeeklyStorageKeys\(profileId\)\.forEach\(\(key\) => window\.localStorage\.removeItem\(key\)\)/);
+  assert.match(source, /candidateKeys = \[currentKey, \.\.\.retiredWeeklyStorageKeys\(profileId\)\.reverse\(\)\]/);
+  assert.doesNotMatch(source, /retiredWeeklyStorageKeys\(profileId\)\.forEach\(\(key\) => window\.localStorage\.removeItem\(key\)\)/);
   assert.match(source, /PERMANENT_SQUAD_PROFILE_VERSION = 1/);
   assert.match(source, /MINI_SHIP_UPGRADE_COST_CURVE = \[0, 160, 360, 650, 1050\]/);
   assert.match(source, /entry\.purchaseCost \* \(0\.55 \+ currentLevel \* 0\.15\)/);
@@ -218,8 +219,8 @@ test('main ship upgrade cards show the matching existing gameplay sprites', () =
   assert.match(hangar, /src=\{getMainUpgradeSprite\(upgrade\.id, mainShipId, level\)\}/);
   assert.match(hangar, /shipId === 'researchhub'[\s\S]*?getShipAbilityUpgradeProfile\(abilityLevel\)\.projectileIconUrl/);
   assert.match(hangar, /max=\{upgrade\.id === 'fireRate' \? MAIN_SHIP_UPGRADE_MAX_LEVEL : maxLevel\}/);
-  assert.match(hangar, /getMainShipFireRateTier\(activeMainShipUpgrades\.fireRate\)/);
-  assert.match(hangar, /getMainShipFireRateTierProgress\(activeMainShipUpgrades\.fireRate\)/);
+  assert.match(hangar, /getMainShipFireRateTier\(level\)/);
+  assert.match(hangar, /getMainShipFireRateTierProgress\(level\)/);
   assert.doesNotMatch(hangar, /Array\.from\(\{ length: FIRE_RATE_TIER_COUNT \}/);
   assert.doesNotMatch(hangar, /repeat\(\$\{FIRE_RATE_TIER_COUNT\}, minmax\(0, 1fr\)\)/);
   assert.match(hangar, /const maxLevel = getMainShipUpgradeMaxLevel\(upgrade\.id\)/);
@@ -343,7 +344,7 @@ test('main ship upgrades remain isolated to the selected ship through the Hangar
   assert.match(squad, /const currentUpgrades = state\.shipUpgrades\[shipId\]/);
   assert.match(squad, /\[shipId\]: \{ \.\.\.currentUpgrades, \[id\]: level \+ 1 \}/);
   assert.match(squad, /upgrades: \{ \.\.\.\(state\.shipUpgrades\[mainShipId\]/);
-  assert.match(app, /upgradeMainShip\(current, usableShipId, id\)/);
+  assert.match(app, /applyLocalHangarChange\(\{ kind: 'upgrade-main-ship', shipId: usableShipId, upgradeId: id \}\)/);
   assert.match(app, /const runShipId = requestedLabShipId \?\? usableShipId/);
   assert.match(app, /buildRuntimeSquadLoadout\(campaignLabState, runShipId\)/);
 });

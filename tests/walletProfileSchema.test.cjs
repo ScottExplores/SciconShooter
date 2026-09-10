@@ -1128,7 +1128,7 @@ test('wallet profile API shares the existing mint-records Vercel function', () =
     'utf8'
   );
 
-  assert.deepEqual(vercel.rewrites[1], {
+  assert.deepEqual(vercel.rewrites.find((route) => route.source === '/api/wallet-profile'), {
     source: '/api/wallet-profile',
     destination: '/api/mint-records?route=wallet-profile'
   });

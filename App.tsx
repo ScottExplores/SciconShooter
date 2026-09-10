@@ -128,6 +128,8 @@ import {
   awardWeeklySquadCoins,
   buildRuntimeSquadLoadout,
   commitCampaignSquadSettlement,
+  commitLocalHangarChange,
+  type LocalHangarChange,
   consumeWeeklyRunAttempt,
   creditCampaignRewardGrants,
   createFounderSquadSandboxState,
@@ -144,15 +146,11 @@ import {
   MINI_SHIP_CATALOG,
   MINI_SHIP_MAX_LEVEL,
   preloadMiniShipTextures,
-  purchaseMiniShip,
   reconcileWeeklyRunAttempts,
   savePermanentSquadState,
   saveWeeklySquadState,
   WEEKLY_RUN_ATTEMPT_LIMIT,
   SQUAD_SLOT_UNLOCK_COST,
-  unlockSquadSlot,
-  upgradeMainShip,
-  upgradeMiniShip,
   type MainShipUpgradeId,
   type MiniShipId,
   CAMPAIGN_MISSION_MASTERY_STARS,
@@ -803,6 +801,7 @@ const App: React.FC = () => {
   const [scoreSubmitError, setScoreSubmitError] = useState<string>('');
   const [showLabGlow, setShowLabGlow] = useState<boolean>(true);
   const [walletError, setWalletError] = useState<string>('');
+  const [localHangarSaveError, setLocalHangarSaveError] = useState('');
   const [walletProfileStatus, setWalletProfileStatus] = useState<
     'guest' | 'authenticating' | 'ready' | 'syncing' | 'error'
   >(initialWalletAddress ? 'authenticating' : 'guest');
@@ -2403,6 +2402,22 @@ const App: React.FC = () => {
     }
   }, [activeWalletAddress, hydrateActiveProfile, walletProfileStatus]);
 
+  const applyLocalHangarChange = useCallback((change: LocalHangarChange) => {
+    try {
+      // Ensure a temporarily blocked identity write at startup cannot leave
+      // newly purchased upgrades under an orphaned Pilot ID after reopening.
+      localStorage.setItem(STORAGE_KEYS.PILOT_PROFILE_ID, pilotProfile.id);
+      const saved = commitLocalHangarChange(pilotProfile.id, change);
+      weeklySquadStateRef.current = saved.weeklyState;
+      permanentSquadStateRef.current = saved.permanentState;
+      setWeeklySquadState(saved.weeklyState);
+      setPermanentSquadState(saved.permanentState);
+      setLocalHangarSaveError('');
+    } catch {
+      setLocalHangarSaveError('Device storage could not finish saving. Free up browser storage, keep this tab open, then retry. A wallet is not required.');
+    }
+  }, [pilotProfile.id]);
+
   const handleUnlockSquadSlot = useCallback((slot: SquadSlotId) => {
     if (isOwnerWallet) return;
     if (activeWalletAddress) {
@@ -2411,8 +2426,8 @@ const App: React.FC = () => {
       }
       return;
     }
-    updateWeeklySquadState((current) => unlockSquadSlot(current, slot));
-  }, [activeWalletAddress, applyAuthoritativeHangarSpend, isOwnerWallet, updateWeeklySquadState]);
+    applyLocalHangarChange({ kind: 'unlock-slot', slot });
+  }, [activeWalletAddress, applyAuthoritativeHangarSpend, applyLocalHangarChange, isOwnerWallet]);
 
   const handlePurchaseMiniShip = useCallback((id: MiniShipId) => {
     if (isOwnerWallet) return;
@@ -2420,8 +2435,8 @@ const App: React.FC = () => {
       void applyAuthoritativeHangarSpend({ kind: 'purchase-mini-ship', miniShipId: id });
       return;
     }
-    updateWeeklySquadState((current) => purchaseMiniShip(current, id));
-  }, [activeWalletAddress, applyAuthoritativeHangarSpend, isOwnerWallet, updateWeeklySquadState]);
+    applyLocalHangarChange({ kind: 'purchase-mini-ship', miniShipId: id });
+  }, [activeWalletAddress, applyAuthoritativeHangarSpend, applyLocalHangarChange, isOwnerWallet]);
 
   const handleUpgradeMiniShip = useCallback((id: MiniShipId) => {
     if (isOwnerWallet) {
@@ -2432,8 +2447,8 @@ const App: React.FC = () => {
       void applyAuthoritativeHangarSpend({ kind: 'upgrade-mini-ship', miniShipId: id });
       return;
     }
-    updateWeeklySquadState((current) => upgradeMiniShip(current, id));
-  }, [activeWalletAddress, applyAuthoritativeHangarSpend, isOwnerWallet, updateWeeklySquadState]);
+    applyLocalHangarChange({ kind: 'upgrade-mini-ship', miniShipId: id });
+  }, [activeWalletAddress, applyAuthoritativeHangarSpend, applyLocalHangarChange, isOwnerWallet, updateWeeklySquadState]);
 
   const handleDowngradeMiniShip = useCallback((id: MiniShipId) => {
     if (!isOwnerWallet) return;
@@ -2441,8 +2456,12 @@ const App: React.FC = () => {
   }, [isOwnerWallet, updateWeeklySquadState]);
 
   const handleEquipMiniShip = useCallback((slot: SquadSlotId, id: MiniShipId | null) => {
+    if (!activeWalletAddress) {
+      applyLocalHangarChange({ kind: 'equip-mini-ship', slot, miniShipId: id });
+      return;
+    }
     updateWeeklySquadState((current) => equipMiniShip(current, slot, id), !isOwnerWallet);
-  }, [isOwnerWallet, updateWeeklySquadState]);
+  }, [activeWalletAddress, applyLocalHangarChange, isOwnerWallet, updateWeeklySquadState]);
 
   const handleUpgradeMainShip = useCallback((id: MainShipUpgradeId) => {
     if (isOwnerWallet) {
@@ -2459,27 +2478,12 @@ const App: React.FC = () => {
       });
       return;
     }
-    updateWeeklySquadState((current) => {
-      const next = upgradeMainShip(current, usableShipId, id);
-      // upgradeMainShip returns the same state when the purchase is refused for
-      // cost or max level, so only a real change counts.
-      if (next !== current) {
-        updatePermanentSquadState((permanent) => ({
-          ...permanent,
-          lifetimeStats: {
-            ...permanent.lifetimeStats,
-            hangarUpgradesPurchased: permanent.lifetimeStats.hangarUpgradesPurchased + 1
-          },
-          updatedAt: new Date().toISOString()
-        }));
-      }
-      return next;
-    });
+    applyLocalHangarChange({ kind: 'upgrade-main-ship', shipId: usableShipId, upgradeId: id });
   }, [
     activeWalletAddress,
     applyAuthoritativeHangarSpend,
+    applyLocalHangarChange,
     isOwnerWallet,
-    updatePermanentSquadState,
     updateWeeklySquadState,
     usableShipId
   ]);
@@ -7719,6 +7723,12 @@ const App: React.FC = () => {
 
   return (
     <div className="relative h-full w-full select-none bg-[#0b1020]">
+      {localHangarSaveError ? (
+        <div role="alert" className="absolute inset-x-3 top-3 z-[100] rounded-lg border border-red-300/50 bg-slate-950 p-4 text-sm text-red-100">
+          <p>{localHangarSaveError}</p>
+          <button type="button" className="mt-2 min-h-11 px-3 font-bold" onClick={() => setLocalHangarSaveError('')}>Dismiss</button>
+        </div>
+      ) : null}
       {walletRuntimeEnabled ? (
         <React.Suspense fallback={null}>
           <WalletRuntime

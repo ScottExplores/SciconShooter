@@ -21,14 +21,9 @@ test('the shared rating ceiling matches the authored final comfortable recommend
   assert.equal(base + (35 * main) + support, 6_826);
 });
 
-test('Hangar power counts equipped companions rather than every owned mini ship', () => {
-  const powerBlock = hangarSource.slice(
-    hangarSource.indexOf('const equippedPowerSupports'),
-    hangarSource.indexOf('const tier =', hangarSource.indexOf('const equippedPowerSupports'))
-  );
-  assert.match(powerBlock, /state\.equipped\[slot\]/);
-  assert.match(powerBlock, /calculateSquadPowerRating\(activeMainShipUpgrades, equippedPowerSupports\)/);
-  assert.doesNotMatch(powerBlock, /Object\.values\(state\.ownedMiniShips\)/);
+test('Hangar omits the unused power summary while Campaign Lab retains its separate rating', () => {
+  assert.doesNotMatch(hangarSource, /equippedPowerSupports|calculateSquadPowerRating|STARSHIP.*POWER/);
+  assert.match(mapSource, /Selected loadout power/);
 });
 
 test('every authored support tag maps to concrete catalog mini ships without duplicating a recommendation panel on the Campaign Map', () => {

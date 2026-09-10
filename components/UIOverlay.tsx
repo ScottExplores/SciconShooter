@@ -291,7 +291,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
   const abilitySeconds = Math.ceil(abilityCooldown / 60);
   const abilityStatusLabel = abilityLocked
     ? paused || frozen ? 'PAUSED' : 'LOCKED'
-    : abilityReady ? 'READY' : `${abilitySeconds}s`;
+    : abilityReady ? null : `${abilitySeconds}s`;
   const abilityAccessibleLabel = abilityLocked
     ? `${abilityDefinition.name} unavailable while ${paused || frozen ? 'paused' : 'controls are locked'}`
     : abilityReady
@@ -465,9 +465,11 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
                 maskImage: `conic-gradient(from 0deg, #000 0deg ${abilityRevealDegrees}deg, transparent ${abilityRevealDegrees}deg 360deg)`
               }}
             />
-            <span className={`scicon-ability-status scicon-ability-status--${abilityState}`} aria-hidden="true">
-              {abilityStatusLabel}
-            </span>
+            {abilityStatusLabel ? (
+              <span className={`scicon-ability-status scicon-ability-status--${abilityState}`} aria-hidden="true">
+                {abilityStatusLabel}
+              </span>
+            ) : null}
           </button>
         ) : null}
       </div>

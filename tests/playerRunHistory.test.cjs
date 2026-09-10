@@ -47,7 +47,7 @@ test('player run history shares a Vercel function and stays within the Hobby lim
   const apiFunctions = fs.readdirSync(path.join(root, 'api'))
     .filter((entry) => entry.endsWith('.js'));
 
-  assert.deepEqual(vercelConfig.rewrites[0], {
+  assert.deepEqual(vercelConfig.rewrites.find((route) => route.source === '/api/player-runs'), {
     source: '/api/player-runs',
     destination: '/api/mint-records?route=player-runs'
   });
