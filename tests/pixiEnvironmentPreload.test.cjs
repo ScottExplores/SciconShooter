@@ -95,13 +95,13 @@ test('wave overrides participate in the same current-and-next preload window', (
 });
 
 test('startup and per-profile URL sets exclude unrelated late-run atlases', () => {
-  assert.equal(PIXI_ENVIRONMENT_TEXTURE_URLS.length, 3);
-  assert.ok(PIXI_ENVIRONMENT_TEXTURE_URLS.includes('PIXI_BREAKWATER_FAR'));
-  assert.ok(PIXI_ENVIRONMENT_TEXTURE_URLS.includes('PIXI_BREAKWATER_APPROACH'));
-  assert.ok(PIXI_ENVIRONMENT_TEXTURE_URLS.includes('PIXI_BREAKWATER_WRECKFIELD'));
+  assert.equal(PIXI_ENVIRONMENT_TEXTURE_URLS.length, 8);
+  assert.ok(PIXI_ENVIRONMENT_TEXTURE_URLS.includes('PIXI_SPACE_PARALLAX_BG_ION_CLOUD'));
+  assert.ok(PIXI_ENVIRONMENT_TEXTURE_URLS.includes('PIXI_SPACE_PARALLAX_BG_VIOLET_RIFT'));
+  assert.equal(PIXI_ENVIRONMENT_TEXTURE_URLS.includes('PIXI_BREAKWATER_FAR'), false);
   assert.equal(PIXI_ENVIRONMENT_TEXTURE_URLS.includes('PIXI_SPACE_PARALLAX_DEBRIS_BASALT'), false);
   assert.equal(PIXI_ENVIRONMENT_TEXTURE_URLS.includes('PIXI_SPACE_PARALLAX_DEBRIS_RUST'), false);
-  assert.equal(PIXI_ENVIRONMENT_TEXTURE_URLS.includes('PIXI_TERRAIN_SPACE_PROPS'), false);
+  assert.ok(PIXI_ENVIRONMENT_TEXTURE_URLS.includes('PIXI_TERRAIN_SPACE_PROPS'));
   assert.equal(PIXI_ENVIRONMENT_TEXTURE_URLS.includes('PIXI_TERRAIN_DESERT_MASTER'), false);
   assert.equal(PIXI_ENVIRONMENT_TEXTURE_URLS.includes('PIXI_SPACE_RUN_HELIX_REDLINE_PROPS'), false);
 

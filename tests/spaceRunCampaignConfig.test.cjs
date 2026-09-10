@@ -51,11 +51,11 @@ const spaceRuns = [
   }
 ];
 
-test('campaign revision 24 layers Breakwater into the first sector while preserving later space runs', () => {
+test('campaign revision 24 restores opening scenery while preserving later space runs', () => {
   assert.equal(campaign.revision, 24);
   assert.deepEqual(
     campaign.levels.slice(0, 5).map((level) => level.backgroundId),
-    ['breakwater-approach', 'breakwater-wreckfield', 'breakwater-wreckfield', 'breakwater-gate', 'breakwater-gate']
+    ['open-orbit', 'citation-storm', 'paywall-siege', 'open-galaxy', 'bastion-protocol']
   );
   assert.ok(campaign.levels.slice(0, 5).every(level => level.waves.every(wave => wave.backgroundId === level.backgroundId)));
 

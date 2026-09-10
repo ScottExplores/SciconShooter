@@ -33,8 +33,8 @@ test('Breakwater is the ordinary first sector, not a lab campaign or a new progr
   assert.equal(missions.every(level => level.loopWaves === false), true);
 });
 
-test('three distinct environments progress from orbital traffic through wrecks to the gate', () => {
-  assert.deepEqual(missions.map(level => level.backgroundId), ['breakwater-approach', 'breakwater-wreckfield', 'breakwater-wreckfield', 'breakwater-gate', 'breakwater-gate']);
+test('original opening environments retain the updated Breakwater encounters', () => {
+  assert.deepEqual(missions.map(level => level.backgroundId), ['open-orbit', 'citation-storm', 'paywall-siege', 'open-galaxy', 'bastion-protocol']);
   for (const level of missions) {
     assert.ok(level.waves.every(wave => wave.backgroundId === level.backgroundId));
     const authoredSeconds = level.waves.reduce((total, wave) => total + wave.durationSeconds + wave.introSeconds + wave.delayAfterSeconds, 0);

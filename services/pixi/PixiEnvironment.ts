@@ -227,11 +227,11 @@ export const TERRAIN_PROP_POOL_SIZE = Math.max(
 );
 
 export const CAMPAIGN_ENVIRONMENT_ROUTE = [
-  { stage: 1, backgroundId: 'breakwater-approach', terrain: 'space', storyBeat: 'orbital-departure' },
-  { stage: 2, backgroundId: 'breakwater-wreckfield', terrain: 'space', storyBeat: 'salvage-crossfire' },
-  { stage: 3, backgroundId: 'breakwater-wreckfield', terrain: 'space', storyBeat: 'relay-guardian' },
-  { stage: 4, backgroundId: 'breakwater-gate', terrain: 'space', storyBeat: 'station-breach' },
-  { stage: 5, backgroundId: 'breakwater-gate', terrain: 'space', storyBeat: 'gatekeeper-blockade' },
+  { stage: 1, backgroundId: 'open-orbit', terrain: 'space', storyBeat: 'orbital-departure' },
+  { stage: 2, backgroundId: 'citation-storm', terrain: 'space', storyBeat: 'deep-nebula' },
+  { stage: 3, backgroundId: 'paywall-siege', terrain: 'desert', storyBeat: 'planetary-descent' },
+  { stage: 4, backgroundId: 'open-galaxy', terrain: 'river', storyBeat: 'biosphere-expedition' },
+  { stage: 5, backgroundId: 'bastion-protocol', terrain: 'space', storyBeat: 'orbital-return' },
   { stage: 6, backgroundId: 'helix-redline', terrain: 'space', storyBeat: 'helix-convergence' },
   { stage: 7, backgroundId: 'helix-redline', terrain: 'space', storyBeat: 'redline-corridor' },
   { stage: 8, backgroundId: 'shattered-void', terrain: 'space', storyBeat: 'dark-matter-run' },
@@ -585,8 +585,8 @@ export const getEnvironmentWindowTextureUrls = (
 ])]);
 
 const INITIAL_ENVIRONMENT_WINDOW: PixiEnvironmentWindow = Object.freeze({
-  currentBackgroundId: 'breakwater-approach',
-  nextBackgroundId: 'breakwater-wreckfield'
+  currentBackgroundId: 'open-orbit',
+  nextBackgroundId: 'citation-storm'
 });
 
 /** Initial production route only; later environments are warmed on demand. */
