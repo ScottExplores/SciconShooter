@@ -69,17 +69,12 @@ test('player motion catalog mirrors the four animated production PNG sets in the
   }
 
   assert.match(motion, /PLAYER_SHIP_STEERING_DEADZONE = 0\.12/);
-  assert.match(motion, /PLAYER_SHIP_STEERING_BLEND_MS = 90/);
-  assert.match(motion, /PLAYER_SHIP_BASE_STEERING_BLEND_MS = 165/);
-  assert.match(motion, /PLAYER_SHIP_LEVEL_ONE_STEERING_BLEND_MS = 125/);
-  assert.match(motion, /if \(speedLevel <= 0\) return PLAYER_SHIP_BASE_STEERING_BLEND_MS/);
-  assert.match(motion, /if \(speedLevel === 1\) return PLAYER_SHIP_LEVEL_ONE_STEERING_BLEND_MS/);
-  assert.match(motion, /return PLAYER_SHIP_STEERING_BLEND_MS/);
+  assert.match(motion, /PLAYER_SHIP_STEERING_BLEND_MS = 180/);
   assert.match(motion, /PLAYER_SHIP_BANK_THRESHOLD = 0\.42/);
   assert.match(motion, /PLAYER_SHIP_HARD_BANK_THRESHOLD = 0\.95/);
   assert.match(motion, /PLAYER_SHIP_HARD_BANK_SWEEP_RATIO = 0\.72/);
   assert.match(motion, /PLAYER_SHIP_TOUCH_SPEED_SCALE = 1\.34/);
-  assert.match(motion, /PLAYER_SHIP_HARD_BANK_HOLD_MS = 220/);
+  assert.match(motion, /PLAYER_SHIP_HARD_BANK_HOLD_MS = 140/);
   assert.match(motion, /'hard-left': `\$\{packPath\}\/researchhub\/frames\/researchhub-05-hard-right\.png`/);
   assert.match(motion, /'bank-left': `\$\{packPath\}\/researchhub\/frames\/researchhub-04-bank-right\.png`/);
   assert.match(motion, /'bank-right': `\$\{packPath\}\/researchhub\/frames\/researchhub-02-bank-left\.png`/);
@@ -127,14 +122,15 @@ test('Pixi preloads steering textures and swaps frames only for the player prese
   assert.match(renderer, /view\.root\.rotation = 0/);
   assert.match(renderer, /view\.root\.scale\.set\(visualScale\)/);
   assert.match(renderer, /this\.playerThrusterRoot\.rotation = 0/);
-  assert.match(renderer, /const steeringBlendMs = getPlayerSteeringBlendMs\(speedLevel\)/);
-  assert.match(renderer, /Math\.exp\(-Math\.max\(0, deltaMs\) \/ steeringBlendMs\)/);
+  assert.match(renderer, /advancePlayerSteeringVisual\(this\.playerSteeringVisual, normalizedHorizontal, deltaMs\)/);
+  assert.match(renderer, /this\.playerSteeringVisual <= -PLAYER_SHIP_HARD_BANK_THRESHOLD/);
+  assert.match(renderer, /triggerEligible: requestedHardBankDirection !== 0\s*&& hardBankEligible/);
   assert.match(renderer, /engine\.width - engine\.player\.width/);
   assert.match(renderer, /Math\.max\(0, signedSweep\) \/ playableWidth\s*>= PLAYER_SHIP_HARD_BANK_SWEEP_RATIO/);
   assert.match(renderer, /getPlayerSteeringPresentationSpeed/);
   assert.match(renderer, /updatePlayerHardBankLatch/);
   assert.match(renderer, /hardBankDirection === requestedDirection/);
-  assert.match(renderer, /selectPlayerSteeringState\(this\.playerSteeringVisual, hardBankEligible\)/);
+  assert.match(renderer, /selectPlayerSteeringState\(this\.playerSteeringVisual, false\)/);
   assert.match(renderer, /engine\.waveDepartureFrames > 0[\s\S]*?this\.playerSteeringState = 'neutral'/);
   assert.match(renderer, /const hardBank = !takeoffActive[\s\S]*?this\.playerSteeringState === 'hard-left'/);
   assert.match(renderer, /thruster\.visible = !hardBank \|\| index === 0/);
@@ -176,7 +172,7 @@ test('a hard bank remains visible briefly and clears on an intentional reversal'
     triggerEligible: true,
     deltaMs: 16
   });
-  assert.deepEqual(latch, { direction: 1, remainingMs: 220, triggeredDirection: 1 });
+  assert.deepEqual(latch, { direction: 1, remainingMs: 140, triggeredDirection: 1 });
 
   latch = updatePlayerHardBankLatch(latch, {
     requestedDirection: 1,
@@ -184,7 +180,7 @@ test('a hard bank remains visible briefly and clears on an intentional reversal'
     triggerEligible: false,
     deltaMs: 120
   });
-  assert.deepEqual(latch, { direction: 1, remainingMs: 100, triggeredDirection: 1 });
+  assert.deepEqual(latch, { direction: 1, remainingMs: 20, triggeredDirection: 1 });
 
   latch = updatePlayerHardBankLatch(latch, {
     requestedDirection: -1,
@@ -220,5 +216,116 @@ test('a sustained touch gesture triggers one bank and an opposite gesture can tr
     triggerEligible: true,
     deltaMs: 16
   });
-  assert.deepEqual(latch, { direction: -1, remainingMs: 220, triggeredDirection: -1 });
+  assert.deepEqual(latch, { direction: -1, remainingMs: 140, triggeredDirection: -1 });
+});
+
+// Execute the actual renderer method with a minimal engine, so the touch gate,
+// sweep distance, easing, latch and texture selection are tested together.
+const shipCatalog = { exports: {} };
+new Function('module', 'exports', esbuild.buildSync({
+  entryPoints: [path.join(root, 'services/playerShipService.ts')],
+  bundle: true, platform: 'node', format: 'cjs', write: false
+}).outputFiles[0].text)(shipCatalog, shipCatalog.exports);
+
+const createSteeringHarness = (speedLevel = 0, shipId = 'researchhub') => {
+  const runtime = loadMotionRuntime();
+  const renderer = read('services/pixi/PixiGameRenderer.ts');
+  const start = renderer.indexOf('  private updatePlayerSteeringPresentation(');
+  const end = renderer.indexOf('  private ensureArticulatedBossRigLoad(', start);
+  const code = esbuild.transformSync(`class SteeringHarness {${renderer.slice(start, end)}}`, {
+    loader: 'ts', target: 'es2020'
+  }).code;
+  const Harness = new Function(...Object.keys(runtime), 'GAME_CONFIG', `${code}; return SteeringHarness;`)(
+    ...Object.values(runtime), { BASE_PLAYER_SPEED: 2.5 }
+  );
+  const view = new Harness();
+  const engine = {
+    playerShipUrl: shipCatalog.exports.PLAYER_SHIPS[shipId].assetUrl,
+    player: { x: 0, width: 40 }, width: 1040,
+    waveDepartureFrames: 0, stats: { upgrades: { speed: speedLevel } },
+    playerVel: { x: 0 }, touchPos: { x: 1020 }
+  };
+  view.updatePlayerSteeringPresentation(engine, 0);
+  return { view, engine, step: (dt) => {
+    view.updatePlayerSteeringPresentation(engine, dt);
+    return view.playerSteeringState;
+  } };
+};
+
+test('ordinary touch swipes favor the intermediate pose at every speed upgrade', () => {
+  for (let speed = 0; speed <= 7; speed += 1) {
+    const { engine, step } = createSteeringHarness(speed);
+    engine.playerVel.x = 15;
+    const states = [];
+    for (let frame = 0; frame < 60; frame += 1) {
+      engine.player.x = frame * 5; // less than a third of the arena
+      states.push(step(1000 / 60));
+    }
+    assert.equal(states[0], 'neutral', `speed ${speed} must not snap on touch`);
+    assert.ok(states.includes('bank-right'));
+    assert.ok(!states.some((state) => state.startsWith('hard-')));
+  }
+});
+
+test('all four hulls retain their authored mild-bank sprites in both directions', () => {
+  const { PLAYER_SHIP_MOTION } = loadMotionRuntime();
+  for (const shipId of ['researchhub', 'bio', 'eth', 'btc']) {
+    const { view, engine, step } = createSteeringHarness(7, shipId);
+    for (const direction of [-1, 1]) {
+      engine.touchPos.x = direction * 1000;
+      engine.playerVel.x = direction * 15;
+      for (let frame = 0; frame < 50; frame += 1) step(16);
+      const state = direction < 0 ? 'bank-left' : 'bank-right';
+      assert.equal(view.playerSteeringState, state);
+      assert.equal(view.playerSteeringTextureKey, PLAYER_SHIP_MOTION[shipId].steeringFrames[state]);
+    }
+  }
+});
+
+test('an arena-wide swipe shows a long intermediate bank before one brief hard pose', () => {
+  for (const fps of [30, 60, 120]) {
+    const { engine, step } = createSteeringHarness(7);
+    engine.playerVel.x = 15;
+    const timeline = [];
+    for (let frame = 0; frame < fps; frame += 1) {
+      engine.player.x = frame * 1000 / fps;
+      timeline.push({ time: (frame + 1) * 1000 / fps, state: step(1000 / fps) });
+    }
+    const mild = timeline.find((entry) => entry.state === 'bank-right');
+    const hard = timeline.find((entry) => entry.state === 'hard-right');
+    assert.ok(mild && hard);
+    assert.ok(hard.time - mild.time >= 400, `${fps} FPS must dwell in the 45-degree pose`);
+    assert.equal(timeline.at(-1).state, 'bank-right', 'must not stay edge-on');
+    assert.ok(timeline.filter((entry) => entry.state === 'hard-right').length * 1000 / fps <= 180);
+  }
+});
+
+test('reversals ease through neutral, release settles, and a stalled frame cannot skip the bank', () => {
+  const { engine, step } = createSteeringHarness(7);
+  engine.playerVel.x = 15;
+  assert.equal(step(2000), 'neutral', 'background resume must not jump to a hard pose');
+  for (let frame = 0; frame < 40; frame += 1) step(16);
+  engine.touchPos.x = -500;
+  engine.playerVel.x = -15;
+  const reversal = Array.from({ length: 40 }, () => step(16));
+  assert.equal(reversal[0], 'bank-right');
+  assert.ok(reversal.includes('neutral'));
+  assert.equal(reversal.at(-1), 'bank-left');
+  assert.ok(!reversal.some((state) => state.startsWith('hard-')));
+  engine.touchPos = null;
+  engine.playerVel.x = 0;
+  for (let frame = 0; frame < 60; frame += 1) step(16);
+  assert.equal(step(16), 'neutral');
+  engine.waveDepartureFrames = 10;
+  engine.playerVel.x = 15;
+  assert.equal(step(16), 'neutral');
+});
+
+test('lifting the finger cancels a hard-bank hold immediately', () => {
+  const { updatePlayerHardBankLatch } = loadMotionRuntime();
+  const next = updatePlayerHardBankLatch({ direction: 1, remainingMs: 140, triggeredDirection: 1 }, {
+    requestedDirection: 0, hardBankDirection: 0, triggerEligible: false, deltaMs: 16
+  });
+  assert.equal(next.direction, 0);
+  assert.equal(next.remainingMs, 0);
 });

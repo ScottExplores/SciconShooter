@@ -17,14 +17,14 @@ type PlayerShipMotion = Readonly<{
 // public/game-art/generated/scicon-flight-motion-pack-v1/pack-manifest.json.
 export const PLAYER_SHIP_SELECTION_FPS = 5;
 export const PLAYER_SHIP_STEERING_DEADZONE = 0.12;
-export const PLAYER_SHIP_STEERING_BLEND_MS = 90;
-export const PLAYER_SHIP_BASE_STEERING_BLEND_MS = 165;
-export const PLAYER_SHIP_LEVEL_ONE_STEERING_BLEND_MS = 125;
+// Visual roll timing must not accelerate with movement upgrades. At full input
+// the mild pose appears after ~100ms and remains for ~440ms before a hard bank.
+export const PLAYER_SHIP_STEERING_BLEND_MS = 180;
 export const PLAYER_SHIP_BANK_THRESHOLD = 0.42;
 export const PLAYER_SHIP_HARD_BANK_THRESHOLD = 0.95;
 export const PLAYER_SHIP_HARD_BANK_SWEEP_RATIO = 0.72;
 export const PLAYER_SHIP_TOUCH_SPEED_SCALE = 1.34;
-export const PLAYER_SHIP_HARD_BANK_HOLD_MS = 220;
+export const PLAYER_SHIP_HARD_BANK_HOLD_MS = 140;
 
 export interface PlayerHardBankLatch {
   readonly direction: -1 | 0 | 1;
@@ -136,10 +136,12 @@ export const applyPlayerSteeringDeadzone = (normalizedHorizontal: number) => {
   return Math.abs(clamped) < PLAYER_SHIP_STEERING_DEADZONE ? 0 : clamped;
 };
 
-export const getPlayerSteeringBlendMs = (speedLevel: number) => {
-  if (speedLevel <= 0) return PLAYER_SHIP_BASE_STEERING_BLEND_MS;
-  if (speedLevel === 1) return PLAYER_SHIP_LEVEL_ONE_STEERING_BLEND_MS;
-  return PLAYER_SHIP_STEERING_BLEND_MS;
+export const advancePlayerSteeringVisual = (current: number, horizontal: number, deltaMs: number) => {
+  const target = applyPlayerSteeringDeadzone(horizontal);
+  // Resuming a backgrounded mobile tab must not skip straight to the end pose.
+  const blend = 1 - Math.exp(-Math.min(50, Math.max(0, deltaMs)) / PLAYER_SHIP_STEERING_BLEND_MS);
+  const next = current + (target - current) * blend;
+  return target === 0 && Math.abs(next) < 0.01 ? 0 : next;
 };
 
 export const getPlayerSteeringPresentationSpeed = ({
@@ -173,7 +175,6 @@ export const updatePlayerHardBankLatch = (
 ): PlayerHardBankLatch => {
   if (
     current.direction !== 0
-    && requestedDirection !== 0
     && requestedDirection !== current.direction
   ) {
     return Object.freeze({

@@ -20,7 +20,7 @@ import {
   PLAYER_SHIP_STEERING_FRAME_URLS,
   applyPlayerSteeringDeadzone,
   getPlayerSteeringPresentationSpeed,
-  getPlayerSteeringBlendMs,
+  advancePlayerSteeringVisual,
   getPlayerShipMotionByAssetUrl,
   selectPlayerSteeringState,
   updatePlayerHardBankLatch,
@@ -3850,9 +3850,12 @@ export class PixiGameRenderer {
       : (playerCenterX - this.playerSteeringSweepOriginX) * this.playerSteeringSweepDirection;
     const hardBankEligible = Math.max(0, signedSweep) / playableWidth
       >= PLAYER_SHIP_HARD_BANK_SWEEP_RATIO;
-    const hardBankDirection: -1 | 0 | 1 = normalizedHorizontal <= -PLAYER_SHIP_HARD_BANK_THRESHOLD
+    this.playerSteeringVisual = advancePlayerSteeringVisual(this.playerSteeringVisual, normalizedHorizontal, deltaMs);
+    // Use the eased roll, not raw touch velocity: every turn must show the
+    // intermediate pose before a deliberate arena-wide sweep can roll further.
+    const hardBankDirection: -1 | 0 | 1 = this.playerSteeringVisual <= -PLAYER_SHIP_HARD_BANK_THRESHOLD
       ? -1
-      : normalizedHorizontal >= PLAYER_SHIP_HARD_BANK_THRESHOLD
+      : this.playerSteeringVisual >= PLAYER_SHIP_HARD_BANK_THRESHOLD
         ? 1
         : 0;
     const touchIntentX = engine.touchPos ? engine.touchPos.x - playerCenterX : 0;
@@ -3870,21 +3873,16 @@ export class PixiGameRenderer {
       requestedDirection,
       hardBankDirection: requestedHardBankDirection,
       triggerEligible: requestedHardBankDirection !== 0
-        && (hardBankEligible || Boolean(engine.touchPos)),
+        && hardBankEligible,
       deltaMs
     });
-    const steeringBlendMs = getPlayerSteeringBlendMs(speedLevel);
-    const blend = 1 - Math.exp(-Math.max(0, deltaMs) / steeringBlendMs);
-    this.playerSteeringVisual += (normalizedHorizontal - this.playerSteeringVisual) * blend;
-    if (normalizedHorizontal === 0 && Math.abs(this.playerSteeringVisual) < 0.01) {
-      this.playerSteeringVisual = 0;
-    }
 
     const state = this.playerHardBankLatch.direction < 0
       ? 'hard-left'
       : this.playerHardBankLatch.direction > 0
         ? 'hard-right'
-        : selectPlayerSteeringState(this.playerSteeringVisual, hardBankEligible);
+        // Only the brief, once-per-sweep latch may show the edge-on pose.
+        : selectPlayerSteeringState(this.playerSteeringVisual, false);
     this.playerSteeringState = state;
     this.playerSteeringTextureKey = motion.steeringFrames[state];
   }
