@@ -9,6 +9,7 @@
   "evaluationEpisodes": 20,
   "timeLimitSeconds": 90,
   "masterSeed": 94721,
+  "fixedTrainingMode": "reward-exposed-frozen-plasticity",
   "conditions": ["intact-fixed", "intact-plastic", "shuffled-fixed", "shuffled-plastic", "matched-random", "yoked-reward", "plasticity-block", "sham"],
   "models": {},
   "yokedMode": "temporally-shuffled",

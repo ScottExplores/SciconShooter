@@ -1800,6 +1800,7 @@ type EnemyRuntimeOverrides = {
 };
 
 export type GameEngineRuntimeEvent = { frame: number; campaignIndex: number } & (
+  | { type: 'player-life-lost' | 'player-life-gained'; count: number; livesBefore: number; livesRemaining: number }
   | { type: 'primary-fire-cycle'; accepted: boolean; intervalFrames: number; queuedProjectiles: number }
   | { type: 'player-projectile-spawn'; entityId: string; weaponKind: string; x: number; y: number; damage: number }
   | { type: 'enemy-spawn-offer'; sourceEventId: string; targetCount: number; startSeconds: number; durationSeconds: number; releasedEarly: boolean }
@@ -5528,6 +5529,10 @@ export class GameEngine {
     this.syncPlayerLives(transition.lives);
     this.recordPlayerDamage(transition.damageApplied);
     if (transition.damageApplied > 0) {
+      this.runtimeHooks.recordRuntimeEvent?.({
+        type: 'player-life-lost', frame: this.frameCount, campaignIndex: this.currentCampaignIndex,
+        count: transition.damageApplied, livesBefore: transition.previousLives, livesRemaining: transition.lives
+      });
       for (const boss of this.entities) {
         if (
           !boss.markedForDeletion
@@ -23341,8 +23346,15 @@ export class GameEngine {
       this.spawnFloatingText(cx, cy - 20, "RESEARCH BEAM!", "#a855f7");
       this.spawnRingEffect(cx, cy, "#a855f7");
     } else if (type === PowerupType.EXTRA_LIFE) {
+      const livesBefore = this.lives;
       this.lives = Math.min(this.lives + 1, GAME_CONFIG.MAX_LIVES);
       this.stats.lives = this.lives;
+      if (this.lives > livesBefore) {
+        this.runtimeHooks.recordRuntimeEvent?.({
+          type: 'player-life-gained', frame: this.frameCount, campaignIndex: this.currentCampaignIndex,
+          count: this.lives - livesBefore, livesBefore, livesRemaining: this.lives
+        });
+      }
       this.spawnFloatingText(cx, cy - 20, "+1 LIFE!", "#ff4444");
       this.spawnRingEffect(cx, cy, "#ff4444");
     }

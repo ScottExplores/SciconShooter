@@ -13,6 +13,8 @@ Open http://127.0.0.1:5180. Configure a Random baseline, Idle or Manual episode 
 
 The software rendering profile is the default. The separately tested `local-d3d11` profile uses this computer's Intel GPU; its pixels must be compared only with runs using the same recorded renderer identity. Source edits invalidate strict replay until the exported source version is restored. This is intentional.
 
+Restart the lab after source or configuration edits. The coordinator rejects new episodes when disk sources differ from the version loaded by its Python process, so an export cannot silently describe different code.
+
 ## Another installation
 
 Use the source commit recorded in an experiment's metadata, overlay its `source.zip` when needed, and obtain the original game assets at their recorded hashes. Use Node 24.12.0 and Python 3.12. Install the root game's dependencies with `npm ci` if absent. Then:
@@ -39,6 +41,12 @@ In a second terminal with the same `PYTHONPATH`:
 Preflight currently fails honestly because validated retinal, decoder, conditioning and control manifests do not exist. The default pilot is a methods template, not an automatic training job. `study plan` generates a reproducible sealed schedule; `study run` additionally requires validated real models and an explicit measured compute budget. See [experiment design](EXPERIMENT_DESIGN.md).
 
 The first actual MaleCNS optic-hex/L1 candidate failed its visual KC and decoder screens. Reproduce its frozen inputs with `scicon_fly.assays` and the three `configs/candidates/malecns-hex-v0.1-*.json` files; inspect `docs/evidence/malecns-hex-v0.1-screen.json` and its diagnosis before revising the model. Candidate assay manifests cannot authorize game training.
+
+```powershell
+.venv\Scripts\python.exe -m scicon_fly.assays --graph data/compiled/v1.0/graph.npz --manifest data/compiled/v1.0/manifest.json --vision configs/candidates/malecns-hex-v0.1-vision.json --decoder configs/candidates/malecns-hex-v0.1-decoder.json --specification configs/candidates/malecns-hex-v0.1-specification.json
+```
+
+The command reports fresh measurements to the terminal; it does not overwrite the frozen screen or upgrade any validation gate.
 
 `get_state()` is privileged immutable diagnostics, not a restorable engine checkpoint. Game replay always uses a fresh reset plus the exact action sequence. Neural checkpoints separately preserve complete mutable model state. A crash can be inspected with `python -m scicon_fly.recovery experiments/INTERRUPTED_ID runtime/recovered-ID`; this copies the evidence into a new diagnostic directory and never labels it a completed study.
 

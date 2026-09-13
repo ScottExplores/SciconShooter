@@ -146,3 +146,25 @@ test('pixel encoder uses framebuffer luminance with deterministic shape and no h
   assert.deepEqual(rgbaToGray(rgba, 390, 844), red);
   assert.throws(() => rgbaToGray(new Uint8Array(7), 390, 844), /RGBA/);
 });
+
+test('native life transitions preserve nonterminal, simultaneous pickup, multi-life and terminal loss counts', () => {
+  const runtime = new EpisodeRuntime({ seed: 620 });
+  runtime.takeEvents();
+  runtime.engine.applyPlayerLifeDamage(1);
+  assert.equal(runtime.terminated, false);
+  runtime.engine.activatePowerup('EXTRA_LIFE');
+  assert.equal(runtime.engine.lives, 3);
+  runtime.engine.applyPlayerLifeDamage(2);
+  assert.equal(runtime.terminated, false);
+  runtime.engine.applyPlayerLifeDamage(99);
+  runtime.engine.startDeathSequence();
+  runtime.engine.applyPlayerLifeDamage(99);
+  runtime.engine.startDeathSequence();
+  const events = runtime.takeEvents();
+  assert.deepEqual(events.filter(e => e.type === 'player-life-lost').map(e => [e.count, e.livesBefore, e.livesRemaining]),
+    [[1, 3, 2], [2, 3, 1], [1, 1, 0]]);
+  assert.deepEqual(events.filter(e => e.type === 'player-life-gained').map(e => [e.count, e.livesBefore, e.livesRemaining]), [[1, 2, 3]]);
+  assert.equal(events.filter(e => e.type === 'player-death').length, 1);
+  assert.equal(runtime.terminated, true);
+  runtime.close();
+});

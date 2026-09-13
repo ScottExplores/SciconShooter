@@ -20,6 +20,7 @@ from .model import file_hash
 
 CONDITIONS = {'intact-fixed','intact-plastic','shuffled-fixed','shuffled-plastic','matched-random','yoked-reward','plasticity-block','sham'}
 PLASTIC = {'intact-plastic','shuffled-plastic','yoked-reward','plasticity-block','sham'}
+FIXED_TRAINING_MODE = 'reward-exposed-frozen-plasticity'
 
 
 def seed_for(master, *labels):
@@ -33,6 +34,8 @@ def plan(spec):
     conditions=spec['conditions']
     if not conditions or len(set(conditions))!=len(conditions) or not set(conditions)<=CONDITIONS:
         raise ValueError('Unknown or duplicate conditions')
+    if set(conditions)&{'intact-fixed','shuffled-fixed'} and spec.get('fixedTrainingMode')!=FIXED_TRAINING_MODE:
+        raise ValueError('Fixed training must explicitly declare reward-exposed-frozen-plasticity; withholding DAN input confounds the factorial contrast')
     for key in ('replicas','trainingEpisodes','evaluationEpisodes'):
         if type(spec[key]) is not int or spec[key]<1:raise ValueError(f'Invalid {key}')
     if spec['replicas']<2:raise ValueError('At least two independent replicas are required')
@@ -186,6 +189,35 @@ def validate_episode_model(check, key, reset_result):
         raise ValueError('Model files changed after study preflight; replica continuity is invalid')
 
 
+def expected_execution(row):
+    """Preregistered execution contract; held-out evaluation never delivers US."""
+    if row['condition']=='matched-random':
+        return {'controller':'matched-random','neuralMode':None,'reinforcementProtocol':'none'}
+    if row['phase']!='training':
+        return {'controller':'neural-fixed','neuralMode':'frozen','reinforcementProtocol':'none'}
+    plastic=row['condition'] in PLASTIC
+    return {'controller':'neural-plastic' if plastic else 'neural-fixed',
+            'neuralMode':'training' if plastic else 'training-fixed',
+            'reinforcementProtocol':'signed-dan-yoked-v1' if row['condition']=='yoked-reward' else 'signed-dan-outcome-v1'}
+
+
+def validate_episode_execution(row, config, *, protocol_hash, summary=None):
+    """Check server-stamped modes before running and in sealed final artifacts.
+
+    The server verifies the actual worker mode on every neural update, including
+    terminal reinforcement. Do not infer executed modes from condition labels.
+    """
+    expected=expected_execution(row)
+    if any(key not in config or config[key]!=value for key,value in expected.items()):
+        raise ValueError('Episode execution mode or reinforcement protocol differs from the sealed study')
+    actual_study=config.get('study',{})
+    if config.get('phase')!=row['phase'] or actual_study.get('protocolHash')!=protocol_hash or any(actual_study.get(key)!=value for key,value in row.items()):
+        raise ValueError('Episode phase or study identity differs from the sealed schedule')
+    if summary is not None and any(key not in summary or summary[key]!=expected[key] for key in ('neuralMode','reinforcementProtocol')):
+        raise ValueError('Final artifact execution mode or reinforcement protocol differs from its configuration')
+    return {key:config[key] for key in ('neuralMode','reinforcementProtocol')} | {'protocolHash':protocol_hash}
+
+
 def analyze(spec, records):
     """Only completed pre/post episodes enter complete paired replica matrices."""
     planned=plan(spec)
@@ -196,6 +228,9 @@ def analyze(spec, records):
         if key in values or key not in expected:raise ValueError('Duplicate or unplanned episode')
         if record.get('seed')!=expected[key]['seed']:raise ValueError('Evaluation seed mismatch')
         if record.get('status')!='completed':failures.append(list(key));continue
+        contract=expected_execution(expected[key])
+        if record.get('protocolHash')!=planned['protocolHash'] or any(name not in record or record[name]!=contract[name] for name in ('neuralMode','reinforcementProtocol')):
+            raise ValueError('Unverified or incompatible episode execution: legacy fixed-training runs without DAN input cannot enter this study')
         score=record.get('score')
         if type(score) not in (int,float) or not np.isfinite(score):raise ValueError('Invalid endpoint')
         values[key]=score
@@ -264,6 +299,7 @@ def execute(spec, output, *, maximum_wall_hours):
                 config['study']['yoke']={**yoke_metadata,'minimumShiftBins':spec['minimumShiftBins'],'donorReplica':replica,'donorEpisode':row['episode']}
                 config['reinforcementSchedule']=np.asarray(doses).tolist()
             reset_result=coordinator.reset(config)
+            validate_episode_execution(row,reset_result['config'],protocol_hash=schedule['protocolHash'])
             if controller!='matched-random':validate_episode_model(check,f'{condition}:{replica}',reset_result)
             previous_pair=pair
             while coordinator.status!='completed':
@@ -271,7 +307,9 @@ def execute(spec, output, *, maximum_wall_hours):
                 coordinator.step()
             run=safe_run(coordinator.run_id);summary=json.loads((run/'summary.json').read_text())
             if verify_export(run):raise ValueError('Finished episode artifact failed checksums')
-            record={**row,**summary,'runId':coordinator.run_id}
+            recorded_config=json.loads((run/'config.json').read_text())
+            execution=validate_episode_execution(row,recorded_config,protocol_hash=schedule['protocolHash'],summary=summary)
+            record={**row,**summary,**execution,'runId':coordinator.run_id}
             if training and condition=='yoked-reward':
                 outcomes=pq.read_table(run/'rewards.parquet')['reward'].to_numpy()
                 record['yokedExposure']=yoked_exposure(outcomes,doses,config['study']['yoke'])

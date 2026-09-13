@@ -314,18 +314,53 @@ def _evidence_boundary_test_session(tmp_path):
     return session
 
 
-@pytest.mark.parametrize("op",["step","reinforce","retain","transferMemory"])
+@pytest.mark.parametrize("op",["step","step-fixed","reinforce","reinforce-fixed","retain","transferMemory"])
 def test_direct_real_worker_entrypoints_reject_truthy_evidence_labels(tmp_path,op):
     session=_evidence_boundary_test_session(tmp_path)
     requests={"step":{"op":"step","mode":"training","observation":observation()},
+              "step-fixed":{"op":"step","mode":"training-fixed","observation":observation()},
               "reinforce":{"op":"reinforce","reinforcement":-1},
+              "reinforce-fixed":{"op":"reinforce","reinforcement":-1},
               "retain":{"op":"retain","seconds":1},
               "transferMemory":{"op":"transferMemory","name":"unused.npz","sourceIdentity":session.identity}}
-    if op=="reinforce": session.frame=1;session.last_mode=1
+    if op in ("reinforce","reinforce-fixed"): session.frame=1;session.last_mode=3 if op.endswith('fixed') else 1
     for _ in range(2):
         with pytest.raises(ValueError,match="Evidence requires a local"):
             session.handle(requests[op])
         assert session._training_evidence_cache is None
+
+
+def test_fixed_training_gets_dan_input_and_acquisition_lesions_but_freezes_all_memory(tmp_path):
+    graph=fixture_graph();v,d,p=manifests(graph)
+    lesion={"graphHash":graph.identity,"evidence":["SYNTHETIC_TEST_ONLY"],
+            "lesions":[{"neuronIds":["11"],"scope":"acquisition"}]}
+    session=WorkerSession(graph,v,d,plasticity_manifest=p,checkpoint_dir=tmp_path,interval_ms=5,
+                          allow_synthetic_fixture=True,lesion_manifest=lesion)
+    for gate in session.gates['gates'].values():gate.update(status='PASS',evidence=['SYNTHETIC_TEST_ONLY'])
+    session.plasticity.u[:]=.2;session.plasticity.w[:]=.1;session.brain.efficacy[1]=1.1
+    session.plasticity.kc_trace[:]=2;session.plasticity.dan_trace[:]=3
+    memory=session.plasticity.state_dict();efficacy=session.brain.efficacy.copy()
+    first=session.handle({'op':'step','mode':'training-fixed','observation':observation(),'reinforcement':-1})
+    assert first['summary']['mode']=='training-fixed' and first['summary']['plasticityFrozen'] is True
+    assert first['summary']['reinforcementDoseMs']=={'negative':5.,'positive':0.}
+    assert first['summary']['lesionCount']==1 and first['summary']['plasticityChanges']==[]
+    session.handle({'op':'checkpoint','name':'fixed-training.npz'})
+    second=session.handle({'op':'step','mode':'training-fixed','observation':observation()})
+    session.handle({'op':'restore','name':'fixed-training.npz'})
+    assert session.last_mode==3
+    assert session.handle({'op':'step','mode':'training-fixed','observation':observation()})==second
+    terminal=session.handle({'op':'reinforce','reinforcement':-1})['summary']
+    assert terminal['mode']=='training-fixed' and terminal['plasticityFrozen'] is True
+    assert terminal['reinforcementDoseMs']=={'negative':30.,'positive':0.}
+    assert terminal['plasticityChanges']==[] and not session.reinforcement_queue.any()
+    assert any(cell['id']=='14' and cell['spikes']>0 for cell in terminal['sampledNeurons'])
+    assert all(cell['id']!='11' for cell in terminal['sampledNeurons'])
+    for key,value in memory.items():np.testing.assert_array_equal(value,session.plasticity.state_dict()[key])
+    np.testing.assert_array_equal(efficacy,session.brain.efficacy)
+    session.handle({'op':'reset','preserveEfficacy':True})
+    session.handle({'op':'step','mode':'training-fixed','observation':observation()})
+    with pytest.raises(ValueError,match='transitions require reset'):
+        session.handle({'op':'step','mode':'frozen','observation':observation()})
 
 
 def test_worker_caches_only_successful_hash_bound_gate_snapshot(tmp_path,monkeypatch):

@@ -9,13 +9,18 @@ import numpy as np
 import pyarrow.parquet as pq
 import psutil
 from PIL import Image
-from .artifacts import LAB_ROOT, RunWriter, atomic_json, digest
+from .artifacts import LAB_ROOT, RunWriter, atomic_json, digest, source_identity
 from .controls import TimingMatchedRandom
 from .validation import validate_gate_evidence,evidence_file
 
 MOVEMENTS=['idle','N','NE','E','SE','S','SW','W','NW']
 EXPERIMENTS=LAB_ROOT/'experiments';RUNTIME=LAB_ROOT/'runtime';DATA=LAB_ROOT/'data'
 for p in [EXPERIMENTS,RUNTIME]: p.mkdir(exist_ok=True)
+PROCESS_SOURCE_TREE_HASH=source_identity()['sourceTreeHash']
+
+def assert_process_source_current():
+    if source_identity()['sourceTreeHash']!=PROCESS_SOURCE_TREE_HASH:
+        raise RuntimeError('Source files changed after the coordinator loaded. Restart the lab after source edits before resetting an episode.')
 
 class JsonProcess:
     def __init__(self,args,name):
@@ -64,6 +69,49 @@ def dataset_manifest():
 def gate_status():
     return read_json(LAB_ROOT/'configs'/'validation-results.json',{'numerical':{'status':'NOT_RUN'},'vision':{'status':'NOT_RUN','reason':'Validated retinal mapping required'},'conditioning':{'status':'NOT_RUN'},'decoder':{'status':'NOT_RUN'}})
 
+def calculate_outcome_reward(previous_state,result):
+    """Count confirmed kills and actual life units lost, independent of pickups.
+
+    player-death describes terminal presentation, not a unit of damage. A
+    life-loss event is emitted once at the native damage transition and can
+    represent more than one lost life. Invalid/missing loss telemetry interrupts
+    the episode rather than silently substituting net lives or terminal deaths.
+    """
+    state=result.get('state');events=result.get('events')
+    if not isinstance(previous_state,dict) or not isinstance(state,dict) or not isinstance(events,list):
+        raise ValueError('Invalid reward telemetry: state and event list are required')
+    counters=[]
+    for source in (previous_state,state):
+        values=(source.get('enemiesDefeated'),source.get('lives'))
+        if any(type(value) is not int or value<0 for value in values):
+            raise ValueError('Invalid reward telemetry: kills and lives must be nonnegative integer counters')
+        counters.append(values)
+    kills=counters[1][0]-counters[0][0]
+    if kills<0:
+        raise ValueError('Invalid reward telemetry: confirmed kill counter decreased within an episode')
+    losses=0
+    for event in events:
+        if not isinstance(event,dict):
+            raise ValueError('Invalid reward telemetry: event must be an object')
+        if event.get('type')!='player-life-lost':
+            continue
+        count=event.get('count');before=event.get('livesBefore');remaining=event.get('livesRemaining')
+        if type(count) is not int or count<=0:
+            raise ValueError('Invalid reward telemetry: player-life-lost count must be a positive integer')
+        if any(type(value) is not int or value<0 for value in (before,remaining)) or before-remaining!=count:
+            raise ValueError('Invalid reward telemetry: player-life-lost transition does not match count')
+        losses+=count
+    if counters[0][1]-counters[1][1]>losses:
+        raise ValueError('Invalid reward telemetry: net life drop is missing player-life-lost events')
+    return kills-5*losses
+
+def neural_mode_for(controller,phase):
+    if controller not in ('neural-fixed','neural-plastic'):
+        return None
+    if phase!='training':
+        return 'frozen'
+    return 'training' if controller=='neural-plastic' else 'training-fixed'
+
 def archive_model_evidence(value,destination,seen=None):
     seen=set() if seen is None else seen
     if isinstance(value,dict):
@@ -110,6 +158,7 @@ class Coordinator:
                 from .study import yoked_exposure
                 exposure=yoked_exposure([h['reward'] for h in self.history],self.reinforcement_schedule,(self.config.get('study') or {}).get('yoke',{}))
             self.writer.finish({'experimentId':self.run_id,'status':status,'controller':self.config['controller'],'seed':self.config['seed'],
+                'neuralMode':self.config.get('neuralMode'),'reinforcementProtocol':self.config.get('reinforcementProtocol','none'),
                 'score':state.get('score',0),'lives':state.get('lives',3),'kills':state.get('enemiesDefeated',0),
                 'simTimeMs':(self.latest or {}).get('simTimeMs',0),'decisions':self.seq,'reward':self.total_reward,
                 'evidence':'INSUFFICIENT EVIDENCE','error':self.error,'yokedExposure':exposure})
@@ -120,6 +169,7 @@ class Coordinator:
         for p in folder.glob(name+'*'):shutil.copy2(p,destination/p.name)
         atomic_json(destination/(label+'.json'),info)
     def reset(self,body):
+        assert_process_source_current()
         self.pause()
         with self.step_lock:
             self.finish('interrupted' if self.seq else 'cancelled')
@@ -129,6 +179,8 @@ class Coordinator:
                     process.close();setattr(self,name,None)
             controller=body.get('controller','random')
             if controller not in ['random','matched-random','idle','manual','neural-fixed','neural-plastic']:raise ValueError('Unknown controller')
+            phase=body.get('phase','training' if controller=='neural-plastic' else 'evaluation')
+            neural_mode=neural_mode_for(controller,phase)
             seed=body.get('seed',42)
             if isinstance(seed,bool) or not isinstance(seed,int) or not 0<=seed<2**32:raise ValueError('Seed must be a uint32 integer')
             duration=body.get('timeLimitSeconds',90)
@@ -160,16 +212,17 @@ class Coordinator:
             self.matched_random=TimingMatchedRandom(calibration,seed^0x9E3779B9) if controller=='matched-random' else None
             schedule=body.get('reinforcementSchedule')
             if schedule is not None:
-                if controller!='neural-plastic' or not isinstance(schedule,list) or not np.isfinite(np.asarray(schedule,dtype=float)).all():raise ValueError('Finite yoked reinforcement requires a plastic controller')
+                if neural_mode not in ('training','training-fixed') or not isinstance(schedule,list) or not np.isfinite(np.asarray(schedule,dtype=float)).all():raise ValueError('Finite yoked reinforcement requires a neural training mode')
                 if len(schedule)!=(max(1,int(np.floor(duration*60)))+2)//3:raise ValueError('Yoked schedule must cover every decision, including declared zero padding')
             self.reinforcement_schedule=schedule
             render_profile=body.get('renderProfile','swiftshader')
             if render_profile not in ['swiftshader','local-d3d11']:raise ValueError('Unknown rendering profile')
             self.config={'schemaVersion':1,'controller':controller,'seed':seed,'policySeed':seed^0x9E3779B9,
+                'neuralMode':neural_mode,'reinforcementProtocol':('signed-dan-yoked-v1' if schedule is not None else 'signed-dan-outcome-v1') if neural_mode in ('training','training-fixed') else 'none',
                 'renderProfile':render_profile,
                 'episode':{'levelId':'operation-open-galaxy','timeLimitSeconds':duration,'presentationSeed':seed^0xA341316C},
                 'decisionHz':20,'gameHz':60,'movement':'native-keyboard-9','fire':'independent','constantFire':bool(body.get('constantFire',False)),
-                'reward':{'enemyDestroyed':1,'lifeLost':-5},'neuralConfig':neural_config,'modelFiles':frozen_model,'calibrationActions':calibration,'reinforcementSchedule':schedule,'reinforcementSource':'yoked' if schedule is not None else 'outcomes','preserveEfficacy':bool(body.get('preserveEfficacy',False)),'phase':body.get('phase','training' if controller=='neural-plastic' else 'evaluation'),'study':body.get('study'),'scope':'ORBIT ENTRY stochastic robustness; not scenario transfer'}
+                'reward':{'enemyDestroyed':1,'lifeLost':-5,'lifeLossEvent':'player-life-lost','lifeLossCountField':'count','terminalDeathAffectsReward':False},'neuralConfig':neural_config,'modelFiles':frozen_model,'calibrationActions':calibration,'reinforcementSchedule':schedule,'reinforcementSource':'yoked' if schedule is not None else 'outcomes','preserveEfficacy':bool(body.get('preserveEfficacy',False)),'phase':phase,'study':body.get('study'),'scope':'ORBIT ENTRY stochastic robustness; not scenario transfer'}
             self.run_id=datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S')+'-'+uuid.uuid4().hex[:8]
             self.seq=0;self.history=[];self.total_reward=0;self.error=None;self.hold=0;self.neural_summary=None;self.latest=None
             self.rng=np.random.default_rng(self.config['policySeed']);self.action={'movement':'idle','fire':False};self.status='loading'
@@ -182,7 +235,8 @@ class Coordinator:
                         if key!='manifest':archive_model_evidence(read_json(destination),self.writer.path/'model-evidence')
                 if self.neural:
                     identity=self.neural.call({'op':'status'})
-                    if controller=='neural-plastic':validate_gate_evidence(identity['gates'],identity['identity'],root=LAB_ROOT,synthetic=False)
+                    if neural_mode not in identity.get('supportedModes',[]):raise ValueError('Worker does not support the configured neural mode')
+                    if neural_mode in ('training','training-fixed'):validate_gate_evidence(identity['gates'],identity['identity'],root=LAB_ROOT,synthetic=False)
                     atomic_json(self.writer.path/'model-identity.json',identity)
                     self.checkpoint('initial')
                 if self.driver and self.driver_profile!=render_profile:self.driver.close();self.driver=None
@@ -195,10 +249,12 @@ class Coordinator:
     def choose_action(self,manual=None):
         kind=self.config['controller']
         if kind.startswith('neural'):
+            mode=self.config.get('neuralMode',neural_mode_for(kind,self.config.get('phase','training' if kind=='neural-plastic' else 'evaluation')))
             observation={k:self.latest['observation'][k] for k in ['grayBase64','width','height']}
-            delivered=self.training_reward(self.seq-1) if self.history and kind=='neural-plastic' else 0
-            result=self.neural.call({'op':'step','observation':observation,'reinforcement':delivered,'mode':'training' if kind=='neural-plastic' else 'frozen'})
+            delivered=self.training_reward(self.seq-1) if self.history and mode in ('training','training-fixed') else 0
+            result=self.neural.call({'op':'step','observation':observation,'reinforcement':delivered,'mode':mode})
             self.neural_summary=result.get('summary',result.get('neural'))
+            if not isinstance(self.neural_summary,dict) or self.neural_summary.get('mode')!=mode:raise ValueError('Worker did not verify the configured neural mode')
             if self.neural_summary is not None:self.neural_summary['deliveredReinforcement']=delivered
             action=result.get('action',result)
         elif kind=='matched-random':action=self.matched_random.next_action()
@@ -221,16 +277,16 @@ class Coordinator:
             try:
                 previous=self.latest['state'];action=self.choose_action(manual)
                 result=self.driver.call({'op':'step','action':action,'seq':self.seq+1})
-                kills=max(0,result['state'].get('enemiesDefeated',0)-previous.get('enemiesDefeated',0))
-                losses=sum(1 for e in result.get('events',[]) if e.get('type')=='player-death')
-                reward=kills-5*losses
+                reward=calculate_outcome_reward(previous,result)
                 self.seq+=1;self.action=action;self.total_reward+=reward
                 self.writer.append(self.seq,action,result,reward,self.neural_summary)
                 with self.lock:
                     self.latest=result;self.history.append({'tick':result['tick'],'seconds':result['simTimeMs']/1000,'score':result['state'].get('score',0),'reward':reward,'lives':result['state'].get('lives',3),'movement':action['movement'],'fire':action['fire']})
                 if result.get('terminated') or result.get('truncated'):
-                    if self.neural and self.config['controller']=='neural-plastic':
+                    mode=self.config.get('neuralMode',neural_mode_for(self.config['controller'],self.config.get('phase','training' if self.config['controller']=='neural-plastic' else 'evaluation')))
+                    if self.neural and mode in ('training','training-fixed'):
                         terminal=self.neural.call({'op':'reinforce','reinforcement':self.training_reward(self.seq-1)})
+                        if not isinstance(terminal.get('summary'),dict) or terminal['summary'].get('mode')!=mode:raise ValueError('Worker terminal reinforcement did not verify the configured neural mode')
                         atomic_json(self.writer.path/'terminal-reinforcement.json',terminal)
                         self.writer.record_neural(result['tick'],terminal.get('summary'))
                     self.running=False;self.status='completed';self.finish('completed')

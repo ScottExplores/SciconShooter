@@ -3,13 +3,68 @@ import readline from 'node:readline';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
+const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
+const isCanonicalAsset = pathname => /^\/(game-art|fonts|audio)\//.test(pathname);
+
+// Pixi loads PNGs through dedicated workers. The pinned browser can report an
+// empty page Response.body() for those successful loads. Capture the upstream
+// bytes before consumption and fulfill the browser request with the same bytes.
+export class AssetByteLedger {
+  constructor() {
+    this.assets = new Map();
+    this.sealed = false;
+  }
+  async serve(route, url) {
+    const request = route.request();
+    if (request.method() === 'HEAD') { await route.continue(); return; }
+    if (request.method() !== 'GET') throw new Error(`Unexpected asset method: ${request.method()} ${url.pathname}`);
+    const headers = {...request.headers(), 'accept-encoding':'identity'};
+    // A cache revalidation or partial read is not a complete content artifact.
+    for (const name of Object.keys(headers)) {
+      if (/^if-/i.test(name) || /^(range|accept-encoding)$/i.test(name)) delete headers[name];
+    }
+    headers['accept-encoding'] = 'identity';
+    const response = await route.fetch({headers, maxRedirects:0, timeout:30000});
+    try {
+      if (response.status() !== 200) throw new Error(`Asset requires a complete HTTP 200 response: ${url.pathname} (${response.status()})`);
+      if (response.url() !== request.url()) throw new Error(`Asset response URL changed: ${url.pathname}`);
+      const bytes = await response.body();
+      if (!bytes.length) throw new Error(`Empty asset body: ${url.pathname}`);
+      const entry = {sha256:sha256(bytes), byteLength:bytes.length};
+      const previous = this.assets.get(url.pathname);
+      if (previous && (previous.sha256 !== entry.sha256 || previous.byteLength !== entry.byteLength)) {
+        throw new Error(`Asset bytes changed within the browser session: ${url.pathname}`);
+      }
+      if (this.sealed && !previous) throw new Error(`Asset was not loaded before the episode began: ${url.pathname}`);
+      const fulfilledHeaders = {...response.headers()};
+      // APIResponse exposes decoded bytes. Fulfill those bytes without stale
+      // compression or transfer headers, and with their exact content length.
+      delete fulfilledHeaders['content-encoding'];
+      delete fulfilledHeaders['transfer-encoding'];
+      fulfilledHeaders['content-length'] = String(bytes.length);
+      await route.fulfill({status:200, headers:fulfilledHeaders, body:bytes});
+      this.assets.set(url.pathname, entry);
+    } finally { await response.dispose(); }
+  }
+  snapshot() {
+    const entries = [...this.assets.entries()].sort(([a],[b]) => a.localeCompare(b));
+    const assetManifest = Object.fromEntries(entries.map(([path,entry]) => [path,entry.sha256]));
+    return {assetProvenanceVersion:'intercepted-response-bytes-v1', assetManifest,
+      assetByteLengths:Object.fromEntries(entries.map(([path,entry]) => [path,entry.byteLength])),
+      assetHash:sha256(JSON.stringify(assetManifest))};
+  }
+}
+
 export class EngineDriver {
   constructor(origin = 'http://127.0.0.1:5180', {renderProfile = 'swiftshader'} = {}) {
     if (!['swiftshader', 'local-d3d11'].includes(renderProfile)) throw new Error('Unknown render profile; choose swiftshader or local-d3d11');
-    this.origin = origin; this.renderProfile = renderProfile; this.last = null; this.violations = []; this.assets={};this.assetRequests=[];
+    this.origin = origin; this.renderProfile = renderProfile; this.last = null; this.violations = [];
+    this.assetRequests = new Set(); this.assetErrors = []; this.assetLedger = new AssetByteLedger();
   }
   async open() {
     if (this.browser) return;
+    this.last = null; this.violations.length = 0; this.assetErrors.length = 0;
+    this.assetLedger = new AssetByteLedger();
     const profileArgs = this.renderProfile === 'local-d3d11'
       ? ['--use-angle=d3d11', '--enable-gpu']
       : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
@@ -26,16 +81,18 @@ export class EngineDriver {
       if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/lab-api')) {
         this.violations.push(url.pathname); await route.abort('blockedbyclient'); return;
       }
+      if (isCanonicalAsset(url.pathname)) {
+        const task = this.assetLedger.serve(route, url).catch(async error => {
+          this.assetErrors.push(String(error.message ?? error));
+          await route.abort('failed').catch(() => {});
+        });
+        this.assetRequests.add(task);
+        try { await task; } finally { this.assetRequests.delete(task); }
+        return;
+      }
       await route.continue();
     });
     this.page = await this.context.newPage();
-    this.page.on('response',response=>{
-      const url=new URL(response.url());
-      if(url.origin===this.origin && /^\/(game-art|fonts|audio)\//.test(url.pathname)) {
-        const task=response.body().then(bytes=>{this.assets[url.pathname]=createHash('sha256').update(bytes).digest('hex');});
-        this.assetRequests.push(task);
-      }
-    });
     this.page.on('pageerror', error => process.stderr.write(`Runner page: ${error.message}\n`));
     await this.page.goto(`${this.origin}/environment/runner.html`, {waitUntil:'networkidle',timeout:120000});
     await this.page.waitForFunction(() => Boolean(window.sciconFlyEnvironment), {timeout:120000});
@@ -44,7 +101,7 @@ export class EngineDriver {
   async command(command) {
     if (command.op === 'close') { await this.close(); return {closed:true}; }
     await this.open();
-    if (command.op === 'reset') { this.last = null; this.violations.length = 0; }
+    if (command.op === 'reset') { this.last = null; this.assetLedger.sealed = false; }
     if (command.op === 'step' && this.last?.seq === command.seq) {
       if (this.last.action !== JSON.stringify(command.action)) throw new Error('Sequence reused with different action');
       return this.last.result;
@@ -73,14 +130,15 @@ export class EngineDriver {
       this.runtime.webgl = gpu.renderer;
       this.runtime.gpu = gpu;
     }
-    if (this.violations.length) throw new Error(`Runner attempted prohibited requests: ${this.violations.join(', ')}`);
     if (result.observation) result.observation.sha256 = createHash('sha256').update(Buffer.from(result.observation.grayBase64,'base64')).digest('hex');
     if (result.frame?.pngDataUrl) result.frame.sha256 = createHash('sha256').update(Buffer.from(result.frame.pngDataUrl.split(',')[1],'base64')).digest('hex');
     if (result.state) result.stateHash = createHash('sha256').update(JSON.stringify(result.state)).digest('hex');
     if (result.events) result.eventsHash = createHash('sha256').update(JSON.stringify(result.events)).digest('hex');
-    await Promise.all(this.assetRequests);
-    this.runtime.assetManifest=Object.fromEntries(Object.entries(this.assets).sort(([a],[b])=>a.localeCompare(b)));
-    this.runtime.assetHash=createHash('sha256').update(JSON.stringify(this.runtime.assetManifest)).digest('hex');
+    while (this.assetRequests.size) await Promise.all([...this.assetRequests]);
+    if (this.violations.length) throw new Error(`Runner attempted prohibited requests: ${this.violations.join(', ')}`);
+    if (this.assetErrors.length) throw new Error(`Asset provenance failed: ${this.assetErrors.join('; ')}`);
+    if (command.op === 'reset') this.assetLedger.sealed = true;
+    Object.assign(this.runtime, this.assetLedger.snapshot());
     result.runtimeIdentity = structuredClone(this.runtime);
     if (command.op === 'step') this.last = {seq:command.seq,action:JSON.stringify(command.action),result};
     return result;

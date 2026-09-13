@@ -124,3 +124,69 @@ def test_model_replacement_between_training_episodes_breaks_the_seal():
     changed=deepcopy(files);changed['decoder']['sha256']='changed'
     with pytest.raises(ValueError,match='replica continuity'):
         study.validate_episode_model(check,'intact-plastic:0',{'config':{'modelFiles':changed}})
+
+
+def test_fixed_factorial_training_requires_explicit_reward_exposure_protocol():
+    spec=study_fixture();spec['conditions']=['intact-fixed','intact-plastic']
+    with pytest.raises(ValueError,match='withholding DAN input'):
+        study.preflight(spec)
+    spec['fixedTrainingMode']='no-reinforcement'
+    with pytest.raises(ValueError,match='withholding DAN input'):
+        study.plan(spec)
+    spec['fixedTrainingMode']=study.FIXED_TRAINING_MODE
+    assert study.plan(spec)['protocol']['fixedTrainingMode']=='reward-exposed-frozen-plasticity'
+
+
+@pytest.mark.parametrize('condition,phase,mode,protocol',[
+    ('intact-fixed','training','training-fixed','signed-dan-outcome-v1'),
+    ('shuffled-fixed','training','training-fixed','signed-dan-outcome-v1'),
+    ('intact-plastic','training','training','signed-dan-outcome-v1'),
+    ('plasticity-block','training','training','signed-dan-outcome-v1'),
+    ('yoked-reward','training','training','signed-dan-yoked-v1'),
+    ('intact-plastic','post','frozen','none'),
+    ('intact-fixed','pre','frozen','none'),
+    ('matched-random','training',None,'none'),
+])
+def test_study_validates_server_recorded_modes_in_configuration_and_final_summary(condition,phase,mode,protocol):
+    row={'condition':condition,'phase':phase,'replica':0,'episode':0,'seed':123}
+    expected=study.expected_execution(row)
+    config={**expected,'phase':phase,'study':{**row,'protocolHash':'sealed'}}
+    summary={'neuralMode':mode,'reinforcementProtocol':protocol}
+    assert study.validate_episode_execution(row,config,protocol_hash='sealed',summary=summary)=={**summary,'protocolHash':'sealed'}
+    # A summary cannot silently relabel a worker mode stamped in the immutable config.
+    summary['neuralMode']='legacy-unknown'
+    with pytest.raises(ValueError,match='Final artifact execution mode'):
+        study.validate_episode_execution(row,config,protocol_hash='sealed',summary=summary)
+    config['study']['protocolHash']='different'
+    with pytest.raises(ValueError,match='study identity'):
+        study.validate_episode_execution(row,config,protocol_hash='sealed')
+
+
+def test_old_fixed_training_without_dan_input_is_rejected_before_and_after_execution():
+    row={'condition':'intact-fixed','phase':'training','replica':0,'episode':0,'seed':123}
+    legacy={'controller':'neural-fixed','neuralMode':'frozen','reinforcementProtocol':'none',
+            'phase':'training','study':{**row,'protocolHash':'sealed'}}
+    with pytest.raises(ValueError,match='execution mode'):
+        study.validate_episode_execution(row,legacy,protocol_hash='sealed')
+    spec=study_fixture();spec.update(conditions=['intact-fixed','intact-plastic'],fixedTrainingMode=study.FIXED_TRAINING_MODE)
+    planned=study.plan(spec)
+    records=[{**r,**study.expected_execution(r),'protocolHash':planned['protocolHash'],'status':'completed','score':1} for r in planned['episodes']]
+    assert study.analyze(spec,records)['complete']
+    fixed=next(r for r in records if r['condition']=='intact-fixed' and r['phase']=='training')
+    for key,value in [('neuralMode','frozen'),('reinforcementProtocol','none'),('protocolHash','old-protocol')]:
+        old=fixed[key];fixed[key]=value
+        with pytest.raises(ValueError,match='legacy fixed-training'):
+            study.analyze(spec,records)
+        fixed[key]=old
+    del fixed['neuralMode']
+    with pytest.raises(ValueError,match='legacy fixed-training'):
+        study.analyze(spec,records)
+
+
+def test_reward_delivering_heldout_evaluation_cannot_enter_analysis():
+    spec=study_fixture();spec['conditions']=['intact-plastic']
+    planned=study.plan(spec)
+    records=[{**r,**study.expected_execution(r),'protocolHash':planned['protocolHash'],'status':'completed','score':1} for r in planned['episodes']]
+    records[-1]['reinforcementProtocol']='signed-dan-outcome-v1'
+    with pytest.raises(ValueError,match='incompatible episode execution'):
+        study.analyze(spec,records)

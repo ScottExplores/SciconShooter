@@ -88,7 +88,7 @@ class WorkerSession:
         self.terminal = False
         self.last_drive = np.zeros(graph.n)
         self.retention_seconds = 0.
-        self.last_mode = 0  # none, training, frozen
+        self.last_mode = 0  # none, training, frozen evaluation, training-fixed
         self.memory_origin = np.zeros(32, dtype=np.uint8)
 
     def _require_training(self):
@@ -139,7 +139,7 @@ class WorkerSession:
                     raise ValueError("Checkpoint component shape/dtype/finite check failed")
         self.brain.validate_state(states["brain"])
         w = states["worker"]
-        if int(w["frame"]) < 0 or np.any(w["reinforcement_queue"] < 0) or float(w["retention_seconds"]) < 0 or int(w["last_mode"]) not in (0, 1, 2):
+        if int(w["frame"]) < 0 or np.any(w["reinforcement_queue"] < 0) or float(w["retention_seconds"]) < 0 or int(w["last_mode"]) not in (0, 1, 2, 3):
             raise ValueError("Invalid worker checkpoint counters")
         if not bool(w["terminal"]) and int(states["brain"]["clock"]) != round(int(w["frame"])*self.interval_ms/self.brain.parameters.dt_ms):
             raise ValueError("Checkpoint neural clock and frame count disagree")
@@ -183,7 +183,7 @@ class WorkerSession:
             # superposition preserves every event's dose without hidden clipping.
             self.reinforcement_queue[:, int(reward > 0)] += abs(float(reward))
 
-    def _advance_interval(self, drive, steps, frozen):
+    def _advance_interval(self, drive, steps, *, plasticity_frozen, lesion_mode):
         if type(steps) is not int or steps < 0:
             raise ValueError("Neural interval must be nonnegative integer steps")
         total = np.zeros(self.graph.n, dtype=np.int64)
@@ -200,10 +200,10 @@ class WorkerSession:
                 chunk = int(changes[0])
             current = drive + amplitude @ self.reinforcement_drives
             self.reinforcement_queue[slot:slot+chunk] = 0
-            counts = self.brain.advance(current, chunk, silenced=self.lesions.mask("frozen" if frozen else "training"))
+            counts = self.brain.advance(current, chunk, silenced=self.lesions.mask(lesion_mode))
             if self.plasticity:
                 before = self.plasticity.w.copy()
-                self.plasticity.advance(counts, chunk*self.brain.parameters.dt_ms/1000, self.brain.efficacy, frozen=frozen)
+                self.plasticity.advance(counts, chunk*self.brain.parameters.dt_ms/1000, self.brain.efficacy, frozen=plasticity_frozen)
                 for changed in np.flatnonzero(self.plasticity.w != before):
                     edge = self.plasticity.edge[changed]
                     ledger.append({"edgeIndex": int(edge), "sourceId": str(self.graph.ids[self.plasticity.pre[changed]]),
@@ -240,6 +240,7 @@ class WorkerSession:
             raise ValueError("Unsupported operation or privileged/unrecognized request fields")
         if op == "status":
             return {"ok": True, "identity": self.identity, "gates": self.gates,
+                    "supportedModes": ["training", "training-fixed", "frozen"],
                     "synthetic": bool(self.graph.manifest.get("synthetic", False)), "model": "Shiu-inspired reference LIF; engineered interfaces"}
         if op == "reset":
             keep = request.get("preserveEfficacy", False)
@@ -302,33 +303,35 @@ class WorkerSession:
             # Declared postepisode interval: hold the last observed retinal drive,
             # deliver the terminal US and eligibility updates, produce NO action.
             reward = request.get("reinforcement")
-            if self.terminal or self.frame == 0 or self.plasticity is None or self.last_mode != 1:
+            if self.terminal or self.frame == 0 or self.plasticity is None or self.last_mode not in (1,3):
                 raise ValueError("Terminal reinforcement requires an active trained episode")
             self._validate_reward(reward)
             self._require_training()
             self._schedule_reward(reward)
             total_steps = len(self.reinforcement_queue) if np.any(self.reinforcement_queue) else 0
-            total, dose, ledger = self._advance_interval(self.last_drive, total_steps, frozen=False)
+            fixed_training = self.last_mode == 3
+            total, dose, ledger = self._advance_interval(self.last_drive, total_steps, plasticity_frozen=fixed_training, lesion_mode="training")
             self.terminal = True
             return {"ok": True, "summary": {"activeNeurons": int(np.count_nonzero(total)), "spikes": int(total.sum()),
                     "simTimeMs": self.brain.clock*self.brain.parameters.dt_ms, "terminalNeuralMs": total_steps*self.brain.parameters.dt_ms,
                     "reinforcementDoseMs": {"negative": float(dose[0]), "positive": float(dose[1])},
+                    "mode": "training-fixed" if fixed_training else "training", "plasticityFrozen": fixed_training,
                     "plasticityChanges": ledger, "plasticityLedger": "COMPLETE_RATE_BIN_EFFICACY_UPDATES",
                     **self._activity_summary(total, total_steps*self.brain.parameters.dt_ms),
                     "plasticity": self.plasticity.summary(), "evidenceForLearning": "UNKNOWN"}}
         if self.terminal:
             raise ValueError("A terminal reinforcement interval must be followed by reset before more game steps")
         mode = request.get("mode", "frozen")
-        if mode not in {"frozen", "training"}:
-            raise ValueError("Mode must be frozen or training")
-        mode_number = 1 if mode == "training" else 2
+        if mode not in {"frozen", "training", "training-fixed"}:
+            raise ValueError("Mode must be frozen, training, or training-fixed")
+        mode_number = {"training":1, "frozen":2, "training-fixed":3}[mode]
         if self.last_mode and self.last_mode != mode_number:
             raise ValueError("Training/evaluation transitions require reset with preserveEfficacy")
         reward = request.get("reinforcement", 0)
         self._validate_reward(reward)
         if mode == "frozen" and reward != 0:
             raise ValueError("Frozen evaluation accepts no imposed reinforcement")
-        if mode == "training":
+        if mode in {"training", "training-fixed"}:
             if not self.plasticity:
                 raise ValueError("No experimental plasticity model is configured")
             self._require_training()
@@ -339,19 +342,22 @@ class WorkerSession:
         if mode == "frozen":
             self.reinforcement_queue[:] = 0
         target_clock = round((self.frame+1)*self.interval_ms / self.brain.parameters.dt_ms)
-        total, delivered, ledger = self._advance_interval(drive, target_clock-self.brain.clock, frozen=mode == "frozen")
+        lesion_mode = "frozen" if mode == "frozen" else "training"
+        total, delivered, ledger = self._advance_interval(drive, target_clock-self.brain.clock,
+                                                         plasticity_frozen=mode != "training", lesion_mode=lesion_mode)
         self.frame += 1
-        self.last_mode = 1 if mode == "training" else 2
+        self.last_mode = mode_number
         action = self.decoder.decode(total, self.interval_ms)
         summary = {"activeNeurons": int(np.count_nonzero(total)), "spikes": int(total.sum()),
                    "simTimeMs": self.brain.clock*self.brain.parameters.dt_ms, "frames": self.frame,
                    "neuronCount": self.graph.n, "connectionCount": self.graph.e,
                    "reinforcementDoseMs": {"negative": float(delivered[0]), "positive": float(delivered[1])},
+                   "mode": mode, "plasticityFrozen": mode != "training",
                    "decoderRatesHz": self.decoder.rates.tolist(), "retinalSamples": self.vision.filtered.tolist(),
                    "plasticity": self.plasticity.summary() if self.plasticity else None,
                    "plasticityChanges": ledger, "plasticityLedger": "COMPLETE_RATE_BIN_EFFICACY_UPDATES",
                    **self._activity_summary(total, self.interval_ms),
-                   "lesionCount": int(np.count_nonzero(self.lesions.masks[mode])),
+                   "lesionCount": int(np.count_nonzero(self.lesions.masks[lesion_mode])),
                    "synthetic": bool(self.graph.manifest.get("synthetic", False)), "evidenceForLearning": "UNKNOWN"}
         return {"ok": True, "action": action, "summary": summary}
 
