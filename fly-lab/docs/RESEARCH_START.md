@@ -2,6 +2,8 @@
 
 The research project is active. The current task is to establish a useful sensory model and reproducible controls. Neural game training is not running: the candidate vision and decoder screens failed, and conditioning has not been demonstrated. A computer staying awake does not resolve those scientific failures.
 
+The first batch is complete: [measured results, representative replay and next decision](RESEARCH_START_RESULTS.md).
+
 ## Work authorized and started
 
 1. Diagnose the frozen candidate's actual anatomical routes separately from its dynamic response. Preserve the failed candidate and its evidence. Do not reverse transmitter signs, change game-informed thresholds, or mark a gate passed to create a demonstration.
