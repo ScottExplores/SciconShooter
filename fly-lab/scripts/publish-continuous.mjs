@@ -6,7 +6,11 @@ const lab=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const folder=path.join(lab,'runtime/broadcast');await mkdir(folder,{recursive:true});
 const config=JSON.parse(await readFile(path.join(folder,'config.json'),'utf8'));
 if(config.endpoint!=='https://scicon-fly-watch.scottexplores.chatgpt.site/api/publish'||!/^\w[\w-]{0,99}$/.test(config.sessionId)||!/^[a-f0-9]{64}$/.test(config.token))throw new Error('Invalid private broadcast configuration');
-async function atomic(name,value){const target=path.join(folder,name),temp=target+'.tmp';await writeFile(temp,JSON.stringify(value));await rename(temp,target);}
+async function atomic(name,value){
+  const target=path.join(folder,name),temp=target+'.tmp';await writeFile(temp,JSON.stringify(value),{flush:true});
+  // Windows readers/antivirus can briefly deny replacement of an open file.
+  for(let attempt=0;;attempt++){try{await rename(temp,target);return;}catch(error){if(!['EPERM','EACCES','EBUSY'].includes(error.code)||attempt>=20)throw error;await new Promise(resolve=>setTimeout(resolve,Math.min(100,10*(attempt+1))));}}
+}
 let sequence=0;try{sequence=JSON.parse(await readFile(path.join(folder,'sequence.json'),'utf8')).sequence;}catch(e){if(e.code!=='ENOENT')throw e;}
 if(!Number.isSafeInteger(sequence)||sequence<0)throw new Error('Corrupt broadcast sequence');
 let stopping=false,lastPublished='',failures=0;

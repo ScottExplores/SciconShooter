@@ -28,6 +28,11 @@ from .artifacts import LAB_ROOT, atomic_json, canonical, digest, source_identity
 ROOT=LAB_ROOT/'runtime'/'continuous'
 CONTROLLERS={'random':'Random validation baseline', 'neural-fixed':'Fixed connectome diagnostic',
              'neural-plastic':'Plastic connectome candidate'}
+# Reviewed for the Windows snapshot I/O repair. No engine, task configuration,
+# controller, neural-worker or physiology file may be amended by this flag.
+MAINTENANCE_SOURCE_PATHS=frozenset({'fly-lab/python/scicon_fly/artifacts.py',
+                                  'fly-lab/python/scicon_fly/continuous.py',
+                                  'fly-lab/scripts/publish-continuous.mjs'})
 
 
 def utc_now():
@@ -55,6 +60,48 @@ def validate_config(config):
     if config.get('renderProfile') not in ('local-d3d11','swiftshader'):raise ValueError('Unknown renderer')
     if type(config.get('maxBytes')) is not int or config['maxBytes']<256*1024**2:raise ValueError('Session disk budget must be at least 256 MiB')
     return dict(config)
+
+
+def record_source_identity(ledger,identity,maintenance_reason=None):
+    """Require explicit, narrowly scoped baseline maintenance provenance."""
+    path=ledger.path/'source-identity.json'
+    if not path.exists():
+        if maintenance_reason:raise ValueError('Maintenance amendment requires an existing session source identity')
+        atomic_json(path,identity);return
+    previous=json.loads(path.read_text())
+    if previous['sourceTreeHash']==identity['sourceTreeHash']:return
+    if not maintenance_reason:raise ValueError('Source changed since this session began; a new versioned session or explicitly reviewed baseline maintenance amendment is required')
+    config=json.loads(ledger.db.execute('SELECT config FROM session').fetchone()[0])
+    if config.get('controller')!='random':raise ValueError('Maintenance amendments are restricted to the nonlearning random baseline; neural source gates cannot be bypassed')
+    if not isinstance(maintenance_reason,str) or not 8<=len(maintenance_reason.strip())<=300:
+        raise ValueError('Record a concrete maintenance reason of 8..300 characters')
+    old_files=previous.get('files',{});new_files=identity.get('files',{})
+    if not old_files or not new_files or previous['sourceTreeHash']!=digest(old_files) or identity['sourceTreeHash']!=digest(new_files):
+        raise ValueError('Malformed source identity cannot be amended')
+    changed=sorted(name for name in old_files.keys()|new_files.keys() if old_files.get(name)!=new_files.get(name))
+    if not changed or not set(changed)<=MAINTENANCE_SOURCE_PATHS:
+        raise ValueError('Maintenance amendment rejected: source changes extend beyond the reviewed snapshot I/O/display files')
+    if any(name not in old_files or name not in new_files for name in changed):
+        raise ValueError('Maintenance amendments cannot add or remove source files')
+    folder=ledger.path/'maintenance';folder.mkdir(exist_ok=True)
+    record_path=folder/(previous['sourceTreeHash']+'-'+identity['sourceTreeHash']+'.json')
+    record={'schemaVersion':1,'kind':'explicit-baseline-maintenance','sessionId':ledger.session_id,
+            'createdAt':utc_now(),'reason':maintenance_reason.strip(),'changedFiles':changed,
+            'previousSource':previous,'newSource':identity}
+    if record_path.exists():
+        existing=json.loads(record_path.read_text())
+        if any(existing.get(k)!=record[k] for k in ('kind','sessionId','reason','changedFiles','previousSource','newSource')):
+            raise ValueError('Existing immutable maintenance record differs; explicit recovery required')
+    else:
+        # Exclusive creation: prior provenance is never overwritten. If a crash
+        # interrupts this file, the next attempt rejects it for explicit repair.
+        with record_path.open('xb') as stream:
+            stream.write(canonical(record));stream.flush();os.fsync(stream.fileno())
+    detail=canonical({'record':record_path.relative_to(ledger.path).as_posix(),
+                      'sha256':hashlib.sha256(record_path.read_bytes()).hexdigest()}).decode()
+    if not ledger.db.execute("SELECT 1 FROM notices WHERE kind='source-maintenance-update' AND detail=?",(detail,)).fetchone():
+        ledger.notice('source-maintenance-update',detail)
+    atomic_json(path,identity)
 
 
 class SessionLedger:
@@ -291,7 +338,9 @@ def public_snapshot(value):
                 'deliveryStatus':feedback['deliveryStatus'],'lastHitAt':hit['atSimSeconds'] if hit else None,
                 'lastHitId':hit['id'] if hit else None},
             'neural':value['neural'],'frame':({k:frame[k] for k in ('mimeType','width','height','sha256')} if frame else None),
-            'image':image,'error':value['error'],'limits':value['limits']}
+            'image':image,'error':(('The experiment stopped because its private storage limit was reached.' if value['status']=='storage-limit'
+                                    else 'The experiment paused after a local error. Its saved records are preserved.') if value.get('error') else None),
+            'limits':value['limits']}
 
 
 def active_owner(root=ROOT):
@@ -455,6 +504,7 @@ def main():
     parser.add_argument('--neural-config')
     parser.add_argument('--session',default='boss-practice')
     parser.add_argument('--resume',action='store_true')
+    parser.add_argument('--record-maintenance-update',metavar='REASON',help='Explicitly record reviewed I/O maintenance for an existing random-baseline session; scientific source changes remain forbidden')
     parser.add_argument('--seed',type=int,default=1924)
     parser.add_argument('--boss-seconds',type=float,default=180)
     parser.add_argument('--wave-seconds',type=float,default=30)
@@ -464,6 +514,7 @@ def main():
     args=parser.parse_args()
     if not args.session or any(c not in 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_' for c in args.session):parser.error('Session must be a simple local identifier')
     if args.max_decisions is not None and args.max_decisions<1:parser.error('max-decisions must be positive')
+    if args.record_maintenance_update and not args.resume:parser.error('Maintenance amendment requires --resume')
     config=validate_config({'version':1,'task':'boss-practice-v1','controller':args.controller,'neuralConfig':args.neural_config,
         'seed':args.seed,'bossSeconds':args.boss_seconds,'waveSeconds':args.wave_seconds,'renderProfile':args.render_profile,
         'maxBytes':int(args.disk_budget_gib*1024**3),'rewardProtocol':'boss-hull-damage-v1'})
@@ -471,11 +522,7 @@ def main():
     with SessionLease(ROOT/'runner.lock'):
         if (path/'session.sqlite3').exists() and not args.resume:raise ValueError('Session already exists; use --resume to retain cumulative records')
         ledger=SessionLedger(path,config)
-        identity=source_identity();source_path=path/'source-identity.json'
-        if source_path.exists():
-            if json.loads(source_path.read_text())['sourceTreeHash']!=identity['sourceTreeHash']:
-                raise ValueError('Source changed since this session began; a new versioned session is required')
-        else:atomic_json(source_path,identity)
+        record_source_identity(ledger,source_identity(),args.record_maintenance_update)
         if args.controller=='neural-plastic' and ledger.last_bout():
             raise ValueError('Automatic plastic-model crash recovery is not validated. Restore and audit its complete checkpoint before a new session; learned state will never silently reset.')
         ledger.recover()

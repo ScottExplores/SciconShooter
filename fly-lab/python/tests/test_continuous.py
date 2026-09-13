@@ -7,7 +7,8 @@ from pathlib import Path
 import pytest
 
 from scicon_fly.continuous import (SessionLedger, DiskBudget, StorageLimit, SessionLease,
-                                  public_neural, public_snapshot, validate_config, observe_state, ContinuousRunner)
+                                  public_neural, public_snapshot, validate_config, observe_state, ContinuousRunner, record_source_identity)
+from scicon_fly.artifacts import digest
 from scicon_fly.server import calculate_boss_damage_reward
 
 
@@ -158,6 +159,10 @@ def test_snapshot_uses_atomic_frame_checksum_and_never_claims_random_learning():
     assert result['sequence']==9 and result['status']=='transitioning'
     assert result['controller']['learningStatus']=='not-learning' and result['neural'] is None
     assert result['feedback']['deliveredReward']==0 and result['image']=='data:image/jpeg;base64,'+encoded
+    value['error']='[WinError 5] Access denied C:/Users/private-user/secrets/latest.json';value['status']='interrupted'
+    public=public_snapshot(value)
+    assert public['error']=='The experiment paused after a local error. Its saved records are preserved.'
+    assert 'private-user' not in public['error'] and value['error'].startswith('[WinError')
     value['frame']['base64']=base64.b64encode(b'wrong').decode()
     with pytest.raises(ValueError,match='checksum'):public_snapshot(value)
 
@@ -203,3 +208,41 @@ def test_finalization_failure_recovers_fsynced_step_before_closing_bout(tmp_path
     ledger.close();ledger=SessionLedger(tmp_path/'session',config());ledger.recover()
     assert ledger.totals()['score']==10 and ledger.next_phase()=='boss'
     ledger.close()
+
+
+def identity(files,commit='original'):
+    return {'gitCommit':commit,'sourceTreeHash':digest(files),'files':files}
+
+
+def test_baseline_maintenance_requires_explicit_reason_and_preserves_full_provenance(tmp_path):
+    ledger=SessionLedger(tmp_path/'session',config(),'same-session');start(ledger,tmp_path);ledger.credit('a',row())
+    original=identity({'fly-lab/python/scicon_fly/artifacts.py':'old-io','services/gameLogic.ts':'same-engine'})
+    amended=identity({'fly-lab/python/scicon_fly/artifacts.py':'new-io','services/gameLogic.ts':'same-engine'},'repair')
+    record_source_identity(ledger,original)
+    with pytest.raises(ValueError,match='explicitly reviewed'):record_source_identity(ledger,amended)
+    assert json.loads((ledger.path/'source-identity.json').read_text())==original
+    record_source_identity(ledger,amended,'Retry Windows snapshot sharing locks')
+    assert ledger.session_id=='same-session' and ledger.totals()['score']==10
+    records=list((ledger.path/'maintenance').glob('*.json'));assert len(records)==1
+    saved=json.loads(records[0].read_text())
+    assert saved['previousSource']==original and saved['newSource']==amended
+    assert json.loads((ledger.path/'source-identity.json').read_text())==amended
+    record_source_identity(ledger,amended,'Retry Windows snapshot sharing locks')
+    assert len(list((ledger.path/'maintenance').glob('*.json')))==1
+    assert ledger.db.execute("SELECT COUNT(*) FROM notices WHERE kind='source-maintenance-update'").fetchone()[0]==1
+    ledger.close()
+
+
+def test_maintenance_flag_cannot_bypass_game_or_neural_source_boundaries(tmp_path):
+    ledger=SessionLedger(tmp_path/'session',config())
+    original=identity({'fly-lab/python/scicon_fly/artifacts.py':'io','services/gameLogic.ts':'engine'})
+    record_source_identity(ledger,original)
+    altered=identity({'fly-lab/python/scicon_fly/artifacts.py':'io','services/gameLogic.ts':'changed-game'})
+    with pytest.raises(ValueError,match='extend beyond'):record_source_identity(ledger,altered,'Reviewed snapshot I/O maintenance')
+    assert json.loads((ledger.path/'source-identity.json').read_text())==original
+    ledger.close()
+    neural=SessionLedger(tmp_path/'neural',config(controller='neural-fixed',neuralConfig='frozen-model.json'))
+    record_source_identity(neural,original)
+    io_change=identity({'fly-lab/python/scicon_fly/artifacts.py':'changed-io','services/gameLogic.ts':'engine'})
+    with pytest.raises(ValueError,match='neural source gates'):record_source_identity(neural,io_change,'Reviewed snapshot I/O maintenance')
+    neural.close()

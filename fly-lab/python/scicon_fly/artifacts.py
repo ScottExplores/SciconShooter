@@ -1,6 +1,6 @@
 """Append-only experiment records, atomic finalization and verifiable exports."""
 from __future__ import annotations
-import base64, gzip, hashlib, json, os, subprocess, tempfile, zipfile
+import base64, gzip, hashlib, json, os, subprocess, tempfile, time, zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 import pyarrow as pa
@@ -19,7 +19,17 @@ def atomic_json(path, value):
     temporary=path.with_name(path.name+'.tmp')
     with temporary.open('wb') as stream:
         stream.write(canonical(value)); stream.flush(); os.fsync(stream.fileno())
-    os.replace(temporary,path)
+    # Windows readers (including antivirus and the local/public snapshot
+    # publishers) can briefly deny replacement while they hold a file handle.
+    # Preserve the old complete file and retry the same already-fsynced bytes.
+    # Exhaustion remains an error; the durable temporary file is not deleted.
+    for attempt in range(9):
+        try:
+            os.replace(temporary,path)
+            return
+        except PermissionError:
+            if attempt==8:raise
+            time.sleep(min(.01*2**attempt,.16))
 
 def source_identity():
     paths=[]
