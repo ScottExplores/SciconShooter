@@ -6,7 +6,7 @@ import unittest
 
 import numpy as np
 
-from scicon_fly.boss_learning import BossLearningController, identity
+from scicon_fly.boss_learning import BossLearningController, identity, encode_transport_checkpoint, decode_transport_checkpoint
 
 CIRCUIT = Path(__file__).resolve().parents[2] / "configs/boss-learning-circuit-v1.json"
 FEATURES = {"targetOffset": .2, "targetVisible": True, "playerX": .5}
@@ -86,6 +86,34 @@ class BossLearningTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             restored.restore(bad)
         self.assertEqual(before, restored.state_dict())
+
+    def test_opaque_checkpoint_preserves_large_rng_integers_and_numeric_tokens(self):
+        c = self.model()
+        c.act(FEATURES)
+        original = c.state_dict()
+        self.assertGreater(original["state"]["rng"]["state"]["state"], 2**53)
+        opaque = encode_transport_checkpoint(original)
+        self.assertEqual(opaque["format"], "opaque-python-json-v1")
+        self.assertTrue(all(isinstance(x, str) for x in opaque.values()))
+        restored = decode_transport_checkpoint(json.loads(json.dumps(opaque)))
+        self.assertEqual(original, restored)
+        other = self.model(); other.restore(restored)
+        for _ in range(20):
+            self.assertEqual(c.act(FEATURES, .5), other.act(FEATURES, .5))
+
+    def test_opaque_checkpoint_rejects_corrupt_bytes_and_legacy_transport(self):
+        c = self.model()
+        checkpoint = encode_transport_checkpoint(c.state_dict())
+        bad = copy.deepcopy(checkpoint)
+        bad["payload"] = "!invalid base64"
+        with self.assertRaises(ValueError):
+            decode_transport_checkpoint(bad)
+        bad = copy.deepcopy(checkpoint)
+        bad["sha256"] = "0"*64
+        with self.assertRaises(ValueError):
+            decode_transport_checkpoint(bad)
+        with self.assertRaises(ValueError):
+            decode_transport_checkpoint(c.state_dict())
 
     def test_bandit_positive_control_is_explicitly_synthetic(self):
         # This tests the mechanism using a synthetic choice reward. It is not

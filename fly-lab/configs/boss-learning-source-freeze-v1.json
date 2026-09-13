@@ -1,12 +1,32 @@
 {
   "files": {
     "configs/boss-learning-circuit-v1.json": "9f819a608da3f2e73661c99c652cfcdc332e5387e5461a6a96f8e22fe87bfa17",
-    "docs/BOSS_LEARNING_MODEL.md": "ba24af966cb1c75ebf8bdcb6638d88a3861ae014dd101f3ad8116ffa23ed1cb3",
-    "python/scicon_fly/boss_learning.py": "e5320792d4c93af2612027f5288bc0601838db51fe692891c5060b53a754d6c9",
+    "docs/BOSS_LEARNING_MODEL.md": "f49e136f8192c66e3fb85602004ddf5f39c96683c48aca25317b4d6880640db5",
+    "python/scicon_fly/boss_learning.py": "d7bc862cc8e69d9e9ec9a5b398ae026db993826e8ab443e28ac84e8ffee4bf2e",
+    "python/tests/test_boss_learning.py": "56317b49efbd556933375830c245652adc8c339b95e87d6327d211f86e1dad69",
+    "scripts/audit-boss-learning.mjs": "3e86d0af49dcca3d81e1e900dbeaf35bd714ae3f9077dcff7a77a37157ca2785",
     "scripts/boss-learning-worker.py": "9a7924ca87327625d250874bf2004109f9e6b765a2013fbff6a1eeadcd237468",
-    "scripts/extract-boss-learning-circuit.py": "e8478f348b8126d841870858a8caa33b1ce821da93600ef80ba7ba7b48f97bd3"
+    "scripts/extract-boss-learning-circuit.py": "e8478f348b8126d841870858a8caa33b1ce821da93600ef80ba7ba7b48f97bd3",
+    "tests/boss-learning-bridge.test.cjs": "20d67241594555b93fceb6ce15bf960606bedbbec278e0e0f91da39f71312223"
   },
   "modelVersion": "malecns-pam02-boss-v1",
   "schemaVersion": 1,
-  "scope": "Frozen after mechanism tests and before game pilot outcomes"
+  "scope": "Frozen after opaque checkpoint transport repair; anatomy and learning constants unchanged; failed baseline-only pilot retained",
+  "transportRepair": {
+    "format": "opaque-python-json-v1",
+    "priorSourceHashes": {
+      "configs/boss-learning-circuit-v1.json": "9f819a608da3f2e73661c99c652cfcdc332e5387e5461a6a96f8e22fe87bfa17",
+      "docs/BOSS_LEARNING_MODEL.md": "ba24af966cb1c75ebf8bdcb6638d88a3861ae014dd101f3ad8116ffa23ed1cb3",
+      "python/scicon_fly/boss_learning.py": "e5320792d4c93af2612027f5288bc0601838db51fe692891c5060b53a754d6c9",
+      "scripts/boss-learning-worker.py": "9a7924ca87327625d250874bf2004109f9e6b765a2013fbff6a1eeadcd237468",
+      "scripts/extract-boss-learning-circuit.py": "e8478f348b8126d841870858a8caa33b1ce821da93600ef80ba7ba7b48f97bd3"
+    },
+    "reason": "Preserve Python numeric tokens and128-bit RNG integers across Node JSON transport",
+    "validation": [
+      "10 Python tests pass",
+      "Real Node Bridge opaque disk JSON roundtrip and three frozen resets restore exact two-worker continuation",
+      "Actual runner smoke-v2 completes3baseline bouts then starts training and stops cleanly",
+      "Independent auditor verifies raw opaque bytes and reconstructs saved weights without RNG reserialization"
+    ]
+  }
 }

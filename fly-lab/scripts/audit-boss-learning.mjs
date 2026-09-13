@@ -166,13 +166,38 @@ export async function auditSession(sessionDir,{circuitPath=path.join(LAB,'config
     const rows=evaluations.filter(b=>b.stage===stage),paired=rows.filter(b=>baseline.has(b.seed)).map(b=>({seed:b.seed,damagePerSecondChange:b.damagePerSecond-baseline.get(b.seed).damagePerSecond}));
     return {stage,nEvaluationSeeds:rows.length,meanDamagePerSecond:mean(rows.map(b=>b.damagePerSecond)),pairedChangesFromBaseline:stage==='baseline'?[]:paired,meanPairedChangeFromBaseline:stage==='baseline'?null:mean(paired.map(x=>x.damagePerSecondChange))};
   });
+  let checkpointAudit={available:false};
+  try {
+    const saved=JSON.parse(await fs.readFile(path.join(sessionDir,'resume.json'),'utf8'));
+    const envelope=saved.model;
+    checkpointAudit={available:true,journalMatches:saved.journalHash===previous,format:envelope?.format??'legacy-json',rawBytesVerified:false,weightsCompared:false};
+    if(envelope?.format==='opaque-python-json-v1') {
+      const raw=Buffer.from(envelope.payload,'base64');
+      const valid=typeof envelope.sha256==='string'&&hash(raw)===envelope.sha256;
+      check(valid,'Opaque checkpoint original-byte SHA256 mismatch');
+      checkpointAudit.rawBytesVerified=valid;
+      if(valid&&checkpointAudit.journalMatches) {
+        // Parse only for safe numerical weight comparison. RNG integers can
+        // exceed JS precision; never use or reserialize this parsed copy.
+        const decoded=JSON.parse(raw.toString('utf8'));
+        const values=decoded.state?.weights;
+        check(Array.isArray(values)&&values.length===circuit.edges.length,'Checkpoint weight vector shape differs from frozen circuit');
+        if(Array.isArray(values)&&values.length===circuit.edges.length) {
+          check(values.every((w,i)=>finite(w)&&close(w,weights.get(circuit.edges[i].kcId),1e-10)),'Checkpoint weights differ from independent complete ledger reconstruction');
+          checkpointAudit.weightsCompared=true;
+          checkpointAudit.meanEfficacy=mean(values);
+        }
+      }
+      if(!checkpointAudit.journalMatches)warnings.push('Saved checkpoint predates the current journal; its byte integrity was verified but current weight comparison was skipped.');
+    }else warnings.push('Legacy nonopaque checkpoint detected; RNG precision/integrity cannot be verified after JavaScript JSON transport.');
+  }catch(error){if(error.code!=='ENOENT')check(false,`Checkpoint audit failed: ${error.message}`);}
   return {schemaVersion:1,audit:'independent-boss-journal-v1',session:path.basename(sessionDir),auditedAt:new Date().toISOString(),status:failures.length?'FAIL':'PASS',
     interpretation:'Implementation/artifact audit only. A single training controller and reused evaluation seeds do not establish a replicated learning effect or anatomical-topology benefit.',
     journal:{records,decisions,policyDecisions,sha256:fileHash.digest('hex'),lastChainHash:previous,completedBouts:bouts.length,unfinishedBout:current?.id??null},
     rewards:{confirmedHullDamage:totalDamage,trainingRewardComputed:totalComputed,rawReinforcementDelivered:totalDelivered,pending,nonzeroNumericalDoses:nonzeroDoses},
     neural:{changedEdgeRecords:weightUpdates,distinctEfficaciesChanged:changedIds.size,meanReconstructedEfficacy:mean([...weights.values()]),probabilityDecisionsDifferentFromUniform:departed,actionSwitches,frozenBouts,frozenChangeRecords:frozenChanges},
     vision:{visibleDecisions:visible,totalPolicyDecisions:policyDecisions,visibilityFraction:policyDecisions?visible/policyDecisions:null,playerCenterError:errorSummary(playerErrors),targetCenterError:errorSummary(targetErrors),comparison:'Pixel centroids versus exact inputDiagnostics centers, or preceding row centers for older journals; diagnostic state never enters controller.'},
-    bounds:{recordedChecks:boundsSamples,inside:withinBounds,violations:boundsSamples-withinBounds},stages,bouts,failures,warnings,
+    bounds:{recordedChecks:boundsSamples,inside:withinBounds,violations:boundsSamples-withinBounds},checkpoint:checkpointAudit,stages,bouts,failures,warnings,
     limitations:['Hash verification detects corruption, not independent proof that source events are physically true.','Recorded rates and plasticity are modeled quantities, not chemical dopamine or biological recordings.','No statistical significance or learning-success gate is assigned by this audit.','Pixel extraction and canonical game replay need their separate validation.'],config};
 }
 

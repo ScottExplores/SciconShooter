@@ -9,6 +9,7 @@ this module. Pixel feature extraction is an external, declared interface.
 from __future__ import annotations
 
 import copy
+import base64
 import hashlib
 import json
 import math
@@ -33,6 +34,33 @@ def canonical(value):
 
 def identity(value):
     return hashlib.sha256(canonical(value).encode()).hexdigest()
+
+
+def encode_transport_checkpoint(checkpoint):
+    """Keep Python float tokens and 128-bit RNG integers opaque to JavaScript."""
+    raw = canonical(checkpoint).encode("utf-8")
+    return {"format": "opaque-python-json-v1", "payload": base64.b64encode(raw).decode("ascii"),
+            "sha256": hashlib.sha256(raw).hexdigest()}
+
+
+def decode_transport_checkpoint(envelope):
+    if not isinstance(envelope, dict) or set(envelope) != {"format", "payload", "sha256"} or envelope.get("format") != "opaque-python-json-v1":
+        raise ValueError("Unsupported checkpoint transport; opaque-python-json-v1 is required")
+    if not isinstance(envelope["payload"], str) or len(envelope["payload"]) > 1_800_000 or not isinstance(envelope["sha256"], str):
+        raise ValueError("Invalid checkpoint envelope")
+    try:
+        raw = base64.b64decode(envelope["payload"], validate=True)
+    except (ValueError, TypeError) as exc:
+        raise ValueError("Invalid checkpoint base64") from exc
+    if hashlib.sha256(raw).hexdigest() != envelope["sha256"]:
+        raise ValueError("Corrupt opaque checkpoint checksum")
+    try:
+        checkpoint = json.loads(raw.decode("utf-8"))
+    except (ValueError, UnicodeDecodeError) as exc:
+        raise ValueError("Invalid checkpoint payload JSON") from exc
+    if not isinstance(checkpoint, dict):
+        raise ValueError("Checkpoint payload must be an object")
+    return checkpoint
 
 
 class BossLearningController:
@@ -305,9 +333,9 @@ def serve():
             elif op == "reinforce":
                 reply = controller.reinforce(request.get("reinforcement", 0), request.get("dtSeconds", .2))
             elif op == "checkpoint":
-                reply = {"ok": True, "checkpoint": controller.state_dict(), "weightHash": identity(controller.weights.tolist())}
+                reply = {"ok": True, "checkpoint": encode_transport_checkpoint(controller.state_dict()), "weightHash": identity(controller.weights.tolist())}
             elif op == "restore":
-                reply = controller.restore(request["checkpoint"])
+                reply = controller.restore(decode_transport_checkpoint(request["checkpoint"]))
             elif op == "close":
                 reply = {"ok": True, "closed": True}
             else:

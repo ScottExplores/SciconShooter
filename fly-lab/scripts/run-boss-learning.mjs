@@ -85,7 +85,7 @@ export class Journal {
   async close(){await this.handle?.close();this.handle=null;}
 }
 
-class Bridge {
+export class Bridge {
   constructor(config,folder){this.config=config;this.folder=folder;this.counter=0;this.pending=new Map();}
   async open(){
     this.process=spawn(PYTHON,['scripts/boss-learning-worker.py','--circuit',this.config.circuit,'--seed',String(this.config.seed)],{cwd:LAB,env:ENV,windowsHide:true,stdio:['pipe','pipe','pipe']});
