@@ -4,6 +4,8 @@ We are turning a fly's published wiring diagram into a computer model and testin
 
 You do not need to choose another controller or work out the settings. The next useful work is a sequence of small vision tests. A random controller playing for longer cannot learn: it has no learning model attached.
 
+**Latest display:** [Learning demonstration](http://127.0.0.1:5180/#learn). We now have a small synthetic circuit that changes its response after a cue is paired with reward. It is a separate teaching experiment, not the MaleCNS brain learning the game. The result and its limits are explained in the newest entry below.
+
 ## What the gates mean
 
 A gate is a question we answer with a recorded experiment. It is not a switch we turn on to unlock a better-looking demonstration.
@@ -218,3 +220,44 @@ changes or hardware purchases are needed now.
 Records: [label reconciliation](evidence/l2-workbook-crosswalk-v1.md),
 [average comparison](evidence/l2-aggregate-lineage-v1.md), and
 [reserved assessment assignment](evidence/l2-calibration-cohort-v1-freeze.md).
+
+## September 13: a small learning experiment you can watch
+
+We simplified the immediate goal: show a cue, pair it with a reward signal,
+and measure whether the circuit responds differently afterward. This experiment
+uses four synthetic neurons and our actual simulator and learning rule. It does
+not load the fly's anatomical wiring or control Scicon Shooter.
+
+**It produced a measurable memory effect.** Before training, either cue caused
+16 output spikes in the test window. After paired training, the rewarded cue
+caused 10 spikes and the other still caused 16. Learning here is a selective
+reduction in response, not a higher score or a preference. Separating the reward
+from the cue, or disabling learning, prevented that change. Erasing the stored
+connection changes removed it; an unchanged control and restoring the trained
+state retained it. Swapping which cue received reward gave the corresponding
+result. These are checks within one engineered model, not independent fly trials.
+
+Open the **Learning demo** from Watch or the research controls. **Run learning
+experiment** computes a fresh, short experiment. **Play recording** lets you
+watch its saved activity; it does not continue training. The glowing circles
+show actual spikes emitted by the calculation. The diagram is explicitly a
+schematic, and its numbers are model measurements, not a real fly recording.
+You can compare the three conditions and download the entire experiment.
+
+The first saved calculation took about four seconds and roughly 49.5 MiB of
+sampled worker memory. There is no reason to leave this small demo repeating
+all night. Its settings are deliberately simple enough to explain. The full
+MaleCNS project still needs the sight, action and learning checks; this small
+result does not pass those gates.
+
+The earlier research-data download succeeded. No login or help with Chrome is
+needed. I also checked [Impact Fly's own About panel](https://fly.researchhub.foundation/):
+it describes a simulated wallet and $100 simulated allocations, explicitly with
+no money transferred. That display does not establish that a fly understands
+research proposals. Our project has not spent RSC or selected a funding proposal.
+
+No purchases, Raspberry Pi setup or controller choices are needed now. The
+hourly research follow-up remains active for useful bounded work on the larger
+study. We will keep reporting what was measured and what remains uncertain.
+
+Technical result: [teaching demonstration](evidence/teaching-demo-v1.md).

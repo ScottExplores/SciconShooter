@@ -14,6 +14,7 @@ from .controls import TimingMatchedRandom
 from .validation import validate_gate_evidence,evidence_file
 from .watch import WatchLibrary, PreviewCancelled, byte_range, compact_neural, close_driver
 from .watch_signals import get_signals, input_change
+from . import teaching_service
 
 MOVEMENTS=['idle','N','NE','E','SE','S','SW','W','NW']
 EXPERIMENTS=LAB_ROOT/'experiments';RUNTIME=LAB_ROOT/'runtime';DATA=LAB_ROOT/'data'
@@ -463,6 +464,7 @@ class Handler(BaseHTTPRequestHandler):
                 if len(parts)==4:return self.watch_file(*WATCH.artifact(parts[2],parts[3]))
                 return self.respond({'error':'Unknown watch route'},404)
             if path=='/status':return self.respond(COORDINATOR.public())
+            if path=='/teaching/latest':return self.respond(teaching_service.latest())
             if path=='/replay':return self.respond(dict(REPLAY_JOB))
             if path=='/studies':return self.respond([read_json(p) for p in sorted((EXPERIMENTS/'studies').glob('*/analysis.json'))])
             if path=='/runs':
@@ -499,7 +501,7 @@ class Handler(BaseHTTPRequestHandler):
             length=int(self.headers.get('Content-Length',0))
             if length>65536:raise ValueError('Request too large')
             body=json.loads(self.rfile.read(length) or '{}');path=urlparse(self.path).path
-            if path not in ('/reset','/start','/pause','/step','/stop','/replay','/watch/build','/watch/demo','/watch/cancel'):
+            if path not in ('/reset','/start','/pause','/step','/stop','/replay','/watch/build','/watch/demo','/watch/cancel','/teaching/run'):
                 return self.respond({'error':'Not found'},404)
             # Admission and launch are atomic across HTTP threads. The lock is
             # released after starting a background job, not held during replay.
@@ -507,6 +509,9 @@ class Handler(BaseHTTPRequestHandler):
             self.respond(result)
         except Exception as error:self.respond({'error':str(error)},400)
     def post_action(self,path,body):
+        if path=='/teaching/run':
+            assert_process_source_current();assert_watch_workload_available()
+            return teaching_service.run(body)
         if path in ('/reset','/start','/step','/replay') and WATCH.busy():
             raise ValueError('A watch demo/replay build is active; cancel or wait before starting another workload')
         if path=='/reset':return COORDINATOR.reset(body)

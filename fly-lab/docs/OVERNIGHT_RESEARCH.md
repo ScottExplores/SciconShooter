@@ -114,6 +114,31 @@ reduced-circuit engineering test does not pass the whole-CNS vision gate.
 
 ## Next steps and limits
 
+### Current user priority: a small demonstrable learning experiment
+
+Scott requested a simpler tangible result on September 13 after viewing Impact
+Fly. Its own About panel explicitly describes a simulated funding wallet with
+no money transferred and says odor-guided attraction is not demonstrated.
+The earlier Dryad download succeeded without a login; no user action is pending.
+
+The small demonstration is now implemented at `http://127.0.0.1:5180/#learn`.
+The first saved run, `f20eb709b5f742268655154d35a85378`, passed its 18 declared
+criteria. In both cue assignments, the paired cue's frozen probe changed from
+16 to 10 output spikes; the other cue remained at 16. Unpaired and frozen
+controls remained at 16. Erasure removed the effect; sham and restoration
+preserved it. The worker took 4.125 seconds with 49.48 MiB sampled peak RSS.
+See `docs/evidence/teaching-demo-v1.md` for source hashes and scope.
+
+This is an explicitly synthetic four-neuron teaching circuit using the existing
+numerical/plasticity code. It demonstrates the engineered learning mechanism;
+it is not a MaleCNS result and changed no research gate. Its schematic lights
+use actual emitted spikes, separately from prescribed input currents. The
+private endpoint and Learn page provide bounded calculations, recorded playback
+and complete JSON downloads. Do not rerun this demo merely to keep work active.
+The larger study is preserved. After this display milestone, resume the bounded
+physiology protocol work below without treating the teaching result as evidence
+that the fly can see, choose an action or learn Scicon Shooter.
+
 ### September 13, 10:55 PDT: source lineage resolved and cohort assigned
 
 Explicit author rename comments in the workbook resolve the selected-record
