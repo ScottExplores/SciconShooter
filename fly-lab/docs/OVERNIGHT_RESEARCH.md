@@ -2,6 +2,34 @@
 
 Updated September 13, 2026, morning (America/Los_Angeles).
 
+## Current direction overrides the older continuation checklist
+
+Scott asked to simplify the project around a real connectome experiment in
+Scicon Shooter. He has not chosen a generic engineered game controller as a
+replacement. The synthetic four-neuron demonstration is only an educational
+example and does not meet that goal. Preserve it and its evidence, but move it
+out of the main navigation. Keep the familiar Live game/anatomy arrangement,
+plain controller identity and actual validation status; put technical controls
+and additional pages under Advanced. No game is silently learning.
+
+The hourly continuation is PAUSED while this direction is clarified. Do not
+continue the older physiology fitting checklist automatically. Three unqualified
+drafts from the interrupted follow-up are preserved under
+`runtime/paused-physiology-20260913/`; they were never frozen or fitted. Only one
+development row's allowed timing metadata was inspected; no response or reserved
+assessment arrays were decoded. The draft timing script has only a syntax check,
+not completed tests. Its outstanding review findings are in that folder's README.
+
+The recommended single experiment remains: determine whether a declared model
+using actual MaleCNS wiring can improve on ORBIT ENTRY through rewarded practice,
+with saved memory and frozen comparison runs. Start with one isolated mission.
+Do not claim success from activity, changed weights or isolated lucky scores.
+The current candidate's vision/decoder failures remain visible. Simplifying the
+presentation must not change scientific gates, invent anatomical activity, or
+substitute a generic game policy without Scott choosing that scope. Public
+viewing and local weekly-scenario transfer are later steps; production weekly
+submissions, scores, wallets and funding are not authorized by this discussion.
+
 ## Latest continuation: individual physiology data acquired
 
 The first hourly follow-up resolved the Dryad download limitation through the

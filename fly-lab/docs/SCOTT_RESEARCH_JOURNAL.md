@@ -1,5 +1,10 @@
 # Scott's research journal — September 13, 2026
 
+**Latest direction:** keep the real fly-connectome goal and simplify the Live
+screen. The four-neuron teaching example is not a fly-connectome result. The
+hourly background research has been paused while we clarify the single game
+experiment; no generic learning controller has replaced the fly model.
+
 We are turning a fly's published wiring diagram into a computer model and testing whether that model can eventually learn to play Scicon Shooter. The project is running real experiments, but **we have not demonstrated a learning fly controller yet**.
 
 You do not need to choose another controller or work out the settings. The next useful work is a sequence of small vision tests. A random controller playing for longer cannot learn: it has no learning model attached.
@@ -261,3 +266,41 @@ hourly research follow-up remains active for useful bounded work on the larger
 study. We will keep reporting what was measured and what remains uncertain.
 
 Technical result: [teaching demonstration](evidence/teaching-demo-v1.md).
+
+## September 13: keeping the real-connectome goal simple
+
+Scott clarified that a separate teaching toy is not the project he wants. The
+main question is whether a model using actual fly wiring can learn from previous
+Scicon runs and get farther. The four-neuron example demonstrates a mathematical
+learning rule but does not use MaleCNS anatomy. It remains saved as an optional
+educational example; it is not progress evidence for the fly controller.
+
+Other projects do use the real anatomical data. [DOOMFLY](https://github.com/nftechie/doomfly)
+reports a 166,700-neuron MaleCNS model whose selected connections change during
+play, but its authors explicitly report that improved survival has not been
+demonstrated. [Fly64](https://github.com/ornata/fly) connects MaleCNS to Mario
+and explicitly has no training or reward system. Real wiring, visible movement,
+changing connections and demonstrated learning are different observations.
+
+Our full project also has the actual connectome. Its current visual/controller
+candidate did not pass its checks, so the saved random matches are not fly
+training. No generic game AI has replaced the fly model. The reward is a number
+used by a declared learning rule, not a biological dopamine measurement.
+
+The Live view is simplified around the existing game, source anatomy,
+controller identity and honest gate status. Additional pages and settings move
+under Advanced. No activity is painted onto anatomy without corresponding
+recorded model measurements. The single proposed task is ORBIT ENTRY: practice
+with saved memory, then compare frozen tests against the starting controller.
+More levels, weekly scenarios and a read-only public viewer come after a useful
+working demonstration. No production scores or funding actions were performed.
+
+Automatic research continuation is paused while this narrower direction is
+clarified. The interrupted physiology draft was preserved, with no final audit,
+fit, assessment or gate change. No new game-learning batch is running.
+
+Verification for the simplified display: all 16 existing lab JavaScript tests,
+TypeScript checking and the private lab build passed. Browser checks covered
+Advanced expand/collapse, Watch returning to Live, and a 390-pixel phone viewport
+with no horizontal overflow. The anatomy view explicitly says live neural
+activity is not connected yet. Simulation and controller behavior were unchanged.

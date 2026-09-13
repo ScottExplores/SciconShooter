@@ -1,0 +1,25 @@
+.simple-lab .topbar{overflow:visible;min-height:54px;height:auto}
+.simple-lab .topbar nav{min-height:52px}
+.simple-lab .simple-advanced{margin-top:10px;padding:14px;border:1px solid var(--border);border-radius:4px;background:#0b1721}
+.simple-lab .simple-advanced nav{display:flex;flex-wrap:wrap;gap:8px}
+.simple-lab .simple-advanced p{margin-top:10px;font-size:11px;line-height:1.6;color:var(--muted)}
+.simple-lab .simple-purpose{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:21px 4px 17px}
+.simple-lab .simple-eyebrow,.simple-lab .simple-stage>span{display:block;font:9px var(--mono);letter-spacing:1px;color:var(--cyan);margin-bottom:8px}
+.simple-lab .simple-purpose h1{font-size:clamp(20px,2.1vw,28px);font-weight:500;line-height:1.3;color:#e0edf5;max-width:780px}
+.simple-lab .simple-purpose p{font-size:12px;line-height:1.7;color:#98b0c2;margin-top:7px;max-width:720px}
+.simple-lab .simple-stage{max-width:290px;flex-shrink:0;padding:12px 15px;border-left:2px solid #6c5530;background:#181a17}
+.simple-lab .simple-stage>span{color:var(--muted)}
+.simple-lab .simple-stage strong{font-size:12px;line-height:1.65;font-weight:500;color:var(--amber)}
+.simple-lab .experiment-toolbar{flex-wrap:wrap;margin-top:0;min-height:60px}
+.simple-lab .transport{border:0;padding-left:0}
+.simple-lab .experiment-status{display:block}
+.simple-lab .controller-guide{margin-bottom:10px}
+.simple-lab .simple-gate-intro{font-size:11px;line-height:1.7;color:#9aafbf;padding:0 14px 9px}
+.simple-lab .live-grid{min-height:0;grid-template-rows:auto}
+.simple-lab .game-panel{grid-row:auto}
+.simple-lab .activity-panel{grid-column:1/-1}
+.simple-lab .panel-heading{flex-wrap:wrap}
+.simple-lab .panel-heading h2{white-space:normal}
+@media(min-width:1041px){.simple-lab .live-grid{grid-template-rows:minmax(620px,auto)}.simple-lab .game-viewport{min-height:0;flex:1}.simple-lab .anatomy-panel{min-height:620px}.simple-lab .activity-panel{min-height:200px}}
+@media(max-width:1040px){.simple-lab .simple-purpose{align-items:flex-start}.simple-lab .simple-stage{max-width:240px}.simple-lab .topbar nav{min-height:44px}.simple-lab .transport{order:0;width:auto}.simple-lab .game-panel{grid-row:1/3}.simple-lab .activity-panel{grid-row:auto}}
+@media(max-width:720px){.simple-lab .simple-purpose{flex-direction:column;gap:12px;padding:17px 4px}.simple-lab .simple-purpose h1{font-size:21px}.simple-lab .simple-stage{max-width:none;width:100%;padding:10px 12px}.simple-lab .simple-stage>span{margin-bottom:4px}.simple-lab .simple-purpose p{font-size:11px}.simple-lab .experiment-toolbar{gap:12px;padding:11px}.simple-lab .transport{flex-wrap:wrap;gap:8px}.simple-lab .experiment-status{margin-left:0;border:0;padding-left:0;min-width:0}.simple-lab .experiment-status>span{gap:8px}.simple-lab .simple-advanced nav{gap:7px}.simple-lab .simple-advanced .button{white-space:normal;text-align:center;min-height:40px}.simple-lab .topbar nav{overflow:visible}.simple-lab .topbar nav button{flex:1;min-height:44px}.simple-lab .game-panel{grid-row:auto}.simple-lab .controller-field{flex-basis:190px}.simple-lab .input-layout{grid-template-columns:minmax(90px,140px) minmax(0,1fr);gap:12px}}
