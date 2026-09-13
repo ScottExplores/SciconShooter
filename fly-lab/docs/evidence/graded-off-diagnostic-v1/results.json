@@ -1,0 +1,1898 @@
+{
+  "evidenceStatus": "REDUCED_ENGINEERING_CHECKS_ONLY",
+  "engineeringChecksPass": true,
+  "biologicalValidation": false,
+  "learningTested": false,
+  "checks": {
+    "baselineStable": true,
+    "finiteBounded": true,
+    "heldOutFiniteBounded": true,
+    "shamBytesIdentical": true,
+    "blockedDownstreamQuiescent": true,
+    "offTransmission": true,
+    "timestepConverged": true,
+    "sourceBytesUnchanged": true
+  },
+  "trials": [
+    {
+      "trial": "baseline__intact",
+      "stimulusGroup": "baseline",
+      "arm": "intact",
+      "finite": true,
+      "releaseBounded": true,
+      "maximumAbsoluteVoltageDeviation": 0.0,
+      "parameterHash": "ae7a2551917756e23f40b6087f253ee6d7cf23eb8ade94fa363d986d78d50e0f",
+      "connectionHash": "494279e180555b92bb0f5ec813a2c3dbe3541d294243538ec627219884f4f47b",
+      "populations": {
+        "L2": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": 0.0,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 0.0
+        },
+        "Tm1": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": 0.0,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 0.0
+        },
+        "Tm2": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": 0.0,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 0.0
+        }
+      }
+    },
+    {
+      "trial": "baseline__sham",
+      "stimulusGroup": "baseline",
+      "arm": "sham",
+      "finite": true,
+      "releaseBounded": true,
+      "maximumAbsoluteVoltageDeviation": 0.0,
+      "parameterHash": "ae7a2551917756e23f40b6087f253ee6d7cf23eb8ade94fa363d986d78d50e0f",
+      "connectionHash": "494279e180555b92bb0f5ec813a2c3dbe3541d294243538ec627219884f4f47b",
+      "populations": {
+        "L2": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": 0.0,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 0.0
+        },
+        "Tm1": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": 0.0,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 0.0
+        },
+        "Tm2": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": 0.0,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 0.0
+        }
+      }
+    },
+    {
+      "trial": "baseline__block_L2_output",
+      "stimulusGroup": "baseline",
+      "arm": "block_L2_output",
+      "finite": true,
+      "releaseBounded": true,
+      "maximumAbsoluteVoltageDeviation": 0.0,
+      "parameterHash": "ae7a2551917756e23f40b6087f253ee6d7cf23eb8ade94fa363d986d78d50e0f",
+      "connectionHash": "f7b18afc2cb146375d8fb5437291ded083725221d8407a1bdbfcf5227dac4b83",
+      "populations": {
+        "L2": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": 0.0,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 0.0
+        },
+        "Tm1": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": 0.0,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 0.0
+        },
+        "Tm2": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": 0.0,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 0.0
+        }
+      }
+    },
+    {
+      "trial": "baseline__reverse_input_polarity",
+      "stimulusGroup": "baseline",
+      "arm": "reverse_input_polarity",
+      "finite": true,
+      "releaseBounded": true,
+      "maximumAbsoluteVoltageDeviation": 0.0,
+      "parameterHash": "ae7a2551917756e23f40b6087f253ee6d7cf23eb8ade94fa363d986d78d50e0f",
+      "connectionHash": "494279e180555b92bb0f5ec813a2c3dbe3541d294243538ec627219884f4f47b",
+      "populations": {
+        "L2": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": 0.0,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 0.0
+        },
+        "Tm1": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": 0.0,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 0.0
+        },
+        "Tm2": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": 0.0,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 0.0
+        }
+      }
+    },
+    {
+      "trial": "flash_OFF__intact",
+      "stimulusGroup": "development",
+      "arm": "intact",
+      "finite": true,
+      "releaseBounded": true,
+      "maximumAbsoluteVoltageDeviation": 0.17320046111167847,
+      "parameterHash": "ae7a2551917756e23f40b6087f253ee6d7cf23eb8ade94fa363d986d78d50e0f",
+      "connectionHash": "494279e180555b92bb0f5ec813a2c3dbe3541d294243538ec627219884f4f47b",
+      "populations": {
+        "L2": {
+          "maximumReleaseChange": 0.17301115461095173,
+          "minimumReleaseChange": 0.0019999999999998908,
+          "positivePeakLatencyMs": 75.5,
+          "positiveResponseOnsetMsAt1eMinus4": 0.25,
+          "last100msMeanReleaseChange": 0.15760354616289216,
+          "last100msToPositivePeakRatio": 0.9109444215738199,
+          "recoveryEndReleaseChange": -1.4136264356506834e-05
+        },
+        "Tm1": {
+          "maximumReleaseChange": 0.021700173410537205,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": 116.75,
+          "positiveResponseOnsetMsAt1eMinus4": 2.75,
+          "last100msMeanReleaseChange": 0.020517164472283037,
+          "last100msToPositivePeakRatio": 0.9454838947194901,
+          "recoveryEndReleaseChange": 8.149820432012955e-06
+        },
+        "Tm2": {
+          "maximumReleaseChange": 0.02247012578139218,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": 116.75,
+          "positiveResponseOnsetMsAt1eMinus4": 2.75,
+          "last100msMeanReleaseChange": 0.0212421512181674,
+          "last100msToPositivePeakRatio": 0.9453507926403473,
+          "recoveryEndReleaseChange": 8.424539592988278e-06
+        }
+      }
+    },
+    {
+      "trial": "flash_OFF__sham",
+      "stimulusGroup": "development",
+      "arm": "sham",
+      "finite": true,
+      "releaseBounded": true,
+      "maximumAbsoluteVoltageDeviation": 0.17320046111167847,
+      "parameterHash": "ae7a2551917756e23f40b6087f253ee6d7cf23eb8ade94fa363d986d78d50e0f",
+      "connectionHash": "494279e180555b92bb0f5ec813a2c3dbe3541d294243538ec627219884f4f47b",
+      "populations": {
+        "L2": {
+          "maximumReleaseChange": 0.17301115461095173,
+          "minimumReleaseChange": 0.0019999999999998908,
+          "positivePeakLatencyMs": 75.5,
+          "positiveResponseOnsetMsAt1eMinus4": 0.25,
+          "last100msMeanReleaseChange": 0.15760354616289216,
+          "last100msToPositivePeakRatio": 0.9109444215738199,
+          "recoveryEndReleaseChange": -1.4136264356506834e-05
+        },
+        "Tm1": {
+          "maximumReleaseChange": 0.021700173410537205,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": 116.75,
+          "positiveResponseOnsetMsAt1eMinus4": 2.75,
+          "last100msMeanReleaseChange": 0.020517164472283037,
+          "last100msToPositivePeakRatio": 0.9454838947194901,
+          "recoveryEndReleaseChange": 8.149820432012955e-06
+        },
+        "Tm2": {
+          "maximumReleaseChange": 0.02247012578139218,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": 116.75,
+          "positiveResponseOnsetMsAt1eMinus4": 2.75,
+          "last100msMeanReleaseChange": 0.0212421512181674,
+          "last100msToPositivePeakRatio": 0.9453507926403473,
+          "recoveryEndReleaseChange": 8.424539592988278e-06
+        }
+      }
+    },
+    {
+      "trial": "flash_OFF__block_L2_output",
+      "stimulusGroup": "development",
+      "arm": "block_L2_output",
+      "finite": true,
+      "releaseBounded": true,
+      "maximumAbsoluteVoltageDeviation": 0.1729528264243515,
+      "parameterHash": "ae7a2551917756e23f40b6087f253ee6d7cf23eb8ade94fa363d986d78d50e0f",
+      "connectionHash": "f7b18afc2cb146375d8fb5437291ded083725221d8407a1bdbfcf5227dac4b83",
+      "populations": {
+        "L2": {
+          "maximumReleaseChange": 0.1729528264243515,
+          "minimumReleaseChange": 0.0019999999999998908,
+          "positivePeakLatencyMs": 75.5,
+          "positiveResponseOnsetMsAt1eMinus4": 0.25,
+          "last100msMeanReleaseChange": 0.15753007595945684,
+          "last100msToPositivePeakRatio": 0.9108268376773797,
+          "recoveryEndReleaseChange": -1.4175792925341657e-05
+        },
+        "Tm1": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": 0.0,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 0.0
+        },
+        "Tm2": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": 0.0,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 0.0
+        }
+      }
+    },
+    {
+      "trial": "flash_OFF__reverse_input_polarity",
+      "stimulusGroup": "development",
+      "arm": "reverse_input_polarity",
+      "finite": true,
+      "releaseBounded": true,
+      "maximumAbsoluteVoltageDeviation": 0.17320046111167847,
+      "parameterHash": "ae7a2551917756e23f40b6087f253ee6d7cf23eb8ade94fa363d986d78d50e0f",
+      "connectionHash": "494279e180555b92bb0f5ec813a2c3dbe3541d294243538ec627219884f4f47b",
+      "populations": {
+        "L2": {
+          "maximumReleaseChange": -0.001999999999999863,
+          "minimumReleaseChange": -0.17301115461095168,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": -0.15760354616289213,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 1.4136264356534589e-05
+        },
+        "Tm1": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": -0.02170017341053726,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": -0.020517164472283037,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": -8.1498204319852e-06
+        },
+        "Tm2": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": -0.022470125781392153,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": -0.0212421512181674,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": -8.42453959304379e-06
+        }
+      }
+    },
+    {
+      "trial": "flash_ON__intact",
+      "stimulusGroup": "development",
+      "arm": "intact",
+      "finite": true,
+      "releaseBounded": true,
+      "maximumAbsoluteVoltageDeviation": 0.17320046111167847,
+      "parameterHash": "ae7a2551917756e23f40b6087f253ee6d7cf23eb8ade94fa363d986d78d50e0f",
+      "connectionHash": "494279e180555b92bb0f5ec813a2c3dbe3541d294243538ec627219884f4f47b",
+      "populations": {
+        "L2": {
+          "maximumReleaseChange": -0.001999999999999863,
+          "minimumReleaseChange": -0.17301115461095168,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": -0.15760354616289213,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 1.4136264356534589e-05
+        },
+        "Tm1": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": -0.02170017341053726,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": -0.020517164472283037,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": -8.1498204319852e-06
+        },
+        "Tm2": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": -0.022470125781392153,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": -0.0212421512181674,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": -8.42453959304379e-06
+        }
+      }
+    },
+    {
+      "trial": "flash_ON__sham",
+      "stimulusGroup": "development",
+      "arm": "sham",
+      "finite": true,
+      "releaseBounded": true,
+      "maximumAbsoluteVoltageDeviation": 0.17320046111167847,
+      "parameterHash": "ae7a2551917756e23f40b6087f253ee6d7cf23eb8ade94fa363d986d78d50e0f",
+      "connectionHash": "494279e180555b92bb0f5ec813a2c3dbe3541d294243538ec627219884f4f47b",
+      "populations": {
+        "L2": {
+          "maximumReleaseChange": -0.001999999999999863,
+          "minimumReleaseChange": -0.17301115461095168,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": -0.15760354616289213,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 1.4136264356534589e-05
+        },
+        "Tm1": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": -0.02170017341053726,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": -0.020517164472283037,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": -8.1498204319852e-06
+        },
+        "Tm2": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": -0.022470125781392153,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": -0.0212421512181674,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": -8.42453959304379e-06
+        }
+      }
+    },
+    {
+      "trial": "flash_ON__block_L2_output",
+      "stimulusGroup": "development",
+      "arm": "block_L2_output",
+      "finite": true,
+      "releaseBounded": true,
+      "maximumAbsoluteVoltageDeviation": 0.1729528264243515,
+      "parameterHash": "ae7a2551917756e23f40b6087f253ee6d7cf23eb8ade94fa363d986d78d50e0f",
+      "connectionHash": "f7b18afc2cb146375d8fb5437291ded083725221d8407a1bdbfcf5227dac4b83",
+      "populations": {
+        "L2": {
+          "maximumReleaseChange": -0.001999999999999863,
+          "minimumReleaseChange": -0.17295282642435156,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": -0.15753007595945687,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 1.4175792925341657e-05
+        },
+        "Tm1": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": 0.0,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 0.0
+        },
+        "Tm2": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": 0.0,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 0.0
+        }
+      }
+    },
+    {
+      "trial": "flash_ON__reverse_input_polarity",
+      "stimulusGroup": "development",
+      "arm": "reverse_input_polarity",
+      "finite": true,
+      "releaseBounded": true,
+      "maximumAbsoluteVoltageDeviation": 0.17320046111167847,
+      "parameterHash": "ae7a2551917756e23f40b6087f253ee6d7cf23eb8ade94fa363d986d78d50e0f",
+      "connectionHash": "494279e180555b92bb0f5ec813a2c3dbe3541d294243538ec627219884f4f47b",
+      "populations": {
+        "L2": {
+          "maximumReleaseChange": 0.17301115461095173,
+          "minimumReleaseChange": 0.0019999999999998908,
+          "positivePeakLatencyMs": 75.5,
+          "positiveResponseOnsetMsAt1eMinus4": 0.25,
+          "last100msMeanReleaseChange": 0.15760354616289216,
+          "last100msToPositivePeakRatio": 0.9109444215738199,
+          "recoveryEndReleaseChange": -1.4136264356506834e-05
+        },
+        "Tm1": {
+          "maximumReleaseChange": 0.021700173410537205,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": 116.75,
+          "positiveResponseOnsetMsAt1eMinus4": 2.75,
+          "last100msMeanReleaseChange": 0.020517164472283037,
+          "last100msToPositivePeakRatio": 0.9454838947194901,
+          "recoveryEndReleaseChange": 8.149820432012955e-06
+        },
+        "Tm2": {
+          "maximumReleaseChange": 0.02247012578139218,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": 116.75,
+          "positiveResponseOnsetMsAt1eMinus4": 2.75,
+          "last100msMeanReleaseChange": 0.0212421512181674,
+          "last100msToPositivePeakRatio": 0.9453507926403473,
+          "recoveryEndReleaseChange": 8.424539592988278e-06
+        }
+      }
+    },
+    {
+      "trial": "step_OFF__intact",
+      "stimulusGroup": "development",
+      "arm": "intact",
+      "finite": true,
+      "releaseBounded": true,
+      "maximumAbsoluteVoltageDeviation": 0.17320046111167847,
+      "parameterHash": "ae7a2551917756e23f40b6087f253ee6d7cf23eb8ade94fa363d986d78d50e0f",
+      "connectionHash": "494279e180555b92bb0f5ec813a2c3dbe3541d294243538ec627219884f4f47b",
+      "populations": {
+        "L2": {
+          "maximumReleaseChange": 0.17301115461095173,
+          "minimumReleaseChange": 0.0019999999999998908,
+          "positivePeakLatencyMs": 75.5,
+          "positiveResponseOnsetMsAt1eMinus4": 0.25,
+          "last100msMeanReleaseChange": 0.1333769773447593,
+          "last100msToPositivePeakRatio": 0.7709154802456677,
+          "recoveryEndReleaseChange": -1.57766398883874e-05
+        },
+        "Tm1": {
+          "maximumReleaseChange": 0.021700173410537205,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": 116.75,
+          "positiveResponseOnsetMsAt1eMinus4": 2.75,
+          "last100msMeanReleaseChange": 0.013841287415619937,
+          "last100msToPositivePeakRatio": 0.6378422491729426,
+          "recoveryEndReleaseChange": 9.36519305438921e-06
+        },
+        "Tm2": {
+          "maximumReleaseChange": 0.02247012578139218,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": 116.75,
+          "positiveResponseOnsetMsAt1eMinus4": 2.75,
+          "last100msMeanReleaseChange": 0.014335176292042711,
+          "last100msToPositivePeakRatio": 0.6379660012368007,
+          "recoveryEndReleaseChange": 9.686800139019347e-06
+        }
+      }
+    },
+    {
+      "trial": "step_OFF__sham",
+      "stimulusGroup": "development",
+      "arm": "sham",
+      "finite": true,
+      "releaseBounded": true,
+      "maximumAbsoluteVoltageDeviation": 0.17320046111167847,
+      "parameterHash": "ae7a2551917756e23f40b6087f253ee6d7cf23eb8ade94fa363d986d78d50e0f",
+      "connectionHash": "494279e180555b92bb0f5ec813a2c3dbe3541d294243538ec627219884f4f47b",
+      "populations": {
+        "L2": {
+          "maximumReleaseChange": 0.17301115461095173,
+          "minimumReleaseChange": 0.0019999999999998908,
+          "positivePeakLatencyMs": 75.5,
+          "positiveResponseOnsetMsAt1eMinus4": 0.25,
+          "last100msMeanReleaseChange": 0.1333769773447593,
+          "last100msToPositivePeakRatio": 0.7709154802456677,
+          "recoveryEndReleaseChange": -1.57766398883874e-05
+        },
+        "Tm1": {
+          "maximumReleaseChange": 0.021700173410537205,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": 116.75,
+          "positiveResponseOnsetMsAt1eMinus4": 2.75,
+          "last100msMeanReleaseChange": 0.013841287415619937,
+          "last100msToPositivePeakRatio": 0.6378422491729426,
+          "recoveryEndReleaseChange": 9.36519305438921e-06
+        },
+        "Tm2": {
+          "maximumReleaseChange": 0.02247012578139218,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": 116.75,
+          "positiveResponseOnsetMsAt1eMinus4": 2.75,
+          "last100msMeanReleaseChange": 0.014335176292042711,
+          "last100msToPositivePeakRatio": 0.6379660012368007,
+          "recoveryEndReleaseChange": 9.686800139019347e-06
+        }
+      }
+    },
+    {
+      "trial": "step_OFF__block_L2_output",
+      "stimulusGroup": "development",
+      "arm": "block_L2_output",
+      "finite": true,
+      "releaseBounded": true,
+      "maximumAbsoluteVoltageDeviation": 0.1729528264243515,
+      "parameterHash": "ae7a2551917756e23f40b6087f253ee6d7cf23eb8ade94fa363d986d78d50e0f",
+      "connectionHash": "f7b18afc2cb146375d8fb5437291ded083725221d8407a1bdbfcf5227dac4b83",
+      "populations": {
+        "L2": {
+          "maximumReleaseChange": 0.1729528264243515,
+          "minimumReleaseChange": 0.0019999999999998908,
+          "positivePeakLatencyMs": 75.5,
+          "positiveResponseOnsetMsAt1eMinus4": 0.25,
+          "last100msMeanReleaseChange": 0.13333637654488992,
+          "last100msToPositivePeakRatio": 0.7709407200882631,
+          "recoveryEndReleaseChange": -1.581585984231082e-05
+        },
+        "Tm1": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": 0.0,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 0.0
+        },
+        "Tm2": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": 0.0,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 0.0
+        }
+      }
+    },
+    {
+      "trial": "step_OFF__reverse_input_polarity",
+      "stimulusGroup": "development",
+      "arm": "reverse_input_polarity",
+      "finite": true,
+      "releaseBounded": true,
+      "maximumAbsoluteVoltageDeviation": 0.17320046111167847,
+      "parameterHash": "ae7a2551917756e23f40b6087f253ee6d7cf23eb8ade94fa363d986d78d50e0f",
+      "connectionHash": "494279e180555b92bb0f5ec813a2c3dbe3541d294243538ec627219884f4f47b",
+      "populations": {
+        "L2": {
+          "maximumReleaseChange": -0.001999999999999863,
+          "minimumReleaseChange": -0.17301115461095168,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": -0.13337697734475928,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 1.577663988833189e-05
+        },
+        "Tm1": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": -0.02170017341053726,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": -0.013841287415619937,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": -9.365193054472476e-06
+        },
+        "Tm2": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": -0.022470125781392153,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": -0.014335176292042711,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": -9.686800138991591e-06
+        }
+      }
+    },
+    {
+      "trial": "step_ON__intact",
+      "stimulusGroup": "development",
+      "arm": "intact",
+      "finite": true,
+      "releaseBounded": true,
+      "maximumAbsoluteVoltageDeviation": 0.17320046111167847,
+      "parameterHash": "ae7a2551917756e23f40b6087f253ee6d7cf23eb8ade94fa363d986d78d50e0f",
+      "connectionHash": "494279e180555b92bb0f5ec813a2c3dbe3541d294243538ec627219884f4f47b",
+      "populations": {
+        "L2": {
+          "maximumReleaseChange": -0.001999999999999863,
+          "minimumReleaseChange": -0.17301115461095168,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": -0.13337697734475928,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 1.577663988833189e-05
+        },
+        "Tm1": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": -0.02170017341053726,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": -0.013841287415619937,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": -9.365193054472476e-06
+        },
+        "Tm2": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": -0.022470125781392153,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": -0.014335176292042711,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": -9.686800138991591e-06
+        }
+      }
+    },
+    {
+      "trial": "step_ON__sham",
+      "stimulusGroup": "development",
+      "arm": "sham",
+      "finite": true,
+      "releaseBounded": true,
+      "maximumAbsoluteVoltageDeviation": 0.17320046111167847,
+      "parameterHash": "ae7a2551917756e23f40b6087f253ee6d7cf23eb8ade94fa363d986d78d50e0f",
+      "connectionHash": "494279e180555b92bb0f5ec813a2c3dbe3541d294243538ec627219884f4f47b",
+      "populations": {
+        "L2": {
+          "maximumReleaseChange": -0.001999999999999863,
+          "minimumReleaseChange": -0.17301115461095168,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": -0.13337697734475928,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 1.577663988833189e-05
+        },
+        "Tm1": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": -0.02170017341053726,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": -0.013841287415619937,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": -9.365193054472476e-06
+        },
+        "Tm2": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": -0.022470125781392153,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": -0.014335176292042711,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": -9.686800138991591e-06
+        }
+      }
+    },
+    {
+      "trial": "step_ON__block_L2_output",
+      "stimulusGroup": "development",
+      "arm": "block_L2_output",
+      "finite": true,
+      "releaseBounded": true,
+      "maximumAbsoluteVoltageDeviation": 0.1729528264243515,
+      "parameterHash": "ae7a2551917756e23f40b6087f253ee6d7cf23eb8ade94fa363d986d78d50e0f",
+      "connectionHash": "f7b18afc2cb146375d8fb5437291ded083725221d8407a1bdbfcf5227dac4b83",
+      "populations": {
+        "L2": {
+          "maximumReleaseChange": -0.001999999999999863,
+          "minimumReleaseChange": -0.17295282642435156,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": -0.13333637654488992,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 1.5815859842338575e-05
+        },
+        "Tm1": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": 0.0,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 0.0
+        },
+        "Tm2": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": 0.0,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 0.0
+        }
+      }
+    },
+    {
+      "trial": "step_ON__reverse_input_polarity",
+      "stimulusGroup": "development",
+      "arm": "reverse_input_polarity",
+      "finite": true,
+      "releaseBounded": true,
+      "maximumAbsoluteVoltageDeviation": 0.17320046111167847,
+      "parameterHash": "ae7a2551917756e23f40b6087f253ee6d7cf23eb8ade94fa363d986d78d50e0f",
+      "connectionHash": "494279e180555b92bb0f5ec813a2c3dbe3541d294243538ec627219884f4f47b",
+      "populations": {
+        "L2": {
+          "maximumReleaseChange": 0.17301115461095173,
+          "minimumReleaseChange": 0.0019999999999998908,
+          "positivePeakLatencyMs": 75.5,
+          "positiveResponseOnsetMsAt1eMinus4": 0.25,
+          "last100msMeanReleaseChange": 0.1333769773447593,
+          "last100msToPositivePeakRatio": 0.7709154802456677,
+          "recoveryEndReleaseChange": -1.57766398883874e-05
+        },
+        "Tm1": {
+          "maximumReleaseChange": 0.021700173410537205,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": 116.75,
+          "positiveResponseOnsetMsAt1eMinus4": 2.75,
+          "last100msMeanReleaseChange": 0.013841287415619937,
+          "last100msToPositivePeakRatio": 0.6378422491729426,
+          "recoveryEndReleaseChange": 9.36519305438921e-06
+        },
+        "Tm2": {
+          "maximumReleaseChange": 0.02247012578139218,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": 116.75,
+          "positiveResponseOnsetMsAt1eMinus4": 2.75,
+          "last100msMeanReleaseChange": 0.014335176292042711,
+          "last100msToPositivePeakRatio": 0.6379660012368007,
+          "recoveryEndReleaseChange": 9.686800139019347e-06
+        }
+      }
+    },
+    {
+      "trial": "heldout_flash_0__intact",
+      "stimulusGroup": "held_out_amplitude",
+      "arm": "intact",
+      "finite": true,
+      "releaseBounded": true,
+      "maximumAbsoluteVoltageDeviation": 0.08660023055583924,
+      "parameterHash": "ae7a2551917756e23f40b6087f253ee6d7cf23eb8ade94fa363d986d78d50e0f",
+      "connectionHash": "494279e180555b92bb0f5ec813a2c3dbe3541d294243538ec627219884f4f47b",
+      "populations": {
+        "L2": {
+          "maximumReleaseChange": 0.08650557730547587,
+          "minimumReleaseChange": 0.0010000000000000009,
+          "positivePeakLatencyMs": 75.5,
+          "positiveResponseOnsetMsAt1eMinus4": 0.25,
+          "last100msMeanReleaseChange": 0.07880177308144608,
+          "last100msToPositivePeakRatio": 0.9109444215738199,
+          "recoveryEndReleaseChange": -7.0681321782672946e-06
+        },
+        "Tm1": {
+          "maximumReleaseChange": 0.010850086705268491,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": 116.75,
+          "positiveResponseOnsetMsAt1eMinus4": 4.0,
+          "last100msMeanReleaseChange": 0.01025858223614152,
+          "last100msToPositivePeakRatio": 0.9454838947194999,
+          "recoveryEndReleaseChange": 4.074910215978722e-06
+        },
+        "Tm2": {
+          "maximumReleaseChange": 0.011235062890696146,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": 116.75,
+          "positiveResponseOnsetMsAt1eMinus4": 4.0,
+          "last100msMeanReleaseChange": 0.010621075609083706,
+          "last100msToPositivePeakRatio": 0.9453507926403432,
+          "recoveryEndReleaseChange": 4.212269796521895e-06
+        }
+      }
+    },
+    {
+      "trial": "heldout_flash_0__sham",
+      "stimulusGroup": "held_out_amplitude",
+      "arm": "sham",
+      "finite": true,
+      "releaseBounded": true,
+      "maximumAbsoluteVoltageDeviation": 0.08660023055583924,
+      "parameterHash": "ae7a2551917756e23f40b6087f253ee6d7cf23eb8ade94fa363d986d78d50e0f",
+      "connectionHash": "494279e180555b92bb0f5ec813a2c3dbe3541d294243538ec627219884f4f47b",
+      "populations": {
+        "L2": {
+          "maximumReleaseChange": 0.08650557730547587,
+          "minimumReleaseChange": 0.0010000000000000009,
+          "positivePeakLatencyMs": 75.5,
+          "positiveResponseOnsetMsAt1eMinus4": 0.25,
+          "last100msMeanReleaseChange": 0.07880177308144608,
+          "last100msToPositivePeakRatio": 0.9109444215738199,
+          "recoveryEndReleaseChange": -7.0681321782672946e-06
+        },
+        "Tm1": {
+          "maximumReleaseChange": 0.010850086705268491,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": 116.75,
+          "positiveResponseOnsetMsAt1eMinus4": 4.0,
+          "last100msMeanReleaseChange": 0.01025858223614152,
+          "last100msToPositivePeakRatio": 0.9454838947194999,
+          "recoveryEndReleaseChange": 4.074910215978722e-06
+        },
+        "Tm2": {
+          "maximumReleaseChange": 0.011235062890696146,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": 116.75,
+          "positiveResponseOnsetMsAt1eMinus4": 4.0,
+          "last100msMeanReleaseChange": 0.010621075609083706,
+          "last100msToPositivePeakRatio": 0.9453507926403432,
+          "recoveryEndReleaseChange": 4.212269796521895e-06
+        }
+      }
+    },
+    {
+      "trial": "heldout_flash_0__block_L2_output",
+      "stimulusGroup": "held_out_amplitude",
+      "arm": "block_L2_output",
+      "finite": true,
+      "releaseBounded": true,
+      "maximumAbsoluteVoltageDeviation": 0.08647641321217575,
+      "parameterHash": "ae7a2551917756e23f40b6087f253ee6d7cf23eb8ade94fa363d986d78d50e0f",
+      "connectionHash": "f7b18afc2cb146375d8fb5437291ded083725221d8407a1bdbfcf5227dac4b83",
+      "populations": {
+        "L2": {
+          "maximumReleaseChange": 0.08647641321217575,
+          "minimumReleaseChange": 0.0010000000000000009,
+          "positivePeakLatencyMs": 75.5,
+          "positiveResponseOnsetMsAt1eMinus4": 0.25,
+          "last100msMeanReleaseChange": 0.07876503797972843,
+          "last100msToPositivePeakRatio": 0.9108268376773799,
+          "recoveryEndReleaseChange": -7.087896462698584e-06
+        },
+        "Tm1": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": 0.0,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 0.0
+        },
+        "Tm2": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": 0.0,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 0.0
+        }
+      }
+    },
+    {
+      "trial": "heldout_flash_0__reverse_input_polarity",
+      "stimulusGroup": "held_out_amplitude",
+      "arm": "reverse_input_polarity",
+      "finite": true,
+      "releaseBounded": true,
+      "maximumAbsoluteVoltageDeviation": 0.08660023055583924,
+      "parameterHash": "ae7a2551917756e23f40b6087f253ee6d7cf23eb8ade94fa363d986d78d50e0f",
+      "connectionHash": "494279e180555b92bb0f5ec813a2c3dbe3541d294243538ec627219884f4f47b",
+      "populations": {
+        "L2": {
+          "maximumReleaseChange": -0.0009999999999999731,
+          "minimumReleaseChange": -0.08650557730547584,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": -0.07880177308144606,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 7.0681321782672946e-06
+        },
+        "Tm1": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": -0.010850086705268547,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": -0.010258582236141518,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": -4.074910216006478e-06
+        },
+        "Tm2": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": -0.011235062890696118,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": -0.0106210756090837,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": -4.21226979654965e-06
+        }
+      }
+    },
+    {
+      "trial": "heldout_flash_1__intact",
+      "stimulusGroup": "held_out_amplitude",
+      "arm": "intact",
+      "finite": true,
+      "releaseBounded": true,
+      "maximumAbsoluteVoltageDeviation": 0.08660023055583924,
+      "parameterHash": "ae7a2551917756e23f40b6087f253ee6d7cf23eb8ade94fa363d986d78d50e0f",
+      "connectionHash": "494279e180555b92bb0f5ec813a2c3dbe3541d294243538ec627219884f4f47b",
+      "populations": {
+        "L2": {
+          "maximumReleaseChange": -0.0009999999999999731,
+          "minimumReleaseChange": -0.08650557730547584,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": -0.07880177308144606,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 7.0681321782672946e-06
+        },
+        "Tm1": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": -0.010850086705268547,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": -0.010258582236141518,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": -4.074910216006478e-06
+        },
+        "Tm2": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": -0.011235062890696118,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": -0.0106210756090837,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": -4.21226979654965e-06
+        }
+      }
+    },
+    {
+      "trial": "heldout_flash_1__sham",
+      "stimulusGroup": "held_out_amplitude",
+      "arm": "sham",
+      "finite": true,
+      "releaseBounded": true,
+      "maximumAbsoluteVoltageDeviation": 0.08660023055583924,
+      "parameterHash": "ae7a2551917756e23f40b6087f253ee6d7cf23eb8ade94fa363d986d78d50e0f",
+      "connectionHash": "494279e180555b92bb0f5ec813a2c3dbe3541d294243538ec627219884f4f47b",
+      "populations": {
+        "L2": {
+          "maximumReleaseChange": -0.0009999999999999731,
+          "minimumReleaseChange": -0.08650557730547584,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": -0.07880177308144606,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 7.0681321782672946e-06
+        },
+        "Tm1": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": -0.010850086705268547,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": -0.010258582236141518,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": -4.074910216006478e-06
+        },
+        "Tm2": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": -0.011235062890696118,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": -0.0106210756090837,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": -4.21226979654965e-06
+        }
+      }
+    },
+    {
+      "trial": "heldout_flash_1__block_L2_output",
+      "stimulusGroup": "held_out_amplitude",
+      "arm": "block_L2_output",
+      "finite": true,
+      "releaseBounded": true,
+      "maximumAbsoluteVoltageDeviation": 0.08647641321217575,
+      "parameterHash": "ae7a2551917756e23f40b6087f253ee6d7cf23eb8ade94fa363d986d78d50e0f",
+      "connectionHash": "f7b18afc2cb146375d8fb5437291ded083725221d8407a1bdbfcf5227dac4b83",
+      "populations": {
+        "L2": {
+          "maximumReleaseChange": -0.0009999999999999731,
+          "minimumReleaseChange": -0.08647641321217578,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": -0.07876503797972842,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 7.087896462698584e-06
+        },
+        "Tm1": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": 0.0,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 0.0
+        },
+        "Tm2": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": 0.0,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 0.0
+        }
+      }
+    },
+    {
+      "trial": "heldout_flash_1__reverse_input_polarity",
+      "stimulusGroup": "held_out_amplitude",
+      "arm": "reverse_input_polarity",
+      "finite": true,
+      "releaseBounded": true,
+      "maximumAbsoluteVoltageDeviation": 0.08660023055583924,
+      "parameterHash": "ae7a2551917756e23f40b6087f253ee6d7cf23eb8ade94fa363d986d78d50e0f",
+      "connectionHash": "494279e180555b92bb0f5ec813a2c3dbe3541d294243538ec627219884f4f47b",
+      "populations": {
+        "L2": {
+          "maximumReleaseChange": 0.08650557730547587,
+          "minimumReleaseChange": 0.0010000000000000009,
+          "positivePeakLatencyMs": 75.5,
+          "positiveResponseOnsetMsAt1eMinus4": 0.25,
+          "last100msMeanReleaseChange": 0.07880177308144608,
+          "last100msToPositivePeakRatio": 0.9109444215738199,
+          "recoveryEndReleaseChange": -7.0681321782672946e-06
+        },
+        "Tm1": {
+          "maximumReleaseChange": 0.010850086705268491,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": 116.75,
+          "positiveResponseOnsetMsAt1eMinus4": 4.0,
+          "last100msMeanReleaseChange": 0.01025858223614152,
+          "last100msToPositivePeakRatio": 0.9454838947194999,
+          "recoveryEndReleaseChange": 4.074910215978722e-06
+        },
+        "Tm2": {
+          "maximumReleaseChange": 0.011235062890696146,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": 116.75,
+          "positiveResponseOnsetMsAt1eMinus4": 4.0,
+          "last100msMeanReleaseChange": 0.010621075609083706,
+          "last100msToPositivePeakRatio": 0.9453507926403432,
+          "recoveryEndReleaseChange": 4.212269796521895e-06
+        }
+      }
+    },
+    {
+      "trial": "heldout_flash_2__intact",
+      "stimulusGroup": "held_out_amplitude",
+      "arm": "intact",
+      "finite": true,
+      "releaseBounded": true,
+      "maximumAbsoluteVoltageDeviation": 0.30310080694543756,
+      "parameterHash": "ae7a2551917756e23f40b6087f253ee6d7cf23eb8ade94fa363d986d78d50e0f",
+      "connectionHash": "494279e180555b92bb0f5ec813a2c3dbe3541d294243538ec627219884f4f47b",
+      "populations": {
+        "L2": {
+          "maximumReleaseChange": 0.3027695205691653,
+          "minimumReleaseChange": 0.0034999999999999476,
+          "positivePeakLatencyMs": 75.5,
+          "positiveResponseOnsetMsAt1eMinus4": 0.25,
+          "last100msMeanReleaseChange": 0.27580620578506115,
+          "last100msToPositivePeakRatio": 0.9109444215738203,
+          "recoveryEndReleaseChange": -2.4738462623907775e-05
+        },
+        "Tm1": {
+          "maximumReleaseChange": 0.037975303468440136,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": 116.75,
+          "positiveResponseOnsetMsAt1eMinus4": 2.25,
+          "last100msMeanReleaseChange": 0.03590503782649531,
+          "last100msToPositivePeakRatio": 0.9454838947194893,
+          "recoveryEndReleaseChange": 1.4262185756008794e-05
+        },
+        "Tm2": {
+          "maximumReleaseChange": 0.039322720117436316,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": 116.75,
+          "positiveResponseOnsetMsAt1eMinus4": 2.25,
+          "last100msMeanReleaseChange": 0.03717376463179295,
+          "last100msToPositivePeakRatio": 0.9453507926403473,
+          "recoveryEndReleaseChange": 1.4742944287882143e-05
+        }
+      }
+    },
+    {
+      "trial": "heldout_flash_2__sham",
+      "stimulusGroup": "held_out_amplitude",
+      "arm": "sham",
+      "finite": true,
+      "releaseBounded": true,
+      "maximumAbsoluteVoltageDeviation": 0.30310080694543756,
+      "parameterHash": "ae7a2551917756e23f40b6087f253ee6d7cf23eb8ade94fa363d986d78d50e0f",
+      "connectionHash": "494279e180555b92bb0f5ec813a2c3dbe3541d294243538ec627219884f4f47b",
+      "populations": {
+        "L2": {
+          "maximumReleaseChange": 0.3027695205691653,
+          "minimumReleaseChange": 0.0034999999999999476,
+          "positivePeakLatencyMs": 75.5,
+          "positiveResponseOnsetMsAt1eMinus4": 0.25,
+          "last100msMeanReleaseChange": 0.27580620578506115,
+          "last100msToPositivePeakRatio": 0.9109444215738203,
+          "recoveryEndReleaseChange": -2.4738462623907775e-05
+        },
+        "Tm1": {
+          "maximumReleaseChange": 0.037975303468440136,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": 116.75,
+          "positiveResponseOnsetMsAt1eMinus4": 2.25,
+          "last100msMeanReleaseChange": 0.03590503782649531,
+          "last100msToPositivePeakRatio": 0.9454838947194893,
+          "recoveryEndReleaseChange": 1.4262185756008794e-05
+        },
+        "Tm2": {
+          "maximumReleaseChange": 0.039322720117436316,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": 116.75,
+          "positiveResponseOnsetMsAt1eMinus4": 2.25,
+          "last100msMeanReleaseChange": 0.03717376463179295,
+          "last100msToPositivePeakRatio": 0.9453507926403473,
+          "recoveryEndReleaseChange": 1.4742944287882143e-05
+        }
+      }
+    },
+    {
+      "trial": "heldout_flash_2__block_L2_output",
+      "stimulusGroup": "held_out_amplitude",
+      "arm": "block_L2_output",
+      "finite": true,
+      "releaseBounded": true,
+      "maximumAbsoluteVoltageDeviation": 0.302667446242615,
+      "parameterHash": "ae7a2551917756e23f40b6087f253ee6d7cf23eb8ade94fa363d986d78d50e0f",
+      "connectionHash": "f7b18afc2cb146375d8fb5437291ded083725221d8407a1bdbfcf5227dac4b83",
+      "populations": {
+        "L2": {
+          "maximumReleaseChange": 0.3026674462426151,
+          "minimumReleaseChange": 0.0034999999999999476,
+          "positivePeakLatencyMs": 75.5,
+          "positiveResponseOnsetMsAt1eMinus4": 0.25,
+          "last100msMeanReleaseChange": 0.2756776329290493,
+          "last100msToPositivePeakRatio": 0.9108268376773793,
+          "recoveryEndReleaseChange": -2.4807637619361778e-05
+        },
+        "Tm1": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": 0.0,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 0.0
+        },
+        "Tm2": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": 0.0,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 0.0
+        }
+      }
+    },
+    {
+      "trial": "heldout_flash_2__reverse_input_polarity",
+      "stimulusGroup": "held_out_amplitude",
+      "arm": "reverse_input_polarity",
+      "finite": true,
+      "releaseBounded": true,
+      "maximumAbsoluteVoltageDeviation": 0.30304867078852926,
+      "parameterHash": "ae7a2551917756e23f40b6087f253ee6d7cf23eb8ade94fa363d986d78d50e0f",
+      "connectionHash": "494279e180555b92bb0f5ec813a2c3dbe3541d294243538ec627219884f4f47b",
+      "populations": {
+        "L2": {
+          "maximumReleaseChange": -0.00349999999999992,
+          "minimumReleaseChange": -0.25,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": -0.25,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 2.4742506869346315e-05
+        },
+        "Tm1": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": -0.03220651650496906,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": -0.03149856108011229,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": -1.4383482412783088e-05
+        },
+        "Tm2": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": -0.03334689528086368,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": -0.032612239691002805,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": -1.4872181018532604e-05
+        }
+      }
+    },
+    {
+      "trial": "heldout_flash_3__intact",
+      "stimulusGroup": "held_out_amplitude",
+      "arm": "intact",
+      "finite": true,
+      "releaseBounded": true,
+      "maximumAbsoluteVoltageDeviation": 0.30304867078852926,
+      "parameterHash": "ae7a2551917756e23f40b6087f253ee6d7cf23eb8ade94fa363d986d78d50e0f",
+      "connectionHash": "494279e180555b92bb0f5ec813a2c3dbe3541d294243538ec627219884f4f47b",
+      "populations": {
+        "L2": {
+          "maximumReleaseChange": -0.00349999999999992,
+          "minimumReleaseChange": -0.25,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": -0.25,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 2.4742506869346315e-05
+        },
+        "Tm1": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": -0.03220651650496906,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": -0.03149856108011229,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": -1.4383482412783088e-05
+        },
+        "Tm2": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": -0.03334689528086368,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": -0.032612239691002805,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": -1.4872181018532604e-05
+        }
+      }
+    },
+    {
+      "trial": "heldout_flash_3__sham",
+      "stimulusGroup": "held_out_amplitude",
+      "arm": "sham",
+      "finite": true,
+      "releaseBounded": true,
+      "maximumAbsoluteVoltageDeviation": 0.30304867078852926,
+      "parameterHash": "ae7a2551917756e23f40b6087f253ee6d7cf23eb8ade94fa363d986d78d50e0f",
+      "connectionHash": "494279e180555b92bb0f5ec813a2c3dbe3541d294243538ec627219884f4f47b",
+      "populations": {
+        "L2": {
+          "maximumReleaseChange": -0.00349999999999992,
+          "minimumReleaseChange": -0.25,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": -0.25,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 2.4742506869346315e-05
+        },
+        "Tm1": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": -0.03220651650496906,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": -0.03149856108011229,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": -1.4383482412783088e-05
+        },
+        "Tm2": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": -0.03334689528086368,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": -0.032612239691002805,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": -1.4872181018532604e-05
+        }
+      }
+    },
+    {
+      "trial": "heldout_flash_3__block_L2_output",
+      "stimulusGroup": "held_out_amplitude",
+      "arm": "block_L2_output",
+      "finite": true,
+      "releaseBounded": true,
+      "maximumAbsoluteVoltageDeviation": 0.302667446242615,
+      "parameterHash": "ae7a2551917756e23f40b6087f253ee6d7cf23eb8ade94fa363d986d78d50e0f",
+      "connectionHash": "f7b18afc2cb146375d8fb5437291ded083725221d8407a1bdbfcf5227dac4b83",
+      "populations": {
+        "L2": {
+          "maximumReleaseChange": -0.00349999999999992,
+          "minimumReleaseChange": -0.25,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": -0.25,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 2.4807637619361778e-05
+        },
+        "Tm1": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": 0.0,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 0.0
+        },
+        "Tm2": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": 0.0,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 0.0
+        }
+      }
+    },
+    {
+      "trial": "heldout_flash_3__reverse_input_polarity",
+      "stimulusGroup": "held_out_amplitude",
+      "arm": "reverse_input_polarity",
+      "finite": true,
+      "releaseBounded": true,
+      "maximumAbsoluteVoltageDeviation": 0.30310080694543756,
+      "parameterHash": "ae7a2551917756e23f40b6087f253ee6d7cf23eb8ade94fa363d986d78d50e0f",
+      "connectionHash": "494279e180555b92bb0f5ec813a2c3dbe3541d294243538ec627219884f4f47b",
+      "populations": {
+        "L2": {
+          "maximumReleaseChange": 0.3027695205691653,
+          "minimumReleaseChange": 0.0034999999999999476,
+          "positivePeakLatencyMs": 75.5,
+          "positiveResponseOnsetMsAt1eMinus4": 0.25,
+          "last100msMeanReleaseChange": 0.27580620578506115,
+          "last100msToPositivePeakRatio": 0.9109444215738203,
+          "recoveryEndReleaseChange": -2.4738462623907775e-05
+        },
+        "Tm1": {
+          "maximumReleaseChange": 0.037975303468440136,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": 116.75,
+          "positiveResponseOnsetMsAt1eMinus4": 2.25,
+          "last100msMeanReleaseChange": 0.03590503782649531,
+          "last100msToPositivePeakRatio": 0.9454838947194893,
+          "recoveryEndReleaseChange": 1.4262185756008794e-05
+        },
+        "Tm2": {
+          "maximumReleaseChange": 0.039322720117436316,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": 116.75,
+          "positiveResponseOnsetMsAt1eMinus4": 2.25,
+          "last100msMeanReleaseChange": 0.03717376463179295,
+          "last100msToPositivePeakRatio": 0.9453507926403473,
+          "recoveryEndReleaseChange": 1.4742944287882143e-05
+        }
+      }
+    },
+    {
+      "trial": "heldout_noise_86013__intact",
+      "stimulusGroup": "held_out_noise",
+      "arm": "intact",
+      "finite": true,
+      "releaseBounded": true,
+      "maximumAbsoluteVoltageDeviation": 0.1423004192575015,
+      "parameterHash": "ae7a2551917756e23f40b6087f253ee6d7cf23eb8ade94fa363d986d78d50e0f",
+      "connectionHash": "494279e180555b92bb0f5ec813a2c3dbe3541d294243538ec627219884f4f47b",
+      "populations": {
+        "L2": {
+          "maximumReleaseChange": 0.14213024983782813,
+          "minimumReleaseChange": -0.13994322701849998,
+          "positivePeakLatencyMs": 227.25,
+          "positiveResponseOnsetMsAt1eMinus4": 113.5,
+          "last100msMeanReleaseChange": 0.060363103819423086,
+          "last100msToPositivePeakRatio": 0.4247027208373863,
+          "recoveryEndReleaseChange": -7.388265487073831e-06
+        },
+        "Tm1": {
+          "maximumReleaseChange": 0.019080862595518222,
+          "minimumReleaseChange": -0.017536689126131794,
+          "positivePeakLatencyMs": 267.0,
+          "positiveResponseOnsetMsAt1eMinus4": 170.25,
+          "last100msMeanReleaseChange": 0.007354308834380676,
+          "last100msToPositivePeakRatio": 0.385428530684356,
+          "recoveryEndReleaseChange": 4.129453918255699e-06
+        },
+        "Tm2": {
+          "maximumReleaseChange": 0.019755970794170186,
+          "minimumReleaseChange": -0.018161556477523627,
+          "positivePeakLatencyMs": 267.0,
+          "positiveResponseOnsetMsAt1eMinus4": 170.25,
+          "last100msMeanReleaseChange": 0.007617049555645958,
+          "last100msToPositivePeakRatio": 0.3855568341847156,
+          "recoveryEndReleaseChange": 4.2671415602657525e-06
+        }
+      }
+    },
+    {
+      "trial": "heldout_noise_86013__sham",
+      "stimulusGroup": "held_out_noise",
+      "arm": "sham",
+      "finite": true,
+      "releaseBounded": true,
+      "maximumAbsoluteVoltageDeviation": 0.1423004192575015,
+      "parameterHash": "ae7a2551917756e23f40b6087f253ee6d7cf23eb8ade94fa363d986d78d50e0f",
+      "connectionHash": "494279e180555b92bb0f5ec813a2c3dbe3541d294243538ec627219884f4f47b",
+      "populations": {
+        "L2": {
+          "maximumReleaseChange": 0.14213024983782813,
+          "minimumReleaseChange": -0.13994322701849998,
+          "positivePeakLatencyMs": 227.25,
+          "positiveResponseOnsetMsAt1eMinus4": 113.5,
+          "last100msMeanReleaseChange": 0.060363103819423086,
+          "last100msToPositivePeakRatio": 0.4247027208373863,
+          "recoveryEndReleaseChange": -7.388265487073831e-06
+        },
+        "Tm1": {
+          "maximumReleaseChange": 0.019080862595518222,
+          "minimumReleaseChange": -0.017536689126131794,
+          "positivePeakLatencyMs": 267.0,
+          "positiveResponseOnsetMsAt1eMinus4": 170.25,
+          "last100msMeanReleaseChange": 0.007354308834380676,
+          "last100msToPositivePeakRatio": 0.385428530684356,
+          "recoveryEndReleaseChange": 4.129453918255699e-06
+        },
+        "Tm2": {
+          "maximumReleaseChange": 0.019755970794170186,
+          "minimumReleaseChange": -0.018161556477523627,
+          "positivePeakLatencyMs": 267.0,
+          "positiveResponseOnsetMsAt1eMinus4": 170.25,
+          "last100msMeanReleaseChange": 0.007617049555645958,
+          "last100msToPositivePeakRatio": 0.3855568341847156,
+          "recoveryEndReleaseChange": 4.2671415602657525e-06
+        }
+      }
+    },
+    {
+      "trial": "heldout_noise_86013__block_L2_output",
+      "stimulusGroup": "held_out_noise",
+      "arm": "block_L2_output",
+      "finite": true,
+      "releaseBounded": true,
+      "maximumAbsoluteVoltageDeviation": 0.1420763773460334,
+      "parameterHash": "ae7a2551917756e23f40b6087f253ee6d7cf23eb8ade94fa363d986d78d50e0f",
+      "connectionHash": "f7b18afc2cb146375d8fb5437291ded083725221d8407a1bdbfcf5227dac4b83",
+      "populations": {
+        "L2": {
+          "maximumReleaseChange": 0.14207637734603323,
+          "minimumReleaseChange": -0.1399163569624895,
+          "positivePeakLatencyMs": 227.25,
+          "positiveResponseOnsetMsAt1eMinus4": 113.5,
+          "last100msMeanReleaseChange": 0.06033859964824239,
+          "last100msToPositivePeakRatio": 0.424691287709885,
+          "recoveryEndReleaseChange": -7.409788428225372e-06
+        },
+        "Tm1": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": 0.0,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 0.0
+        },
+        "Tm2": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": 0.0,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 0.0
+        }
+      }
+    },
+    {
+      "trial": "heldout_noise_86013__reverse_input_polarity",
+      "stimulusGroup": "held_out_noise",
+      "arm": "reverse_input_polarity",
+      "finite": true,
+      "releaseBounded": true,
+      "maximumAbsoluteVoltageDeviation": 0.1423004192575015,
+      "parameterHash": "ae7a2551917756e23f40b6087f253ee6d7cf23eb8ade94fa363d986d78d50e0f",
+      "connectionHash": "494279e180555b92bb0f5ec813a2c3dbe3541d294243538ec627219884f4f47b",
+      "populations": {
+        "L2": {
+          "maximumReleaseChange": 0.13994322701849998,
+          "minimumReleaseChange": -0.1421302498378282,
+          "positivePeakLatencyMs": 675.0,
+          "positiveResponseOnsetMsAt1eMinus4": 0.25,
+          "last100msMeanReleaseChange": -0.06036310381942307,
+          "last100msToPositivePeakRatio": -0.4313399448152163,
+          "recoveryEndReleaseChange": 7.388265487073831e-06
+        },
+        "Tm1": {
+          "maximumReleaseChange": 0.017536689126131766,
+          "minimumReleaseChange": -0.01908086259551825,
+          "positivePeakLatencyMs": 1300.5,
+          "positiveResponseOnsetMsAt1eMinus4": 3.25,
+          "last100msMeanReleaseChange": -0.007354308834380676,
+          "last100msToPositivePeakRatio": -0.4193670071633918,
+          "recoveryEndReleaseChange": -4.12945391831121e-06
+        },
+        "Tm2": {
+          "maximumReleaseChange": 0.0181615564775236,
+          "minimumReleaseChange": -0.01975597079417013,
+          "positivePeakLatencyMs": 1300.5,
+          "positiveResponseOnsetMsAt1eMinus4": 3.25,
+          "last100msMeanReleaseChange": -0.007617049555645957,
+          "last100msToPositivePeakRatio": -0.41940510798579816,
+          "recoveryEndReleaseChange": -4.267141560237997e-06
+        }
+      }
+    },
+    {
+      "trial": "heldout_noise_86019__intact",
+      "stimulusGroup": "held_out_noise",
+      "arm": "intact",
+      "finite": true,
+      "releaseBounded": true,
+      "maximumAbsoluteVoltageDeviation": 0.14696502017794733,
+      "parameterHash": "ae7a2551917756e23f40b6087f253ee6d7cf23eb8ade94fa363d986d78d50e0f",
+      "connectionHash": "494279e180555b92bb0f5ec813a2c3dbe3541d294243538ec627219884f4f47b",
+      "populations": {
+        "L2": {
+          "maximumReleaseChange": 0.14678009453544844,
+          "minimumReleaseChange": -0.14628343671395605,
+          "positivePeakLatencyMs": 1974.5,
+          "positiveResponseOnsetMsAt1eMinus4": 37.0,
+          "last100msMeanReleaseChange": 0.0838940007352087,
+          "last100msToPositivePeakRatio": 0.5715625201137046,
+          "recoveryEndReleaseChange": -7.118191938659812e-08
+        },
+        "Tm1": {
+          "maximumReleaseChange": 0.01810536127638107,
+          "minimumReleaseChange": -0.017449394754840003,
+          "positivePeakLatencyMs": 1978.0,
+          "positiveResponseOnsetMsAt1eMinus4": 164.5,
+          "last100msMeanReleaseChange": 0.010291323041604437,
+          "last100msToPositivePeakRatio": 0.5684130178075896,
+          "recoveryEndReleaseChange": -4.966197750255752e-08
+        },
+        "Tm2": {
+          "maximumReleaseChange": 0.01875194387049861,
+          "minimumReleaseChange": -0.01806804853186303,
+          "positivePeakLatencyMs": 1978.0,
+          "positiveResponseOnsetMsAt1eMinus4": 164.5,
+          "last100msMeanReleaseChange": 0.010661956449008931,
+          "last100msToPositivePeakRatio": 0.5685787309646758,
+          "recoveryEndReleaseChange": -5.41723602087707e-08
+        }
+      }
+    },
+    {
+      "trial": "heldout_noise_86019__sham",
+      "stimulusGroup": "held_out_noise",
+      "arm": "sham",
+      "finite": true,
+      "releaseBounded": true,
+      "maximumAbsoluteVoltageDeviation": 0.14696502017794733,
+      "parameterHash": "ae7a2551917756e23f40b6087f253ee6d7cf23eb8ade94fa363d986d78d50e0f",
+      "connectionHash": "494279e180555b92bb0f5ec813a2c3dbe3541d294243538ec627219884f4f47b",
+      "populations": {
+        "L2": {
+          "maximumReleaseChange": 0.14678009453544844,
+          "minimumReleaseChange": -0.14628343671395605,
+          "positivePeakLatencyMs": 1974.5,
+          "positiveResponseOnsetMsAt1eMinus4": 37.0,
+          "last100msMeanReleaseChange": 0.0838940007352087,
+          "last100msToPositivePeakRatio": 0.5715625201137046,
+          "recoveryEndReleaseChange": -7.118191938659812e-08
+        },
+        "Tm1": {
+          "maximumReleaseChange": 0.01810536127638107,
+          "minimumReleaseChange": -0.017449394754840003,
+          "positivePeakLatencyMs": 1978.0,
+          "positiveResponseOnsetMsAt1eMinus4": 164.5,
+          "last100msMeanReleaseChange": 0.010291323041604437,
+          "last100msToPositivePeakRatio": 0.5684130178075896,
+          "recoveryEndReleaseChange": -4.966197750255752e-08
+        },
+        "Tm2": {
+          "maximumReleaseChange": 0.01875194387049861,
+          "minimumReleaseChange": -0.01806804853186303,
+          "positivePeakLatencyMs": 1978.0,
+          "positiveResponseOnsetMsAt1eMinus4": 164.5,
+          "last100msMeanReleaseChange": 0.010661956449008931,
+          "last100msToPositivePeakRatio": 0.5685787309646758,
+          "recoveryEndReleaseChange": -5.41723602087707e-08
+        }
+      }
+    },
+    {
+      "trial": "heldout_noise_86019__block_L2_output",
+      "stimulusGroup": "held_out_noise",
+      "arm": "block_L2_output",
+      "finite": true,
+      "releaseBounded": true,
+      "maximumAbsoluteVoltageDeviation": 0.14671840758627785,
+      "parameterHash": "ae7a2551917756e23f40b6087f253ee6d7cf23eb8ade94fa363d986d78d50e0f",
+      "connectionHash": "f7b18afc2cb146375d8fb5437291ded083725221d8407a1bdbfcf5227dac4b83",
+      "populations": {
+        "L2": {
+          "maximumReleaseChange": 0.14671840758627774,
+          "minimumReleaseChange": -0.14624789635246427,
+          "positivePeakLatencyMs": 1974.25,
+          "positiveResponseOnsetMsAt1eMinus4": 37.0,
+          "last100msMeanReleaseChange": 0.08385792618943436,
+          "last100msToPositivePeakRatio": 0.5715569543659456,
+          "recoveryEndReleaseChange": -7.380776087528851e-08
+        },
+        "Tm1": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": 0.0,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 0.0
+        },
+        "Tm2": {
+          "maximumReleaseChange": 0.0,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": null,
+          "positiveResponseOnsetMsAt1eMinus4": null,
+          "last100msMeanReleaseChange": 0.0,
+          "last100msToPositivePeakRatio": null,
+          "recoveryEndReleaseChange": 0.0
+        }
+      }
+    },
+    {
+      "trial": "heldout_noise_86019__reverse_input_polarity",
+      "stimulusGroup": "held_out_noise",
+      "arm": "reverse_input_polarity",
+      "finite": true,
+      "releaseBounded": true,
+      "maximumAbsoluteVoltageDeviation": 0.14696502017794733,
+      "parameterHash": "ae7a2551917756e23f40b6087f253ee6d7cf23eb8ade94fa363d986d78d50e0f",
+      "connectionHash": "494279e180555b92bb0f5ec813a2c3dbe3541d294243538ec627219884f4f47b",
+      "populations": {
+        "L2": {
+          "maximumReleaseChange": 0.1462834367139561,
+          "minimumReleaseChange": -0.1467800945354485,
+          "positivePeakLatencyMs": 1075.0,
+          "positiveResponseOnsetMsAt1eMinus4": 0.25,
+          "last100msMeanReleaseChange": -0.08389400073520871,
+          "last100msToPositivePeakRatio": -0.5735030747141644,
+          "recoveryEndReleaseChange": 7.11819194143537e-08
+        },
+        "Tm1": {
+          "maximumReleaseChange": 0.01744939475484003,
+          "minimumReleaseChange": -0.018105361276380988,
+          "positivePeakLatencyMs": 1776.25,
+          "positiveResponseOnsetMsAt1eMinus4": 3.25,
+          "last100msMeanReleaseChange": -0.01029132304160444,
+          "last100msToPositivePeakRatio": -0.5897810890403452,
+          "recoveryEndReleaseChange": 4.9661977474801944e-08
+        },
+        "Tm2": {
+          "maximumReleaseChange": 0.018068048531863,
+          "minimumReleaseChange": -0.018751943870498583,
+          "positivePeakLatencyMs": 1776.0,
+          "positiveResponseOnsetMsAt1eMinus4": 3.25,
+          "last100msMeanReleaseChange": -0.010661956449008936,
+          "last100msToPositivePeakRatio": -0.5901000559195188,
+          "recoveryEndReleaseChange": 5.4172360153259547e-08
+        }
+      }
+    }
+  ],
+  "comparisons": [
+    {
+      "stimulus": "baseline",
+      "kind": "sham",
+      "bytesIdentical": true,
+      "maximumReleaseAbsoluteDifference": 0.0
+    },
+    {
+      "stimulus": "baseline",
+      "kind": "block_L2_output",
+      "maximumDownstreamDeviation": 0.0
+    },
+    {
+      "stimulus": "flash_OFF",
+      "kind": "sham",
+      "bytesIdentical": true,
+      "maximumReleaseAbsoluteDifference": 0.0
+    },
+    {
+      "stimulus": "flash_OFF",
+      "kind": "block_L2_output",
+      "maximumDownstreamDeviation": 0.0
+    },
+    {
+      "stimulus": "flash_ON",
+      "kind": "sham",
+      "bytesIdentical": true,
+      "maximumReleaseAbsoluteDifference": 0.0
+    },
+    {
+      "stimulus": "flash_ON",
+      "kind": "block_L2_output",
+      "maximumDownstreamDeviation": 0.0
+    },
+    {
+      "stimulus": "step_OFF",
+      "kind": "sham",
+      "bytesIdentical": true,
+      "maximumReleaseAbsoluteDifference": 0.0
+    },
+    {
+      "stimulus": "step_OFF",
+      "kind": "block_L2_output",
+      "maximumDownstreamDeviation": 0.0
+    },
+    {
+      "stimulus": "step_ON",
+      "kind": "sham",
+      "bytesIdentical": true,
+      "maximumReleaseAbsoluteDifference": 0.0
+    },
+    {
+      "stimulus": "step_ON",
+      "kind": "block_L2_output",
+      "maximumDownstreamDeviation": 0.0
+    },
+    {
+      "stimulus": "heldout_flash_0",
+      "kind": "sham",
+      "bytesIdentical": true,
+      "maximumReleaseAbsoluteDifference": 0.0
+    },
+    {
+      "stimulus": "heldout_flash_0",
+      "kind": "block_L2_output",
+      "maximumDownstreamDeviation": 0.0
+    },
+    {
+      "stimulus": "heldout_flash_1",
+      "kind": "sham",
+      "bytesIdentical": true,
+      "maximumReleaseAbsoluteDifference": 0.0
+    },
+    {
+      "stimulus": "heldout_flash_1",
+      "kind": "block_L2_output",
+      "maximumDownstreamDeviation": 0.0
+    },
+    {
+      "stimulus": "heldout_flash_2",
+      "kind": "sham",
+      "bytesIdentical": true,
+      "maximumReleaseAbsoluteDifference": 0.0
+    },
+    {
+      "stimulus": "heldout_flash_2",
+      "kind": "block_L2_output",
+      "maximumDownstreamDeviation": 0.0
+    },
+    {
+      "stimulus": "heldout_flash_3",
+      "kind": "sham",
+      "bytesIdentical": true,
+      "maximumReleaseAbsoluteDifference": 0.0
+    },
+    {
+      "stimulus": "heldout_flash_3",
+      "kind": "block_L2_output",
+      "maximumDownstreamDeviation": 0.0
+    },
+    {
+      "stimulus": "heldout_noise_86013",
+      "kind": "sham",
+      "bytesIdentical": true,
+      "maximumReleaseAbsoluteDifference": 0.0
+    },
+    {
+      "stimulus": "heldout_noise_86013",
+      "kind": "block_L2_output",
+      "maximumDownstreamDeviation": 0.0
+    },
+    {
+      "stimulus": "heldout_noise_86019",
+      "kind": "sham",
+      "bytesIdentical": true,
+      "maximumReleaseAbsoluteDifference": 0.0
+    },
+    {
+      "stimulus": "heldout_noise_86019",
+      "kind": "block_L2_output",
+      "maximumDownstreamDeviation": 0.0
+    }
+  ],
+  "convergence": {
+    "maximumReleaseAbsoluteError": 0.00019879828826990797,
+    "fineDtMs": 0.125,
+    "summary": {
+      "finite": true,
+      "releaseBounded": true,
+      "maximumAbsoluteVoltageDeviation": 0.1731252391328643,
+      "parameterHash": "a1fe1077e2fc541c5f63b400f955925f4836fc36084f05fff878bb33aa804364",
+      "connectionHash": "494279e180555b92bb0f5ec813a2c3dbe3541d294243538ec627219884f4f47b",
+      "populations": {
+        "L2": {
+          "maximumReleaseChange": 0.1729359919761453,
+          "minimumReleaseChange": 0.0010000000000000009,
+          "positivePeakLatencyMs": 75.625,
+          "positiveResponseOnsetMsAt1eMinus4": 0.125,
+          "last100msMeanReleaseChange": 0.1333770025024789,
+          "last100msToPositivePeakRatio": 0.7712506863283662,
+          "recoveryEndReleaseChange": -1.5878125758761463e-05
+        },
+        "Tm1": {
+          "maximumReleaseChange": 0.021684514053756432,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": 117.0,
+          "positiveResponseOnsetMsAt1eMinus4": 2.75,
+          "last100msMeanReleaseChange": 0.013841272748788666,
+          "last100msToPositivePeakRatio": 0.6383021871957019,
+          "recoveryEndReleaseChange": 9.405282622443334e-06
+        },
+        "Tm2": {
+          "maximumReleaseChange": 0.02245390496104599,
+          "minimumReleaseChange": 0.0,
+          "positivePeakLatencyMs": 116.875,
+          "positiveResponseOnsetMsAt1eMinus4": 2.625,
+          "last100msMeanReleaseChange": 0.01433516113623835,
+          "last100msToPositivePeakRatio": 0.6384261962944802,
+          "recoveryEndReleaseChange": 9.728072204839844e-06
+        }
+      }
+    }
+  },
+  "interpretation": "All dynamics parameters are prespecified engineering assumptions, not fits to published physiological traces. OFF response polarity is partly imposed by the sensory boundary; output-block and sham tests check causal software propagation, not whether this model is the unique or accurate biological mechanism. Report ON responses, adaptation, latency and held-out responses descriptively. Do not turn assumed time constants or resulting filter peaks into agreement with primary measurements. No gate updates, game actions, reward, dopamine or plasticity are included. Failure remains saved; revisions require a new protocol version."
+}

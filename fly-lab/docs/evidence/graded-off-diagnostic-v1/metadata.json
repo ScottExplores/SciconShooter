@@ -1,0 +1,22 @@
+{
+  "startedAt": "2026-09-13T15:41:37.479911+00:00",
+  "completedAt": "2026-09-13T15:42:07.433812+00:00",
+  "elapsedSeconds": 29.953000000000202,
+  "resource": {
+    "peakSampledRssBytes": 115945472,
+    "sampleIntervalSeconds": 0.1
+  },
+  "sourceHashes": {
+    "configs\\candidates\\graded-off-diagnostic-v1.json": "2762d3db47825d6b1e532b7276912a59e0535556223c274b62ead6b66abee576",
+    "docs\\evidence\\graded-off-diagnostic-v1-protocol-freeze.json": "84b6261d9065eee4558eb858e1156954b1d3de2656cc915a15479a3da50874da",
+    "docs\\evidence\\graded-off-circuit-v1.json": "c1bafc7f17cf379dc3d3abc9c83d5c774886d9b1ce7e3b79d2404bb031920e00",
+    "scripts\\graded-off-diagnostic.py": "945f0dbe1905498d865838ca5d36c410da4a2a96d34386367c8c7852116848d4",
+    "python\\scicon_fly\\graded.py": "ae58048c6042f6d6e9d74f7a79dac97fdad526dc2e0ac9b9b379f305136b096c",
+    "python\\scicon_fly\\model.py": "e64c5af6d15da29306357727a973489a498be82cce3ca5b904e8880fe57c7dc5"
+  },
+  "graphIdentity": "b60b405912a82484ae517b0308a84f51afc93bb899a31e4c84cdcfd4a333f59a",
+  "pythonVersion": "3.12.14 (main, Aug 25 2026, 14:01:42) [MSC v.1944 64 bit (AMD64)]",
+  "numpyVersion": "2.2.6",
+  "trialCount": 45,
+  "simulatedTimeMeaning": "Independent stimulus trials each reset to the assumed adapted baseline"
+}

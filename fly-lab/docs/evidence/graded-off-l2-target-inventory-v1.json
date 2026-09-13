@@ -1,0 +1,169 @@
+{
+  "schema_version": 1,
+  "status": "SOURCE_TARGET_INVENTORY_ONLY",
+  "created_utc": "2026-09-13T15:42:14.889482+00:00",
+  "repository_commit": "7fa5829e37d566e02beaaa87efd6a0f1de4e48c0",
+  "method": "HTTPS retrieval of two specific small MAT files followed by scipy.io.loadmat; static inspection of author MATLAB exporter and JSON notebook source cells; no fitting or notebook execution",
+  "runtime": {
+    "python": "3.12.14",
+    "numpy": "2.2.6",
+    "scipy": "1.15.3"
+  },
+  "files": [
+    {
+      "source_url": "https://raw.githubusercontent.com/ClandininLab/L1L2-recurrent-feedback/7fa5829e37d566e02beaaa87efd6a0f1de4e48c0/computational-model/data/L2_highLum.mat",
+      "local_path": "data/raw/vision-physiology/pang-2025/computational-model__data__L2_highLum.mat",
+      "bytes": 1463,
+      "sha256": "1c9266f5c387a217013f8715a49f6351f78e9a9de9894a5ac2892b2a06cf6e36",
+      "format_header": "MATLAB 5.0 MAT-file, Platform: MACI64, Created on: Fri Mar  9 20:12:48 2018",
+      "variables": {
+        "meanResp": {
+          "dtype": "float64",
+          "shape": [
+            2,
+            63
+          ],
+          "elements": 126,
+          "finite_elements": 126
+        },
+        "t": {
+          "dtype": "float64",
+          "shape": [
+            1,
+            63
+          ],
+          "elements": 63,
+          "finite_elements": 63
+        }
+      },
+      "time_grid": {
+        "unit": "seconds",
+        "unit_status": "supported by author export of stimulus-aligned t and notebook plotting; no unit metadata inside MAT",
+        "first": 0.0,
+        "last": 0.5166666666666666,
+        "samples": 63,
+        "strictly_increasing": true,
+        "nominal_spacing_seconds": 0.008333333333333333,
+        "spacing_max_abs_error_seconds": 2.949029909160572e-17,
+        "interpretation": "120-Hz sampled/exported response grid, not evidence that native acquisition rate was 120 Hz"
+      },
+      "response_values_redistributed": false,
+      "absent_variables": [
+        "indivResp",
+        "SEM",
+        "flyID",
+        "genotype",
+        "stimulus",
+        "luminance",
+        "units",
+        "normalization"
+      ]
+    },
+    {
+      "source_url": "https://raw.githubusercontent.com/ClandininLab/L1L2-recurrent-feedback/7fa5829e37d566e02beaaa87efd6a0f1de4e48c0/computational-model/data/L2_lowLum.mat",
+      "local_path": "data/raw/vision-physiology/pang-2025/computational-model__data__L2_lowLum.mat",
+      "bytes": 1459,
+      "sha256": "49c0e5587618f9d11e0dea12a218b6eecd511e563d8d42ad986e9c410c6d012c",
+      "format_header": "MATLAB 5.0 MAT-file, Platform: MACI64, Created on: Fri Mar  9 20:12:50 2018",
+      "variables": {
+        "meanResp": {
+          "dtype": "float64",
+          "shape": [
+            2,
+            63
+          ],
+          "elements": 126,
+          "finite_elements": 126
+        },
+        "t": {
+          "dtype": "float64",
+          "shape": [
+            1,
+            63
+          ],
+          "elements": 63,
+          "finite_elements": 63
+        }
+      },
+      "time_grid": {
+        "unit": "seconds",
+        "unit_status": "supported by author export of stimulus-aligned t and notebook plotting; no unit metadata inside MAT",
+        "first": 0.0,
+        "last": 0.5166666666666666,
+        "samples": 63,
+        "strictly_increasing": true,
+        "nominal_spacing_seconds": 0.008333333333333333,
+        "spacing_max_abs_error_seconds": 2.949029909160572e-17,
+        "interpretation": "120-Hz sampled/exported response grid, not evidence that native acquisition rate was 120 Hz"
+      },
+      "response_values_redistributed": false,
+      "absent_variables": [
+        "indivResp",
+        "SEM",
+        "flyID",
+        "genotype",
+        "stimulus",
+        "luminance",
+        "units",
+        "normalization"
+      ]
+    }
+  ],
+  "shared_time_grid_exactly_equal": true,
+  "source_code": [
+    {
+      "url": "https://github.com/ClandininLab/L1L2-recurrent-feedback/blob/7fa5829e37d566e02beaaa87efd6a0f1de4e48c0/computational-model/L1_2responses_to_flashes.ipynb",
+      "local_path": "data/raw/vision-physiology/pang-2025/computational-model__L1_2responses_to_flashes.ipynb",
+      "sha256": "8fc96a50db5811bc07d53d23263f23c3cc780b463a0ecd82e7f56a6876c642f6",
+      "executed": false
+    },
+    {
+      "url": "https://github.com/ClandininLab/L1L2-recurrent-feedback/blob/7fa5829e37d566e02beaaa87efd6a0f1de4e48c0/imaging-analysis/HHY_stimulusSpecificAnalysisScripts/shortFlashProcessed_saveMean.m",
+      "local_path": "data/raw/vision-physiology/pang-2025/imaging-analysis__HHY_stimulusSpecificAnalysisScripts__shortFlashProcessed_saveMean.m",
+      "sha256": "e5c9daf537b4a3f20c7708e3b1c6ccac66b37f3e1cba943a1ffa4c6c6c447cb7",
+      "executed": false
+    }
+  ],
+  "semantic_crosswalk": {
+    "row_order": {
+      "claim": "MATLAB row 1 / Python row 0 dark; MATLAB row 2 / Python row 1 light",
+      "evidence": "Author exporter copies pairedEpochs=[1 2] from rats; Dryad README labels response epoch1 dark and epoch2 light; notebook assigns highLum row1 to positive and row0 to negative pulse",
+      "status": "supported across code/documentation, not explicitly labeled inside these two MAT files"
+    },
+    "response_unit": {
+      "claim": "fluorescence response, not mV or firing rate",
+      "status": "source-context inference; exact small-file upstream scaling still needs verified linkage to processed ROI records"
+    },
+    "notebook_normalization": {
+      "description": "Concatenate the two highLum response rows; subtract their joint mean and divide by joint population standard deviation (NumPy default ddof0). Notebook later reverses plotting sign. This audit applies none of these transformations."
+    },
+    "pulse_timing": {
+      "paper": "20-ms flashes,500-ms gray interleave,121s per field of view",
+      "notebook": "Nonzero input at Python samples[2:5]; three time-grid intervals imply25ms on this grid, beginning nominally16.6667ms. This is a discretized model input, not measured photodiode timing. Resolve bin alignment before reproduction claims."
+    },
+    "luminance_labels": {
+      "status": "unresolved",
+      "description": "Filenames say highLum/lowLum, but files omit absolute luminance, fly/ROI grouping and source record IDs. Do not assume high/low means ON/OFF contrast or independent biological cohorts."
+    },
+    "notebook_integrity": [
+      "Selection assertion uses a Python boolean expression yielding a single allowed label rather than the intended two-label list.",
+      "Time vector statements refer to undefined natsti_res/natsti_res2 variables.",
+      "Loaded lowLum response is subsequently overwritten with highLum row0; fitting then uses both highLum contrast rows."
+    ]
+  },
+  "license": {
+    "github_tree_license_file": "not found in inspected pinned tree",
+    "github_data_license": "not independently established",
+    "dryad_release_license": "CC0-1.0 listed for separate deposited release; byte/content correspondence of these GitHub aggregate files has not been established",
+    "code_archive": "https://doi.org/10.5281/zenodo.13367946",
+    "archive_license": "not verified"
+  },
+  "limits": [
+    "No response curve values redistributed in this inventory.",
+    "No independent cells,biological flies,SEM or confidence intervals exist in these files.",
+    "Two luminance filenames are not evidence of independent biological replication.",
+    "No trial-level held-out split is possible from aggregate mean curves alone.",
+    "These descriptors do not validate the graded57cell model or whole-CNS vision."
+  ],
+  "next_step": "Establish exact aggregate-to-ROI/stimulus crosswalk, units, baseline normalization and20ms pulse/bin timing using metadata and author analysis. Keep any author-code compatibility corrections explicit. Acquire biological-fly records before quantitative held-out fitting."
+}

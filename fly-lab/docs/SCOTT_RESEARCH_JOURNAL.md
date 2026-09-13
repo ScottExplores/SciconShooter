@@ -55,3 +55,40 @@ No controller changes, Raspberry Pi setup or purchases are needed for this stage
 The simple Watch page is for seeing recorded gameplay and clearly labeled signals. The Live controls are experiment equipment. Neither activity on the screen nor a higher score by itself proves that a fly model has learned.
 
 Technical records: [initial results](RESEARCH_START_RESULTS.md), [visual reference measurements and plots](evidence/flyvis-reference-v1/README.md), [pathway check](evidence/flyvis-pathway-v1/README.md), [visual boundary inventory](evidence/vision-boundary-inventory-v1.md), and [numerical speed comparison](evidence/lif-fast-benchmark.md).
+
+## Morning follow-up: what finished and what did not
+
+When you asked us to keep working overnight, the next job and automatic follow-up
+had not been established before the session stopped. The earlier trials above
+were saved, but **the proposed new work did not run overnight**. I corrected that
+when you came back and asked. No fly controller was secretly training while you
+were away.
+
+I then resumed the work and completed **45 new sight-circuit trials**. We used
+57 actual cells from the published fly wiring and checked whether a changing
+light signal could travel between them under our declared model. It could.
+Blocking the pathway removed the downstream response; unchanged repeats agreed,
+and the calculation stayed stable. These small trials took about 30 seconds,
+not an overnight training session.
+
+Think of this as checking a few wires and switches before testing the whole
+machine. We chose several of the cell settings ourselves, so it does not yet
+prove that the model sees like a real fly. The real fly has many additional
+connections around this little circuit. The sight gate is still unpassed, and
+we have not started reward learning or shown better gameplay.
+
+We also found and acquired published average recordings of real visual-cell
+responses. Comparing against them is the next useful step, after resolving how
+the researchers timed their flashes and measured the responses. Their small
+files do not include individual flies, so a good-looking fit alone would not
+establish independent validation.
+
+An **hourly automatic follow-up is now active in this Codex task** to continue
+the bounded research and update this journal when something meaningful changes.
+It depends on the local computer and Codex environment being available; it is
+not a continuously running game-training job. This morning's simulation batch
+has completed. No controller changes, Raspberry Pi or purchases are needed.
+
+See the [new result and plots](evidence/graded-off-diagnostic-v1/README.md) and
+the [continuation checkpoint](OVERNIGHT_RESEARCH.md). The full Python suite
+passed: 226 tests, including the new numerical and recording checks.

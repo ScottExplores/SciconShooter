@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "frozenAtUtc": "2026-09-13T15:41:36.7160848Z",
+  "sourceCommit": "eec8d612f7a9abae6aa2f9d4a8a4cea4ef7ca327",
+  "scope": "Local prospective engineering protocol freeze before actual-circuit responses; not external preregistration",
+  "specificationSha256": "2762d3db47825d6b1e532b7276912a59e0535556223c274b62ead6b66abee576",
+  "sourceHashes": {
+    "docs/evidence/graded-off-circuit-v1.json": "c1bafc7f17cf379dc3d3abc9c83d5c774886d9b1ce7e3b79d2404bb031920e00",
+    "scripts/graded-off-diagnostic.py": "945f0dbe1905498d865838ca5d36c410da4a2a96d34386367c8c7852116848d4",
+    "python/scicon_fly/graded.py": "ae58048c6042f6d6e9d74f7a79dac97fdad526dc2e0ac9b9b379f305136b096c",
+    "python/scicon_fly/model.py": "e64c5af6d15da29306357727a973489a498be82cce3ca5b904e8880fe57c7dc5"
+  }
+}

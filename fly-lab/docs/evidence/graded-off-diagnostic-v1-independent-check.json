@@ -1,0 +1,1201 @@
+{
+  "schemaVersion": 1,
+  "scope": "INDEPENDENT_SAVED_ARTIFACT_VERIFICATION_AND_DESCRIPTIVE_ANALYSIS",
+  "newTrialsRun": false,
+  "runPath": "fly-lab/runtime/graded-off/results/diagnostic-v1-20260913-first",
+  "checksumsManifestSha256": "353c1ac7326550c13dab841e53579b301ad7ac9b3990785d3971debd4c3b3c0c",
+  "hashVerification": {
+    "listedArtifactCount": 57,
+    "passingArtifactCount": 57,
+    "unlistedFilesExcludingManifest": [],
+    "allPass": true,
+    "artifacts": [
+      {
+        "path": "baseline__block_L2_output.npz",
+        "expectedSha256": "73157daf5d4ac0a4b7610c752a6e997b32f70b5fee52eea879c3e13fc4ee594b",
+        "actualSha256": "73157daf5d4ac0a4b7610c752a6e997b32f70b5fee52eea879c3e13fc4ee594b",
+        "pass": true
+      },
+      {
+        "path": "baseline__intact.npz",
+        "expectedSha256": "73157daf5d4ac0a4b7610c752a6e997b32f70b5fee52eea879c3e13fc4ee594b",
+        "actualSha256": "73157daf5d4ac0a4b7610c752a6e997b32f70b5fee52eea879c3e13fc4ee594b",
+        "pass": true
+      },
+      {
+        "path": "baseline__reverse_input_polarity.npz",
+        "expectedSha256": "73157daf5d4ac0a4b7610c752a6e997b32f70b5fee52eea879c3e13fc4ee594b",
+        "actualSha256": "73157daf5d4ac0a4b7610c752a6e997b32f70b5fee52eea879c3e13fc4ee594b",
+        "pass": true
+      },
+      {
+        "path": "baseline__sham.npz",
+        "expectedSha256": "73157daf5d4ac0a4b7610c752a6e997b32f70b5fee52eea879c3e13fc4ee594b",
+        "actualSha256": "73157daf5d4ac0a4b7610c752a6e997b32f70b5fee52eea879c3e13fc4ee594b",
+        "pass": true
+      },
+      {
+        "path": "circuit.json",
+        "expectedSha256": "08183a129e1924b94f37efdd616a86c374b91c8b4167793bc208f87b9696bb23",
+        "actualSha256": "08183a129e1924b94f37efdd616a86c374b91c8b4167793bc208f87b9696bb23",
+        "pass": true
+      },
+      {
+        "path": "flash_OFF__block_L2_output.npz",
+        "expectedSha256": "9800cedaa0a5853e5fa68a632508e3aaad18a0888d1ce2461f9e0ee363d13160",
+        "actualSha256": "9800cedaa0a5853e5fa68a632508e3aaad18a0888d1ce2461f9e0ee363d13160",
+        "pass": true
+      },
+      {
+        "path": "flash_OFF__intact.npz",
+        "expectedSha256": "38da9f57818d5ddaa7a24725d7c8833e5236edf29bc95efa1a8b6753fed39b24",
+        "actualSha256": "38da9f57818d5ddaa7a24725d7c8833e5236edf29bc95efa1a8b6753fed39b24",
+        "pass": true
+      },
+      {
+        "path": "flash_OFF__reverse_input_polarity.npz",
+        "expectedSha256": "a65e0d056456569bf8eefdf20d687f366b4bbea4ec5bc4248c80247b487ec37f",
+        "actualSha256": "a65e0d056456569bf8eefdf20d687f366b4bbea4ec5bc4248c80247b487ec37f",
+        "pass": true
+      },
+      {
+        "path": "flash_OFF__sham.npz",
+        "expectedSha256": "38da9f57818d5ddaa7a24725d7c8833e5236edf29bc95efa1a8b6753fed39b24",
+        "actualSha256": "38da9f57818d5ddaa7a24725d7c8833e5236edf29bc95efa1a8b6753fed39b24",
+        "pass": true
+      },
+      {
+        "path": "flash_ON__block_L2_output.npz",
+        "expectedSha256": "90ef95ff575612db0a3fc6cf2e34525ccfbf2e8b1fecc72ec211d0d881872595",
+        "actualSha256": "90ef95ff575612db0a3fc6cf2e34525ccfbf2e8b1fecc72ec211d0d881872595",
+        "pass": true
+      },
+      {
+        "path": "flash_ON__intact.npz",
+        "expectedSha256": "d7ad3599a62389b84126eda74e30d7622dd4f76969c31dc6734d503167be9da7",
+        "actualSha256": "d7ad3599a62389b84126eda74e30d7622dd4f76969c31dc6734d503167be9da7",
+        "pass": true
+      },
+      {
+        "path": "flash_ON__reverse_input_polarity.npz",
+        "expectedSha256": "c1398a4b5fadfe549304ffc304ea56453c6f600342709dae019c7d887c0e025c",
+        "actualSha256": "c1398a4b5fadfe549304ffc304ea56453c6f600342709dae019c7d887c0e025c",
+        "pass": true
+      },
+      {
+        "path": "flash_ON__sham.npz",
+        "expectedSha256": "d7ad3599a62389b84126eda74e30d7622dd4f76969c31dc6734d503167be9da7",
+        "actualSha256": "d7ad3599a62389b84126eda74e30d7622dd4f76969c31dc6734d503167be9da7",
+        "pass": true
+      },
+      {
+        "path": "heldout_flash_0__block_L2_output.npz",
+        "expectedSha256": "b04dabc692d999f483814f14d5751042ffdda8c2adac1927a08a491b76290a3e",
+        "actualSha256": "b04dabc692d999f483814f14d5751042ffdda8c2adac1927a08a491b76290a3e",
+        "pass": true
+      },
+      {
+        "path": "heldout_flash_0__intact.npz",
+        "expectedSha256": "765c1e77b8f3ea79c7e66de9b7c47af724e5971d2a9953597dd4fbc32cfef27c",
+        "actualSha256": "765c1e77b8f3ea79c7e66de9b7c47af724e5971d2a9953597dd4fbc32cfef27c",
+        "pass": true
+      },
+      {
+        "path": "heldout_flash_0__reverse_input_polarity.npz",
+        "expectedSha256": "7efa4986c0aba2a7c6da1335e1ffb7bd15f40d886b1d55938163de666fb2120b",
+        "actualSha256": "7efa4986c0aba2a7c6da1335e1ffb7bd15f40d886b1d55938163de666fb2120b",
+        "pass": true
+      },
+      {
+        "path": "heldout_flash_0__sham.npz",
+        "expectedSha256": "765c1e77b8f3ea79c7e66de9b7c47af724e5971d2a9953597dd4fbc32cfef27c",
+        "actualSha256": "765c1e77b8f3ea79c7e66de9b7c47af724e5971d2a9953597dd4fbc32cfef27c",
+        "pass": true
+      },
+      {
+        "path": "heldout_flash_1__block_L2_output.npz",
+        "expectedSha256": "bd55b29c84004c343adef79e2d1c06bc98046f0eb99e8e595df7bbdaf3c547f4",
+        "actualSha256": "bd55b29c84004c343adef79e2d1c06bc98046f0eb99e8e595df7bbdaf3c547f4",
+        "pass": true
+      },
+      {
+        "path": "heldout_flash_1__intact.npz",
+        "expectedSha256": "0f6f13bb033042547e975e5985a4cef93432a05b1bfc6f9490fd8fe6b9c10c87",
+        "actualSha256": "0f6f13bb033042547e975e5985a4cef93432a05b1bfc6f9490fd8fe6b9c10c87",
+        "pass": true
+      },
+      {
+        "path": "heldout_flash_1__reverse_input_polarity.npz",
+        "expectedSha256": "936fb1a68a3b77cb8fc11aefdd0b3e943c2bfb8bd40cd96035b3a5d839bcdd03",
+        "actualSha256": "936fb1a68a3b77cb8fc11aefdd0b3e943c2bfb8bd40cd96035b3a5d839bcdd03",
+        "pass": true
+      },
+      {
+        "path": "heldout_flash_1__sham.npz",
+        "expectedSha256": "0f6f13bb033042547e975e5985a4cef93432a05b1bfc6f9490fd8fe6b9c10c87",
+        "actualSha256": "0f6f13bb033042547e975e5985a4cef93432a05b1bfc6f9490fd8fe6b9c10c87",
+        "pass": true
+      },
+      {
+        "path": "heldout_flash_2__block_L2_output.npz",
+        "expectedSha256": "2da8b0654ef7aba6d4fe61ddbc933172715e88ad5ca0f1a5aa30150de102feea",
+        "actualSha256": "2da8b0654ef7aba6d4fe61ddbc933172715e88ad5ca0f1a5aa30150de102feea",
+        "pass": true
+      },
+      {
+        "path": "heldout_flash_2__intact.npz",
+        "expectedSha256": "dd771dd3ce21fd674565d5a1f95f2724ec13fd83affb7e031c0793d3ae8a2dc6",
+        "actualSha256": "dd771dd3ce21fd674565d5a1f95f2724ec13fd83affb7e031c0793d3ae8a2dc6",
+        "pass": true
+      },
+      {
+        "path": "heldout_flash_2__reverse_input_polarity.npz",
+        "expectedSha256": "51a200c759e9a71deefe303b3eeb96b3eec0c400d27f7e2f72c884263d08d346",
+        "actualSha256": "51a200c759e9a71deefe303b3eeb96b3eec0c400d27f7e2f72c884263d08d346",
+        "pass": true
+      },
+      {
+        "path": "heldout_flash_2__sham.npz",
+        "expectedSha256": "dd771dd3ce21fd674565d5a1f95f2724ec13fd83affb7e031c0793d3ae8a2dc6",
+        "actualSha256": "dd771dd3ce21fd674565d5a1f95f2724ec13fd83affb7e031c0793d3ae8a2dc6",
+        "pass": true
+      },
+      {
+        "path": "heldout_flash_3__block_L2_output.npz",
+        "expectedSha256": "75743557c729163f75ea7b666a50e787463db80d0665fdaffad39e74fa0018c3",
+        "actualSha256": "75743557c729163f75ea7b666a50e787463db80d0665fdaffad39e74fa0018c3",
+        "pass": true
+      },
+      {
+        "path": "heldout_flash_3__intact.npz",
+        "expectedSha256": "ed66ea96483351d5ea044fe2690cf9cbf84df8c0b68620dc8596337aa1a45734",
+        "actualSha256": "ed66ea96483351d5ea044fe2690cf9cbf84df8c0b68620dc8596337aa1a45734",
+        "pass": true
+      },
+      {
+        "path": "heldout_flash_3__reverse_input_polarity.npz",
+        "expectedSha256": "bf74b499e0fb948264506e3263d9d4ec97b373988780aea667b4271b0e736a7d",
+        "actualSha256": "bf74b499e0fb948264506e3263d9d4ec97b373988780aea667b4271b0e736a7d",
+        "pass": true
+      },
+      {
+        "path": "heldout_flash_3__sham.npz",
+        "expectedSha256": "ed66ea96483351d5ea044fe2690cf9cbf84df8c0b68620dc8596337aa1a45734",
+        "actualSha256": "ed66ea96483351d5ea044fe2690cf9cbf84df8c0b68620dc8596337aa1a45734",
+        "pass": true
+      },
+      {
+        "path": "heldout_noise_86013__block_L2_output.npz",
+        "expectedSha256": "ac1446f3786079728a325613df6063b7373c5ffd8d861d749c500ef7bc515bb4",
+        "actualSha256": "ac1446f3786079728a325613df6063b7373c5ffd8d861d749c500ef7bc515bb4",
+        "pass": true
+      },
+      {
+        "path": "heldout_noise_86013__intact.npz",
+        "expectedSha256": "51ce678722908fb02906d325f182959d53d543b8a0a0bfbf60fa94acc4b189c6",
+        "actualSha256": "51ce678722908fb02906d325f182959d53d543b8a0a0bfbf60fa94acc4b189c6",
+        "pass": true
+      },
+      {
+        "path": "heldout_noise_86013__reverse_input_polarity.npz",
+        "expectedSha256": "1d0b6c715e0052f3e09141eed521675f584c1eea0650a537a24fa5a5d012ed36",
+        "actualSha256": "1d0b6c715e0052f3e09141eed521675f584c1eea0650a537a24fa5a5d012ed36",
+        "pass": true
+      },
+      {
+        "path": "heldout_noise_86013__sham.npz",
+        "expectedSha256": "51ce678722908fb02906d325f182959d53d543b8a0a0bfbf60fa94acc4b189c6",
+        "actualSha256": "51ce678722908fb02906d325f182959d53d543b8a0a0bfbf60fa94acc4b189c6",
+        "pass": true
+      },
+      {
+        "path": "heldout_noise_86019__block_L2_output.npz",
+        "expectedSha256": "d99b313e3bf5ffdbeff1034fe6485af1897230c6adebc358815b60aadbf1ad62",
+        "actualSha256": "d99b313e3bf5ffdbeff1034fe6485af1897230c6adebc358815b60aadbf1ad62",
+        "pass": true
+      },
+      {
+        "path": "heldout_noise_86019__intact.npz",
+        "expectedSha256": "8ea79df99572969b1fa9eb00adfffbb157874da9fb9b5c05f1c2ed4c9c7e7acc",
+        "actualSha256": "8ea79df99572969b1fa9eb00adfffbb157874da9fb9b5c05f1c2ed4c9c7e7acc",
+        "pass": true
+      },
+      {
+        "path": "heldout_noise_86019__reverse_input_polarity.npz",
+        "expectedSha256": "418b9ff417438f5c345686666b9ca674824d24222f06e269ea453d8ee8e6dcc3",
+        "actualSha256": "418b9ff417438f5c345686666b9ca674824d24222f06e269ea453d8ee8e6dcc3",
+        "pass": true
+      },
+      {
+        "path": "heldout_noise_86019__sham.npz",
+        "expectedSha256": "8ea79df99572969b1fa9eb00adfffbb157874da9fb9b5c05f1c2ed4c9c7e7acc",
+        "actualSha256": "8ea79df99572969b1fa9eb00adfffbb157874da9fb9b5c05f1c2ed4c9c7e7acc",
+        "pass": true
+      },
+      {
+        "path": "metadata.json",
+        "expectedSha256": "55c82b87a7194d0d8f0a2d86ea8db324fb462ba6faecb82622caa60f6d178fb7",
+        "actualSha256": "55c82b87a7194d0d8f0a2d86ea8db324fb462ba6faecb82622caa60f6d178fb7",
+        "pass": true
+      },
+      {
+        "path": "protocol-freeze.json",
+        "expectedSha256": "ed43378648f74d57dd7b6bebee7046f6d5183db24cf220895405eaf93590f89f",
+        "actualSha256": "ed43378648f74d57dd7b6bebee7046f6d5183db24cf220895405eaf93590f89f",
+        "pass": true
+      },
+      {
+        "path": "results.json",
+        "expectedSha256": "6fda996132399aa6c76ab7f689644dc971facb2f95d473a99d7ee3740c12f9c3",
+        "actualSha256": "6fda996132399aa6c76ab7f689644dc971facb2f95d473a99d7ee3740c12f9c3",
+        "pass": true
+      },
+      {
+        "path": "source/0-graded-off-diagnostic-v1.json",
+        "expectedSha256": "2762d3db47825d6b1e532b7276912a59e0535556223c274b62ead6b66abee576",
+        "actualSha256": "2762d3db47825d6b1e532b7276912a59e0535556223c274b62ead6b66abee576",
+        "pass": true
+      },
+      {
+        "path": "source/1-graded-off-diagnostic-v1-protocol-freeze.json",
+        "expectedSha256": "84b6261d9065eee4558eb858e1156954b1d3de2656cc915a15479a3da50874da",
+        "actualSha256": "84b6261d9065eee4558eb858e1156954b1d3de2656cc915a15479a3da50874da",
+        "pass": true
+      },
+      {
+        "path": "source/2-graded-off-circuit-v1.json",
+        "expectedSha256": "c1bafc7f17cf379dc3d3abc9c83d5c774886d9b1ce7e3b79d2404bb031920e00",
+        "actualSha256": "c1bafc7f17cf379dc3d3abc9c83d5c774886d9b1ce7e3b79d2404bb031920e00",
+        "pass": true
+      },
+      {
+        "path": "source/3-graded-off-diagnostic.py",
+        "expectedSha256": "945f0dbe1905498d865838ca5d36c410da4a2a96d34386367c8c7852116848d4",
+        "actualSha256": "945f0dbe1905498d865838ca5d36c410da4a2a96d34386367c8c7852116848d4",
+        "pass": true
+      },
+      {
+        "path": "source/4-graded.py",
+        "expectedSha256": "ae58048c6042f6d6e9d74f7a79dac97fdad526dc2e0ac9b9b379f305136b096c",
+        "actualSha256": "ae58048c6042f6d6e9d74f7a79dac97fdad526dc2e0ac9b9b379f305136b096c",
+        "pass": true
+      },
+      {
+        "path": "source/5-model.py",
+        "expectedSha256": "e64c5af6d15da29306357727a973489a498be82cce3ca5b904e8880fe57c7dc5",
+        "actualSha256": "e64c5af6d15da29306357727a973489a498be82cce3ca5b904e8880fe57c7dc5",
+        "pass": true
+      },
+      {
+        "path": "specification.json",
+        "expectedSha256": "7518ecae2d08ba73c4faa831f5e5ee15bc7c8f4040044754bd834b2ce319529f",
+        "actualSha256": "7518ecae2d08ba73c4faa831f5e5ee15bc7c8f4040044754bd834b2ce319529f",
+        "pass": true
+      },
+      {
+        "path": "status.json",
+        "expectedSha256": "08458cecbb7270a34124a9b58a701654d796497ae069b9a1da9c16c565f25551",
+        "actualSha256": "08458cecbb7270a34124a9b58a701654d796497ae069b9a1da9c16c565f25551",
+        "pass": true
+      },
+      {
+        "path": "step_OFF__block_L2_output.npz",
+        "expectedSha256": "f1a82462d3059a841b014d78d6870a723d230ccf7c8abf6f9d350fea539564a3",
+        "actualSha256": "f1a82462d3059a841b014d78d6870a723d230ccf7c8abf6f9d350fea539564a3",
+        "pass": true
+      },
+      {
+        "path": "step_OFF__fine_dt.npz",
+        "expectedSha256": "0991091cd9addeb268f7c1d6a77e2a5193eb69699016f888fa347f5514e14bfe",
+        "actualSha256": "0991091cd9addeb268f7c1d6a77e2a5193eb69699016f888fa347f5514e14bfe",
+        "pass": true
+      },
+      {
+        "path": "step_OFF__intact.npz",
+        "expectedSha256": "382e61ca32bf4fc43ded9077a64f1d8e674c87701649bd1724001b3c6c4b0dc3",
+        "actualSha256": "382e61ca32bf4fc43ded9077a64f1d8e674c87701649bd1724001b3c6c4b0dc3",
+        "pass": true
+      },
+      {
+        "path": "step_OFF__reverse_input_polarity.npz",
+        "expectedSha256": "1891eb2b321e26b9b0f5d8f9dc3824a221029624582847c18585c5d337228459",
+        "actualSha256": "1891eb2b321e26b9b0f5d8f9dc3824a221029624582847c18585c5d337228459",
+        "pass": true
+      },
+      {
+        "path": "step_OFF__sham.npz",
+        "expectedSha256": "382e61ca32bf4fc43ded9077a64f1d8e674c87701649bd1724001b3c6c4b0dc3",
+        "actualSha256": "382e61ca32bf4fc43ded9077a64f1d8e674c87701649bd1724001b3c6c4b0dc3",
+        "pass": true
+      },
+      {
+        "path": "step_ON__block_L2_output.npz",
+        "expectedSha256": "8a6dd1c809e223e6f8d8c3af63cbeeb43e8f13087947d5d1d20d596ce9dfea91",
+        "actualSha256": "8a6dd1c809e223e6f8d8c3af63cbeeb43e8f13087947d5d1d20d596ce9dfea91",
+        "pass": true
+      },
+      {
+        "path": "step_ON__intact.npz",
+        "expectedSha256": "dec0de0cf7ef4ddf7e7ca6f910d6d51d4b53f372f6a3418694b8db5c4eb4e0f2",
+        "actualSha256": "dec0de0cf7ef4ddf7e7ca6f910d6d51d4b53f372f6a3418694b8db5c4eb4e0f2",
+        "pass": true
+      },
+      {
+        "path": "step_ON__reverse_input_polarity.npz",
+        "expectedSha256": "a5c0477c1e4304d78578947e03cd729520c37de927b631d9f7af2e831d7ac0bd",
+        "actualSha256": "a5c0477c1e4304d78578947e03cd729520c37de927b631d9f7af2e831d7ac0bd",
+        "pass": true
+      },
+      {
+        "path": "step_ON__sham.npz",
+        "expectedSha256": "dec0de0cf7ef4ddf7e7ca6f910d6d51d4b53f372f6a3418694b8db5c4eb4e0f2",
+        "actualSha256": "dec0de0cf7ef4ddf7e7ca6f910d6d51d4b53f372f6a3418694b8db5c4eb4e0f2",
+        "pass": true
+      }
+    ]
+  },
+  "sourceVerification": [
+    {
+      "path": "configs/candidates/graded-off-diagnostic-v1.json",
+      "copiedSourceMatches": true,
+      "currentSourceMatches": true
+    },
+    {
+      "path": "docs/evidence/graded-off-diagnostic-v1-protocol-freeze.json",
+      "copiedSourceMatches": true,
+      "currentSourceMatches": true
+    },
+    {
+      "path": "docs/evidence/graded-off-circuit-v1.json",
+      "copiedSourceMatches": true,
+      "currentSourceMatches": true
+    },
+    {
+      "path": "scripts/graded-off-diagnostic.py",
+      "copiedSourceMatches": true,
+      "currentSourceMatches": true
+    },
+    {
+      "path": "python/scicon_fly/graded.py",
+      "copiedSourceMatches": true,
+      "currentSourceMatches": true
+    },
+    {
+      "path": "python/scicon_fly/model.py",
+      "copiedSourceMatches": true,
+      "currentSourceMatches": true
+    }
+  ],
+  "rawTrialCount": 45,
+  "rawTrialChecks": [
+    {
+      "trial": "baseline__block_L2_output",
+      "allFinite": true,
+      "shapeCorrect": true,
+      "releaseMin": 0.25,
+      "releaseMax": 0.25,
+      "voltageEquationMaximumResidual": 0.0,
+      "adaptationEquationMaximumResidual": 0.0,
+      "releaseClipMaximumError": 0.0
+    },
+    {
+      "trial": "baseline__intact",
+      "allFinite": true,
+      "shapeCorrect": true,
+      "releaseMin": 0.25,
+      "releaseMax": 0.25,
+      "voltageEquationMaximumResidual": 0.0,
+      "adaptationEquationMaximumResidual": 0.0,
+      "releaseClipMaximumError": 0.0
+    },
+    {
+      "trial": "baseline__reverse_input_polarity",
+      "allFinite": true,
+      "shapeCorrect": true,
+      "releaseMin": 0.25,
+      "releaseMax": 0.25,
+      "voltageEquationMaximumResidual": 0.0,
+      "adaptationEquationMaximumResidual": 0.0,
+      "releaseClipMaximumError": 0.0
+    },
+    {
+      "trial": "baseline__sham",
+      "allFinite": true,
+      "shapeCorrect": true,
+      "releaseMin": 0.25,
+      "releaseMax": 0.25,
+      "voltageEquationMaximumResidual": 0.0,
+      "adaptationEquationMaximumResidual": 0.0,
+      "releaseClipMaximumError": 0.0
+    },
+    {
+      "trial": "flash_OFF__block_L2_output",
+      "allFinite": true,
+      "shapeCorrect": true,
+      "releaseMin": 0.21625249598942695,
+      "releaseMax": 0.4229528264243515,
+      "voltageEquationMaximumResidual": 1.3877787807814457e-17,
+      "adaptationEquationMaximumResidual": 3.469446951953614e-18,
+      "releaseClipMaximumError": 0.0
+    },
+    {
+      "trial": "flash_OFF__intact",
+      "allFinite": true,
+      "shapeCorrect": true,
+      "releaseMin": 0.21617648528208833,
+      "releaseMax": 0.42320046111167847,
+      "voltageEquationMaximumResidual": 1.3877787807814457e-17,
+      "adaptationEquationMaximumResidual": 3.469446951953614e-18,
+      "releaseClipMaximumError": 0.0
+    },
+    {
+      "trial": "flash_OFF__reverse_input_polarity",
+      "allFinite": true,
+      "shapeCorrect": true,
+      "releaseMin": 0.07679953888832153,
+      "releaseMax": 0.2838235147179117,
+      "voltageEquationMaximumResidual": 1.3877787807814457e-17,
+      "adaptationEquationMaximumResidual": 3.469446951953614e-18,
+      "releaseClipMaximumError": 0.0
+    },
+    {
+      "trial": "flash_OFF__sham",
+      "allFinite": true,
+      "shapeCorrect": true,
+      "releaseMin": 0.21617648528208833,
+      "releaseMax": 0.42320046111167847,
+      "voltageEquationMaximumResidual": 1.3877787807814457e-17,
+      "adaptationEquationMaximumResidual": 3.469446951953614e-18,
+      "releaseClipMaximumError": 0.0
+    },
+    {
+      "trial": "flash_ON__block_L2_output",
+      "allFinite": true,
+      "shapeCorrect": true,
+      "releaseMin": 0.0770471735756485,
+      "releaseMax": 0.283747504010573,
+      "voltageEquationMaximumResidual": 1.3877787807814457e-17,
+      "adaptationEquationMaximumResidual": 3.469446951953614e-18,
+      "releaseClipMaximumError": 0.0
+    },
+    {
+      "trial": "flash_ON__intact",
+      "allFinite": true,
+      "shapeCorrect": true,
+      "releaseMin": 0.07679953888832153,
+      "releaseMax": 0.2838235147179117,
+      "voltageEquationMaximumResidual": 1.3877787807814457e-17,
+      "adaptationEquationMaximumResidual": 3.469446951953614e-18,
+      "releaseClipMaximumError": 0.0
+    },
+    {
+      "trial": "flash_ON__reverse_input_polarity",
+      "allFinite": true,
+      "shapeCorrect": true,
+      "releaseMin": 0.21617648528208833,
+      "releaseMax": 0.42320046111167847,
+      "voltageEquationMaximumResidual": 1.3877787807814457e-17,
+      "adaptationEquationMaximumResidual": 3.469446951953614e-18,
+      "releaseClipMaximumError": 0.0
+    },
+    {
+      "trial": "flash_ON__sham",
+      "allFinite": true,
+      "shapeCorrect": true,
+      "releaseMin": 0.07679953888832153,
+      "releaseMax": 0.2838235147179117,
+      "voltageEquationMaximumResidual": 1.3877787807814457e-17,
+      "adaptationEquationMaximumResidual": 3.469446951953614e-18,
+      "releaseClipMaximumError": 0.0
+    },
+    {
+      "trial": "heldout_flash_0__block_L2_output",
+      "allFinite": true,
+      "shapeCorrect": true,
+      "releaseMin": 0.2331262479947135,
+      "releaseMax": 0.33647641321217575,
+      "voltageEquationMaximumResidual": 6.938893903907228e-18,
+      "adaptationEquationMaximumResidual": 1.734723475976807e-18,
+      "releaseClipMaximumError": 0.0
+    },
+    {
+      "trial": "heldout_flash_0__intact",
+      "allFinite": true,
+      "shapeCorrect": true,
+      "releaseMin": 0.23308824264104416,
+      "releaseMax": 0.3366002305558392,
+      "voltageEquationMaximumResidual": 6.938893903907228e-18,
+      "adaptationEquationMaximumResidual": 1.734723475976807e-18,
+      "releaseClipMaximumError": 0.0
+    },
+    {
+      "trial": "heldout_flash_0__reverse_input_polarity",
+      "allFinite": true,
+      "shapeCorrect": true,
+      "releaseMin": 0.16339976944416076,
+      "releaseMax": 0.26691175735895584,
+      "voltageEquationMaximumResidual": 6.938893903907228e-18,
+      "adaptationEquationMaximumResidual": 1.734723475976807e-18,
+      "releaseClipMaximumError": 0.0
+    },
+    {
+      "trial": "heldout_flash_0__sham",
+      "allFinite": true,
+      "shapeCorrect": true,
+      "releaseMin": 0.23308824264104416,
+      "releaseMax": 0.3366002305558392,
+      "voltageEquationMaximumResidual": 6.938893903907228e-18,
+      "adaptationEquationMaximumResidual": 1.734723475976807e-18,
+      "releaseClipMaximumError": 0.0
+    },
+    {
+      "trial": "heldout_flash_1__block_L2_output",
+      "allFinite": true,
+      "shapeCorrect": true,
+      "releaseMin": 0.16352358678782425,
+      "releaseMax": 0.2668737520052865,
+      "voltageEquationMaximumResidual": 6.938893903907228e-18,
+      "adaptationEquationMaximumResidual": 1.734723475976807e-18,
+      "releaseClipMaximumError": 0.0
+    },
+    {
+      "trial": "heldout_flash_1__intact",
+      "allFinite": true,
+      "shapeCorrect": true,
+      "releaseMin": 0.16339976944416076,
+      "releaseMax": 0.26691175735895584,
+      "voltageEquationMaximumResidual": 6.938893903907228e-18,
+      "adaptationEquationMaximumResidual": 1.734723475976807e-18,
+      "releaseClipMaximumError": 0.0
+    },
+    {
+      "trial": "heldout_flash_1__reverse_input_polarity",
+      "allFinite": true,
+      "shapeCorrect": true,
+      "releaseMin": 0.23308824264104416,
+      "releaseMax": 0.3366002305558392,
+      "voltageEquationMaximumResidual": 6.938893903907228e-18,
+      "adaptationEquationMaximumResidual": 1.734723475976807e-18,
+      "releaseClipMaximumError": 0.0
+    },
+    {
+      "trial": "heldout_flash_1__sham",
+      "allFinite": true,
+      "shapeCorrect": true,
+      "releaseMin": 0.16339976944416076,
+      "releaseMax": 0.26691175735895584,
+      "voltageEquationMaximumResidual": 6.938893903907228e-18,
+      "adaptationEquationMaximumResidual": 1.734723475976807e-18,
+      "releaseClipMaximumError": 0.0
+    },
+    {
+      "trial": "heldout_flash_2__block_L2_output",
+      "allFinite": true,
+      "shapeCorrect": true,
+      "releaseMin": 0.19094186798149718,
+      "releaseMax": 0.552667446242615,
+      "voltageEquationMaximumResidual": 2.7755575615628914e-17,
+      "adaptationEquationMaximumResidual": 6.938893903907228e-18,
+      "releaseClipMaximumError": 0.0
+    },
+    {
+      "trial": "heldout_flash_2__intact",
+      "allFinite": true,
+      "shapeCorrect": true,
+      "releaseMin": 0.1908088492436546,
+      "releaseMax": 0.5531008069454375,
+      "voltageEquationMaximumResidual": 2.7755575615628914e-17,
+      "adaptationEquationMaximumResidual": 6.938893903907228e-18,
+      "releaseClipMaximumError": 0.0
+    },
+    {
+      "trial": "heldout_flash_2__reverse_input_polarity",
+      "allFinite": true,
+      "shapeCorrect": true,
+      "releaseMin": 0.0,
+      "releaseMax": 0.3091781738546549,
+      "voltageEquationMaximumResidual": 2.7755575615628914e-17,
+      "adaptationEquationMaximumResidual": 6.938893903907228e-18,
+      "releaseClipMaximumError": 0.0
+    },
+    {
+      "trial": "heldout_flash_2__sham",
+      "allFinite": true,
+      "shapeCorrect": true,
+      "releaseMin": 0.1908088492436546,
+      "releaseMax": 0.5531008069454375,
+      "voltageEquationMaximumResidual": 2.7755575615628914e-17,
+      "adaptationEquationMaximumResidual": 6.938893903907228e-18,
+      "releaseClipMaximumError": 0.0
+    },
+    {
+      "trial": "heldout_flash_3__block_L2_output",
+      "allFinite": true,
+      "shapeCorrect": true,
+      "releaseMin": 0.0,
+      "releaseMax": 0.30905813201850285,
+      "voltageEquationMaximumResidual": 2.7755575615628914e-17,
+      "adaptationEquationMaximumResidual": 6.938893903907228e-18,
+      "releaseClipMaximumError": 0.0
+    },
+    {
+      "trial": "heldout_flash_3__intact",
+      "allFinite": true,
+      "shapeCorrect": true,
+      "releaseMin": 0.0,
+      "releaseMax": 0.3091781738546549,
+      "voltageEquationMaximumResidual": 2.7755575615628914e-17,
+      "adaptationEquationMaximumResidual": 6.938893903907228e-18,
+      "releaseClipMaximumError": 0.0
+    },
+    {
+      "trial": "heldout_flash_3__reverse_input_polarity",
+      "allFinite": true,
+      "shapeCorrect": true,
+      "releaseMin": 0.1908088492436546,
+      "releaseMax": 0.5531008069454375,
+      "voltageEquationMaximumResidual": 2.7755575615628914e-17,
+      "adaptationEquationMaximumResidual": 6.938893903907228e-18,
+      "releaseClipMaximumError": 0.0
+    },
+    {
+      "trial": "heldout_flash_3__sham",
+      "allFinite": true,
+      "shapeCorrect": true,
+      "releaseMin": 0.0,
+      "releaseMax": 0.3091781738546549,
+      "voltageEquationMaximumResidual": 2.7755575615628914e-17,
+      "adaptationEquationMaximumResidual": 6.938893903907228e-18,
+      "releaseClipMaximumError": 0.0
+    },
+    {
+      "trial": "heldout_noise_86013__block_L2_output",
+      "allFinite": true,
+      "shapeCorrect": true,
+      "releaseMin": 0.11008364303751045,
+      "releaseMax": 0.3920763773460334,
+      "voltageEquationMaximumResidual": 1.3877787807814457e-17,
+      "adaptationEquationMaximumResidual": 1.734723475976807e-18,
+      "releaseClipMaximumError": 0.0
+    },
+    {
+      "trial": "heldout_noise_86013__intact",
+      "allFinite": true,
+      "shapeCorrect": true,
+      "releaseMin": 0.10992847542986106,
+      "releaseMax": 0.3923004192575015,
+      "voltageEquationMaximumResidual": 1.3877787807814457e-17,
+      "adaptationEquationMaximumResidual": 1.734723475976807e-18,
+      "releaseClipMaximumError": 0.0
+    },
+    {
+      "trial": "heldout_noise_86013__reverse_input_polarity",
+      "allFinite": true,
+      "shapeCorrect": true,
+      "releaseMin": 0.1076995807424985,
+      "releaseMax": 0.39007152457013894,
+      "voltageEquationMaximumResidual": 1.3877787807814457e-17,
+      "adaptationEquationMaximumResidual": 1.734723475976807e-18,
+      "releaseClipMaximumError": 0.0
+    },
+    {
+      "trial": "heldout_noise_86013__sham",
+      "allFinite": true,
+      "shapeCorrect": true,
+      "releaseMin": 0.10992847542986106,
+      "releaseMax": 0.3923004192575015,
+      "voltageEquationMaximumResidual": 1.3877787807814457e-17,
+      "adaptationEquationMaximumResidual": 1.734723475976807e-18,
+      "releaseClipMaximumError": 0.0
+    },
+    {
+      "trial": "heldout_noise_86019__block_L2_output",
+      "allFinite": true,
+      "shapeCorrect": true,
+      "releaseMin": 0.1037521036475357,
+      "releaseMax": 0.39671840758627785,
+      "voltageEquationMaximumResidual": 1.3823577699190182e-17,
+      "adaptationEquationMaximumResidual": 3.40168431617327e-18,
+      "releaseClipMaximumError": 0.0
+    },
+    {
+      "trial": "heldout_noise_86019__intact",
+      "allFinite": true,
+      "shapeCorrect": true,
+      "releaseMin": 0.10356925113786533,
+      "releaseMax": 0.3969650201779473,
+      "voltageEquationMaximumResidual": 1.3877787807814457e-17,
+      "adaptationEquationMaximumResidual": 3.469446951953614e-18,
+      "releaseClipMaximumError": 0.0
+    },
+    {
+      "trial": "heldout_noise_86019__reverse_input_polarity",
+      "allFinite": true,
+      "shapeCorrect": true,
+      "releaseMin": 0.10303497982205267,
+      "releaseMax": 0.3964307488621347,
+      "voltageEquationMaximumResidual": 1.3877787807814457e-17,
+      "adaptationEquationMaximumResidual": 3.469446951953614e-18,
+      "releaseClipMaximumError": 0.0
+    },
+    {
+      "trial": "heldout_noise_86019__sham",
+      "allFinite": true,
+      "shapeCorrect": true,
+      "releaseMin": 0.10356925113786533,
+      "releaseMax": 0.3969650201779473,
+      "voltageEquationMaximumResidual": 1.3877787807814457e-17,
+      "adaptationEquationMaximumResidual": 3.469446951953614e-18,
+      "releaseClipMaximumError": 0.0
+    },
+    {
+      "trial": "step_OFF__block_L2_output",
+      "allFinite": true,
+      "shapeCorrect": true,
+      "releaseMin": 0.2103812041477313,
+      "releaseMax": 0.4229528264243515,
+      "voltageEquationMaximumResidual": 1.3877787807814457e-17,
+      "adaptationEquationMaximumResidual": 6.938893903907228e-18,
+      "releaseClipMaximumError": 0.0
+    },
+    {
+      "trial": "step_OFF__fine_dt",
+      "allFinite": true,
+      "shapeCorrect": true,
+      "releaseMin": 0.21037244637504215,
+      "releaseMax": 0.42312523913286426,
+      "voltageEquationMaximumResidual": 1.3877787807814457e-17,
+      "adaptationEquationMaximumResidual": 6.938893903907228e-18,
+      "releaseClipMaximumError": 0.0
+    },
+    {
+      "trial": "step_OFF__intact",
+      "allFinite": true,
+      "shapeCorrect": true,
+      "releaseMin": 0.21029722037299942,
+      "releaseMax": 0.42320046111167847,
+      "voltageEquationMaximumResidual": 1.3877787807814457e-17,
+      "adaptationEquationMaximumResidual": 6.938893903907228e-18,
+      "releaseClipMaximumError": 0.0
+    },
+    {
+      "trial": "step_OFF__reverse_input_polarity",
+      "allFinite": true,
+      "shapeCorrect": true,
+      "releaseMin": 0.07679953888832153,
+      "releaseMax": 0.2897027796270006,
+      "voltageEquationMaximumResidual": 1.3877787807814457e-17,
+      "adaptationEquationMaximumResidual": 6.938893903907228e-18,
+      "releaseClipMaximumError": 0.0
+    },
+    {
+      "trial": "step_OFF__sham",
+      "allFinite": true,
+      "shapeCorrect": true,
+      "releaseMin": 0.21029722037299942,
+      "releaseMax": 0.42320046111167847,
+      "voltageEquationMaximumResidual": 1.3877787807814457e-17,
+      "adaptationEquationMaximumResidual": 6.938893903907228e-18,
+      "releaseClipMaximumError": 0.0
+    },
+    {
+      "trial": "step_ON__block_L2_output",
+      "allFinite": true,
+      "shapeCorrect": true,
+      "releaseMin": 0.0770471735756485,
+      "releaseMax": 0.2896187958522687,
+      "voltageEquationMaximumResidual": 1.3877787807814457e-17,
+      "adaptationEquationMaximumResidual": 6.938893903907228e-18,
+      "releaseClipMaximumError": 0.0
+    },
+    {
+      "trial": "step_ON__intact",
+      "allFinite": true,
+      "shapeCorrect": true,
+      "releaseMin": 0.07679953888832153,
+      "releaseMax": 0.2897027796270006,
+      "voltageEquationMaximumResidual": 1.3877787807814457e-17,
+      "adaptationEquationMaximumResidual": 6.938893903907228e-18,
+      "releaseClipMaximumError": 0.0
+    },
+    {
+      "trial": "step_ON__reverse_input_polarity",
+      "allFinite": true,
+      "shapeCorrect": true,
+      "releaseMin": 0.21029722037299942,
+      "releaseMax": 0.42320046111167847,
+      "voltageEquationMaximumResidual": 1.3877787807814457e-17,
+      "adaptationEquationMaximumResidual": 6.938893903907228e-18,
+      "releaseClipMaximumError": 0.0
+    },
+    {
+      "trial": "step_ON__sham",
+      "allFinite": true,
+      "shapeCorrect": true,
+      "releaseMin": 0.07679953888832153,
+      "releaseMax": 0.2897027796270006,
+      "voltageEquationMaximumResidual": 1.3877787807814457e-17,
+      "adaptationEquationMaximumResidual": 6.938893903907228e-18,
+      "releaseClipMaximumError": 0.0
+    }
+  ],
+  "equationVerificationInterpretation": "Adjacent saved states satisfy the declared discrete equations; these are internal numerical consistency checks, not independent physiological measurements.",
+  "sham": {
+    "pairs": 11,
+    "allRawArrayBytesIdentical": true,
+    "details": [
+      {
+        "stimulus": "baseline",
+        "allRawArrayBytesIdentical": true
+      },
+      {
+        "stimulus": "flash_OFF",
+        "allRawArrayBytesIdentical": true
+      },
+      {
+        "stimulus": "flash_ON",
+        "allRawArrayBytesIdentical": true
+      },
+      {
+        "stimulus": "heldout_flash_0",
+        "allRawArrayBytesIdentical": true
+      },
+      {
+        "stimulus": "heldout_flash_1",
+        "allRawArrayBytesIdentical": true
+      },
+      {
+        "stimulus": "heldout_flash_2",
+        "allRawArrayBytesIdentical": true
+      },
+      {
+        "stimulus": "heldout_flash_3",
+        "allRawArrayBytesIdentical": true
+      },
+      {
+        "stimulus": "heldout_noise_86013",
+        "allRawArrayBytesIdentical": true
+      },
+      {
+        "stimulus": "heldout_noise_86019",
+        "allRawArrayBytesIdentical": true
+      },
+      {
+        "stimulus": "step_OFF",
+        "allRawArrayBytesIdentical": true
+      },
+      {
+        "stimulus": "step_ON",
+        "allRawArrayBytesIdentical": true
+      }
+    ]
+  },
+  "blockedDownstream": {
+    "maximumReleaseDeviation": 0.0,
+    "maximumVoltageDeviation": 0.0,
+    "details": [
+      {
+        "stimulus": "baseline",
+        "maximumDownstreamReleaseDeviation": 0.0,
+        "maximumDownstreamVoltageDeviation": 0.0
+      },
+      {
+        "stimulus": "flash_OFF",
+        "maximumDownstreamReleaseDeviation": 0.0,
+        "maximumDownstreamVoltageDeviation": 0.0
+      },
+      {
+        "stimulus": "flash_ON",
+        "maximumDownstreamReleaseDeviation": 0.0,
+        "maximumDownstreamVoltageDeviation": 0.0
+      },
+      {
+        "stimulus": "heldout_flash_0",
+        "maximumDownstreamReleaseDeviation": 0.0,
+        "maximumDownstreamVoltageDeviation": 0.0
+      },
+      {
+        "stimulus": "heldout_flash_1",
+        "maximumDownstreamReleaseDeviation": 0.0,
+        "maximumDownstreamVoltageDeviation": 0.0
+      },
+      {
+        "stimulus": "heldout_flash_2",
+        "maximumDownstreamReleaseDeviation": 0.0,
+        "maximumDownstreamVoltageDeviation": 0.0
+      },
+      {
+        "stimulus": "heldout_flash_3",
+        "maximumDownstreamReleaseDeviation": 0.0,
+        "maximumDownstreamVoltageDeviation": 0.0
+      },
+      {
+        "stimulus": "heldout_noise_86013",
+        "maximumDownstreamReleaseDeviation": 0.0,
+        "maximumDownstreamVoltageDeviation": 0.0
+      },
+      {
+        "stimulus": "heldout_noise_86019",
+        "maximumDownstreamReleaseDeviation": 0.0,
+        "maximumDownstreamVoltageDeviation": 0.0
+      },
+      {
+        "stimulus": "step_OFF",
+        "maximumDownstreamReleaseDeviation": 0.0,
+        "maximumDownstreamVoltageDeviation": 0.0
+      },
+      {
+        "stimulus": "step_ON",
+        "maximumDownstreamReleaseDeviation": 0.0,
+        "maximumDownstreamVoltageDeviation": 0.0
+      }
+    ],
+    "interpretation": "Blocking every L2 outgoing transmission leaves unforced downstream cells exactly at the engineered adapted equilibrium in this closed patch. This demonstrates the nominated route is necessary for this implementation under these boundary assumptions, not for the living fly."
+  },
+  "baseline": [
+    {
+      "arm": "intact",
+      "maximumAbsoluteV": 0.0,
+      "maximumAbsoluteA": 0.0,
+      "maximumReleaseDeviation": 0.0
+    },
+    {
+      "arm": "sham",
+      "maximumAbsoluteV": 0.0,
+      "maximumAbsoluteA": 0.0,
+      "maximumReleaseDeviation": 0.0
+    },
+    {
+      "arm": "block_L2_output",
+      "maximumAbsoluteV": 0.0,
+      "maximumAbsoluteA": 0.0,
+      "maximumReleaseDeviation": 0.0
+    },
+    {
+      "arm": "reverse_input_polarity",
+      "maximumAbsoluteV": 0.0,
+      "maximumAbsoluteA": 0.0,
+      "maximumReleaseDeviation": 0.0
+    }
+  ],
+  "timestep": {
+    "coarseDtMs": 0.25,
+    "fineDtMs": 0.125,
+    "alignedTimesEqual": true,
+    "maximumReleaseAbsoluteError": 0.00019879828826990797,
+    "prespecifiedMaximumError": 0.005,
+    "pass": true
+  },
+  "onOffAntisymmetry": {
+    "analysisStatus": "RETROSPECTIVE_DESCRIPTIVE_NOT_A_PREREGISTERED_GATE",
+    "pairs": [
+      {
+        "offTrial": "flash_OFF",
+        "onTrial": "flash_ON",
+        "oppositeContrastArrays": true,
+        "populations": {
+          "L2": {
+            "maximumReleaseAntisymmetryResidual": 0.0,
+            "maximumVoltageAntisymmetryResidual": 3.469446951953614e-18,
+            "onZeroReleaseSamples": 0,
+            "offZeroReleaseSamples": 0,
+            "onMaximumReleaseSamples": 0,
+            "offMaximumReleaseSamples": 0
+          },
+          "Tm1": {
+            "maximumReleaseAntisymmetryResidual": 0.0,
+            "maximumVoltageAntisymmetryResidual": 6.938893903907228e-18,
+            "onZeroReleaseSamples": 0,
+            "offZeroReleaseSamples": 0,
+            "onMaximumReleaseSamples": 0,
+            "offMaximumReleaseSamples": 0
+          },
+          "Tm2": {
+            "maximumReleaseAntisymmetryResidual": 0.0,
+            "maximumVoltageAntisymmetryResidual": 6.938893903907228e-18,
+            "onZeroReleaseSamples": 0,
+            "offZeroReleaseSamples": 0,
+            "onMaximumReleaseSamples": 0,
+            "offMaximumReleaseSamples": 0
+          }
+        }
+      },
+      {
+        "offTrial": "step_OFF",
+        "onTrial": "step_ON",
+        "oppositeContrastArrays": true,
+        "populations": {
+          "L2": {
+            "maximumReleaseAntisymmetryResidual": 0.0,
+            "maximumVoltageAntisymmetryResidual": 2.7755575615628914e-17,
+            "onZeroReleaseSamples": 0,
+            "offZeroReleaseSamples": 0,
+            "onMaximumReleaseSamples": 0,
+            "offMaximumReleaseSamples": 0
+          },
+          "Tm1": {
+            "maximumReleaseAntisymmetryResidual": 0.0,
+            "maximumVoltageAntisymmetryResidual": 6.938893903907228e-18,
+            "onZeroReleaseSamples": 0,
+            "offZeroReleaseSamples": 0,
+            "onMaximumReleaseSamples": 0,
+            "offMaximumReleaseSamples": 0
+          },
+          "Tm2": {
+            "maximumReleaseAntisymmetryResidual": 0.0,
+            "maximumVoltageAntisymmetryResidual": 6.938893903907228e-18,
+            "onZeroReleaseSamples": 0,
+            "offZeroReleaseSamples": 0,
+            "onMaximumReleaseSamples": 0,
+            "offMaximumReleaseSamples": 0
+          }
+        }
+      },
+      {
+        "offTrial": "heldout_flash_0",
+        "onTrial": "heldout_flash_1",
+        "oppositeContrastArrays": true,
+        "populations": {
+          "L2": {
+            "maximumReleaseAntisymmetryResidual": 0.0,
+            "maximumVoltageAntisymmetryResidual": 1.734723475976807e-18,
+            "onZeroReleaseSamples": 0,
+            "offZeroReleaseSamples": 0,
+            "onMaximumReleaseSamples": 0,
+            "offMaximumReleaseSamples": 0
+          },
+          "Tm1": {
+            "maximumReleaseAntisymmetryResidual": 0.0,
+            "maximumVoltageAntisymmetryResidual": 3.469446951953614e-18,
+            "onZeroReleaseSamples": 0,
+            "offZeroReleaseSamples": 0,
+            "onMaximumReleaseSamples": 0,
+            "offMaximumReleaseSamples": 0
+          },
+          "Tm2": {
+            "maximumReleaseAntisymmetryResidual": 0.0,
+            "maximumVoltageAntisymmetryResidual": 3.469446951953614e-18,
+            "onZeroReleaseSamples": 0,
+            "offZeroReleaseSamples": 0,
+            "onMaximumReleaseSamples": 0,
+            "offMaximumReleaseSamples": 0
+          }
+        }
+      },
+      {
+        "offTrial": "heldout_flash_2",
+        "onTrial": "heldout_flash_3",
+        "oppositeContrastArrays": true,
+        "populations": {
+          "L2": {
+            "maximumReleaseAntisymmetryResidual": 0.053100806945437506,
+            "maximumVoltageAntisymmetryResidual": 7.765809050186423e-05,
+            "onZeroReleaseSamples": 12769,
+            "offZeroReleaseSamples": 0,
+            "onMaximumReleaseSamples": 0,
+            "offMaximumReleaseSamples": 0
+          },
+          "Tm1": {
+            "maximumReleaseAntisymmetryResidual": 0.00654318280799282,
+            "maximumVoltageAntisymmetryResidual": 0.00654318280799282,
+            "onZeroReleaseSamples": 0,
+            "offZeroReleaseSamples": 0,
+            "onMaximumReleaseSamples": 0,
+            "offMaximumReleaseSamples": 0
+          },
+          "Tm2": {
+            "maximumReleaseAntisymmetryResidual": 0.006664680646111032,
+            "maximumVoltageAntisymmetryResidual": 0.006664680646111115,
+            "onZeroReleaseSamples": 0,
+            "offZeroReleaseSamples": 0,
+            "onMaximumReleaseSamples": 0,
+            "offMaximumReleaseSamples": 0
+          }
+        }
+      }
+    ],
+    "interpretation": "Negative luminance drive is imposed at L2. Away from clipping, the equations are linear in deviations and opposite contrasts generate opposite deviations. This is signed contrast transmission, not measured biological OFF selectivity. The larger ON contrast can reach the release floor, breaking exact antisymmetry through the imposed clipping rule."
+  },
+  "adaptation": {
+    "analysisStatus": "RETROSPECTIVE_DESCRIPTIVE_NOT_A_PREREGISTERED_GATE",
+    "trials": [
+      {
+        "trial": "flash_OFF__intact",
+        "populations": {
+          "L2": {
+            "peakReleaseChange": 0.1730111546109517,
+            "positivePeakLatencyMs": 75.5,
+            "last100msMeanReleaseChange": 0.15760354616289216,
+            "last100msToPeakRatio": 0.91094442157382,
+            "recoveryEndReleaseChange": -1.4136264356519981e-05,
+            "peakAdaptationState": 0.056610249693810524
+          },
+          "Tm1": {
+            "peakReleaseChange": 0.02170017341053719,
+            "positivePeakLatencyMs": 116.75,
+            "last100msMeanReleaseChange": 0.020517164472283037,
+            "last100msToPeakRatio": 0.9454838947194907,
+            "recoveryEndReleaseChange": 8.14982043198374e-06,
+            "peakAdaptationState": 0.007447409552959164
+          },
+          "Tm2": {
+            "peakReleaseChange": 0.022470125781392167,
+            "positivePeakLatencyMs": 116.75,
+            "last100msMeanReleaseChange": 0.0212421512181674,
+            "last100msToPeakRatio": 0.9453507926403479,
+            "recoveryEndReleaseChange": 8.424539593075928e-06,
+            "peakAdaptationState": 0.007578979117176419
+          }
+        }
+      },
+      {
+        "trial": "step_OFF__intact",
+        "populations": {
+          "L2": {
+            "peakReleaseChange": 0.1730111546109517,
+            "positivePeakLatencyMs": 75.5,
+            "last100msMeanReleaseChange": 0.1333769773447593,
+            "last100msToPeakRatio": 0.7709154802456678,
+            "recoveryEndReleaseChange": -1.5776639888399086e-05,
+            "peakAdaptationState": 0.06674731106478007
+          },
+          "Tm1": {
+            "peakReleaseChange": 0.02170017341053719,
+            "positivePeakLatencyMs": 116.75,
+            "last100msMeanReleaseChange": 0.013841287415619937,
+            "last100msToPeakRatio": 0.6378422491729431,
+            "recoveryEndReleaseChange": 9.365193054438878e-06,
+            "peakAdaptationState": 0.008231444605841522
+          },
+          "Tm2": {
+            "peakReleaseChange": 0.022470125781392167,
+            "positivePeakLatencyMs": 116.75,
+            "last100msMeanReleaseChange": 0.014335176292042711,
+            "last100msToPeakRatio": 0.6379660012368011,
+            "recoveryEndReleaseChange": 9.686800139057328e-06,
+            "peakAdaptationState": 0.00837696487503895
+          }
+        }
+      }
+    ],
+    "interpretation": "The observed peak-to-late decline is consistent with the explicit adaptation variable and chosen 150 ms adaptation time constant and strength 0.5. These parameters were assumed before trials, not fitted to published traces. No adaptation-removal intervention was run, so these data do not independently isolate adaptation from recurrent dynamics or demonstrate a biological adaptation mechanism."
+  },
+  "claims": {
+    "biologicalVisionValidated": false,
+    "wholeCnsValidated": false,
+    "learningTested": false,
+    "gameplayTested": false,
+    "validationGatesChanged": false
+  },
+  "independentReviewLimits": [
+    "All 19 columns receive identical contrasts; no spatial or motion discrimination was tested.",
+    "The same three scalar membrane constants, gain, release baseline, clip and adaptation rule are engineering assumptions.",
+    "Independent saved-state recomputation checks implementation and artifact integrity; it does not supply new biological evidence."
+  ],
+  "reproduction": {
+    "python": "3.12.14",
+    "numpy": "2.2.6",
+    "workingDirectory": "C:/Users/scott/Documents/Scicon Shooter",
+    "program": "\"\"\"Read-only verification of saved traces; executes no model or stimulus trial.\"\"\"\nimport os\nfor key in ('OMP_NUM_THREADS','OPENBLAS_NUM_THREADS','MKL_NUM_THREADS','NUMEXPR_NUM_THREADS'):\n    os.environ[key]='2'\nfrom pathlib import Path\nimport hashlib\nimport json\nimport platform\nimport numpy as np\n\nROOT=Path('C:/Users/scott/Documents/Scicon Shooter')\nLAB=ROOT/'fly-lab'\nRUN=LAB/'runtime/graded-off/results/diagnostic-v1-20260913-first'\nOUTPUT=LAB/'docs/evidence/graded-off-diagnostic-v1-independent-check.json'\ndef sha(path):\n    with path.open('rb') as f:\n        return hashlib.file_digest(f,'sha256').hexdigest()\ndef read(name): return json.loads((RUN/name).read_text())\ndef arrays(name):\n    with np.load(RUN/(name+'.npz'),allow_pickle=False) as z:\n        return {k:z[k] for k in z.files}\ndef byte_equal(a,b):\n    return set(a)==set(b) and all(a[k].shape==b[k].shape and a[k].dtype==b[k].dtype and a[k].tobytes()==b[k].tobytes() for k in a)\n\nstatus,spec,results,metadata,circuit=map(read,['status.json','specification.json','results.json','metadata.json','circuit.json'])\nif status['status']!='complete': raise RuntimeError('The diagnostic has not completed')\nchecksums=read('checksums.json')\nhash_checks=[{'path':name,'expectedSha256':digest,'actualSha256':sha(RUN/name),'pass':sha(RUN/name)==digest} for name,digest in sorted(checksums.items())]\nfiles={p.relative_to(RUN).as_posix() for p in RUN.rglob('*') if p.is_file()}\nunlisted=sorted(files-set(checksums)-{'checksums.json'})\nsource_checks=[]\nfor index,(name,digest) in enumerate(metadata['sourceHashes'].items()):\n    local=LAB/Path(name.replace('\\\\','/'))\n    saved=RUN/'source'/f'{index}-{local.name}'\n    source_checks.append({'path':name.replace('\\\\','/'),'copiedSourceMatches':sha(saved)==digest,'currentSourceMatches':sha(local)==digest})\n\nnames=np.array([r['type'] for r in circuit['neurons']])\np=spec['parameters']; baseline=p['baseline_release']; max_release=p['maximum_release']\ntau=np.array([p['tau_v_ms_by_type'][n] for n in names])\nW=np.zeros((len(names),len(names)))\nfor e in circuit['internalEdges']:\n    W[e['target'],e['source']]+=e['contacts']*e['sourceSign']*p['gain_per_contact']\ntrial_names=sorted(x[:-4] for x in checksums if x.endswith('.npz'))\ntrial_checks=[]\nfor trial in trial_names:\n    a=arrays(trial)\n    dt=float(a['time_ms'][1]-a['time_ms'][0])\n    v,adapt,release=a['v'],a['a'],a['release']\n    mat=W.copy()\n    if trial.endswith('__block_L2_output'): mat[:,names=='L2']=0\n    drive=np.zeros_like(v[:-1]); polarity=1 if trial.endswith('__reverse_input_polarity') else -1\n    drive[:,names=='L2']=polarity*a['contrast'][:,None]\n    # Audit discrete equations directly from saved adjacent states, without\n    # importing or executing the simulator. This is a software check only.\n    voltage_residual=np.max(np.abs((v[1:]-v[:-1])-dt/tau*(-v[:-1]+drive+(release[:-1]-baseline)@mat.T-adapt[:-1])))\n    adaptation_residual=np.max(np.abs((adapt[1:]-adapt[:-1])-dt/p['tau_a_ms']*(-adapt[:-1]+p['adaptation_strength']*v[:-1])))\n    clip_error=np.max(np.abs(release-np.clip(baseline+v,0,max_release)))\n    trial_checks.append({'trial':trial,'allFinite':all(np.isfinite(x).all() for x in a.values()),'shapeCorrect':v.shape==adapt.shape==release.shape==(len(a['contrast'])+1,57),\n                         'releaseMin':float(release.min()),'releaseMax':float(release.max()),'voltageEquationMaximumResidual':float(voltage_residual),\n                         'adaptationEquationMaximumResidual':float(adaptation_residual),'releaseClipMaximumError':float(clip_error)})\n\nstimulus_names=sorted(n[:-len('__intact')] for n in trial_names if n.endswith('__intact'))\nsham=[]; blocked=[]; baseline_deviations=[]\nfor name in stimulus_names:\n    intact=arrays(name+'__intact'); control=arrays(name+'__sham')\n    sham.append({'stimulus':name,'allRawArrayBytesIdentical':byte_equal(intact,control)})\n    blocked_arrays=arrays(name+'__block_L2_output')\n    blocked.append({'stimulus':name,'maximumDownstreamReleaseDeviation':float(np.max(np.abs(blocked_arrays['release'][:,names!='L2']-baseline))),\n                    'maximumDownstreamVoltageDeviation':float(np.max(np.abs(blocked_arrays['v'][:,names!='L2'])))})\nfor arm in spec['arms']:\n    a=arrays('baseline__'+arm)\n    baseline_deviations.append({'arm':arm,'maximumAbsoluteV':float(np.max(np.abs(a['v']))),'maximumAbsoluteA':float(np.max(np.abs(a['a']))),'maximumReleaseDeviation':float(np.max(np.abs(a['release']-baseline)))})\n\ncoarse=arrays(spec['convergence']['stimulus']+'__intact'); fine=arrays(spec['convergence']['stimulus']+'__fine_dt')\nratio=round(p['dt_ms']/spec['convergence']['fine_dt_ms'])\nconvergence={'coarseDtMs':p['dt_ms'],'fineDtMs':spec['convergence']['fine_dt_ms'],\n             'alignedTimesEqual':bool(np.array_equal(coarse['time_ms'],fine['time_ms'][::ratio])),\n             'maximumReleaseAbsoluteError':float(np.max(np.abs(coarse['release']-fine['release'][::ratio]))),\n             'prespecifiedMaximumError':spec['convergence']['maximum_release_absolute_error']}\nconvergence['pass']=convergence['alignedTimesEqual'] and convergence['maximumReleaseAbsoluteError']<=convergence['prespecifiedMaximumError']\n\nantisymmetry=[]\nfor off,on in [('flash_OFF','flash_ON'),('step_OFF','step_ON'),('heldout_flash_0','heldout_flash_1'),('heldout_flash_2','heldout_flash_3')]:\n    a,b=arrays(off+'__intact'),arrays(on+'__intact')\n    item={'offTrial':off,'onTrial':on,'oppositeContrastArrays':bool(np.array_equal(a['contrast'],-b['contrast'])),'populations':{}}\n    for name in ('L2','Tm1','Tm2'):\n        mask=names==name\n        item['populations'][name]={'maximumReleaseAntisymmetryResidual':float(np.max(np.abs(a['release'][:,mask]+b['release'][:,mask]-2*baseline))),\n                                  'maximumVoltageAntisymmetryResidual':float(np.max(np.abs(a['v'][:,mask]+b['v'][:,mask]))),\n                                  'onZeroReleaseSamples':int(np.count_nonzero(b['release'][:,mask]==0)),\n                                  'offZeroReleaseSamples':int(np.count_nonzero(a['release'][:,mask]==0)),\n                                  'onMaximumReleaseSamples':int(np.count_nonzero(b['release'][:,mask]==max_release)),\n                                  'offMaximumReleaseSamples':int(np.count_nonzero(a['release'][:,mask]==max_release))}\n    antisymmetry.append(item)\n\nadaptation=[]\nfor trial in ('flash_OFF__intact','step_OFF__intact'):\n    a=arrays(trial); active=np.flatnonzero(a['contrast']!=0)\n    first,last=int(active[0]+1),int(active[-1]+1)\n    dt=float(a['time_ms'][1]); row={'trial':trial,'populations':{}}\n    for name in ('L2','Tm1','Tm2'):\n        trace=np.mean(a['release'][:,names==name]-baseline,axis=1)\n        x=trace[first:last+1]; peak=float(x.max()); peakindex=int(np.argmax(x))\n        late=float(x[-round(100/dt):].mean())\n        row['populations'][name]={'peakReleaseChange':peak,'positivePeakLatencyMs':(peakindex+1)*dt,'last100msMeanReleaseChange':late,\n                                  'last100msToPeakRatio':late/peak,'recoveryEndReleaseChange':float(trace[-1]),\n                                  'peakAdaptationState':float(np.max(a['a'][first:last+1,names==name]))}\n    adaptation.append(row)\n\naudit={\n 'schemaVersion':1,'scope':'INDEPENDENT_SAVED_ARTIFACT_VERIFICATION_AND_DESCRIPTIVE_ANALYSIS','newTrialsRun':False,\n 'runPath':RUN.relative_to(ROOT).as_posix(),'checksumsManifestSha256':sha(RUN/'checksums.json'),\n 'hashVerification':{'listedArtifactCount':len(hash_checks),'passingArtifactCount':sum(r['pass'] for r in hash_checks),'unlistedFilesExcludingManifest':unlisted,'allPass':all(r['pass'] for r in hash_checks) and not unlisted,'artifacts':hash_checks},\n 'sourceVerification':source_checks,'rawTrialCount':len(trial_names),'rawTrialChecks':trial_checks,\n 'equationVerificationInterpretation':'Adjacent saved states satisfy the declared discrete equations; these are internal numerical consistency checks, not independent physiological measurements.',\n 'sham':{'pairs':len(sham),'allRawArrayBytesIdentical':all(r['allRawArrayBytesIdentical'] for r in sham),'details':sham},\n 'blockedDownstream':{'maximumReleaseDeviation':max(r['maximumDownstreamReleaseDeviation'] for r in blocked),'maximumVoltageDeviation':max(r['maximumDownstreamVoltageDeviation'] for r in blocked),'details':blocked,\n                      'interpretation':'Blocking every L2 outgoing transmission leaves unforced downstream cells exactly at the engineered adapted equilibrium in this closed patch. This demonstrates the nominated route is necessary for this implementation under these boundary assumptions, not for the living fly.'},\n 'baseline':baseline_deviations,'timestep':convergence,\n 'onOffAntisymmetry':{'analysisStatus':'RETROSPECTIVE_DESCRIPTIVE_NOT_A_PREREGISTERED_GATE','pairs':antisymmetry,\n                     'interpretation':'Negative luminance drive is imposed at L2. Away from clipping, the equations are linear in deviations and opposite contrasts generate opposite deviations. This is signed contrast transmission, not measured biological OFF selectivity. The larger ON contrast can reach the release floor, breaking exact antisymmetry through the imposed clipping rule.'},\n 'adaptation':{'analysisStatus':'RETROSPECTIVE_DESCRIPTIVE_NOT_A_PREREGISTERED_GATE','trials':adaptation,\n               'interpretation':'The observed peak-to-late decline is consistent with the explicit adaptation variable and chosen 150 ms adaptation time constant and strength 0.5. These parameters were assumed before trials, not fitted to published traces. No adaptation-removal intervention was run, so these data do not independently isolate adaptation from recurrent dynamics or demonstrate a biological adaptation mechanism.'},\n 'claims':{'biologicalVisionValidated':False,'wholeCnsValidated':False,'learningTested':False,'gameplayTested':False,'validationGatesChanged':False},\n 'independentReviewLimits':['All 19 columns receive identical contrasts; no spatial or motion discrimination was tested.','The same three scalar membrane constants, gain, release baseline, clip and adaptation rule are engineering assumptions.','Independent saved-state recomputation checks implementation and artifact integrity; it does not supply new biological evidence.'],\n 'reproduction':{'python':platform.python_version(),'numpy':np.__version__,'workingDirectory':ROOT.as_posix(),'program':Path(__file__).read_text(encoding='utf-8')}\n}\nif OUTPUT.exists(): raise FileExistsError('Independent audit output already exists')\nOUTPUT.write_text(json.dumps(audit,indent=2,allow_nan=False)+'\\n',encoding='utf-8',newline='\\n')\nprint(json.dumps({'output':str(OUTPUT),'sha256':sha(OUTPUT),'hashPassCount':audit['hashVerification']['passingArtifactCount'],'hashTotalCount':len(hash_checks),'rawTrialCount':len(trial_names),'shamAllBytesIdentical':audit['sham']['allRawArrayBytesIdentical'],'blockedMaxDeviation':audit['blockedDownstream']['maximumReleaseDeviation'],'convergence':convergence,'antisymmetry':antisymmetry,'adaptation':adaptation},indent=2))\n"
+  }
+}

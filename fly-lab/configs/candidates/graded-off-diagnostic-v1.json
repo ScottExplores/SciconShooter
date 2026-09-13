@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "id": "graded-off-diagnostic-v1",
+  "scope": "REDUCED_MALECNS_ENGINEERING_DIAGNOSTIC_NOT_BIOLOGICAL_VALIDATION",
+  "trainingAllowed": false,
+  "anatomy": "docs/evidence/graded-off-circuit-v1.json",
+  "nomination": "R-side 19 L2, 19 Tm1, 19 Tm2 selected in vision-boundary-inventory-v1 before responses",
+  "parameters": {
+    "dt_ms": 0.25,
+    "tau_v_ms_by_type": {"L2": 25, "Tm1": 40, "Tm2": 40},
+    "tau_a_ms": 150,
+    "baseline_release": 0.25,
+    "maximum_release": 2,
+    "adaptation_strength": 0.5,
+    "gain_per_contact": 0.001
+  },
+  "input": {
+    "boundary": "Direct normalized negative luminance contrast to nominated L2 cells only; omitted retinal transduction",
+    "drive": "u_L2 = -contrast; all other external drive deviations are zero",
+    "spatial_scope": "Uniform across all 19 selected columns; no screen-coordinate or eye-geometry claim",
+    "release_units": "Dimensionless engineered release; not spikes, volts, fluorescence or measured transmitter concentration",
+    "baseline": "Adapted reference equilibrium with recurrent baseline current subtracted; omitted outside inputs fixed at their assumed adapted baseline"
+  },
+  "stimuli": {
+    "initial_baseline_ms": 400,
+    "flash_ms": 200,
+    "step_ms": 1000,
+    "recovery_ms": 800,
+    "development_contrasts": [-0.2, 0.2],
+    "held_out_contrasts": [-0.1, 0.1, -0.35, 0.35],
+    "noise_seeds": [86013, 86019],
+    "noise_ms": 2000,
+    "noise_bin_ms": 25,
+    "noise_amplitude": 0.15
+  },
+  "arms": ["intact", "sham", "block_L2_output", "reverse_input_polarity"],
+  "convergence": {"stimulus": "step_OFF", "fine_dt_ms": 0.125, "maximum_release_absolute_error": 0.005},
+  "engineering_criteria": {
+    "baseline_maximum_absolute_deviation": 1e-12,
+    "minimum_downstream_off_peak_release_change": 0.0001,
+    "maximum_blocked_downstream_deviation": 1e-12,
+    "sham_response_bytes_identical": true,
+    "all_traces_finite_and_release_bounded": true,
+    "all_held_out_responses_finite_and_release_bounded": true
+  },
+  "threads": 2,
+  "maximumWallSeconds": 300,
+  "maximumRssBytes": 4294967296,
+  "interpretation": "All dynamics parameters are prespecified engineering assumptions, not fits to published physiological traces. OFF response polarity is partly imposed by the sensory boundary; output-block and sham tests check causal software propagation, not whether this model is the unique or accurate biological mechanism. Report ON responses, adaptation, latency and held-out responses descriptively. Do not turn assumed time constants or resulting filter peaks into agreement with primary measurements. No gate updates, game actions, reward, dopamine or plasticity are included. Failure remains saved; revisions require a new protocol version."
+}

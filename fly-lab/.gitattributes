@@ -1,7 +1,7 @@
 * text eol=lf
 # Frozen evidence is byte-hashed; never translate its original line endings.
 configs/candidates/*.json -text
-docs/evidence/*.json -text
+docs/evidence/*.json -text whitespace=cr-at-eol
 docs/evidence/*.sha256 -text
 # Nested reports include hashed JSON and binary figures/archives. Preserve
 # those bytes; the default text rule would corrupt PNG/ZIP content.
