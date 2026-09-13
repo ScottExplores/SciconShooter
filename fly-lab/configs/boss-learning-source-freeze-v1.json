@@ -1,0 +1,12 @@
+{
+  "files": {
+    "configs/boss-learning-circuit-v1.json": "9f819a608da3f2e73661c99c652cfcdc332e5387e5461a6a96f8e22fe87bfa17",
+    "docs/BOSS_LEARNING_MODEL.md": "ba24af966cb1c75ebf8bdcb6638d88a3861ae014dd101f3ad8116ffa23ed1cb3",
+    "python/scicon_fly/boss_learning.py": "e5320792d4c93af2612027f5288bc0601838db51fe692891c5060b53a754d6c9",
+    "scripts/boss-learning-worker.py": "9a7924ca87327625d250874bf2004109f9e6b765a2013fbff6a1eeadcd237468",
+    "scripts/extract-boss-learning-circuit.py": "e8478f348b8126d841870858a8caa33b1ce821da93600ef80ba7ba7b48f97bd3"
+  },
+  "modelVersion": "malecns-pam02-boss-v1",
+  "schemaVersion": 1,
+  "scope": "Frozen after mechanism tests and before game pilot outcomes"
+}

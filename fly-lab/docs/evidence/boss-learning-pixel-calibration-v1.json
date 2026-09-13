@@ -1,0 +1,729 @@
+{
+  "kind": "reward-free-pixel-calibration",
+  "frames": 24,
+  "detected": 22,
+  "playerMedianAbsError": 14.103930131004347,
+  "targetMedianAbsError": 0.24709121378984378,
+  "rows": [
+    {
+      "tick": 60,
+      "features": {
+        "targetOffset": 0,
+        "targetVisible": false,
+        "playerVisible": true,
+        "playerX": 0.49772868801415887,
+        "confidence": 0
+      },
+      "vision": {
+        "targetX": null,
+        "playerX": 0.49772868801415887,
+        "relativeX": null,
+        "confidence": 0,
+        "source": "pixels",
+        "method": "rgba-connected-color-v1",
+        "targetPixels": 0,
+        "playerPixels": 2347,
+        "targetWidth": 0,
+        "playerWidth": 88
+      },
+      "diagnostics": {
+        "playerCenterX": 195,
+        "bossCenterX": null
+      },
+      "errorPixels": {
+        "player": -0.8858116744780489,
+        "target": null
+      }
+    },
+    {
+      "tick": 120,
+      "features": {
+        "targetOffset": 0,
+        "targetVisible": false,
+        "playerVisible": true,
+        "playerX": 0.49785867914979753,
+        "confidence": 0
+      },
+      "vision": {
+        "targetX": null,
+        "playerX": 0.49785867914979753,
+        "relativeX": null,
+        "confidence": 0,
+        "source": "pixels",
+        "method": "rgba-connected-color-v1",
+        "targetPixels": 0,
+        "playerPixels": 2432,
+        "targetWidth": 0,
+        "playerWidth": 88
+      },
+      "diagnostics": {
+        "playerCenterX": 195,
+        "bossCenterX": 195
+      },
+      "errorPixels": {
+        "player": -0.8351151315789593,
+        "target": null
+      }
+    },
+    {
+      "tick": 180,
+      "features": {
+        "targetOffset": -0.2888537958416489,
+        "targetVisible": true,
+        "playerVisible": true,
+        "playerX": 0.4977745524915336,
+        "confidence": 1
+      },
+      "vision": {
+        "targetX": 0.35334765457070916,
+        "playerX": 0.4977745524915336,
+        "relativeX": -0.2888537958416489,
+        "confidence": 1,
+        "source": "pixels",
+        "method": "rgba-connected-color-v1",
+        "targetPixels": 19623,
+        "playerPixels": 2279,
+        "targetWidth": 260,
+        "playerWidth": 88
+      },
+      "diagnostics": {
+        "playerCenterX": 195,
+        "bossCenterX": 138.37355420179804
+      },
+      "errorPixels": {
+        "player": -0.8679245283018986,
+        "target": -0.567968919221471
+      }
+    },
+    {
+      "tick": 240,
+      "features": {
+        "targetOffset": -0.09507659898055297,
+        "targetVisible": true,
+        "playerVisible": true,
+        "playerX": 0.4976260825267448,
+        "confidence": 1
+      },
+      "vision": {
+        "targetX": 0.4500877830364683,
+        "playerX": 0.4976260825267448,
+        "relativeX": -0.09507659898055297,
+        "confidence": 1,
+        "source": "pixels",
+        "method": "rgba-connected-color-v1",
+        "targetPixels": 19585,
+        "playerPixels": 2265,
+        "targetWidth": 260,
+        "playerWidth": 88
+      },
+      "diagnostics": {
+        "playerCenterX": 195,
+        "bossCenterX": 175.33384175877404
+      },
+      "errorPixels": {
+        "player": -0.9258278145695442,
+        "target": 0.20039362544858363
+      }
+    },
+    {
+      "tick": 300,
+      "features": {
+        "targetOffset": 0.20283180035714077,
+        "targetVisible": true,
+        "playerVisible": true,
+        "playerX": 0.4929281444906445,
+        "confidence": 1
+      },
+      "vision": {
+        "targetX": 0.5943440446692149,
+        "playerX": 0.4929281444906445,
+        "relativeX": 0.20283180035714077,
+        "confidence": 1,
+        "source": "pixels",
+        "method": "rgba-connected-color-v1",
+        "targetPixels": 19682,
+        "playerPixels": 2368,
+        "targetWidth": 256,
+        "playerWidth": 88
+      },
+      "diagnostics": {
+        "playerCenterX": 192.62493812994103,
+        "bossCenterX": 231.96028755697603
+      },
+      "errorPixels": {
+        "player": -0.3829617785896744,
+        "target": -0.16611013598220836
+      }
+    },
+    {
+      "tick": 360,
+      "features": {
+        "targetOffset": 1,
+        "targetVisible": true,
+        "playerVisible": true,
+        "playerX": 0.1114642375168691,
+        "confidence": 1
+      },
+      "vision": {
+        "targetX": 0.6452243832127875,
+        "playerX": 0.1114642375168691,
+        "relativeX": 1,
+        "confidence": 1,
+        "source": "pixels",
+        "method": "rgba-connected-color-v1",
+        "targetPixels": 19835,
+        "playerPixels": 2280,
+        "targetWidth": 260,
+        "playerWidth": 80
+      },
+      "diagnostics": {
+        "playerCenterX": 44.282345324852514,
+        "bossCenterX": 251.62644579820198
+      },
+      "errorPixels": {
+        "player": -0.8112926932735647,
+        "target": 0.011063654785161248
+      }
+    },
+    {
+      "tick": 420,
+      "features": {
+        "targetOffset": 1,
+        "targetVisible": true,
+        "playerVisible": true,
+        "playerX": 0.03355552592987602,
+        "confidence": 1
+      },
+      "vision": {
+        "targetX": 0.5493165578169104,
+        "playerX": 0.03355552592987602,
+        "relativeX": 1,
+        "confidence": 1,
+        "source": "pixels",
+        "method": "rgba-connected-color-v1",
+        "targetPixels": 19858,
+        "playerPixels": 1154,
+        "targetWidth": 260,
+        "playerWidth": 44
+      },
+      "diagnostics": {
+        "playerCenterX": 0,
+        "bossCenterX": 214.666158241226
+      },
+      "errorPixels": {
+        "player": 13.086655112651641,
+        "target": -0.43270069263095934
+      }
+    },
+    {
+      "tick": 480,
+      "features": {
+        "targetOffset": 1,
+        "targetVisible": true,
+        "playerVisible": true,
+        "playerX": 0.03338179213281925,
+        "confidence": 1
+      },
+      "vision": {
+        "targetX": 0.6333855075639591,
+        "playerX": 0.03338179213281925,
+        "relativeX": 1,
+        "confidence": 1,
+        "source": "pixels",
+        "method": "rgba-connected-color-v1",
+        "targetPixels": 19658,
+        "playerPixels": 1217,
+        "targetWidth": 260,
+        "playerWidth": 44
+      },
+      "diagnostics": {
+        "playerCenterX": 0,
+        "bossCenterX": 247.26750593707712
+      },
+      "errorPixels": {
+        "player": 13.018898931799512,
+        "target": -0.2471579871330789
+      }
+    },
+    {
+      "tick": 540,
+      "features": {
+        "targetOffset": 1,
+        "targetVisible": true,
+        "playerVisible": true,
+        "playerX": 0.033383899037144726,
+        "confidence": 1
+      },
+      "vision": {
+        "targetX": 0.6468023302210517,
+        "playerX": 0.033383899037144726,
+        "relativeX": 1,
+        "confidence": 1,
+        "source": "pixels",
+        "method": "rgba-connected-color-v1",
+        "targetPixels": 20885,
+        "playerPixels": 1217,
+        "targetWidth": 260,
+        "playerWidth": 44
+      },
+      "diagnostics": {
+        "playerCenterX": 0,
+        "bossCenterX": 252.5
+      },
+      "errorPixels": {
+        "player": 13.019720624486439,
+        "target": -0.24709121378984378
+      }
+    },
+    {
+      "tick": 600,
+      "features": {
+        "targetOffset": 0.8275220620228375,
+        "targetVisible": true,
+        "playerVisible": true,
+        "playerX": 0.03563387475738073,
+        "confidence": 1
+      },
+      "vision": {
+        "targetX": 0.4493949057687994,
+        "playerX": 0.03563387475738073,
+        "relativeX": 0.8275220620228375,
+        "confidence": 1,
+        "source": "pixels",
+        "method": "rgba-connected-color-v1",
+        "targetPixels": 19321,
+        "playerPixels": 1255,
+        "targetWidth": 260,
+        "playerWidth": 48
+      },
+      "diagnostics": {
+        "playerCenterX": 2.475559425130271,
+        "bossCenterX": 175.33384175877404
+      },
+      "errorPixels": {
+        "player": 11.421651730248215,
+        "target": -0.06982850894226544
+      }
+    },
+    {
+      "tick": 660,
+      "features": {
+        "targetOffset": 0.4146448513375547,
+        "targetVisible": true,
+        "playerVisible": true,
+        "playerX": 0.38649007097282956,
+        "confidence": 1
+      },
+      "vision": {
+        "targetX": 0.593812496641607,
+        "playerX": 0.38649007097282956,
+        "relativeX": 0.4146448513375547,
+        "confidence": 1,
+        "source": "pixels",
+        "method": "rgba-connected-color-v1",
+        "targetPixels": 20996,
+        "playerPixels": 2146,
+        "targetWidth": 264,
+        "playerWidth": 72
+      },
+      "diagnostics": {
+        "playerCenterX": 150.88194941028445,
+        "bossCenterX": 231.96028755697603
+      },
+      "errorPixels": {
+        "player": -0.15082173088092077,
+        "target": -0.37341386674928856
+      }
+    },
+    {
+      "tick": 720,
+      "features": {
+        "targetOffset": -0.25138296531554594,
+        "targetVisible": true,
+        "playerVisible": true,
+        "playerX": 0.7710116142063627,
+        "confidence": 1
+      },
+      "vision": {
+        "targetX": 0.6453201315485897,
+        "playerX": 0.7710116142063627,
+        "relativeX": -0.25138296531554594,
+        "confidence": 1,
+        "source": "pixels",
+        "method": "rgba-connected-color-v1",
+        "targetPixels": 19671,
+        "playerPixels": 2285,
+        "targetWidth": 264,
+        "playerWidth": 72
+      },
+      "diagnostics": {
+        "playerCenterX": 300.88194941028445,
+        "bossCenterX": 251.62644579820198
+      },
+      "errorPixels": {
+        "player": -0.18741986980302272,
+        "target": 0.04840550574802194
+      }
+    },
+    {
+      "tick": 780,
+      "features": {
+        "targetOffset": -0.8323220663091039,
+        "targetVisible": true,
+        "playerVisible": true,
+        "playerX": 0.9632492925135065,
+        "confidence": 1
+      },
+      "vision": {
+        "targetX": 0.5470882593589546,
+        "playerX": 0.9632492925135065,
+        "relativeX": -0.8323220663091039,
+        "confidence": 1,
+        "source": "pixels",
+        "method": "rgba-connected-color-v1",
+        "targetPixels": 19461,
+        "playerPixels": 1196,
+        "targetWidth": 260,
+        "playerWidth": 48
+      },
+      "diagnostics": {
+        "playerCenterX": 390,
+        "bossCenterX": 214.666158241226
+      },
+      "errorPixels": {
+        "player": -14.332775919732455,
+        "target": -1.3017370912337185
+      }
+    },
+    {
+      "tick": 840,
+      "features": {
+        "targetOffset": -1,
+        "targetVisible": true,
+        "playerVisible": true,
+        "playerX": 0.9631763999656977,
+        "confidence": 1
+      },
+      "vision": {
+        "targetX": 0.40459918366062936,
+        "playerX": 0.9631763999656977,
+        "relativeX": -1,
+        "confidence": 1,
+        "source": "pixels",
+        "method": "rgba-connected-color-v1",
+        "targetPixels": 19562,
+        "playerPixels": 1196,
+        "targetWidth": 260,
+        "playerWidth": 48
+      },
+      "diagnostics": {
+        "playerCenterX": 390,
+        "bossCenterX": 158.039712443024
+      },
+      "errorPixels": {
+        "player": -14.361204013377915,
+        "target": -0.24603081537856042
+      }
+    },
+    {
+      "tick": 900,
+      "features": {
+        "targetOffset": -1,
+        "targetVisible": true,
+        "playerVisible": true,
+        "playerX": 0.9629828504828505,
+        "confidence": 1
+      },
+      "vision": {
+        "targetX": 0.3543825936266487,
+        "playerX": 0.9629828504828505,
+        "relativeX": -1,
+        "confidence": 1,
+        "source": "pixels",
+        "method": "rgba-connected-color-v1",
+        "targetPixels": 19975,
+        "playerPixels": 1232,
+        "targetWidth": 260,
+        "playerWidth": 48
+      },
+      "diagnostics": {
+        "playerCenterX": 390,
+        "bossCenterX": 138.37355420179804
+      },
+      "errorPixels": {
+        "player": -14.436688311688329,
+        "target": -0.1643426874050533
+      }
+    },
+    {
+      "tick": 960,
+      "features": {
+        "targetOffset": -1,
+        "targetVisible": true,
+        "playerVisible": true,
+        "playerX": 0.9628414271970553,
+        "confidence": 1
+      },
+      "vision": {
+        "targetX": 0.4487682682469579,
+        "playerX": 0.9628414271970553,
+        "relativeX": -1,
+        "confidence": 1,
+        "source": "pixels",
+        "method": "rgba-connected-color-v1",
+        "targetPixels": 19873,
+        "playerPixels": 1226,
+        "targetWidth": 260,
+        "playerWidth": 48
+      },
+      "diagnostics": {
+        "playerCenterX": 390,
+        "bossCenterX": 175.33384175877404
+      },
+      "errorPixels": {
+        "player": -14.491843393148429,
+        "target": -0.31421714246044985
+      }
+    },
+    {
+      "tick": 1020,
+      "features": {
+        "targetOffset": -0.738236307854345,
+        "targetVisible": true,
+        "playerVisible": true,
+        "playerX": 0.9638360765871683,
+        "confidence": 1
+      },
+      "vision": {
+        "targetX": 0.5947179226599958,
+        "playerX": 0.9638360765871683,
+        "relativeX": -0.738236307854345,
+        "confidence": 1,
+        "source": "pixels",
+        "method": "rgba-connected-color-v1",
+        "targetPixels": 19680,
+        "playerPixels": 1145,
+        "targetWidth": 260,
+        "playerWidth": 48
+      },
+      "diagnostics": {
+        "playerCenterX": 390,
+        "bossCenterX": 231.96028755697603
+      },
+      "errorPixels": {
+        "player": -14.103930131004347,
+        "target": -0.02029771957764126
+      }
+    },
+    {
+      "tick": 1080,
+      "features": {
+        "targetOffset": -0.6412753631897713,
+        "targetVisible": true,
+        "playerVisible": true,
+        "playerX": 0.9637250275287086,
+        "confidence": 1
+      },
+      "vision": {
+        "targetX": 0.6430873459338229,
+        "playerX": 0.9637250275287086,
+        "relativeX": -0.6412753631897713,
+        "confidence": 1,
+        "source": "pixels",
+        "method": "rgba-connected-color-v1",
+        "targetPixels": 19287,
+        "playerPixels": 1141,
+        "targetWidth": 260,
+        "playerWidth": 48
+      },
+      "diagnostics": {
+        "playerCenterX": 390,
+        "bossCenterX": 251.62644579820198
+      },
+      "errorPixels": {
+        "player": -14.14723926380367,
+        "target": -0.8223808840110536
+      }
+    },
+    {
+      "tick": 1140,
+      "features": {
+        "targetOffset": -0.8253517730977836,
+        "targetVisible": true,
+        "playerVisible": true,
+        "playerX": 0.9631697723902249,
+        "confidence": 1
+      },
+      "vision": {
+        "targetX": 0.5504938858413332,
+        "playerX": 0.9631697723902249,
+        "relativeX": -0.8253517730977836,
+        "confidence": 1,
+        "source": "pixels",
+        "method": "rgba-connected-color-v1",
+        "targetPixels": 19744,
+        "playerPixels": 1193,
+        "targetWidth": 268,
+        "playerWidth": 48
+      },
+      "diagnostics": {
+        "playerCenterX": 390,
+        "bossCenterX": 214.666158241226
+      },
+      "errorPixels": {
+        "player": -14.363788767812252,
+        "target": 0.026457236893946856
+      }
+    },
+    {
+      "tick": 1200,
+      "features": {
+        "targetOffset": -1,
+        "targetVisible": true,
+        "playerVisible": true,
+        "playerX": 0.9632249758609591,
+        "confidence": 1
+      },
+      "vision": {
+        "targetX": 0.40484467266733976,
+        "playerX": 0.9632249758609591,
+        "relativeX": -1,
+        "confidence": 1,
+        "source": "pixels",
+        "method": "rgba-connected-color-v1",
+        "targetPixels": 19579,
+        "playerPixels": 1195,
+        "targetWidth": 260,
+        "playerWidth": 48
+      },
+      "diagnostics": {
+        "playerCenterX": 390,
+        "bossCenterX": 158.039712443024
+      },
+      "errorPixels": {
+        "player": -14.342259414225964,
+        "target": -0.15029010276148824
+      }
+    },
+    {
+      "tick": 1260,
+      "features": {
+        "targetOffset": -1,
+        "targetVisible": true,
+        "playerVisible": true,
+        "playerX": 0.9632243000664052,
+        "confidence": 1
+      },
+      "vision": {
+        "targetX": 0.35469088996234355,
+        "playerX": 0.9632243000664052,
+        "relativeX": -1,
+        "confidence": 1,
+        "source": "pixels",
+        "method": "rgba-connected-color-v1",
+        "targetPixels": 19985,
+        "playerPixels": 1197,
+        "targetWidth": 260,
+        "playerWidth": 48
+      },
+      "diagnostics": {
+        "playerCenterX": 390,
+        "bossCenterX": 138.37355420179804
+      },
+      "errorPixels": {
+        "player": -14.34252297410194,
+        "target": -0.04410711648407073
+      }
+    },
+    {
+      "tick": 1320,
+      "features": {
+        "targetOffset": -1,
+        "targetVisible": true,
+        "playerVisible": true,
+        "playerX": 0.9630182421227197,
+        "confidence": 1
+      },
+      "vision": {
+        "targetX": 0.44885011496918054,
+        "playerX": 0.9630182421227197,
+        "relativeX": -1,
+        "confidence": 1,
+        "source": "pixels",
+        "method": "rgba-connected-color-v1",
+        "targetPixels": 19905,
+        "playerPixels": 1206,
+        "targetWidth": 260,
+        "playerWidth": 44
+      },
+      "diagnostics": {
+        "playerCenterX": 390,
+        "bossCenterX": 175.33384175877404
+      },
+      "errorPixels": {
+        "player": -14.422885572139307,
+        "target": -0.282296920793641
+      }
+    },
+    {
+      "tick": 1380,
+      "features": {
+        "targetOffset": -1,
+        "targetVisible": true,
+        "playerVisible": true,
+        "playerX": 0.9627565674990041,
+        "confidence": 1
+      },
+      "vision": {
+        "targetX": 0.4171478217014251,
+        "playerX": 0.9627565674990041,
+        "relativeX": -1,
+        "confidence": 1,
+        "source": "pixels",
+        "method": "rgba-connected-color-v1",
+        "targetPixels": 19523,
+        "playerPixels": 1223,
+        "targetWidth": 260,
+        "playerWidth": 48
+      },
+      "diagnostics": {
+        "playerCenterX": 390,
+        "bossCenterX": 163.1976045262873
+      },
+      "errorPixels": {
+        "player": -14.524938675388398,
+        "target": -0.5099540627315093
+      }
+    },
+    {
+      "tick": 1440,
+      "features": {
+        "targetOffset": -1,
+        "targetVisible": true,
+        "playerVisible": true,
+        "playerX": 0.9637567919529391,
+        "confidence": 1
+      },
+      "vision": {
+        "targetX": 0.35181228650238383,
+        "playerX": 0.9637567919529391,
+        "relativeX": -1,
+        "confidence": 1,
+        "source": "pixels",
+        "method": "rgba-connected-color-v1",
+        "targetPixels": 21055,
+        "playerPixels": 1142,
+        "targetWidth": 260,
+        "playerWidth": 48
+      },
+      "diagnostics": {
+        "playerCenterX": 390,
+        "bossCenterX": 137.5
+      },
+      "errorPixels": {
+        "player": -14.134851138353781,
+        "target": -0.29320826407030154
+      }
+    }
+  ]
+}
