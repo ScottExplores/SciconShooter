@@ -2,7 +2,31 @@
 
 Updated September 13, 2026, morning (America/Los_Angeles).
 
-## Current direction overrides the older continuation checklist
+## Current direction: a spectator website
+
+Scott clarified again that the primary product is a simple read-only display,
+using the larger Watch anatomy and game view. The default routes, `#watch` and
+`#live`, now show Spectator. Research controls remain reachable at `#research`
+and Watch preparation tools at `#watch-tools`; they are absent from the public
+viewer. Existing physiology work and the hourly automation remain paused.
+
+The first public version is explicitly a recorded showcase, not an endlessly
+running or learning fly. It plays two existing verified random-baseline episodes
+in sequence, hides the lives counter, and derives sequence points from the actual
+recorded scores. Playback loops reset the total rather than earning new scores.
+Green point flashes are display cues, not simulated dopamine. Cyan/amber anatomy
+illustrations reflect image changes/actions, not neuron recordings. No neural
+gates, reward rules, game physics or training outcomes changed.
+
+The separate Sites checkout is
+`C:/Users/scott/Documents/ChatGPT/Science/scicon-fly-watch`, with its persistent
+Site ID in `.openai/hosting.json`. It contains only the static spectator bundle,
+two verified recordings, lightweight source anatomy and provenance. Reuse that
+Site for future display updates. A truly live public feed, persistent exhibition
+ledger, automatic fresh matches and learned controller are still unimplemented;
+do not silently present replay as any of those capabilities.
+
+## Earlier direction and research checkpoint (preserved)
 
 Scott asked to simplify the project around a real connectome experiment in
 Scicon Shooter. He has not chosen a generic engineered game controller as a

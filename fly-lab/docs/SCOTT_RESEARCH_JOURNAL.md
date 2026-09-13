@@ -1,15 +1,23 @@
 # Scott's research journal — September 13, 2026
 
-**Latest direction:** keep the real fly-connectome goal and simplify the Live
-screen. The four-neuron teaching example is not a fly-connectome result. The
-hourly background research has been paused while we clarify the single game
-experiment; no generic learning controller has replaced the fly model.
+**Latest direction:** a simple spectator website using the larger Watch brain
+visual. The first version shows verified recorded random-baseline gameplay,
+illustrated cues and actual recorded points. It is not live fly training. The
+real connectome research remains preserved; hourly background work is paused.
 
 We are turning a fly's published wiring diagram into a computer model and testing whether that model can eventually learn to play Scicon Shooter. The project is running real experiments, but **we have not demonstrated a learning fly controller yet**.
 
 You do not need to choose another controller or work out the settings. The next useful work is a sequence of small vision tests. A random controller playing for longer cannot learn: it has no learning model attached.
 
-**Latest display:** [Learning demonstration](http://127.0.0.1:5180/#learn). We now have a small synthetic circuit that changes its response after a cue is paired with reward. It is a separate teaching experiment, not the MaleCNS brain learning the game. The result and its limits are explained in the newest entry below.
+**Latest display:** [Spectator view](http://127.0.0.1:5180/#watch). It repeats two actual recordings, with no lives counter or research controls. Points rise within the recorded sequence and reset when it repeats. The four-neuron teaching example remains separate and is not shown in this public view.
+
+**Public viewer:** https://scicon-fly-watch.scottexplores.chatgpt.site
+Published September 13 as a read-only static showcase. It can play while the PC
+is off. This is not a continuously operating neural model or live experiment feed.
+The two unique recordings contain 183 and 186 points, totaling 369 per sequence;
+repetition never adds to research results. Desktop and 390-pixel mobile playback,
+pause, explanatory disclosure and layout were checked. All 18 lab JavaScript
+tests, TypeScript checking and the private build passed. Publication succeeded.
 
 ## What the gates mean
 

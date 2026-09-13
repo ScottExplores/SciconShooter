@@ -14,6 +14,6 @@ export default defineConfig({
     proxy: { '/lab-api': { target: 'http://127.0.0.1:8766', rewrite: p => p.replace(/^\/lab-api/, '') } }
   },
   build: { outDir: 'dist', copyPublicDir: false, manifest: true,
-    rollupOptions: { input: { dashboard: path.resolve(root,'index.html'), watch: path.resolve(root,'watch.html'), runner: path.resolve(root,'environment/runner.html') } }
+    rollupOptions: { input: { dashboard: path.resolve(root,'index.html'), watch: path.resolve(root,'watch.html'), spectator: path.resolve(root,'spectator.html'), runner: path.resolve(root,'environment/runner.html') } }
   }
 });
