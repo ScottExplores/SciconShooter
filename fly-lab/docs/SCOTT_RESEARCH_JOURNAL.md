@@ -137,3 +137,48 @@ and [data acquisition record](evidence/l2-data-acquisition-v1.md). The display
 change passed typechecking, all 16 JavaScript tests, the private build, and
 desktop/mobile browser checks including simulated connection failures. No new
 game-training episode was started during these checks.
+
+## September 13: the individual-fly recordings are now available
+
+The normal website download worked. We now have the researchers' processed L2
+visual-cell recordings and the spreadsheet identifying the animals and viewing
+conditions. All three files matched the source's exact file fingerprints before
+we opened them. We downloaded about 112 MiB of selected material, not the huge
+complete imaging archive.
+
+This matters because an average curve hides differences between animals. We
+can now work toward checking the model on individual flies while keeping all
+measurements from the same animal together. First we must confirm which
+recordings and conditions belong together; simply collecting more files does
+not prove that our model sees correctly.
+
+We also added an independent implementation of the published L2 response
+equations. All 44 focused math checks passed. Those checks establish that the
+equations are being calculated as declared, not that their settings match a fly.
+One check shows that different internal voltage scales can produce identical
+predicted fluorescence. We therefore cannot claim to have measured real voltage
+or transmitter release merely by matching a curve.
+
+The next task is to lock the measurement and comparison rules before fitting.
+The app is still displaying the clearly labeled saved random match. No match is
+training a fly yet, and no learning gate was changed in this follow-up. The
+hourly research continuation remains active while this computer and Codex are
+available. No Raspberry Pi, purchases or controller changes are needed now.
+
+Records: [successful acquisition](evidence/l2-data-acquisition-v2.md) and
+[numerical reference](evidence/l2-numerical-reference-v1.md).
+
+The first detailed check found **23 of the 103 selected recording rows have
+unresolved labels**. Some names point to a different genetic condition in the
+spreadsheet; others have no matching entry. That does not establish that the
+measurements are wrong. It means we need the source history before confidently
+claiming which animals and conditions they represent.
+
+We reproduced the inventory independently and kept those discrepancies visible.
+The audit used roughly 95 MiB of memory and about four seconds; it was a small
+data check, not a new long-running brain simulation. Next I am tracing the
+source labels. If some cannot be resolved, any smaller usable dataset will have
+an explicit scope and exclusion rule, rather than guessed identities.
+
+See the [recording audit](evidence/l2-dryad-inventory-v2.md). No sight, learning,
+or gameplay improvement claim follows from this result.

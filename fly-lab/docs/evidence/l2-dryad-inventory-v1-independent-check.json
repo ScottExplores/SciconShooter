@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "status": "INDEPENDENT_REPEAT_MATCH",
+  "inventory_sha256": "9403d9cf8068e64abb6177b3f6df33540c14c649ad17a09f8accb668ab6cdc1f",
+  "inspector_sha256": "30860112864f27269d3db61e03df56703e05f92bc1b17ddc4344608d1fdf4029",
+  "repeat_artifact": "runtime/vision-reference/l2-dryad-inventory-root-check.json",
+  "repeat_sha256": "9555dfc6361a448ff9166869e71bc29a292fcbae96b3cf0d97a774dfd404da84",
+  "all_non_resource_fields_identical": true,
+  "source_hashes_checked_before_and_after_by_inspector": true,
+  "selected_rows_with_unresolved_source_metadata": 23,
+  "repeat_resources": {
+    "thread_limits": 2,
+    "sampled_owned_process_tree_peak_rss_bytes": 99381248,
+    "sampled_process_count": 2,
+    "scope": "Spawned Python launcher plus all recursively discovered child processes; only this owned tree is terminated on a guard failure.",
+    "sample_interval_seconds": 0.05,
+    "wall_seconds": 3.7340000000003783,
+    "memory_limit_bytes": 4294967296,
+    "time_limit_seconds": 2700,
+    "limitation": "RSS is sampled, not an OS-enforced allocation limit; an unsampled transient peak is possible."
+  },
+  "fitting_performed": false,
+  "gates_changed": false,
+  "scope": "Reproducibility of metadata inventory, not adjudication of conflicting source identities or biological validation."
+}

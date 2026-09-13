@@ -2,6 +2,63 @@
 
 Updated September 13, 2026, morning (America/Los_Angeles).
 
+## Latest continuation: individual physiology data acquired
+
+The first hourly follow-up resolved the Dryad download limitation through the
+ordinary browser interface. The selected processed L2 MAT, metadata workbook
+and README were all verified against the exact published byte counts and
+SHA-256 targets before parsing, then copied to
+`data/raw/vision-physiology/pang-2025/dryad-v3/`. Only about 112 MiB was acquired;
+the full release was not downloaded. Preserve the earlier unsuccessful HTTP
+attempt record as well as the new `docs/evidence/l2-data-acquisition-v2.md/json`.
+
+A separately authored latent L2 numerical reference is now available at
+`python/scicon_fly/l2_reference.py`, with 44 passing focused tests. It reproduces
+the explicitly documented recurrence and initialization alternatives. It does
+not load biological targets or calibrate physiology. The scale-equivalence
+test demonstrates that fluorescence alone cannot identify absolute latent
+voltage when input and output gains can trade off. See
+`docs/evidence/l2-numerical-reference-v1.md`.
+
+The aggregate-only fit is deferred: individual-fly data provide a stronger next
+avenue. Complete the actual dataset inventory, freeze independent-unit grouping
+and measurement preprocessing, and lock a calibration/evaluation protocol before
+any parameter fitting. Do not infer that the small GitHub aggregates constitute
+held-out data or that a new split erases earlier published-model/data exposure.
+The whole-CNS vision and decoder gates remain failed; conditioning and learning
+remain untested. The app continues to show a labeled recorded baseline.
+
+The current inventory is `docs/evidence/l2-dryad-inventory-v2.md/json`, with
+an independent repeat record beside it. All non-resource output fields
+reproduced exactly. The repeat took 4.063 seconds and approximately 94.6 MiB
+sampled RSS over the owned launcher and child; the guard now sums that tree,
+not merely the Windows venv launcher. A preliminary wrong numeric-ID comparison
+and wrapper-only memory measurement are preserved and explicitly superseded.
+The first completed inventory (v1) is also preserved. Independent review led to
+v2: empty MATLAB arrays now distinguish logical dimensions from HDF5 storage,
+and the release's intended condition is qualified rather than asserted as
+verified for every recording. Membership and metadata-conflict results did not
+change. The v1 inspector snapshot is retained with the ignored acquired files.
+
+There are 214 ROI rows and 103 source-selected rows, in 14 MAT series-prefix
+groups (13 selected). These prefixes are provisional animal labels. Of 64
+recording series, 58 exactly match the workbook; ten matches have substantive
+genotype conflicts and six are absent. This affects **23 selected rows**:
+19 conflicting and four without matching series. MAT `170607_fly1/fly2` differ
+from README `170607_fly4/fly5`; never silently rename or merge them. The MAT's
+numeric fly IDs are another namespace, not local filename suffixes.
+
+**Next continuation:** investigate source export/selection history and the
+workbook's relevant figure sheets for evidence resolving these identities.
+Use existing downloaded files and the pinned author repository first. No
+response-fit or train/holdout split has been frozen. If provenance cannot be
+resolved, explicitly version an analysis limited to verifiable records, with
+selection limitations, or document the external evidence needed. Do not
+change ambiguous labels to make the data usable. Prospective numerical and
+measurement considerations are saved in
+`docs/evidence/l2-calibration-design-notes-v1.md`; these are not a frozen fit
+protocol. The hourly continuation remains active.
+
 ## What actually happened
 
 The earlier 29 FlyVis visual trials and 12 pathway trials completed at commit
@@ -71,18 +128,14 @@ reduced-circuit engineering test does not pass the whole-CNS vision gate.
    target-dependent initialization. The paper's fitted 16.7-ms input delay is
    explicit. High/low luminance-to-ROI provenance remains unresolved. No author
    notebook was executed, no fitting occurred and no gate was changed.
-4. Seek the selected processed L2 dataset/metadata for fly-level uncertainty
-   through normal official download paths. Dryad direct streams returned an
-   anti-bot HTML challenge; preserve that failure, validate signatures, and do
-   not bypass access controls or download the full 49.6-GB release. The targeted
-   L2 MAT is listed as 117.01 MB. A second bounded acquisition audit is saved in
-   `docs/evidence/l2-data-acquisition-v1.md/json`: public API metadata worked and
-   supplied exact size/hash targets; three public file responses were rejected
-   as HTML. Do not repeat those unchanged requests. An ordinary browser
-   download through the source site or authorized API access remains an avenue;
-   do not bypass challenges. The small aggregate files do not permit a
-   biological held-out split. License/provenance of GitHub aggregates remains
-   distinct from the CC0 Dryad release.
+4. The selected processed L2 data/metadata are now acquired and verified through
+   ordinary official browser downloads; do not download them again. See
+   `docs/evidence/l2-data-acquisition-v2.md/json` and the new inventory. Preserve
+   the earlier HTML rejection records. Resolve the inventory's recording/fly
+   identity and condition-label discrepancies before declaring an independent
+   biological split. The small aggregate files alone do not permit that split.
+   License/provenance of GitHub aggregates remains distinct from the CC0 Dryad
+   release. No full raw microscopy archive is needed at this stage.
 5. Before fitting, freeze a new bounded calibration protocol and measurement
    model. If only aggregate data are accessible, explicitly label any fit as
    descriptive and unvalidated; do not turn curve matching into a gate pass.

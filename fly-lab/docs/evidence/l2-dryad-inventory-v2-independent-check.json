@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "status": "INDEPENDENT_REPEAT_MATCH",
+  "inventory_sha256": "75aafb739b5db408914b2f809a81b1eaf2b949ddb274e910ae9c44e01ba80177",
+  "inspector_sha256": "5aa1208a119d25e5dcb4f3904601ebc4ff7ba5c0e00c268838a5aee16fa02dd0",
+  "repeat_artifact": "runtime/vision-reference/l2-dryad-inventory-v2-root-check.json",
+  "repeat_sha256": "4e7178c751d781ce25c9dba852b26718fe332689896a33110b75d809dd33e0a7",
+  "all_non_resource_fields_identical": true,
+  "v1_membership_series_issues_and_missingness_unchanged": true,
+  "v1_inventory_and_source_snapshot_preserved": true,
+  "empty_dimension_descriptors_verified": 4,
+  "repeat_resources": {
+    "thread_limits": 2,
+    "sampled_owned_process_tree_peak_rss_bytes": 99155968,
+    "sampled_process_count": 2,
+    "scope": "Spawned Python launcher plus all recursively discovered child processes; only this owned tree is terminated on a guard failure.",
+    "sample_interval_seconds": 0.05,
+    "wall_seconds": 4.063000000000102,
+    "memory_limit_bytes": 4294967296,
+    "time_limit_seconds": 2700,
+    "limitation": "RSS is sampled, not an OS-enforced allocation limit; an unsampled transient peak is possible."
+  },
+  "fitting_performed": false,
+  "gates_changed": false,
+  "scope": "Reproducibility and corrected metadata reporting, not resolved animal identities or physiological validation."
+}

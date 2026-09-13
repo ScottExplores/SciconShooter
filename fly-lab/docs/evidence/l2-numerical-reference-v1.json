@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "scope": "REFERENCE_EQUATIONS_ONLY",
+  "created_at_utc": "2026-09-13T16:53:39.346013+00:00",
+  "author_repository_commit": "7fa5829e37d566e02beaaa87efd6a0f1de4e48c0",
+  "files": {
+    "python/scicon_fly/l2_reference.py": "df4ce906a77c8c95f8c61553a219aae3ecf6b048054677d10e2d73aa322b0a3f",
+    "python/tests/test_l2_reference.py": "775910933a914906e795b591d1b9f20a1f9c919ac918c149c44f981222fbddd4",
+    "docs/evidence/l2-numerical-reference-v1.md": "1eebd08034ac34bbf66a8c5200aa5ba9f61cfc0d3377e49bdf43ccd3eecea60b"
+  },
+  "verification": {
+    "focused_tests_passed": 44,
+    "primary_agent_repeat_seconds": 0.38,
+    "independent_static_review": "No equation, indexing, or feedback defects found; meaningful matrix, analytic, simultaneous-update and scale-invariance checks."
+  },
+  "biological_targets_loaded": false,
+  "fitting_performed": false,
+  "gates_changed": false,
+  "limitations": [
+    "Effective latent feedback equations, not a MaleCNS anatomical circuit.",
+    "No calibrated voltage, release or validated indicator measurement operator.",
+    "Future bounds, integration and measurement choices require a separately frozen protocol."
+  ]
+}

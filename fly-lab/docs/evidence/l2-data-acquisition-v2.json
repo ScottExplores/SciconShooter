@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "status": "ACQUIRED_AND_HASH_VERIFIED",
+  "date_local": "2026-09-13",
+  "timezone": "America/Los_Angeles",
+  "dataset": "doi:10.5061/dryad.ngf1vhj4c",
+  "dataset_version_id": 335185,
+  "dataset_version_number": 3,
+  "source_page": "https://datadryad.org/dataset/doi:10.5061/dryad.ngf1vhj4c",
+  "license_from_official_metadata": "CC0-1.0",
+  "method": "Clicked the three named download links in the ordinary official Dryad browser page. Files saved to the normal Downloads directory. Exact byte counts and SHA-256 independently matched prior official API metadata before parsing, then files copied to ignored lab data.",
+  "prior_attempt_preserved": "docs/evidence/l2-data-acquisition-v1.json",
+  "whole_dataset_requested": false,
+  "authentication_or_captcha_or_challenge_bypass": false,
+  "downloaded_code_executed": false,
+  "fitting_performed_during_acquisition": false,
+  "validation_gates_changed": false,
+  "records": [
+    {
+      "file_id": 3732211,
+      "name": "L2_ASAP2f.mat",
+      "url": "https://datadryad.org/downloads/file_stream/3732211",
+      "bytes": 117007438,
+      "sha256": "31e3942cee9025c152f96f929d30357ff14e6cf3b4f3c972f005c89524e946df",
+      "local_path": "data/raw/vision-physiology/pang-2025/dryad-v3/L2_ASAP2f.mat"
+    },
+    {
+      "file_id": 3732249,
+      "name": "L1L2_Metadata.xlsx",
+      "url": "https://datadryad.org/downloads/file_stream/3732249",
+      "bytes": 195431,
+      "sha256": "0c6c428b1a297fb7c63b24a6f1a6e60516320ca6bde550614639d865dcdcfcea",
+      "local_path": "data/raw/vision-physiology/pang-2025/dryad-v3/L1L2_Metadata.xlsx"
+    },
+    {
+      "file_id": 3732251,
+      "name": "README.md",
+      "url": "https://datadryad.org/downloads/file_stream/3732251",
+      "bytes": 15130,
+      "sha256": "fbedd08a47ba0927cf416c1a8d73bdd889e5779c309f79f94970b02c1f7f87e7",
+      "local_path": "data/raw/vision-physiology/pang-2025/dryad-v3/README.md"
+    }
+  ],
+  "total_verified_bytes": 117217999,
+  "scope": "Selected processed L2 recordings and metadata; not a calibration result or a whole-CNS validation."
+}
