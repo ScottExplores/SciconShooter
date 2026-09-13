@@ -1,0 +1,36 @@
+{
+  "completedAttempt": "reference-v1-20260913-fourth",
+  "earlierAttempts": [
+    {
+      "attempt": "reference-v1-20260913-first",
+      "sha256": "8e882ebecac358655503f11d14a29c891b0edb031bea7b44b0a840afba3bb456",
+      "record": {
+        "status": "NOT_RUN",
+        "reason": "PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\\\Users\\\\scott\\\\Documents\\\\Scicon Shooter\\\\fly-lab\\\\runtime\\\\vision-reference\\\\data\\\\connectome\\\\ConnectomeFromAvgFilters_0000\\\\unique_cell_types.h5'",
+        "trainingAllowed": false,
+        "elapsedSeconds": 6.4540000000015425
+      }
+    },
+    {
+      "attempt": "reference-v1-20260913-second",
+      "sha256": "09f83742dc722dee22cf8cc668bce610325f4e1719e8cd31bbdd270f92d0f8ce",
+      "record": {
+        "status": "NOT_RUN",
+        "trainingAllowed": false,
+        "reason": "Operator terminated upstream dense visual rendering after observed process working set reached 41248 MiB, before any network assay trial. No response outcome was available; subsequent retry adds sparse equivalent rendering and a 4-GiB RSS limit.",
+        "measuredWorkingSetMiB": 41248
+      }
+    },
+    {
+      "attempt": "reference-v1-20260913-third",
+      "sha256": "81c13cccda8b923a91b0508595ed60bc295da076e02f4e6dbf71a910d756f8a8",
+      "record": {
+        "status": "NOT_RUN",
+        "reason": "ImportError: cannot import name 'moving_bar' from 'flyvis.datasets.datasets' (C:\\Users\\scott\\Documents\\Scicon Shooter\\fly-lab\\runtime\\vision-reference\\.venv\\Lib\\site-packages\\flyvis\\datasets\\datasets.py)",
+        "trainingAllowed": false,
+        "elapsedSeconds": 8.078000000001339
+      }
+    }
+  ],
+  "cacheRecovery": "An empty derived RenderedOffsets_0000 cache left running by the terminated second attempt was marked stopped so the fourth attempt could rebuild. Original pretrained files were not modified."
+}

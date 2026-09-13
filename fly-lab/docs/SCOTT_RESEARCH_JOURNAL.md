@@ -1,0 +1,57 @@
+# Scott's research journal — September 13, 2026
+
+We are turning a fly's published wiring diagram into a computer model and testing whether that model can eventually learn to play Scicon Shooter. The project is running real experiments, but **we have not demonstrated a learning fly controller yet**.
+
+You do not need to choose another controller or work out the settings. The next useful work is a sequence of small vision tests. A random controller playing for longer cannot learn: it has no learning model attached.
+
+## What the gates mean
+
+A gate is a question we answer with a recorded experiment. It is not a switch we turn on to unlock a better-looking demonstration.
+
+| Question | Where we are today |
+|---|---|
+| Does the simulator calculate its equations correctly? | The tested equations agree with an independent simulator. This checks the software, not whether every real fly cell behaves that way. |
+| Can the model make useful sense of pictures? | Our first MaleCNS visual candidate failed. It activated the input cells but did not produce responses in the nominated learning circuit. |
+| Can those responses control the game? | The first candidate failed this screen too: its output remained still and did not fire. |
+| Can a cue paired with a reward produce a specific memory? | Not yet tested in the real-data candidate. |
+| Does that memory improve gameplay? | Not tested yet. We will need repeated training runs and fair comparisons with controllers that cannot learn. |
+
+Passing a gate applies to the particular model and test used. Substantially changing that model can mean checking earlier gates again. Some checks can run in parallel; none should be replaced by a nicer animation.
+
+## What we have learned and changed
+
+**The game and recorder work.** The earlier six short baseline episodes produced reproducible records. A representative replay matched the recorded game states, images and events. Your later random-controller run also finished and is saved: it scored 191 and ended after about 48 simulated seconds. These are useful checks of our equipment, not learning results.
+
+**Having the wiring does not automatically give the model sight.** We found that the original visual input made important assumptions about how light excites cells. Many early fly visual cells respond through changing activity levels rather than simple spikes. Some reduce their activity when light appears. A model must represent that properly before a reward can teach it much.
+
+**The anatomical map has a usable starting point, with gaps.** In the retained data, the R1–R6 photoreceptors lack the paired optic-column labels used by our screen mapper. We cannot honestly pretend that those cells already have known screen positions. Some later visual populations have much better label coverage; the detailed inventory identifies matching L2, Tm1 and Tm2 columns for a small, declared sensory experiment. Those labels are not yet a calibrated fly eye.
+
+**We made a faster calculation available for tests.** In short full-connectome probes, an optional implementation ran about five times faster and matched every tested timestep of the original. It still needed roughly 13 seconds of computer time per simulated second in the stimulated probe. That is a measured speedup for this particular test, not a promise that full training can run at game speed.
+
+**A published visual reference now runs here.** We completed 29 short trials using an existing FlyVis model with its pretrained settings held fixed. All eight tested motion-cell types preferred the expected direction over the opposite direction; seven of eight matched the expected bright/dark preference. Repeated inputs produced identical responses. We kept the eighth mismatch in the report. This is a useful sight-test reference, not our MaleCNS fly learning Scicon.
+
+**We checked what was actually transmitting.** A follow-up made 12 comparisons with an early visual pathway intact, blocked, or unchanged through a control procedure. All 1,442 cells in the two nominated populations stayed below the level that sends output during the recorded stimuli. Blocking their connections also during startup produced small differences that diminished over time. This shows why visible activity and useful motion responses do not, by themselves, prove that the expected pathway is doing the work. We should not borrow this checkpoint's settings without further calibration.
+
+**The dashboard now explains its controls.** Random, manual, frozen-neural and plastic-neural selections have plain descriptions. An expandable explanation tells you what each gate checks. Selecting a neural controller cannot manufacture the missing evidence.
+
+## Why rewards come later
+
+The experiment's initial reward rule is +1 for a confirmed enemy destruction and −5 for a life lost. A numerical reward can influence an eligible learning model; a random controller does not learn from it. Coins are not currently an additional training reward.
+
+Before adding coin rewards, we need to show that the model can detect useful visual differences and form a cue-specific memory. Otherwise, a changing score could simply reflect luck or our engineering choices. When we test coins, we should label that as a separate reward experiment and compare it fairly.
+
+## What happens next
+
+1. Build a small, separately versioned sensory candidate using actual MaleCNS connections and published light-response measurements. The anatomical inventory nominates a 57-cell circuit for this diagnostic. Its baseline activity and timing need calibration; the reference checkpoint is not a ready-made biological answer.
+2. Test bright and dark patterns, stability and timing on inputs reserved for evaluation. Then check that the signals reach the nominated learning circuit and can cause the declared actions.
+3. Establish cue/reward conditioning. Only then start bounded game-learning batches with saved checkpoints and fair evaluation controls.
+
+The central question is whether the declared model improves because of its learning rule, and which biological and engineered choices explain that improvement. A repeatable failure is useful when it tells us what assumption to change.
+
+## What you need to do
+
+No controller changes, Raspberry Pi setup or purchases are needed for this stage. The existing PC is enough for these bounded tests. Turning its screen off is fine while it remains awake; actual system sleep pauses local computation. **This session's experiment jobs are complete; no training batch is running.** There is no reason to leave a random game running overnight. Finalized records remain saved when a job stops.
+
+The simple Watch page is for seeing recorded gameplay and clearly labeled signals. The Live controls are experiment equipment. Neither activity on the screen nor a higher score by itself proves that a fly model has learned.
+
+Technical records: [initial results](RESEARCH_START_RESULTS.md), [visual reference measurements and plots](evidence/flyvis-reference-v1/README.md), [pathway check](evidence/flyvis-pathway-v1/README.md), [visual boundary inventory](evidence/vision-boundary-inventory-v1.md), and [numerical speed comparison](evidence/lif-fast-benchmark.md).

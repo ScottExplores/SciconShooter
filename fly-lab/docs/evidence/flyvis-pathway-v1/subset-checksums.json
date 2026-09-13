@@ -1,0 +1,11 @@
+{
+  "exploratory/analyze_windows.py": "b4ef3ca94196cf45691fb22b00cc6ee1f7b51deca1dd38eeb66f20b9b35b9020",
+  "exploratory/checksums.json": "f4d26a2ce5fa027d924d538330be80177981153203a1c794af64418f03a7a241",
+  "exploratory/difference-curves.npz": "7bc6f86f2e7b70bbd9fb2c7cbb6ff48887549c4905dacbd25c69f149f53a052f",
+  "exploratory/difference-windows.png": "c1648a489b37d57c41f28172e963356ebb765debaf56582444f12f248740d313",
+  "exploratory/results.json": "cb419b38de2a69273f48319c45cbd5fa0bed58437b9c9c167acbe8f8542cf650",
+  "full-run-checksums.json": "4cc05c70a426d1fcf60b05da4b40a2629efc1f977a9b2c1350d11991f1d712e2",
+  "intervention-targets.npz": "5aaab7fce9f9c6678656d81c76240dbdb8688391951409a091e0d08d7969c642",
+  "results.json": "4d29cb5931b8460c93839dc44083caa918527ebf080112385bfb3c1e6cefbf0a",
+  "specification.json": "4db96fa9a72a86526218f7a7c7ec7a3e762a1f86f57696567e78e35006b3a396"
+}

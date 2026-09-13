@@ -1,0 +1,152 @@
+{
+  "scope": "EXPLORATORY_POST_HOC_WINDOWS_OF_SEALED_DIAGNOSTIC",
+  "trainingAllowed": false,
+  "sourceResultsSha256": "4d29cb5931b8460c93839dc44083caa918527ebf080112385bfb3c1e6cefbf0a",
+  "sourceManifestSha256": "4cc05c70a426d1fcf60b05da4b40a2629efc1f977a9b2c1350d11991f1d712e2",
+  "analysisSha256": "b4ef3ca94196cf45691fb22b00cc6ee1f7b51deca1dd38eeb66f20b9b35b9020",
+  "verifiedSourceFiles": 32,
+  "timing": "Recorded time0 follows a separate one-second gray initialization. Visual stimulus starts at recorded second1. The lesion applied throughout both periods.",
+  "interpretation": "These windows were chosen after observing that the maximum difference occurred at the first recorded frame. They describe an initialization carryover and cannot by themselves identify a biological mechanism or show ongoing L1/L2 transmission.",
+  "records": [
+    {
+      "input": "flash-000",
+      "originalWholeNetworkRawSha256": "34c0c059dbd9ac2c4774ba88b64547491c010a6d204c0ce417bfb78b08f089ea",
+      "shamWholeNetworkRawSha256": "34c0c059dbd9ac2c4774ba88b64547491c010a6d204c0ce417bfb78b08f089ea",
+      "originalShamRawBytesIdentical": true,
+      "originalCentralRawSha256": "41f2a9cbd14165d5c12bba02f14ad763be6e399eb3a67a8f767394f4a44bd9af",
+      "priorReferenceCentralRawSha256": "41f2a9cbd14165d5c12bba02f14ad763be6e399eb3a67a8f767394f4a44bd9af",
+      "originalMatchesPriorReferenceRawBytes": true,
+      "maximumWholeNetworkDifferenceAtFirstFrame": 0.0004985928535461426,
+      "maximumWholeNetworkDifferenceAtStimulusOnset": 4.351139068603516e-06,
+      "maximumMotionCellDifferenceAtFirstFrame": 8.132378570735455e-05,
+      "windows": {
+        "earlyPreStimulus": {
+          "wholeNetworkMaximumAbsoluteDifference": 0.0004985928535461426,
+          "centralT4T5MaximumAbsoluteDifference": 8.132378570735455e-05
+        },
+        "latePreStimulus": {
+          "wholeNetworkMaximumAbsoluteDifference": 1.1026859283447266e-05,
+          "centralT4T5MaximumAbsoluteDifference": 1.1558877304196358e-06
+        },
+        "stimulus": {
+          "wholeNetworkMaximumAbsoluteDifference": 4.351139068603516e-06,
+          "centralT4T5MaximumAbsoluteDifference": 6.556510925292969e-07
+        },
+        "postStimulus": {
+          "wholeNetworkMaximumAbsoluteDifference": 7.152557373046875e-07,
+          "centralT4T5MaximumAbsoluteDifference": 1.7462298274040222e-07
+        },
+        "last200ms": {
+          "wholeNetworkMaximumAbsoluteDifference": 4.76837158203125e-07,
+          "centralT4T5MaximumAbsoluteDifference": 1.6391277313232422e-07
+        }
+      },
+      "modelUnits": "Graded activity, not millivolts or measured biological firing"
+    },
+    {
+      "input": "flash-001",
+      "originalWholeNetworkRawSha256": "7c058f6092c33e4ed2bc58babfdb327f5fd8b548439adf5abe70aa97904cd36f",
+      "shamWholeNetworkRawSha256": "7c058f6092c33e4ed2bc58babfdb327f5fd8b548439adf5abe70aa97904cd36f",
+      "originalShamRawBytesIdentical": true,
+      "originalCentralRawSha256": "bd3acea203817b2f61671c5b96b7c471ec2217f6d41e33fe68f9c849cf56b189",
+      "priorReferenceCentralRawSha256": "bd3acea203817b2f61671c5b96b7c471ec2217f6d41e33fe68f9c849cf56b189",
+      "originalMatchesPriorReferenceRawBytes": true,
+      "maximumWholeNetworkDifferenceAtFirstFrame": 0.0004985928535461426,
+      "maximumWholeNetworkDifferenceAtStimulusOnset": 4.351139068603516e-06,
+      "maximumMotionCellDifferenceAtFirstFrame": 8.132378570735455e-05,
+      "windows": {
+        "earlyPreStimulus": {
+          "wholeNetworkMaximumAbsoluteDifference": 0.0004985928535461426,
+          "centralT4T5MaximumAbsoluteDifference": 8.132378570735455e-05
+        },
+        "latePreStimulus": {
+          "wholeNetworkMaximumAbsoluteDifference": 1.1026859283447266e-05,
+          "centralT4T5MaximumAbsoluteDifference": 1.1558877304196358e-06
+        },
+        "stimulus": {
+          "wholeNetworkMaximumAbsoluteDifference": 4.351139068603516e-06,
+          "centralT4T5MaximumAbsoluteDifference": 5.122274160385132e-07
+        },
+        "postStimulus": {
+          "wholeNetworkMaximumAbsoluteDifference": 9.5367431640625e-07,
+          "centralT4T5MaximumAbsoluteDifference": 1.7508864402770996e-07
+        },
+        "last200ms": {
+          "wholeNetworkMaximumAbsoluteDifference": 4.76837158203125e-07,
+          "centralT4T5MaximumAbsoluteDifference": 1.564621925354004e-07
+        }
+      },
+      "modelUnits": "Graded activity, not millivolts or measured biological firing"
+    },
+    {
+      "input": "edge-006",
+      "originalWholeNetworkRawSha256": "9a297ece74ffbeed7e70275dd5f4d9a506e64652e12d952ff05021171873d840",
+      "shamWholeNetworkRawSha256": "9a297ece74ffbeed7e70275dd5f4d9a506e64652e12d952ff05021171873d840",
+      "originalShamRawBytesIdentical": true,
+      "originalCentralRawSha256": "d026cf0afeaf129e2f775aa97c4d0afa23a4d98a085eca9762d43b328499fa83",
+      "priorReferenceCentralRawSha256": "d026cf0afeaf129e2f775aa97c4d0afa23a4d98a085eca9762d43b328499fa83",
+      "originalMatchesPriorReferenceRawBytes": true,
+      "maximumWholeNetworkDifferenceAtFirstFrame": 0.0004985928535461426,
+      "maximumWholeNetworkDifferenceAtStimulusOnset": 4.351139068603516e-06,
+      "maximumMotionCellDifferenceAtFirstFrame": 8.132378570735455e-05,
+      "windows": {
+        "earlyPreStimulus": {
+          "wholeNetworkMaximumAbsoluteDifference": 0.0004985928535461426,
+          "centralT4T5MaximumAbsoluteDifference": 8.132378570735455e-05
+        },
+        "latePreStimulus": {
+          "wholeNetworkMaximumAbsoluteDifference": 1.1026859283447266e-05,
+          "centralT4T5MaximumAbsoluteDifference": 1.1558877304196358e-06
+        },
+        "stimulus": {
+          "wholeNetworkMaximumAbsoluteDifference": 4.351139068603516e-06,
+          "centralT4T5MaximumAbsoluteDifference": 7.513444870710373e-07
+        },
+        "postStimulus": {
+          "wholeNetworkMaximumAbsoluteDifference": 8.344650268554688e-07,
+          "centralT4T5MaximumAbsoluteDifference": 2.086162567138672e-07
+        },
+        "last200ms": {
+          "wholeNetworkMaximumAbsoluteDifference": 4.76837158203125e-07,
+          "centralT4T5MaximumAbsoluteDifference": 1.4901161193847656e-07
+        }
+      },
+      "modelUnits": "Graded activity, not millivolts or measured biological firing"
+    },
+    {
+      "input": "edge-007",
+      "originalWholeNetworkRawSha256": "ae1f1120b3121784366b91c2389715f71b3b950d0f93982a1dba09bf9646c59a",
+      "shamWholeNetworkRawSha256": "ae1f1120b3121784366b91c2389715f71b3b950d0f93982a1dba09bf9646c59a",
+      "originalShamRawBytesIdentical": true,
+      "originalCentralRawSha256": "741e8b3fc3cc4fae44ee4d92cf719175cee258042248dcf8f5cbe5d014778e8c",
+      "priorReferenceCentralRawSha256": "741e8b3fc3cc4fae44ee4d92cf719175cee258042248dcf8f5cbe5d014778e8c",
+      "originalMatchesPriorReferenceRawBytes": true,
+      "maximumWholeNetworkDifferenceAtFirstFrame": 0.0004985928535461426,
+      "maximumWholeNetworkDifferenceAtStimulusOnset": 4.351139068603516e-06,
+      "maximumMotionCellDifferenceAtFirstFrame": 8.132378570735455e-05,
+      "windows": {
+        "earlyPreStimulus": {
+          "wholeNetworkMaximumAbsoluteDifference": 0.0004985928535461426,
+          "centralT4T5MaximumAbsoluteDifference": 8.132378570735455e-05
+        },
+        "latePreStimulus": {
+          "wholeNetworkMaximumAbsoluteDifference": 1.1026859283447266e-05,
+          "centralT4T5MaximumAbsoluteDifference": 1.1558877304196358e-06
+        },
+        "stimulus": {
+          "wholeNetworkMaximumAbsoluteDifference": 4.351139068603516e-06,
+          "centralT4T5MaximumAbsoluteDifference": 6.165937520563602e-07
+        },
+        "postStimulus": {
+          "wholeNetworkMaximumAbsoluteDifference": 1.430511474609375e-06,
+          "centralT4T5MaximumAbsoluteDifference": 3.725290298461914e-07
+        },
+        "last200ms": {
+          "wholeNetworkMaximumAbsoluteDifference": 9.5367431640625e-07,
+          "centralT4T5MaximumAbsoluteDifference": 1.9720755517482758e-07
+        }
+      },
+      "modelUnits": "Graded activity, not millivolts or measured biological firing"
+    }
+  ]
+}

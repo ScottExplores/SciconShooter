@@ -3,3 +3,10 @@
 configs/candidates/*.json -text
 docs/evidence/*.json -text
 docs/evidence/*.sha256 -text
+# Nested reports include hashed JSON and binary figures/archives. Preserve
+# those bytes; the default text rule would corrupt PNG/ZIP content.
+docs/evidence/**/*.json -text whitespace=cr-at-eol
+docs/evidence/**/*.sha256 -text whitespace=cr-at-eol
+docs/evidence/**/*.png binary
+docs/evidence/**/*.npz binary
+docs/evidence/**/*.zip binary

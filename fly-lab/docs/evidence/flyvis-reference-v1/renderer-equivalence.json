@@ -1,0 +1,14 @@
+{
+  "smallEyeFloat32BitIdentical": true,
+  "fullSelectedFloat32BitIdentical": true,
+  "smallEyeMaximumFloat64Difference": 0.0,
+  "fullSelectedMaximumFloat64Difference": 1.7763568394002505e-15,
+  "geometryColumnBlock": 8,
+  "fullResolutionReceptorIndices": [
+    0,
+    360,
+    720
+  ],
+  "upstreamGeometryAndBarRendering": true,
+  "scope": "I/O and allocation adapter, not neural dynamics"
+}

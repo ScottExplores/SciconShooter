@@ -1,0 +1,6361 @@
+{
+  "schemaVersion": 1,
+  "scope": "READ_ONLY_ANNOTATION_AND_DIRECT_CONTACT_INVENTORY",
+  "synthetic": false,
+  "trainingAllowed": false,
+  "graphIdentity": "93d5a84e93e73f32a699a47ecfeaabf977505c942192920da383fdb3884288f4",
+  "graphCounts": {
+    "neurons": 166700,
+    "directedPairs": 25582938,
+    "contacts": 124177617
+  },
+  "sources": [
+    {
+      "path": "fly-lab/data/raw/v1.0/body-annotations-male-cns-v1.0-minconf-0.5.feather",
+      "sha256": "2177e246113e4cfbf1e7772ec37c6da1955ff22e8063d0b1f833101f99a9a3b2",
+      "sizeBytes": 14483314
+    },
+    {
+      "path": "fly-lab/data/raw/v1.0/body-neurotransmitters-male-cns-v1.0.feather",
+      "sha256": "95c9289220663abeb3409f3ad9e5a7f8a53f8093f5139d15502cd08da8879621",
+      "sizeBytes": 43282834
+    },
+    {
+      "path": "fly-lab/data/compiled/v1.0/graph.npz",
+      "sha256": "518bf3441daf58733005aee559c40b437bd1366602baa11e3a9d8ef0867e05d9",
+      "sizeBytes": 80117911
+    },
+    {
+      "path": "fly-lab/data/compiled/v1.0/manifest.json",
+      "sha256": "eb0fb3c73a569efbf5733d832afabaf9a1be1557460ca060f43c470193ba50ca",
+      "sizeBytes": 9850
+    },
+    {
+      "path": "fly-lab/configs/candidates/malecns-hex-v0.1-vision.json",
+      "sha256": "ec100f76e1a31799e5b389666ce151f183526ab059838c81c93842c1955d494c",
+      "sizeBytes": 373359
+    },
+    {
+      "path": "fly-lab/configs/candidates/malecns-hex-v0.1-decoder.json",
+      "sha256": "b94d97962d773e224cf8d691d4db4b5645f8ebd8df4019dea6b369b247fd417f",
+      "sizeBytes": 32648
+    },
+    {
+      "path": "fly-lab/docs/evidence/malecns-hex-v0.1-screen.json",
+      "sha256": "6eabee53e9240b31ad4937407e16c1f471d11657b5580f5c5853952548c21733",
+      "sizeBytes": 66640
+    },
+    {
+      "path": "fly-lab/docs/evidence/diagnostic-connectivity.json",
+      "sha256": "1f1f24a1ec8edf5289b3a5e260ea887c73aff22baee20afd7110c6b609a350a1",
+      "sizeBytes": 47618
+    },
+    {
+      "path": "fly-lab/python/scicon_fly/data.py",
+      "sha256": "59fa24345d4a58f73049d33186f2e10da4af56caf05ae3527c1236d893c1ce2b",
+      "sizeBytes": 30654
+    },
+    {
+      "path": "fly-lab/python/scicon_fly/diagnostics.py",
+      "sha256": "74d3ecebd28253b4be11bdffc91f22bc880082dfda31a1abd2299987fa8468ab",
+      "sizeBytes": 19095
+    }
+  ],
+  "sourceDataset": "https://male-cns.janelia.org/download/",
+  "runtime": {
+    "python": "3.12.14",
+    "numpy": "2.2.6",
+    "pyarrow": "20.0.0",
+    "scipy": "1.15.3"
+  },
+  "selection": {
+    "typeRegex": "(R[1-8].*|L[1-5]|Mi\\d+|Tm.*|T[45].*|C2|C3|KCg-d|KCab-p)",
+    "fullMatch": true,
+    "retention": "Exact bodyId membership in graph.ids",
+    "hex": "Both source assignedOlHex fields finite; population tables preserve both rootSide and somaSide; common-column intersections and patch use exact somaSide L/R + hex1 + hex2, because mapped lamina/medulla cells lack rootSide",
+    "nt": "Exact body-ID join to raw NT; compiled consensus and presynaptic sign reported without reinterpretation",
+    "contacts": "Every compiled directed pair; no additional threshold; unsigned contact sum",
+    "noSimulation": true,
+    "noGameScoreSelection": true
+  },
+  "types": {
+    "C2": {
+      "rawAnnotated": 1745,
+      "retained": 1745,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 1745
+      },
+      "somaSide": {
+        "L": 871,
+        "R": 874
+      },
+      "rootSide": {
+        "<missing>": 1745
+      },
+      "finiteHexPairs": 874,
+      "hexNonintegralPairs": 0,
+      "hexRange": [
+        [
+          1.0,
+          36.0
+        ],
+        [
+          1.0,
+          39.0
+        ]
+      ],
+      "finiteHexByRootSide": {
+        "<missing>": 874
+      },
+      "finiteHexBySomaSide": {
+        "R": 874
+      },
+      "uniqueColumnsBySomaSide": {
+        "R": 874
+      },
+      "somaSideHexMultiplicityHistogram": {
+        "1": 874
+      },
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "gaba": 1745
+      },
+      "modeledSign": {
+        "-1.0": 1745
+      },
+      "ntRows": 1745,
+      "rawNtConsensus": {
+        "gaba": 1745
+      },
+      "rawNtGroundTruth": {
+        "gaba": 1745
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 39,
+        "gaba": 549,
+        "unclear": 1157
+      },
+      "rawNtPredictionConfidence": {
+        "available": 1745,
+        "minimum": 0.35079698635492906,
+        "median": 0.5544663966934666,
+        "maximum": 0.9109141500795648
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 1745,
+        "minimum": 0.5358914525828951,
+        "median": 0.5358914525828951,
+        "maximum": 0.5358914525828951
+      },
+      "exampleBodyIds": [
+        "15627",
+        "19101",
+        "20395"
+      ]
+    },
+    "C3": {
+      "rawAnnotated": 1779,
+      "retained": 1779,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 1779
+      },
+      "somaSide": {
+        "L": 887,
+        "R": 892
+      },
+      "rootSide": {
+        "<missing>": 1779
+      },
+      "finiteHexPairs": 1770,
+      "hexNonintegralPairs": 0,
+      "hexRange": [
+        [
+          1.0,
+          36.0
+        ],
+        [
+          1.0,
+          39.0
+        ]
+      ],
+      "finiteHexByRootSide": {
+        "<missing>": 1770
+      },
+      "finiteHexBySomaSide": {
+        "L": 878,
+        "R": 892
+      },
+      "uniqueColumnsBySomaSide": {
+        "L": 878,
+        "R": 890
+      },
+      "somaSideHexMultiplicityHistogram": {
+        "1": 1766,
+        "2": 2
+      },
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "gaba": 1779
+      },
+      "modeledSign": {
+        "-1.0": 1779
+      },
+      "ntRows": 1779,
+      "rawNtConsensus": {
+        "gaba": 1779
+      },
+      "rawNtGroundTruth": {
+        "gaba": 1779
+      },
+      "rawNtPredicted": {
+        "gaba": 1777,
+        "unclear": 2
+      },
+      "rawNtPredictionConfidence": {
+        "available": 1779,
+        "minimum": 0.5262768715639399,
+        "median": 0.8624832356106744,
+        "maximum": 0.9109141500795649
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 1779,
+        "minimum": 0.8550947819350408,
+        "median": 0.8550947819350408,
+        "maximum": 0.8550947819350408
+      },
+      "exampleBodyIds": [
+        "12463",
+        "13105",
+        "13275"
+      ]
+    },
+    "KCab-p": {
+      "rawAnnotated": 129,
+      "retained": 129,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "cb_intrinsic": 129
+      },
+      "somaSide": {
+        "L": 64,
+        "R": 65
+      },
+      "rootSide": {
+        "<missing>": 129
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 129
+      },
+      "modeledSign": {
+        "1.0": 129
+      },
+      "ntRows": 129,
+      "rawNtConsensus": {
+        "acetylcholine": 129
+      },
+      "rawNtGroundTruth": {
+        "<missing>": 129
+      },
+      "rawNtPredicted": {
+        "dopamine": 129
+      },
+      "rawNtPredictionConfidence": {
+        "available": 129,
+        "minimum": 0.5780705184605859,
+        "median": 0.6737483777578117,
+        "maximum": 0.7771986238085975
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 129,
+        "minimum": 0.6790614158032405,
+        "median": 0.6790614158032405,
+        "maximum": 0.6790614158032405
+      },
+      "exampleBodyIds": [
+        "34870",
+        "42185",
+        "46398"
+      ]
+    },
+    "KCg-d": {
+      "rawAnnotated": 206,
+      "retained": 206,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "cb_intrinsic": 206
+      },
+      "somaSide": {
+        "L": 99,
+        "R": 107
+      },
+      "rootSide": {
+        "<missing>": 206
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 206
+      },
+      "modeledSign": {
+        "1.0": 206
+      },
+      "ntRows": 206,
+      "rawNtConsensus": {
+        "acetylcholine": 206
+      },
+      "rawNtGroundTruth": {
+        "<missing>": 206
+      },
+      "rawNtPredicted": {
+        "dopamine": 205,
+        "gaba": 1
+      },
+      "rawNtPredictionConfidence": {
+        "available": 206,
+        "minimum": 0.5404039507084943,
+        "median": 0.7628208630237332,
+        "maximum": 0.8255808874912648
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 206,
+        "minimum": 0.7530592569174162,
+        "median": 0.7530592569174162,
+        "maximum": 0.7530592569174162
+      },
+      "exampleBodyIds": [
+        "19102",
+        "19788",
+        "28848"
+      ]
+    },
+    "L1": {
+      "rawAnnotated": 1776,
+      "retained": 1776,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 1776
+      },
+      "somaSide": {
+        "L": 884,
+        "R": 892
+      },
+      "rootSide": {
+        "<missing>": 1776
+      },
+      "finiteHexPairs": 1767,
+      "hexNonintegralPairs": 0,
+      "hexRange": [
+        [
+          1.0,
+          36.0
+        ],
+        [
+          1.0,
+          39.0
+        ]
+      ],
+      "finiteHexByRootSide": {
+        "<missing>": 1767
+      },
+      "finiteHexBySomaSide": {
+        "L": 875,
+        "R": 892
+      },
+      "uniqueColumnsBySomaSide": {
+        "L": 875,
+        "R": 892
+      },
+      "somaSideHexMultiplicityHistogram": {
+        "1": 1767
+      },
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "glutamate": 1776
+      },
+      "modeledSign": {
+        "-1.0": 1776
+      },
+      "ntRows": 1776,
+      "rawNtConsensus": {
+        "glutamate": 1776
+      },
+      "rawNtGroundTruth": {
+        "glutamate": 1776
+      },
+      "rawNtPredicted": {
+        "glutamate": 1771,
+        "unclear": 5
+      },
+      "rawNtPredictionConfidence": {
+        "available": 1776,
+        "minimum": 0.4401710720212515,
+        "median": 0.8203816688889254,
+        "maximum": 0.8843966103381371
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 1776,
+        "minimum": 0.8114222201677843,
+        "median": 0.8114222201677843,
+        "maximum": 0.8114222201677843
+      },
+      "exampleBodyIds": [
+        "10465",
+        "12300",
+        "12579"
+      ]
+    },
+    "L2": {
+      "rawAnnotated": 1779,
+      "retained": 1779,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 1779
+      },
+      "somaSide": {
+        "L": 886,
+        "R": 893
+      },
+      "rootSide": {
+        "<missing>": 1779
+      },
+      "finiteHexPairs": 1767,
+      "hexNonintegralPairs": 0,
+      "hexRange": [
+        [
+          1.0,
+          36.0
+        ],
+        [
+          1.0,
+          39.0
+        ]
+      ],
+      "finiteHexByRootSide": {
+        "<missing>": 1767
+      },
+      "finiteHexBySomaSide": {
+        "L": 874,
+        "R": 893
+      },
+      "uniqueColumnsBySomaSide": {
+        "L": 874,
+        "R": 892
+      },
+      "somaSideHexMultiplicityHistogram": {
+        "1": 1765,
+        "2": 1
+      },
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 1779
+      },
+      "modeledSign": {
+        "1.0": 1779
+      },
+      "ntRows": 1779,
+      "rawNtConsensus": {
+        "acetylcholine": 1779
+      },
+      "rawNtGroundTruth": {
+        "acetylcholine": 1779
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 1778,
+        "unclear": 1
+      },
+      "rawNtPredictionConfidence": {
+        "available": 1779,
+        "minimum": 0.6630626258416241,
+        "median": 0.9610470731376338,
+        "maximum": 0.9747326673375374
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 1779,
+        "minimum": 0.9505099411117705,
+        "median": 0.9505099411117705,
+        "maximum": 0.9505099411117705
+      },
+      "exampleBodyIds": [
+        "10350",
+        "10605",
+        "11045"
+      ]
+    },
+    "L3": {
+      "rawAnnotated": 1772,
+      "retained": 1772,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 1772
+      },
+      "somaSide": {
+        "L": 880,
+        "R": 892
+      },
+      "rootSide": {
+        "<missing>": 1769,
+        "L": 3
+      },
+      "finiteHexPairs": 892,
+      "hexNonintegralPairs": 0,
+      "hexRange": [
+        [
+          1.0,
+          36.0
+        ],
+        [
+          1.0,
+          39.0
+        ]
+      ],
+      "finiteHexByRootSide": {
+        "<missing>": 892
+      },
+      "finiteHexBySomaSide": {
+        "R": 892
+      },
+      "uniqueColumnsBySomaSide": {
+        "R": 892
+      },
+      "somaSideHexMultiplicityHistogram": {
+        "1": 892
+      },
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 1772
+      },
+      "modeledSign": {
+        "1.0": 1772
+      },
+      "ntRows": 1772,
+      "rawNtConsensus": {
+        "acetylcholine": 1772
+      },
+      "rawNtGroundTruth": {
+        "acetylcholine": 1772
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 1745,
+        "unclear": 27
+      },
+      "rawNtPredictionConfidence": {
+        "available": 1772,
+        "minimum": 0.5255611369463683,
+        "median": 0.9643956759737804,
+        "maximum": 0.9747326673375374
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 1772,
+        "minimum": 0.9590911946988949,
+        "median": 0.9590911946988949,
+        "maximum": 0.9590911946988949
+      },
+      "exampleBodyIds": [
+        "10694",
+        "12265",
+        "12467"
+      ]
+    },
+    "L4": {
+      "rawAnnotated": 1770,
+      "retained": 1770,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 1770
+      },
+      "somaSide": {
+        "L": 879,
+        "R": 891
+      },
+      "rootSide": {
+        "<missing>": 1770
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 1770
+      },
+      "modeledSign": {
+        "1.0": 1770
+      },
+      "ntRows": 1770,
+      "rawNtConsensus": {
+        "acetylcholine": 1770
+      },
+      "rawNtGroundTruth": {
+        "acetylcholine": 1770
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 789,
+        "unclear": 981
+      },
+      "rawNtPredictionConfidence": {
+        "available": 1770,
+        "minimum": 0.502151704786555,
+        "median": 0.9373980000305348,
+        "maximum": 0.9747326673375374
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 1770,
+        "minimum": 0.9219293652613337,
+        "median": 0.9219293652613337,
+        "maximum": 0.9219293652613337
+      },
+      "exampleBodyIds": [
+        "11062",
+        "13155",
+        "13903"
+      ]
+    },
+    "L5": {
+      "rawAnnotated": 1787,
+      "retained": 1787,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 1787
+      },
+      "somaSide": {
+        "L": 889,
+        "R": 898
+      },
+      "rootSide": {
+        "<missing>": 1787
+      },
+      "finiteHexPairs": 1773,
+      "hexNonintegralPairs": 0,
+      "hexRange": [
+        [
+          1.0,
+          36.0
+        ],
+        [
+          1.0,
+          39.0
+        ]
+      ],
+      "finiteHexByRootSide": {
+        "<missing>": 1773
+      },
+      "finiteHexBySomaSide": {
+        "L": 875,
+        "R": 898
+      },
+      "uniqueColumnsBySomaSide": {
+        "L": 875,
+        "R": 892
+      },
+      "somaSideHexMultiplicityHistogram": {
+        "1": 1761,
+        "2": 6
+      },
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 1787
+      },
+      "modeledSign": {
+        "1.0": 1787
+      },
+      "ntRows": 1787,
+      "rawNtConsensus": {
+        "acetylcholine": 1787
+      },
+      "rawNtGroundTruth": {
+        "acetylcholine": 1787
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 1769,
+        "unclear": 18
+      },
+      "rawNtPredictionConfidence": {
+        "available": 1787,
+        "minimum": 0.5820835393532947,
+        "median": 0.9747326673375373,
+        "maximum": 0.9747326673375374
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 1787,
+        "minimum": 0.9679736867402812,
+        "median": 0.9679736867402812,
+        "maximum": 0.9679736867402812
+      },
+      "exampleBodyIds": [
+        "14999",
+        "15573",
+        "18908"
+      ]
+    },
+    "Mi1": {
+      "rawAnnotated": 1773,
+      "retained": 1773,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 1773
+      },
+      "somaSide": {
+        "L": 886,
+        "R": 887
+      },
+      "rootSide": {
+        "<missing>": 1773
+      },
+      "finiteHexPairs": 1762,
+      "hexNonintegralPairs": 0,
+      "hexRange": [
+        [
+          1.0,
+          36.0
+        ],
+        [
+          1.0,
+          39.0
+        ]
+      ],
+      "finiteHexByRootSide": {
+        "<missing>": 1762
+      },
+      "finiteHexBySomaSide": {
+        "L": 875,
+        "R": 887
+      },
+      "uniqueColumnsBySomaSide": {
+        "L": 875,
+        "R": 886
+      },
+      "somaSideHexMultiplicityHistogram": {
+        "1": 1760,
+        "2": 1
+      },
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 1773
+      },
+      "modeledSign": {
+        "1.0": 1773
+      },
+      "ntRows": 1773,
+      "rawNtConsensus": {
+        "acetylcholine": 1773
+      },
+      "rawNtGroundTruth": {
+        "acetylcholine": 1773
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 1773
+      },
+      "rawNtPredictionConfidence": {
+        "available": 1773,
+        "minimum": 0.8324363093521597,
+        "median": 0.9710812313297545,
+        "maximum": 0.9747326673375374
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 1773,
+        "minimum": 0.968763875385902,
+        "median": 0.968763875385902,
+        "maximum": 0.968763875385902
+      },
+      "exampleBodyIds": [
+        "12473",
+        "14614",
+        "14680"
+      ]
+    },
+    "Mi10": {
+      "rawAnnotated": 444,
+      "retained": 444,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 444
+      },
+      "somaSide": {
+        "L": 222,
+        "R": 222
+      },
+      "rootSide": {
+        "<missing>": 444
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 444
+      },
+      "modeledSign": {
+        "1.0": 444
+      },
+      "ntRows": 444,
+      "rawNtConsensus": {
+        "acetylcholine": 444
+      },
+      "rawNtGroundTruth": {
+        "<missing>": 444
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 444
+      },
+      "rawNtPredictionConfidence": {
+        "available": 444,
+        "minimum": 0.8373493311831954,
+        "median": 0.9695115262037359,
+        "maximum": 0.9747326673375374
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 444,
+        "minimum": 0.9669598868098077,
+        "median": 0.9669598868098077,
+        "maximum": 0.9669598868098077
+      },
+      "exampleBodyIds": [
+        "19137",
+        "23373",
+        "27011"
+      ]
+    },
+    "Mi13": {
+      "rawAnnotated": 910,
+      "retained": 910,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 910
+      },
+      "somaSide": {
+        "L": 457,
+        "R": 453
+      },
+      "rootSide": {
+        "<missing>": 910
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "glutamate": 910
+      },
+      "modeledSign": {
+        "-1.0": 910
+      },
+      "ntRows": 910,
+      "rawNtConsensus": {
+        "glutamate": 910
+      },
+      "rawNtGroundTruth": {
+        "<missing>": 910
+      },
+      "rawNtPredicted": {
+        "glutamate": 825,
+        "unclear": 85
+      },
+      "rawNtPredictionConfidence": {
+        "available": 910,
+        "minimum": 0.5492690706091793,
+        "median": 0.8382980013600673,
+        "maximum": 0.8843966103381371
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 910,
+        "minimum": 0.8224581934430952,
+        "median": 0.8224581934430952,
+        "maximum": 0.8224581934430952
+      },
+      "exampleBodyIds": [
+        "17948",
+        "18832",
+        "21815"
+      ]
+    },
+    "Mi14": {
+      "rawAnnotated": 315,
+      "retained": 315,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 315
+      },
+      "somaSide": {
+        "L": 160,
+        "R": 155
+      },
+      "rootSide": {
+        "<missing>": 315
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "glutamate": 315
+      },
+      "modeledSign": {
+        "-1.0": 315
+      },
+      "ntRows": 315,
+      "rawNtConsensus": {
+        "glutamate": 315
+      },
+      "rawNtGroundTruth": {
+        "<missing>": 315
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 1,
+        "glutamate": 314
+      },
+      "rawNtPredictionConfidence": {
+        "available": 315,
+        "minimum": 0.6005538879952239,
+        "median": 0.773510327134859,
+        "maximum": 0.8869190264873388
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 315,
+        "minimum": 0.765020402518893,
+        "median": 0.765020402518893,
+        "maximum": 0.765020402518893
+      },
+      "exampleBodyIds": [
+        "17358",
+        "19952",
+        "22004"
+      ]
+    },
+    "Mi15": {
+      "rawAnnotated": 1151,
+      "retained": 1151,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 1151
+      },
+      "somaSide": {
+        "L": 569,
+        "R": 582
+      },
+      "rootSide": {
+        "<missing>": 1151
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 1151
+      },
+      "modeledSign": {
+        "1.0": 1151
+      },
+      "ntRows": 1151,
+      "rawNtConsensus": {
+        "acetylcholine": 1151
+      },
+      "rawNtGroundTruth": {
+        "<missing>": 1151
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 1139,
+        "unclear": 12
+      },
+      "rawNtPredictionConfidence": {
+        "available": 1151,
+        "minimum": 0.6697489852407789,
+        "median": 0.93164776119172,
+        "maximum": 0.9747326673375374
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 1151,
+        "minimum": 0.9246563197751654,
+        "median": 0.9246563197751654,
+        "maximum": 0.9246563197751654
+      },
+      "exampleBodyIds": [
+        "16877",
+        "16952",
+        "19604"
+      ]
+    },
+    "Mi16": {
+      "rawAnnotated": 191,
+      "retained": 191,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 191
+      },
+      "somaSide": {
+        "L": 90,
+        "R": 101
+      },
+      "rootSide": {
+        "<missing>": 191
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "gaba": 191
+      },
+      "modeledSign": {
+        "-1.0": 191
+      },
+      "ntRows": 191,
+      "rawNtConsensus": {
+        "gaba": 191
+      },
+      "rawNtGroundTruth": {
+        "<missing>": 191
+      },
+      "rawNtPredicted": {
+        "gaba": 179,
+        "unclear": 12
+      },
+      "rawNtPredictionConfidence": {
+        "available": 191,
+        "minimum": 0.8031604119867887,
+        "median": 0.8826404067009649,
+        "maximum": 0.9109141500795649
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 191,
+        "minimum": 0.8800533560174525,
+        "median": 0.8800533560174525,
+        "maximum": 0.8800533560174525
+      },
+      "exampleBodyIds": [
+        "21321",
+        "40637",
+        "54954"
+      ]
+    },
+    "Mi17": {
+      "rawAnnotated": 189,
+      "retained": 189,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 189
+      },
+      "somaSide": {
+        "L": 92,
+        "R": 97
+      },
+      "rootSide": {
+        "<missing>": 189
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "gaba": 189
+      },
+      "modeledSign": {
+        "-1.0": 189
+      },
+      "ntRows": 189,
+      "rawNtConsensus": {
+        "gaba": 189
+      },
+      "rawNtGroundTruth": {
+        "<missing>": 189
+      },
+      "rawNtPredicted": {
+        "gaba": 86,
+        "glutamate": 1,
+        "unclear": 102
+      },
+      "rawNtPredictionConfidence": {
+        "available": 189,
+        "minimum": 0.3194273560500325,
+        "median": 0.5701773847490009,
+        "maximum": 0.8349210085936232
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 189,
+        "minimum": 0.570270926346586,
+        "median": 0.570270926346586,
+        "maximum": 0.570270926346586
+      },
+      "exampleBodyIds": [
+        "11230",
+        "26978",
+        "40475"
+      ]
+    },
+    "Mi18": {
+      "rawAnnotated": 69,
+      "retained": 69,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 69
+      },
+      "somaSide": {
+        "L": 33,
+        "R": 36
+      },
+      "rootSide": {
+        "<missing>": 69
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "gaba": 69
+      },
+      "modeledSign": {
+        "-1.0": 69
+      },
+      "ntRows": 69,
+      "rawNtConsensus": {
+        "gaba": 69
+      },
+      "rawNtGroundTruth": {
+        "gaba": 69
+      },
+      "rawNtPredicted": {
+        "gaba": 69
+      },
+      "rawNtPredictionConfidence": {
+        "available": 69,
+        "minimum": 0.8218894376685804,
+        "median": 0.8751923228775719,
+        "maximum": 0.9006445751430003
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 69,
+        "minimum": 0.8662646764743378,
+        "median": 0.8662646764743378,
+        "maximum": 0.8662646764743378
+      },
+      "exampleBodyIds": [
+        "11109",
+        "13553",
+        "14299"
+      ]
+    },
+    "Mi19": {
+      "rawAnnotated": 12,
+      "retained": 12,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 12
+      },
+      "somaSide": {
+        "L": 7,
+        "R": 5
+      },
+      "rootSide": {
+        "<missing>": 12
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "unknown": 12
+      },
+      "modeledSign": {
+        "0.0": 12
+      },
+      "ntRows": 12,
+      "rawNtConsensus": {
+        "unclear": 12
+      },
+      "rawNtGroundTruth": {
+        "<missing>": 12
+      },
+      "rawNtPredicted": {
+        "unclear": 12
+      },
+      "rawNtPredictionConfidence": {
+        "available": 12,
+        "minimum": 0.40571301775147933,
+        "median": 0.44364484157362316,
+        "maximum": 0.4911181513868015
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 12,
+        "minimum": 0.44804627722658646,
+        "median": 0.44804627722658646,
+        "maximum": 0.44804627722658646
+      },
+      "exampleBodyIds": [
+        "11095",
+        "11113",
+        "12630"
+      ]
+    },
+    "Mi2": {
+      "rawAnnotated": 986,
+      "retained": 986,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 986
+      },
+      "somaSide": {
+        "L": 494,
+        "R": 492
+      },
+      "rootSide": {
+        "<missing>": 986
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "glutamate": 986
+      },
+      "modeledSign": {
+        "-1.0": 986
+      },
+      "ntRows": 986,
+      "rawNtConsensus": {
+        "glutamate": 986
+      },
+      "rawNtGroundTruth": {
+        "<missing>": 986
+      },
+      "rawNtPredicted": {
+        "glutamate": 966,
+        "unclear": 20
+      },
+      "rawNtPredictionConfidence": {
+        "available": 986,
+        "minimum": 0.6075566883147704,
+        "median": 0.8016038722197378,
+        "maximum": 0.8843966103381371
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 986,
+        "minimum": 0.7948469517761901,
+        "median": 0.7948469517761901,
+        "maximum": 0.7948469517761901
+      },
+      "exampleBodyIds": [
+        "12956",
+        "15446",
+        "31688"
+      ]
+    },
+    "Mi20": {
+      "rawAnnotated": 2,
+      "retained": 2,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 2
+      },
+      "somaSide": {
+        "L": 1,
+        "R": 1
+      },
+      "rootSide": {
+        "<missing>": 2
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "glutamate": 2
+      },
+      "modeledSign": {
+        "-1.0": 2
+      },
+      "ntRows": 2,
+      "rawNtConsensus": {
+        "glutamate": 2
+      },
+      "rawNtGroundTruth": {
+        "<missing>": 2
+      },
+      "rawNtPredicted": {
+        "glutamate": 2
+      },
+      "rawNtPredictionConfidence": {
+        "available": 2,
+        "minimum": 0.7449727705490182,
+        "median": 0.7477809833256668,
+        "maximum": 0.7505891961023152
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 2,
+        "minimum": 0.7486482874216032,
+        "median": 0.7486482874216032,
+        "maximum": 0.7486482874216032
+      },
+      "exampleBodyIds": [
+        "13248",
+        "17870"
+      ]
+    },
+    "Mi4": {
+      "rawAnnotated": 1772,
+      "retained": 1772,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 1772
+      },
+      "somaSide": {
+        "L": 883,
+        "R": 889
+      },
+      "rootSide": {
+        "<missing>": 1772
+      },
+      "finiteHexPairs": 1758,
+      "hexNonintegralPairs": 0,
+      "hexRange": [
+        [
+          1.0,
+          36.0
+        ],
+        [
+          1.0,
+          39.0
+        ]
+      ],
+      "finiteHexByRootSide": {
+        "<missing>": 1758
+      },
+      "finiteHexBySomaSide": {
+        "L": 869,
+        "R": 889
+      },
+      "uniqueColumnsBySomaSide": {
+        "L": 869,
+        "R": 889
+      },
+      "somaSideHexMultiplicityHistogram": {
+        "1": 1758
+      },
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "gaba": 1772
+      },
+      "modeledSign": {
+        "-1.0": 1772
+      },
+      "ntRows": 1772,
+      "rawNtConsensus": {
+        "gaba": 1772
+      },
+      "rawNtGroundTruth": {
+        "gaba": 1772
+      },
+      "rawNtPredicted": {
+        "gaba": 1770,
+        "unclear": 2
+      },
+      "rawNtPredictionConfidence": {
+        "available": 1772,
+        "minimum": 0.5622663147154446,
+        "median": 0.8635181891645652,
+        "maximum": 0.9109141500795648
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 1772,
+        "minimum": 0.8610520766101434,
+        "median": 0.8610520766101434,
+        "maximum": 0.8610520766101434
+      },
+      "exampleBodyIds": [
+        "13579",
+        "14417",
+        "17688"
+      ]
+    },
+    "Mi9": {
+      "rawAnnotated": 1775,
+      "retained": 1775,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 1775
+      },
+      "somaSide": {
+        "L": 886,
+        "R": 889
+      },
+      "rootSide": {
+        "<missing>": 1775
+      },
+      "finiteHexPairs": 1760,
+      "hexNonintegralPairs": 0,
+      "hexRange": [
+        [
+          1.0,
+          36.0
+        ],
+        [
+          1.0,
+          39.0
+        ]
+      ],
+      "finiteHexByRootSide": {
+        "<missing>": 1760
+      },
+      "finiteHexBySomaSide": {
+        "L": 871,
+        "R": 889
+      },
+      "uniqueColumnsBySomaSide": {
+        "L": 871,
+        "R": 888
+      },
+      "somaSideHexMultiplicityHistogram": {
+        "1": 1758,
+        "2": 1
+      },
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "glutamate": 1775
+      },
+      "modeledSign": {
+        "-1.0": 1775
+      },
+      "ntRows": 1775,
+      "rawNtConsensus": {
+        "glutamate": 1775
+      },
+      "rawNtGroundTruth": {
+        "glutamate": 1775
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 1,
+        "glutamate": 1759,
+        "unclear": 15
+      },
+      "rawNtPredictionConfidence": {
+        "available": 1775,
+        "minimum": 0.4738402012351958,
+        "median": 0.752963117370665,
+        "maximum": 0.8714253031342942
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 1775,
+        "minimum": 0.7509737389811025,
+        "median": 0.7509737389811025,
+        "maximum": 0.7509737389811025
+      },
+      "exampleBodyIds": [
+        "11461",
+        "14940",
+        "16604"
+      ]
+    },
+    "R1-R6": {
+      "rawAnnotated": 3377,
+      "retained": 3377,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_sensory": 3377
+      },
+      "somaSide": {
+        "<missing>": 3364,
+        "L": 4,
+        "R": 9
+      },
+      "rootSide": {
+        "L": 1112,
+        "R": 2265
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "histamine": 3377
+      },
+      "modeledSign": {
+        "-1.0": 3377
+      },
+      "ntRows": 3377,
+      "rawNtConsensus": {
+        "histamine": 3377
+      },
+      "rawNtGroundTruth": {
+        "histamine": 3377
+      },
+      "rawNtPredicted": {
+        "histamine": 750,
+        "unclear": 2627
+      },
+      "rawNtPredictionConfidence": {
+        "available": 3377,
+        "minimum": 0.48343734535250005,
+        "median": 0.9753679521334673,
+        "maximum": 0.9753679521334674
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 3377,
+        "minimum": 0.9725229993713894,
+        "median": 0.9725229993713894,
+        "maximum": 0.9725229993713894
+      },
+      "exampleBodyIds": [
+        "11139",
+        "15983",
+        "16357"
+      ]
+    },
+    "R7R8_unclear": {
+      "rawAnnotated": 85,
+      "retained": 85,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_sensory": 85
+      },
+      "somaSide": {
+        "<missing>": 85
+      },
+      "rootSide": {
+        "R": 85
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "histamine": 85
+      },
+      "modeledSign": {
+        "-1.0": 85
+      },
+      "ntRows": 85,
+      "rawNtConsensus": {
+        "histamine": 85
+      },
+      "rawNtGroundTruth": {
+        "<missing>": 85
+      },
+      "rawNtPredicted": {
+        "unclear": 85
+      },
+      "rawNtPredictionConfidence": {
+        "available": 40,
+        "minimum": 0.4197673707160491,
+        "median": 0.9753679521334673,
+        "maximum": 0.9753679521334673
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 85,
+        "minimum": 0.7526667945234266,
+        "median": 0.7526667945234266,
+        "maximum": 0.7526667945234266
+      },
+      "exampleBodyIds": [
+        "208820",
+        "397834",
+        "500013"
+      ]
+    },
+    "R7_unclear": {
+      "rawAnnotated": 404,
+      "retained": 404,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_sensory": 404
+      },
+      "somaSide": {
+        "<missing>": 402,
+        "L": 1,
+        "R": 1
+      },
+      "rootSide": {
+        "L": 165,
+        "R": 239
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "histamine": 404
+      },
+      "modeledSign": {
+        "-1.0": 404
+      },
+      "ntRows": 404,
+      "rawNtConsensus": {
+        "histamine": 404
+      },
+      "rawNtGroundTruth": {
+        "histamine": 404
+      },
+      "rawNtPredicted": {
+        "histamine": 75,
+        "unclear": 329
+      },
+      "rawNtPredictionConfidence": {
+        "available": 386,
+        "minimum": 0.48889407324096673,
+        "median": 0.9550029317229145,
+        "maximum": 0.9753679521334674
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 404,
+        "minimum": 0.9427543011285261,
+        "median": 0.9427543011285261,
+        "maximum": 0.9427543011285261
+      },
+      "exampleBodyIds": [
+        "26406",
+        "32018",
+        "47841"
+      ]
+    },
+    "R7d": {
+      "rawAnnotated": 82,
+      "retained": 82,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_sensory": 82
+      },
+      "somaSide": {
+        "<missing>": 82
+      },
+      "rootSide": {
+        "L": 40,
+        "R": 42
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "histamine": 82
+      },
+      "modeledSign": {
+        "-1.0": 82
+      },
+      "ntRows": 82,
+      "rawNtConsensus": {
+        "histamine": 82
+      },
+      "rawNtGroundTruth": {
+        "histamine": 82
+      },
+      "rawNtPredicted": {
+        "histamine": 68,
+        "unclear": 14
+      },
+      "rawNtPredictionConfidence": {
+        "available": 82,
+        "minimum": 0.701894820906045,
+        "median": 0.905544379936488,
+        "maximum": 0.9753679521334673
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 82,
+        "minimum": 0.900184583222227,
+        "median": 0.900184583222227,
+        "maximum": 0.900184583222227
+      },
+      "exampleBodyIds": [
+        "50109",
+        "53122",
+        "55945"
+      ]
+    },
+    "R7p": {
+      "rawAnnotated": 332,
+      "retained": 332,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_sensory": 332
+      },
+      "somaSide": {
+        "<missing>": 332
+      },
+      "rootSide": {
+        "L": 173,
+        "R": 159
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "histamine": 332
+      },
+      "modeledSign": {
+        "-1.0": 332
+      },
+      "ntRows": 332,
+      "rawNtConsensus": {
+        "histamine": 332
+      },
+      "rawNtGroundTruth": {
+        "histamine": 332
+      },
+      "rawNtPredicted": {
+        "histamine": 78,
+        "unclear": 254
+      },
+      "rawNtPredictionConfidence": {
+        "available": 332,
+        "minimum": 0.6232286616878485,
+        "median": 0.9558341570457942,
+        "maximum": 0.9753679521334674
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 332,
+        "minimum": 0.9476950916397056,
+        "median": 0.9476950916397056,
+        "maximum": 0.9476950916397056
+      },
+      "exampleBodyIds": [
+        "20107",
+        "27174",
+        "40159"
+      ]
+    },
+    "R7y": {
+      "rawAnnotated": 482,
+      "retained": 482,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_sensory": 482
+      },
+      "somaSide": {
+        "<missing>": 482
+      },
+      "rootSide": {
+        "L": 230,
+        "R": 252
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "histamine": 482
+      },
+      "modeledSign": {
+        "-1.0": 482
+      },
+      "ntRows": 482,
+      "rawNtConsensus": {
+        "histamine": 482
+      },
+      "rawNtGroundTruth": {
+        "histamine": 482
+      },
+      "rawNtPredicted": {
+        "histamine": 66,
+        "unclear": 416
+      },
+      "rawNtPredictionConfidence": {
+        "available": 482,
+        "minimum": 0.41294233290390464,
+        "median": 0.9753679521334673,
+        "maximum": 0.9753679521334674
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 482,
+        "minimum": 0.9544460704233989,
+        "median": 0.9544460704233989,
+        "maximum": 0.9544460704233989
+      },
+      "exampleBodyIds": [
+        "17721",
+        "25360",
+        "26864"
+      ]
+    },
+    "R8_unclear": {
+      "rawAnnotated": 442,
+      "retained": 442,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_sensory": 442
+      },
+      "somaSide": {
+        "<missing>": 440,
+        "L": 2
+      },
+      "rootSide": {
+        "L": 188,
+        "R": 254
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "histamine": 442
+      },
+      "modeledSign": {
+        "-1.0": 442
+      },
+      "ntRows": 442,
+      "rawNtConsensus": {
+        "histamine": 442
+      },
+      "rawNtGroundTruth": {
+        "<missing>": 442
+      },
+      "rawNtPredicted": {
+        "histamine": 286,
+        "unclear": 156
+      },
+      "rawNtPredictionConfidence": {
+        "available": 440,
+        "minimum": 0.45670000127674343,
+        "median": 0.8049155210259644,
+        "maximum": 0.9753679521334674
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 442,
+        "minimum": 0.7879049837112392,
+        "median": 0.7879049837112392,
+        "maximum": 0.7879049837112392
+      },
+      "exampleBodyIds": [
+        "20428",
+        "27224",
+        "38099"
+      ]
+    },
+    "R8d": {
+      "rawAnnotated": 76,
+      "retained": 76,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_sensory": 76
+      },
+      "somaSide": {
+        "<missing>": 72,
+        "L": 4
+      },
+      "rootSide": {
+        "L": 35,
+        "R": 41
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "histamine": 76
+      },
+      "modeledSign": {
+        "-1.0": 76
+      },
+      "ntRows": 76,
+      "rawNtConsensus": {
+        "histamine": 76
+      },
+      "rawNtGroundTruth": {
+        "<missing>": 76
+      },
+      "rawNtPredicted": {
+        "histamine": 57,
+        "unclear": 19
+      },
+      "rawNtPredictionConfidence": {
+        "available": 76,
+        "minimum": 0.6959554050351971,
+        "median": 0.9256455646375723,
+        "maximum": 0.9753679521334674
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 76,
+        "minimum": 0.9168239608908693,
+        "median": 0.9168239608908693,
+        "maximum": 0.9168239608908693
+      },
+      "exampleBodyIds": [
+        "16681",
+        "18979",
+        "22842"
+      ]
+    },
+    "R8p": {
+      "rawAnnotated": 330,
+      "retained": 330,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_sensory": 330
+      },
+      "somaSide": {
+        "<missing>": 327,
+        "L": 3
+      },
+      "rootSide": {
+        "L": 172,
+        "R": 158
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "histamine": 330
+      },
+      "modeledSign": {
+        "-1.0": 330
+      },
+      "ntRows": 330,
+      "rawNtConsensus": {
+        "histamine": 330
+      },
+      "rawNtGroundTruth": {
+        "<missing>": 330
+      },
+      "rawNtPredicted": {
+        "histamine": 277,
+        "unclear": 53
+      },
+      "rawNtPredictionConfidence": {
+        "available": 330,
+        "minimum": 0.40628780756538246,
+        "median": 0.8049986022357385,
+        "maximum": 0.9753679521334673
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 330,
+        "minimum": 0.7931575702925597,
+        "median": 0.7931575702925597,
+        "maximum": 0.7931575702925597
+      },
+      "exampleBodyIds": [
+        "15479",
+        "122037",
+        "124821"
+      ]
+    },
+    "R8y": {
+      "rawAnnotated": 481,
+      "retained": 481,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_sensory": 481
+      },
+      "somaSide": {
+        "<missing>": 476,
+        "L": 5
+      },
+      "rootSide": {
+        "L": 230,
+        "R": 251
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "histamine": 481
+      },
+      "modeledSign": {
+        "-1.0": 481
+      },
+      "ntRows": 481,
+      "rawNtConsensus": {
+        "histamine": 481
+      },
+      "rawNtGroundTruth": {
+        "<missing>": 481
+      },
+      "rawNtPredicted": {
+        "histamine": 390,
+        "unclear": 91
+      },
+      "rawNtPredictionConfidence": {
+        "available": 481,
+        "minimum": 0.4902388959252304,
+        "median": 0.8044819068970704,
+        "maximum": 0.9753679521334673
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 481,
+        "minimum": 0.7924045027080694,
+        "median": 0.7924045027080694,
+        "maximum": 0.7924045027080694
+      },
+      "exampleBodyIds": [
+        "15625",
+        "26388",
+        "29911"
+      ]
+    },
+    "T4_unclear": {
+      "rawAnnotated": 4,
+      "retained": 4,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 4
+      },
+      "somaSide": {
+        "L": 3,
+        "R": 1
+      },
+      "rootSide": {
+        "<missing>": 4
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 4
+      },
+      "modeledSign": {
+        "1.0": 4
+      },
+      "ntRows": 4,
+      "rawNtConsensus": {
+        "acetylcholine": 4
+      },
+      "rawNtGroundTruth": {
+        "acetylcholine": 4
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 1,
+        "unclear": 3
+      },
+      "rawNtPredictionConfidence": {
+        "available": 4,
+        "minimum": 0.9504407376327088,
+        "median": 0.9684256415059127,
+        "maximum": 0.9747326673375374
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 4,
+        "minimum": 0.9649197422553993,
+        "median": 0.9649197422553993,
+        "maximum": 0.9649197422553993
+      },
+      "exampleBodyIds": [
+        "125121",
+        "139733",
+        "162869"
+      ]
+    },
+    "T4a": {
+      "rawAnnotated": 1684,
+      "retained": 1684,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 1684
+      },
+      "somaSide": {
+        "L": 835,
+        "R": 849
+      },
+      "rootSide": {
+        "<missing>": 1684
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 1684
+      },
+      "modeledSign": {
+        "1.0": 1684
+      },
+      "ntRows": 1684,
+      "rawNtConsensus": {
+        "acetylcholine": 1684
+      },
+      "rawNtGroundTruth": {
+        "acetylcholine": 1684
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 1597,
+        "unclear": 87
+      },
+      "rawNtPredictionConfidence": {
+        "available": 1684,
+        "minimum": 0.5445956445804977,
+        "median": 0.9747326673375373,
+        "maximum": 0.9747326673375374
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 1684,
+        "minimum": 0.9686831694376067,
+        "median": 0.9686831694376067,
+        "maximum": 0.9686831694376067
+      },
+      "exampleBodyIds": [
+        "13882",
+        "16737",
+        "22017"
+      ]
+    },
+    "T4b": {
+      "rawAnnotated": 1690,
+      "retained": 1690,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 1690
+      },
+      "somaSide": {
+        "L": 844,
+        "R": 846
+      },
+      "rootSide": {
+        "<missing>": 1690
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 1690
+      },
+      "modeledSign": {
+        "1.0": 1690
+      },
+      "ntRows": 1690,
+      "rawNtConsensus": {
+        "acetylcholine": 1690
+      },
+      "rawNtGroundTruth": {
+        "acetylcholine": 1690
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 1598,
+        "unclear": 92
+      },
+      "rawNtPredictionConfidence": {
+        "available": 1690,
+        "minimum": 0.6578261033398884,
+        "median": 0.9747326673375373,
+        "maximum": 0.9747326673375374
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 1690,
+        "minimum": 0.9672347024853916,
+        "median": 0.9672347024853916,
+        "maximum": 0.9672347024853916
+      },
+      "exampleBodyIds": [
+        "21218",
+        "25356",
+        "25421"
+      ]
+    },
+    "T4c": {
+      "rawAnnotated": 1778,
+      "retained": 1778,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 1778
+      },
+      "somaSide": {
+        "L": 895,
+        "R": 883
+      },
+      "rootSide": {
+        "<missing>": 1778
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 1778
+      },
+      "modeledSign": {
+        "1.0": 1778
+      },
+      "ntRows": 1778,
+      "rawNtConsensus": {
+        "acetylcholine": 1778
+      },
+      "rawNtGroundTruth": {
+        "acetylcholine": 1778
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 1640,
+        "unclear": 138
+      },
+      "rawNtPredictionConfidence": {
+        "available": 1778,
+        "minimum": 0.68812487052994,
+        "median": 0.9747326673375373,
+        "maximum": 0.9747326673375374
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 1778,
+        "minimum": 0.9670714696773693,
+        "median": 0.9670714696773693,
+        "maximum": 0.9670714696773693
+      },
+      "exampleBodyIds": [
+        "16122",
+        "16310",
+        "20388"
+      ]
+    },
+    "T4d": {
+      "rawAnnotated": 1709,
+      "retained": 1709,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 1709
+      },
+      "somaSide": {
+        "L": 850,
+        "R": 859
+      },
+      "rootSide": {
+        "<missing>": 1709
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 1709
+      },
+      "modeledSign": {
+        "1.0": 1709
+      },
+      "ntRows": 1709,
+      "rawNtConsensus": {
+        "acetylcholine": 1709
+      },
+      "rawNtGroundTruth": {
+        "acetylcholine": 1709
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 1629,
+        "unclear": 80
+      },
+      "rawNtPredictionConfidence": {
+        "available": 1709,
+        "minimum": 0.7032095240416589,
+        "median": 0.9747326673375373,
+        "maximum": 0.9747326673375374
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 1709,
+        "minimum": 0.9658196023353415,
+        "median": 0.9658196023353415,
+        "maximum": 0.9658196023353415
+      },
+      "exampleBodyIds": [
+        "22003",
+        "30734",
+        "31907"
+      ]
+    },
+    "T5a": {
+      "rawAnnotated": 1664,
+      "retained": 1664,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 1664
+      },
+      "somaSide": {
+        "L": 826,
+        "R": 838
+      },
+      "rootSide": {
+        "<missing>": 1664
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 1664
+      },
+      "modeledSign": {
+        "1.0": 1664
+      },
+      "ntRows": 1664,
+      "rawNtConsensus": {
+        "acetylcholine": 1664
+      },
+      "rawNtGroundTruth": {
+        "acetylcholine": 1664
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 1575,
+        "unclear": 89
+      },
+      "rawNtPredictionConfidence": {
+        "available": 1664,
+        "minimum": 0.7102620732181752,
+        "median": 0.9747326673375373,
+        "maximum": 0.9747326673375374
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 1664,
+        "minimum": 0.9688592253321657,
+        "median": 0.9688592253321657,
+        "maximum": 0.9688592253321657
+      },
+      "exampleBodyIds": [
+        "46342",
+        "46863",
+        "47645"
+      ]
+    },
+    "T5a_unclear": {
+      "rawAnnotated": 1,
+      "retained": 1,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 1
+      },
+      "somaSide": {
+        "R": 1
+      },
+      "rootSide": {
+        "<missing>": 1
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "unknown": 1
+      },
+      "modeledSign": {
+        "0.0": 1
+      },
+      "ntRows": 1,
+      "rawNtConsensus": {
+        "unclear": 1
+      },
+      "rawNtGroundTruth": {
+        "<missing>": 1
+      },
+      "rawNtPredicted": {
+        "unclear": 1
+      },
+      "rawNtPredictionConfidence": {
+        "available": 1,
+        "minimum": 0.9054109712717807,
+        "median": 0.9054109712717807,
+        "maximum": 0.9054109712717807
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 1,
+        "minimum": 0.9054109712717807,
+        "median": 0.9054109712717807,
+        "maximum": 0.9054109712717807
+      },
+      "exampleBodyIds": [
+        "165840"
+      ]
+    },
+    "T5b": {
+      "rawAnnotated": 1715,
+      "retained": 1715,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 1715
+      },
+      "somaSide": {
+        "L": 863,
+        "R": 852
+      },
+      "rootSide": {
+        "<missing>": 1715
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 1715
+      },
+      "modeledSign": {
+        "1.0": 1715
+      },
+      "ntRows": 1715,
+      "rawNtConsensus": {
+        "acetylcholine": 1715
+      },
+      "rawNtGroundTruth": {
+        "acetylcholine": 1715
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 1625,
+        "unclear": 90
+      },
+      "rawNtPredictionConfidence": {
+        "available": 1715,
+        "minimum": 0.6480719005694214,
+        "median": 0.9747326673375373,
+        "maximum": 0.9747326673375374
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 1715,
+        "minimum": 0.9679700101374366,
+        "median": 0.9679700101374366,
+        "maximum": 0.9679700101374366
+      },
+      "exampleBodyIds": [
+        "14326",
+        "18256",
+        "35701"
+      ]
+    },
+    "T5c": {
+      "rawAnnotated": 1720,
+      "retained": 1720,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 1720
+      },
+      "somaSide": {
+        "L": 862,
+        "R": 858
+      },
+      "rootSide": {
+        "<missing>": 1720
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 1720
+      },
+      "modeledSign": {
+        "1.0": 1720
+      },
+      "ntRows": 1720,
+      "rawNtConsensus": {
+        "acetylcholine": 1720
+      },
+      "rawNtGroundTruth": {
+        "acetylcholine": 1720
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 1639,
+        "unclear": 81
+      },
+      "rawNtPredictionConfidence": {
+        "available": 1720,
+        "minimum": 0.5637528844024112,
+        "median": 0.9747326673375373,
+        "maximum": 0.9747326673375374
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 1720,
+        "minimum": 0.9660809616913341,
+        "median": 0.9660809616913341,
+        "maximum": 0.9660809616913341
+      },
+      "exampleBodyIds": [
+        "26518",
+        "38220",
+        "42773"
+      ]
+    },
+    "T5d": {
+      "rawAnnotated": 1620,
+      "retained": 1620,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 1620
+      },
+      "somaSide": {
+        "L": 812,
+        "R": 808
+      },
+      "rootSide": {
+        "<missing>": 1620
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 1620
+      },
+      "modeledSign": {
+        "1.0": 1620
+      },
+      "ntRows": 1620,
+      "rawNtConsensus": {
+        "acetylcholine": 1620
+      },
+      "rawNtGroundTruth": {
+        "acetylcholine": 1620
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 1552,
+        "unclear": 68
+      },
+      "rawNtPredictionConfidence": {
+        "available": 1620,
+        "minimum": 0.5604658810829457,
+        "median": 0.9747326673375373,
+        "maximum": 0.9747326673375374
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 1620,
+        "minimum": 0.9674198419978203,
+        "median": 0.9674198419978203,
+        "maximum": 0.9674198419978203
+      },
+      "exampleBodyIds": [
+        "24740",
+        "29201",
+        "32372"
+      ]
+    },
+    "Tm1": {
+      "rawAnnotated": 1777,
+      "retained": 1777,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 1777
+      },
+      "somaSide": {
+        "L": 887,
+        "R": 890
+      },
+      "rootSide": {
+        "<missing>": 1777
+      },
+      "finiteHexPairs": 1767,
+      "hexNonintegralPairs": 0,
+      "hexRange": [
+        [
+          1.0,
+          36.0
+        ],
+        [
+          1.0,
+          39.0
+        ]
+      ],
+      "finiteHexByRootSide": {
+        "<missing>": 1767
+      },
+      "finiteHexBySomaSide": {
+        "L": 877,
+        "R": 890
+      },
+      "uniqueColumnsBySomaSide": {
+        "L": 877,
+        "R": 890
+      },
+      "somaSideHexMultiplicityHistogram": {
+        "1": 1767
+      },
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 1777
+      },
+      "modeledSign": {
+        "1.0": 1777
+      },
+      "ntRows": 1777,
+      "rawNtConsensus": {
+        "acetylcholine": 1777
+      },
+      "rawNtGroundTruth": {
+        "acetylcholine": 1777
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 1777
+      },
+      "rawNtPredictionConfidence": {
+        "available": 1777,
+        "minimum": 0.8172635388388777,
+        "median": 0.970899760176387,
+        "maximum": 0.9747326673375374
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 1777,
+        "minimum": 0.9694693673420302,
+        "median": 0.9694693673420302,
+        "maximum": 0.9694693673420302
+      },
+      "exampleBodyIds": [
+        "13979",
+        "15797",
+        "15940"
+      ]
+    },
+    "Tm12": {
+      "rawAnnotated": 967,
+      "retained": 967,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 967
+      },
+      "somaSide": {
+        "L": 473,
+        "R": 494
+      },
+      "rootSide": {
+        "<missing>": 967
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 967
+      },
+      "modeledSign": {
+        "1.0": 967
+      },
+      "ntRows": 967,
+      "rawNtConsensus": {
+        "acetylcholine": 967
+      },
+      "rawNtGroundTruth": {
+        "acetylcholine": 967
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 963,
+        "unclear": 4
+      },
+      "rawNtPredictionConfidence": {
+        "available": 967,
+        "minimum": 0.6262574538314384,
+        "median": 0.9641752545324265,
+        "maximum": 0.9747326673375374
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 967,
+        "minimum": 0.9591427761687175,
+        "median": 0.9591427761687175,
+        "maximum": 0.9591427761687175
+      },
+      "exampleBodyIds": [
+        "14735",
+        "15017",
+        "16147"
+      ]
+    },
+    "Tm16": {
+      "rawAnnotated": 396,
+      "retained": 396,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 396
+      },
+      "somaSide": {
+        "L": 199,
+        "R": 197
+      },
+      "rootSide": {
+        "<missing>": 396
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 396
+      },
+      "modeledSign": {
+        "1.0": 396
+      },
+      "ntRows": 396,
+      "rawNtConsensus": {
+        "acetylcholine": 396
+      },
+      "rawNtGroundTruth": {
+        "acetylcholine": 396
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 396
+      },
+      "rawNtPredictionConfidence": {
+        "available": 396,
+        "minimum": 0.8154200612059374,
+        "median": 0.9693495220017337,
+        "maximum": 0.9747326673375374
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 396,
+        "minimum": 0.9623391337944426,
+        "median": 0.9623391337944426,
+        "maximum": 0.9623391337944426
+      },
+      "exampleBodyIds": [
+        "11000",
+        "12234",
+        "15938"
+      ]
+    },
+    "Tm2": {
+      "rawAnnotated": 1766,
+      "retained": 1766,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 1766
+      },
+      "somaSide": {
+        "L": 883,
+        "R": 883
+      },
+      "rootSide": {
+        "<missing>": 1766
+      },
+      "finiteHexPairs": 1758,
+      "hexNonintegralPairs": 0,
+      "hexRange": [
+        [
+          1.0,
+          36.0
+        ],
+        [
+          1.0,
+          39.0
+        ]
+      ],
+      "finiteHexByRootSide": {
+        "<missing>": 1758
+      },
+      "finiteHexBySomaSide": {
+        "L": 875,
+        "R": 883
+      },
+      "uniqueColumnsBySomaSide": {
+        "L": 875,
+        "R": 882
+      },
+      "somaSideHexMultiplicityHistogram": {
+        "1": 1756,
+        "2": 1
+      },
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 1766
+      },
+      "modeledSign": {
+        "1.0": 1766
+      },
+      "ntRows": 1766,
+      "rawNtConsensus": {
+        "acetylcholine": 1766
+      },
+      "rawNtGroundTruth": {
+        "acetylcholine": 1766
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 1766
+      },
+      "rawNtPredictionConfidence": {
+        "available": 1766,
+        "minimum": 0.8083900116216813,
+        "median": 0.9747326673375372,
+        "maximum": 0.9747326673375374
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 1766,
+        "minimum": 0.9687208735245442,
+        "median": 0.9687208735245442,
+        "maximum": 0.9687208735245442
+      },
+      "exampleBodyIds": [
+        "10851",
+        "12116",
+        "12741"
+      ]
+    },
+    "Tm20": {
+      "rawAnnotated": 1762,
+      "retained": 1762,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 1762
+      },
+      "somaSide": {
+        "L": 886,
+        "R": 876
+      },
+      "rootSide": {
+        "<missing>": 1762
+      },
+      "finiteHexPairs": 1732,
+      "hexNonintegralPairs": 0,
+      "hexRange": [
+        [
+          1.0,
+          36.0
+        ],
+        [
+          1.0,
+          39.0
+        ]
+      ],
+      "finiteHexByRootSide": {
+        "<missing>": 1732
+      },
+      "finiteHexBySomaSide": {
+        "L": 856,
+        "R": 876
+      },
+      "uniqueColumnsBySomaSide": {
+        "L": 856,
+        "R": 866
+      },
+      "somaSideHexMultiplicityHistogram": {
+        "1": 1712,
+        "2": 10
+      },
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 1762
+      },
+      "modeledSign": {
+        "1.0": 1762
+      },
+      "ntRows": 1762,
+      "rawNtConsensus": {
+        "acetylcholine": 1762
+      },
+      "rawNtGroundTruth": {
+        "acetylcholine": 1762
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 1698,
+        "unclear": 64
+      },
+      "rawNtPredictionConfidence": {
+        "available": 1762,
+        "minimum": 0.6278462465981834,
+        "median": 0.9595563864301906,
+        "maximum": 0.9747326673375374
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 1762,
+        "minimum": 0.9540682715084892,
+        "median": 0.9540682715084892,
+        "maximum": 0.9540682715084892
+      },
+      "exampleBodyIds": [
+        "17795",
+        "22308",
+        "22493"
+      ]
+    },
+    "Tm23": {
+      "rawAnnotated": 33,
+      "retained": 33,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 33
+      },
+      "somaSide": {
+        "L": 17,
+        "R": 16
+      },
+      "rootSide": {
+        "<missing>": 33
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "gaba": 33
+      },
+      "modeledSign": {
+        "-1.0": 33
+      },
+      "ntRows": 33,
+      "rawNtConsensus": {
+        "gaba": 33
+      },
+      "rawNtGroundTruth": {
+        "<missing>": 33
+      },
+      "rawNtPredicted": {
+        "gaba": 33
+      },
+      "rawNtPredictionConfidence": {
+        "available": 33,
+        "minimum": 0.8045444369245858,
+        "median": 0.8462580599246166,
+        "maximum": 0.9031644192137438
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 33,
+        "minimum": 0.8514586479008425,
+        "median": 0.8514586479008425,
+        "maximum": 0.8514586479008425
+      },
+      "exampleBodyIds": [
+        "17923",
+        "26458",
+        "26879"
+      ]
+    },
+    "Tm24": {
+      "rawAnnotated": 245,
+      "retained": 245,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 245
+      },
+      "somaSide": {
+        "L": 130,
+        "R": 115
+      },
+      "rootSide": {
+        "<missing>": 245
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 245
+      },
+      "modeledSign": {
+        "1.0": 245
+      },
+      "ntRows": 245,
+      "rawNtConsensus": {
+        "acetylcholine": 245
+      },
+      "rawNtGroundTruth": {
+        "<missing>": 245
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 245
+      },
+      "rawNtPredictionConfidence": {
+        "available": 245,
+        "minimum": 0.6166881626301448,
+        "median": 0.9563339887521269,
+        "maximum": 0.9747326673375374
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 245,
+        "minimum": 0.9459493003126243,
+        "median": 0.9459493003126243,
+        "maximum": 0.9459493003126243
+      },
+      "exampleBodyIds": [
+        "11763",
+        "13777",
+        "15301"
+      ]
+    },
+    "Tm26": {
+      "rawAnnotated": 103,
+      "retained": 103,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 103
+      },
+      "somaSide": {
+        "L": 53,
+        "R": 50
+      },
+      "rootSide": {
+        "<missing>": 103
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 103
+      },
+      "modeledSign": {
+        "1.0": 103
+      },
+      "ntRows": 103,
+      "rawNtConsensus": {
+        "acetylcholine": 103
+      },
+      "rawNtGroundTruth": {
+        "<missing>": 103
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 103
+      },
+      "rawNtPredictionConfidence": {
+        "available": 103,
+        "minimum": 0.760509411920373,
+        "median": 0.8909326901285347,
+        "maximum": 0.9747326673375374
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 103,
+        "minimum": 0.899205612298164,
+        "median": 0.899205612298164,
+        "maximum": 0.899205612298164
+      },
+      "exampleBodyIds": [
+        "16911",
+        "18067",
+        "20045"
+      ]
+    },
+    "Tm29": {
+      "rawAnnotated": 544,
+      "retained": 544,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 544
+      },
+      "somaSide": {
+        "L": 268,
+        "R": 276
+      },
+      "rootSide": {
+        "<missing>": 544
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "glutamate": 544
+      },
+      "modeledSign": {
+        "-1.0": 544
+      },
+      "ntRows": 544,
+      "rawNtConsensus": {
+        "glutamate": 544
+      },
+      "rawNtGroundTruth": {
+        "glutamate": 544
+      },
+      "rawNtPredicted": {
+        "glutamate": 514,
+        "unclear": 30
+      },
+      "rawNtPredictionConfidence": {
+        "available": 544,
+        "minimum": 0.696459839906495,
+        "median": 0.8376757017883625,
+        "maximum": 0.8843966103381371
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 544,
+        "minimum": 0.8331136763598284,
+        "median": 0.8331136763598284,
+        "maximum": 0.8331136763598284
+      },
+      "exampleBodyIds": [
+        "13469",
+        "18872",
+        "26838"
+      ]
+    },
+    "Tm3": {
+      "rawAnnotated": 2054,
+      "retained": 2054,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 2054
+      },
+      "somaSide": {
+        "L": 1017,
+        "R": 1037
+      },
+      "rootSide": {
+        "<missing>": 2054
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 2054
+      },
+      "modeledSign": {
+        "1.0": 2054
+      },
+      "ntRows": 2054,
+      "rawNtConsensus": {
+        "acetylcholine": 2054
+      },
+      "rawNtGroundTruth": {
+        "acetylcholine": 2054
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 2053,
+        "unclear": 1
+      },
+      "rawNtPredictionConfidence": {
+        "available": 2054,
+        "minimum": 0.7277399623141451,
+        "median": 0.9747326673375372,
+        "maximum": 0.9747326673375374
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 2054,
+        "minimum": 0.9688992176760384,
+        "median": 0.9688992176760384,
+        "maximum": 0.9688992176760384
+      },
+      "exampleBodyIds": [
+        "13421",
+        "14166",
+        "14578"
+      ]
+    },
+    "Tm30": {
+      "rawAnnotated": 124,
+      "retained": 124,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 124
+      },
+      "somaSide": {
+        "L": 63,
+        "R": 61
+      },
+      "rootSide": {
+        "<missing>": 124
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "gaba": 124
+      },
+      "modeledSign": {
+        "-1.0": 124
+      },
+      "ntRows": 124,
+      "rawNtConsensus": {
+        "gaba": 124
+      },
+      "rawNtGroundTruth": {
+        "gaba": 124
+      },
+      "rawNtPredicted": {
+        "gaba": 124
+      },
+      "rawNtPredictionConfidence": {
+        "available": 124,
+        "minimum": 0.6461282347112814,
+        "median": 0.8857860686746273,
+        "maximum": 0.9109141500795648
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 124,
+        "minimum": 0.8754636218047863,
+        "median": 0.8754636218047863,
+        "maximum": 0.8754636218047863
+      },
+      "exampleBodyIds": [
+        "23227",
+        "29025",
+        "29245"
+      ]
+    },
+    "Tm31": {
+      "rawAnnotated": 120,
+      "retained": 120,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 120
+      },
+      "somaSide": {
+        "L": 65,
+        "R": 55
+      },
+      "rootSide": {
+        "<missing>": 120
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "gaba": 120
+      },
+      "modeledSign": {
+        "-1.0": 120
+      },
+      "ntRows": 120,
+      "rawNtConsensus": {
+        "gaba": 120
+      },
+      "rawNtGroundTruth": {
+        "gaba": 120
+      },
+      "rawNtPredicted": {
+        "glutamate": 120
+      },
+      "rawNtPredictionConfidence": {
+        "available": 120,
+        "minimum": 0.7094060674712679,
+        "median": 0.8239335833280454,
+        "maximum": 0.8705056583162412
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 120,
+        "minimum": 0.8185587896418958,
+        "median": 0.8185587896418958,
+        "maximum": 0.8185587896418958
+      },
+      "exampleBodyIds": [
+        "14307",
+        "20493",
+        "25140"
+      ]
+    },
+    "Tm32": {
+      "rawAnnotated": 125,
+      "retained": 125,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 125
+      },
+      "somaSide": {
+        "L": 66,
+        "R": 59
+      },
+      "rootSide": {
+        "<missing>": 125
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "glutamate": 125
+      },
+      "modeledSign": {
+        "-1.0": 125
+      },
+      "ntRows": 125,
+      "rawNtConsensus": {
+        "glutamate": 125
+      },
+      "rawNtGroundTruth": {
+        "glutamate": 125
+      },
+      "rawNtPredicted": {
+        "glutamate": 125
+      },
+      "rawNtPredictionConfidence": {
+        "available": 125,
+        "minimum": 0.7172361247003458,
+        "median": 0.8442730602132895,
+        "maximum": 0.8807902379316874
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 125,
+        "minimum": 0.8400597579531915,
+        "median": 0.8400597579531915,
+        "maximum": 0.8400597579531915
+      },
+      "exampleBodyIds": [
+        "25843",
+        "28176",
+        "29165"
+      ]
+    },
+    "Tm33": {
+      "rawAnnotated": 280,
+      "retained": 280,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 280
+      },
+      "somaSide": {
+        "L": 141,
+        "R": 139
+      },
+      "rootSide": {
+        "<missing>": 280
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 280
+      },
+      "modeledSign": {
+        "1.0": 280
+      },
+      "ntRows": 280,
+      "rawNtConsensus": {
+        "acetylcholine": 280
+      },
+      "rawNtGroundTruth": {
+        "acetylcholine": 280
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 280
+      },
+      "rawNtPredictionConfidence": {
+        "available": 280,
+        "minimum": 0.7463198169559583,
+        "median": 0.9521664770311293,
+        "maximum": 0.9747326673375374
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 280,
+        "minimum": 0.9468793847720317,
+        "median": 0.9468793847720317,
+        "maximum": 0.9468793847720317
+      },
+      "exampleBodyIds": [
+        "20830",
+        "25158",
+        "25239"
+      ]
+    },
+    "Tm34": {
+      "rawAnnotated": 174,
+      "retained": 174,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 174
+      },
+      "somaSide": {
+        "L": 86,
+        "R": 88
+      },
+      "rootSide": {
+        "<missing>": 174
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "glutamate": 174
+      },
+      "modeledSign": {
+        "-1.0": 174
+      },
+      "ntRows": 174,
+      "rawNtConsensus": {
+        "glutamate": 174
+      },
+      "rawNtGroundTruth": {
+        "glutamate": 174
+      },
+      "rawNtPredicted": {
+        "glutamate": 174
+      },
+      "rawNtPredictionConfidence": {
+        "available": 174,
+        "minimum": 0.6062644605202376,
+        "median": 0.8390585202040617,
+        "maximum": 0.884396610338137
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 174,
+        "minimum": 0.8322751208708051,
+        "median": 0.8322751208708051,
+        "maximum": 0.8322751208708051
+      },
+      "exampleBodyIds": [
+        "23653",
+        "43395",
+        "47672"
+      ]
+    },
+    "Tm35": {
+      "rawAnnotated": 86,
+      "retained": 86,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 86
+      },
+      "somaSide": {
+        "L": 43,
+        "R": 43
+      },
+      "rootSide": {
+        "<missing>": 86
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "glutamate": 86
+      },
+      "modeledSign": {
+        "-1.0": 86
+      },
+      "ntRows": 86,
+      "rawNtConsensus": {
+        "glutamate": 86
+      },
+      "rawNtGroundTruth": {
+        "<missing>": 86
+      },
+      "rawNtPredicted": {
+        "glutamate": 86
+      },
+      "rawNtPredictionConfidence": {
+        "available": 86,
+        "minimum": 0.7292982122063129,
+        "median": 0.8255106352998924,
+        "maximum": 0.8704536240840227
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 86,
+        "minimum": 0.8232330682201541,
+        "median": 0.8232330682201541,
+        "maximum": 0.8232330682201541
+      },
+      "exampleBodyIds": [
+        "31883",
+        "33268",
+        "60130"
+      ]
+    },
+    "Tm36": {
+      "rawAnnotated": 155,
+      "retained": 155,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 155
+      },
+      "somaSide": {
+        "L": 78,
+        "R": 77
+      },
+      "rootSide": {
+        "<missing>": 155
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 155
+      },
+      "modeledSign": {
+        "1.0": 155
+      },
+      "ntRows": 155,
+      "rawNtConsensus": {
+        "acetylcholine": 155
+      },
+      "rawNtGroundTruth": {
+        "acetylcholine": 155
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 155
+      },
+      "rawNtPredictionConfidence": {
+        "available": 155,
+        "minimum": 0.7488848199552892,
+        "median": 0.9542102224579102,
+        "maximum": 0.9747326673375373
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 155,
+        "minimum": 0.9485882099236168,
+        "median": 0.9485882099236168,
+        "maximum": 0.9485882099236168
+      },
+      "exampleBodyIds": [
+        "19741",
+        "21196",
+        "23109"
+      ]
+    },
+    "Tm37": {
+      "rawAnnotated": 559,
+      "retained": 559,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 559
+      },
+      "somaSide": {
+        "L": 291,
+        "R": 268
+      },
+      "rootSide": {
+        "<missing>": 559
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "glutamate": 559
+      },
+      "modeledSign": {
+        "-1.0": 559
+      },
+      "ntRows": 559,
+      "rawNtConsensus": {
+        "glutamate": 559
+      },
+      "rawNtGroundTruth": {
+        "glutamate": 559
+      },
+      "rawNtPredicted": {
+        "glutamate": 558,
+        "unclear": 1
+      },
+      "rawNtPredictionConfidence": {
+        "available": 559,
+        "minimum": 0.6407921080575025,
+        "median": 0.8214198793938682,
+        "maximum": 0.8843966103381369
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 559,
+        "minimum": 0.8173513799701847,
+        "median": 0.8173513799701847,
+        "maximum": 0.8173513799701847
+      },
+      "exampleBodyIds": [
+        "16753",
+        "20662",
+        "20955"
+      ]
+    },
+    "Tm38": {
+      "rawAnnotated": 223,
+      "retained": 223,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 223
+      },
+      "somaSide": {
+        "L": 107,
+        "R": 116
+      },
+      "rootSide": {
+        "<missing>": 223
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 223
+      },
+      "modeledSign": {
+        "1.0": 223
+      },
+      "ntRows": 223,
+      "rawNtConsensus": {
+        "acetylcholine": 223
+      },
+      "rawNtGroundTruth": {
+        "<missing>": 223
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 223
+      },
+      "rawNtPredictionConfidence": {
+        "available": 223,
+        "minimum": 0.7356695740516718,
+        "median": 0.9691390920446198,
+        "maximum": 0.9747326673375374
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 223,
+        "minimum": 0.9636546331884439,
+        "median": 0.9636546331884439,
+        "maximum": 0.9636546331884439
+      },
+      "exampleBodyIds": [
+        "15963",
+        "16224",
+        "16547"
+      ]
+    },
+    "Tm39": {
+      "rawAnnotated": 426,
+      "retained": 426,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 426
+      },
+      "somaSide": {
+        "L": 226,
+        "R": 200
+      },
+      "rootSide": {
+        "<missing>": 426
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 426
+      },
+      "modeledSign": {
+        "1.0": 426
+      },
+      "ntRows": 426,
+      "rawNtConsensus": {
+        "acetylcholine": 426
+      },
+      "rawNtGroundTruth": {
+        "<missing>": 426
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 426
+      },
+      "rawNtPredictionConfidence": {
+        "available": 426,
+        "minimum": 0.8236066135550447,
+        "median": 0.968168307391021,
+        "maximum": 0.9747326673375374
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 426,
+        "minimum": 0.9649298159594013,
+        "median": 0.9649298159594013,
+        "maximum": 0.9649298159594013
+      },
+      "exampleBodyIds": [
+        "16342",
+        "19438",
+        "19483"
+      ]
+    },
+    "Tm3_unclear": {
+      "rawAnnotated": 1,
+      "retained": 1,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 1
+      },
+      "somaSide": {
+        "L": 1
+      },
+      "rootSide": {
+        "<missing>": 1
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 1
+      },
+      "modeledSign": {
+        "1.0": 1
+      },
+      "ntRows": 1,
+      "rawNtConsensus": {
+        "acetylcholine": 1
+      },
+      "rawNtGroundTruth": {
+        "<missing>": 1
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 1
+      },
+      "rawNtPredictionConfidence": {
+        "available": 1,
+        "minimum": 0.9573883463005696,
+        "median": 0.9573883463005696,
+        "maximum": 0.9573883463005696
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 1,
+        "minimum": 0.9573883463005696,
+        "median": 0.9573883463005696,
+        "maximum": 0.9573883463005696
+      },
+      "exampleBodyIds": [
+        "63434"
+      ]
+    },
+    "Tm4": {
+      "rawAnnotated": 1670,
+      "retained": 1670,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 1670
+      },
+      "somaSide": {
+        "L": 837,
+        "R": 833
+      },
+      "rootSide": {
+        "<missing>": 1670
+      },
+      "finiteHexPairs": 833,
+      "hexNonintegralPairs": 0,
+      "hexRange": [
+        [
+          1.0,
+          36.0
+        ],
+        [
+          1.0,
+          39.0
+        ]
+      ],
+      "finiteHexByRootSide": {
+        "<missing>": 833
+      },
+      "finiteHexBySomaSide": {
+        "R": 833
+      },
+      "uniqueColumnsBySomaSide": {
+        "R": 828
+      },
+      "somaSideHexMultiplicityHistogram": {
+        "1": 823,
+        "2": 5
+      },
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 1670
+      },
+      "modeledSign": {
+        "1.0": 1670
+      },
+      "ntRows": 1670,
+      "rawNtConsensus": {
+        "acetylcholine": 1670
+      },
+      "rawNtGroundTruth": {
+        "acetylcholine": 1670
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 1670
+      },
+      "rawNtPredictionConfidence": {
+        "available": 1670,
+        "minimum": 0.7454022002931867,
+        "median": 0.9747326673375372,
+        "maximum": 0.9747326673375374
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 1670,
+        "minimum": 0.9684105753395682,
+        "median": 0.9684105753395682,
+        "maximum": 0.9684105753395682
+      },
+      "exampleBodyIds": [
+        "15529",
+        "15949",
+        "17125"
+      ]
+    },
+    "Tm40": {
+      "rawAnnotated": 180,
+      "retained": 180,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 180
+      },
+      "somaSide": {
+        "L": 97,
+        "R": 83
+      },
+      "rootSide": {
+        "<missing>": 180
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 180
+      },
+      "modeledSign": {
+        "1.0": 180
+      },
+      "ntRows": 180,
+      "rawNtConsensus": {
+        "acetylcholine": 180
+      },
+      "rawNtGroundTruth": {
+        "<missing>": 180
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 180
+      },
+      "rawNtPredictionConfidence": {
+        "available": 180,
+        "minimum": 0.7619845003348549,
+        "median": 0.9578982099662955,
+        "maximum": 0.9747326673375374
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 180,
+        "minimum": 0.9506618318540949,
+        "median": 0.9506618318540949,
+        "maximum": 0.9506618318540949
+      },
+      "exampleBodyIds": [
+        "17127",
+        "19477",
+        "21395"
+      ]
+    },
+    "Tm5Y": {
+      "rawAnnotated": 898,
+      "retained": 898,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 898
+      },
+      "somaSide": {
+        "L": 435,
+        "R": 463
+      },
+      "rootSide": {
+        "<missing>": 898
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 898
+      },
+      "modeledSign": {
+        "1.0": 898
+      },
+      "ntRows": 898,
+      "rawNtConsensus": {
+        "acetylcholine": 898
+      },
+      "rawNtGroundTruth": {
+        "<missing>": 898
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 898
+      },
+      "rawNtPredictionConfidence": {
+        "available": 898,
+        "minimum": 0.7174981708623269,
+        "median": 0.9674090280892531,
+        "maximum": 0.9747326673375374
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 898,
+        "minimum": 0.9627754260720564,
+        "median": 0.9627754260720564,
+        "maximum": 0.9627754260720564
+      },
+      "exampleBodyIds": [
+        "11766",
+        "12080",
+        "13765"
+      ]
+    },
+    "Tm5a": {
+      "rawAnnotated": 624,
+      "retained": 624,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 624
+      },
+      "somaSide": {
+        "L": 317,
+        "R": 307
+      },
+      "rootSide": {
+        "<missing>": 624
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 624
+      },
+      "modeledSign": {
+        "1.0": 624
+      },
+      "ntRows": 624,
+      "rawNtConsensus": {
+        "acetylcholine": 624
+      },
+      "rawNtGroundTruth": {
+        "<missing>": 624
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 605,
+        "unclear": 19
+      },
+      "rawNtPredictionConfidence": {
+        "available": 624,
+        "minimum": 0.6668317728046687,
+        "median": 0.9649889416609503,
+        "maximum": 0.9747326673375374
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 624,
+        "minimum": 0.9619872380990983,
+        "median": 0.9619872380990983,
+        "maximum": 0.9619872380990983
+      },
+      "exampleBodyIds": [
+        "16354",
+        "17943",
+        "20669"
+      ]
+    },
+    "Tm5b": {
+      "rawAnnotated": 522,
+      "retained": 522,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 522
+      },
+      "somaSide": {
+        "L": 260,
+        "R": 262
+      },
+      "rootSide": {
+        "<missing>": 522
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 522
+      },
+      "modeledSign": {
+        "1.0": 522
+      },
+      "ntRows": 522,
+      "rawNtConsensus": {
+        "acetylcholine": 522
+      },
+      "rawNtGroundTruth": {
+        "<missing>": 522
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 515,
+        "unclear": 7
+      },
+      "rawNtPredictionConfidence": {
+        "available": 522,
+        "minimum": 0.7535867038124305,
+        "median": 0.9661149214089222,
+        "maximum": 0.9747326673375374
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 522,
+        "minimum": 0.9608104910756857,
+        "median": 0.9608104910756857,
+        "maximum": 0.9608104910756857
+      },
+      "exampleBodyIds": [
+        "16555",
+        "23102",
+        "23625"
+      ]
+    },
+    "Tm5c": {
+      "rawAnnotated": 750,
+      "retained": 750,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 750
+      },
+      "somaSide": {
+        "L": 376,
+        "R": 374
+      },
+      "rootSide": {
+        "<missing>": 750
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "glutamate": 750
+      },
+      "modeledSign": {
+        "-1.0": 750
+      },
+      "ntRows": 750,
+      "rawNtConsensus": {
+        "glutamate": 750
+      },
+      "rawNtGroundTruth": {
+        "<missing>": 750
+      },
+      "rawNtPredicted": {
+        "glutamate": 737,
+        "unclear": 13
+      },
+      "rawNtPredictionConfidence": {
+        "available": 750,
+        "minimum": 0.5981438487292453,
+        "median": 0.8173781897849492,
+        "maximum": 0.8843966103381371
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 750,
+        "minimum": 0.8118454342900651,
+        "median": 0.8118454342900651,
+        "maximum": 0.8118454342900651
+      },
+      "exampleBodyIds": [
+        "18223",
+        "19384",
+        "23284"
+      ]
+    },
+    "Tm6": {
+      "rawAnnotated": 1526,
+      "retained": 1526,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 1526
+      },
+      "somaSide": {
+        "L": 756,
+        "R": 770
+      },
+      "rootSide": {
+        "<missing>": 1526
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 1526
+      },
+      "modeledSign": {
+        "1.0": 1526
+      },
+      "ntRows": 1526,
+      "rawNtConsensus": {
+        "acetylcholine": 1526
+      },
+      "rawNtGroundTruth": {
+        "<missing>": 1526
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 1498,
+        "unclear": 28
+      },
+      "rawNtPredictionConfidence": {
+        "available": 1526,
+        "minimum": 0.651457081198471,
+        "median": 0.9622803342853553,
+        "maximum": 0.9747326673375374
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 1526,
+        "minimum": 0.9561004365107161,
+        "median": 0.9561004365107161,
+        "maximum": 0.9561004365107161
+      },
+      "exampleBodyIds": [
+        "14760",
+        "15082",
+        "15327"
+      ]
+    },
+    "Tm9": {
+      "rawAnnotated": 1771,
+      "retained": 1771,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 1771
+      },
+      "somaSide": {
+        "L": 884,
+        "R": 887
+      },
+      "rootSide": {
+        "<missing>": 1771
+      },
+      "finiteHexPairs": 1743,
+      "hexNonintegralPairs": 0,
+      "hexRange": [
+        [
+          1.0,
+          36.0
+        ],
+        [
+          1.0,
+          39.0
+        ]
+      ],
+      "finiteHexByRootSide": {
+        "<missing>": 1743
+      },
+      "finiteHexBySomaSide": {
+        "L": 856,
+        "R": 887
+      },
+      "uniqueColumnsBySomaSide": {
+        "L": 856,
+        "R": 884
+      },
+      "somaSideHexMultiplicityHistogram": {
+        "1": 1737,
+        "2": 3
+      },
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 1771
+      },
+      "modeledSign": {
+        "1.0": 1771
+      },
+      "ntRows": 1771,
+      "rawNtConsensus": {
+        "acetylcholine": 1771
+      },
+      "rawNtGroundTruth": {
+        "acetylcholine": 1771
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 1447,
+        "unclear": 324
+      },
+      "rawNtPredictionConfidence": {
+        "available": 1771,
+        "minimum": 0.6483378374252067,
+        "median": 0.9747326673375373,
+        "maximum": 0.9747326673375374
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 1771,
+        "minimum": 0.9637807485779334,
+        "median": 0.9637807485779334,
+        "maximum": 0.9637807485779334
+      },
+      "exampleBodyIds": [
+        "16250",
+        "18429",
+        "20629"
+      ]
+    },
+    "TmY10": {
+      "rawAnnotated": 552,
+      "retained": 552,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 552
+      },
+      "somaSide": {
+        "L": 274,
+        "R": 278
+      },
+      "rootSide": {
+        "<missing>": 552
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 552
+      },
+      "modeledSign": {
+        "1.0": 552
+      },
+      "ntRows": 552,
+      "rawNtConsensus": {
+        "acetylcholine": 552
+      },
+      "rawNtGroundTruth": {
+        "<missing>": 552
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 552
+      },
+      "rawNtPredictionConfidence": {
+        "available": 552,
+        "minimum": 0.7892647438442765,
+        "median": 0.9680126081314627,
+        "maximum": 0.9747326673375374
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 552,
+        "minimum": 0.9639698610800275,
+        "median": 0.9639698610800275,
+        "maximum": 0.9639698610800275
+      },
+      "exampleBodyIds": [
+        "12847",
+        "14824",
+        "16406"
+      ]
+    },
+    "TmY13": {
+      "rawAnnotated": 432,
+      "retained": 432,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 432
+      },
+      "somaSide": {
+        "L": 221,
+        "R": 211
+      },
+      "rootSide": {
+        "<missing>": 432
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 432
+      },
+      "modeledSign": {
+        "1.0": 432
+      },
+      "ntRows": 432,
+      "rawNtConsensus": {
+        "acetylcholine": 432
+      },
+      "rawNtGroundTruth": {
+        "acetylcholine": 432
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 432
+      },
+      "rawNtPredictionConfidence": {
+        "available": 432,
+        "minimum": 0.7765224436925949,
+        "median": 0.9688149615758264,
+        "maximum": 0.9747326673375374
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 432,
+        "minimum": 0.9647512424276597,
+        "median": 0.9647512424276597,
+        "maximum": 0.9647512424276597
+      },
+      "exampleBodyIds": [
+        "15875",
+        "22595",
+        "22889"
+      ]
+    },
+    "TmY14": {
+      "rawAnnotated": 477,
+      "retained": 477,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "visual_projection": 477
+      },
+      "somaSide": {
+        "L": 243,
+        "R": 234
+      },
+      "rootSide": {
+        "<missing>": 477
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "unknown": 477
+      },
+      "modeledSign": {
+        "0.0": 477
+      },
+      "ntRows": 477,
+      "rawNtConsensus": {
+        "unclear": 477
+      },
+      "rawNtGroundTruth": {
+        "<missing>": 477
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 177,
+        "glutamate": 209,
+        "unclear": 91
+      },
+      "rawNtPredictionConfidence": {
+        "available": 477,
+        "minimum": 0.3675370983284303,
+        "median": 0.5462568762945208,
+        "maximum": 0.857803852465579
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 477,
+        "minimum": 0.4869138620814016,
+        "median": 0.4869138620814016,
+        "maximum": 0.4869138620814016
+      },
+      "exampleBodyIds": [
+        "11899",
+        "12546",
+        "13407"
+      ]
+    },
+    "TmY15": {
+      "rawAnnotated": 209,
+      "retained": 209,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 209
+      },
+      "somaSide": {
+        "L": 99,
+        "R": 110
+      },
+      "rootSide": {
+        "<missing>": 209
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "gaba": 209
+      },
+      "modeledSign": {
+        "-1.0": 209
+      },
+      "ntRows": 209,
+      "rawNtConsensus": {
+        "gaba": 209
+      },
+      "rawNtGroundTruth": {
+        "gaba": 209
+      },
+      "rawNtPredicted": {
+        "gaba": 209
+      },
+      "rawNtPredictionConfidence": {
+        "available": 209,
+        "minimum": 0.7560086694130138,
+        "median": 0.8879664691077753,
+        "maximum": 0.9091638707275562
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 209,
+        "minimum": 0.885394855889269,
+        "median": 0.885394855889269,
+        "maximum": 0.885394855889269
+      },
+      "exampleBodyIds": [
+        "12277",
+        "12694",
+        "15098"
+      ]
+    },
+    "TmY16": {
+      "rawAnnotated": 168,
+      "retained": 168,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 168
+      },
+      "somaSide": {
+        "L": 88,
+        "R": 80
+      },
+      "rootSide": {
+        "<missing>": 168
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "glutamate": 168
+      },
+      "modeledSign": {
+        "-1.0": 168
+      },
+      "ntRows": 168,
+      "rawNtConsensus": {
+        "glutamate": 168
+      },
+      "rawNtGroundTruth": {
+        "glutamate": 168
+      },
+      "rawNtPredicted": {
+        "glutamate": 168
+      },
+      "rawNtPredictionConfidence": {
+        "available": 168,
+        "minimum": 0.6637728945153366,
+        "median": 0.7695421667636861,
+        "maximum": 0.8478849055953913
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 168,
+        "minimum": 0.7625478652297321,
+        "median": 0.7625478652297321,
+        "maximum": 0.7625478652297321
+      },
+      "exampleBodyIds": [
+        "13536",
+        "14363",
+        "15092"
+      ]
+    },
+    "TmY17": {
+      "rawAnnotated": 395,
+      "retained": 395,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 395
+      },
+      "somaSide": {
+        "L": 195,
+        "R": 200
+      },
+      "rootSide": {
+        "<missing>": 395
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 395
+      },
+      "modeledSign": {
+        "1.0": 395
+      },
+      "ntRows": 395,
+      "rawNtConsensus": {
+        "acetylcholine": 395
+      },
+      "rawNtGroundTruth": {
+        "acetylcholine": 395
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 395
+      },
+      "rawNtPredictionConfidence": {
+        "available": 395,
+        "minimum": 0.8150611904763321,
+        "median": 0.9678931806158569,
+        "maximum": 0.9747326673375374
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 395,
+        "minimum": 0.9640425069125449,
+        "median": 0.9640425069125449,
+        "maximum": 0.9640425069125449
+      },
+      "exampleBodyIds": [
+        "12701",
+        "13660",
+        "14776"
+      ]
+    },
+    "TmY18": {
+      "rawAnnotated": 1367,
+      "retained": 1367,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 1367
+      },
+      "somaSide": {
+        "L": 673,
+        "R": 694
+      },
+      "rootSide": {
+        "<missing>": 1367
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 1367
+      },
+      "modeledSign": {
+        "1.0": 1367
+      },
+      "ntRows": 1367,
+      "rawNtConsensus": {
+        "acetylcholine": 1367
+      },
+      "rawNtGroundTruth": {
+        "acetylcholine": 1367
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 1350,
+        "unclear": 17
+      },
+      "rawNtPredictionConfidence": {
+        "available": 1367,
+        "minimum": 0.6774173318701237,
+        "median": 0.9650198475568353,
+        "maximum": 0.9747326673375374
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 1367,
+        "minimum": 0.961021445702969,
+        "median": 0.961021445702969,
+        "maximum": 0.961021445702969
+      },
+      "exampleBodyIds": [
+        "17497",
+        "26986",
+        "29136"
+      ]
+    },
+    "TmY19a": {
+      "rawAnnotated": 86,
+      "retained": 86,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 86
+      },
+      "somaSide": {
+        "L": 43,
+        "R": 43
+      },
+      "rootSide": {
+        "<missing>": 86
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "gaba": 86
+      },
+      "modeledSign": {
+        "-1.0": 86
+      },
+      "ntRows": 86,
+      "rawNtConsensus": {
+        "gaba": 86
+      },
+      "rawNtGroundTruth": {
+        "<missing>": 86
+      },
+      "rawNtPredicted": {
+        "gaba": 86
+      },
+      "rawNtPredictionConfidence": {
+        "available": 86,
+        "minimum": 0.7587463281471256,
+        "median": 0.8618364261936025,
+        "maximum": 0.8881746932478206
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 86,
+        "minimum": 0.8592107428560991,
+        "median": 0.8592107428560991,
+        "maximum": 0.8592107428560991
+      },
+      "exampleBodyIds": [
+        "11524",
+        "12680",
+        "14108"
+      ]
+    },
+    "TmY19b": {
+      "rawAnnotated": 36,
+      "retained": 36,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 36
+      },
+      "somaSide": {
+        "L": 19,
+        "R": 17
+      },
+      "rootSide": {
+        "<missing>": 36
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "gaba": 36
+      },
+      "modeledSign": {
+        "-1.0": 36
+      },
+      "ntRows": 36,
+      "rawNtConsensus": {
+        "gaba": 36
+      },
+      "rawNtGroundTruth": {
+        "gaba": 36
+      },
+      "rawNtPredicted": {
+        "gaba": 35,
+        "unclear": 1
+      },
+      "rawNtPredictionConfidence": {
+        "available": 36,
+        "minimum": 0.4971768780736527,
+        "median": 0.7358266679546869,
+        "maximum": 0.8624223978831038
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 36,
+        "minimum": 0.7390205549538706,
+        "median": 0.7390205549538706,
+        "maximum": 0.7390205549538706
+      },
+      "exampleBodyIds": [
+        "14201",
+        "16283",
+        "16325"
+      ]
+    },
+    "TmY20": {
+      "rawAnnotated": 343,
+      "retained": 343,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 343
+      },
+      "somaSide": {
+        "L": 176,
+        "R": 167
+      },
+      "rootSide": {
+        "<missing>": 343
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 343
+      },
+      "modeledSign": {
+        "1.0": 343
+      },
+      "ntRows": 343,
+      "rawNtConsensus": {
+        "acetylcholine": 343
+      },
+      "rawNtGroundTruth": {
+        "acetylcholine": 343
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 343
+      },
+      "rawNtPredictionConfidence": {
+        "available": 343,
+        "minimum": 0.8422851248734203,
+        "median": 0.9747326673375372,
+        "maximum": 0.9747326673375374
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 343,
+        "minimum": 0.9684188544208568,
+        "median": 0.9684188544208568,
+        "maximum": 0.9684188544208568
+      },
+      "exampleBodyIds": [
+        "12369",
+        "14515",
+        "16891"
+      ]
+    },
+    "TmY21": {
+      "rawAnnotated": 372,
+      "retained": 372,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 372
+      },
+      "somaSide": {
+        "L": 183,
+        "R": 189
+      },
+      "rootSide": {
+        "<missing>": 372
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 372
+      },
+      "modeledSign": {
+        "1.0": 372
+      },
+      "ntRows": 372,
+      "rawNtConsensus": {
+        "acetylcholine": 372
+      },
+      "rawNtGroundTruth": {
+        "<missing>": 372
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 372
+      },
+      "rawNtPredictionConfidence": {
+        "available": 372,
+        "minimum": 0.6891530541580222,
+        "median": 0.9664556154023187,
+        "maximum": 0.9747326673375374
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 372,
+        "minimum": 0.9588726612120437,
+        "median": 0.9588726612120437,
+        "maximum": 0.9588726612120437
+      },
+      "exampleBodyIds": [
+        "15043",
+        "15780",
+        "16196"
+      ]
+    },
+    "TmY3": {
+      "rawAnnotated": 824,
+      "retained": 824,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 824
+      },
+      "somaSide": {
+        "L": 415,
+        "R": 409
+      },
+      "rootSide": {
+        "<missing>": 824
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 824
+      },
+      "modeledSign": {
+        "1.0": 824
+      },
+      "ntRows": 824,
+      "rawNtConsensus": {
+        "acetylcholine": 824
+      },
+      "rawNtGroundTruth": {
+        "acetylcholine": 824
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 824
+      },
+      "rawNtPredictionConfidence": {
+        "available": 824,
+        "minimum": 0.7408290263073478,
+        "median": 0.9681292567934416,
+        "maximum": 0.9747326673375374
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 824,
+        "minimum": 0.965882159652966,
+        "median": 0.965882159652966,
+        "maximum": 0.965882159652966
+      },
+      "exampleBodyIds": [
+        "15710",
+        "16765",
+        "17141"
+      ]
+    },
+    "TmY4": {
+      "rawAnnotated": 562,
+      "retained": 562,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 562
+      },
+      "somaSide": {
+        "L": 274,
+        "R": 288
+      },
+      "rootSide": {
+        "<missing>": 562
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 562
+      },
+      "modeledSign": {
+        "1.0": 562
+      },
+      "ntRows": 562,
+      "rawNtConsensus": {
+        "acetylcholine": 562
+      },
+      "rawNtGroundTruth": {
+        "<missing>": 562
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 559,
+        "unclear": 3
+      },
+      "rawNtPredictionConfidence": {
+        "available": 562,
+        "minimum": 0.7377510643883366,
+        "median": 0.9657600376971466,
+        "maximum": 0.9747326673375374
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 562,
+        "minimum": 0.961499635312238,
+        "median": 0.961499635312238,
+        "maximum": 0.961499635312238
+      },
+      "exampleBodyIds": [
+        "13292",
+        "15916",
+        "16028"
+      ]
+    },
+    "TmY5a": {
+      "rawAnnotated": 1364,
+      "retained": 1364,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 1364
+      },
+      "somaSide": {
+        "L": 686,
+        "R": 678
+      },
+      "rootSide": {
+        "<missing>": 1364
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "glutamate": 1364
+      },
+      "modeledSign": {
+        "-1.0": 1364
+      },
+      "ntRows": 1364,
+      "rawNtConsensus": {
+        "glutamate": 1364
+      },
+      "rawNtGroundTruth": {
+        "glutamate": 1364
+      },
+      "rawNtPredicted": {
+        "glutamate": 1364
+      },
+      "rawNtPredictionConfidence": {
+        "available": 1364,
+        "minimum": 0.5431657512663985,
+        "median": 0.7903718356067775,
+        "maximum": 0.8681371860014666
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 1364,
+        "minimum": 0.7849201906945387,
+        "median": 0.7849201906945387,
+        "maximum": 0.7849201906945387
+      },
+      "exampleBodyIds": [
+        "12709",
+        "13262",
+        "14177"
+      ]
+    },
+    "TmY9a": {
+      "rawAnnotated": 471,
+      "retained": 471,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 471
+      },
+      "somaSide": {
+        "L": 241,
+        "R": 230
+      },
+      "rootSide": {
+        "<missing>": 471
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 471
+      },
+      "modeledSign": {
+        "1.0": 471
+      },
+      "ntRows": 471,
+      "rawNtConsensus": {
+        "acetylcholine": 471
+      },
+      "rawNtGroundTruth": {
+        "<missing>": 471
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 471
+      },
+      "rawNtPredictionConfidence": {
+        "available": 471,
+        "minimum": 0.8147659678100894,
+        "median": 0.969306511035469,
+        "maximum": 0.9747326673375374
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 471,
+        "minimum": 0.9675530806104198,
+        "median": 0.9675530806104198,
+        "maximum": 0.9675530806104198
+      },
+      "exampleBodyIds": [
+        "15767",
+        "18329",
+        "20722"
+      ]
+    },
+    "TmY9b": {
+      "rawAnnotated": 515,
+      "retained": 515,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 515
+      },
+      "somaSide": {
+        "L": 249,
+        "R": 266
+      },
+      "rootSide": {
+        "<missing>": 515
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 515
+      },
+      "modeledSign": {
+        "1.0": 515
+      },
+      "ntRows": 515,
+      "rawNtConsensus": {
+        "acetylcholine": 515
+      },
+      "rawNtGroundTruth": {
+        "<missing>": 515
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 515
+      },
+      "rawNtPredictionConfidence": {
+        "available": 515,
+        "minimum": 0.6666386513216335,
+        "median": 0.9657361560711792,
+        "maximum": 0.9747326673375374
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 515,
+        "minimum": 0.9612320806238144,
+        "median": 0.9612320806238144,
+        "maximum": 0.9612320806238144
+      },
+      "exampleBodyIds": [
+        "17030",
+        "17578",
+        "17606"
+      ]
+    },
+    "TmY_unclear": {
+      "rawAnnotated": 4,
+      "retained": 4,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 4
+      },
+      "somaSide": {
+        "L": 3,
+        "R": 1
+      },
+      "rootSide": {
+        "<missing>": 4
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 4
+      },
+      "modeledSign": {
+        "1.0": 4
+      },
+      "ntRows": 4,
+      "rawNtConsensus": {
+        "acetylcholine": 4
+      },
+      "rawNtGroundTruth": {
+        "<missing>": 4
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 3,
+        "glutamate": 1
+      },
+      "rawNtPredictionConfidence": {
+        "available": 4,
+        "minimum": 0.5583006906533879,
+        "median": 0.9535330503740121,
+        "maximum": 0.9747326673375373
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 4,
+        "minimum": 0.8251818943047201,
+        "median": 0.8251818943047201,
+        "maximum": 0.8251818943047201
+      },
+      "exampleBodyIds": [
+        "58973",
+        "99175",
+        "121726"
+      ]
+    },
+    "Tm_unclear": {
+      "rawAnnotated": 4,
+      "retained": 4,
+      "excludedFromGraph": 0,
+      "superclass": {
+        "ol_intrinsic": 4
+      },
+      "somaSide": {
+        "L": 3,
+        "R": 1
+      },
+      "rootSide": {
+        "<missing>": 4
+      },
+      "finiteHexPairs": 0,
+      "hexNonintegralPairs": 0,
+      "hexRange": null,
+      "finiteHexByRootSide": {},
+      "finiteHexBySomaSide": {},
+      "uniqueColumnsBySomaSide": {},
+      "somaSideHexMultiplicityHistogram": {},
+      "uniqueRootSideHexColumns": 0,
+      "uniqueColumnsByRootSide": {},
+      "rootSideHexMultiplicityHistogram": {},
+      "somaRootSideDisagreementsWhenBothKnown": 0,
+      "compiledNt": {
+        "acetylcholine": 4
+      },
+      "modeledSign": {
+        "1.0": 4
+      },
+      "ntRows": 4,
+      "rawNtConsensus": {
+        "acetylcholine": 4
+      },
+      "rawNtGroundTruth": {
+        "<missing>": 4
+      },
+      "rawNtPredicted": {
+        "acetylcholine": 3,
+        "gaba": 1
+      },
+      "rawNtPredictionConfidence": {
+        "available": 4,
+        "minimum": 0.8536096416039368,
+        "median": 0.9604833817972316,
+        "maximum": 0.9684256415059126
+      },
+      "rawNtCellTypeConfidence": {
+        "available": 4,
+        "minimum": 0.6523380423369473,
+        "median": 0.6523380423369473,
+        "maximum": 0.6523380423369473
+      },
+      "exampleBodyIds": [
+        "60085",
+        "81307",
+        "511946"
+      ]
+    }
+  },
+  "directPathways": [
+    {
+      "pre": "R1-R6",
+      "post": "L1",
+      "sourceCount": 3377,
+      "targetCount": 1776,
+      "directedPairs": 3280,
+      "contacts": 103405,
+      "contributingSources": 3252,
+      "reachedTargets": 809
+    },
+    {
+      "pre": "R1-R6",
+      "post": "L2",
+      "sourceCount": 3377,
+      "targetCount": 1779,
+      "directedPairs": 3280,
+      "contacts": 107646,
+      "contributingSources": 3246,
+      "reachedTargets": 814
+    },
+    {
+      "pre": "R1-R6",
+      "post": "L3",
+      "sourceCount": 3377,
+      "targetCount": 1772,
+      "directedPairs": 3076,
+      "contacts": 23510,
+      "contributingSources": 3043,
+      "reachedTargets": 782
+    },
+    {
+      "pre": "L1",
+      "post": "Mi1",
+      "sourceCount": 1776,
+      "targetCount": 1773,
+      "directedPairs": 2026,
+      "contacts": 142185,
+      "contributingSources": 1774,
+      "reachedTargets": 1771
+    },
+    {
+      "pre": "L1",
+      "post": "Tm3",
+      "sourceCount": 1776,
+      "targetCount": 2054,
+      "directedPairs": 12802,
+      "contacts": 151537,
+      "contributingSources": 1776,
+      "reachedTargets": 2054
+    },
+    {
+      "pre": "L1",
+      "post": "L5",
+      "sourceCount": 1776,
+      "targetCount": 1787,
+      "directedPairs": 2463,
+      "contacts": 136202,
+      "contributingSources": 1775,
+      "reachedTargets": 1787
+    },
+    {
+      "pre": "L1",
+      "post": "C2",
+      "sourceCount": 1776,
+      "targetCount": 1745,
+      "directedPairs": 2742,
+      "contacts": 53476,
+      "contributingSources": 1772,
+      "reachedTargets": 1745
+    },
+    {
+      "pre": "L1",
+      "post": "C3",
+      "sourceCount": 1776,
+      "targetCount": 1779,
+      "directedPairs": 2055,
+      "contacts": 94518,
+      "contributingSources": 1775,
+      "reachedTargets": 1778
+    },
+    {
+      "pre": "L2",
+      "post": "Tm1",
+      "sourceCount": 1779,
+      "targetCount": 1777,
+      "directedPairs": 2073,
+      "contacts": 205428,
+      "contributingSources": 1777,
+      "reachedTargets": 1774
+    },
+    {
+      "pre": "L2",
+      "post": "Tm2",
+      "sourceCount": 1779,
+      "targetCount": 1766,
+      "directedPairs": 3130,
+      "contacts": 221186,
+      "contributingSources": 1779,
+      "reachedTargets": 1765
+    },
+    {
+      "pre": "L2",
+      "post": "Tm4",
+      "sourceCount": 1779,
+      "targetCount": 1670,
+      "directedPairs": 11422,
+      "contacts": 162989,
+      "contributingSources": 1779,
+      "reachedTargets": 1670
+    },
+    {
+      "pre": "L3",
+      "post": "Tm9",
+      "sourceCount": 1772,
+      "targetCount": 1771,
+      "directedPairs": 3353,
+      "contacts": 49158,
+      "contributingSources": 1772,
+      "reachedTargets": 1770
+    },
+    {
+      "pre": "Mi1",
+      "post": "T4-resolved",
+      "sourceCount": 1773,
+      "targetCount": 6861,
+      "directedPairs": 46036,
+      "contacts": 426181,
+      "contributingSources": 1773,
+      "reachedTargets": 6861
+    },
+    {
+      "pre": "Tm3",
+      "post": "T4-resolved",
+      "sourceCount": 2054,
+      "targetCount": 6861,
+      "directedPairs": 38151,
+      "contacts": 193492,
+      "contributingSources": 2052,
+      "reachedTargets": 6858
+    },
+    {
+      "pre": "Tm1",
+      "post": "T5-resolved",
+      "sourceCount": 1777,
+      "targetCount": 6719,
+      "directedPairs": 35144,
+      "contacts": 168037,
+      "contributingSources": 1775,
+      "reachedTargets": 6718
+    },
+    {
+      "pre": "Tm2",
+      "post": "T5-resolved",
+      "sourceCount": 1766,
+      "targetCount": 6719,
+      "directedPairs": 34610,
+      "contacts": 233628,
+      "contributingSources": 1766,
+      "reachedTargets": 6718
+    },
+    {
+      "pre": "Tm4",
+      "post": "T5-resolved",
+      "sourceCount": 1670,
+      "targetCount": 6719,
+      "directedPairs": 31581,
+      "contacts": 134616,
+      "contributingSources": 1670,
+      "reachedTargets": 6717
+    },
+    {
+      "pre": "Tm9",
+      "post": "T5-resolved",
+      "sourceCount": 1771,
+      "targetCount": 6719,
+      "directedPairs": 47296,
+      "contacts": 257416,
+      "contributingSources": 1771,
+      "reachedTargets": 6718
+    },
+    {
+      "pre": "R7-resolved",
+      "post": "Tm5a",
+      "sourceCount": 896,
+      "targetCount": 624,
+      "directedPairs": 673,
+      "contacts": 6831,
+      "contributingSources": 593,
+      "reachedTargets": 468
+    },
+    {
+      "pre": "R7-resolved",
+      "post": "Tm5b",
+      "sourceCount": 896,
+      "targetCount": 522,
+      "directedPairs": 469,
+      "contacts": 3070,
+      "contributingSources": 383,
+      "reachedTargets": 292
+    },
+    {
+      "pre": "R7-resolved",
+      "post": "Tm5c",
+      "sourceCount": 896,
+      "targetCount": 750,
+      "directedPairs": 236,
+      "contacts": 399,
+      "contributingSources": 215,
+      "reachedTargets": 202
+    },
+    {
+      "pre": "R8-resolved",
+      "post": "Tm9",
+      "sourceCount": 887,
+      "targetCount": 1771,
+      "directedPairs": 32,
+      "contacts": 51,
+      "contributingSources": 32,
+      "reachedTargets": 32
+    },
+    {
+      "pre": "R8-resolved",
+      "post": "Tm20",
+      "sourceCount": 887,
+      "targetCount": 1762,
+      "directedPairs": 889,
+      "contacts": 9909,
+      "contributingSources": 839,
+      "reachedTargets": 872
+    }
+  ],
+  "commonColumns": [
+    {
+      "types": [
+        "L1",
+        "L2",
+        "L3"
+      ],
+      "uniqueCommonColumns": 892,
+      "bySomaSide": {
+        "R": 892
+      }
+    },
+    {
+      "types": [
+        "L2",
+        "Tm1",
+        "Tm2"
+      ],
+      "uniqueCommonColumns": 1752,
+      "bySomaSide": {
+        "L": 870,
+        "R": 882
+      }
+    },
+    {
+      "types": [
+        "L1",
+        "Mi1",
+        "Tm3"
+      ],
+      "uniqueCommonColumns": 0,
+      "bySomaSide": {}
+    },
+    {
+      "types": [
+        "L1",
+        "L2",
+        "L3",
+        "Mi1",
+        "Tm3",
+        "Tm1",
+        "Tm2",
+        "Tm4",
+        "Tm9"
+      ],
+      "uniqueCommonColumns": 0,
+      "bySomaSide": {}
+    }
+  ],
+  "diagnosticNomination": [
+    {
+      "somaSide": "L",
+      "selection": "19 nearest exact common columns to coordinate-wise median; squared Euclidean LABEL distance, ties hex1 then hex2; not a hex angular metric",
+      "medianLabel": [
+        19.0,
+        20.0
+      ],
+      "columns": [
+        [
+          19.0,
+          20.0
+        ],
+        [
+          18.0,
+          20.0
+        ],
+        [
+          19.0,
+          19.0
+        ],
+        [
+          19.0,
+          21.0
+        ],
+        [
+          20.0,
+          20.0
+        ],
+        [
+          18.0,
+          19.0
+        ],
+        [
+          18.0,
+          21.0
+        ],
+        [
+          20.0,
+          19.0
+        ],
+        [
+          20.0,
+          21.0
+        ],
+        [
+          17.0,
+          20.0
+        ],
+        [
+          19.0,
+          18.0
+        ],
+        [
+          19.0,
+          22.0
+        ],
+        [
+          21.0,
+          20.0
+        ],
+        [
+          17.0,
+          19.0
+        ],
+        [
+          17.0,
+          21.0
+        ],
+        [
+          18.0,
+          18.0
+        ],
+        [
+          18.0,
+          22.0
+        ],
+        [
+          20.0,
+          18.0
+        ],
+        [
+          20.0,
+          22.0
+        ]
+      ],
+      "bodyIdsByType": {
+        "L2": [
+          "13908",
+          "14476",
+          "27182",
+          "29501",
+          "34669",
+          "39856",
+          "515207",
+          "516478",
+          "518024",
+          "519006",
+          "520563",
+          "532253",
+          "539000",
+          "539116",
+          "546069",
+          "546148",
+          "547045",
+          "556043",
+          "559576"
+        ],
+        "Tm1": [
+          "15940",
+          "37028",
+          "44135",
+          "44280",
+          "46224",
+          "47803",
+          "51203",
+          "53732",
+          "60495",
+          "69853",
+          "70762",
+          "80999",
+          "159295",
+          "514061",
+          "517431",
+          "518259",
+          "527559",
+          "535178",
+          "535566"
+        ],
+        "Tm2": [
+          "21046",
+          "28712",
+          "29285",
+          "35326",
+          "50091",
+          "50370",
+          "50867",
+          "51255",
+          "53181",
+          "54558",
+          "54581",
+          "55667",
+          "57593",
+          "74194",
+          "76804",
+          "532258",
+          "537050",
+          "537145",
+          "547572"
+        ]
+      },
+      "interpretation": "Offline diagnostic nomination only; no model, candidate or gate changed",
+      "directContacts": {
+        "Tm1": {
+          "selectedTargets": {
+            "directedPairs": 19,
+            "contacts": 2508,
+            "contributingSources": 19,
+            "reachedTargets": 19
+          },
+          "allTypeTargets": {
+            "directedPairs": 19,
+            "contacts": 2508,
+            "contributingSources": 19,
+            "reachedTargets": 19
+          }
+        },
+        "Tm2": {
+          "selectedTargets": {
+            "directedPairs": 25,
+            "contacts": 2786,
+            "contributingSources": 19,
+            "reachedTargets": 19
+          },
+          "allTypeTargets": {
+            "directedPairs": 28,
+            "contacts": 2789,
+            "contributingSources": 19,
+            "reachedTargets": 22
+          }
+        }
+      }
+    },
+    {
+      "somaSide": "R",
+      "selection": "19 nearest exact common columns to coordinate-wise median; squared Euclidean LABEL distance, ties hex1 then hex2; not a hex angular metric",
+      "medianLabel": [
+        19.0,
+        20.0
+      ],
+      "columns": [
+        [
+          19.0,
+          20.0
+        ],
+        [
+          18.0,
+          20.0
+        ],
+        [
+          19.0,
+          19.0
+        ],
+        [
+          19.0,
+          21.0
+        ],
+        [
+          20.0,
+          20.0
+        ],
+        [
+          18.0,
+          19.0
+        ],
+        [
+          18.0,
+          21.0
+        ],
+        [
+          20.0,
+          19.0
+        ],
+        [
+          20.0,
+          21.0
+        ],
+        [
+          17.0,
+          20.0
+        ],
+        [
+          19.0,
+          18.0
+        ],
+        [
+          19.0,
+          22.0
+        ],
+        [
+          21.0,
+          20.0
+        ],
+        [
+          17.0,
+          19.0
+        ],
+        [
+          17.0,
+          21.0
+        ],
+        [
+          18.0,
+          18.0
+        ],
+        [
+          18.0,
+          22.0
+        ],
+        [
+          20.0,
+          18.0
+        ],
+        [
+          20.0,
+          22.0
+        ]
+      ],
+      "bodyIdsByType": {
+        "L2": [
+          "26067",
+          "28572",
+          "29681",
+          "29762",
+          "30879",
+          "31346",
+          "31354",
+          "31705",
+          "33112",
+          "33971",
+          "34672",
+          "36807",
+          "36860",
+          "38209",
+          "38210",
+          "39087",
+          "39093",
+          "39278",
+          "39955"
+        ],
+        "Tm1": [
+          "40488",
+          "40719",
+          "40998",
+          "41322",
+          "41816",
+          "41907",
+          "42133",
+          "44028",
+          "44772",
+          "44965",
+          "45783",
+          "46027",
+          "47158",
+          "60699",
+          "65702",
+          "68716",
+          "72022",
+          "75309",
+          "76630"
+        ],
+        "Tm2": [
+          "25995",
+          "46017",
+          "47106",
+          "47387",
+          "48997",
+          "49273",
+          "50571",
+          "50889",
+          "51089",
+          "51445",
+          "53887",
+          "55158",
+          "68811",
+          "70910",
+          "76020",
+          "79854",
+          "80156",
+          "80623",
+          "82168"
+        ]
+      },
+      "interpretation": "Offline diagnostic nomination only; no model, candidate or gate changed",
+      "directContacts": {
+        "Tm1": {
+          "selectedTargets": {
+            "directedPairs": 21,
+            "contacts": 2950,
+            "contributingSources": 19,
+            "reachedTargets": 19
+          },
+          "allTypeTargets": {
+            "directedPairs": 21,
+            "contacts": 2950,
+            "contributingSources": 19,
+            "reachedTargets": 19
+          }
+        },
+        "Tm2": {
+          "selectedTargets": {
+            "directedPairs": 27,
+            "contacts": 3060,
+            "contributingSources": 19,
+            "reachedTargets": 19
+          },
+          "allTypeTargets": {
+            "directedPairs": 31,
+            "contacts": 3066,
+            "contributingSources": 19,
+            "reachedTargets": 23
+          }
+        }
+      }
+    }
+  ],
+  "wallSeconds": 17.06162630000108,
+  "columnAlignedDirectPathways": [
+    {
+      "pre": "L1",
+      "post": "Mi1",
+      "bothHexKnownDirectedPairs": 2001,
+      "bothHexKnownContacts": 141562,
+      "sameSomaSideAndHexContacts": 140664,
+      "alignedContributingSources": 1756,
+      "alignedReachedTargets": 1757
+    },
+    {
+      "pre": "L2",
+      "post": "Tm1",
+      "bothHexKnownDirectedPairs": 2038,
+      "bothHexKnownContacts": 204631,
+      "sameSomaSideAndHexContacts": 203944,
+      "alignedContributingSources": 1761,
+      "alignedReachedTargets": 1760
+    },
+    {
+      "pre": "L2",
+      "post": "Tm2",
+      "bothHexKnownDirectedPairs": 3090,
+      "bothHexKnownContacts": 220348,
+      "sameSomaSideAndHexContacts": 214597,
+      "alignedContributingSources": 1752,
+      "alignedReachedTargets": 1752
+    },
+    {
+      "pre": "L3",
+      "post": "Tm9",
+      "bothHexKnownDirectedPairs": 1779,
+      "bothHexKnownContacts": 26319,
+      "sameSomaSideAndHexContacts": 24412,
+      "alignedContributingSources": 882,
+      "alignedReachedTargets": 884
+    }
+  ],
+  "verification": {
+    "rawHashMatchesCompiledManifest": true,
+    "graphHashMatchesFrozenCandidate": true,
+    "populationCountNtJoinAndFiniteHexSumsVerified": true,
+    "patchIdsAllInGraph": true
+  },
+  "generatedAt": "2026-09-13T07:30:31.828181+00:00",
+  "reproduction": {
+    "workingDirectory": "C:/Users/scott/Documents/Scicon Shooter",
+    "python": "fly-lab/.venv/Scripts/python.exe",
+    "pythonPath": "fly-lab/python",
+    "programs": [
+      "\nfrom pathlib import Path\nimport json,re,hashlib,time,platform\nfrom collections import Counter\nimport numpy as np\nimport pyarrow as pa\nimport pyarrow.feather as ft\nimport pyarrow.compute as pc\nimport scipy\nfrom scicon_fly.model import SparseGraph\nfrom scicon_fly.diagnostics import direct_contacts\nstart=time.perf_counter(); root=Path.cwd(); lab=root/'fly-lab'\nraw=lab/'data/raw/v1.0'; compiled=lab/'data/compiled/v1.0'\nap=raw/'body-annotations-male-cns-v1.0-minconf-0.5.feather'; ntp=raw/'body-neurotransmitters-male-cns-v1.0.feather'; gp=compiled/'graph.npz'; mp=compiled/'manifest.json'\ng=SparseGraph.load(gp,mp); rows=ft.read_table(ap).to_pylist(); idx={int(b):i for i,b in enumerate(g.ids)}\nregex=r'(R[1-8].*|L[1-5]|Mi\\d+|Tm.*|T[45].*|C2|C3|KCg-d|KCab-p)'\nts=sorted({str(r['type']) for r in rows if re.fullmatch(regex,str(r['type']))})\nselected=[r for r in rows if r['type'] in ts]; kept=[r for r in selected if r['bodyId'] in idx]\nnt=ft.read_table(ntp); ns=nt.filter(pc.is_in(nt['body'],value_set=pa.array([r['bodyId'] for r in kept],type=pa.int64()))).to_pylist(); nm={r['body']:r for r in ns}\ndef count(vs): return dict(sorted(Counter('<missing>' if v is None or v=='' else str(v) for v in vs).items()))\ndef finite(r): return all(r[k] is not None and np.isfinite(r[k]) for k in ('assignedOlHex1','assignedOlHex2'))\ndef columns(rs, side='somaSide'): return {(r[side],float(r['assignedOlHex1']),float(r['assignedOlHex2'])) for r in rs if finite(r) and r[side] in ('L','R')}\ndef quantile(vs):\n    vs=[v for v in vs if v is not None and np.isfinite(v)]\n    return {'available':len(vs),'minimum':float(min(vs)) if vs else None,'median':float(np.median(vs)) if vs else None,'maximum':float(max(vs)) if vs else None}\nbt={}\nfor t in ts:\n    rs=[r for r in selected if r['type']==t]; ks=[r for r in rs if r['bodyId'] in idx]; gi=[idx[r['bodyId']] for r in ks]; hs=[r for r in ks if finite(r)]; nts=[nm[r['bodyId']] for r in ks if r['bodyId'] in nm]\n    cs=columns(hs,'rootSide'); mult=Counter((r['rootSide'],r['assignedOlHex1'],r['assignedOlHex2']) for r in hs if r['rootSide'] in ('L','R'))\n    bt[t]={'rawAnnotated':len(rs),'retained':len(ks),'excludedFromGraph':len(rs)-len(ks),'superclass':count(r['superclass'] for r in ks),'somaSide':count(r['somaSide'] for r in ks),'rootSide':count(r['rootSide'] for r in ks),'finiteHexPairs':len(hs),'hexNonintegralPairs':sum(any(r[k]!=round(r[k]) for k in ('assignedOlHex1','assignedOlHex2')) for r in hs),'hexRange':[[float(min(r[k] for r in hs)),float(max(r[k] for r in hs))] for k in ('assignedOlHex1','assignedOlHex2')] if hs else None,'finiteHexByRootSide':count(r['rootSide'] for r in hs),'finiteHexBySomaSide':count(r['somaSide'] for r in hs),'uniqueColumnsBySomaSide':count(c[0] for c in columns(hs)),'somaSideHexMultiplicityHistogram':count(Counter((r['somaSide'],r['assignedOlHex1'],r['assignedOlHex2']) for r in hs if r['somaSide'] in ('L','R')).values()),'uniqueRootSideHexColumns':len(cs),'uniqueColumnsByRootSide':count(c[0] for c in cs),'rootSideHexMultiplicityHistogram':dict(sorted(Counter(str(v) for v in mult.values()).items())),'somaRootSideDisagreementsWhenBothKnown':sum(r['somaSide']!=r['rootSide'] for r in ks if r['somaSide'] in ('L','R') and r['rootSide'] in ('L','R')),'compiledNt':count(g.annotations['neurotransmitters'][gi]),'modeledSign':count(g.signs[gi]),'ntRows':len(nts),'rawNtConsensus':count(r['consensus_nt'] for r in nts),'rawNtGroundTruth':count(r['ground_truth'] for r in nts),'rawNtPredicted':count(r['predicted_nt'] for r in nts),'rawNtPredictionConfidence':quantile(r['predicted_nt_confidence'] for r in nts),'rawNtCellTypeConfidence':quantile(r['celltype_predicted_nt_confidence'] for r in nts),'exampleBodyIds':[str(r['bodyId']) for r in sorted(ks,key=lambda r:r['bodyId'])[:3]]}\nix={t:np.asarray([idx[r['bodyId']] for r in kept if r['type']==t],dtype=np.int64) for t in ts}\ngroups={**ix,**{f'{prefix}-resolved':np.concatenate([ix[prefix+s] for s in suffix]) for prefix,suffix in [('R7','dpy'),('R8','dpy'),('T4','abcd'),('T5','abcd')]}}\npairs=[('R1-R6',t) for t in ('L1','L2','L3')]+[('L1',t) for t in ('Mi1','Tm3','L5','C2','C3')]+[('L2',t) for t in ('Tm1','Tm2','Tm4')]+[('L3','Tm9')]+[(t,'T4-resolved') for t in ('Mi1','Tm3')]+[(t,'T5-resolved') for t in ('Tm1','Tm2','Tm4','Tm9')]+[('R7-resolved',t) for t in ('Tm5a','Tm5b','Tm5c')]+[('R8-resolved',t) for t in ('Tm9','Tm20')]\npaths=[{'pre':a,'post':b,'sourceCount':len(groups[a]),'targetCount':len(groups[b]),**direct_contacts(g,groups[a],groups[b])} for a,b in pairs]\nsets={t:columns([r for r in kept if r['type']==t]) for t in ts}; common=[]\nfor types in [('L1','L2','L3'),('L2','Tm1','Tm2'),('L1','Mi1','Tm3'),('L1','L2','L3','Mi1','Tm3','Tm1','Tm2','Tm4','Tm9')]:\n    cs=set.intersection(*(sets[t] for t in types)); common.append({'types':types,'uniqueCommonColumns':len(cs),'bySomaSide':count(c[0] for c in cs)})\ndef hash_file(p):\n    h=hashlib.sha256()\n    with p.open('rb') as f:\n        while chunk:=f.read(8*1024*1024): h.update(chunk)\n    return h.hexdigest()\nfiles=[ap,ntp,gp,mp,lab/'configs/candidates/malecns-hex-v0.1-vision.json',lab/'configs/candidates/malecns-hex-v0.1-decoder.json',lab/'docs/evidence/malecns-hex-v0.1-screen.json',lab/'docs/evidence/diagnostic-connectivity.json',lab/'python/scicon_fly/data.py',lab/'python/scicon_fly/diagnostics.py']\nprovenance=[{'path':p.relative_to(root).as_posix(),'sha256':hash_file(p),'sizeBytes':p.stat().st_size} for p in files]\npatch=[]; cs=set.intersection(*(sets[t] for t in ('L2','Tm1','Tm2')))\nfor side in ('L','R'):\n    sc=sorted((x,y) for s,x,y in cs if s==side); center=np.median(np.asarray(sc),axis=0) if sc else np.array([0.,0.]); chosen=sorted(sc,key=lambda c:((c[0]-center[0])**2+(c[1]-center[1])**2,c[0],c[1]))[:19]; chosen_set=set(chosen)\n    rs=[r for r in kept if r['type'] in ('L2','Tm1','Tm2') and r['somaSide']==side and finite(r) and (r['assignedOlHex1'],r['assignedOlHex2']) in chosen_set]\n    patch.append({'somaSide':side,'selection':'19 nearest exact common columns to coordinate-wise median; squared Euclidean LABEL distance, ties hex1 then hex2; not a hex angular metric','medianLabel':center.tolist(),'columns':[list(c) for c in chosen],'bodyIdsByType':{t:[str(r['bodyId']) for r in sorted(rs,key=lambda r:r['bodyId']) if r['type']==t] for t in ('L2','Tm1','Tm2')},'interpretation':'Offline diagnostic nomination only; no model, candidate or gate changed'})\nreport={'schemaVersion':1,'scope':'READ_ONLY_ANNOTATION_AND_DIRECT_CONTACT_INVENTORY','synthetic':False,'trainingAllowed':False,'graphIdentity':g.identity,'graphCounts':{'neurons':g.n,'directedPairs':g.e,'contacts':int(g.contacts.sum())},'sources':provenance,'sourceDataset':g.manifest['source'],'runtime':{'python':platform.python_version(),'numpy':np.__version__,'pyarrow':pa.__version__,'scipy':scipy.__version__},'selection':{'typeRegex':regex,'fullMatch':True,'retention':'Exact bodyId membership in graph.ids','hex':'Both source assignedOlHex fields finite; population tables preserve both rootSide and somaSide; common-column intersections and patch use exact somaSide L/R + hex1 + hex2, because mapped lamina/medulla cells lack rootSide','nt':'Exact body-ID join to raw NT; compiled consensus and presynaptic sign reported without reinterpretation','contacts':'Every compiled directed pair; no additional threshold; unsigned contact sum','noSimulation':True,'noGameScoreSelection':True},'types':bt,'directPathways':paths,'commonColumns':common,'diagnosticNomination':patch,'wallSeconds':time.perf_counter()-start}\nout=lab/'docs/evidence/vision-boundary-inventory-v1.json'; out.write_text(json.dumps(report,indent=2,allow_nan=False)+'\\n',encoding='utf-8')\nprint('WROTE',out,'wallSeconds',report['wallSeconds'])\nfor t in ('R1-R6','R7d','R7p','R7y','R7_unclear','R8d','R8p','R8y','R8_unclear','R7R8_unclear','L1','L2','L3','Mi1','Tm3','Tm1','Tm2','Tm4','Tm9','C2','C3'):\n    print(t,json.dumps({k:bt[t][k] for k in ('rawAnnotated','retained','finiteHexPairs','rootSide','somaSide','finiteHexBySomaSide','uniqueColumnsBySomaSide','somaSideHexMultiplicityHistogram','compiledNt','rawNtGroundTruth','rawNtPredictionConfidence')}))\nprint('PATHWAYS',json.dumps(paths)); print('COMMON',json.dumps(common)); print('PATCH_COUNTS',[(p['somaSide'],{k:len(v) for k,v in p['bodyIdsByType'].items()}) for p in patch])\n",
+      "\nfrom pathlib import Path\nimport json,hashlib\nimport numpy as np\nfrom scicon_fly.model import SparseGraph\nfrom scicon_fly.diagnostics import direct_contacts\nlab=Path('fly-lab'); p=lab/'docs/evidence/vision-boundary-inventory-v1.json'; r=json.loads(p.read_text())\ng=SparseGraph.load(lab/'data/compiled/v1.0/graph.npz',lab/'data/compiled/v1.0/manifest.json')\nwith np.load(lab/'data/compiled/v1.0/graph.npz',allow_pickle=False) as z:\n    hx=z['assigned_ol_hex']; side=z['neuron_sides']\ntypes=g.annotations['neuron_types']; all_ids=set(map(str,g.ids))\nfor patch in r['diagnosticNomination']:\n    pre=np.array([g.neuron_index(i) for i in patch['bodyIdsByType']['L2']],dtype=int)\n    patch['directContacts']={}\n    for name in ('Tm1','Tm2'):\n        nominated=np.array([g.neuron_index(i) for i in patch['bodyIdsByType'][name]],dtype=int); entire=np.flatnonzero(types==name)\n        patch['directContacts'][name]={'selectedTargets':direct_contacts(g,pre,nominated),'allTypeTargets':direct_contacts(g,pre,entire)}\n    assert all(i in all_ids for ids in patch['bodyIdsByType'].values() for i in ids)\nr['columnAlignedDirectPathways']=[]\nfor a,b in [('L1','Mi1'),('L2','Tm1'),('L2','Tm2'),('L3','Tm9')]:\n    hits=0; total=0; eq=0; reached=set(); source=set()\n    for i in np.flatnonzero(types==a):\n        if not np.isfinite(hx[i]).all(): continue\n        lo,hi=g.indptr[i:i+2]\n        for edge in range(lo,hi):\n            j=g.indices[edge]\n            if types[j]!=b or not np.isfinite(hx[j]).all(): continue\n            hits+=1; total+=int(g.contacts[edge])\n            if side[i]==side[j] and np.array_equal(hx[i],hx[j]):\n                eq+=int(g.contacts[edge]); reached.add(int(j)); source.add(int(i))\n    r['columnAlignedDirectPathways'].append({'pre':a,'post':b,'bothHexKnownDirectedPairs':hits,'bothHexKnownContacts':total,'sameSomaSideAndHexContacts':eq,'alignedContributingSources':len(source),'alignedReachedTargets':len(reached)})\nmanifest=json.loads((lab/'data/compiled/v1.0/manifest.json').read_text())\nactual={s['path']:s['sha256'] for s in r['sources']}\nassert actual['fly-lab/data/raw/v1.0/body-annotations-male-cns-v1.0-minconf-0.5.feather']==manifest['sources']['annotations']['sha256']\nassert actual['fly-lab/data/raw/v1.0/body-neurotransmitters-male-cns-v1.0.feather']==manifest['sources']['neurotransmitters']['sha256']\nassert actual['fly-lab/data/compiled/v1.0/graph.npz']=='518bf3441daf58733005aee559c40b437bd1366602baa11e3a9d8ef0867e05d9'\nassert r['graphIdentity']=='93d5a84e93e73f32a699a47ecfeaabf977505c942192920da383fdb3884288f4'\nfor t,d in r['types'].items():\n    assert sum(d['compiledNt'].values())==d['retained']\n    assert d['ntRows']==d['retained']\n    assert sum(d['finiteHexBySomaSide'].values())==d['finiteHexPairs']\nr['verification']={'rawHashMatchesCompiledManifest':True,'graphHashMatchesFrozenCandidate':True,'populationCountNtJoinAndFiniteHexSumsVerified':True,'patchIdsAllInGraph':True}\np.write_text(json.dumps(r,indent=2,allow_nan=False)+'\\n',encoding='utf-8')\nprint(json.dumps({'patches':r['diagnosticNomination'],'aligned':r['columnAlignedDirectPathways'],'verification':r['verification']},indent=2))\n"
+    ],
+    "notes": "Run programs in order with PYTHONPATH set. They regenerate measured fields; wallSeconds varies. This embedded reproduction metadata is report assembly."
+  }
+}

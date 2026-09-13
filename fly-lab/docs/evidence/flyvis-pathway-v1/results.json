@@ -1,0 +1,697 @@
+{
+  "status": "COMPLETE",
+  "scope": "POST_REFERENCE_CAUSAL_DIAGNOSTIC_NOT_MALECNS_VALIDATION",
+  "trainingAllowed": false,
+  "createdAt": "2026-09-13T07:52:23.560177+00:00",
+  "seconds": 135.51499999999942,
+  "scriptSha256": "d5c6aea8d1abfa03e4ba3293d745f7dd36472a00aa416fc6763e69b3d056d95a",
+  "specificationSha256": "f36d422b94bb13da665d9b17c70d4441573045996d8dec16e44dad73a1deee79",
+  "referenceMetadataSha256": "221decafe80ed5c74c017f80bc466981b4ea5b558ee721bdc8279f0cd7bab916",
+  "checkpointSha256": "d0e42857e738d0315897c2d50fde9eb3fb1a3fb1f071d55dfc13d53d72bccc3f",
+  "nodeCount": 45669,
+  "edgeCount": 1513231,
+  "targetedEdgeCount": 33014,
+  "populationCounts": {
+    "L1": 721,
+    "L2": 721
+  },
+  "validity": {
+    "originalMatchesSavedReference": true,
+    "shamBitIdentical": true,
+    "storedParametersUnchanged": true,
+    "sourceFilesUnchanged": true
+  },
+  "effectDetectedAboveThreshold": true,
+  "maximumLesionDifference": 0.0004985928535461426,
+  "interpretation": "Chosen after the reference screen showed negative central L1/L2 activity. This independent hypothesis-driven diagnostic is not a preregistered component of that screen. A null result applies only to this checkpoint, these inputs, and the declared intervention; it does not show that biological L1/L2 pathways are unnecessary. No parameter fitting, game reward, or MaleCNS gate changes are allowed.",
+  "records": [
+    {
+      "input": "flash-000",
+      "arm": "original",
+      "inputArchiveSha256": "d4d4ed025ea8402456f4356b22294073b8e1a067abf7fe9ea92b9c690d72162d",
+      "elapsedSeconds": 16.25,
+      "finite": true,
+      "parametersUnchanged": true,
+      "fullPopulation": {
+        "L1": {
+          "gradedMinimum": -1.8070900440216064,
+          "gradedMaximum": -0.9501754641532898,
+          "gradedNonzeroFraction": 1.0,
+          "releaseMinimum": 0.0,
+          "releaseMaximum": 0.0,
+          "releaseNonzeroFraction": 0.0,
+          "neuronsWithAnyPositiveRelease": 0,
+          "neuronCount": 721,
+          "frameCount": 600
+        },
+        "L2": {
+          "gradedMinimum": -1.8125938177108765,
+          "gradedMaximum": -0.8578179478645325,
+          "gradedNonzeroFraction": 1.0,
+          "releaseMinimum": 0.0,
+          "releaseMaximum": 0.0,
+          "releaseNonzeroFraction": 0.0,
+          "neuronsWithAnyPositiveRelease": 0,
+          "neuronCount": 721,
+          "frameCount": 600
+        }
+      },
+      "wholeNetworkVsOriginal": {
+        "maximumAbsoluteDifference": 0.0,
+        "bitIdentical": true,
+        "entriesAboveThreshold": 0,
+        "maximumDifferenceFrame": 0,
+        "maximumDifferenceNeuron": 0
+      },
+      "centralVsPriorReference": {
+        "maximumAbsoluteDifference": 0.0,
+        "bitIdentical": true,
+        "entriesAboveThreshold": 0,
+        "maximumDifferenceFrame": 0,
+        "maximumDifferenceNeuron": 0
+      },
+      "hookAudits": []
+    },
+    {
+      "input": "flash-000",
+      "arm": "sham",
+      "inputArchiveSha256": "d4d4ed025ea8402456f4356b22294073b8e1a067abf7fe9ea92b9c690d72162d",
+      "elapsedSeconds": 27.795999999998457,
+      "finite": true,
+      "parametersUnchanged": true,
+      "fullPopulation": {
+        "L1": {
+          "gradedMinimum": -1.8070900440216064,
+          "gradedMaximum": -0.9501754641532898,
+          "gradedNonzeroFraction": 1.0,
+          "releaseMinimum": 0.0,
+          "releaseMaximum": 0.0,
+          "releaseNonzeroFraction": 0.0,
+          "neuronsWithAnyPositiveRelease": 0,
+          "neuronCount": 721,
+          "frameCount": 600
+        },
+        "L2": {
+          "gradedMinimum": -1.8125938177108765,
+          "gradedMaximum": -0.8578179478645325,
+          "gradedNonzeroFraction": 1.0,
+          "releaseMinimum": 0.0,
+          "releaseMaximum": 0.0,
+          "releaseNonzeroFraction": 0.0,
+          "neuronsWithAnyPositiveRelease": 0,
+          "neuronCount": 721,
+          "frameCount": 600
+        }
+      },
+      "wholeNetworkVsOriginal": {
+        "maximumAbsoluteDifference": 0.0,
+        "bitIdentical": true,
+        "entriesAboveThreshold": 0,
+        "maximumDifferenceFrame": 0,
+        "maximumDifferenceNeuron": 0
+      },
+      "centralVsPriorReference": {
+        "maximumAbsoluteDifference": 0.0,
+        "bitIdentical": true,
+        "entriesAboveThreshold": 0,
+        "maximumDifferenceFrame": 0,
+        "maximumDifferenceNeuron": 0
+      },
+      "hookAudits": [
+        {
+          "targetedEdges": 33014,
+          "targetedPreviouslyNonzeroWeights": 30851,
+          "changedWeightCount": 0,
+          "nontargetWeightsUnchanged": true
+        },
+        {
+          "targetedEdges": 33014,
+          "targetedPreviouslyNonzeroWeights": 30851,
+          "changedWeightCount": 0,
+          "nontargetWeightsUnchanged": true
+        }
+      ]
+    },
+    {
+      "input": "flash-000",
+      "arm": "block-L1-L2-output",
+      "inputArchiveSha256": "d4d4ed025ea8402456f4356b22294073b8e1a067abf7fe9ea92b9c690d72162d",
+      "elapsedSeconds": 39.09300000000076,
+      "finite": true,
+      "parametersUnchanged": true,
+      "fullPopulation": {
+        "L1": {
+          "gradedMinimum": -1.807088017463684,
+          "gradedMaximum": -0.9501754641532898,
+          "gradedNonzeroFraction": 1.0,
+          "releaseMinimum": 0.0,
+          "releaseMaximum": 0.0,
+          "releaseNonzeroFraction": 0.0,
+          "neuronsWithAnyPositiveRelease": 0,
+          "neuronCount": 721,
+          "frameCount": 600
+        },
+        "L2": {
+          "gradedMinimum": -1.8125938177108765,
+          "gradedMaximum": -0.8578179478645325,
+          "gradedNonzeroFraction": 1.0,
+          "releaseMinimum": 0.0,
+          "releaseMaximum": 0.0,
+          "releaseNonzeroFraction": 0.0,
+          "neuronsWithAnyPositiveRelease": 0,
+          "neuronCount": 721,
+          "frameCount": 600
+        }
+      },
+      "wholeNetworkVsOriginal": {
+        "maximumAbsoluteDifference": 0.0004985928535461426,
+        "bitIdentical": false,
+        "entriesAboveThreshold": 4221201,
+        "maximumDifferenceFrame": 0,
+        "maximumDifferenceNeuron": 9462
+      },
+      "centralVsPriorReference": {
+        "maximumAbsoluteDifference": 0.00046950578689575195,
+        "bitIdentical": false,
+        "entriesAboveThreshold": 6953,
+        "maximumDifferenceFrame": 0,
+        "maximumDifferenceNeuron": 13
+      },
+      "hookAudits": [
+        {
+          "targetedEdges": 33014,
+          "targetedPreviouslyNonzeroWeights": 30851,
+          "changedWeightCount": 30851,
+          "nontargetWeightsUnchanged": true
+        },
+        {
+          "targetedEdges": 33014,
+          "targetedPreviouslyNonzeroWeights": 30851,
+          "changedWeightCount": 30851,
+          "nontargetWeightsUnchanged": true
+        }
+      ]
+    },
+    {
+      "input": "flash-001",
+      "arm": "original",
+      "inputArchiveSha256": "178756441356b78e01431797d722d2487c12f9acff82aee4689635d3280d46bf",
+      "elapsedSeconds": 50.5,
+      "finite": true,
+      "parametersUnchanged": true,
+      "fullPopulation": {
+        "L1": {
+          "gradedMinimum": -2.641235828399658,
+          "gradedMaximum": -1.1389206647872925,
+          "gradedNonzeroFraction": 1.0,
+          "releaseMinimum": 0.0,
+          "releaseMaximum": 0.0,
+          "releaseNonzeroFraction": 0.0,
+          "neuronsWithAnyPositiveRelease": 0,
+          "neuronCount": 721,
+          "frameCount": 600
+        },
+        "L2": {
+          "gradedMinimum": -2.6639552116394043,
+          "gradedMaximum": -1.1612191200256348,
+          "gradedNonzeroFraction": 1.0,
+          "releaseMinimum": 0.0,
+          "releaseMaximum": 0.0,
+          "releaseNonzeroFraction": 0.0,
+          "neuronsWithAnyPositiveRelease": 0,
+          "neuronCount": 721,
+          "frameCount": 600
+        }
+      },
+      "wholeNetworkVsOriginal": {
+        "maximumAbsoluteDifference": 0.0,
+        "bitIdentical": true,
+        "entriesAboveThreshold": 0,
+        "maximumDifferenceFrame": 0,
+        "maximumDifferenceNeuron": 0
+      },
+      "centralVsPriorReference": {
+        "maximumAbsoluteDifference": 0.0,
+        "bitIdentical": true,
+        "entriesAboveThreshold": 0,
+        "maximumDifferenceFrame": 0,
+        "maximumDifferenceNeuron": 0
+      },
+      "hookAudits": []
+    },
+    {
+      "input": "flash-001",
+      "arm": "sham",
+      "inputArchiveSha256": "178756441356b78e01431797d722d2487c12f9acff82aee4689635d3280d46bf",
+      "elapsedSeconds": 62.07800000000134,
+      "finite": true,
+      "parametersUnchanged": true,
+      "fullPopulation": {
+        "L1": {
+          "gradedMinimum": -2.641235828399658,
+          "gradedMaximum": -1.1389206647872925,
+          "gradedNonzeroFraction": 1.0,
+          "releaseMinimum": 0.0,
+          "releaseMaximum": 0.0,
+          "releaseNonzeroFraction": 0.0,
+          "neuronsWithAnyPositiveRelease": 0,
+          "neuronCount": 721,
+          "frameCount": 600
+        },
+        "L2": {
+          "gradedMinimum": -2.6639552116394043,
+          "gradedMaximum": -1.1612191200256348,
+          "gradedNonzeroFraction": 1.0,
+          "releaseMinimum": 0.0,
+          "releaseMaximum": 0.0,
+          "releaseNonzeroFraction": 0.0,
+          "neuronsWithAnyPositiveRelease": 0,
+          "neuronCount": 721,
+          "frameCount": 600
+        }
+      },
+      "wholeNetworkVsOriginal": {
+        "maximumAbsoluteDifference": 0.0,
+        "bitIdentical": true,
+        "entriesAboveThreshold": 0,
+        "maximumDifferenceFrame": 0,
+        "maximumDifferenceNeuron": 0
+      },
+      "centralVsPriorReference": {
+        "maximumAbsoluteDifference": 0.0,
+        "bitIdentical": true,
+        "entriesAboveThreshold": 0,
+        "maximumDifferenceFrame": 0,
+        "maximumDifferenceNeuron": 0
+      },
+      "hookAudits": [
+        {
+          "targetedEdges": 33014,
+          "targetedPreviouslyNonzeroWeights": 30851,
+          "changedWeightCount": 0,
+          "nontargetWeightsUnchanged": true
+        },
+        {
+          "targetedEdges": 33014,
+          "targetedPreviouslyNonzeroWeights": 30851,
+          "changedWeightCount": 0,
+          "nontargetWeightsUnchanged": true
+        }
+      ]
+    },
+    {
+      "input": "flash-001",
+      "arm": "block-L1-L2-output",
+      "inputArchiveSha256": "178756441356b78e01431797d722d2487c12f9acff82aee4689635d3280d46bf",
+      "elapsedSeconds": 73.53099999999904,
+      "finite": true,
+      "parametersUnchanged": true,
+      "fullPopulation": {
+        "L1": {
+          "gradedMinimum": -2.641235828399658,
+          "gradedMaximum": -1.1389206647872925,
+          "gradedNonzeroFraction": 1.0,
+          "releaseMinimum": 0.0,
+          "releaseMaximum": 0.0,
+          "releaseNonzeroFraction": 0.0,
+          "neuronsWithAnyPositiveRelease": 0,
+          "neuronCount": 721,
+          "frameCount": 600
+        },
+        "L2": {
+          "gradedMinimum": -2.6639552116394043,
+          "gradedMaximum": -1.161220908164978,
+          "gradedNonzeroFraction": 1.0,
+          "releaseMinimum": 0.0,
+          "releaseMaximum": 0.0,
+          "releaseNonzeroFraction": 0.0,
+          "neuronsWithAnyPositiveRelease": 0,
+          "neuronCount": 721,
+          "frameCount": 600
+        }
+      },
+      "wholeNetworkVsOriginal": {
+        "maximumAbsoluteDifference": 0.0004985928535461426,
+        "bitIdentical": false,
+        "entriesAboveThreshold": 4221807,
+        "maximumDifferenceFrame": 0,
+        "maximumDifferenceNeuron": 9462
+      },
+      "centralVsPriorReference": {
+        "maximumAbsoluteDifference": 0.00046950578689575195,
+        "bitIdentical": false,
+        "entriesAboveThreshold": 6962,
+        "maximumDifferenceFrame": 0,
+        "maximumDifferenceNeuron": 13
+      },
+      "hookAudits": [
+        {
+          "targetedEdges": 33014,
+          "targetedPreviouslyNonzeroWeights": 30851,
+          "changedWeightCount": 30851,
+          "nontargetWeightsUnchanged": true
+        },
+        {
+          "targetedEdges": 33014,
+          "targetedPreviouslyNonzeroWeights": 30851,
+          "changedWeightCount": 30851,
+          "nontargetWeightsUnchanged": true
+        }
+      ]
+    },
+    {
+      "input": "edge-006",
+      "arm": "original",
+      "inputArchiveSha256": "496a65c35ae81a8207f0750d8600d4cf18c44ec645d9e1e548fdbf73291a89db",
+      "elapsedSeconds": 83.98400000000038,
+      "finite": true,
+      "parametersUnchanged": true,
+      "fullPopulation": {
+        "L1": {
+          "gradedMinimum": -1.8070900440216064,
+          "gradedMaximum": -0.29299575090408325,
+          "gradedNonzeroFraction": 1.0,
+          "releaseMinimum": 0.0,
+          "releaseMaximum": 0.0,
+          "releaseNonzeroFraction": 0.0,
+          "neuronsWithAnyPositiveRelease": 0,
+          "neuronCount": 721,
+          "frameCount": 485
+        },
+        "L2": {
+          "gradedMinimum": -1.8025201559066772,
+          "gradedMaximum": -0.25222712755203247,
+          "gradedNonzeroFraction": 1.0,
+          "releaseMinimum": 0.0,
+          "releaseMaximum": 0.0,
+          "releaseNonzeroFraction": 0.0,
+          "neuronsWithAnyPositiveRelease": 0,
+          "neuronCount": 721,
+          "frameCount": 485
+        }
+      },
+      "wholeNetworkVsOriginal": {
+        "maximumAbsoluteDifference": 0.0,
+        "bitIdentical": true,
+        "entriesAboveThreshold": 0,
+        "maximumDifferenceFrame": 0,
+        "maximumDifferenceNeuron": 0
+      },
+      "centralVsPriorReference": {
+        "maximumAbsoluteDifference": 0.0,
+        "bitIdentical": true,
+        "entriesAboveThreshold": 0,
+        "maximumDifferenceFrame": 0,
+        "maximumDifferenceNeuron": 0
+      },
+      "hookAudits": []
+    },
+    {
+      "input": "edge-006",
+      "arm": "sham",
+      "inputArchiveSha256": "496a65c35ae81a8207f0750d8600d4cf18c44ec645d9e1e548fdbf73291a89db",
+      "elapsedSeconds": 93.43700000000172,
+      "finite": true,
+      "parametersUnchanged": true,
+      "fullPopulation": {
+        "L1": {
+          "gradedMinimum": -1.8070900440216064,
+          "gradedMaximum": -0.29299575090408325,
+          "gradedNonzeroFraction": 1.0,
+          "releaseMinimum": 0.0,
+          "releaseMaximum": 0.0,
+          "releaseNonzeroFraction": 0.0,
+          "neuronsWithAnyPositiveRelease": 0,
+          "neuronCount": 721,
+          "frameCount": 485
+        },
+        "L2": {
+          "gradedMinimum": -1.8025201559066772,
+          "gradedMaximum": -0.25222712755203247,
+          "gradedNonzeroFraction": 1.0,
+          "releaseMinimum": 0.0,
+          "releaseMaximum": 0.0,
+          "releaseNonzeroFraction": 0.0,
+          "neuronsWithAnyPositiveRelease": 0,
+          "neuronCount": 721,
+          "frameCount": 485
+        }
+      },
+      "wholeNetworkVsOriginal": {
+        "maximumAbsoluteDifference": 0.0,
+        "bitIdentical": true,
+        "entriesAboveThreshold": 0,
+        "maximumDifferenceFrame": 0,
+        "maximumDifferenceNeuron": 0
+      },
+      "centralVsPriorReference": {
+        "maximumAbsoluteDifference": 0.0,
+        "bitIdentical": true,
+        "entriesAboveThreshold": 0,
+        "maximumDifferenceFrame": 0,
+        "maximumDifferenceNeuron": 0
+      },
+      "hookAudits": [
+        {
+          "targetedEdges": 33014,
+          "targetedPreviouslyNonzeroWeights": 30851,
+          "changedWeightCount": 0,
+          "nontargetWeightsUnchanged": true
+        },
+        {
+          "targetedEdges": 33014,
+          "targetedPreviouslyNonzeroWeights": 30851,
+          "changedWeightCount": 0,
+          "nontargetWeightsUnchanged": true
+        }
+      ]
+    },
+    {
+      "input": "edge-006",
+      "arm": "block-L1-L2-output",
+      "inputArchiveSha256": "496a65c35ae81a8207f0750d8600d4cf18c44ec645d9e1e548fdbf73291a89db",
+      "elapsedSeconds": 103.01499999999942,
+      "finite": true,
+      "parametersUnchanged": true,
+      "fullPopulation": {
+        "L1": {
+          "gradedMinimum": -1.807088017463684,
+          "gradedMaximum": -0.29299575090408325,
+          "gradedNonzeroFraction": 1.0,
+          "releaseMinimum": 0.0,
+          "releaseMaximum": 0.0,
+          "releaseNonzeroFraction": 0.0,
+          "neuronsWithAnyPositiveRelease": 0,
+          "neuronCount": 721,
+          "frameCount": 485
+        },
+        "L2": {
+          "gradedMinimum": -1.8025202751159668,
+          "gradedMaximum": -0.25222712755203247,
+          "gradedNonzeroFraction": 1.0,
+          "releaseMinimum": 0.0,
+          "releaseMaximum": 0.0,
+          "releaseNonzeroFraction": 0.0,
+          "neuronsWithAnyPositiveRelease": 0,
+          "neuronCount": 721,
+          "frameCount": 485
+        }
+      },
+      "wholeNetworkVsOriginal": {
+        "maximumAbsoluteDifference": 0.0004985928535461426,
+        "bitIdentical": false,
+        "entriesAboveThreshold": 4222804,
+        "maximumDifferenceFrame": 0,
+        "maximumDifferenceNeuron": 9462
+      },
+      "centralVsPriorReference": {
+        "maximumAbsoluteDifference": 0.00046950578689575195,
+        "bitIdentical": false,
+        "entriesAboveThreshold": 6956,
+        "maximumDifferenceFrame": 0,
+        "maximumDifferenceNeuron": 13
+      },
+      "hookAudits": [
+        {
+          "targetedEdges": 33014,
+          "targetedPreviouslyNonzeroWeights": 30851,
+          "changedWeightCount": 30851,
+          "nontargetWeightsUnchanged": true
+        },
+        {
+          "targetedEdges": 33014,
+          "targetedPreviouslyNonzeroWeights": 30851,
+          "changedWeightCount": 30851,
+          "nontargetWeightsUnchanged": true
+        }
+      ]
+    },
+    {
+      "input": "edge-007",
+      "arm": "original",
+      "inputArchiveSha256": "95dd6648a9ff9d458b6803da5b80efa40ba7e4ff973828edf443b80cd5bcf635",
+      "elapsedSeconds": 112.48400000000038,
+      "finite": true,
+      "parametersUnchanged": true,
+      "fullPopulation": {
+        "L1": {
+          "gradedMinimum": -2.650129795074463,
+          "gradedMaximum": -1.1355916261672974,
+          "gradedNonzeroFraction": 1.0,
+          "releaseMinimum": 0.0,
+          "releaseMaximum": 0.0,
+          "releaseNonzeroFraction": 0.0,
+          "neuronsWithAnyPositiveRelease": 0,
+          "neuronCount": 721,
+          "frameCount": 485
+        },
+        "L2": {
+          "gradedMinimum": -2.674264430999756,
+          "gradedMaximum": -1.1551487445831299,
+          "gradedNonzeroFraction": 1.0,
+          "releaseMinimum": 0.0,
+          "releaseMaximum": 0.0,
+          "releaseNonzeroFraction": 0.0,
+          "neuronsWithAnyPositiveRelease": 0,
+          "neuronCount": 721,
+          "frameCount": 485
+        }
+      },
+      "wholeNetworkVsOriginal": {
+        "maximumAbsoluteDifference": 0.0,
+        "bitIdentical": true,
+        "entriesAboveThreshold": 0,
+        "maximumDifferenceFrame": 0,
+        "maximumDifferenceNeuron": 0
+      },
+      "centralVsPriorReference": {
+        "maximumAbsoluteDifference": 0.0,
+        "bitIdentical": true,
+        "entriesAboveThreshold": 0,
+        "maximumDifferenceFrame": 0,
+        "maximumDifferenceNeuron": 0
+      },
+      "hookAudits": []
+    },
+    {
+      "input": "edge-007",
+      "arm": "sham",
+      "inputArchiveSha256": "95dd6648a9ff9d458b6803da5b80efa40ba7e4ff973828edf443b80cd5bcf635",
+      "elapsedSeconds": 122.09300000000076,
+      "finite": true,
+      "parametersUnchanged": true,
+      "fullPopulation": {
+        "L1": {
+          "gradedMinimum": -2.650129795074463,
+          "gradedMaximum": -1.1355916261672974,
+          "gradedNonzeroFraction": 1.0,
+          "releaseMinimum": 0.0,
+          "releaseMaximum": 0.0,
+          "releaseNonzeroFraction": 0.0,
+          "neuronsWithAnyPositiveRelease": 0,
+          "neuronCount": 721,
+          "frameCount": 485
+        },
+        "L2": {
+          "gradedMinimum": -2.674264430999756,
+          "gradedMaximum": -1.1551487445831299,
+          "gradedNonzeroFraction": 1.0,
+          "releaseMinimum": 0.0,
+          "releaseMaximum": 0.0,
+          "releaseNonzeroFraction": 0.0,
+          "neuronsWithAnyPositiveRelease": 0,
+          "neuronCount": 721,
+          "frameCount": 485
+        }
+      },
+      "wholeNetworkVsOriginal": {
+        "maximumAbsoluteDifference": 0.0,
+        "bitIdentical": true,
+        "entriesAboveThreshold": 0,
+        "maximumDifferenceFrame": 0,
+        "maximumDifferenceNeuron": 0
+      },
+      "centralVsPriorReference": {
+        "maximumAbsoluteDifference": 0.0,
+        "bitIdentical": true,
+        "entriesAboveThreshold": 0,
+        "maximumDifferenceFrame": 0,
+        "maximumDifferenceNeuron": 0
+      },
+      "hookAudits": [
+        {
+          "targetedEdges": 33014,
+          "targetedPreviouslyNonzeroWeights": 30851,
+          "changedWeightCount": 0,
+          "nontargetWeightsUnchanged": true
+        },
+        {
+          "targetedEdges": 33014,
+          "targetedPreviouslyNonzeroWeights": 30851,
+          "changedWeightCount": 0,
+          "nontargetWeightsUnchanged": true
+        }
+      ]
+    },
+    {
+      "input": "edge-007",
+      "arm": "block-L1-L2-output",
+      "inputArchiveSha256": "95dd6648a9ff9d458b6803da5b80efa40ba7e4ff973828edf443b80cd5bcf635",
+      "elapsedSeconds": 131.68700000000172,
+      "finite": true,
+      "parametersUnchanged": true,
+      "fullPopulation": {
+        "L1": {
+          "gradedMinimum": -2.650129795074463,
+          "gradedMaximum": -1.1355916261672974,
+          "gradedNonzeroFraction": 1.0,
+          "releaseMinimum": 0.0,
+          "releaseMaximum": 0.0,
+          "releaseNonzeroFraction": 0.0,
+          "neuronsWithAnyPositiveRelease": 0,
+          "neuronCount": 721,
+          "frameCount": 485
+        },
+        "L2": {
+          "gradedMinimum": -2.674264430999756,
+          "gradedMaximum": -1.1551487445831299,
+          "gradedNonzeroFraction": 1.0,
+          "releaseMinimum": 0.0,
+          "releaseMaximum": 0.0,
+          "releaseNonzeroFraction": 0.0,
+          "neuronsWithAnyPositiveRelease": 0,
+          "neuronCount": 721,
+          "frameCount": 485
+        }
+      },
+      "wholeNetworkVsOriginal": {
+        "maximumAbsoluteDifference": 0.0004985928535461426,
+        "bitIdentical": false,
+        "entriesAboveThreshold": 4224113,
+        "maximumDifferenceFrame": 0,
+        "maximumDifferenceNeuron": 9462
+      },
+      "centralVsPriorReference": {
+        "maximumAbsoluteDifference": 0.00046950578689575195,
+        "bitIdentical": false,
+        "entriesAboveThreshold": 6981,
+        "maximumDifferenceFrame": 0,
+        "maximumDifferenceNeuron": 13
+      },
+      "hookAudits": [
+        {
+          "targetedEdges": 33014,
+          "targetedPreviouslyNonzeroWeights": 30851,
+          "changedWeightCount": 30851,
+          "nontargetWeightsUnchanged": true
+        },
+        {
+          "targetedEdges": 33014,
+          "targetedPreviouslyNonzeroWeights": 30851,
+          "changedWeightCount": 30851,
+          "nontargetWeightsUnchanged": true
+        }
+      ]
+    }
+  ]
+}

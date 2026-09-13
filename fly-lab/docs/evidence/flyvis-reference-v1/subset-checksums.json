@@ -1,0 +1,12 @@
+{
+  "attempts.json": "b3c38add8fd98156f7a045aac814a1951cc04c22620ad542026a53a9febdc061",
+  "edge-tuning.png": "6627fa4f12c907582e949ac4b13852971536839bf007103e08ddca4e89b82856",
+  "flash-responses.png": "e9efde014b5399fb5b7b52c9b5914b4e04953bbe231ccaced0038b6728aed3de",
+  "full-record.zip": "b1185812f965faa1e8904c2feda2c769f2a92b11a8d1f8799d134b205d645f5e",
+  "full-run-checksums.json": "e90595e083a39a2cbdfe7ba97a8c74f2796c3332a1fa6773aac597e03fed5812",
+  "metadata.json": "221decafe80ed5c74c017f80bc466981b4ea5b558ee721bdc8279f0cd7bab916",
+  "renderer-equivalence.json": "aa6d80ad4a0a18a067b22dac7fa3f68c64b35265a400ea440d2d33de36b0a8a1",
+  "repeat-byte-verification.json": "0d232b75c253254fb5a8755d1a279e9d4f128957665bf065501cd15f680538bd",
+  "results.json": "b43cd2dd611440e67b9562456e3b36ef7997ecd685566758e268bc527a1c15f5",
+  "specification.json": "d253c462453c282a9d9b0147ebe9d3fab604ee37ef8f5f43a425dcd69436767c"
+}

@@ -1,0 +1,397 @@
+{
+  "version": 1,
+  "scope": "OPTIONAL_BACKEND_NUMERICAL_MICROBENCHMARK_ONLY",
+  "trainingAllowed": false,
+  "defaultBackendChanged": false,
+  "utc": "2026-09-13T07:20:14.500375+00:00",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "processor": "Intel64 Family 6 Model 140 Stepping 1, GenuineIntel",
+  "python": "3.12.14",
+  "numpy": "2.2.6",
+  "logicalCpus": 8,
+  "parameters": {
+    "dt_ms": 0.1,
+    "rest_mv": -52.0,
+    "reset_mv": -52.0,
+    "threshold_mv": -45.0,
+    "membrane_ms": 20.0,
+    "synapse_ms": 5.0,
+    "refractory_ms": 2.2,
+    "delay_ms": 1.8,
+    "mv_per_contact": 0.275
+  },
+  "actualGraphLoadSeconds": 1.6680175999972562,
+  "bothActualModelsInitializeSeconds": 0.9235797000001185,
+  "candidateAdditionalScratchBytes": 5667800,
+  "graphFileSha256": "518bf3441daf58733005aee559c40b437bd1366602baa11e3a9d8ef0867e05d9",
+  "manifestFileSha256": "eb0fb3c73a569efbf5733d832afabaf9a1be1557460ca060f43c470193ba50ca",
+  "sourceFiles": {
+    "docs/evidence/lif-fast-benchmark.py": "7ea65643675d69f639f5cd74f1b073af6137c1f22b02cbf1b5fc9c7817cc5a31",
+    "python/scicon_fly/model.py": "e64c5af6d15da29306357727a973489a498be82cce3ca5b904e8880fe57c7dc5",
+    "python/scicon_fly/lif_fast.py": "dafd98e7860aac44c6333138b5182741131fa26ef31871437223c6ae5c9db506",
+    "python/tests/test_lif_fast.py": "9b8507e0ef53997fa84ace1bef750941346991f936b6a03558004c30da20ec8b",
+    "requirements.lock.txt": "07ec4b4fc78d2e18991f58932bf2844a31dc368e9187fa22c523405d6ebcbeab"
+  },
+  "method": "One same-condition warmup per backend; 3 interleaved trials; 200 timesteps per advance; resets and complete-state SHA256 comparisons outside timing; every checkpoint field and spike-count vector exact.",
+  "independentOracle": {
+    "test": "python/tests/test_lif_fast.py::test_brian2_independent_equations_and_exact_spike_bins",
+    "equations": "Independent Brian2 NeuronGroup and Synapses with exact integrator",
+    "voltageAndConductanceAtolMv": 2e-10,
+    "spikeBins": "exact"
+  },
+  "limitations": [
+    "Bounded 20 ms probes, not an end-to-end worker, game, or training benchmark.",
+    "No graph pruning, biological validation, sensory calibration or learned behavior.",
+    "Parent reported concurrent Torch installation/disk writes; background contention may affect ratios.",
+    "Numerical equality is established on the recorded probes and focused tests, not proof over all floating-point states."
+  ],
+  "cases": [
+    {
+      "name": "actual_graph_silent",
+      "synthetic": false,
+      "graphIdentity": "93d5a84e93e73f32a699a47ecfeaabf977505c942192920da383fdb3884288f4",
+      "neurons": 166700,
+      "directedPairs": 25582938,
+      "modeledMs": 20.0,
+      "driveIds": [],
+      "driveMv": [],
+      "trials": [
+        {
+          "repeat": 1,
+          "order": [
+            "reference",
+            "candidate"
+          ],
+          "referenceWallSeconds": 1.280599900001107,
+          "candidateWallSeconds": 0.25482849999752943,
+          "exactState": true,
+          "exactSpikeCounts": true,
+          "totalSpikes": 0,
+          "activeNeurons": 0,
+          "state": {
+            "v": "377e960454fc76fcc11670bc5ecc347be13caf90f11478bea70c7842f6fefa38",
+            "g": "82dba2ccacd519455579208551100f050d621df48cdd21f7961e562673c0e333",
+            "last_spike": "471e935af6d9549db06ba856628791dea1d12cd090bc866288f6d4efbc4da575",
+            "queue": "f5cafbc25abc6ecb6dfe3bc8ee2981a8d7d87ae90f6ce243100e2f4fb6babdfe",
+            "efficacy": "565295f89f9a4f61e8496bdb4c27263a48a31d33df40b4537ddd4c7be28cf93d",
+            "clock": 200,
+            "total_spikes": 0
+          }
+        },
+        {
+          "repeat": 2,
+          "order": [
+            "candidate",
+            "reference"
+          ],
+          "candidateWallSeconds": 0.26466699999946286,
+          "referenceWallSeconds": 1.3615301000027102,
+          "exactState": true,
+          "exactSpikeCounts": true,
+          "totalSpikes": 0,
+          "activeNeurons": 0,
+          "state": {
+            "v": "377e960454fc76fcc11670bc5ecc347be13caf90f11478bea70c7842f6fefa38",
+            "g": "82dba2ccacd519455579208551100f050d621df48cdd21f7961e562673c0e333",
+            "last_spike": "471e935af6d9549db06ba856628791dea1d12cd090bc866288f6d4efbc4da575",
+            "queue": "f5cafbc25abc6ecb6dfe3bc8ee2981a8d7d87ae90f6ce243100e2f4fb6babdfe",
+            "efficacy": "565295f89f9a4f61e8496bdb4c27263a48a31d33df40b4537ddd4c7be28cf93d",
+            "clock": 200,
+            "total_spikes": 0
+          }
+        },
+        {
+          "repeat": 3,
+          "order": [
+            "reference",
+            "candidate"
+          ],
+          "referenceWallSeconds": 1.3636200999972061,
+          "candidateWallSeconds": 0.2847714999988966,
+          "exactState": true,
+          "exactSpikeCounts": true,
+          "totalSpikes": 0,
+          "activeNeurons": 0,
+          "state": {
+            "v": "377e960454fc76fcc11670bc5ecc347be13caf90f11478bea70c7842f6fefa38",
+            "g": "82dba2ccacd519455579208551100f050d621df48cdd21f7961e562673c0e333",
+            "last_spike": "471e935af6d9549db06ba856628791dea1d12cd090bc866288f6d4efbc4da575",
+            "queue": "f5cafbc25abc6ecb6dfe3bc8ee2981a8d7d87ae90f6ce243100e2f4fb6babdfe",
+            "efficacy": "565295f89f9a4f61e8496bdb4c27263a48a31d33df40b4537ddd4c7be28cf93d",
+            "clock": 200,
+            "total_spikes": 0
+          }
+        }
+      ],
+      "referenceMedianSeconds": 1.3615301000027102,
+      "candidateMedianSeconds": 0.26466699999946286,
+      "medianSpeedup": 5.144313798114134,
+      "candidateWallSecondsPerSimulatedSecond": 13.233349999973143
+    },
+    {
+      "name": "actual_graph_first16_L1_20mV",
+      "synthetic": false,
+      "graphIdentity": "93d5a84e93e73f32a699a47ecfeaabf977505c942192920da383fdb3884288f4",
+      "neurons": 166700,
+      "directedPairs": 25582938,
+      "modeledMs": 20.0,
+      "driveIds": [
+        "10465",
+        "12300",
+        "12579",
+        "12925",
+        "13243",
+        "13383",
+        "13429",
+        "13505",
+        "13688",
+        "13917",
+        "14007",
+        "14405",
+        "14536",
+        "14618",
+        "14757",
+        "14805"
+      ],
+      "driveMv": [
+        20.0,
+        20.0,
+        20.0,
+        20.0,
+        20.0,
+        20.0,
+        20.0,
+        20.0,
+        20.0,
+        20.0,
+        20.0,
+        20.0,
+        20.0,
+        20.0,
+        20.0,
+        20.0
+      ],
+      "trials": [
+        {
+          "repeat": 1,
+          "order": [
+            "reference",
+            "candidate"
+          ],
+          "referenceWallSeconds": 1.3130491000010807,
+          "candidateWallSeconds": 0.26822249999895575,
+          "exactState": true,
+          "exactSpikeCounts": true,
+          "totalSpikes": 32,
+          "activeNeurons": 16,
+          "state": {
+            "v": "41a566a8a225ae75f21d4d4de1cdbc2434fcb80d8f26a9fe05aac3710b5bdb02",
+            "g": "a3d03f8b7eb13acc843d81696719d118e6d0340982f159e0f222cd5de5da597f",
+            "last_spike": "1e9ef9b2f3566a8e6aa4498bd91382054e04d436f9ad47b2415a4ebc66b076fb",
+            "queue": "ad989f3d9483cb5a0881a9593b0f97eec4fb922410d8762d221bd8a92e5242cf",
+            "efficacy": "565295f89f9a4f61e8496bdb4c27263a48a31d33df40b4537ddd4c7be28cf93d",
+            "clock": 200,
+            "total_spikes": 32
+          }
+        },
+        {
+          "repeat": 2,
+          "order": [
+            "candidate",
+            "reference"
+          ],
+          "candidateWallSeconds": 0.2685717999993358,
+          "referenceWallSeconds": 1.3417117999997572,
+          "exactState": true,
+          "exactSpikeCounts": true,
+          "totalSpikes": 32,
+          "activeNeurons": 16,
+          "state": {
+            "v": "41a566a8a225ae75f21d4d4de1cdbc2434fcb80d8f26a9fe05aac3710b5bdb02",
+            "g": "a3d03f8b7eb13acc843d81696719d118e6d0340982f159e0f222cd5de5da597f",
+            "last_spike": "1e9ef9b2f3566a8e6aa4498bd91382054e04d436f9ad47b2415a4ebc66b076fb",
+            "queue": "ad989f3d9483cb5a0881a9593b0f97eec4fb922410d8762d221bd8a92e5242cf",
+            "efficacy": "565295f89f9a4f61e8496bdb4c27263a48a31d33df40b4537ddd4c7be28cf93d",
+            "clock": 200,
+            "total_spikes": 32
+          }
+        },
+        {
+          "repeat": 3,
+          "order": [
+            "reference",
+            "candidate"
+          ],
+          "referenceWallSeconds": 1.4006457999967097,
+          "candidateWallSeconds": 0.26955290000114474,
+          "exactState": true,
+          "exactSpikeCounts": true,
+          "totalSpikes": 32,
+          "activeNeurons": 16,
+          "state": {
+            "v": "41a566a8a225ae75f21d4d4de1cdbc2434fcb80d8f26a9fe05aac3710b5bdb02",
+            "g": "a3d03f8b7eb13acc843d81696719d118e6d0340982f159e0f222cd5de5da597f",
+            "last_spike": "1e9ef9b2f3566a8e6aa4498bd91382054e04d436f9ad47b2415a4ebc66b076fb",
+            "queue": "ad989f3d9483cb5a0881a9593b0f97eec4fb922410d8762d221bd8a92e5242cf",
+            "efficacy": "565295f89f9a4f61e8496bdb4c27263a48a31d33df40b4537ddd4c7be28cf93d",
+            "clock": 200,
+            "total_spikes": 32
+          }
+        }
+      ],
+      "referenceMedianSeconds": 1.3417117999997572,
+      "candidateMedianSeconds": 0.2685717999993358,
+      "medianSpeedup": 4.9957285165571195,
+      "candidateWallSecondsPerSimulatedSecond": 13.428589999966789
+    },
+    {
+      "name": "synthetic_active_256",
+      "synthetic": true,
+      "graphIdentity": "2c80e3f74c3088d207bf2a11450b83f25b9e9392cb2d8893a215eb4825a9edb4",
+      "neurons": 256,
+      "directedPairs": 1024,
+      "modeledMs": 20.0,
+      "driveIds": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10",
+        "11",
+        "12",
+        "13",
+        "14",
+        "15",
+        "16",
+        "17",
+        "18",
+        "19",
+        "20",
+        "21",
+        "22",
+        "23",
+        "24",
+        "25",
+        "26",
+        "27",
+        "28",
+        "29",
+        "30",
+        "31",
+        "32"
+      ],
+      "driveMv": [
+        40.0,
+        40.0,
+        40.0,
+        40.0,
+        40.0,
+        40.0,
+        40.0,
+        40.0,
+        40.0,
+        40.0,
+        40.0,
+        40.0,
+        40.0,
+        40.0,
+        40.0,
+        40.0,
+        40.0,
+        40.0,
+        40.0,
+        40.0,
+        40.0,
+        40.0,
+        40.0,
+        40.0,
+        40.0,
+        40.0,
+        40.0,
+        40.0,
+        40.0,
+        40.0,
+        40.0,
+        40.0
+      ],
+      "trials": [
+        {
+          "repeat": 1,
+          "order": [
+            "reference",
+            "candidate"
+          ],
+          "referenceWallSeconds": 0.010416400000394788,
+          "candidateWallSeconds": 0.008394500000576954,
+          "exactState": true,
+          "exactSpikeCounts": true,
+          "totalSpikes": 97,
+          "activeNeurons": 33,
+          "state": {
+            "v": "605bcd6c1dbc32d957fd01f795825ca65908d9ff0a27b5deae80fc521e93260b",
+            "g": "9e34c3c3a223f4005a4137c673047677eb1d661695b226424b124000bb27107f",
+            "last_spike": "636ceebe41c3e1bbeec0b7062a6fcef7a153fdc141947357b58aee7bc26d3c75",
+            "queue": "1730c2dbe10678fb0203beaac7c2ae6609435887a18169e3f1e51658f74e2175",
+            "efficacy": "ffc1f5db1faa7b6402489b6c3c21711ad6cb122faa068ac9410c12ab126aa81e",
+            "clock": 200,
+            "total_spikes": 97
+          }
+        },
+        {
+          "repeat": 2,
+          "order": [
+            "candidate",
+            "reference"
+          ],
+          "candidateWallSeconds": 0.007546699998783879,
+          "referenceWallSeconds": 0.006310400000074878,
+          "exactState": true,
+          "exactSpikeCounts": true,
+          "totalSpikes": 97,
+          "activeNeurons": 33,
+          "state": {
+            "v": "605bcd6c1dbc32d957fd01f795825ca65908d9ff0a27b5deae80fc521e93260b",
+            "g": "9e34c3c3a223f4005a4137c673047677eb1d661695b226424b124000bb27107f",
+            "last_spike": "636ceebe41c3e1bbeec0b7062a6fcef7a153fdc141947357b58aee7bc26d3c75",
+            "queue": "1730c2dbe10678fb0203beaac7c2ae6609435887a18169e3f1e51658f74e2175",
+            "efficacy": "ffc1f5db1faa7b6402489b6c3c21711ad6cb122faa068ac9410c12ab126aa81e",
+            "clock": 200,
+            "total_spikes": 97
+          }
+        },
+        {
+          "repeat": 3,
+          "order": [
+            "reference",
+            "candidate"
+          ],
+          "referenceWallSeconds": 0.011246900001424365,
+          "candidateWallSeconds": 0.005239999998593703,
+          "exactState": true,
+          "exactSpikeCounts": true,
+          "totalSpikes": 97,
+          "activeNeurons": 33,
+          "state": {
+            "v": "605bcd6c1dbc32d957fd01f795825ca65908d9ff0a27b5deae80fc521e93260b",
+            "g": "9e34c3c3a223f4005a4137c673047677eb1d661695b226424b124000bb27107f",
+            "last_spike": "636ceebe41c3e1bbeec0b7062a6fcef7a153fdc141947357b58aee7bc26d3c75",
+            "queue": "1730c2dbe10678fb0203beaac7c2ae6609435887a18169e3f1e51658f74e2175",
+            "efficacy": "ffc1f5db1faa7b6402489b6c3c21711ad6cb122faa068ac9410c12ab126aa81e",
+            "clock": 200,
+            "total_spikes": 97
+          }
+        }
+      ],
+      "referenceMedianSeconds": 0.010416400000394788,
+      "candidateMedianSeconds": 0.007546699998783879,
+      "medianSpeedup": 1.3802589213925756,
+      "candidateWallSecondsPerSimulatedSecond": 0.37733499993919395
+    }
+  ],
+  "totalWallSeconds": 18.070120399999723
+}

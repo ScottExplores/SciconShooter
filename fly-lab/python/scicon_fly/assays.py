@@ -50,7 +50,22 @@ def numerical_agreement(reference, candidate, tolerance=1e-9):
             "absoluteTolerance": tolerance, "evidence": [], "classification": "NUMERICAL_ONLY"}
 
 
-def full_graph_sanity(graph_path, manifest_path, *, stimulus_type="L1", nominated_count=16, modeled_ms=20.):
+def _assay_backend(backend):
+    """Execution identity is separate from physiological/assay configuration."""
+    import inspect
+    from .model import LIFModel, file_hash
+    if backend == "reference":
+        model_type, version = LIFModel, "numpy-reference-lif-v1"
+    elif backend == "preallocated":
+        from .lif_fast import FastLIFModel
+        model_type, version = FastLIFModel, FastLIFModel.backend_version
+    else:
+        raise ValueError("Unknown assay backend; choose reference or preallocated")
+    return model_type, {"backend": backend, "backendVersion": version,
+                        "implementationSha256": file_hash(inspect.getfile(model_type))}
+
+
+def full_graph_sanity(graph_path, manifest_path, *, stimulus_type="L1", nominated_count=16, modeled_ms=20., backend="reference"):
     """Load the actual retained graph and report a reproducible arbitrary probe.
 
     This does not authorize a visual mapping or biological training gate. The
@@ -59,14 +74,15 @@ def full_graph_sanity(graph_path, manifest_path, *, stimulus_type="L1", nominate
     """
     import platform
     import time
-    from .model import SparseGraph, LIFModel
+    from .model import SparseGraph
     from .vision import VisualTransducer
+    model_type, execution = _assay_backend(backend)
     if type(nominated_count) is not int or not 1 <= nominated_count <= 1000 or not np.isfinite(modeled_ms) or not 0 < modeled_ms <= 100:
         raise ValueError("Sanity probe budget is bounded to 1000 nominated cells and 100 modeled ms")
     start = time.perf_counter()
     graph = SparseGraph.load(graph_path, manifest_path)
     load_seconds = time.perf_counter()-start
-    start = time.perf_counter(); model = LIFModel(graph)
+    start = time.perf_counter(); model = model_type(graph)
     initialize_seconds = time.perf_counter()-start
     steps = round(modeled_ms/model.parameters.dt_ms)
     if steps < 1:
@@ -87,6 +103,7 @@ def full_graph_sanity(graph_path, manifest_path, *, stimulus_type="L1", nominate
     except ValueError as exc:
         mapping_error = str(exc)
     return {"synthetic": bool(graph.manifest.get("synthetic", False)), "neurons": graph.n, "edges": graph.e,
+            "execution": execution,
             "graphIdentity": graph.identity, "graphFileSha256": graph.manifest.get("graph_sha256"),
             "loadSeconds": load_seconds, "initializationSeconds": initialize_seconds,
             "silent": {"modeledMs": steps*model.parameters.dt_ms, "wallSeconds": silent_seconds, "spikes": int(silent.sum())},
@@ -99,7 +116,7 @@ def full_graph_sanity(graph_path, manifest_path, *, stimulus_type="L1", nominate
             "trainingAllowed": False, "biologicalLearning": "UNKNOWN", "numpy": np.__version__, "python": platform.python_version()}
 
 
-def visual_decoder_assay(graph, vision_manifest, decoder_manifest, specification, *, parameters=None):
+def visual_decoder_assay(graph, vision_manifest, decoder_manifest, specification, *, parameters=None, backend="reference"):
     """Bounded candidate-only assay; never manufactures a calibrated retina.
 
     Inputs/criteria are hashed before running. No criterion defaults to PASS.
@@ -107,15 +124,16 @@ def visual_decoder_assay(graph, vision_manifest, decoder_manifest, specification
     an initial engineering screen, not the complete biological visual gate.
     """
     import time
-    from .model import LIFModel, canonical_hash
+    from .model import canonical_hash
     from .vision import VisualTransducer
     from .decoder import FixedDecoder
+    model_type, execution = _assay_backend(backend)
     specification_hash = canonical_hash(specification)
     if specification.get("graphHash") != graph.identity:
         raise ValueError("Assay specification must bind the actual graph identity")
     transducer = VisualTransducer(graph, vision_manifest, assay_only=True)
     decoder = FixedDecoder(graph, decoder_manifest, assay_only=True)
-    model = LIFModel(graph, parameters)
+    model = model_type(graph, parameters)
     duration = float(specification.get("durationMs", 20))
     bin_ms = float(specification.get("binMs", 5))
     total_budget = float(specification.get("maximumTotalMs", 200))
@@ -196,6 +214,7 @@ def visual_decoder_assay(graph, vision_manifest, decoder_manifest, specification
     return {"identity": {"graph":graph.identity,"dynamics":model.parameter_hash,"vision":transducer.identity,"decoder":decoder.identity,
                          "assaySpecification":specification_hash},
             "synthetic":bool(graph.manifest.get("synthetic",False)),"scope":"CANDIDATE_ASSAY_ONLY","trainingAllowed":False,
+            "execution":execution,
             "durationMsPerStimulus":duration,"totalModeledMs":duration*6,"wallSeconds":time.perf_counter()-start,
             "populationIds":{name:[str(body) for body in graph.ids[cells]] for name,cells in populations.items()},
             "results":results,"gates":gates,"biologicalLearning":"UNKNOWN"}
@@ -210,6 +229,8 @@ def main():
     parser.add_argument("--stimulus-type", default="L1")
     parser.add_argument("--nominated-count", type=int, default=16)
     parser.add_argument("--modeled-ms", type=float, default=20.)
+    parser.add_argument("--backend", choices=("reference", "preallocated"), default="reference",
+                        help="Numerically equivalent execution backend; reference remains the default")
     parser.add_argument("--vision")
     parser.add_argument("--decoder")
     parser.add_argument("--specification", help="Candidate-only visual assay; requires --vision and --decoder")
@@ -220,10 +241,10 @@ def main():
         from pathlib import Path
         from .model import SparseGraph
         read = lambda path: json.loads(Path(path).read_text(encoding="utf-8"))
-        report = visual_decoder_assay(SparseGraph.load(args.graph,args.manifest),read(args.vision),read(args.decoder),read(args.specification))
+        report = visual_decoder_assay(SparseGraph.load(args.graph,args.manifest),read(args.vision),read(args.decoder),read(args.specification),backend=args.backend)
     else:
         report = full_graph_sanity(args.graph, args.manifest, stimulus_type=args.stimulus_type,
-                                  nominated_count=args.nominated_count, modeled_ms=args.modeled_ms)
+                                  nominated_count=args.nominated_count, modeled_ms=args.modeled_ms, backend=args.backend)
     print(json.dumps(report, indent=2, allow_nan=False))
 
 

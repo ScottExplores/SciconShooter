@@ -6,6 +6,8 @@ Private experimental application using Scicon Shooter's canonical engine and Pix
 
 The next research stage is underway: [bounded baseline collection, sensory diagnosis and next steps](docs/RESEARCH_START.md). A [local ResearchHub proposal draft](docs/RESEARCHHUB_PROPOSAL_DRAFT.md) scopes scientific review and sensory validation; it has not been submitted or funded.
 
+Scott's [plain-language research journal](docs/SCOTT_RESEARCH_JOURNAL.md) explains the current results and what to do next. The [isolated FlyVis reference experiment](docs/FLYVIS_REFERENCE.md) provides published visual-model comparisons; it cannot pass the MaleCNS training gates on their behalf.
+
 ## Start on this computer
 
 ```powershell

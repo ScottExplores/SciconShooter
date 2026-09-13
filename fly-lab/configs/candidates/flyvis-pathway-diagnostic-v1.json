@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "flyvis-pathway-diagnostic-v1",
+  "scope": "POST_REFERENCE_CAUSAL_DIAGNOSTIC_NOT_MALECNS_VALIDATION",
+  "trainingAllowed": false,
+  "referenceDirectory": "runtime/vision-reference/results/reference-v1-20260913-fourth",
+  "referenceMetadataSha256": "221decafe80ed5c74c017f80bc466981b4ea5b558ee721bdc8279f0cd7bab916",
+  "referenceResultsSha256": "b43cd2dd611440e67b9562456e3b36ef7997ecd685566758e268bc527a1c15f5",
+  "referenceScriptSha256": "0eedc8c7cff091dc2891f12af31f96f8f6fa3712be15b05ec8743c3142d28774",
+  "lesionPresynapticTypes": ["L1", "L2"],
+  "stimuli": [
+    {"family": "flash", "intensity": 0, "radius": 6},
+    {"family": "flash", "intensity": 1, "radius": 6},
+    {"family": "edge", "intensity": 0, "angle": 90},
+    {"family": "edge", "intensity": 1, "angle": 90}
+  ],
+  "arms": ["original", "sham", "block-L1-L2-output"],
+  "threads": 2,
+  "maximumWallSeconds": 600,
+  "maximumRssBytes": 4294967296,
+  "differenceThreshold": 0.000001,
+  "interpretation": "Chosen after the reference screen showed negative central L1/L2 activity. This independent hypothesis-driven diagnostic is not a preregistered component of that screen. A null result applies only to this checkpoint, these inputs, and the declared intervention; it does not show that biological L1/L2 pathways are unnecessary. No parameter fitting, game reward, or MaleCNS gate changes are allowed.",
+  "intervention": "Multiply derived outgoing L1/L2 connection weights by zero during both gray initialization and stimulus. Preserve incoming connections, node initialization, receiver equations, bias/time constants and every stored parameter. Sham uses the identical wrapper with a mask of ones.",
+  "source": "https://github.com/TuragaLab/flyvis/blob/v1.2.0/flyvis/network/dynamics.py"
+}

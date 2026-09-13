@@ -1,0 +1,135 @@
+{
+  "scope": "SOFTWARE_VERIFICATION_NOT_LEARNING_EVIDENCE",
+  "tests": {
+    "pythonFullFinal": 177,
+    "javascript": 16,
+    "typecheck": "PASS",
+    "labBuild": "PASS",
+    "pythonWarnings": "33 upstream Brian2/Pyparsing deprecation warnings"
+  },
+  "browser": {
+    "source": "C:\\Users\\scott\\Documents\\ChatGPT\\Science\\controller-guide-qa-1789284563004\\result.json",
+    "sha256": "72c9a3937616bcbbc0bc77f512f4d9174ad19d681291b464c89c7b4472c0deef",
+    "checks": [
+      {
+        "viewport": "desktop",
+        "size": {
+          "width": 1440,
+          "height": 1000
+        },
+        "title": "Scicon Fly Lab",
+        "guideText": "Selected controller: Random baseline\n\nThis baseline records gameplay without a learning model. Running it longer does not train the fly.\n\nWhat do the gates mean?\nNumerical: do the simulation equations behave correctly?\nVision: do pictures produce useful, reproducible responses?\nDecoder: can those responses cause the declared actions?\nConditioning: do paired cues and rewards produce a specific memory?\nLearning: does performance improve against the required controls?\n\nGates are measured results for a particular model, not settings to switch on. A reference-model result does not automatically validate our MaleCNS controller. The current numerical pass covers reference equations only.",
+        "passed": [
+          "identity",
+          "nonblank",
+          "baseline-explanation",
+          "five-gates-expanded",
+          "manual-explanation",
+          "neural-plastic-explanation",
+          "return-to-random",
+          "no-overlay",
+          "no-horizontal-overflow"
+        ],
+        "overflow": {
+          "viewport": 1440,
+          "body": 1440,
+          "document": 1440,
+          "guide": {
+            "x": 12,
+            "y": 156,
+            "width": 1416,
+            "height": 236.5,
+            "top": 156,
+            "right": 1428,
+            "bottom": 392.5,
+            "left": 12
+          },
+          "offenders": []
+        }
+      },
+      {
+        "viewport": "mobile",
+        "size": {
+          "width": 390,
+          "height": 844
+        },
+        "title": "Scicon Fly Lab",
+        "guideText": "Selected controller: Random baseline\n\nThis baseline records gameplay without a learning model. Running it longer does not train the fly.\n\nWhat do the gates mean?\nNumerical: do the simulation equations behave correctly?\nVision: do pictures produce useful, reproducible responses?\nDecoder: can those responses cause the declared actions?\nConditioning: do paired cues and rewards produce a specific memory?\nLearning: does performance improve against the required controls?\n\nGates are measured results for a particular model, not settings to switch on. A reference-model result does not automatically validate our MaleCNS controller. The current numerical pass covers reference equations only.",
+        "passed": [
+          "identity",
+          "nonblank",
+          "baseline-explanation",
+          "five-gates-expanded",
+          "manual-explanation",
+          "neural-plastic-explanation",
+          "return-to-random",
+          "no-overlay",
+          "no-horizontal-overflow"
+        ],
+        "overflow": {
+          "viewport": 390,
+          "body": 390,
+          "document": 390,
+          "guide": {
+            "x": 7,
+            "y": 231,
+            "width": 376,
+            "height": 308.125,
+            "top": 231,
+            "right": 383,
+            "bottom": 539.125,
+            "left": 7
+          },
+          "offenders": []
+        }
+      },
+      {
+        "viewport": "mobile",
+        "simulatedOnly": true,
+        "passed": [
+          "disconnected-guide",
+          "start-disabled"
+        ],
+        "expectedConsole": [
+          {
+            "viewport": "mobile",
+            "type": "error",
+            "text": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+          },
+          {
+            "viewport": "mobile",
+            "type": "error",
+            "text": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+          }
+        ]
+      }
+    ],
+    "realMutationRequests": 0,
+    "knownNoise": "Existing screenshot-triggered WebGL readback warnings and intentionally mocked503 responses"
+  },
+  "nativeCleanup": {
+    "source": "C:\\Users\\scott\\Documents\\ChatGPT\\Science\\fly-lab-handoff-check-20260913.json",
+    "sha256": "81ab2cc8018ee33bdd397db0253619bff9f9125888d1d3a04ff868ed8bc2afd0",
+    "scope": "NATIVE_WINDOWS_ENGINE_REPLAY_AND_OWNED_CLEANUP_ONLY",
+    "training": false,
+    "run": "20260913T074128-fff3347e",
+    "recordedDecisions": 20,
+    "simulatedSeconds": 1,
+    "exportChecksumFailures": [],
+    "ownedProcessesObserved": 12,
+    "remainingOwnedProcesses": [],
+    "sourceTreeHash": "1231d39cbd78f5cd789d96ebb952357108da554c299f1c061555aafe1196b27f",
+    "seconds": 46.15599999999904,
+    "replayPassed": true,
+    "runtimeProfile": "swiftshader"
+  },
+  "preservedUserRun": {
+    "id": "20260913T070141-9c2c7832",
+    "checksumFailures": []
+  },
+  "limitations": [
+    "Browser mobile viewport simulation is not a physical-phone test.",
+    "Native cleanup/replay probe covers a 1-second idle episode, not full-mission behavior.",
+    "Reference diagnostics do not change or validate MaleCNS gates."
+  ]
+}

@@ -1,0 +1,55 @@
+{
+  "synthetic": false,
+  "neurons": 166700,
+  "edges": 25582938,
+  "execution": {
+    "backend": "preallocated",
+    "backendVersion": "numpy-preallocated-lif-v1",
+    "implementationSha256": "dafd98e7860aac44c6333138b5182741131fa26ef31871437223c6ae5c9db506"
+  },
+  "graphIdentity": "93d5a84e93e73f32a699a47ecfeaabf977505c942192920da383fdb3884288f4",
+  "graphFileSha256": "518bf3441daf58733005aee559c40b437bd1366602baa11e3a9d8ef0867e05d9",
+  "loadSeconds": 1.913216699998884,
+  "initializationSeconds": 0.5233512000013434,
+  "silent": {
+    "modeledMs": 20.0,
+    "wallSeconds": 0.28636439999900176,
+    "spikes": 0
+  },
+  "injectedCurrentAssay": {
+    "interpretation": "ARBITRARY_NUMERICAL_STIMULUS_NOT_VISUAL_VALIDATION",
+    "cellType": "L1",
+    "nominatedNeuronIds": [
+      "10465",
+      "12300",
+      "12579",
+      "12925",
+      "13243",
+      "13383",
+      "13429",
+      "13505",
+      "13688",
+      "13917",
+      "14007",
+      "14405",
+      "14536",
+      "14618",
+      "14757",
+      "14805"
+    ],
+    "driveMv": 20,
+    "modeledMs": 20.0,
+    "wallSeconds": 0.2656734000011056,
+    "spikes": 32,
+    "activeNeurons": 16,
+    "finite": true
+  },
+  "realRetinalValidation": {
+    "status": "NOT_RUN",
+    "blockingError": "Real MaleCNS visual mapping requires an explicit validated evidence manifest; mapping is unavailable"
+  },
+  "trainingAllowed": false,
+  "biologicalLearning": "UNKNOWN",
+  "numpy": "2.2.6",
+  "python": "3.12.14"
+}

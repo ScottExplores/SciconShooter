@@ -1,0 +1,17 @@
+{
+  "scope": "POST_SCREEN_STORAGE_BYTE_VERIFICATION",
+  "checks": [
+    {
+      "family": "flash",
+      "sameDtypeAndShape": true,
+      "identicalArrayBytes": true,
+      "responseBytesSha256": "41f2a9cbd14165d5c12bba02f14ad763be6e399eb3a67a8f767394f4a44bd9af"
+    },
+    {
+      "family": "edge",
+      "sameDtypeAndShape": true,
+      "identicalArrayBytes": true,
+      "responseBytesSha256": "7b86390184a4c563f88fd904fd0d3278d842eff985b5e5614535852e50819c0b"
+    }
+  ]
+}

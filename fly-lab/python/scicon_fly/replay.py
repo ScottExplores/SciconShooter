@@ -4,6 +4,7 @@ from pathlib import Path
 import pyarrow.parquet as pq
 from .artifacts import LAB_ROOT, verify_export, source_identity, atomic_json
 from .server import JsonProcess
+from .watch import close_driver
 
 def replay(path,allow_source_mismatch=False):
     path=Path(path).resolve()
@@ -25,7 +26,7 @@ def replay(path,allow_source_mismatch=False):
             if result['stateHash']!=row['stateHash'] or result['observation']['sha256']!=row['observationHash'] or result['frame']['sha256']!=row['frameHash'] or result['eventsHash']!=row['eventsHash']:
                 return {'passed':False,'decision':row['seq'],'tick':result['tick'],'stateMatched':result['stateHash']==row['stateHash'],'pixelsMatched':result['observation']['sha256']==row['observationHash']}
         return {'passed':True,'decisions':len(rows),'sourceMatched':actual['sourceTreeHash']==metadata['sourceTreeHash'],'runtime':expected_runtime}
-    finally:driver.close()
+    finally:close_driver(driver)
 
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('experiment');parser.add_argument('--allow-source-mismatch',action='store_true');args=parser.parse_args()

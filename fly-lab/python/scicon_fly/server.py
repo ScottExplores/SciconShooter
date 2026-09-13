@@ -243,7 +243,9 @@ class Coordinator:
                     if neural_mode in ('training','training-fixed'):validate_gate_evidence(identity['gates'],identity['identity'],root=LAB_ROOT,synthetic=False)
                     atomic_json(self.writer.path/'model-identity.json',identity)
                     self.checkpoint('initial')
-                if self.driver and self.driver_profile!=render_profile:self.driver.close();self.driver=None
+                if self.driver and self.driver_profile!=render_profile:
+                    driver,self.driver=self.driver,None;self.driver_profile=None
+                    close_driver(driver)
                 if not self.driver:
                     self.driver=JsonProcess(['node',str(LAB_ROOT/'scripts'/'driver.mjs'),'--render-profile',render_profile],'engine');self.driver_profile=render_profile
                 self.latest=self.driver.call({'op':'reset','seed':seed,'episode':self.config['episode']})
@@ -317,9 +319,14 @@ class Coordinator:
         self.pause()
         with self.step_lock:self.status=self.finish('stopped')
     def close(self):
-        self.stop()
-        if self.driver:self.driver.close()
-        if self.neural:self.neural.close()
+        try:self.stop()
+        finally:
+            driver,self.driver=self.driver,None;self.driver_profile=None
+            try:
+                if driver:close_driver(driver)
+            finally:
+                neural,self.neural=self.neural,None;self.neural_signature=None
+                if neural:neural.close()
 
 COORDINATOR=Coordinator()
 WATCH=WatchLibrary(EXPERIMENTS,RUNTIME/'watch')

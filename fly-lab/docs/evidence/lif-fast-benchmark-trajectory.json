@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "scope": "ACTUAL_GRAPH_NUMERICAL_TRAJECTORY_NOT_BIOLOGICAL_VALIDATION",
+  "utc": "2026-09-13T07:21:53.524504+00:00",
+  "neurons": 166700,
+  "edges": 25582938,
+  "graphIdentity": "93d5a84e93e73f32a699a47ecfeaabf977505c942192920da383fdb3884288f4",
+  "nominatedNeuronIds": [
+    "10465",
+    "12300",
+    "12579",
+    "12925",
+    "13243",
+    "13383",
+    "13429",
+    "13505",
+    "13688",
+    "13917",
+    "14007",
+    "14405",
+    "14536",
+    "14618",
+    "14757",
+    "14805"
+  ],
+  "sourceFiles": {
+    "docs\\evidence\\lif-fast-benchmark-trajectory.py": "dcc2db60a6e3ca3b3227a4fbd20141fbfe6e39d0692162d9eb5a178512f84e69",
+    "python\\scicon_fly\\model.py": "e64c5af6d15da29306357727a973489a498be82cce3ca5b904e8880fe57c7dc5",
+    "python\\scicon_fly\\lif_fast.py": "dafd98e7860aac44c6333138b5182741131fa26ef31871437223c6ae5c9db506"
+  },
+  "cases": [
+    {
+      "condition": "silent",
+      "steps": 200,
+      "dtMs": 0.1,
+      "totalSpikes": 0,
+      "allDynamicStateBytesAndSpikeBinsEqualEveryTick": true,
+      "efficacyAndBaselineBytesEqual": true,
+      "referenceTrajectorySha256": "e0bc2061048d36231e5429809c31cded06d4ec5b0b3e88be0f47d2c571f00f2b",
+      "candidateTrajectorySha256": "e0bc2061048d36231e5429809c31cded06d4ec5b0b3e88be0f47d2c571f00f2b"
+    },
+    {
+      "condition": "first16_L1_20mV",
+      "steps": 200,
+      "dtMs": 0.1,
+      "totalSpikes": 32,
+      "allDynamicStateBytesAndSpikeBinsEqualEveryTick": true,
+      "efficacyAndBaselineBytesEqual": true,
+      "referenceTrajectorySha256": "34a9faaf11af1d4a524877365cd9a1d3e66413452ea0ad7fec56f24409160fba",
+      "candidateTrajectorySha256": "34a9faaf11af1d4a524877365cd9a1d3e66413452ea0ad7fec56f24409160fba"
+    }
+  ],
+  "totalWallSeconds": 13.883153599999787,
+  "defaultBackendChanged": false,
+  "trainingAllowed": false
+}

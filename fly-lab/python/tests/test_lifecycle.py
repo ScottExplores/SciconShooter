@@ -97,3 +97,75 @@ def test_final_checkpoint_failure_publishes_interrupted_consistently(monkeypatch
     assert writer.closed and writer.summary['status']=='interrupted'
     assert result['error']==writer.summary['error']=='Final checkpoint write failed'
     assert coordinator.running is False
+
+
+@pytest.mark.parametrize('failure',[None,'finalization','engine-close-request','engine-close-handle'])
+def test_coordinator_close_cleans_owned_handles_even_after_failure(failure):
+    log=[]
+    class Driver:
+        process=None
+        def call(self,command,timeout):
+            assert command=={'op':'close'} and timeout==30
+            log.append('engine-close-request')
+            if failure=='engine-close-request':raise RuntimeError('close request failed')
+        def close(self):
+            log.append('engine-close-handle')
+            if failure=='engine-close-handle':raise RuntimeError('close handle failed')
+    class Neural:
+        def close(self):log.append('neural-close')
+    coordinator=Coordinator();coordinator.driver=Driver();coordinator.driver_profile='swiftshader'
+    coordinator.neural=Neural();coordinator.neural_signature='fixture'
+    def stop():
+        log.append('finalize')
+        if failure=='finalization':raise RuntimeError('finalization failed')
+    coordinator.stop=stop
+    if failure in ('finalization','engine-close-handle'):
+        with pytest.raises(RuntimeError,match='finalization failed' if failure=='finalization' else 'close handle failed'):
+            coordinator.close()
+    else:coordinator.close()
+    assert log==['finalize','engine-close-request','engine-close-handle','neural-close']
+    assert coordinator.driver is None and coordinator.neural is None
+    assert coordinator.driver_profile is None and coordinator.neural_signature is None
+    # A repeated close must not address the already-released process handles.
+    coordinator.stop=lambda:None
+    coordinator.close()
+    assert log==['finalize','engine-close-request','engine-close-handle','neural-close']
+
+
+@pytest.mark.parametrize('profile',['swiftshader','local-d3d11'])
+def test_render_profile_reset_releases_only_replaced_engine(profile,tmp_path,monkeypatch):
+    log=[]
+    class Process:
+        def poll(self):return None
+    class Driver:
+        def __init__(self,name):self.name=name;self.process=Process()
+        def call(self,command,timeout=None):
+            log.append((self.name,command['op']))
+            return {'state':{},'tick':0,'simTimeMs':0}
+        def close(self):log.append((self.name,'close-handle'))
+    class Writer:
+        closed=False
+        def __init__(self,*_):self.path=tmp_path
+        def initial(self,result):assert result['tick']==0
+        def finish(self,_):self.closed=True
+    def new_driver(args,name):
+        assert args[-2:]==['--render-profile',profile] and name=='engine'
+        return Driver('new')
+    # Check coordinator ownership/order without starting or killing processes;
+    # this fixture does not claim a native Windows process-tree integration test.
+    monkeypatch.setattr('scicon_fly.watch.terminate_owned_process',lambda process:log.append(('owned-process','terminate')))
+    monkeypatch.setattr(server,'assert_process_source_current',lambda:None)
+    monkeypatch.setattr(server,'RunWriter',Writer)
+    monkeypatch.setattr(server,'JsonProcess',new_driver)
+    monkeypatch.setattr(server,'dataset_manifest',lambda:{})
+    monkeypatch.setattr(server,'gate_status',lambda:{})
+    coordinator=Coordinator();old=Driver('old');coordinator.driver=old;coordinator.driver_profile='swiftshader'
+    try:
+        coordinator.reset({'controller':'idle','seed':1,'timeLimitSeconds':1,'renderProfile':profile})
+        if profile=='swiftshader':
+            assert coordinator.driver is old and log==[('old','reset')]
+        else:
+            assert coordinator.driver is not old
+            assert log==[('old','close'),('owned-process','terminate'),('old','close-handle'),('new','reset')]
+        assert coordinator.driver_profile==profile
+    finally:coordinator.close()
