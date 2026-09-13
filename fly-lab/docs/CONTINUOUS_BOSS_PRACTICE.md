@@ -40,6 +40,10 @@ Consecutive gated neural bouts preserve learned efficacies and reset transient s
 
 An 8 GiB default session budget and 2 GiB free-disk threshold stop the runner visibly. A reserve covers finalization. Data is never silently deleted or rotated away. An operator can explicitly increase `--disk-budget-gib` when resuming; changes to the scientific configuration or source require a new versioned session. Byte checks occur once per simulated second, so threshold enforcement is sampled with a finalization reserve rather than an operating-system quota.
 
+For the random baseline only, explicitly reviewed snapshot I/O repairs can preserve the session ID with `--resume --record-maintenance-update "Concrete reviewed maintenance reason"`. This is restricted to the declared snapshot writer, continuous display adapter and outbound publisher files; game, environment, model and configuration changes are rejected. The command writes an exclusive immutable maintenance record containing both full source identities and the changed-file list, appends a ledger notice, then updates the current identity. Per-bout source archives remain unchanged. This maintenance path cannot amend a neural-model session or bypass its validation gates.
+
+Windows readers can briefly hold a snapshot file open. Atomic JSON replacement retries permission failures for at most 0.79 seconds; permanent errors remain visible and preserve both the previous complete snapshot and the new fsynced temporary bytes. Public errors use a friendly explanation; raw diagnostics and local paths remain private.
+
 ## Live publication contract
 
 `runtime/continuous/latest.json` atomically contains a flat local snapshot and its JPEG bytes plus SHA-256. The image and measurements therefore belong to the same revision. A read-only `GET /continuous/live` on loopback port 8766 verifies that hash and returns the website's nested `schemaVersion:1` contract with an image data URI. Snapshot revisions increase across restarts; public telemetry is sampled at at most 4 Hz. Full scientific event logs are retained separately.
