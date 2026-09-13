@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "status": "BLOCKED_BY_DOWNLOAD_CHALLENGE",
+  "attempt_start_utc": "2026-09-13T15:51:14.4580700Z",
+  "attempt_end_utc": "2026-09-13T15:51:15.0875994Z",
+  "dataset": "doi:10.5061/dryad.ngf1vhj4c",
+  "dataset_version_id": 335185,
+  "dataset_version_number": 3,
+  "license_from_api": "https://spdx.org/licenses/CC0-1.0.html",
+  "method": "Ordinary unauthenticated HTTPS GET using PowerShell Invoke-WebRequest with standard TLS, 60-second request timeout, normal redirects, no modified browser cookies or challenge handling. Public metadata API inspected first. Only three named individual file download links requested.",
+  "api_download_attempted": false,
+  "api_download_not_attempted_reason": "Official API account documentation says downloading files requires a token. No authorized token was provided; no protected API download was attempted.",
+  "official_api_documentation": "https://github.com/datadryad/dryad-app/blob/main/documentation/apis/api_accounts.md",
+  "whole_dataset_download_attempted": false,
+  "downloaded_data_code_executed": false,
+  "usable_new_mat_or_spreadsheet": false,
+  "mat_or_spreadsheet_parsed": false,
+  "fitting_performed": false,
+  "validation_gates_changed": false,
+  "records": [
+    {
+      "file_id": 3732211,
+      "requested_name": "L2_ASAP2f.mat",
+      "requested_url": "https://datadryad.org/downloads/file_stream/3732211",
+      "timestamp_utc": "2026-09-13T15:51:14.4580700Z",
+      "source_metadata_url": "https://datadryad.org/api/v2/files/3732211",
+      "expected_bytes": 117007438,
+      "expected_sha256": "31e3942cee9025c152f96f929d30357ff14e6cf3b4f3c972f005c89524e946df",
+      "expected_mime": "",
+      "status": 200,
+      "content_type": [
+        "text/html; charset=utf-8"
+      ],
+      "error": null,
+      "response_bytes": 4308,
+      "response_sha256": "1eb60e66fd10a24e775100a17fc01dd3d0c66e2ca4da2d725db7166b0e282cdd",
+      "result": "REJECTED_HTML_CHALLENGE",
+      "recognized_content": "HTML document with Validating title; neither expected file nor successful download",
+      "source_metadata_sha256": "50aede44a2a65339fa32d68c2af227c717f4dbc4905c5fe6e508149b42da3900",
+      "response_local_path": "data/raw/vision-physiology/pang-2025/acquisition-v1/3732211-download-challenge.html",
+      "metadata_local_path": "data/raw/vision-physiology/pang-2025/acquisition-v1/3732211-metadata.json"
+    },
+    {
+      "file_id": 3732249,
+      "requested_name": "L1L2_Metadata.xlsx",
+      "requested_url": "https://datadryad.org/downloads/file_stream/3732249",
+      "timestamp_utc": "2026-09-13T15:51:14.8060631Z",
+      "source_metadata_url": "https://datadryad.org/api/v2/files/3732249",
+      "expected_bytes": 195431,
+      "expected_sha256": "0c6c428b1a297fb7c63b24a6f1a6e60516320ca6bde550614639d865dcdcfcea",
+      "expected_mime": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "status": 200,
+      "content_type": [
+        "text/html; charset=utf-8"
+      ],
+      "error": null,
+      "response_bytes": 4309,
+      "response_sha256": "ef8eb740538f7a10de83c21cf2d61233733c0f748aa2b294539cadd862fcfec7",
+      "result": "REJECTED_HTML_CHALLENGE",
+      "recognized_content": "HTML document with Validating title; neither expected file nor successful download",
+      "source_metadata_sha256": "06de5597683912448ff767a1c4fc0cf53cdcc752d08634c3bf2c52b631a00499",
+      "response_local_path": "data/raw/vision-physiology/pang-2025/acquisition-v1/3732249-download-challenge.html",
+      "metadata_local_path": "data/raw/vision-physiology/pang-2025/acquisition-v1/3732249-metadata.json"
+    },
+    {
+      "file_id": 3732251,
+      "requested_name": "README.md",
+      "requested_url": "https://datadryad.org/downloads/file_stream/3732251",
+      "timestamp_utc": "2026-09-13T15:51:15.0875994Z",
+      "source_metadata_url": "https://datadryad.org/api/v2/files/3732251",
+      "expected_bytes": 15130,
+      "expected_sha256": "fbedd08a47ba0927cf416c1a8d73bdd889e5779c309f79f94970b02c1f7f87e7",
+      "expected_mime": "text/markdown",
+      "status": 200,
+      "content_type": [
+        "text/html; charset=utf-8"
+      ],
+      "error": null,
+      "response_bytes": 4309,
+      "response_sha256": "18b09ba95baa51b69f01424fedc50c1b6a1e23a3742a2e0fc9d25e3216355c24",
+      "result": "REJECTED_HTML_CHALLENGE",
+      "recognized_content": "HTML document with Validating title; neither expected file nor successful download",
+      "source_metadata_sha256": "d712861f22338e4f3dd617631cf8aebd418d743be2f741a0016eeb7ba60c18da",
+      "response_local_path": "data/raw/vision-physiology/pang-2025/acquisition-v1/3732251-download-challenge.html",
+      "metadata_local_path": "data/raw/vision-physiology/pang-2025/acquisition-v1/3732251-metadata.json"
+    }
+  ],
+  "total_rejected_response_bytes": 12926,
+  "next_step": "Obtain the selected files using the ordinary Dryad browser interface or authorized API access, then verify exact byte counts and SHA256 against these public metadata records before parsing. Stop automated retry loops until access changes. Freeze a fly-level split before parameter fitting.",
+  "limits": "Public README describes 13 untreated L2 fly identifiers, but the actual MAT selection, fly grouping, timing, normalization and aggregate correspondence remain unverified. Existing GitHub aggregate curves do not replace fly-level data."
+}

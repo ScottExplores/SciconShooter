@@ -1,0 +1,245 @@
+{
+  "schema_version": 1,
+  "status": "STATIC_MEASUREMENT_CROSSWALK_ONLY",
+  "created_utc": "2026-09-13T15:55:15.852829+00:00",
+  "source_repository_commit": "7fa5829e37d566e02beaaa87efd6a0f1de4e48c0",
+  "method": "Static notebook/author MATLAB inspection, ordinary HTTPS primary-paper retrieval, source-hash checks and independent rational arithmetic. No author code execution, response fitting, model simulation, core or gate changes.",
+  "paper": {
+    "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11769683/",
+    "doi": "10.1016/j.cub.2024.11.064",
+    "retrieval_note": "Web parser returned a challenge; a normal urllib HTTPS request returned readable full primary article without bypass. Dynamic HTML was not frozen as an evidence artifact."
+  },
+  "sources": [
+    {
+      "url": "https://raw.githubusercontent.com/ClandininLab/L1L2-recurrent-feedback/7fa5829e37d566e02beaaa87efd6a0f1de4e48c0/stimulus/fullfield_LDflash20ms_Gray500ms.txt",
+      "sha256": "174fefaab83106b7a7b37d97d99c768be069ad1d62b17646cf3bcabbfd61e682",
+      "bytes": 153,
+      "access": "ordinary HTTPS, decoded as text in memory; not executed or persisted"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/ClandininLab/L1L2-recurrent-feedback/7fa5829e37d566e02beaaa87efd6a0f1de4e48c0/imaging-analysis/compute_meanResp_err_moveAvg_FFFoG.m",
+      "sha256": "ce3bc001b1ef342452fdd66e80527787a620d5eafec7e5d70d7142ef064f7474",
+      "bytes": 7820,
+      "access": "ordinary HTTPS, decoded as text in memory; not executed or persisted"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/ClandininLab/L1L2-recurrent-feedback/7fa5829e37d566e02beaaa87efd6a0f1de4e48c0/imaging-analysis/compute_meanResp_err_moveAvg_FFFoG_pool.m",
+      "sha256": "76a1b6b9d7d744a4239ef375ea0d9c600655baf75ccab5379f8c69afe6a04800",
+      "bytes": 7821,
+      "access": "ordinary HTTPS, decoded as text in memory; not executed or persisted"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/ClandininLab/L1L2-recurrent-feedback/7fa5829e37d566e02beaaa87efd6a0f1de4e48c0/imaging-analysis/computeDFF.m",
+      "sha256": "86d09a60bf84c706798721025249bc7ef6815d84411155467e57ad328296257b",
+      "bytes": 1749,
+      "access": "ordinary HTTPS, decoded as text in memory; not executed or persisted"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/ClandininLab/L1L2-recurrent-feedback/7fa5829e37d566e02beaaa87efd6a0f1de4e48c0/imaging-analysis/filterROIs_stimLockedPlots_FFFoG.m",
+      "sha256": "9c84e5ac755908646635e3d67069247ed0bd732e2b2353a86d577a2a19f41d49",
+      "bytes": 8545,
+      "access": "ordinary HTTPS, decoded as text in memory; not executed or persisted"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/ClandininLab/L1L2-recurrent-feedback/7fa5829e37d566e02beaaa87efd6a0f1de4e48c0/imaging-analysis/HHY_stimulusSpecificAnalysisScripts/selectTimeSeries_L2Project_FFFoG_v2.m",
+      "sha256": "d1417d66df0b3e79af96cc5b4a2af6d31fd4734c9b905d31db3fdb4c47d34b33",
+      "bytes": 21415,
+      "access": "ordinary HTTPS, decoded as text in memory; not executed or persisted"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/ClandininLab/L1L2-recurrent-feedback/7fa5829e37d566e02beaaa87efd6a0f1de4e48c0/imaging-analysis/HHY_stimulusSpecificAnalysisScripts/plot_shortFlash_compareGenotypes_L2Project.m",
+      "sha256": "8c137c806468ce6bf4b94c39db7227ed16b41f9bf70dce9f02294c0fc8b773ec",
+      "bytes": 29607,
+      "access": "ordinary HTTPS, decoded as text in memory; not executed or persisted"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/ClandininLab/L1L2-recurrent-feedback/7fa5829e37d566e02beaaa87efd6a0f1de4e48c0/imaging-analysis/plot_FFFOntoGray.m",
+      "sha256": "1c97b1077c0eccd3b3f0a02f01144abbd9170e30386e6592b488e46aa8c72684",
+      "bytes": 3196,
+      "access": "ordinary HTTPS, decoded as text in memory; not executed or persisted"
+    },
+    {
+      "local_path": "data/raw/vision-physiology/pang-2025/computational-model__L1_2responses_to_flashes.ipynb",
+      "sha256": "8fc96a50db5811bc07d53d23263f23c3cc780b463a0ecd82e7f56a6876c642f6",
+      "bytes": 149036,
+      "access": "static source inspection; not executed"
+    },
+    {
+      "local_path": "data/raw/vision-physiology/pang-2025/imaging-analysis__HHY_stimulusSpecificAnalysisScripts__shortFlashProcessed_saveMean.m",
+      "sha256": "e5c9daf537b4a3f20c7708e3b1c6ccac66b37f3e1cba943a1ffa4c6c6c447cb7",
+      "bytes": 1768,
+      "access": "static source inspection; not executed"
+    }
+  ],
+  "verified_target_files": [
+    {
+      "path": "data/raw/vision-physiology/pang-2025/computational-model__data__L2_highLum.mat",
+      "sha256": "1c9266f5c387a217013f8715a49f6351f78e9a9de9894a5ac2892b2a06cf6e36",
+      "shape": [
+        2,
+        63
+      ]
+    },
+    {
+      "path": "data/raw/vision-physiology/pang-2025/computational-model__data__L2_lowLum.mat",
+      "sha256": "49c0e5587618f9d11e0dea12a218b6eecd511e563d8d42ad986e9c410c6d012c",
+      "shape": [
+        2,
+        63
+      ]
+    }
+  ],
+  "resolved": {
+    "physical_protocol": {
+      "flash_duration_s": 0.02,
+      "gray_duration_s": 0.5,
+      "intensities": [
+        0,
+        1
+      ],
+      "gray_intensity": 0.5,
+      "weber_contrasts": [
+        -1,
+        1
+      ],
+      "evidence": "paper Methods and pinned 500-ms stimulus text; not a direct measurement of a particular ROI trial"
+    },
+    "acquisition": {
+      "native_flash_imaging_hz": 82.4,
+      "exported_average_hz": 120,
+      "stimulus_projector_hz": 300,
+      "photodiode_daq_hz": 5000,
+      "evidence": "paper Methods; aggregate grid does not contain original acquisition events"
+    },
+    "response_window": {
+      "formula": "t_j=(j-1)*BIN_SHIFT; average frames with t_j-BIN_WIDTH < relative_time <= t_j",
+      "timestamp": "right_edge",
+      "comment_conflict": "author function header says bin center, executable assignments save binEnd",
+      "conditional_width_s": 0.008333333333333333,
+      "center_to_label_s": 0.004166666666666667,
+      "conditions": "BIN_WIDTH=BIN_SHIFT=1/120 as used by pinned L2 selection and filter scripts; exact upstream small-file export not proven"
+    },
+    "notebook_input": {
+      "nonzero_indices_zero_based": [
+        2,
+        3,
+        4
+      ],
+      "step_s": 0.008333333333333333,
+      "nominal_onset_s": 0.016666666666666666,
+      "left_held_end_s": 0.041666666666666664,
+      "integrated_step_count": 3,
+      "absolute_contrast_time_s": 0.025,
+      "paper_absolute_contrast_time_s": 0.02,
+      "excess_duration_s": 0.005,
+      "excess_relative": 0.25,
+      "excess_percent": 25,
+      "rational_reproduction": {
+        "dt": "1/120",
+        "nominal_onset": "2/120",
+        "discrete_duration": "3/120=1/40",
+        "paper_duration": "1/50",
+        "difference": "1/40-1/50=1/200",
+        "relative_difference": "(1/200)/(1/50)=1/4"
+      },
+      "recurrence_interval_caveat": "input[i] advances output[i-1] to output[i]. Under preceding-interval holding, nonzero integration intervals span (1/120,4/120] rather than left-held plotted [2/120,5/120). Neither interpretation independently measures latency.",
+      "fitted_delay": "paper explicitly sweeps input delay and selects 16.7 ms; consistent with nominal index2, not independent physiological measurement",
+      "area_preserving_discretization_example": {
+        "full_bins": 2,
+        "fractional_last_bin": 0.4,
+        "assumption": "20 ms pulse begins exactly at a grid boundary; arithmetic example only, not applied and not a reproduction claim"
+      }
+    },
+    "sign": {
+      "stored_quantity": "context-supported raw dF/F; conditional on verifying aggregate export lineage",
+      "depolarization": "negative raw fluorescence response",
+      "display": "negative raw fluorescence; additionally multiply by100 for negative percent dF/F",
+      "python_rows": {
+        "0": "dark",
+        "1": "light"
+      },
+      "inv_option": "reverses plot axis, does not negate stored rats in inspected filter/export chain"
+    },
+    "normalization": {
+      "source": "both highLum rows,126 entries",
+      "mu": "mean(D) over both rows/time",
+      "sigma": "population std(D), ddof0",
+      "normalized": "z=(D-mu)/sigma",
+      "physical_zero_preserved": false,
+      "reason": "subtracting joint trace mean does not generally preserve gray-baseline zero",
+      "low_lum_used_in_fit": false,
+      "overwrite": "lowLum mean_res2 is overwritten by highLum row0 before fitting"
+    },
+    "author_observation_map": {
+      "for_indices_ge1": "z_hat=-a*(v+b); D_hat=mu-sigma*a*(v+b)",
+      "display": "-D_hat",
+      "explicit_indicator_kernel": false,
+      "explicit_exposure_or_window_operator_in_notebook": false,
+      "latent_units": "effective modeled activity; not absolute mV or release",
+      "first_sample": "v0=-z_target0; returned z_hat0=z_target0 bypasses affine map",
+      "forced_zero_residual_entries": 2,
+      "total_fitted_entries": 126,
+      "forced_fraction": 0.015873015873015872,
+      "forced_percent": 1.5873015873015872,
+      "downstream_initialization_effect": "not quantified by this arithmetic audit"
+    }
+  },
+  "partly_resolved": {
+    "luminance_pair": {
+      "candidate_mapping": "highLum to200pwm; lowLum to20pwm",
+      "status": "plausible source-context inference only",
+      "evidence": "pinned selection and comparison scripts explicitly distinguish those projector settings and saved names",
+      "not_established": [
+        "rename/export correspondence",
+        "absolute retinal luminance",
+        "radiance ratio",
+        "individual-fly overlap",
+        "genotype/treatment lineage of both tiny files"
+      ]
+    },
+    "target_lineage": {
+      "exporter_behavior": "equal selected-ROI mean, rows in epoch order, time from first selected ROI",
+      "status": "small MAT variables and source convention agree; source record list unavailable"
+    }
+  },
+  "unresolved": [
+    "Exact small-file aggregate-to-ROI mapping and whether its export used the inspected current MATLAB path.",
+    "Original frame/photodiode timestamps, exposure timing and stimulus jitter for these curves.",
+    "Whether the high/low filename rename corresponds exactly to200/20 PWM and to independent or paired flies.",
+    "Individual-fly variability, cell selection and treatment metadata.",
+    "Indicator kinetics and a calibrated model-voltage-to-fluorescence map.",
+    "Whether a measurement-faithful20ms input and explicit binning change fitted parameters or predictions.",
+    "Input/output affine scale and biological parameters are not fully identifiable from two aggregate curves."
+  ],
+  "required_next_operator": [
+    "Map candidate L2 terminal state to a declared fluorescence observable; label a fitted affine latent proxy as descriptive calibration.",
+    "Use physical transition times and preserve nominal/fitted phototransduction delay as distinct parameters.",
+    "Apply measured acquisition/exposure and right-edge observation windows before comparing to fluorescence traces.",
+    "Recompute ROI aggregates and match the author export; keep author ROI-weighted summaries separate from fly-level inference.",
+    "Compute normalization on training flies and freeze it for all validation.",
+    "Prespecify initialization from permitted pre-stimulus data or equilibrium; do not silently initialize unseen responses from their target."
+  ],
+  "individual_data_needed": [
+    "L2_ASAP2f.mat with iResp, roiDataMat and ROI/fly metadata",
+    "L1L2_Metadata.xlsx including genotype/treatment/PWM and fly IDs",
+    "imaging frame and photodiode stimulus timestamps",
+    "baseline processing settings and selected-ROI mapping",
+    "a reproducible mapping from these records to both GitHub aggregate MAT files"
+  ],
+  "validation_policy": [
+    "Split by biological fly before fitting; keep repeats and both polarities together.",
+    "Do not treat126 response entries as126 independent biological samples.",
+    "An aggregate fit is descriptive calibration, not independent validation.",
+    "Any successful L2 boundary result cannot on its own pass whole-CNS vision, conditioning or game-learning gates."
+  ],
+  "verification": {
+    "target_hashes_pass": true,
+    "source_hashes_pass": true,
+    "63_point_120hz_grids_pass": true,
+    "author_source_formula_presence_pass": true,
+    "rational_timing_arithmetic_pass": true,
+    "author_code_executed": false,
+    "simulation_or_fitting_performed": false,
+    "response_values_redistributed": false
+  }
+}

@@ -26,6 +26,30 @@ The full Python suite passed: 226 tests. No game-learning batch or diagnostic
 worker is currently running. The private dashboard/coordinator were stopped
 when checked this morning. Do not claim that the game is actively training.
 
+Later in the morning Scott asked to continue through completion of the studies,
+open the app, and verify the brain display. The existing hourly heartbeat was
+updated (not duplicated) to follow the full approved phased study to an auditable
+conclusion, subject to scientific prerequisites and real external dependencies.
+The private app is now running from the canonical checkout on 5180/8766; its
+owned launch record is `runtime/launch/current.json` (supervisor PID 13240 when
+started at 09:02 local time after the final display changes; recheck
+ownership/liveness before any operation).
+Watch is open on the already recorded random baseline
+`20260913T065659-7c5f0b2c`, not a new episode. Playback does not train.
+
+The source-anatomy display was verified against the cached annotation and
+morphology sources. Watch has 43,864 source soma positions and two selected
+skeletons. Its electric cues were image/control illustrations, not neural
+activity. They now default off, with a prominent explanation; replay explicitly
+says it does not train. Actual model telemetry remains separate from geometry.
+Disconnections now clear stale Watch activity and label retained Live telemetry
+as previously recorded. Typecheck, 16 JS tests and the private build passed;
+desktop/mobile replay and disconnection behavior passed frontend verification.
+The phone layout now expands around the anatomical explanation and does not
+overlap its preview/readouts or playback controls. QA artifacts are outside the
+repository at
+`C:/Users/scott/Documents/ChatGPT/Science/display-truth-qa-1789315339226/`.
+
 The diagnostic uses the actual nominated anatomy, but assumed baseline release,
 gain, adaptation and time constants. Its first purpose is to check stable,
 causally transmitted responses under those explicit assumptions. A successful
@@ -40,16 +64,23 @@ reduced-circuit engineering test does not pass the whole-CNS vision gate.
    `graded-off-l2-target-inventory-v1.md/json`. Tiny author L2 high/low-luminance
    MAT files have been acquired and safely inspected; each contains two mean
    curves and a time vector, but no fly IDs, uncertainty or stimulus metadata.
-3. The next bounded step is a source/measurement crosswalk: resolve the paper's
-   20-ms flash vs notebook's three 120-Hz input samples (25 ms), fluorescence
-   sign and joint scaling, absolute luminance labels and aggregate provenance.
-   Author notebooks have identified errors and were not executed. Inspect
-   primary methods, author code and selected data; document remaining ambiguity.
+3. The source/measurement crosswalk is complete as a static audit:
+   `docs/evidence/l2-measurement-crosswalk-v1.md/json`. It resolves fluorescence
+   sign and joint scaling and identifies a 25% excess pulse integral in the
+   author's discretized input, a right-edge observation-window convention and
+   target-dependent initialization. The paper's fitted 16.7-ms input delay is
+   explicit. High/low luminance-to-ROI provenance remains unresolved. No author
+   notebook was executed, no fitting occurred and no gate was changed.
 4. Seek the selected processed L2 dataset/metadata for fly-level uncertainty
    through normal official download paths. Dryad direct streams returned an
    anti-bot HTML challenge; preserve that failure, validate signatures, and do
    not bypass access controls or download the full 49.6-GB release. The targeted
-   L2 MAT is listed as 117.01 MB. The small aggregate files do not permit a
+   L2 MAT is listed as 117.01 MB. A second bounded acquisition audit is saved in
+   `docs/evidence/l2-data-acquisition-v1.md/json`: public API metadata worked and
+   supplied exact size/hash targets; three public file responses were rejected
+   as HTML. Do not repeat those unchanged requests. An ordinary browser
+   download through the source site or authorized API access remains an avenue;
+   do not bypass challenges. The small aggregate files do not permit a
    biological held-out split. License/provenance of GitHub aggregates remains
    distinct from the CC0 Dryad release.
 5. Before fitting, freeze a new bounded calibration protocol and measurement
@@ -68,7 +99,11 @@ validation gates unchanged unless identity-bound evidence actually satisfies
 their declared requirements. The current vision and decoder candidates failed;
 conditioning and learning are not yet tested.
 
-On a useful sensory milestone with the declared controls, or a real need for
-external input, pause the heartbeat through the app tool and summarize the
-evidence. Update this file and `SCOTT_RESEARCH_JOURNAL.md` after every substantive
-result. Quiet, unchanged checks do not need a notification.
+After a phase milestone, proceed to the next scientifically warranted phase;
+Scott explicitly extended continuation through the studies. Pause the heartbeat
+through the app tool only on an auditable study conclusion, Scott's stop request,
+or a real need for external evidence/resources/user action with no useful
+independent authorized work remaining. An honest negative or feasibility-limited
+conclusion is acceptable. Do not claim the full project completed because the
+small circuit works. Update this file and `SCOTT_RESEARCH_JOURNAL.md` after every
+substantive result. Quiet, unchanged checks do not need a notification.

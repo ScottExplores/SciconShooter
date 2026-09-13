@@ -92,3 +92,48 @@ has completed. No controller changes, Raspberry Pi or purchases are needed.
 See the [new result and plots](evidence/graded-off-diagnostic-v1/README.md) and
 the [continuation checkpoint](OVERNIGHT_RESEARCH.md). The full Python suite
 passed: 226 tests, including the new numerical and recording checks.
+
+## Watching the app, learning, and what the lights mean
+
+**We are not training from every match.** The saved random matches and their
+replays do not change a fly model. Once the sensory, action and conditioning
+checks support it, training matches will update the declared learning mechanism.
+Separate evaluation matches will keep that memory fixed so we can measure
+improvement fairly. Evaluation must not quietly train on its test material.
+
+I opened Watch on your saved random-baseline recording. The game images, recorded
+controls and movement path come from that actual episode. Watching it loop does
+not create more matches or run the learning study.
+
+**The anatomy is sourced; the electricity was an illustration.** I checked all
+43,864 displayed cell-body positions against the stored source annotations and
+the two displayed nerve-cell shapes against their source geometry. The colored
+pulses used image changes and button commands to illustrate possible information
+flow. They were not records of which modeled neurons fired. The prior caption
+said this, but the default appearance was too easy to misunderstand.
+
+Those illustrations now default off. A prominent label explains that neural
+activity is not connected to the anatomical view. You can optionally turn on
+clearly labeled game-cue illustrations. The separate neural-telemetry panel shows
+actual simulation measurements when a neural worker supplies them; these are
+computer-model data, not recordings from a living fly. Losing the connection
+now removes the stale LIVE indication and labels old telemetry as old.
+
+The existing hourly follow-up now covers the study phases through an auditable
+conclusion, rather than stopping at the next small milestone. It can continue
+while the local computer and Codex are available. A genuine data/resource
+dependency may still require your help; it cannot guarantee a learning result.
+
+In this follow-up we also clarified how the published visual recordings were
+timed and scaled. The larger data file is still unavailable through the
+automated public download: the website returns a validation page instead of the
+recording. We saved the exact expected file hashes and the rejected responses.
+This is an access limitation, not missing or negative scientific evidence. We
+can continue preparing a clearly labeled aggregate calibration, but independent
+biological validation needs the individual-fly records.
+
+Technical records: [measurement crosswalk](evidence/l2-measurement-crosswalk-v1.md)
+and [data acquisition record](evidence/l2-data-acquisition-v1.md). The display
+change passed typechecking, all 16 JavaScript tests, the private build, and
+desktop/mobile browser checks including simulated connection failures. No new
+game-training episode was started during these checks.
