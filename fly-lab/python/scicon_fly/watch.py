@@ -332,14 +332,14 @@ class WatchLibrary:
     def live(self,coordinator):
         with coordinator.lock:
             latest=coordinator.latest or {};state=latest.get('state',{});controller=(coordinator.config or {}).get('controller')
-            stamp=getattr(coordinator,'watch_snapshot',None) or {'seq':0,'action':{'movement':'idle','fire':False},'neural':None}
+            stamp=getattr(coordinator,'watch_snapshot',None) or {'seq':0,'action':{'movement':'idle','fire':False},'neural':None,'inputChange':0.0,'reward':0.0}
             frame=latest.get('frame',{}).get('pngDataUrl');key=f'{coordinator.run_id or "idle"}-{stamp["seq"]}'
             snapshot={'available':bool(frame),'running':coordinator.running,'status':coordinator.status,
                       'runId':coordinator.run_id,'seq':stamp['seq'],'tick':latest.get('tick',0),
                       'simTimeMs':latest.get('simTimeMs',0),'score':state.get('score',0),'lives':state.get('lives',3),
                       'kills':state.get('enemiesDefeated',0),'player':player_center(state),
                       'action':dict(stamp['action']),'controller':controller,'controllerLabel':LABELS.get(controller,controller),
-                      'neural':stamp['neural'],'error':coordinator.error,
+                      'neural':stamp['neural'],'inputChange':stamp.get('inputChange'),'reward':stamp.get('reward',0.0),'error':coordinator.error,
                       'frameUrl':f'/lab-api/watch/live/frame/{key}.png' if frame else None}
         if frame:
             with self.lock:

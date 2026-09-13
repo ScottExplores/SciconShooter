@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import type { WatchSignals } from './watchSignals';
 
 const DEFAULT_DATA_URL = new URL('./watch-soma.json', import.meta.url).href;
 
@@ -31,7 +32,61 @@ export type WatchAnatomyProps = {
   lowPower?: boolean;
   dataUrl?: string;
   onMetadata?: (metadata: WatchAnatomyMetadata) => void;
+  signals?: WatchSignals;
+  illustrate?: boolean;
 };
+
+// Display-only waves on existing coordinates. These are neither measured cell
+// activity nor an inferred optic-to-motor pathway; reward never enters a shader.
+const POINT_VERTEX = `
+  attribute vec3 color;
+  attribute float displayGroup;
+  varying vec3 pointColor;
+  varying float accent;
+  uniform float pointSize, halo, simTime, inputDrive, controlDrive, illustrate, travel;
+  void main() {
+    float drive = displayGroup == 1.0 ? inputDrive : (displayGroup == 2.0 ? controlDrive : 0.0);
+    float space = displayGroup == 1.0 ? position.x * 19.0 - position.z * 4.0 : position.z * 24.0;
+    float band = pow(max(0.0, cos(space - simTime * 5.0)), 10.0);
+    float glint = pow(max(0.0, sin(dot(position, vec3(113.0, 79.0, 137.0)) + simTime * 8.0)), 18.0);
+    accent = min(1.0, illustrate * drive * mix(0.72, 0.18 + 0.62 * band + 0.38 * glint, travel));
+    vec3 signalColor = displayGroup == 1.0 ? vec3(0.11, 0.86, 1.0) : vec3(1.0, 0.46, 0.075);
+    pointColor = mix(color, signalColor, min(1.0, accent * 1.6));
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    gl_PointSize = halo > 0.5 ? pointSize * (3.0 + accent * 4.0) : pointSize * (1.0 + accent * 1.2);
+  }`;
+const POINT_FRAGMENT = `
+  varying vec3 pointColor;
+  varying float accent;
+  uniform float halo, density;
+  void main() {
+    float d = length(gl_PointCoord - vec2(0.5));
+    if (d > 0.5 || (halo > 0.5 && accent < 0.01)) discard;
+    float a = halo > 0.5
+      ? density * accent * 0.2 * pow(1.0 - smoothstep(0.0, 0.5, d), 2.0)
+      : density * (0.63 + accent * 0.3) * (1.0 - smoothstep(0.12, 0.5, d));
+    gl_FragColor = vec4(pointColor, a);
+    #include <colorspace_fragment>
+  }`;
+const TRACT_VERTEX = `
+  varying float accent;
+  uniform float simTime, controlDrive, illustrate, travel;
+  void main() {
+    float band = pow(max(0.0, cos(position.z * 28.0 - simTime * 5.0)), 14.0);
+    accent = illustrate * controlDrive * mix(0.65, 0.13 + 0.87 * band, travel);
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }`;
+const TRACT_FRAGMENT = `
+  varying float accent;
+  uniform vec3 baseColor;
+  void main() {
+    gl_FragColor = vec4(mix(baseColor, vec3(1.0, 0.5, 0.1), accent), 0.35 + 0.65 * accent);
+    #include <colorspace_fragment>
+  }`;
+
+function strength(value: number | undefined) {
+  return Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 0;
+}
 
 function classColor(name: string) {
   if (name.includes('descending')) return '#f4bb70';
@@ -61,15 +116,15 @@ function validateData(value: AnatomyData) {
   return value;
 }
 
-/** Actual source coordinates. Animation moves the camera, never neural activity. */
-export default function WatchAnatomy({ active = true, lowPower = false, dataUrl = DEFAULT_DATA_URL, onMetadata }: WatchAnatomyProps) {
+/** Actual source anatomy, optionally overlaid with explicitly engineered input/action cues. */
+export default function WatchAnatomy({ active = true, lowPower = false, dataUrl = DEFAULT_DATA_URL, onMetadata, signals, illustrate = false }: WatchAnatomyProps) {
   const host = useRef<HTMLDivElement>(null);
-  const options = useRef({ active, lowPower });
+  const options = useRef({ active, lowPower, signals, illustrate });
   const invalidate = useRef<() => void>(() => undefined);
   const metadataCallback = useRef(onMetadata);
   const [data, setData] = useState<AnatomyData | null>(null);
   const [error, setError] = useState('');
-  options.current = { active, lowPower };
+  options.current = { active, lowPower, signals, illustrate };
   metadataCallback.current = onMetadata;
 
   useEffect(() => {
@@ -106,7 +161,7 @@ export default function WatchAnatomy({ active = true, lowPower = false, dataUrl 
     renderer.setClearColor(0x07121c, 0);
     renderer.domElement.style.display = 'block';
     renderer.domElement.style.touchAction = 'pan-y';
-    renderer.domElement.setAttribute('aria-label', `${data.displayedSomaCount.toLocaleString()} recorded MaleCNS cell-body locations. Static anatomy, camera rotation only. Drag to rotate and scroll to zoom.`);
+    renderer.domElement.setAttribute('aria-label', `${data.displayedSomaCount.toLocaleString()} recorded MaleCNS cell-body locations. Optional cyan image-change and amber control illustration is not recorded neuronal firing. Drag to rotate and scroll to zoom.`);
     renderer.domElement.setAttribute('role', 'img');
     node.appendChild(renderer.domElement);
 
@@ -120,17 +175,37 @@ export default function WatchAnatomy({ active = true, lowPower = false, dataUrl 
     const classColors = data.classes.map(name => new THREE.Color(classColor(name)));
     const colors = new Float32Array(positions.length);
     data.classIndices.forEach((index, i) => classColors[index].toArray(colors, i * 3));
+    const displayGroups = new Float32Array(data.displayedSomaCount);
+    data.classIndices.forEach((index, i) => {
+      const name = data.classes[index];
+      displayGroups[i] = name.startsWith('ol') || name.startsWith('visual') ? 1 : name.startsWith('vnc') || name.includes('descending') ? 2 : 0;
+    });
+    const signalUniforms = {
+      simTime: { value: 0 }, inputDrive: { value: 0 }, controlDrive: { value: 0 },
+      illustrate: { value: 0 }, travel: { value: 0 }, pointSize: { value: 1.7 }, density: { value: 1 },
+    };
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    geometry.setAttribute('displayGroup', new THREE.BufferAttribute(displayGroups, 1));
     const material = new THREE.ShaderMaterial({
-      uniforms: { pointSize: { value: 1.7 } },
-      vertexShader: 'attribute vec3 color; varying vec3 pointColor; uniform float pointSize; void main(){pointColor=color; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); gl_PointSize=pointSize;}',
-      fragmentShader: 'varying vec3 pointColor; void main(){float d=length(gl_PointCoord-vec2(0.5)); if(d>0.5)discard; float a=0.63*(1.0-smoothstep(0.12,0.5,d)); gl_FragColor=vec4(pointColor,a);\n#include <colorspace_fragment>\n}',
+      uniforms: { ...signalUniforms, halo: { value: 0 } },
+      vertexShader: POINT_VERTEX, fragmentShader: POINT_FRAGMENT,
       transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
     });
     group.add(new THREE.Points(geometry, material));
-    const skeletonResources: { geometry: THREE.BufferGeometry; material: THREE.LineBasicMaterial }[] = [];
+    // A sparse second draw makes light accents legible without 43k large sprites.
+    // Every glow still sits on one original source soma, never an invented point.
+    const haloGeometry = new THREE.BufferGeometry();
+    haloGeometry.setAttribute('position', geometry.getAttribute('position'));
+    haloGeometry.setAttribute('color', geometry.getAttribute('color'));
+    haloGeometry.setAttribute('displayGroup', geometry.getAttribute('displayGroup'));
+    haloGeometry.setIndex(Array.from({ length: Math.ceil(data.displayedSomaCount / 8) }, (_, i) => i * 8));
+    const haloMaterial = new THREE.ShaderMaterial({ uniforms: { ...signalUniforms, halo: { value: 1 } },
+      vertexShader: POINT_VERTEX, fragmentShader: POINT_FRAGMENT,
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+    const haloPoints = new THREE.Points(haloGeometry, haloMaterial); haloPoints.visible = false; group.add(haloPoints);
+    const skeletonResources: { geometry: THREE.BufferGeometry; material: THREE.ShaderMaterial }[] = [];
     for (const skeleton of data.skeletons || []) {
       const segments = new Float32Array(skeleton.segments.length * 3);
       for (let i = 0; i < skeleton.segments.length; i++) {
@@ -138,7 +213,11 @@ export default function WatchAnatomy({ active = true, lowPower = false, dataUrl 
       }
       const tractGeometry = new THREE.BufferGeometry();
       tractGeometry.setAttribute('position', new THREE.BufferAttribute(segments, 3));
-      const tractMaterial = new THREE.LineBasicMaterial({ color: skeleton.type.startsWith('DN') ? '#efb16d' : '#86b3d4', transparent: true, opacity: .35, depthWrite: false });
+      const tractMaterial = new THREE.ShaderMaterial({
+        uniforms: { ...signalUniforms, baseColor: { value: new THREE.Color(skeleton.type.startsWith('DN') ? '#efb16d' : '#86b3d4') } },
+        vertexShader: TRACT_VERTEX, fragmentShader: TRACT_FRAGMENT,
+        transparent: true, depthWrite: false,
+      });
       group.add(new THREE.LineSegments(tractGeometry, tractMaterial));
       skeletonResources.push({ geometry: tractGeometry, material: tractMaterial });
     }
@@ -161,6 +240,14 @@ export default function WatchAnatomy({ active = true, lowPower = false, dataUrl 
       const animated = options.current.active && !motion.matches;
       const interval = 1000 / (options.current.lowPower ? 15 : 30);
       if (now - lastDraw >= interval || !lastDraw) {
+        const current = options.current.signals;
+        const enabled = options.current.illustrate && !options.current.lowPower && current?.valid === true && Number.isFinite(current.timeSeconds);
+        signalUniforms.illustrate.value = enabled ? 1 : 0;
+        signalUniforms.simTime.value = enabled ? current.timeSeconds : 0;
+        signalUniforms.inputDrive.value = enabled ? strength(current.inputChange) : 0;
+        signalUniforms.controlDrive.value = enabled ? Math.max(strength(current.movement), strength(current.fire)) : 0;
+        signalUniforms.travel.value = motion.matches ? 0 : 1;
+        haloPoints.visible = enabled && (signalUniforms.inputDrive.value > 0 || signalUniforms.controlDrive.value > 0);
         controls.autoRotate = animated;
         if (animated) controls.update(Math.min((now - lastDraw) / 1000, .05));
         if (dirty || animated) { renderer.render(scene, camera); dirty = false; }
@@ -177,7 +264,8 @@ export default function WatchAnatomy({ active = true, lowPower = false, dataUrl 
       const distance = Math.max(1.84, anatomicalWidth / (2 * Math.tan(34 * Math.PI / 360) * camera.aspect) * 1.16);
       camera.position.normalize().multiplyScalar(distance);
       controls.minDistance = distance * .5; controls.maxDistance = distance * 2.3;
-      material.uniforms.pointSize.value = width < 460 ? 1.25 : 1.7;
+      signalUniforms.pointSize.value = Math.min(1.7, Math.max(1, height / 500));
+      signalUniforms.density.value = Math.min(1, Math.max(.18, (height / 700) ** 1.5));
       requestDraw();
     };
     const visibility = () => {
@@ -201,13 +289,13 @@ export default function WatchAnatomy({ active = true, lowPower = false, dataUrl 
       cancelAnimationFrame(frame); observer.disconnect(); intersection.disconnect();
       document.removeEventListener('visibilitychange', visibility); motion.removeEventListener('change', requestDraw);
       controls.removeEventListener('change', requestDraw); controls.dispose();
-      geometry.dispose(); material.dispose();
+      geometry.dispose(); material.dispose(); haloGeometry.dispose(); haloMaterial.dispose();
       skeletonResources.forEach(resource => { resource.geometry.dispose(); resource.material.dispose(); });
       renderer.dispose(); renderer.domElement.remove();
     };
   }, [data]);
 
-  useEffect(() => { invalidate.current(); }, [active, lowPower]);
+  useEffect(() => { invalidate.current(); }, [active, lowPower, signals, illustrate]);
 
   return <div ref={host} style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }}>
     {(!data || error) && <div role="status" style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', padding: 24, color: '#a6becb', font: '12px system-ui', textAlign: 'center' }}>{error || 'Loading recorded anatomy…'}</div>}

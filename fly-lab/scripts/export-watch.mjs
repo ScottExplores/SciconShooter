@@ -1,5 +1,6 @@
 import { readFile, writeFile, mkdir, copyFile, stat } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -25,6 +26,14 @@ for (const name of ['replay.mp4', 'poster.png', 'timeline.json']) {
   if (hash(bytes) !== manifest.files[name].sha256 || bytes.length !== manifest.files[name].bytes) throw new Error(`Display checksum mismatch: ${name}`);
   media.set(name, bytes);
 }
+// Derive lightweight display cues from checksum-verified original observations.
+// This does not run the engine or alter the recorded reinforcement protocol.
+const python = process.env.SCICON_FLY_PYTHON || path.join(root, '.venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python');
+const signalBytes = execFileSync(python, ['-m', 'scicon_fly.watch_signals', path.join(root, 'experiments', runId)],
+  { env: { ...process.env, PYTHONPATH: path.join(root, 'python') }, windowsHide: true, maxBuffer: 2 * 1024 * 1024 });
+const signals = JSON.parse(signalBytes.toString('utf8'));
+if (signals.version !== 1 || signals.frames?.length !== manifest.timeline.entries) throw new Error('The signal illustration trace does not match the recorded timeline.');
+media.set('signals.json', signalBytes);
 const build = await json(path.join(root, 'dist', '.vite', 'manifest.json'));
 const bundle = new Set(['watch.html']);
 const visited = new Set();
@@ -45,10 +54,11 @@ for (const [name, bytes] of media) await writeFile(path.join(destination, name),
 // Preserve the original verified metadata alongside an explicitly relocated viewer manifest.
 await writeFile(path.join(destination, 'source-display-manifest.json'), manifestBytes);
 manifest.media.url = './replay.mp4'; manifest.media.posterUrl = './poster.png'; manifest.timeline.url = './timeline.json';
+manifest.signals = { url: './signals.json', source: signals.source, sha256: hash(signalBytes) };
 manifest.portableDisplay = true;
 await writeFile(path.join(destination, 'watch-manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
 await writeFile(path.join(destination, 'index.html'), '<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=watch.html"><a href="watch.html">Open Scicon Fly Lab</a>');
-await writeFile(path.join(destination, 'README.txt'), `SCICON FLY LAB — DISPLAY EDITION\n\nThis folder contains a recorded ${manifest.controllerLabel} episode, actual anatomical coordinates and a read-only browser viewer. It does not train a model, start the game engine or connect a wallet. Learning has not been demonstrated.\n\nOn Raspberry Pi OS:\n1. Copy this entire folder to the Pi.\n2. Open a terminal in this folder and run:\n   python3 serve-watch.py\n3. Open Chromium at http://127.0.0.1:8080/watch.html\n   Press F11 for full screen. Play and Loop control the recording.\n\nLow power display starts enabled. The PC can be switched off. Internet is not needed. Leave the terminal open; Ctrl+C stops the local file server. To start kiosk mode from the Pi desktop terminal, run chromium --kiosk http://127.0.0.1:8080/watch.html (the browser command may be chromium-browser on older OS images).\n\nRUN: ${runId}\nSOURCE COMMIT: ${manifest.sourceCommit}\nVIDEO: H.264 baseline, 390 x 844, 20 fps\nReplay pixels/actions were verified before lossy video encoding. The small grayscale panel is a preview of the video; scientific observations stay in the original experiment export. Brain colors identify anatomy, not neural firing.\n\nSource display manifest and file checksums are included for provenance.\n`);
+await writeFile(path.join(destination, 'README.txt'), `SCICON FLY LAB — DISPLAY EDITION\n\nThis folder contains a recorded ${manifest.controllerLabel} episode, actual anatomical coordinates and a read-only browser viewer. It does not train a model, start the game engine or connect a wallet. Learning has not been demonstrated.\n\nOn Raspberry Pi OS:\n1. Copy this entire folder to the Pi.\n2. Open a terminal in this folder and run:\n   python3 serve-watch.py\n3. Open Chromium at http://127.0.0.1:8080/watch.html\n   Press F11 for full screen. Play and Loop control the recording.\n\nLow power display starts enabled. The PC can be switched off. Internet is not needed. Leave the terminal open; Ctrl+C stops the local file server. To start kiosk mode from the Pi desktop terminal, run chromium --kiosk http://127.0.0.1:8080/watch.html (the browser command may be chromium-browser on older OS images).\n\nRUN: ${runId}\nSOURCE COMMIT: ${manifest.sourceCommit}\nVIDEO: H.264 baseline, 390 x 844, 20 fps\nReplay pixels/actions were verified before lossy video encoding. The small grayscale panel is a preview of the video; scientific observations stay in the original experiment export. Signals on adds a cyan illustration from recorded grayscale change and amber movement/fire cues over the real anatomy. They are not recorded neuron firing or verified biological signal paths. Switch off the leaf (low power) button to see these effects. Recorded reward is +1 per enemy destroyed and -5 per life lost; coins currently give no training reward. The random baseline receives no dopamine-like teaching signal.\n\nSource display manifest and file checksums are included for provenance.\n`);
 const checksums = {};
 for (const name of [...bundle, ...media.keys(), 'source-display-manifest.json', 'watch-manifest.json', 'index.html', 'README.txt', 'serve-watch.py']) checksums[name] = hash(await readFile(path.join(destination, name)));
 await writeFile(path.join(destination, 'checksums.json'), JSON.stringify(checksums, null, 2) + '\n');

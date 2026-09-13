@@ -2,12 +2,15 @@ export type WatchFrame = {
   seq: number; tick: number; videoTimeSeconds: number; simTimeMs: number;
   movement: string; fire: boolean; score: number; lives: number; kills: number;
   player?: { x: number; y: number } | null;
+  reward?: number;
+  inputChange?: number;
 };
 export type WatchManifest = {
   runId: string; controllerLabel: string;
   media: { url: string; posterUrl: string; width: number; height: number; fps: number; durationSeconds: number; sha256: string };
   timeline: { url: string; entries: number };
   evidence: string; sourceCommit: string;
+  signals?: { url: string };
 };
 export type WatchJob = { status: string; stage?: string; runId?: string; done: number; total: number; error?: string };
 export type WatchCatalog = {

@@ -6,12 +6,20 @@ Open http://127.0.0.1:5180/#watch for the simple display. Research controls rema
 
 - The actual Scicon Shooter recording, synchronized to the action that produced each frame.
 - A movement compass, firing command, and the ship's actual recent positions.
-- A sampled anatomical preview: 43,864 unchanged MaleCNS cell-body coordinates from 139,662 available soma locations, with two genuine neuronal tracts. Camera motion is visual presentation; colors are anatomical classes, not firing activity.
+- A sampled anatomical preview: 43,864 unchanged MaleCNS cell-body coordinates from 139,662 available soma locations, with two genuine neuronal tracts. **Signals on** adds cyan image-change illustrations and amber movement/fire illustrations on this geometry. These are explicitly engineered display cues, not recorded neuron firing or validated biological signal paths.
 - A grayscale preview of the displayed video. This is not the scientific sensory observation, which remains in the experiment export.
 
 The current demonstration is a random baseline with constant fire. It is labeled accordingly. Learning has not been demonstrated, and the failed candidate sensory gates remain closed.
 
-Replay has play/pause, seek, looping, full screen and low-power controls. It does not start the game or neural worker. Live uses a compact read-only snapshot of the existing episode; opening Live does not start one. Hidden displays pause video and polling. Low power holds the anatomy camera still and reduces live polling to two updates per second.
+Replay has play/pause, seek, looping, full screen and low-power controls. It does not start the game or neural worker. Live uses a compact read-only snapshot of the existing episode; opening Live does not start one. Hidden displays pause video and polling. Low power holds the anatomy still, suppresses signal effects and reduces live polling to two updates per second. Switch off the leaf button to see the illustrations on the Pi. Reduced motion removes traveling waves. The explanation below the anatomy describes each cue and the current reward rule.
+
+### What the signals mean
+
+The cyan strength is `min(1, 8 × mean(abs(currentGray − previousGray)) / 255)`, using the exact recorded 96×208 grayscale frames. The first frame is zero. This normalized display level is not a percentage of active neurons. Its small sidecar is derived from checksum-verified original observations and aligned to every action's sequence/tick/hash; it never reruns the game or changes the export. Missing or mismatched traces leave this cue off. Amber strength follows recorded movement and firing commands. Spatial waves use simulation time, so pause and repeated seeks are stable; no wall-clock random spikes are generated. Reward does not drive any anatomy shader.
+
+The separate recent-reward readout uses the recorded outcome ledger: **+1 per confirmed enemy destruction, −5 per life unit lost, and 0 for coins**. Simultaneous events can produce a net amount, such as −4. A score increase never invents a reward. The random baseline has no neural worker and receives no dopamine-like reinforcement. In eligible neural training, the existing signed reward channel targets nominated simulated dopamine neurons; frozen evaluation sends no reinforcement and freezes efficacy updates.
+
+Coin reward is a candidate for a separate future protocol, not an enabled change. A small, preregistered bonus for newly credited coins could be compared with the original rule once the visual/conditioning gates pass. Credit must be counted once and distinguished from cosmetic pickup effects and automatic boss-coin banking. Double-rewarding kills plus their coins, magnet collection and hazardous pickup chasing are potential confounds. Published fly experiments support dopamine-dependent learning with compartment, timing and feedback effects; they do not establish a universal dopamine bonus for game coins. [Huang, Luo et al.](https://www.nature.com/articles/s41586-024-07819-w)
 
 When no replay exists, **Create baseline demo** explicitly records up to 30 simulated seconds, then verifies it and makes a video. This one-time operation can take several minutes. Cancel finalizes the partial experiment and stops the owned workers. The currently selected research episode is preserved. Existing runs can be prepared only when their recorded source matches the running software; already verified cached videos remain watchable after subsequent software updates.
 
@@ -47,6 +55,6 @@ A wallet, real rewards and ranked weekly participation require their own integra
 
 ## Implementation boundaries
 
-`Watch.tsx` mounts independently of the research dashboard, so playback does not keep its large `/status` polling loop alive. Anatomical rendering is capped, stops when hidden/offscreen, and uses stable component props. The standalone `watch.html` entry can be exported with just its transitive build assets. The canonical production entrypoint never imports the lab.
+`Watch.tsx` mounts independently of the research dashboard, so playback does not keep its large `/status` polling loop alive. Anatomical rendering is capped, stops when hidden/offscreen, and keeps geometry buffers stable while signal uniforms update. The standalone `watch.html` entry can be exported with just its transitive build assets and the verified signal sidecar. The canonical production entrypoint never imports the lab.
 
 `scicon_fly.watch` makes immutable caches under ignored `runtime/watch`. It verifies original export checksums, current source, intercepted asset bytes, engine state, grayscale observations, events and exact PNG bytes before encoding. It serves byte-range video requests, records codec/provenance, and never adds a cache to a failed or cancelled build. Read-only live snapshots bind the recorded action to the exact completed game frame, independently of any command in flight.

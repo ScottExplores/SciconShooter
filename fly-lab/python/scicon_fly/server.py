@@ -13,6 +13,7 @@ from .artifacts import LAB_ROOT, RunWriter, atomic_json, digest, source_identity
 from .controls import TimingMatchedRandom
 from .validation import validate_gate_evidence,evidence_file
 from .watch import WatchLibrary, PreviewCancelled, byte_range, compact_neural, close_driver
+from .watch_signals import get_signals, input_change
 
 MOVEMENTS=['idle','N','NE','E','SE','S','SW','W','NW']
 EXPERIMENTS=LAB_ROOT/'experiments';RUNTIME=LAB_ROOT/'runtime';DATA=LAB_ROOT/'data'
@@ -278,14 +279,16 @@ class Coordinator:
             if not self.writer or self.writer.closed:raise ValueError('Episode closed; reset before stepping')
             if self.latest.get('terminated') or self.latest.get('truncated'):raise ValueError('Episode ended; reset before stepping')
             try:
-                previous=self.latest['state'];action=self.choose_action(manual)
+                previous=self.latest['state'];previous_observation=self.latest.get('observation');action=self.choose_action(manual)
                 result=self.driver.call({'op':'step','action':action,'seq':self.seq+1})
                 reward=calculate_outcome_reward(previous,result)
+                pixel_change=input_change(previous_observation,result['observation']) if previous_observation is not None and result.get('observation') is not None else None
                 self.seq+=1;self.action=action;self.total_reward+=reward
                 self.writer.append(self.seq,action,result,reward,self.neural_summary)
                 with self.lock:
                     self.latest=result;self.history.append({'tick':result['tick'],'seconds':result['simTimeMs']/1000,'score':result['state'].get('score',0),'reward':reward,'lives':result['state'].get('lives',3),'movement':action['movement'],'fire':action['fire']})
-                    self.watch_snapshot={'seq':self.seq,'action':dict(action),'neural':compact_neural(self.neural_summary)}
+                    self.watch_snapshot={'seq':self.seq,'action':dict(action),'neural':compact_neural(self.neural_summary),
+                                         'inputChange':pixel_change,'reward':float(reward)}
                 if result.get('terminated') or result.get('truncated'):
                     with self.lock:self.running=False;self.status='finalizing'
                     mode=self.config.get('neuralMode',neural_mode_for(self.config['controller'],self.config.get('phase','training' if self.config['controller']=='neural-plastic' else 'evaluation')))
@@ -449,6 +452,7 @@ class Handler(BaseHTTPRequestHandler):
             if path.startswith('/watch/'):
                 parts=path.split('/')
                 if len(parts)==3:return self.respond(WATCH.manifest(parts[2]))
+                if len(parts)==4 and parts[3]=='signals':return self.respond(get_signals(safe_run(parts[2])))
                 if len(parts)==4:return self.watch_file(*WATCH.artifact(parts[2],parts[3]))
                 return self.respond({'error':'Unknown watch route'},404)
             if path=='/status':return self.respond(COORDINATOR.public())

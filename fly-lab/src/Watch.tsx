@@ -2,6 +2,7 @@ import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
 import WatchAnatomy, { WatchAnatomyMetadata } from './WatchAnatomy';
 import { api } from './api';
 import { clockLabel, DIRECTIONS, EMPTY_FRAME, frameIndexAt, WatchCatalog, WatchFrame, WatchLive, WatchManifest } from './watchData';
+import { InputSignalTrace, recentReward, signalIllustration, validateInputTrace } from './watchSignals';
 import './watch.css';
 
 const Anatomy = memo(WatchAnatomy);
@@ -37,6 +38,7 @@ export default function Watch({ offline = false }: { offline?: boolean }) {
   const [mode, setMode] = useState<'replay' | 'live'>('replay');
   const [catalog, setCatalog] = useState<WatchCatalog | null>(null), [selected, setSelected] = useState('');
   const [manifest, setManifest] = useState<WatchManifest | null>(null), [timeline, setTimeline] = useState<WatchFrame[]>([]);
+  const [inputTrace, setInputTrace] = useState<InputSignalTrace | null>(null), [illustrate, setIllustrate] = useState(true);
   const [live, setLive] = useState<WatchLive | null>(null), [liveTrail, setLiveTrail] = useState<WatchFrame[]>([]);
   const [frame, setFrame] = useState<WatchFrame>(EMPTY_FRAME), [time, setTime] = useState(0), [playing, setPlaying] = useState(false);
   const [loop, setLoop] = useState(true), [lowPower, setLowPower] = useState(offline), [visible, setVisible] = useState(!document.hidden);
@@ -63,15 +65,22 @@ export default function Watch({ offline = false }: { offline?: boolean }) {
   const ready = offline || catalog?.runs.find(run => run.runId === selected)?.status === 'ready';
   useEffect(() => {
     setManifest(null); setTimeline([]); setFrame(EMPTY_FRAME); setTime(0);
+    setInputTrace(null);
     vision.current?.getContext('2d')?.clearRect(0, 0, 96, 208);
     if (!ready || (!offline && !selected)) return;
     const abort = new AbortController(); let active = true; setLoading(true); setError('');
     const deadline = setTimeout(() => abort.abort(), 15000);
     const url = offline ? './watch-manifest.json' : `/lab-api/watch/${encodeURIComponent(selected)}`;
     readJson<WatchManifest>(url, abort.signal).then(async next => {
-      const frames = await readJson<WatchFrame[]>(next.timeline.url, abort.signal);
+      const signalUrl = next.signals?.url || (!offline ? `/lab-api/watch/${encodeURIComponent(selected)}/signals` : null);
+      const [frames, trace] = await Promise.all([
+        readJson<WatchFrame[]>(next.timeline.url, abort.signal),
+        signalUrl ? readJson<InputSignalTrace>(signalUrl, abort.signal).catch(() => null) : Promise.resolve(null),
+      ]);
       if (!frames.length || frames.length !== next.timeline.entries || frames.some((row, index) => !Number.isFinite(row.videoTimeSeconds) || index > 0 && row.videoTimeSeconds < frames[index - 1].videoTimeSeconds)) throw new Error('The replay timeline is incomplete or invalid.');
-      if (active) { setManifest(next); setTimeline(frames); setFrame(frames[0]); }
+      let checked: InputSignalTrace | null = null;
+      if (trace) { try { checked = validateInputTrace(trace, frames); } catch { /* Playback remains usable; missing signals are explicitly shown. */ } }
+      if (active) { setManifest(next); setTimeline(frames); setFrame(frames[0]); setInputTrace(checked); }
     }).catch(e => { if (active) setError(e.name === 'AbortError' ? 'Opening the recording timed out. Retry to load it again.' : e.message); }).finally(() => { clearTimeout(deadline); if (active) setLoading(false); });
     return () => { active = false; clearTimeout(deadline); abort.abort(); };
   }, [offline, selected, ready, retry]);
@@ -90,14 +99,16 @@ export default function Watch({ offline = false }: { offline?: boolean }) {
   }, []);
   useEffect(() => {
     const player = video.current; if (!player || mode !== 'replay' || !timeline.length || !visible) return;
-    let active = true, token = 0, last = -1;
-    const sync = (seconds: number) => { if (!active) return; const index = frameIndexAt(timeline, seconds); if (index !== last) { last = index; setFrame(timeline[index]); setTime(seconds); if (player.readyState >= 2) drawVision(player); } };
-    const decoded = (_now: number, info: VideoFrameCallbackMetadata) => { sync(info.mediaTime); if (active) token = player.requestVideoFrameCallback(decoded); };
+    let active = true, token = 0, seekPaint = 0, last = -1;
+    const sync = (seconds: number, decodedFrame = false) => { if (!active) return; const index = frameIndexAt(timeline, seconds); const changed = index !== last; if (changed) { last = index; setFrame(timeline[index]); setTime(seconds); } if ((decodedFrame || changed && !('requestVideoFrameCallback' in player)) && player.readyState >= 2) drawVision(player); };
+    // A seek can update time before the decoded frame is ready. Always refresh
+    // the preview on the actual video callback, even if its index was just seen.
+    const decoded = (_now: number, info: VideoFrameCallbackMetadata) => { sync(info.mediaTime, true); if (active) token = player.requestVideoFrameCallback(decoded); };
     const fallback = () => { sync(player.currentTime); if (active) token = requestAnimationFrame(fallback); };
-    const seek = () => sync(player.currentTime);
+    const seek = () => { sync(player.currentTime); cancelAnimationFrame(seekPaint); seekPaint = requestAnimationFrame(() => { seekPaint = 0; if (active && player.readyState >= 2) drawVision(player); }); };
     if ('requestVideoFrameCallback' in player) token = player.requestVideoFrameCallback(decoded); else token = requestAnimationFrame(fallback);
     player.addEventListener('seeked', seek); player.addEventListener('loadeddata', seek);
-    return () => { active = false; if ('cancelVideoFrameCallback' in player) player.cancelVideoFrameCallback(token); else cancelAnimationFrame(token); player.removeEventListener('seeked', seek); player.removeEventListener('loadeddata', seek); };
+    return () => { active = false; cancelAnimationFrame(seekPaint); if ('cancelVideoFrameCallback' in player) player.cancelVideoFrameCallback(token); else cancelAnimationFrame(token); player.removeEventListener('seeked', seek); player.removeEventListener('loadeddata', seek); };
   }, [manifest, timeline, mode, visible, drawVision]);
   const acceptLiveFrame = (image: HTMLImageElement) => {
     if (!live) return; drawVision(image);
@@ -116,6 +127,9 @@ export default function Watch({ offline = false }: { offline?: boolean }) {
   const duration = manifest?.media.durationSeconds || 0, job = catalog?.job;
   const label = mode === 'replay' ? manifest?.controllerLabel : live?.controllerLabel;
   const chosen = catalog?.runs.find(run => run.runId === selected);
+  const imageChange = mode === 'replay' ? inputTrace?.frames[currentIndex]?.inputChange ?? null : frame.inputChange ?? null;
+  const rewardCue = mode === 'replay' ? recentReward(timeline, currentIndex) : recentReward(liveTrail, liveTrail.length - 1);
+  const signals = signalIllustration(frame, imageChange, rewardCue.amount * rewardCue.strength, available);
   const liveLabel = live?.running ? 'LIVE' : !live?.runId ? 'STANDBY' : ({ stopped: 'STOPPED', completed: 'FINISHED', error: 'ERROR', interrupted: 'INTERRUPTED', paused: 'PAUSED', ready: 'READY' }[live.status] || live.status.toUpperCase());
   return <div className="watch-shell" ref={shell}>
     <header className="watch-header"><a className="watch-brand" href={offline ? './watch.html' : '#watch'}><span className="watch-logo"><i /><i /><i /></span><span>SCICON <b>FLY LAB</b></span></a><span className="watch-header-divider" /><span className="watch-title">Watch</span><div className="watch-header-actions">{offline ? <span className="watch-tiny">DISPLAY EDITION</span> : <a className="watch-research" href="#live">Research controls <Glyph name="arrow" /></a>}<button className={`watch-icon ${lowPower ? 'selected' : ''}`} aria-label="Low power display" aria-pressed={lowPower} title="Low power: still anatomy and fewer live updates" onClick={() => setLowPower(value => !value)}><Glyph name="leaf" /></button><button className="watch-icon" aria-label={full ? 'Exit full screen' : 'Enter full screen'} onClick={() => { const request = document.fullscreenElement ? document.exitFullscreen() : shell.current?.requestFullscreen(); void request?.catch(() => setError('Full screen is unavailable in this browser.')); }}><Glyph name="expand" /></button></div></header>
@@ -127,7 +141,7 @@ export default function Watch({ offline = false }: { offline?: boolean }) {
         </div>
         <div className="watch-scoreboard"><div><span>SCORE</span><strong>{available ? frame.score.toLocaleString() : '—'}</strong></div><div><span>LIVES</span><strong className="watch-lives">{available ? <><span aria-hidden="true">{'◆'.repeat(Math.max(0, Math.min(5, frame.lives)))}</span><span className="watch-sr-only">{frame.lives}</span></> : '—'}</strong></div><div><span>SIM TIME</span><strong>{available ? clockLabel(frame.simTimeMs / 1000) : '—'}</strong></div></div>
       </section>
-      <section className="watch-brain watch-panel" aria-label="MaleCNS anatomical preview"><div className="watch-panel-head"><div><span className="watch-eyebrow">MALECNS · DROSOPHILA</span><h2>Inside the fly</h2></div><span className="watch-anatomy-tag">Anatomical preview</span></div><div className="watch-brain-stage"><Anatomy active={!lowPower && visible && (playing || mode === 'live')} lowPower={lowPower} onMetadata={setMetadata} /><div className="watch-vision"><span className="watch-eyebrow">GAME PIXEL PREVIEW</span><canvas width="96" height="208" ref={vision} aria-label="Grayscale preview of the displayed gameplay" /><small>Grayscale preview</small></div></div><div className="watch-brain-caption"><div className="watch-legend"><span><i />Brain & optic lobes</span><span><i />Nerve cord</span><span><i />Selected tracts</span></div><p>Actual cell locations{metadata ? ` · ${metadata.displayedSomaCount.toLocaleString()} shown` : ''}. Neural activity is not shown.</p></div></section>
+      <section className="watch-brain watch-panel" aria-label="MaleCNS anatomical preview"><div className="watch-panel-head"><div><span className="watch-eyebrow">MALECNS · DROSOPHILA</span><h2>Inside the fly</h2></div><button className={`watch-signal-toggle ${illustrate ? 'selected' : ''}`} aria-label="Illustrated signals" aria-pressed={illustrate} onClick={() => setIllustrate(value => !value)} title="Show image-change and control illustrations; these are not recorded neuron spikes"><i />{illustrate ? 'Signals on' : 'Anatomy only'}</button></div><div className="watch-brain-stage"><Anatomy active={!lowPower && visible && (playing || mode === 'live')} lowPower={lowPower} onMetadata={setMetadata} signals={signals} illustrate={illustrate} /><div className="watch-vision"><span className="watch-eyebrow">GAME PIXEL PREVIEW</span><canvas width="96" height="208" ref={vision} aria-label="Grayscale preview of the displayed gameplay" /><small>Grayscale preview</small></div></div><div className="watch-brain-caption"><div className="watch-signal-readouts" aria-label="Signal illustration sources"><div><span><i />IMAGE CHANGE</span><strong>{available && imageChange !== null ? `${Math.round(imageChange * 100)}%` : '—'}</strong><meter min="0" max="1" value={imageChange ?? 0} aria-label="Scaled change in recorded grayscale input" /></div><div><span><i />CONTROL OUTPUT</span><strong>{!available ? '—' : frame.movement !== 'idle' ? 'Moving' : frame.fire ? 'Firing' : 'Idle'}</strong></div><div className={`watch-reward-cue ${rewardCue.amount > 0 ? 'positive' : rewardCue.amount < 0 ? 'negative' : ''}`}><span><i />RECORDED REWARD</span><strong>{rewardCue.amount ? `${rewardCue.amount > 0 ? '+' : ''}${rewardCue.amount}` : '—'}</strong></div></div><p>{illustrate && !lowPower ? 'Signal illustration over real anatomy · not recorded neuron firing.' : `Actual cell locations${metadata ? ` · ${metadata.displayedSomaCount.toLocaleString()} shown` : ''}.`}{illustrate && lowPower ? ' Low power holds the anatomy still.' : ''}</p><details className="watch-signal-help"><summary>What do the lights and rewards mean?</summary><p>Cyan illustrates changes in the recorded grayscale frames; 100% is a scaled display level, not the percentage of neurons firing. Amber illustrates movement and fire commands on the nerve cord and selected descending anatomy. These colors do not establish which neurons caused an action.</p><p>Recorded reward: +1 per enemy destroyed, −5 per life lost. Coin pickups currently give 0 training reward. Score and reward are different. The random baseline has no neural worker and receives no dopamine-like reinforcement.</p>{imageChange === null && <p>Image-change recording is unavailable for this view; the cyan illustration remains off.</p>}</details></div></section>
       <Movement frame={frame} trail={trail} available={available} />
     </main>
     <div className="watch-transport"><div className="watch-modes" role="group" aria-label="Display source"><button className={mode === 'replay' ? 'active' : ''} aria-pressed={mode === 'replay'} onClick={() => switchMode('replay')}>Replay</button>{!offline && <button className={mode === 'live' ? 'active' : ''} aria-pressed={mode === 'live'} onClick={() => switchMode('live')}><i />Live</button>}</div><button className="watch-play" disabled={mode !== 'replay' || !manifest} aria-label={playing ? 'Pause replay' : 'Play replay'} onClick={() => { const player = video.current; if (!player) return; if (player.paused) void player.play().catch(e => setError(e.message)); else player.pause(); }}><Glyph name={playing ? 'pause' : 'play'} /></button><span className="watch-clock">{clockLabel(time)}<span> / {mode === 'replay' ? clockLabel(duration) : 'LIVE'}</span></span><input className="watch-seek" type="range" aria-label="Replay position" min="0" max={Math.max(duration, 0.05)} step="0.05" value={mode === 'replay' ? Math.min(time, duration) : 0} disabled={mode !== 'replay' || !manifest} onChange={event => { const next = Number(event.target.value); if (video.current) video.current.currentTime = next; setTime(next); setFrame(timeline[frameIndexAt(timeline, next)] || EMPTY_FRAME); }} /><button className={`watch-icon watch-loop ${loop ? 'selected' : ''}`} aria-label="Loop replay" aria-pressed={loop} disabled={mode !== 'replay'} onClick={() => setLoop(value => !value)}><Glyph name="loop" /></button>{!offline && <select aria-label="Replay recording" value={selected} disabled={mode !== 'replay' || busy} onChange={event => { setError(''); setSelected(event.target.value); }}><option value="">Choose a recording</option>{catalog?.runs.map(run => <option value={run.runId} key={run.runId}>{run.controllerLabel} · {run.runId.slice(0, 8)} {run.runId.slice(9, 15)}{run.status === 'ready' ? '' : run.sourceMatched ? ' · prepare' : ' · source changed'}</option>)}</select>}</div>
