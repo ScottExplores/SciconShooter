@@ -114,6 +114,54 @@ reduced-circuit engineering test does not pass the whole-CNS vision gate.
 
 ## Next steps and limits
 
+### September 13, 10:55 PDT: source lineage resolved and cohort assigned
+
+Explicit author rename comments in the workbook resolve the selected-record
+discrepancies from inventory v2. All 103 source-selected ROI rows now have
+supported associations: 48 series keep their labels and 12 match documented
+renames with shared metadata agreement. Four unmatched series contribute zero
+selected rows. These are source-record associations, not independent animal
+verification. See `docs/evidence/l2-workbook-crosswalk-v1.md/json` and its
+independent check.
+
+The frozen, unmodified mean of all 103 selected rows exactly reproduces the
+high-luminance aggregate, including both response curves and time entries.
+The low-luminance target does not match (maximum absolute response difference
+0.019440958492522788); its provenance remains unresolved. No alternate subset
+or transformation was searched. Read `l2-aggregate-lineage-v1.md/json` and
+`l2-source-lineage-v1.md/json`. The independent repeat reproduced every
+scientific descriptor in 1.06 seconds at 75.9 MiB peak sampled owned-tree RSS.
+
+The metadata-only cohort policy is frozen before fitting. All 35 three-of-seven
+assessment-date combinations were ranked by the prespecified group-count target
+and fixed SHA256 tie-break. Development has eight groups on four dates (64
+selected rows); reserved internal assessment has five groups on three dates
+(39 rows). Keep all included recordings and polarities from a date together.
+The complete 214-row ledger retains 111 source-unselected rows. Read
+`docs/evidence/l2-calibration-cohort-v1-freeze.md/json` and its candidate policy.
+An independent repeat and separate enumeration reproduced the assignment.
+Peer review found no concrete issues in either new runner.
+
+The reserved partition is **excluded from fitting, not unseen**: aggregation
+read every selected response and the authors used these data previously. Do
+not erase that exposure history or call this a new independent biological
+cohort. The cohort also inherits the author's manual ROI selection. The source
+audit is scoped static inspection, not full-history pipeline reproduction.
+No physiology fit, game training or gate change occurred.
+
+Next freeze the actual development-calibration protocol: target-free
+initialization, input/measurement timing, parameter bounds, normalization,
+equal-group objective and reserved-assessment criteria. Account explicitly for
+the approximately 561-ms feedback constant versus 500-ms gray interval and the
+author's effective 25-ms discrete pulse versus 20-ms nominal flash. Specify
+history/reset sensitivity before examining fit outcomes. Use the validated L2
+numerical core and frozen development membership; keep assessment excluded
+from parameter and method selection. Game learning is not justified yet.
+
+The earlier checklist below is retained as history. Source acquisition,
+selected-record reconciliation and high-luminance provenance are now complete.
+Low-luminance identity and physiological calibration remain unresolved work.
+
 1. The circuit, numerical core, protocol freeze and first assay are complete.
    Preserve those exact source bytes and original artifacts. Do not repeat the
    run merely to keep a process busy or change v1 until a failure justifies it.

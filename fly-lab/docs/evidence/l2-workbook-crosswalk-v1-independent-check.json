@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "status": "INDEPENDENT_METADATA_REPEAT_MATCH",
+  "crosswalk_sha256": "ea363d450fa2d3dc13c9582c0f98d20d3939429b7e2551e8a943efacf37393e8",
+  "script_sha256": "362077d4a51b53b4fa3c90ba65d07123d6c54c0a0e791e717af2674cb54bb620",
+  "repeat_path": "runtime/vision-reference/l2-workbook-crosswalk-root-check.json",
+  "repeat_sha256": "ee4f17e94cb41049b75145d71fd6c8c2c9ad7affb32f6cd353727a0aa34390e9",
+  "all_non_resource_fields_identical": true,
+  "selected_rows_supported": 103,
+  "selected_release_groups": 13,
+  "selected_release_groups_equal_source_untreated_list": true,
+  "matched_release_series_unique": 60,
+  "response_data_read": false,
+  "fitting_performed": false,
+  "gates_changed": false,
+  "resource_audit": {
+    "thread_limits": 2,
+    "owned_process_tree_peak_sampled_rss_bytes": 89440256,
+    "sampled_process_count": 2,
+    "wall_seconds": 2.0310000000008586,
+    "sample_interval_seconds": 0.05,
+    "memory_limit_bytes": 4294967296,
+    "time_limit_seconds": 2700,
+    "scope": "Spawned Python launcher and recursively discovered descendants only; sampled RSS is not an OS allocation ceiling."
+  }
+}

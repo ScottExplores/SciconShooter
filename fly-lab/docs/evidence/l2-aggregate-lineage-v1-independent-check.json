@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "status": "INDEPENDENT_REPEAT_AGREES",
+  "verified_utc": "2026-09-13T17:52:46.904813+00:00",
+  "original": {
+    "path": "docs/evidence/l2-aggregate-lineage-v1.json",
+    "sha256": "0b73f62e5883f4208f2cea1e1e5caa9c616227a8c4c53b1d2a83532c9bda3d5f"
+  },
+  "repeat": {
+    "path": "runtime/vision-reference/l2-aggregate-lineage-root-check.json",
+    "sha256": "c3f6d8ac0ab66877b272bd3bd252e9e4817eaeac8f5a6b86520063eacaf96ef5"
+  },
+  "comparison": "All fields equal except explicitly excluded run-specific metadata",
+  "excluded_fields": [
+    "comparison_completed_utc",
+    "comparison_started_utc",
+    "resource_audit"
+  ],
+  "repeat_resource_audit": {
+    "thread_environment_limits": {
+      "OMP_NUM_THREADS": 2,
+      "OPENBLAS_NUM_THREADS": 2,
+      "MKL_NUM_THREADS": 2,
+      "NUMEXPR_NUM_THREADS": 2,
+      "VECLIB_MAXIMUM_THREADS": 2,
+      "BLIS_NUM_THREADS": 2
+    },
+    "sampled_owned_process_tree_peak_rss_bytes": 79540224,
+    "sampled_process_count": 2,
+    "sample_count": 18,
+    "sample_interval_seconds": 0.05,
+    "wall_seconds": 1.0619999999998981,
+    "worker_exit_code": 0,
+    "guard_failure": null,
+    "memory_limit_bytes": 4294967296,
+    "time_limit_seconds": 2700,
+    "scope": "Spawned Python launcher and recursively discovered child processes; only this owned tree is killed on a guard failure.",
+    "limitation": "Sampled RSS threshold, not an OS allocation limit; transient unsampled peaks remain possible."
+  },
+  "gates_changed": false,
+  "additional_checks": [
+    "Both published targets compared without transformation",
+    "Bright-light response and timestamps exactly match",
+    "Dim-light mismatch preserved",
+    "All103 selected response rows were exposed for provenance; no fitting"
+  ]
+}

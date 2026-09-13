@@ -182,3 +182,39 @@ an explicit scope and exclusion rule, rather than guessed identities.
 
 See the [recording audit](evidence/l2-dryad-inventory-v2.md). No sight, learning,
 or gameplay improvement claim follows from this result.
+
+## September 13: the source labels now make sense
+
+The researchers left spreadsheet notes explaining that two flies were renamed
+to distinguish folders with the same date. Those notes, checked against the
+recording details, resolve all 23 questionable selected rows. All 103 selected
+measurement rows now have supported matches to the released records. We kept
+the original names and earlier discrepancy report so the correction is traceable.
+
+Averaging those recordings using the authors' method exactly matches the small
+bright-light dataset used by their model. The dim-light dataset does not match;
+we recorded that difference without guessing a fix. Independent checks reproduced
+both findings. This tells us which measurements we have, not whether our
+simulated fly sees correctly.
+
+We fixed the groups for the next model test: eight released fly groups for
+development and five for reserved assessment, keeping recordings from each
+date together. The reserved measurements will be excluded from tuning. They
+were already used in the source check, so this is an internal assessment,
+not a claim that nobody has seen the test data. We still need to lock the
+fitting rules, including how repeated flashes are handled, before tuning.
+
+**No match is training a fly yet.** Watch shows a real saved random-baseline
+match. Its anatomical positions come from MaleCNS; illustrative electric cues
+default off. Recorded neural activity is not connected to that anatomy view.
+Separate model telemetry shows measurements only when a neural worker supplies
+them. Those would be computer-model data, not recordings from a living fly.
+
+Hourly research continuation remains active while the computer and Codex are
+available. We will work through the checks and report an honest outcome,
+including a negative result if the model cannot learn the task. No controller
+changes or hardware purchases are needed now.
+
+Records: [label reconciliation](evidence/l2-workbook-crosswalk-v1.md),
+[average comparison](evidence/l2-aggregate-lineage-v1.md), and
+[reserved assessment assignment](evidence/l2-calibration-cohort-v1-freeze.md).

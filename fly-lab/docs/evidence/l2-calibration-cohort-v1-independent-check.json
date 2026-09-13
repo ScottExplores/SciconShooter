@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "status": "INDEPENDENT_REPEAT_AGREES",
+  "verified_utc": "2026-09-13T17:52:46.909815+00:00",
+  "original": {
+    "path": "docs/evidence/l2-calibration-cohort-v1-freeze.json",
+    "sha256": "c38943756248e3d10cdf0b78615ba712f892f3bc8bb2a758e60d3a14bc233785"
+  },
+  "repeat": {
+    "path": "runtime/vision-reference/l2-calibration-cohort-root-check.json",
+    "sha256": "bc371fffc490a949e3a478af92faf40f4cb3a3170591dee6e759a5faf9dfca16"
+  },
+  "comparison": "All fields equal except explicitly excluded run-specific metadata",
+  "excluded_fields": [
+    "assignment_computed_utc",
+    "resource_audit"
+  ],
+  "repeat_resource_audit": {
+    "thread_limits": 2,
+    "owned_process_tree_peak_sampled_rss_bytes": 28618752,
+    "sampled_process_count": 2,
+    "wall_seconds": 0.31300000000010186,
+    "sample_interval_seconds": 0.05,
+    "memory_limit_bytes": 4294967296,
+    "time_limit_seconds": 2700,
+    "limitation": "Only the owned launcher and descendants are sampled/terminated; sampled RSS is not an OS allocation limit."
+  },
+  "gates_changed": false,
+  "additional_checks": [
+    "Independently enumerated and ranked all35 combinations with prespecified date/group-only rule",
+    "214 original rows accounted for;103 selected rows unique",
+    "Assessment and development dates disjoint",
+    "Prior exposure disclosed; assignment does not establish unseen validation"
+  ]
+}

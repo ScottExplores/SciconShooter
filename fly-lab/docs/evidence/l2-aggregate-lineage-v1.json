@@ -1,0 +1,158 @@
+{
+  "schema_version": 1,
+  "status": "SOURCE_AGGREGATE_COMPARISON_COMPLETE",
+  "comparison_started_utc": "2026-09-13T17:46:34.844940+00:00",
+  "comparison_completed_utc": "2026-09-13T17:46:35.072954+00:00",
+  "freeze_path": "docs/evidence/l2-aggregate-lineage-v1-freeze.json",
+  "freeze_sha256": "ae82c3f01c889d02210ff83cf43e0547ce1342c65a5e25718734e9ca3a5da83b",
+  "protocol_sha256": "c2fc0ea67b9878ac32deb4f29e7545599d4921e26c7e8b31eeb877ef24f4d0e2",
+  "runner_sha256": "678e5d79cf1633908d792c41c46be0bd795cd98e7882d904fee48cdc0a33cb4e",
+  "source_identities": [
+    {
+      "path": "data/raw/vision-physiology/pang-2025/dryad-v3/L2_ASAP2f.mat",
+      "bytes": 117007438,
+      "sha256": "31e3942cee9025c152f96f929d30357ff14e6cf3b4f3c972f005c89524e946df"
+    },
+    {
+      "path": "data/raw/vision-physiology/pang-2025/computational-model__data__L2_highLum.mat",
+      "bytes": 1463,
+      "sha256": "1c9266f5c387a217013f8715a49f6351f78e9a9de9894a5ac2892b2a06cf6e36"
+    },
+    {
+      "path": "data/raw/vision-physiology/pang-2025/computational-model__data__L2_lowLum.mat",
+      "bytes": 1459,
+      "sha256": "49c0e5587618f9d11e0dea12a218b6eecd511e563d8d42ad986e9c410c6d012c"
+    },
+    {
+      "path": "data/raw/vision-physiology/pang-2025/imaging-analysis__HHY_stimulusSpecificAnalysisScripts__shortFlashProcessed_saveMean.m",
+      "bytes": 1768,
+      "sha256": "e5c9daf537b4a3f20c7708e3b1c6ccac66b37f3e1cba943a1ffa4c6c6c447cb7",
+      "role": "static mathematical aggregation reference; never executed"
+    }
+  ],
+  "source_hashes_verified_before_and_after": true,
+  "roi_rows_all": 214,
+  "roi_rows_selected": 103,
+  "selected_rows_unique": true,
+  "selected_order_int64_little_endian_sha256": "783b886bdec4725dbad0377d206556a17a6e0f7d3f7ddb4863498b915312012e",
+  "source_response_shape": [
+    103,
+    2,
+    63
+  ],
+  "source_response_elements_read": 12978,
+  "source_response_elements_finite": 12978,
+  "source_time_vectors_read": 206,
+  "source_time_grids_exactly_equal": true,
+  "aggregate_shape": [
+    2,
+    63
+  ],
+  "polarity_order": [
+    "dark",
+    "light"
+  ],
+  "comparisons": [
+    {
+      "label": "author_highLum",
+      "target_path": "data/raw/vision-physiology/pang-2025/computational-model__data__L2_highLum.mat",
+      "status": "MATCH",
+      "response_shape": [
+        2,
+        63
+      ],
+      "time_shape": [
+        1,
+        63
+      ],
+      "all_values_finite": true,
+      "response_matches": true,
+      "time_matches": true,
+      "maximum_absolute_response_difference": 0.0,
+      "mean_absolute_response_difference": 0.0,
+      "response_differences_by_polarity": [
+        {
+          "polarity": "dark",
+          "maximum_absolute_difference": 0.0,
+          "mean_absolute_difference": 0.0
+        },
+        {
+          "polarity": "light",
+          "maximum_absolute_difference": 0.0,
+          "mean_absolute_difference": 0.0
+        }
+      ],
+      "maximum_absolute_time_difference_seconds": 0.0,
+      "mean_absolute_time_difference_seconds": 0.0
+    },
+    {
+      "label": "author_lowLum",
+      "target_path": "data/raw/vision-physiology/pang-2025/computational-model__data__L2_lowLum.mat",
+      "status": "MISMATCH",
+      "response_shape": [
+        2,
+        63
+      ],
+      "time_shape": [
+        1,
+        63
+      ],
+      "all_values_finite": true,
+      "response_matches": false,
+      "time_matches": true,
+      "maximum_absolute_response_difference": 0.019440958492522788,
+      "mean_absolute_response_difference": 0.002038323481731584,
+      "response_differences_by_polarity": [
+        {
+          "polarity": "dark",
+          "maximum_absolute_difference": 0.0159922678303757,
+          "mean_absolute_difference": 0.0023150885255187287
+        },
+        {
+          "polarity": "light",
+          "maximum_absolute_difference": 0.019440958492522788,
+          "mean_absolute_difference": 0.001761558437944441
+        }
+      ],
+      "maximum_absolute_time_difference_seconds": 0.0,
+      "mean_absolute_time_difference_seconds": 0.0
+    }
+  ],
+  "fixed_tolerances": {
+    "maximum_absolute_response_difference": 1e-12,
+    "maximum_absolute_time_difference_seconds": 1e-12
+  },
+  "transformations_applied": [],
+  "fitting_performed": false,
+  "gates_changed": false,
+  "response_values_exported": false,
+  "data_exposure": "This check reads all source-selected response vectors to validate their aggregation. It is not a fit or biological holdout evaluation. Later assessment must disclose this source-validation exposure and prior published model/aggregate use of the data.",
+  "limitations": "Numerical agreement links processed data products under the declared averaging operation. It does not validate microscopy preprocessing, absolute illumination, voltage or release units, population representativeness, MaleCNS transfer, whole-CNS vision or gameplay learning. Dryad CC0 does not establish licensing for the separate GitHub aggregates.",
+  "runtime": {
+    "python": "3.12.14",
+    "numpy": "2.2.6",
+    "h5py": "3.16.0",
+    "scipy": "1.15.3"
+  },
+  "resource_audit": {
+    "thread_environment_limits": {
+      "OMP_NUM_THREADS": 2,
+      "OPENBLAS_NUM_THREADS": 2,
+      "MKL_NUM_THREADS": 2,
+      "NUMEXPR_NUM_THREADS": 2,
+      "VECLIB_MAXIMUM_THREADS": 2,
+      "BLIS_NUM_THREADS": 2
+    },
+    "sampled_owned_process_tree_peak_rss_bytes": 81649664,
+    "sampled_process_count": 2,
+    "sample_count": 35,
+    "sample_interval_seconds": 0.05,
+    "wall_seconds": 2.1719999999986612,
+    "worker_exit_code": 0,
+    "guard_failure": null,
+    "memory_limit_bytes": 4294967296,
+    "time_limit_seconds": 2700,
+    "scope": "Spawned Python launcher and recursively discovered child processes; only this owned tree is killed on a guard failure.",
+    "limitation": "Sampled RSS threshold, not an OS allocation limit; transient unsampled peaks remain possible."
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "id": "l2-aggregate-lineage-v1",
+  "scope": "SOURCE_AGGREGATE_PROVENANCE_CHECK_ONLY",
+  "fitting_allowed": false,
+  "gates_may_change": false,
+  "source_mat": {
+    "path": "data/raw/vision-physiology/pang-2025/dryad-v3/L2_ASAP2f.mat",
+    "sha256": "31e3942cee9025c152f96f929d30357ff14e6cf3b4f3c972f005c89524e946df"
+  },
+  "comparisons": [
+    {
+      "label": "author_highLum",
+      "path": "data/raw/vision-physiology/pang-2025/computational-model__data__L2_highLum.mat",
+      "sha256": "1c9266f5c387a217013f8715a49f6351f78e9a9de9894a5ac2892b2a06cf6e36"
+    },
+    {
+      "label": "author_lowLum",
+      "path": "data/raw/vision-physiology/pang-2025/computational-model__data__L2_lowLum.mat",
+      "sha256": "49c0e5587618f9d11e0dea12a218b6eecd511e563d8d42ad986e9c410c6d012c"
+    }
+  ],
+  "expected_matlab_roi_rows": 214,
+  "expected_source_selected_rows": 103,
+  "selection": "Use original one-based iResp in its stored order; experimental column 2 only. No additional selection or exclusion based on response values.",
+  "polarity_order": ["dark", "light"],
+  "expected_samples_per_polarity": 63,
+  "aggregation": "Equal-weight arithmetic mean of the 103 selected ROI response vectors independently for each original polarity; mirrors the mathematical operation in pinned shortFlashProcessed_saveMean.m, without executing author code.",
+  "comparison": "Compare original unnormalized raw fluorescence means and original time vector, with no sign inversion, rescaling, smoothing, shifts, fitting, row permutation or parameter search.",
+  "maximum_absolute_response_difference_for_match": 1e-12,
+  "maximum_absolute_time_difference_seconds_for_match": 1e-12,
+  "hypothesis": "Test whether the unmodified source-selected mean reproduces the deposited highLum aggregate; also report the separately named lowLum comparison without selecting a preferred transform or using it as biological validation.",
+  "failure_policy": "Preserve mismatches and invalid inputs; do not adjust selection, tolerance or transformation to force agreement.",
+  "exports": "Hashes, membership counts, dimensions, finite checks, maximum/mean absolute differences, comparison status and resource records. Do not export individual response values or aggregate response arrays in tracked artifacts.",
+  "data_exposure": "This check reads all source-selected response vectors to validate their aggregation. It is not a fit or biological holdout evaluation. Later assessment must disclose this source-validation exposure and prior published model/aggregate use of the data.",
+  "resources": {"numerical_threads": 2, "maximum_sampled_owned_process_tree_rss_bytes": 4294967296, "maximum_wall_seconds": 2700},
+  "limitations": "Numerical agreement links processed data products under the declared averaging operation. It does not validate microscopy preprocessing, absolute illumination, voltage or release units, population representativeness, MaleCNS transfer, whole-CNS vision or gameplay learning. Dryad CC0 does not establish licensing for the separate GitHub aggregates."
+}

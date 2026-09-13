@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "id": "l2-calibration-cohort-v1",
+  "scope": "MEMBERSHIP_AND_INTERNAL_ASSESSMENT_ASSIGNMENT_ONLY",
+  "policy_declared_utc": "2026-09-13T17:46:49Z",
+  "policy_origin": "Root agent prespecified the following deterministic policy before this assignment was computed; no search over seeds, rerolls, response scores or ROI-balance objectives is allowed.",
+  "source_mat": {
+    "path": "data/raw/vision-physiology/pang-2025/dryad-v3/L2_ASAP2f.mat",
+    "sha256": "31e3942cee9025c152f96f929d30357ff14e6cf3b4f3c972f005c89524e946df"
+  },
+  "inventory": {
+    "path": "docs/evidence/l2-dryad-inventory-v2.json",
+    "sha256": "75aafb739b5db408914b2f809a81b1eaf2b949ddb274e910ae9c44e01ba80177"
+  },
+  "crosswalk": {
+    "path": "docs/evidence/l2-workbook-crosswalk-v1.json",
+    "sha256": "ea363d450fa2d3dc13c9582c0f98d20d3939429b7e2551e8a943efacf37393e8"
+  },
+  "expected_original_roi_rows": 214,
+  "expected_original_selected_roi_rows": 103,
+  "expected_source_unselected_rows": 111,
+  "expected_selected_release_groups": 13,
+  "expected_selected_recording_dates": 7,
+  "membership": "Use every original iResp row in its stored order, via the hash-bound inventory. Retain all 214 original rows in a ledger. The 111 source-unselected rows remain source-unselected; no additional discretionary exclusions are allowed. Unresolved 170622 records have zero selected rows and remain explicit.",
+  "grouping": "Both polarities, every ROI row and both search/experimental recordings belonging to a release-prefix group must remain together. All groups from the same YYMMDD recording date must remain in the same partition; dates must be disjoint between development and assessment.",
+  "assignment": {
+    "enumerate_assessment_date_count": 3,
+    "remaining_development_date_count": 4,
+    "target_assessment_release_group_count": 5,
+    "target_development_release_group_count": 8,
+    "ranking": [
+      "Ascending absolute difference between assessment release-group count and 5",
+      "Ascending SHA256 hexadecimal digest of UTF-8 bytes of the exact prefix followed by comma-joined sorted YYMMDD assessment dates",
+      "Ascending lexicographic tuple of sorted assessment dates as final tie-break"
+    ],
+    "sha256_prefix": "scicon-l2-internal-assessment-v1|",
+    "ranked_candidates_to_retain": "All 35 three-of-seven date subsets in the complete ranked order",
+    "balance_unit": "RELEASE_GROUPS_ONLY",
+    "forbidden_ranking_inputs": ["ROI counts", "response values", "fit error", "outcome measures"],
+    "reroll_allowed": false
+  },
+  "assessment_label": "reserved internal assessment, excluded from fitting",
+  "prior_exposure": "This is not untouched or unseen data. The aggregate-provenance check reads all source-selected response vectors, and the source author's model, aggregate construction and ROI-selection procedure already involved these data. The new separation reserves responses from future fitting, conditional on those disclosed prior uses.",
+  "not_frozen_here": ["physiological parameter bounds", "observation operator", "fitting objective", "assessment success criteria", "strong biological validation gate"],
+  "response_values_may_be_read": false,
+  "fitting_allowed": false,
+  "training_allowed": false,
+  "validation_gates_may_change": false,
+  "resources": {"numerical_threads": 2, "maximum_sampled_owned_process_tree_rss_bytes": 4294967296, "maximum_wall_seconds": 2700}
+}

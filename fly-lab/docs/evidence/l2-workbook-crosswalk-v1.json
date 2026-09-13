@@ -1,0 +1,6599 @@
+{
+  "schema_version": 1,
+  "status": "AUTHOR_METADATA_CROSSWALK_AUDIT_ONLY",
+  "source_doi": "10.5061/dryad.ngf1vhj4c",
+  "source_identities": [
+    {
+      "name": "L2_ASAP2f.mat",
+      "bytes": 117007438,
+      "sha256": "31e3942cee9025c152f96f929d30357ff14e6cf3b4f3c972f005c89524e946df"
+    },
+    {
+      "name": "L1L2_Metadata.xlsx",
+      "bytes": 195431,
+      "sha256": "0c6c428b1a297fb7c63b24a6f1a6e60516320ca6bde550614639d865dcdcfcea"
+    },
+    {
+      "name": "README.md",
+      "bytes": 15130,
+      "sha256": "fbedd08a47ba0927cf416c1a8d73bdd889e5779c309f79f94970b02c1f7f87e7"
+    }
+  ],
+  "script_sha256": "362077d4a51b53b4fa3c90ba65d07123d6c54c0a0e791e717af2674cb54bb620",
+  "runtime": {
+    "python": "3.12.14",
+    "h5py": "3.16.0",
+    "numpy": "2.2.6"
+  },
+  "sheet_inventory": [
+    {
+      "name": "List of flies",
+      "xml_member": "xl/worksheets/sheet1.xml",
+      "row_count": 148,
+      "170607_rows": 5
+    },
+    {
+      "name": "All Metadata",
+      "xml_member": "xl/worksheets/sheet2.xml",
+      "row_count": 990,
+      "170607_rows": 30
+    },
+    {
+      "name": "Figs1,3,5 (L1L2 \u00b1CDM)",
+      "xml_member": "xl/worksheets/sheet3.xml",
+      "row_count": 386,
+      "170607_rows": 12
+    },
+    {
+      "name": "Fig2bc (ort silencing)",
+      "xml_member": "xl/worksheets/sheet4.xml",
+      "row_count": 215,
+      "170607_rows": 0
+    },
+    {
+      "name": "Fig2ef,S1h (ort rescue)",
+      "xml_member": "xl/worksheets/sheet5.xml",
+      "row_count": 147,
+      "170607_rows": 0
+    },
+    {
+      "name": "Fig6 (NatStim)",
+      "xml_member": "xl/worksheets/sheet6.xml",
+      "row_count": 75,
+      "170607_rows": 0
+    },
+    {
+      "name": "FigS1a-f (L1L2 TNT)",
+      "xml_member": "xl/worksheets/sheet7.xml",
+      "row_count": 211,
+      "170607_rows": 18
+    }
+  ],
+  "explicit_author_rename_notes": [
+    {
+      "sheet": "All Metadata",
+      "row": 297,
+      "series_cell": "A297",
+      "data": {
+        "Time Series ID": "170607_fly4_LDM",
+        "Fly ID": "404",
+        "Fly Genotype": "21Dhh-ASAP2f",
+        "Age": "4.5",
+        "Sex": "F",
+        "Stimulus": "300ms_searchStimFlash",
+        "Frames (imaging)": "5000",
+        "Rotation": "20",
+        "Z-depth": "11691.81",
+        "Layer": "2",
+        "Imaging Frame Rate (Hz)": "80",
+        "Wavelength": "920",
+        "Transmission (%)": "7",
+        "Gain": "82",
+        "Offset": "72",
+        "Color Filter": "482/18",
+        "ND": "1.3",
+        "PWM": "200",
+        "Dither Hold": "1",
+        "isMoving?": "0",
+        "isResponding?": "1",
+        "comments": "NOTE: MANUALLY RENAMED FLY1 TO DISTINGUISH FROM OTHER 170607 FOLDER"
+      },
+      "comment_cell": "V297",
+      "old_prefix_in_author_comment": "170607_fly1",
+      "release_prefix": "170607_fly4",
+      "exact_comment": "NOTE: MANUALLY RENAMED FLY1 TO DISTINGUISH FROM OTHER 170607 FOLDER"
+    },
+    {
+      "sheet": "All Metadata",
+      "row": 305,
+      "series_cell": "A305",
+      "data": {
+        "Time Series ID": "170607_fly5_LDM_008",
+        "Fly ID": "405",
+        "Fly Genotype": "21Dhh-ASAP2f",
+        "Age": "4.5",
+        "Sex": "F",
+        "Stimulus": "300ms_searchStimFlash",
+        "Frames (imaging)": "5000",
+        "Rotation": "20",
+        "Z-depth": "11755.36",
+        "Layer": "2",
+        "Imaging Frame Rate (Hz)": "80",
+        "Wavelength": "920",
+        "Transmission (%)": "5",
+        "Gain": "95",
+        "Offset": "72",
+        "Color Filter": "482/18",
+        "ND": "1.3",
+        "PWM": "200",
+        "Dither Hold": "1",
+        "isMoving?": "0",
+        "isResponding?": "1",
+        "comments": "NOTE: MANUALLY RENAMED FLY2 TO DISTINGUISH FROM OTHER 170607 FOLDER"
+      },
+      "comment_cell": "V305",
+      "old_prefix_in_author_comment": "170607_fly2",
+      "release_prefix": "170607_fly5",
+      "exact_comment": "NOTE: MANUALLY RENAMED FLY2 TO DISTINGUISH FROM OTHER 170607 FOLDER"
+    },
+    {
+      "sheet": "All Metadata",
+      "row": 551,
+      "series_cell": "A551",
+      "data": {
+        "Time Series ID": "170628_fly10_LDM",
+        "Fly ID": "431",
+        "Fly Genotype": "21Dhh-ASAP2f_ortC1-3lexA",
+        "Age": "7",
+        "Sex": "F",
+        "Stimulus": "300ms_searchStimFlash",
+        "Frames (imaging)": "5000",
+        "Rotation": "30",
+        "Z-depth": "11695.58",
+        "Layer": "2",
+        "Imaging Frame Rate (Hz)": "80",
+        "Wavelength": "920",
+        "Transmission (%)": "6",
+        "Gain": "100",
+        "Offset": "72",
+        "Color Filter": "482/18",
+        "ND": "1.3",
+        "PWM": "200",
+        "Dither Hold": "1",
+        "isMoving?": "0",
+        "isResponding?": "1",
+        "comments": "NOTE: MANUALLY RENAMED FLY1 TO DISTINGUISH FROM OTHER 170628 FOLDER"
+      },
+      "comment_cell": "V551",
+      "old_prefix_in_author_comment": "170628_fly1",
+      "release_prefix": "170628_fly10",
+      "exact_comment": "NOTE: MANUALLY RENAMED FLY1 TO DISTINGUISH FROM OTHER 170628 FOLDER"
+    },
+    {
+      "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+      "row": 111,
+      "series_cell": "A111",
+      "data": {
+        "Time Series ID": "170607_fly4_LDM",
+        "Fly ID": "404",
+        "Fly Genotype": "21Dhh-ASAP2f",
+        "Age": "4.5",
+        "Sex": "F",
+        "Stimulus": "300ms_searchStimFlash",
+        "Frames (imaging)": "5000",
+        "Rotation": "20",
+        "Z-depth": "11691.81",
+        "Layer": "2",
+        "Imaging Frame Rate (Hz)": "80",
+        "Wavelength": "920",
+        "Transmission (%)": "7",
+        "Gain": "82",
+        "Offset": "72",
+        "Color Filter": "482/18",
+        "ND": "1.3",
+        "PWM": "200",
+        "Dither Hold": "1",
+        "isMoving?": "0",
+        "isResponding?": "1",
+        "comments": "NOTE: MANUALLY RENAMED FLY1 TO DISTINGUISH FROM OTHER 170607 FOLDER"
+      },
+      "comment_cell": "V111",
+      "old_prefix_in_author_comment": "170607_fly1",
+      "release_prefix": "170607_fly4",
+      "exact_comment": "NOTE: MANUALLY RENAMED FLY1 TO DISTINGUISH FROM OTHER 170607 FOLDER"
+    },
+    {
+      "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+      "row": 120,
+      "series_cell": "A120",
+      "data": {
+        "Time Series ID": "170607_fly5_LDM_008",
+        "Fly ID": "405",
+        "Fly Genotype": "21Dhh-ASAP2f",
+        "Age": "4.5",
+        "Sex": "F",
+        "Stimulus": "300ms_searchStimFlash",
+        "Frames (imaging)": "5000",
+        "Rotation": "20",
+        "Z-depth": "11755.36",
+        "Layer": "2",
+        "Imaging Frame Rate (Hz)": "80",
+        "Wavelength": "920",
+        "Transmission (%)": "5",
+        "Gain": "95",
+        "Offset": "72",
+        "Color Filter": "482/18",
+        "ND": "1.3",
+        "PWM": "200",
+        "Dither Hold": "1",
+        "isMoving?": "0",
+        "isResponding?": "1",
+        "comments": "NOTE: MANUALLY RENAMED FLY2 TO DISTINGUISH FROM OTHER 170607 FOLDER"
+      },
+      "comment_cell": "V120",
+      "old_prefix_in_author_comment": "170607_fly2",
+      "release_prefix": "170607_fly5",
+      "exact_comment": "NOTE: MANUALLY RENAMED FLY2 TO DISTINGUISH FROM OTHER 170607 FOLDER"
+    }
+  ],
+  "renames_extracted_from_explicit_comments": {
+    "170607_fly1": "170607_fly4",
+    "170607_fly2": "170607_fly5",
+    "170628_fly1": "170628_fly10"
+  },
+  "170607_list_of_flies_memberships": [
+    {
+      "fly_label": "170607_fly4",
+      "figure_section": "Figs 1, 3, 5 (L1/L2 \u00b1CDM)",
+      "condition": "L2>>ASAP2f (21Dhh-ASAP2f)",
+      "cell": "B6",
+      "sheet": "List of flies"
+    },
+    {
+      "fly_label": "170607_fly5",
+      "figure_section": "Figs 1, 3, 5 (L1/L2 \u00b1CDM)",
+      "condition": "L2>>ASAP2f (21Dhh-ASAP2f)",
+      "cell": "B7",
+      "sheet": "List of flies"
+    },
+    {
+      "fly_label": "170607_fly1",
+      "figure_section": "Fig S1A-F (L1/L2 TNT)",
+      "condition": "L2>>ASAP2f, TNT (GMR16H03-lexA_lexAop-ASAP2f_lexAop-TNT)",
+      "cell": "B138",
+      "sheet": "List of flies"
+    },
+    {
+      "fly_label": "170607_fly3",
+      "figure_section": "Fig S1A-F (L1/L2 TNT)",
+      "condition": "L2>>ASAP2f, TNT (GMR16H03-lexA_lexAop-ASAP2f_lexAop-TNT)",
+      "cell": "B139",
+      "sheet": "List of flies"
+    },
+    {
+      "fly_label": "170607_fly2",
+      "figure_section": "Fig S1A-F (L1/L2 TNT)",
+      "condition": "L2>>ASAP2f, lexA control (GMR16H03-lexA_lexAop-ASAP2f)",
+      "cell": "B147",
+      "sheet": "List of flies"
+    }
+  ],
+  "untreated_l2_list_memberships": [
+    {
+      "fly_label": "170519_fly1",
+      "figure_section": "Figs 1, 3, 5 (L1/L2 \u00b1CDM)",
+      "condition": "L2>>ASAP2f (21Dhh-ASAP2f)",
+      "cell": "B2",
+      "sheet": "List of flies"
+    },
+    {
+      "fly_label": "170524_fly1",
+      "figure_section": "Figs 1, 3, 5 (L1/L2 \u00b1CDM)",
+      "condition": "L2>>ASAP2f (21Dhh-ASAP2f)",
+      "cell": "B3",
+      "sheet": "List of flies"
+    },
+    {
+      "fly_label": "170524_fly2",
+      "figure_section": "Figs 1, 3, 5 (L1/L2 \u00b1CDM)",
+      "condition": "L2>>ASAP2f (21Dhh-ASAP2f)",
+      "cell": "B4",
+      "sheet": "List of flies"
+    },
+    {
+      "fly_label": "170606_fly4",
+      "figure_section": "Figs 1, 3, 5 (L1/L2 \u00b1CDM)",
+      "condition": "L2>>ASAP2f (21Dhh-ASAP2f)",
+      "cell": "B5",
+      "sheet": "List of flies"
+    },
+    {
+      "fly_label": "170607_fly4",
+      "figure_section": "Figs 1, 3, 5 (L1/L2 \u00b1CDM)",
+      "condition": "L2>>ASAP2f (21Dhh-ASAP2f)",
+      "cell": "B6",
+      "sheet": "List of flies"
+    },
+    {
+      "fly_label": "170607_fly5",
+      "figure_section": "Figs 1, 3, 5 (L1/L2 \u00b1CDM)",
+      "condition": "L2>>ASAP2f (21Dhh-ASAP2f)",
+      "cell": "B7",
+      "sheet": "List of flies"
+    },
+    {
+      "fly_label": "170609_fly4",
+      "figure_section": "Figs 1, 3, 5 (L1/L2 \u00b1CDM)",
+      "condition": "L2>>ASAP2f (21Dhh-ASAP2f)",
+      "cell": "B8",
+      "sheet": "List of flies"
+    },
+    {
+      "fly_label": "170611_fly3",
+      "figure_section": "Figs 1, 3, 5 (L1/L2 \u00b1CDM)",
+      "condition": "L2>>ASAP2f (21Dhh-ASAP2f)",
+      "cell": "B9",
+      "sheet": "List of flies"
+    },
+    {
+      "fly_label": "170611_fly4",
+      "figure_section": "Figs 1, 3, 5 (L1/L2 \u00b1CDM)",
+      "condition": "L2>>ASAP2f (21Dhh-ASAP2f)",
+      "cell": "B10",
+      "sheet": "List of flies"
+    },
+    {
+      "fly_label": "170611_fly5",
+      "figure_section": "Figs 1, 3, 5 (L1/L2 \u00b1CDM)",
+      "condition": "L2>>ASAP2f (21Dhh-ASAP2f)",
+      "cell": "B11",
+      "sheet": "List of flies"
+    },
+    {
+      "fly_label": "170611_fly7",
+      "figure_section": "Figs 1, 3, 5 (L1/L2 \u00b1CDM)",
+      "condition": "L2>>ASAP2f (21Dhh-ASAP2f)",
+      "cell": "B12",
+      "sheet": "List of flies"
+    },
+    {
+      "fly_label": "170625_fly1",
+      "figure_section": "Figs 1, 3, 5 (L1/L2 \u00b1CDM)",
+      "condition": "L2>>ASAP2f (21Dhh-ASAP2f)",
+      "cell": "B13",
+      "sheet": "List of flies"
+    },
+    {
+      "fly_label": "170625_fly2",
+      "figure_section": "Figs 1, 3, 5 (L1/L2 \u00b1CDM)",
+      "condition": "L2>>ASAP2f (21Dhh-ASAP2f)",
+      "cell": "B14",
+      "sheet": "List of flies"
+    }
+  ],
+  "metadata_allowlist_dereferenced": [
+    "seriesID",
+    "flyID",
+    "genotype",
+    "stimcode",
+    "nFrames",
+    "zdepth",
+    "wavelength",
+    "ditherHold"
+  ],
+  "selection_index_read": "iResp",
+  "available_mat_struct_fields": [
+    "BIN_SHIFT",
+    "avSignal",
+    "dFF",
+    "dSignal",
+    "ditherHold",
+    "fSignal",
+    "fileloc",
+    "flyID",
+    "genotype",
+    "imFrameStartTimes",
+    "imIFI",
+    "nFrames",
+    "pStimDat",
+    "rats",
+    "roiMask",
+    "seriesID",
+    "stdErr",
+    "stdErrs",
+    "stimDat",
+    "stimcode",
+    "t",
+    "wavelength",
+    "zdepth"
+  ],
+  "laser_comparison_limit": "Only wavelength and ditherHold are available as directly comparable MAT metadata. Workbook transmission, detector gain/offset, rotation, layer and PWM are retained but are not independently checked against the MAT.",
+  "series_assessments": [
+    {
+      "mat_series_id": "170519_fly1_LDM",
+      "release_series_id_for_explicit_note_check": "170519_fly1_LDM",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170519_fly1_LDM",
+        "flyID": 79.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "300ms_searchStimFlash",
+        "nFrames": 5000.0,
+        "zdepth": 11851.29,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 1,
+      "all_roi_rows": 7,
+      "selected_matlab_roi_rows": [
+        113,
+        114,
+        115,
+        116
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 218,
+        "series_cell": "A218",
+        "data": {
+          "Time Series ID": "170519_fly1_LDM",
+          "Fly ID": "379",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "5.5",
+          "Sex": "F",
+          "Stimulus": "300ms_searchStimFlash",
+          "Frames (imaging)": "5000",
+          "Rotation": "25",
+          "Z-depth": "11851.29",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "7",
+          "Gain": "95",
+          "Offset": "72",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "isResponding?": "1",
+          "comments": ""
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "300ms_searchStimFlash",
+          "workbook": "300ms_searchStimFlash",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 5000.0,
+          "workbook": "5000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11851.29,
+          "workbook": "11851.29",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 73,
+          "differing_columns": {
+            "comments": {
+              "all_metadata": "",
+              "figure_sheet": null
+            }
+          }
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170519_fly1_LDM_003",
+      "release_series_id_for_explicit_note_check": "170519_fly1_LDM_003",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170519_fly1_LDM_003",
+        "flyID": 79.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "fullfield_LDflash20ms_Gray500ms",
+        "nFrames": 10000.0,
+        "zdepth": 11851.29,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 2,
+      "all_roi_rows": 7,
+      "selected_matlab_roi_rows": [
+        113,
+        114,
+        115,
+        116
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 221,
+        "series_cell": "A221",
+        "data": {
+          "Time Series ID": "170519_fly1_LDM_003",
+          "Fly ID": "379",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "5.5",
+          "Sex": "F",
+          "Stimulus": "fullfield_LDflash20ms_Gray500ms",
+          "Frames (imaging)": "10000",
+          "Rotation": "22",
+          "Z-depth": "11851.29",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "9",
+          "Gain": "100",
+          "Offset": "72",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "isResponding?": "1",
+          "comments": ""
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "fullfield_LDflash20ms_Gray500ms",
+          "workbook": "fullfield_LDflash20ms_Gray500ms",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 10000.0,
+          "workbook": "10000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11851.29,
+          "workbook": "11851.29",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 76,
+          "differing_columns": {
+            "comments": {
+              "all_metadata": "",
+              "figure_sheet": null
+            }
+          }
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170519_fly1_LDM_004",
+      "release_series_id_for_explicit_note_check": "170519_fly1_LDM_004",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170519_fly1_LDM_004",
+        "flyID": 79.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "300ms_searchStimFlash",
+        "nFrames": 5000.0,
+        "zdepth": 11845.14,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 1,
+      "all_roi_rows": 7,
+      "selected_matlab_roi_rows": [],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 222,
+        "series_cell": "A222",
+        "data": {
+          "Time Series ID": "170519_fly1_LDM_004",
+          "Fly ID": "379",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "5.5",
+          "Sex": "F",
+          "Stimulus": "300ms_searchStimFlash",
+          "Frames (imaging)": "5000",
+          "Rotation": "23",
+          "Z-depth": "11845.14",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "6",
+          "Gain": "95",
+          "Offset": "72",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "isResponding?": "1",
+          "comments": ""
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "300ms_searchStimFlash",
+          "workbook": "300ms_searchStimFlash",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 5000.0,
+          "workbook": "5000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11845.14,
+          "workbook": "11845.14",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 77,
+          "differing_columns": {
+            "comments": {
+              "all_metadata": "",
+              "figure_sheet": null
+            }
+          }
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170519_fly1_LDM_007",
+      "release_series_id_for_explicit_note_check": "170519_fly1_LDM_007",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170519_fly1_LDM_007",
+        "flyID": 79.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "fullfield_LDflash20ms_Gray500ms",
+        "nFrames": 10000.0,
+        "zdepth": 11845.14,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 2,
+      "all_roi_rows": 7,
+      "selected_matlab_roi_rows": [],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 225,
+        "series_cell": "A225",
+        "data": {
+          "Time Series ID": "170519_fly1_LDM_007",
+          "Fly ID": "379",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "5.5",
+          "Sex": "F",
+          "Stimulus": "fullfield_LDflash20ms_Gray500ms",
+          "Frames (imaging)": "10000",
+          "Rotation": "23",
+          "Z-depth": "11845.14",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "9",
+          "Gain": "95",
+          "Offset": "72",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "isResponding?": "1",
+          "comments": ""
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "fullfield_LDflash20ms_Gray500ms",
+          "workbook": "fullfield_LDflash20ms_Gray500ms",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 10000.0,
+          "workbook": "10000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11845.14,
+          "workbook": "11845.14",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 80,
+          "differing_columns": {
+            "comments": {
+              "all_metadata": "",
+              "figure_sheet": null
+            }
+          }
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170524_fly1_LDM",
+      "release_series_id_for_explicit_note_check": "170524_fly1_LDM",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170524_fly1_LDM",
+        "flyID": 86.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "300ms_searchStimFlash",
+        "nFrames": 5000.0,
+        "zdepth": 11843.6,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 1,
+      "all_roi_rows": 7,
+      "selected_matlab_roi_rows": [
+        126,
+        127,
+        128,
+        129,
+        130
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 226,
+        "series_cell": "A226",
+        "data": {
+          "Time Series ID": "170524_fly1_LDM",
+          "Fly ID": "386",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "5",
+          "Sex": "F",
+          "Stimulus": "300ms_searchStimFlash",
+          "Frames (imaging)": "5000",
+          "Rotation": "27",
+          "Z-depth": "11843.6",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "5",
+          "Gain": "95",
+          "Offset": "73",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "isResponding?": "1",
+          "comments": ""
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "300ms_searchStimFlash",
+          "workbook": "300ms_searchStimFlash",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 5000.0,
+          "workbook": "5000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11843.6,
+          "workbook": "11843.6",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 82,
+          "differing_columns": {
+            "comments": {
+              "all_metadata": "",
+              "figure_sheet": null
+            }
+          }
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170524_fly1_LDM_003",
+      "release_series_id_for_explicit_note_check": "170524_fly1_LDM_003",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170524_fly1_LDM_003",
+        "flyID": 86.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "fullfield_LDflash20ms_Gray500ms",
+        "nFrames": 10000.0,
+        "zdepth": 11843.6,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 2,
+      "all_roi_rows": 7,
+      "selected_matlab_roi_rows": [
+        126,
+        127,
+        128,
+        129,
+        130
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 229,
+        "series_cell": "A229",
+        "data": {
+          "Time Series ID": "170524_fly1_LDM_003",
+          "Fly ID": "386",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "5",
+          "Sex": "F",
+          "Stimulus": "fullfield_LDflash20ms_Gray500ms",
+          "Frames (imaging)": "10000",
+          "Rotation": "27",
+          "Z-depth": "11843.6",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "7",
+          "Gain": "100",
+          "Offset": "73",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "isResponding?": "1",
+          "comments": ""
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "fullfield_LDflash20ms_Gray500ms",
+          "workbook": "fullfield_LDflash20ms_Gray500ms",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 10000.0,
+          "workbook": "10000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11843.6,
+          "workbook": "11843.6",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 85,
+          "differing_columns": {
+            "comments": {
+              "all_metadata": "",
+              "figure_sheet": null
+            }
+          }
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170524_fly1_LDM_004",
+      "release_series_id_for_explicit_note_check": "170524_fly1_LDM_004",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170524_fly1_LDM_004",
+        "flyID": 86.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "300ms_searchStimFlash",
+        "nFrames": 5000.0,
+        "zdepth": 11847.48,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 1,
+      "all_roi_rows": 6,
+      "selected_matlab_roi_rows": [],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 230,
+        "series_cell": "A230",
+        "data": {
+          "Time Series ID": "170524_fly1_LDM_004",
+          "Fly ID": "386",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "5",
+          "Sex": "F",
+          "Stimulus": "300ms_searchStimFlash",
+          "Frames (imaging)": "5000",
+          "Rotation": "25",
+          "Z-depth": "11847.48",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "9",
+          "Gain": "100",
+          "Offset": "73",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "isResponding?": "1",
+          "comments": ""
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "300ms_searchStimFlash",
+          "workbook": "300ms_searchStimFlash",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 5000.0,
+          "workbook": "5000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11847.48,
+          "workbook": "11847.48",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 86,
+          "differing_columns": {
+            "comments": {
+              "all_metadata": "",
+              "figure_sheet": null
+            }
+          }
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170524_fly1_LDM_007",
+      "release_series_id_for_explicit_note_check": "170524_fly1_LDM_007",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170524_fly1_LDM_007",
+        "flyID": 86.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "fullfield_LDflash20ms_Gray500ms",
+        "nFrames": 10000.0,
+        "zdepth": 11847.48,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 2,
+      "all_roi_rows": 6,
+      "selected_matlab_roi_rows": [],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 233,
+        "series_cell": "A233",
+        "data": {
+          "Time Series ID": "170524_fly1_LDM_007",
+          "Fly ID": "386",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "5",
+          "Sex": "F",
+          "Stimulus": "fullfield_LDflash20ms_Gray500ms",
+          "Frames (imaging)": "10000",
+          "Rotation": "25",
+          "Z-depth": "11847.48",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "15",
+          "Gain": "100",
+          "Offset": "73",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "isResponding?": "1",
+          "comments": ""
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "fullfield_LDflash20ms_Gray500ms",
+          "workbook": "fullfield_LDflash20ms_Gray500ms",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 10000.0,
+          "workbook": "10000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11847.48,
+          "workbook": "11847.48",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 89,
+          "differing_columns": {
+            "comments": {
+              "all_metadata": "",
+              "figure_sheet": null
+            }
+          }
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170524_fly1_LDM_008",
+      "release_series_id_for_explicit_note_check": "170524_fly1_LDM_008",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170524_fly1_LDM_008",
+        "flyID": 86.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "300ms_searchStimFlash",
+        "nFrames": 5000.0,
+        "zdepth": 11837.5,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 1,
+      "all_roi_rows": 2,
+      "selected_matlab_roi_rows": [
+        138
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 234,
+        "series_cell": "A234",
+        "data": {
+          "Time Series ID": "170524_fly1_LDM_008",
+          "Fly ID": "386",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "5",
+          "Sex": "F",
+          "Stimulus": "300ms_searchStimFlash",
+          "Frames (imaging)": "5000",
+          "Rotation": "27",
+          "Z-depth": "11837.5",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "13",
+          "Gain": "100",
+          "Offset": "73",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "isResponding?": "1",
+          "comments": ""
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "300ms_searchStimFlash",
+          "workbook": "300ms_searchStimFlash",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 5000.0,
+          "workbook": "5000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11837.5,
+          "workbook": "11837.5",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 90,
+          "differing_columns": {
+            "comments": {
+              "all_metadata": "",
+              "figure_sheet": null
+            }
+          }
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170524_fly1_LDM_011",
+      "release_series_id_for_explicit_note_check": "170524_fly1_LDM_011",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170524_fly1_LDM_011",
+        "flyID": 86.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "fullfield_LDflash20ms_Gray500ms",
+        "nFrames": 10000.0,
+        "zdepth": 11837.5,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 2,
+      "all_roi_rows": 2,
+      "selected_matlab_roi_rows": [
+        138
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 237,
+        "series_cell": "A237",
+        "data": {
+          "Time Series ID": "170524_fly1_LDM_011",
+          "Fly ID": "386",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "5",
+          "Sex": "F",
+          "Stimulus": "fullfield_LDflash20ms_Gray500ms",
+          "Frames (imaging)": "10000",
+          "Rotation": "27",
+          "Z-depth": "11837.5",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "15",
+          "Gain": "100",
+          "Offset": "73",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "isResponding?": "1",
+          "comments": ""
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "fullfield_LDflash20ms_Gray500ms",
+          "workbook": "fullfield_LDflash20ms_Gray500ms",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 10000.0,
+          "workbook": "10000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11837.5,
+          "workbook": "11837.5",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 93,
+          "differing_columns": {
+            "comments": {
+              "all_metadata": "",
+              "figure_sheet": null
+            }
+          }
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170524_fly2_LDM_012",
+      "release_series_id_for_explicit_note_check": "170524_fly2_LDM_012",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170524_fly2_LDM_012",
+        "flyID": 87.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "300ms_searchStimFlash",
+        "nFrames": 5000.0,
+        "zdepth": 11868.51,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 1,
+      "all_roi_rows": 7,
+      "selected_matlab_roi_rows": [
+        139,
+        140,
+        141,
+        142,
+        143
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 238,
+        "series_cell": "A238",
+        "data": {
+          "Time Series ID": "170524_fly2_LDM_012",
+          "Fly ID": "387",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "5",
+          "Sex": "F",
+          "Stimulus": "300ms_searchStimFlash",
+          "Frames (imaging)": "5000",
+          "Rotation": "28",
+          "Z-depth": "11868.51",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "10",
+          "Gain": "95",
+          "Offset": "73",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "isResponding?": "1",
+          "comments": ""
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "300ms_searchStimFlash",
+          "workbook": "300ms_searchStimFlash",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 5000.0,
+          "workbook": "5000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11868.51,
+          "workbook": "11868.51",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 95,
+          "differing_columns": {
+            "comments": {
+              "all_metadata": "",
+              "figure_sheet": null
+            }
+          }
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170524_fly2_LDM_015",
+      "release_series_id_for_explicit_note_check": "170524_fly2_LDM_015",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170524_fly2_LDM_015",
+        "flyID": 87.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "fullfield_LDflash20ms_Gray500ms",
+        "nFrames": 10000.0,
+        "zdepth": 11868.51,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 2,
+      "all_roi_rows": 7,
+      "selected_matlab_roi_rows": [
+        139,
+        140,
+        141,
+        142,
+        143
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 241,
+        "series_cell": "A241",
+        "data": {
+          "Time Series ID": "170524_fly2_LDM_015",
+          "Fly ID": "387",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "5",
+          "Sex": "F",
+          "Stimulus": "fullfield_LDflash20ms_Gray500ms",
+          "Frames (imaging)": "10000",
+          "Rotation": "28",
+          "Z-depth": "11868.51",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "10",
+          "Gain": "95",
+          "Offset": "73",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "isResponding?": "1",
+          "comments": ""
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "fullfield_LDflash20ms_Gray500ms",
+          "workbook": "fullfield_LDflash20ms_Gray500ms",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 10000.0,
+          "workbook": "10000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11868.51,
+          "workbook": "11868.51",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 98,
+          "differing_columns": {
+            "comments": {
+              "all_metadata": "",
+              "figure_sheet": null
+            }
+          }
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170524_fly2_LDM_016",
+      "release_series_id_for_explicit_note_check": "170524_fly2_LDM_016",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170524_fly2_LDM_016",
+        "flyID": 87.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "300ms_searchStimFlash",
+        "nFrames": 5000.0,
+        "zdepth": 11874.48,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 1,
+      "all_roi_rows": 1,
+      "selected_matlab_roi_rows": [
+        146
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 242,
+        "series_cell": "A242",
+        "data": {
+          "Time Series ID": "170524_fly2_LDM_016",
+          "Fly ID": "387",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "5",
+          "Sex": "F",
+          "Stimulus": "300ms_searchStimFlash",
+          "Frames (imaging)": "5000",
+          "Rotation": "25",
+          "Z-depth": "11874.48",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "10",
+          "Gain": "95",
+          "Offset": "73",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "isResponding?": "1",
+          "comments": ""
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "300ms_searchStimFlash",
+          "workbook": "300ms_searchStimFlash",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 5000.0,
+          "workbook": "5000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11874.48,
+          "workbook": "11874.48",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 99,
+          "differing_columns": {
+            "comments": {
+              "all_metadata": "",
+              "figure_sheet": null
+            }
+          }
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170524_fly2_LDM_019",
+      "release_series_id_for_explicit_note_check": "170524_fly2_LDM_019",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170524_fly2_LDM_019",
+        "flyID": 87.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "fullfield_LDflash20ms_Gray500ms",
+        "nFrames": 10000.0,
+        "zdepth": 11874.48,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 2,
+      "all_roi_rows": 1,
+      "selected_matlab_roi_rows": [
+        146
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 245,
+        "series_cell": "A245",
+        "data": {
+          "Time Series ID": "170524_fly2_LDM_019",
+          "Fly ID": "387",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "5",
+          "Sex": "F",
+          "Stimulus": "fullfield_LDflash20ms_Gray500ms",
+          "Frames (imaging)": "10000",
+          "Rotation": "25",
+          "Z-depth": "11874.48",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "14",
+          "Gain": "95",
+          "Offset": "73",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "isResponding?": "1",
+          "comments": ""
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "fullfield_LDflash20ms_Gray500ms",
+          "workbook": "fullfield_LDflash20ms_Gray500ms",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 10000.0,
+          "workbook": "10000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11874.48,
+          "workbook": "11874.48",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 102,
+          "differing_columns": {
+            "comments": {
+              "all_metadata": "",
+              "figure_sheet": null
+            }
+          }
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170606_fly4_LDM_012",
+      "release_series_id_for_explicit_note_check": "170606_fly4_LDM_012",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170606_fly4_LDM_012",
+        "flyID": 103.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "300ms_searchStimFlash",
+        "nFrames": 5000.0,
+        "zdepth": 11772.35,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 1,
+      "all_roi_rows": 7,
+      "selected_matlab_roi_rows": [
+        148,
+        149,
+        150,
+        151,
+        153
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 273,
+        "series_cell": "A273",
+        "data": {
+          "Time Series ID": "170606_fly4_LDM_012",
+          "Fly ID": "403",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "5",
+          "Sex": "F",
+          "Stimulus": "300ms_searchStimFlash",
+          "Frames (imaging)": "5000",
+          "Rotation": "23",
+          "Z-depth": "11772.35",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "4",
+          "Gain": "95",
+          "Offset": "73",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "isResponding?": "1",
+          "comments": ""
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "300ms_searchStimFlash",
+          "workbook": "300ms_searchStimFlash",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 5000.0,
+          "workbook": "5000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11772.35,
+          "workbook": "11772.35",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 104,
+          "differing_columns": {
+            "comments": {
+              "all_metadata": "",
+              "figure_sheet": null
+            }
+          }
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170606_fly4_LDM_013",
+      "release_series_id_for_explicit_note_check": "170606_fly4_LDM_013",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170606_fly4_LDM_013",
+        "flyID": 103.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "fullfield_LDflash20ms_Gray500ms",
+        "nFrames": 10000.0,
+        "zdepth": 11772.35,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 2,
+      "all_roi_rows": 7,
+      "selected_matlab_roi_rows": [
+        148,
+        149,
+        150,
+        151,
+        153
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 274,
+        "series_cell": "A274",
+        "data": {
+          "Time Series ID": "170606_fly4_LDM_013",
+          "Fly ID": "403",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "5",
+          "Sex": "F",
+          "Stimulus": "fullfield_LDflash20ms_Gray500ms",
+          "Frames (imaging)": "10000",
+          "Rotation": "23",
+          "Z-depth": "11772.35",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "5",
+          "Gain": "95",
+          "Offset": "73",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "isResponding?": "1",
+          "comments": ""
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "fullfield_LDflash20ms_Gray500ms",
+          "workbook": "fullfield_LDflash20ms_Gray500ms",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 10000.0,
+          "workbook": "10000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11772.35,
+          "workbook": "11772.35",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 105,
+          "differing_columns": {
+            "comments": {
+              "all_metadata": "",
+              "figure_sheet": null
+            }
+          }
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170606_fly4_LDM_014",
+      "release_series_id_for_explicit_note_check": "170606_fly4_LDM_014",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170606_fly4_LDM_014",
+        "flyID": 103.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "300ms_searchStimFlash",
+        "nFrames": 5000.0,
+        "zdepth": 11778.23,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 1,
+      "all_roi_rows": 7,
+      "selected_matlab_roi_rows": [
+        154,
+        155,
+        157,
+        158
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 275,
+        "series_cell": "A275",
+        "data": {
+          "Time Series ID": "170606_fly4_LDM_014",
+          "Fly ID": "403",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "5",
+          "Sex": "F",
+          "Stimulus": "300ms_searchStimFlash",
+          "Frames (imaging)": "5000",
+          "Rotation": "26",
+          "Z-depth": "11778.23",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "5",
+          "Gain": "95",
+          "Offset": "73",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "isResponding?": "1",
+          "comments": ""
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "300ms_searchStimFlash",
+          "workbook": "300ms_searchStimFlash",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 5000.0,
+          "workbook": "5000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11778.23,
+          "workbook": "11778.23",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 106,
+          "differing_columns": {
+            "comments": {
+              "all_metadata": "",
+              "figure_sheet": null
+            }
+          }
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170606_fly4_LDM_015",
+      "release_series_id_for_explicit_note_check": "170606_fly4_LDM_015",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170606_fly4_LDM_015",
+        "flyID": 103.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "fullfield_LDflash20ms_Gray500ms",
+        "nFrames": 10000.0,
+        "zdepth": 11778.23,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 2,
+      "all_roi_rows": 7,
+      "selected_matlab_roi_rows": [
+        154,
+        155,
+        157,
+        158
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 276,
+        "series_cell": "A276",
+        "data": {
+          "Time Series ID": "170606_fly4_LDM_015",
+          "Fly ID": "403",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "5",
+          "Sex": "F",
+          "Stimulus": "fullfield_LDflash20ms_Gray500ms",
+          "Frames (imaging)": "10000",
+          "Rotation": "26",
+          "Z-depth": "11778.23",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "5",
+          "Gain": "95",
+          "Offset": "73",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "isResponding?": "1",
+          "comments": ""
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "fullfield_LDflash20ms_Gray500ms",
+          "workbook": "fullfield_LDflash20ms_Gray500ms",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 10000.0,
+          "workbook": "10000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11778.23,
+          "workbook": "11778.23",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 107,
+          "differing_columns": {
+            "comments": {
+              "all_metadata": "",
+              "figure_sheet": null
+            }
+          }
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170606_fly4_LDM_016",
+      "release_series_id_for_explicit_note_check": "170606_fly4_LDM_016",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170606_fly4_LDM_016",
+        "flyID": 103.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "300ms_searchStimFlash",
+        "nFrames": 5000.0,
+        "zdepth": 11763.63,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 1,
+      "all_roi_rows": 6,
+      "selected_matlab_roi_rows": [
+        162,
+        163,
+        164,
+        165,
+        166
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 277,
+        "series_cell": "A277",
+        "data": {
+          "Time Series ID": "170606_fly4_LDM_016",
+          "Fly ID": "403",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "5",
+          "Sex": "F",
+          "Stimulus": "300ms_searchStimFlash",
+          "Frames (imaging)": "5000",
+          "Rotation": "22",
+          "Z-depth": "11763.63",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "5",
+          "Gain": "79",
+          "Offset": "73",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "isResponding?": "1",
+          "comments": ""
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "300ms_searchStimFlash",
+          "workbook": "300ms_searchStimFlash",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 5000.0,
+          "workbook": "5000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11763.63,
+          "workbook": "11763.63",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 108,
+          "differing_columns": {
+            "comments": {
+              "all_metadata": "",
+              "figure_sheet": null
+            }
+          }
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170606_fly4_LDM_017",
+      "release_series_id_for_explicit_note_check": "170606_fly4_LDM_017",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170606_fly4_LDM_017",
+        "flyID": 103.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "fullfield_LDflash20ms_Gray500ms",
+        "nFrames": 10000.0,
+        "zdepth": 11763.63,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 2,
+      "all_roi_rows": 6,
+      "selected_matlab_roi_rows": [
+        162,
+        163,
+        164,
+        165,
+        166
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 278,
+        "series_cell": "A278",
+        "data": {
+          "Time Series ID": "170606_fly4_LDM_017",
+          "Fly ID": "403",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "5",
+          "Sex": "F",
+          "Stimulus": "fullfield_LDflash20ms_Gray500ms",
+          "Frames (imaging)": "10000",
+          "Rotation": "22",
+          "Z-depth": "11763.63",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "5",
+          "Gain": "79",
+          "Offset": "73",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "isResponding?": "1",
+          "comments": ""
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "fullfield_LDflash20ms_Gray500ms",
+          "workbook": "fullfield_LDflash20ms_Gray500ms",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 10000.0,
+          "workbook": "10000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11763.63,
+          "workbook": "11763.63",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 109,
+          "differing_columns": {
+            "comments": {
+              "all_metadata": "",
+              "figure_sheet": null
+            }
+          }
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170607_fly1_LDM",
+      "release_series_id_for_explicit_note_check": "170607_fly4_LDM",
+      "rename_source": "EXPLICIT_AUTHOR_WORKBOOK_COMMENT",
+      "mat_metadata": {
+        "seriesID": "170607_fly1_LDM",
+        "flyID": 104.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "300ms_searchStimFlash",
+        "nFrames": 5000.0,
+        "zdepth": 11691.81,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 1,
+      "all_roi_rows": 2,
+      "selected_matlab_roi_rows": [
+        168
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 297,
+        "series_cell": "A297",
+        "data": {
+          "Time Series ID": "170607_fly4_LDM",
+          "Fly ID": "404",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "4.5",
+          "Sex": "F",
+          "Stimulus": "300ms_searchStimFlash",
+          "Frames (imaging)": "5000",
+          "Rotation": "20",
+          "Z-depth": "11691.81",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "7",
+          "Gain": "82",
+          "Offset": "72",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "isResponding?": "1",
+          "comments": "NOTE: MANUALLY RENAMED FLY1 TO DISTINGUISH FROM OTHER 170607 FOLDER"
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "300ms_searchStimFlash",
+          "workbook": "300ms_searchStimFlash",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 5000.0,
+          "workbook": "5000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11691.81,
+          "workbook": "11691.81",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 111,
+          "differing_columns": {}
+        }
+      ],
+      "literal_old_label_collisions": [
+        {
+          "sheet": "All Metadata",
+          "row": 279,
+          "series_id": "170607_fly1_LDM",
+          "genotype": "GMR16H03-lexA_lexAop-ASAP2f_lexAop-TNT",
+          "zdepth": "11758.97",
+          "numeric_fly_id": "128"
+        }
+      ],
+      "status": "AUTHOR_RENAME_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170607_fly1_LDM_001",
+      "release_series_id_for_explicit_note_check": "170607_fly4_LDM_001",
+      "rename_source": "EXPLICIT_AUTHOR_WORKBOOK_COMMENT",
+      "mat_metadata": {
+        "seriesID": "170607_fly1_LDM_001",
+        "flyID": 104.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "fullfield_LDflash20ms_Gray500ms",
+        "nFrames": 10000.0,
+        "zdepth": 11691.81,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 2,
+      "all_roi_rows": 2,
+      "selected_matlab_roi_rows": [
+        168
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 298,
+        "series_cell": "A298",
+        "data": {
+          "Time Series ID": "170607_fly4_LDM_001",
+          "Fly ID": "404",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "4.5",
+          "Sex": "F",
+          "Stimulus": "fullfield_LDflash20ms_Gray500ms",
+          "Frames (imaging)": "10000",
+          "Rotation": "20",
+          "Z-depth": "11691.81",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "7",
+          "Gain": "97",
+          "Offset": "72",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "isResponding?": "1",
+          "comments": ""
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "fullfield_LDflash20ms_Gray500ms",
+          "workbook": "fullfield_LDflash20ms_Gray500ms",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 10000.0,
+          "workbook": "10000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11691.81,
+          "workbook": "11691.81",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 112,
+          "differing_columns": {
+            "comments": {
+              "all_metadata": "",
+              "figure_sheet": null
+            }
+          }
+        }
+      ],
+      "literal_old_label_collisions": [
+        {
+          "sheet": "All Metadata",
+          "row": 280,
+          "series_id": "170607_fly1_LDM_001",
+          "genotype": "GMR16H03-lexA_lexAop-ASAP2f_lexAop-TNT",
+          "zdepth": "11758.97",
+          "numeric_fly_id": "128"
+        }
+      ],
+      "status": "AUTHOR_RENAME_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170607_fly1_LDM_002",
+      "release_series_id_for_explicit_note_check": "170607_fly4_LDM_002",
+      "rename_source": "EXPLICIT_AUTHOR_WORKBOOK_COMMENT",
+      "mat_metadata": {
+        "seriesID": "170607_fly1_LDM_002",
+        "flyID": 104.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "300ms_searchStimFlash",
+        "nFrames": 5000.0,
+        "zdepth": 11700.07,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 1,
+      "all_roi_rows": 7,
+      "selected_matlab_roi_rows": [
+        169,
+        170,
+        171,
+        172,
+        173,
+        174
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 299,
+        "series_cell": "A299",
+        "data": {
+          "Time Series ID": "170607_fly4_LDM_002",
+          "Fly ID": "404",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "4.5",
+          "Sex": "F",
+          "Stimulus": "300ms_searchStimFlash",
+          "Frames (imaging)": "5000",
+          "Rotation": "25",
+          "Z-depth": "11700.07",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "7",
+          "Gain": "97",
+          "Offset": "72",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "isResponding?": "1",
+          "comments": ""
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "300ms_searchStimFlash",
+          "workbook": "300ms_searchStimFlash",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 5000.0,
+          "workbook": "5000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11700.07,
+          "workbook": "11700.07",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 113,
+          "differing_columns": {
+            "comments": {
+              "all_metadata": "",
+              "figure_sheet": null
+            }
+          }
+        }
+      ],
+      "literal_old_label_collisions": [
+        {
+          "sheet": "All Metadata",
+          "row": 281,
+          "series_id": "170607_fly1_LDM_002",
+          "genotype": "GMR16H03-lexA_lexAop-ASAP2f_lexAop-TNT",
+          "zdepth": "11763.76",
+          "numeric_fly_id": "128"
+        }
+      ],
+      "status": "AUTHOR_RENAME_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170607_fly1_LDM_003",
+      "release_series_id_for_explicit_note_check": "170607_fly4_LDM_003",
+      "rename_source": "EXPLICIT_AUTHOR_WORKBOOK_COMMENT",
+      "mat_metadata": {
+        "seriesID": "170607_fly1_LDM_003",
+        "flyID": 104.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "fullfield_LDflash20ms_Gray500ms",
+        "nFrames": 10000.0,
+        "zdepth": 11700.07,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 2,
+      "all_roi_rows": 7,
+      "selected_matlab_roi_rows": [
+        169,
+        170,
+        171,
+        172,
+        173,
+        174
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 300,
+        "series_cell": "A300",
+        "data": {
+          "Time Series ID": "170607_fly4_LDM_003",
+          "Fly ID": "404",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "4.5",
+          "Sex": "F",
+          "Stimulus": "fullfield_LDflash20ms_Gray500ms",
+          "Frames (imaging)": "10000",
+          "Rotation": "25",
+          "Z-depth": "11700.07",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "7",
+          "Gain": "97",
+          "Offset": "72",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "isResponding?": "1",
+          "comments": ""
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "fullfield_LDflash20ms_Gray500ms",
+          "workbook": "fullfield_LDflash20ms_Gray500ms",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 10000.0,
+          "workbook": "10000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11700.07,
+          "workbook": "11700.07",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 114,
+          "differing_columns": {
+            "comments": {
+              "all_metadata": "",
+              "figure_sheet": null
+            }
+          }
+        }
+      ],
+      "literal_old_label_collisions": [
+        {
+          "sheet": "All Metadata",
+          "row": 282,
+          "series_id": "170607_fly1_LDM_003",
+          "genotype": "GMR16H03-lexA_lexAop-ASAP2f_lexAop-TNT",
+          "zdepth": "11763.76",
+          "numeric_fly_id": "128"
+        }
+      ],
+      "status": "AUTHOR_RENAME_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170607_fly1_LDM_004",
+      "release_series_id_for_explicit_note_check": "170607_fly4_LDM_004",
+      "rename_source": "EXPLICIT_AUTHOR_WORKBOOK_COMMENT",
+      "mat_metadata": {
+        "seriesID": "170607_fly1_LDM_004",
+        "flyID": 104.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "300ms_searchStimFlash",
+        "nFrames": 5000.0,
+        "zdepth": 11705.94,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 1,
+      "all_roi_rows": 7,
+      "selected_matlab_roi_rows": [
+        176,
+        177,
+        178,
+        179,
+        180,
+        181
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 301,
+        "series_cell": "A301",
+        "data": {
+          "Time Series ID": "170607_fly4_LDM_004",
+          "Fly ID": "404",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "4.5",
+          "Sex": "F",
+          "Stimulus": "300ms_searchStimFlash",
+          "Frames (imaging)": "5000",
+          "Rotation": "25",
+          "Z-depth": "11705.94",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "9",
+          "Gain": "100",
+          "Offset": "72",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "isResponding?": "1",
+          "comments": ""
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "300ms_searchStimFlash",
+          "workbook": "300ms_searchStimFlash",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 5000.0,
+          "workbook": "5000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11705.94,
+          "workbook": "11705.94",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 115,
+          "differing_columns": {
+            "comments": {
+              "all_metadata": "",
+              "figure_sheet": null
+            }
+          }
+        }
+      ],
+      "literal_old_label_collisions": [
+        {
+          "sheet": "All Metadata",
+          "row": 283,
+          "series_id": "170607_fly1_LDM_004",
+          "genotype": "GMR16H03-lexA_lexAop-ASAP2f_lexAop-TNT",
+          "zdepth": "11769.89",
+          "numeric_fly_id": "128"
+        }
+      ],
+      "status": "AUTHOR_RENAME_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170607_fly1_LDM_005",
+      "release_series_id_for_explicit_note_check": "170607_fly4_LDM_005",
+      "rename_source": "EXPLICIT_AUTHOR_WORKBOOK_COMMENT",
+      "mat_metadata": {
+        "seriesID": "170607_fly1_LDM_005",
+        "flyID": 104.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "fullfield_LDflash20ms_Gray500ms",
+        "nFrames": 10000.0,
+        "zdepth": 11705.94,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 2,
+      "all_roi_rows": 7,
+      "selected_matlab_roi_rows": [
+        176,
+        177,
+        178,
+        179,
+        180,
+        181
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 302,
+        "series_cell": "A302",
+        "data": {
+          "Time Series ID": "170607_fly4_LDM_005",
+          "Fly ID": "404",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "4.5",
+          "Sex": "F",
+          "Stimulus": "fullfield_LDflash20ms_Gray500ms",
+          "Frames (imaging)": "10000",
+          "Rotation": "25",
+          "Z-depth": "11705.94",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "11",
+          "Gain": "100",
+          "Offset": "72",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "isResponding?": "1",
+          "comments": ""
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "fullfield_LDflash20ms_Gray500ms",
+          "workbook": "fullfield_LDflash20ms_Gray500ms",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 10000.0,
+          "workbook": "10000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11705.94,
+          "workbook": "11705.94",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 116,
+          "differing_columns": {
+            "comments": {
+              "all_metadata": "",
+              "figure_sheet": null
+            }
+          }
+        }
+      ],
+      "literal_old_label_collisions": [
+        {
+          "sheet": "All Metadata",
+          "row": 284,
+          "series_id": "170607_fly1_LDM_005",
+          "genotype": "GMR16H03-lexA_lexAop-ASAP2f_lexAop-TNT",
+          "zdepth": "11769.89",
+          "numeric_fly_id": "128"
+        }
+      ],
+      "status": "AUTHOR_RENAME_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170607_fly1_LDM_006",
+      "release_series_id_for_explicit_note_check": "170607_fly4_LDM_006",
+      "rename_source": "EXPLICIT_AUTHOR_WORKBOOK_COMMENT",
+      "mat_metadata": {
+        "seriesID": "170607_fly1_LDM_006",
+        "flyID": 104.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "300ms_searchStimFlash",
+        "nFrames": 5000.0,
+        "zdepth": 11693.21,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 1,
+      "all_roi_rows": 7,
+      "selected_matlab_roi_rows": [
+        186,
+        187,
+        188,
+        189
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 303,
+        "series_cell": "A303",
+        "data": {
+          "Time Series ID": "170607_fly4_LDM_006",
+          "Fly ID": "404",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "4.5",
+          "Sex": "F",
+          "Stimulus": "300ms_searchStimFlash",
+          "Frames (imaging)": "5000",
+          "Rotation": "18",
+          "Z-depth": "11693.21",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "16",
+          "Gain": "100",
+          "Offset": "72",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "isResponding?": "1",
+          "comments": ""
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "300ms_searchStimFlash",
+          "workbook": "300ms_searchStimFlash",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 5000.0,
+          "workbook": "5000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11693.21,
+          "workbook": "11693.21",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 117,
+          "differing_columns": {
+            "comments": {
+              "all_metadata": "",
+              "figure_sheet": null
+            }
+          }
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "AUTHOR_RENAME_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170607_fly1_LDM_007",
+      "release_series_id_for_explicit_note_check": "170607_fly4_LDM_007",
+      "rename_source": "EXPLICIT_AUTHOR_WORKBOOK_COMMENT",
+      "mat_metadata": {
+        "seriesID": "170607_fly1_LDM_007",
+        "flyID": 104.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "fullfield_LDflash20ms_Gray500ms",
+        "nFrames": 10000.0,
+        "zdepth": 11693.21,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 2,
+      "all_roi_rows": 7,
+      "selected_matlab_roi_rows": [
+        186,
+        187,
+        188,
+        189
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 304,
+        "series_cell": "A304",
+        "data": {
+          "Time Series ID": "170607_fly4_LDM_007",
+          "Fly ID": "404",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "4.5",
+          "Sex": "F",
+          "Stimulus": "fullfield_LDflash20ms_Gray500ms",
+          "Frames (imaging)": "10000",
+          "Rotation": "18",
+          "Z-depth": "11693.21",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "20",
+          "Gain": "100",
+          "Offset": "72",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "isResponding?": "1",
+          "comments": ""
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "fullfield_LDflash20ms_Gray500ms",
+          "workbook": "fullfield_LDflash20ms_Gray500ms",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 10000.0,
+          "workbook": "10000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11693.21,
+          "workbook": "11693.21",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 118,
+          "differing_columns": {
+            "comments": {
+              "all_metadata": "",
+              "figure_sheet": null
+            }
+          }
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "AUTHOR_RENAME_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170607_fly2_LDM_008",
+      "release_series_id_for_explicit_note_check": "170607_fly5_LDM_008",
+      "rename_source": "EXPLICIT_AUTHOR_WORKBOOK_COMMENT",
+      "mat_metadata": {
+        "seriesID": "170607_fly2_LDM_008",
+        "flyID": 105.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "300ms_searchStimFlash",
+        "nFrames": 5000.0,
+        "zdepth": 11755.36,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 1,
+      "all_roi_rows": 5,
+      "selected_matlab_roi_rows": [
+        192
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 305,
+        "series_cell": "A305",
+        "data": {
+          "Time Series ID": "170607_fly5_LDM_008",
+          "Fly ID": "405",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "4.5",
+          "Sex": "F",
+          "Stimulus": "300ms_searchStimFlash",
+          "Frames (imaging)": "5000",
+          "Rotation": "20",
+          "Z-depth": "11755.36",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "5",
+          "Gain": "95",
+          "Offset": "72",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "isResponding?": "1",
+          "comments": "NOTE: MANUALLY RENAMED FLY2 TO DISTINGUISH FROM OTHER 170607 FOLDER"
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "300ms_searchStimFlash",
+          "workbook": "300ms_searchStimFlash",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 5000.0,
+          "workbook": "5000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11755.36,
+          "workbook": "11755.36",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 120,
+          "differing_columns": {}
+        }
+      ],
+      "literal_old_label_collisions": [
+        {
+          "sheet": "All Metadata",
+          "row": 287,
+          "series_id": "170607_fly2_LDM_008",
+          "genotype": "GMR16H03-lexA_lexAop-ASAP2f",
+          "zdepth": "11727.67",
+          "numeric_fly_id": "129"
+        }
+      ],
+      "status": "AUTHOR_RENAME_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170607_fly2_LDM_009",
+      "release_series_id_for_explicit_note_check": "170607_fly5_LDM_009",
+      "rename_source": "EXPLICIT_AUTHOR_WORKBOOK_COMMENT",
+      "mat_metadata": {
+        "seriesID": "170607_fly2_LDM_009",
+        "flyID": 105.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "fullfield_LDflash20ms_Gray500ms",
+        "nFrames": 10000.0,
+        "zdepth": 11755.36,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 2,
+      "all_roi_rows": 5,
+      "selected_matlab_roi_rows": [
+        192
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 306,
+        "series_cell": "A306",
+        "data": {
+          "Time Series ID": "170607_fly5_LDM_009",
+          "Fly ID": "405",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "4.5",
+          "Sex": "F",
+          "Stimulus": "fullfield_LDflash20ms_Gray500ms",
+          "Frames (imaging)": "10000",
+          "Rotation": "20",
+          "Z-depth": "11755.36",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "5",
+          "Gain": "100",
+          "Offset": "72",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "isResponding?": "1",
+          "comments": ""
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "fullfield_LDflash20ms_Gray500ms",
+          "workbook": "fullfield_LDflash20ms_Gray500ms",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 10000.0,
+          "workbook": "10000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11755.36,
+          "workbook": "11755.36",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 121,
+          "differing_columns": {
+            "comments": {
+              "all_metadata": "",
+              "figure_sheet": null
+            }
+          }
+        }
+      ],
+      "literal_old_label_collisions": [
+        {
+          "sheet": "All Metadata",
+          "row": 288,
+          "series_id": "170607_fly2_LDM_009",
+          "genotype": "GMR16H03-lexA_lexAop-ASAP2f",
+          "zdepth": "11727.67",
+          "numeric_fly_id": "129"
+        }
+      ],
+      "status": "AUTHOR_RENAME_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170607_fly2_LDM_010",
+      "release_series_id_for_explicit_note_check": "170607_fly5_LDM_010",
+      "rename_source": "EXPLICIT_AUTHOR_WORKBOOK_COMMENT",
+      "mat_metadata": {
+        "seriesID": "170607_fly2_LDM_010",
+        "flyID": 105.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "300ms_searchStimFlash",
+        "nFrames": 5000.0,
+        "zdepth": 11761.11,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 1,
+      "all_roi_rows": 7,
+      "selected_matlab_roi_rows": [
+        196,
+        197,
+        198,
+        199,
+        200
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 307,
+        "series_cell": "A307",
+        "data": {
+          "Time Series ID": "170607_fly5_LDM_010",
+          "Fly ID": "405",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "4.5",
+          "Sex": "F",
+          "Stimulus": "300ms_searchStimFlash",
+          "Frames (imaging)": "5000",
+          "Rotation": "26",
+          "Z-depth": "11761.11",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "7",
+          "Gain": "100",
+          "Offset": "72",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "isResponding?": "1",
+          "comments": ""
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "300ms_searchStimFlash",
+          "workbook": "300ms_searchStimFlash",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 5000.0,
+          "workbook": "5000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11761.11,
+          "workbook": "11761.11",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 122,
+          "differing_columns": {
+            "comments": {
+              "all_metadata": "",
+              "figure_sheet": null
+            }
+          }
+        }
+      ],
+      "literal_old_label_collisions": [
+        {
+          "sheet": "All Metadata",
+          "row": 289,
+          "series_id": "170607_fly2_LDM_010",
+          "genotype": "GMR16H03-lexA_lexAop-ASAP2f",
+          "zdepth": "11734.57",
+          "numeric_fly_id": "129"
+        }
+      ],
+      "status": "AUTHOR_RENAME_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170607_fly2_LDM_011",
+      "release_series_id_for_explicit_note_check": "170607_fly5_LDM_011",
+      "rename_source": "EXPLICIT_AUTHOR_WORKBOOK_COMMENT",
+      "mat_metadata": {
+        "seriesID": "170607_fly2_LDM_011",
+        "flyID": 105.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "fullfield_LDflash20ms_Gray500ms",
+        "nFrames": 10000.0,
+        "zdepth": 11761.11,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 2,
+      "all_roi_rows": 7,
+      "selected_matlab_roi_rows": [
+        196,
+        197,
+        198,
+        199,
+        200
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 308,
+        "series_cell": "A308",
+        "data": {
+          "Time Series ID": "170607_fly5_LDM_011",
+          "Fly ID": "405",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "4.5",
+          "Sex": "F",
+          "Stimulus": "fullfield_LDflash20ms_Gray500ms",
+          "Frames (imaging)": "10000",
+          "Rotation": "26",
+          "Z-depth": "11761.11",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "9",
+          "Gain": "100",
+          "Offset": "72",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "isResponding?": "1",
+          "comments": ""
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "fullfield_LDflash20ms_Gray500ms",
+          "workbook": "fullfield_LDflash20ms_Gray500ms",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 10000.0,
+          "workbook": "10000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11761.11,
+          "workbook": "11761.11",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 123,
+          "differing_columns": {
+            "comments": {
+              "all_metadata": "",
+              "figure_sheet": null
+            }
+          }
+        }
+      ],
+      "literal_old_label_collisions": [
+        {
+          "sheet": "All Metadata",
+          "row": 290,
+          "series_id": "170607_fly2_LDM_011",
+          "genotype": "GMR16H03-lexA_lexAop-ASAP2f",
+          "zdepth": "11734.57",
+          "numeric_fly_id": "129"
+        }
+      ],
+      "status": "AUTHOR_RENAME_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170609_fly4_LDM_021",
+      "release_series_id_for_explicit_note_check": "170609_fly4_LDM_021",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170609_fly4_LDM_021",
+        "flyID": 134.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "300ms_searchStimFlash",
+        "nFrames": 5000.0,
+        "zdepth": 11720.72,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 1,
+      "all_roi_rows": 9,
+      "selected_matlab_roi_rows": [
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 330,
+        "series_cell": "A330",
+        "data": {
+          "Time Series ID": "170609_fly4_LDM_021",
+          "Fly ID": "134",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "6",
+          "Sex": "F",
+          "Stimulus": "300ms_searchStimFlash",
+          "Frames (imaging)": "5000",
+          "Rotation": "26",
+          "Z-depth": "11720.72",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "9",
+          "Gain": "95",
+          "Offset": "74",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "isResponding?": "1",
+          "comments": "cells 2-9 responding, mild motion"
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "300ms_searchStimFlash",
+          "workbook": "300ms_searchStimFlash",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 5000.0,
+          "workbook": "5000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11720.72,
+          "workbook": "11720.72",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 6,
+          "differing_columns": {}
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170609_fly4_LDM_023",
+      "release_series_id_for_explicit_note_check": "170609_fly4_LDM_023",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170609_fly4_LDM_023",
+        "flyID": 134.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "fullfield_LDflash20ms_Gray500ms",
+        "nFrames": 10000.0,
+        "zdepth": 11720.72,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 2,
+      "all_roi_rows": 9,
+      "selected_matlab_roi_rows": [
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 332,
+        "series_cell": "A332",
+        "data": {
+          "Time Series ID": "170609_fly4_LDM_023",
+          "Fly ID": "134",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "6",
+          "Sex": "F",
+          "Stimulus": "fullfield_LDflash20ms_Gray500ms",
+          "Frames (imaging)": "10000",
+          "Rotation": "26",
+          "Z-depth": "11720.72",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "10",
+          "Gain": "95",
+          "Offset": "74",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "comments": ""
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "fullfield_LDflash20ms_Gray500ms",
+          "workbook": "fullfield_LDflash20ms_Gray500ms",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 10000.0,
+          "workbook": "10000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11720.72,
+          "workbook": "11720.72",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 8,
+          "differing_columns": {
+            "comments": {
+              "all_metadata": "",
+              "figure_sheet": null
+            }
+          }
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170611_fly3_LDM_012",
+      "release_series_id_for_explicit_note_check": "170611_fly3_LDM_012",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170611_fly3_LDM_012",
+        "flyID": 137.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "300ms_searchStimFlash",
+        "nFrames": 5000.0,
+        "zdepth": 11724.9,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 1,
+      "all_roi_rows": 6,
+      "selected_matlab_roi_rows": [
+        12,
+        13,
+        14,
+        15
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 348,
+        "series_cell": "A348",
+        "data": {
+          "Time Series ID": "170611_fly3_LDM_012",
+          "Fly ID": "137",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "7",
+          "Sex": "F",
+          "Stimulus": "300ms_searchStimFlash",
+          "Frames (imaging)": "5000",
+          "Rotation": "28",
+          "Z-depth": "11724.9",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "8",
+          "Gain": "95",
+          "Offset": "74",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "isResponding?": "1",
+          "comments": "cells 1-6 responding"
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "300ms_searchStimFlash",
+          "workbook": "300ms_searchStimFlash",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 5000.0,
+          "workbook": "5000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11724.9,
+          "workbook": "11724.9",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 13,
+          "differing_columns": {}
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170611_fly3_LDM_013",
+      "release_series_id_for_explicit_note_check": "170611_fly3_LDM_013",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170611_fly3_LDM_013",
+        "flyID": 137.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "fullfield_LDflash20ms_Gray500ms",
+        "nFrames": 10000.0,
+        "zdepth": 11724.9,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 2,
+      "all_roi_rows": 6,
+      "selected_matlab_roi_rows": [
+        12,
+        13,
+        14,
+        15
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 349,
+        "series_cell": "A349",
+        "data": {
+          "Time Series ID": "170611_fly3_LDM_013",
+          "Fly ID": "137",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "7",
+          "Sex": "F",
+          "Stimulus": "fullfield_LDflash20ms_Gray500ms",
+          "Frames (imaging)": "10000",
+          "Rotation": "28",
+          "Z-depth": "11724.9",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "8",
+          "Gain": "95",
+          "Offset": "74",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0"
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "fullfield_LDflash20ms_Gray500ms",
+          "workbook": "fullfield_LDflash20ms_Gray500ms",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 10000.0,
+          "workbook": "10000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11724.9,
+          "workbook": "11724.9",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 14,
+          "differing_columns": {}
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170611_fly4_LDM_021",
+      "release_series_id_for_explicit_note_check": "170611_fly4_LDM_021",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170611_fly4_LDM_021",
+        "flyID": 138.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "300ms_searchStimFlash",
+        "nFrames": 5000.0,
+        "zdepth": 11721.76,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 1,
+      "all_roi_rows": 11,
+      "selected_matlab_roi_rows": [],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 357,
+        "series_cell": "A357",
+        "data": {
+          "Time Series ID": "170611_fly4_LDM_021",
+          "Fly ID": "138",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "7",
+          "Sex": "F",
+          "Stimulus": "300ms_searchStimFlash",
+          "Frames (imaging)": "5000",
+          "Rotation": "22",
+          "Z-depth": "11721.76",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "8",
+          "Gain": "95",
+          "Offset": "74",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0"
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "300ms_searchStimFlash",
+          "workbook": "300ms_searchStimFlash",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 5000.0,
+          "workbook": "5000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11721.76,
+          "workbook": "11721.76",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 23,
+          "differing_columns": {}
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170611_fly4_LDM_023",
+      "release_series_id_for_explicit_note_check": "170611_fly4_LDM_023",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170611_fly4_LDM_023",
+        "flyID": 138.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "fullfield_LDflash20ms_Gray500ms",
+        "nFrames": 10000.0,
+        "zdepth": 11721.76,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 2,
+      "all_roi_rows": 11,
+      "selected_matlab_roi_rows": [],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 359,
+        "series_cell": "A359",
+        "data": {
+          "Time Series ID": "170611_fly4_LDM_023",
+          "Fly ID": "138",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "7",
+          "Sex": "F",
+          "Stimulus": "fullfield_LDflash20ms_Gray500ms",
+          "Frames (imaging)": "10000",
+          "Rotation": "22",
+          "Z-depth": "11721.76",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "10",
+          "Gain": "95",
+          "Offset": "74",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0"
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "fullfield_LDflash20ms_Gray500ms",
+          "workbook": "fullfield_LDflash20ms_Gray500ms",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 10000.0,
+          "workbook": "10000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11721.76,
+          "workbook": "11721.76",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 25,
+          "differing_columns": {}
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170611_fly4_LDM_027",
+      "release_series_id_for_explicit_note_check": "170611_fly4_LDM_027",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170611_fly4_LDM_027",
+        "flyID": 138.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "300ms_searchStimFlash",
+        "nFrames": 5000.0,
+        "zdepth": 11731.19,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 1,
+      "all_roi_rows": 7,
+      "selected_matlab_roi_rows": [
+        30,
+        32,
+        33
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 363,
+        "series_cell": "A363",
+        "data": {
+          "Time Series ID": "170611_fly4_LDM_027",
+          "Fly ID": "138",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "7",
+          "Sex": "F",
+          "Stimulus": "300ms_searchStimFlash",
+          "Frames (imaging)": "5000",
+          "Rotation": "22",
+          "Z-depth": "11731.19",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "8",
+          "Gain": "95",
+          "Offset": "74",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "isResponding?": "1",
+          "comments": "cells 3-7 responding"
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "300ms_searchStimFlash",
+          "workbook": "300ms_searchStimFlash",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 5000.0,
+          "workbook": "5000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11731.19,
+          "workbook": "11731.19",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 29,
+          "differing_columns": {}
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170611_fly4_LDM_028",
+      "release_series_id_for_explicit_note_check": "170611_fly4_LDM_028",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170611_fly4_LDM_028",
+        "flyID": 138.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "fullfield_LDflash20ms_Gray500ms",
+        "nFrames": 10000.0,
+        "zdepth": 11731.19,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 2,
+      "all_roi_rows": 7,
+      "selected_matlab_roi_rows": [
+        30,
+        32,
+        33
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 364,
+        "series_cell": "A364",
+        "data": {
+          "Time Series ID": "170611_fly4_LDM_028",
+          "Fly ID": "138",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "7",
+          "Sex": "F",
+          "Stimulus": "fullfield_LDflash20ms_Gray500ms",
+          "Frames (imaging)": "10000",
+          "Rotation": "22",
+          "Z-depth": "11731.19",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "8",
+          "Gain": "95",
+          "Offset": "74",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0"
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "fullfield_LDflash20ms_Gray500ms",
+          "workbook": "fullfield_LDflash20ms_Gray500ms",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 10000.0,
+          "workbook": "10000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11731.19,
+          "workbook": "11731.19",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 30,
+          "differing_columns": {}
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170611_fly5_LDM_030",
+      "release_series_id_for_explicit_note_check": "170611_fly5_LDM_030",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170611_fly5_LDM_030",
+        "flyID": 139.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "300ms_searchStimFlash",
+        "nFrames": 5000.0,
+        "zdepth": 11707.57,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 1,
+      "all_roi_rows": 7,
+      "selected_matlab_roi_rows": [
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 366,
+        "series_cell": "A366",
+        "data": {
+          "Time Series ID": "170611_fly5_LDM_030",
+          "Fly ID": "139",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "7",
+          "Sex": "F",
+          "Stimulus": "300ms_searchStimFlash",
+          "Frames (imaging)": "5000",
+          "Rotation": "27",
+          "Z-depth": "11707.57",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "10",
+          "Gain": "95",
+          "Offset": "74",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "isResponding?": "1",
+          "comments": "cells 1-7 responding"
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "300ms_searchStimFlash",
+          "workbook": "300ms_searchStimFlash",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 5000.0,
+          "workbook": "5000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11707.57,
+          "workbook": "11707.57",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 33,
+          "differing_columns": {}
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170611_fly5_LDM_032",
+      "release_series_id_for_explicit_note_check": "170611_fly5_LDM_032",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170611_fly5_LDM_032",
+        "flyID": 139.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "fullfield_LDflash20ms_Gray500ms",
+        "nFrames": 10000.0,
+        "zdepth": 11707.57,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 2,
+      "all_roi_rows": 7,
+      "selected_matlab_roi_rows": [
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 368,
+        "series_cell": "A368",
+        "data": {
+          "Time Series ID": "170611_fly5_LDM_032",
+          "Fly ID": "139",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "7",
+          "Sex": "F",
+          "Stimulus": "fullfield_LDflash20ms_Gray500ms",
+          "Frames (imaging)": "10000",
+          "Rotation": "27",
+          "Z-depth": "11707.57",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "11",
+          "Gain": "95",
+          "Offset": "74",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0"
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "fullfield_LDflash20ms_Gray500ms",
+          "workbook": "fullfield_LDflash20ms_Gray500ms",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 10000.0,
+          "workbook": "10000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11707.57,
+          "workbook": "11707.57",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 35,
+          "differing_columns": {}
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170611_fly5_LDM_033",
+      "release_series_id_for_explicit_note_check": "170611_fly5_LDM_033",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170611_fly5_LDM_033",
+        "flyID": 139.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "300ms_searchStimFlash",
+        "nFrames": 5000.0,
+        "zdepth": 11714.94,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 1,
+      "all_roi_rows": 8,
+      "selected_matlab_roi_rows": [
+        44,
+        45,
+        46,
+        47,
+        48
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 369,
+        "series_cell": "A369",
+        "data": {
+          "Time Series ID": "170611_fly5_LDM_033",
+          "Fly ID": "139",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "7",
+          "Sex": "F",
+          "Stimulus": "300ms_searchStimFlash",
+          "Frames (imaging)": "5000",
+          "Rotation": "25",
+          "Z-depth": "11714.94",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "12",
+          "Gain": "95",
+          "Offset": "74",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "isResponding?": "1",
+          "comments": "cells 4-8 responding"
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "300ms_searchStimFlash",
+          "workbook": "300ms_searchStimFlash",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 5000.0,
+          "workbook": "5000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11714.94,
+          "workbook": "11714.94",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 36,
+          "differing_columns": {}
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170611_fly5_LDM_035",
+      "release_series_id_for_explicit_note_check": "170611_fly5_LDM_035",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170611_fly5_LDM_035",
+        "flyID": 139.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "fullfield_LDflash20ms_Gray500ms",
+        "nFrames": 10000.0,
+        "zdepth": 11714.94,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 2,
+      "all_roi_rows": 8,
+      "selected_matlab_roi_rows": [
+        44,
+        45,
+        46,
+        47,
+        48
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 371,
+        "series_cell": "A371",
+        "data": {
+          "Time Series ID": "170611_fly5_LDM_035",
+          "Fly ID": "139",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "7",
+          "Sex": "F",
+          "Stimulus": "fullfield_LDflash20ms_Gray500ms",
+          "Frames (imaging)": "10000",
+          "Rotation": "25",
+          "Z-depth": "11714.94",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "12",
+          "Gain": "95",
+          "Offset": "74",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0"
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "fullfield_LDflash20ms_Gray500ms",
+          "workbook": "fullfield_LDflash20ms_Gray500ms",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 10000.0,
+          "workbook": "10000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11714.94,
+          "workbook": "11714.94",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 38,
+          "differing_columns": {}
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170611_fly5_LDM_036",
+      "release_series_id_for_explicit_note_check": "170611_fly5_LDM_036",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170611_fly5_LDM_036",
+        "flyID": 139.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "300ms_searchStimFlash",
+        "nFrames": 5000.0,
+        "zdepth": 11718.4,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 1,
+      "all_roi_rows": 7,
+      "selected_matlab_roi_rows": [
+        53,
+        54,
+        55
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 372,
+        "series_cell": "A372",
+        "data": {
+          "Time Series ID": "170611_fly5_LDM_036",
+          "Fly ID": "139",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "7",
+          "Sex": "F",
+          "Stimulus": "300ms_searchStimFlash",
+          "Frames (imaging)": "5000",
+          "Rotation": "25",
+          "Z-depth": "11718.4",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "12",
+          "Gain": "95",
+          "Offset": "74",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "isResponding?": "1",
+          "comments": "cells 2, 5-7 responding"
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "300ms_searchStimFlash",
+          "workbook": "300ms_searchStimFlash",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 5000.0,
+          "workbook": "5000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11718.4,
+          "workbook": "11718.4",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 39,
+          "differing_columns": {}
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170611_fly5_LDM_037",
+      "release_series_id_for_explicit_note_check": "170611_fly5_LDM_037",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170611_fly5_LDM_037",
+        "flyID": 139.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "fullfield_LDflash20ms_Gray500ms",
+        "nFrames": 10000.0,
+        "zdepth": 11718.4,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 2,
+      "all_roi_rows": 7,
+      "selected_matlab_roi_rows": [
+        53,
+        54,
+        55
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 373,
+        "series_cell": "A373",
+        "data": {
+          "Time Series ID": "170611_fly5_LDM_037",
+          "Fly ID": "139",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "7",
+          "Sex": "F",
+          "Stimulus": "fullfield_LDflash20ms_Gray500ms",
+          "Frames (imaging)": "10000",
+          "Rotation": "25",
+          "Z-depth": "11718.4",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "12",
+          "Gain": "95",
+          "Offset": "74",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0"
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "fullfield_LDflash20ms_Gray500ms",
+          "workbook": "fullfield_LDflash20ms_Gray500ms",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 10000.0,
+          "workbook": "10000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11718.4,
+          "workbook": "11718.4",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 40,
+          "differing_columns": {}
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170611_fly7_LDM_048",
+      "release_series_id_for_explicit_note_check": "170611_fly7_LDM_048",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170611_fly7_LDM_048",
+        "flyID": 141.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "300ms_searchStimFlash",
+        "nFrames": 5000.0,
+        "zdepth": 11648.28,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 1,
+      "all_roi_rows": 7,
+      "selected_matlab_roi_rows": [
+        59,
+        60,
+        61,
+        62
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 375,
+        "series_cell": "A375",
+        "data": {
+          "Time Series ID": "170611_fly7_LDM_048",
+          "Fly ID": "141",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "7",
+          "Sex": "F",
+          "Stimulus": "300ms_searchStimFlash",
+          "Frames (imaging)": "5000",
+          "Rotation": "24",
+          "Z-depth": "11648.28",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "6",
+          "Gain": "95",
+          "Offset": "74",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "isResponding?": "1",
+          "comments": "cells 2-7 responding"
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "300ms_searchStimFlash",
+          "workbook": "300ms_searchStimFlash",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 5000.0,
+          "workbook": "5000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11648.28,
+          "workbook": "11648.28",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 43,
+          "differing_columns": {}
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170611_fly7_LDM_049",
+      "release_series_id_for_explicit_note_check": "170611_fly7_LDM_049",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170611_fly7_LDM_049",
+        "flyID": 141.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "fullfield_LDflash20ms_Gray500ms",
+        "nFrames": 10000.0,
+        "zdepth": 11648.28,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 2,
+      "all_roi_rows": 7,
+      "selected_matlab_roi_rows": [
+        59,
+        60,
+        61,
+        62
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 376,
+        "series_cell": "A376",
+        "data": {
+          "Time Series ID": "170611_fly7_LDM_049",
+          "Fly ID": "141",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "7",
+          "Sex": "F",
+          "Stimulus": "fullfield_LDflash20ms_Gray500ms",
+          "Frames (imaging)": "10000",
+          "Rotation": "24",
+          "Z-depth": "11648.28",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "6",
+          "Gain": "95",
+          "Offset": "74",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0"
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "fullfield_LDflash20ms_Gray500ms",
+          "workbook": "fullfield_LDflash20ms_Gray500ms",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 10000.0,
+          "workbook": "10000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11648.28,
+          "workbook": "11648.28",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 44,
+          "differing_columns": {}
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170622_fly2_LDM_006",
+      "release_series_id_for_explicit_note_check": "170622_fly2_LDM_006",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170622_fly2_LDM_006",
+        "flyID": 122.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "300ms_searchStimFlash",
+        "nFrames": 5000.0,
+        "zdepth": 11784.23,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 1,
+      "all_roi_rows": 7,
+      "selected_matlab_roi_rows": [],
+      "workbook_match_count": 0,
+      "workbook_row": null,
+      "shared_metadata_comparisons": {},
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [],
+      "literal_old_label_collisions": [],
+      "status": "UNRESOLVED"
+    },
+    {
+      "mat_series_id": "170622_fly2_LDM_007",
+      "release_series_id_for_explicit_note_check": "170622_fly2_LDM_007",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170622_fly2_LDM_007",
+        "flyID": 122.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "fullfield_LDflash20ms_Gray500ms",
+        "nFrames": 10000.0,
+        "zdepth": 11784.23,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 2,
+      "all_roi_rows": 7,
+      "selected_matlab_roi_rows": [],
+      "workbook_match_count": 0,
+      "workbook_row": null,
+      "shared_metadata_comparisons": {},
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [],
+      "literal_old_label_collisions": [],
+      "status": "UNRESOLVED"
+    },
+    {
+      "mat_series_id": "170622_fly2_LDM_008",
+      "release_series_id_for_explicit_note_check": "170622_fly2_LDM_008",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170622_fly2_LDM_008",
+        "flyID": 122.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "300ms_searchStimFlash",
+        "nFrames": 5000.0,
+        "zdepth": 11780.33,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 1,
+      "all_roi_rows": 6,
+      "selected_matlab_roi_rows": [],
+      "workbook_match_count": 0,
+      "workbook_row": null,
+      "shared_metadata_comparisons": {},
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [],
+      "literal_old_label_collisions": [],
+      "status": "UNRESOLVED"
+    },
+    {
+      "mat_series_id": "170622_fly2_LDM_009",
+      "release_series_id_for_explicit_note_check": "170622_fly2_LDM_009",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170622_fly2_LDM_009",
+        "flyID": 122.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "fullfield_LDflash20ms_Gray500ms",
+        "nFrames": 10000.0,
+        "zdepth": 11780.33,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 2,
+      "all_roi_rows": 6,
+      "selected_matlab_roi_rows": [],
+      "workbook_match_count": 0,
+      "workbook_row": null,
+      "shared_metadata_comparisons": {},
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [],
+      "literal_old_label_collisions": [],
+      "status": "UNRESOLVED"
+    },
+    {
+      "mat_series_id": "170625_fly1_LDM",
+      "release_series_id_for_explicit_note_check": "170625_fly1_LDM",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170625_fly1_LDM",
+        "flyID": 150.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "300ms_searchStimFlash",
+        "nFrames": 5000.0,
+        "zdepth": 11813.08,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 1,
+      "all_roi_rows": 8,
+      "selected_matlab_roi_rows": [
+        64,
+        65,
+        66
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 437,
+        "series_cell": "A437",
+        "data": {
+          "Time Series ID": "170625_fly1_LDM",
+          "Fly ID": "150",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "8",
+          "Sex": "F",
+          "Stimulus": "300ms_searchStimFlash",
+          "Frames (imaging)": "5000",
+          "Rotation": "18",
+          "Z-depth": "11813.08",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "14",
+          "Gain": "95",
+          "Offset": "73",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "isResponding?": "1",
+          "comments": "cells 1-8 responding"
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "300ms_searchStimFlash",
+          "workbook": "300ms_searchStimFlash",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 5000.0,
+          "workbook": "5000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11813.08,
+          "workbook": "11813.08",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 53,
+          "differing_columns": {}
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170625_fly1_LDM_002",
+      "release_series_id_for_explicit_note_check": "170625_fly1_LDM_002",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170625_fly1_LDM_002",
+        "flyID": 150.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "fullfield_LDflash20ms_Gray500ms",
+        "nFrames": 10000.0,
+        "zdepth": 11813.08,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 2,
+      "all_roi_rows": 8,
+      "selected_matlab_roi_rows": [
+        64,
+        65,
+        66
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 439,
+        "series_cell": "A439",
+        "data": {
+          "Time Series ID": "170625_fly1_LDM_002",
+          "Fly ID": "150",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "8",
+          "Sex": "F",
+          "Stimulus": "fullfield_LDflash20ms_Gray500ms",
+          "Frames (imaging)": "10000",
+          "Rotation": "18",
+          "Z-depth": "11813.08",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "14",
+          "Gain": "95",
+          "Offset": "73",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "comments": "some movement"
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "fullfield_LDflash20ms_Gray500ms",
+          "workbook": "fullfield_LDflash20ms_Gray500ms",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 10000.0,
+          "workbook": "10000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11813.08,
+          "workbook": "11813.08",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 55,
+          "differing_columns": {}
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170625_fly1_LDM_003",
+      "release_series_id_for_explicit_note_check": "170625_fly1_LDM_003",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170625_fly1_LDM_003",
+        "flyID": 150.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "300ms_searchStimFlash",
+        "nFrames": 5000.0,
+        "zdepth": 11822.12,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 1,
+      "all_roi_rows": 6,
+      "selected_matlab_roi_rows": [
+        73,
+        74,
+        75,
+        76
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 440,
+        "series_cell": "A440",
+        "data": {
+          "Time Series ID": "170625_fly1_LDM_003",
+          "Fly ID": "150",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "8",
+          "Sex": "F",
+          "Stimulus": "300ms_searchStimFlash",
+          "Frames (imaging)": "5000",
+          "Rotation": "21",
+          "Z-depth": "11822.12",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "14",
+          "Gain": "95",
+          "Offset": "73",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "isResponding?": "1",
+          "comments": "cells 3-6 responding"
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "300ms_searchStimFlash",
+          "workbook": "300ms_searchStimFlash",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 5000.0,
+          "workbook": "5000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11822.12,
+          "workbook": "11822.12",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 56,
+          "differing_columns": {}
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170625_fly1_LDM_004",
+      "release_series_id_for_explicit_note_check": "170625_fly1_LDM_004",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170625_fly1_LDM_004",
+        "flyID": 150.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "fullfield_LDflash20ms_Gray500ms",
+        "nFrames": 10000.0,
+        "zdepth": 11822.12,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 2,
+      "all_roi_rows": 6,
+      "selected_matlab_roi_rows": [
+        73,
+        74,
+        75,
+        76
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 441,
+        "series_cell": "A441",
+        "data": {
+          "Time Series ID": "170625_fly1_LDM_004",
+          "Fly ID": "150",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "8",
+          "Sex": "F",
+          "Stimulus": "fullfield_LDflash20ms_Gray500ms",
+          "Frames (imaging)": "10000",
+          "Rotation": "21",
+          "Z-depth": "11822.12",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "14",
+          "Gain": "95",
+          "Offset": "73",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0"
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "fullfield_LDflash20ms_Gray500ms",
+          "workbook": "fullfield_LDflash20ms_Gray500ms",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 10000.0,
+          "workbook": "10000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11822.12,
+          "workbook": "11822.12",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 57,
+          "differing_columns": {}
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170625_fly1_LDM_006",
+      "release_series_id_for_explicit_note_check": "170625_fly1_LDM_006",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170625_fly1_LDM_006",
+        "flyID": 150.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "300ms_searchStimFlash",
+        "nFrames": 5000.0,
+        "zdepth": 11829.24,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 1,
+      "all_roi_rows": 8,
+      "selected_matlab_roi_rows": [],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 443,
+        "series_cell": "A443",
+        "data": {
+          "Time Series ID": "170625_fly1_LDM_006",
+          "Fly ID": "150",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "8",
+          "Sex": "F",
+          "Stimulus": "300ms_searchStimFlash",
+          "Frames (imaging)": "5000",
+          "Rotation": "24",
+          "Z-depth": "11829.24",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "14",
+          "Gain": "95",
+          "Offset": "73",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "isResponding?": "1",
+          "comments": "cells 4, 5 responding"
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "300ms_searchStimFlash",
+          "workbook": "300ms_searchStimFlash",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 5000.0,
+          "workbook": "5000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11829.24,
+          "workbook": "11829.24",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 59,
+          "differing_columns": {}
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170625_fly1_LDM_008",
+      "release_series_id_for_explicit_note_check": "170625_fly1_LDM_008",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170625_fly1_LDM_008",
+        "flyID": 150.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "fullfield_LDflash20ms_Gray500ms",
+        "nFrames": 10000.0,
+        "zdepth": 11829.24,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 2,
+      "all_roi_rows": 8,
+      "selected_matlab_roi_rows": [],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 445,
+        "series_cell": "A445",
+        "data": {
+          "Time Series ID": "170625_fly1_LDM_008",
+          "Fly ID": "150",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "8",
+          "Sex": "F",
+          "Stimulus": "fullfield_LDflash20ms_Gray500ms",
+          "Frames (imaging)": "10000",
+          "Rotation": "24",
+          "Z-depth": "11829.24",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "14",
+          "Gain": "95",
+          "Offset": "73",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0"
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "fullfield_LDflash20ms_Gray500ms",
+          "workbook": "fullfield_LDflash20ms_Gray500ms",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 10000.0,
+          "workbook": "10000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11829.24,
+          "workbook": "11829.24",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 61,
+          "differing_columns": {}
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170625_fly2_LDM_009",
+      "release_series_id_for_explicit_note_check": "170625_fly2_LDM_009",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170625_fly2_LDM_009",
+        "flyID": 151.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "300ms_searchStimFlash",
+        "nFrames": 5000.0,
+        "zdepth": 11829.31,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 1,
+      "all_roi_rows": 8,
+      "selected_matlab_roi_rows": [
+        86,
+        87,
+        88,
+        89,
+        90,
+        91
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 446,
+        "series_cell": "A446",
+        "data": {
+          "Time Series ID": "170625_fly2_LDM_009",
+          "Fly ID": "151",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "8",
+          "Sex": "F",
+          "Stimulus": "300ms_searchStimFlash",
+          "Frames (imaging)": "5000",
+          "Rotation": "23",
+          "Z-depth": "11829.31",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "10",
+          "Gain": "95",
+          "Offset": "74",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "isResponding?": "1",
+          "comments": "cells 2-8 responding"
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "300ms_searchStimFlash",
+          "workbook": "300ms_searchStimFlash",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 5000.0,
+          "workbook": "5000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11829.31,
+          "workbook": "11829.31",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 63,
+          "differing_columns": {}
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170625_fly2_LDM_010",
+      "release_series_id_for_explicit_note_check": "170625_fly2_LDM_010",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170625_fly2_LDM_010",
+        "flyID": 151.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "fullfield_LDflash20ms_Gray500ms",
+        "nFrames": 10000.0,
+        "zdepth": 11829.31,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 2,
+      "all_roi_rows": 8,
+      "selected_matlab_roi_rows": [
+        86,
+        87,
+        88,
+        89,
+        90,
+        91
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 447,
+        "series_cell": "A447",
+        "data": {
+          "Time Series ID": "170625_fly2_LDM_010",
+          "Fly ID": "151",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "8",
+          "Sex": "F",
+          "Stimulus": "fullfield_LDflash20ms_Gray500ms",
+          "Frames (imaging)": "10000",
+          "Rotation": "23",
+          "Z-depth": "11829.31",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "10",
+          "Gain": "95",
+          "Offset": "74",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "comments": "some movement"
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "fullfield_LDflash20ms_Gray500ms",
+          "workbook": "fullfield_LDflash20ms_Gray500ms",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 10000.0,
+          "workbook": "10000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11829.31,
+          "workbook": "11829.31",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 64,
+          "differing_columns": {}
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170625_fly2_LDM_012",
+      "release_series_id_for_explicit_note_check": "170625_fly2_LDM_012",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170625_fly2_LDM_012",
+        "flyID": 151.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "300ms_searchStimFlash",
+        "nFrames": 5000.0,
+        "zdepth": 11832.32,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 1,
+      "all_roi_rows": 9,
+      "selected_matlab_roi_rows": [
+        101
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 449,
+        "series_cell": "A449",
+        "data": {
+          "Time Series ID": "170625_fly2_LDM_012",
+          "Fly ID": "151",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "8",
+          "Sex": "F",
+          "Stimulus": "300ms_searchStimFlash",
+          "Frames (imaging)": "5000",
+          "Rotation": "23",
+          "Z-depth": "11832.32",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "10",
+          "Gain": "95",
+          "Offset": "74",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "isResponding?": "1",
+          "comments": "cells 1-9 responding"
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "300ms_searchStimFlash",
+          "workbook": "300ms_searchStimFlash",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 5000.0,
+          "workbook": "5000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11832.32,
+          "workbook": "11832.32",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 66,
+          "differing_columns": {}
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170625_fly2_LDM_014",
+      "release_series_id_for_explicit_note_check": "170625_fly2_LDM_014",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170625_fly2_LDM_014",
+        "flyID": 151.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "fullfield_LDflash20ms_Gray500ms",
+        "nFrames": 10000.0,
+        "zdepth": 11832.32,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 2,
+      "all_roi_rows": 9,
+      "selected_matlab_roi_rows": [
+        101
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 451,
+        "series_cell": "A451",
+        "data": {
+          "Time Series ID": "170625_fly2_LDM_014",
+          "Fly ID": "151",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "8",
+          "Sex": "F",
+          "Stimulus": "fullfield_LDflash20ms_Gray500ms",
+          "Frames (imaging)": "10000",
+          "Rotation": "23",
+          "Z-depth": "11832.32",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "10",
+          "Gain": "95",
+          "Offset": "74",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0"
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "fullfield_LDflash20ms_Gray500ms",
+          "workbook": "fullfield_LDflash20ms_Gray500ms",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 10000.0,
+          "workbook": "10000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11832.32,
+          "workbook": "11832.32",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 68,
+          "differing_columns": {}
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170625_fly2_LDM_015",
+      "release_series_id_for_explicit_note_check": "170625_fly2_LDM_015",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170625_fly2_LDM_015",
+        "flyID": 151.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "300ms_searchStimFlash",
+        "nFrames": 5000.0,
+        "zdepth": 11837.98,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 1,
+      "all_roi_rows": 8,
+      "selected_matlab_roi_rows": [
+        104,
+        108,
+        109
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 452,
+        "series_cell": "A452",
+        "data": {
+          "Time Series ID": "170625_fly2_LDM_015",
+          "Fly ID": "151",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "8",
+          "Sex": "F",
+          "Stimulus": "300ms_searchStimFlash",
+          "Frames (imaging)": "5000",
+          "Rotation": "23",
+          "Z-depth": "11837.98",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "12",
+          "Gain": "95",
+          "Offset": "74",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0",
+          "isResponding?": "1",
+          "comments": "cells 3-8 responding"
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "300ms_searchStimFlash",
+          "workbook": "300ms_searchStimFlash",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 5000.0,
+          "workbook": "5000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11837.98,
+          "workbook": "11837.98",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 69,
+          "differing_columns": {}
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    },
+    {
+      "mat_series_id": "170625_fly2_LDM_016",
+      "release_series_id_for_explicit_note_check": "170625_fly2_LDM_016",
+      "rename_source": "UNCHANGED_LABEL",
+      "mat_metadata": {
+        "seriesID": "170625_fly2_LDM_016",
+        "flyID": 151.0,
+        "genotype": "21Dhh-ASAP2f",
+        "stimcode": "fullfield_LDflash20ms_Gray500ms",
+        "nFrames": 10000.0,
+        "zdepth": 11837.98,
+        "wavelength": 920.0,
+        "ditherHold": 1.0
+      },
+      "recording_column": 2,
+      "all_roi_rows": 8,
+      "selected_matlab_roi_rows": [
+        104,
+        108,
+        109
+      ],
+      "workbook_match_count": 1,
+      "workbook_row": {
+        "sheet": "All Metadata",
+        "row": 453,
+        "series_cell": "A453",
+        "data": {
+          "Time Series ID": "170625_fly2_LDM_016",
+          "Fly ID": "151",
+          "Fly Genotype": "21Dhh-ASAP2f",
+          "Age": "8",
+          "Sex": "F",
+          "Stimulus": "fullfield_LDflash20ms_Gray500ms",
+          "Frames (imaging)": "10000",
+          "Rotation": "23",
+          "Z-depth": "11837.98",
+          "Layer": "2",
+          "Imaging Frame Rate (Hz)": "80",
+          "Wavelength": "920",
+          "Transmission (%)": "12",
+          "Gain": "95",
+          "Offset": "74",
+          "Color Filter": "482/18",
+          "ND": "1.3",
+          "PWM": "200",
+          "Dither Hold": "1",
+          "isMoving?": "0"
+        }
+      },
+      "shared_metadata_comparisons": {
+        "genotype": {
+          "mat": "21Dhh-ASAP2f",
+          "workbook": "21Dhh-ASAP2f",
+          "agrees": true
+        },
+        "stimcode": {
+          "mat": "fullfield_LDflash20ms_Gray500ms",
+          "workbook": "fullfield_LDflash20ms_Gray500ms",
+          "agrees": true
+        },
+        "nFrames": {
+          "mat": 10000.0,
+          "workbook": "10000",
+          "agrees": true
+        },
+        "zdepth": {
+          "mat": 11837.98,
+          "workbook": "11837.98",
+          "agrees": true
+        },
+        "wavelength": {
+          "mat": 920.0,
+          "workbook": "920",
+          "agrees": true
+        },
+        "ditherHold": {
+          "mat": 1.0,
+          "workbook": "1",
+          "agrees": true
+        }
+      },
+      "shared_metadata_disagreements": {},
+      "figure_sheet_corroboration": [
+        {
+          "sheet": "Figs1,3,5 (L1L2 \u00b1CDM)",
+          "row": 70,
+          "differing_columns": {}
+        }
+      ],
+      "literal_old_label_collisions": [],
+      "status": "EXACT_LABEL_AND_SHARED_METADATA_AGREE"
+    }
+  ],
+  "numeric_id_namespaces": [
+    {
+      "mat_prefix": "170519_fly1",
+      "release_prefix": "170519_fly1",
+      "mat_numeric_ids": [
+        79.0
+      ],
+      "workbook_numeric_ids": [
+        "379"
+      ],
+      "series_count": 4,
+      "selected_roi_rows": 4,
+      "numeric_id_offset_is_not_applied": true
+    },
+    {
+      "mat_prefix": "170524_fly1",
+      "release_prefix": "170524_fly1",
+      "mat_numeric_ids": [
+        86.0
+      ],
+      "workbook_numeric_ids": [
+        "386"
+      ],
+      "series_count": 6,
+      "selected_roi_rows": 6,
+      "numeric_id_offset_is_not_applied": true
+    },
+    {
+      "mat_prefix": "170524_fly2",
+      "release_prefix": "170524_fly2",
+      "mat_numeric_ids": [
+        87.0
+      ],
+      "workbook_numeric_ids": [
+        "387"
+      ],
+      "series_count": 4,
+      "selected_roi_rows": 6,
+      "numeric_id_offset_is_not_applied": true
+    },
+    {
+      "mat_prefix": "170606_fly4",
+      "release_prefix": "170606_fly4",
+      "mat_numeric_ids": [
+        103.0
+      ],
+      "workbook_numeric_ids": [
+        "403"
+      ],
+      "series_count": 6,
+      "selected_roi_rows": 14,
+      "numeric_id_offset_is_not_applied": true
+    },
+    {
+      "mat_prefix": "170607_fly1",
+      "release_prefix": "170607_fly4",
+      "mat_numeric_ids": [
+        104.0
+      ],
+      "workbook_numeric_ids": [
+        "404"
+      ],
+      "series_count": 8,
+      "selected_roi_rows": 17,
+      "numeric_id_offset_is_not_applied": true
+    },
+    {
+      "mat_prefix": "170607_fly2",
+      "release_prefix": "170607_fly5",
+      "mat_numeric_ids": [
+        105.0
+      ],
+      "workbook_numeric_ids": [
+        "405"
+      ],
+      "series_count": 4,
+      "selected_roi_rows": 6,
+      "numeric_id_offset_is_not_applied": true
+    },
+    {
+      "mat_prefix": "170609_fly4",
+      "release_prefix": "170609_fly4",
+      "mat_numeric_ids": [
+        134.0
+      ],
+      "workbook_numeric_ids": [
+        "134"
+      ],
+      "series_count": 2,
+      "selected_roi_rows": 7,
+      "numeric_id_offset_is_not_applied": true
+    },
+    {
+      "mat_prefix": "170611_fly3",
+      "release_prefix": "170611_fly3",
+      "mat_numeric_ids": [
+        137.0
+      ],
+      "workbook_numeric_ids": [
+        "137"
+      ],
+      "series_count": 2,
+      "selected_roi_rows": 4,
+      "numeric_id_offset_is_not_applied": true
+    },
+    {
+      "mat_prefix": "170611_fly4",
+      "release_prefix": "170611_fly4",
+      "mat_numeric_ids": [
+        138.0
+      ],
+      "workbook_numeric_ids": [
+        "138"
+      ],
+      "series_count": 4,
+      "selected_roi_rows": 3,
+      "numeric_id_offset_is_not_applied": true
+    },
+    {
+      "mat_prefix": "170611_fly5",
+      "release_prefix": "170611_fly5",
+      "mat_numeric_ids": [
+        139.0
+      ],
+      "workbook_numeric_ids": [
+        "139"
+      ],
+      "series_count": 6,
+      "selected_roi_rows": 15,
+      "numeric_id_offset_is_not_applied": true
+    },
+    {
+      "mat_prefix": "170611_fly7",
+      "release_prefix": "170611_fly7",
+      "mat_numeric_ids": [
+        141.0
+      ],
+      "workbook_numeric_ids": [
+        "141"
+      ],
+      "series_count": 2,
+      "selected_roi_rows": 4,
+      "numeric_id_offset_is_not_applied": true
+    },
+    {
+      "mat_prefix": "170622_fly2",
+      "release_prefix": "170622_fly2",
+      "mat_numeric_ids": [
+        122.0
+      ],
+      "workbook_numeric_ids": [],
+      "series_count": 4,
+      "selected_roi_rows": 0,
+      "numeric_id_offset_is_not_applied": true
+    },
+    {
+      "mat_prefix": "170625_fly1",
+      "release_prefix": "170625_fly1",
+      "mat_numeric_ids": [
+        150.0
+      ],
+      "workbook_numeric_ids": [
+        "150"
+      ],
+      "series_count": 6,
+      "selected_roi_rows": 7,
+      "numeric_id_offset_is_not_applied": true
+    },
+    {
+      "mat_prefix": "170625_fly2",
+      "release_prefix": "170625_fly2",
+      "mat_numeric_ids": [
+        151.0
+      ],
+      "workbook_numeric_ids": [
+        "151"
+      ],
+      "series_count": 6,
+      "selected_roi_rows": 10,
+      "numeric_id_offset_is_not_applied": true
+    }
+  ],
+  "status_counts": {
+    "EXACT_LABEL_AND_SHARED_METADATA_AGREE": 48,
+    "AUTHOR_RENAME_AND_SHARED_METADATA_AGREE": 12,
+    "UNRESOLVED": 4
+  },
+  "selected_roi_rows": 103,
+  "unresolved_selected_matlab_roi_rows": [],
+  "response_datasets_read": false,
+  "response_values_exported": false,
+  "source_records_rewritten": false,
+  "split_frozen": false,
+  "fitting_performed": false,
+  "interpretation": "Workbook comments document the two old-to-release prefix renames. Matching shared recording metadata supports the declared associations; the source records are preserved and no numeric offset is applied globally. Figure tabs within one workbook are corroborating views, not independent experiments.",
+  "limits": [
+    "Metadata agreement establishes an auditable released-record association, not independent proof of physical animal identity or genotype.",
+    "MAT record groups with zero selected rows still require explicit treatment; do not silently omit unresolved groups from the inventory.",
+    "High/low-luminance aggregate provenance, physical cell tracking, physiological validity and learning remain outside this audit."
+  ],
+  "resource_audit": {
+    "thread_limits": 2,
+    "owned_process_tree_peak_sampled_rss_bytes": 89972736,
+    "sampled_process_count": 2,
+    "wall_seconds": 1.9220000000004802,
+    "sample_interval_seconds": 0.05,
+    "memory_limit_bytes": 4294967296,
+    "time_limit_seconds": 2700,
+    "scope": "Spawned Python launcher and recursively discovered descendants only; sampled RSS is not an OS allocation ceiling."
+  }
+}

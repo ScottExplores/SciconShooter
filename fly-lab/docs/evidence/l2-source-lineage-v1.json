@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "status": "STATIC_SOURCE_PROCESSING_AUDIT_ONLY",
+  "source_commit": "7fa5829e37d566e02beaaa87efd6a0f1de4e48c0",
+  "sources": [
+    {
+      "path": "imaging-analysis/HHY_stimulusSpecificAnalysisScripts/selectTimeSeries_L2Project_FFFoG_v2.m",
+      "url": "https://raw.githubusercontent.com/ClandininLab/L1L2-recurrent-feedback/7fa5829e37d566e02beaaa87efd6a0f1de4e48c0/imaging-analysis/HHY_stimulusSpecificAnalysisScripts/selectTimeSeries_L2Project_FFFoG_v2.m",
+      "bytes": 21415,
+      "sha256": "d1417d66df0b3e79af96cc5b4a2af6d31fd4734c9b905d31db3fdb4c47d34b33",
+      "git_blob_sha1": "fe2c98262ce7d42e4d9f4ba4dd622eb7316eb921",
+      "local_path": "data/raw/vision-physiology/pang-2025/lineage-v1/imaging-analysis__HHY_stimulusSpecificAnalysisScripts__selectTimeSeries_L2Project_FFFoG_v2.m"
+    },
+    {
+      "path": "imaging-analysis/HHY_stimulusSpecificAnalysisScripts/selectTimeSeries_L2Project_FFFoG.m",
+      "url": "https://raw.githubusercontent.com/ClandininLab/L1L2-recurrent-feedback/7fa5829e37d566e02beaaa87efd6a0f1de4e48c0/imaging-analysis/HHY_stimulusSpecificAnalysisScripts/selectTimeSeries_L2Project_FFFoG.m",
+      "bytes": 20500,
+      "sha256": "d2bb5c0b3379292562693636177910d408dc90f3c7a488510085178b291b74f5",
+      "git_blob_sha1": "19c63a9da516be4c704abf930a9262ffb75f3733",
+      "local_path": "data/raw/vision-physiology/pang-2025/lineage-v1/imaging-analysis__HHY_stimulusSpecificAnalysisScripts__selectTimeSeries_L2Project_FFFoG.m"
+    },
+    {
+      "path": "imaging-analysis/saveProcessedData.m",
+      "url": "https://raw.githubusercontent.com/ClandininLab/L1L2-recurrent-feedback/7fa5829e37d566e02beaaa87efd6a0f1de4e48c0/imaging-analysis/saveProcessedData.m",
+      "bytes": 3500,
+      "sha256": "dd240db0c3a16306e329edec32688a834e799d3e10ef0c3ef0a7f5c9b6729cd2",
+      "git_blob_sha1": "e49af95fd76d1fe5528bf651e435014395133826",
+      "local_path": "data/raw/vision-physiology/pang-2025/lineage-v1/imaging-analysis__saveProcessedData.m"
+    },
+    {
+      "path": "imaging-analysis/HHY_stimulusSpecificAnalysisScripts/selectTimeSeries_L2lumTest_FFFoG.m",
+      "url": "https://raw.githubusercontent.com/ClandininLab/L1L2-recurrent-feedback/7fa5829e37d566e02beaaa87efd6a0f1de4e48c0/imaging-analysis/HHY_stimulusSpecificAnalysisScripts/selectTimeSeries_L2lumTest_FFFoG.m",
+      "bytes": 8465,
+      "sha256": "3b6ba706a6e4306b8f78678e9c6ae393f841fb31f5762a1a1a255f1814dbffa4",
+      "git_blob_sha1": "60dadf4a1c4e53a5e0eee257969e68c173b065b4",
+      "local_path": "data/raw/vision-physiology/pang-2025/lineage-v1/imaging-analysis__HHY_stimulusSpecificAnalysisScripts__selectTimeSeries_L2lumTest_FFFoG.m"
+    },
+    {
+      "path": "imaging-analysis/HHY_example_spreadsheet/2p_imaging_log.txt",
+      "url": "https://raw.githubusercontent.com/ClandininLab/L1L2-recurrent-feedback/7fa5829e37d566e02beaaa87efd6a0f1de4e48c0/imaging-analysis/HHY_example_spreadsheet/2p_imaging_log.txt",
+      "bytes": 67403,
+      "sha256": "9ac98f624b38728829271a30fc34a3c180d864f7bfad050d0e50deefdab8d7bf",
+      "git_blob_sha1": "95fe3960f51fb5b041de4de9c7ce31d8d4c6d702",
+      "local_path": "data/raw/vision-physiology/pang-2025/lineage-v1/imaging-analysis__HHY_example_spreadsheet__2p_imaging_log.txt"
+    },
+    {
+      "path": "imaging-analysis/readDatabase_selectSamples.m",
+      "url": "https://raw.githubusercontent.com/ClandininLab/L1L2-recurrent-feedback/7fa5829e37d566e02beaaa87efd6a0f1de4e48c0/imaging-analysis/readDatabase_selectSamples.m",
+      "bytes": 35497,
+      "sha256": "7a754b8df210e208a749ed9bf90d9f91324209996a425f8e51de5b975f60fbb9",
+      "git_blob_sha1": "8bb8920e1d9751a3204dee19693fb4228959b39c",
+      "local_path": "data/raw/vision-physiology/pang-2025/lineage-v1/imaging-analysis__readDatabase_selectSamples.m"
+    },
+    {
+      "path": "imaging-analysis/loadROIData.m",
+      "url": "https://raw.githubusercontent.com/ClandininLab/L1L2-recurrent-feedback/7fa5829e37d566e02beaaa87efd6a0f1de4e48c0/imaging-analysis/loadROIData.m",
+      "bytes": 4946,
+      "sha256": "55a32e458b46f1e8a6dea9cee1f22dc5e8519d1adcccf4623933e65a113f5dce",
+      "git_blob_sha1": "bd5aa019cf2b2d9105ca363c12f86bb78426b157",
+      "local_path": "data/raw/vision-physiology/pang-2025/lineage-v1/imaging-analysis__loadROIData.m"
+    },
+    {
+      "path": "imaging-analysis/filterROIs_stimLockedPlots_FFFoG.m",
+      "url": "https://raw.githubusercontent.com/ClandininLab/L1L2-recurrent-feedback/7fa5829e37d566e02beaaa87efd6a0f1de4e48c0/imaging-analysis/filterROIs_stimLockedPlots_FFFoG.m",
+      "bytes": 8545,
+      "sha256": "9c84e5ac755908646635e3d67069247ed0bd732e2b2353a86d577a2a19f41d49",
+      "git_blob_sha1": "e27ab13c31c4d8aac2e1e6261110aebea312697d",
+      "local_path": "data/raw/vision-physiology/pang-2025/lineage-v1/imaging-analysis__filterROIs_stimLockedPlots_FFFoG.m"
+    },
+    {
+      "path": "imaging-analysis/matchROIsAcrossStimuli.m",
+      "url": "https://raw.githubusercontent.com/ClandininLab/L1L2-recurrent-feedback/7fa5829e37d566e02beaaa87efd6a0f1de4e48c0/imaging-analysis/matchROIsAcrossStimuli.m",
+      "bytes": 6756,
+      "sha256": "3525f97384e51539b8eb2e9e0a3a3209975226a2eac3a1a67aa2bcc8ac8517fe",
+      "git_blob_sha1": "50e2c6f10b72e142079a604efe7affdaed18ff19",
+      "local_path": "data/raw/vision-physiology/pang-2025/lineage-v1/imaging-analysis__matchROIsAcrossStimuli.m"
+    },
+    {
+      "path": "imaging-analysis/HHY_stimulusSpecificAnalysisScripts/shortFlashProcessed_saveMean.m",
+      "local_path": "data/raw/vision-physiology/pang-2025/imaging-analysis__HHY_stimulusSpecificAnalysisScripts__shortFlashProcessed_saveMean.m",
+      "bytes": 1768,
+      "sha256": "e5c9daf537b4a3f20c7708e3b1c6ccac66b37f3e1cba943a1ffa4c6c6c447cb7"
+    }
+  ],
+  "code_executed": false,
+  "response_values_read_in_this_static_audit": false,
+  "fitting_performed": false,
+  "gates_changed": false,
+  "interpretation": "Relevant code operations identified; explicit alias evidence comes from the workbook crosswalk. Historical execution sequence and original metadata-file revision are not independently established."
+}

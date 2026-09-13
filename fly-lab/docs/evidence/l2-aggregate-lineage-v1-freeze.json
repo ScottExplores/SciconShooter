@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "status": "FROZEN_BEFORE_FIRST_RESPONSE_COMPARISON",
+  "created_utc": "2026-09-13T17:46:18.920564+00:00",
+  "protocol_path": "configs/candidates/l2-aggregate-lineage-v1.json",
+  "protocol_sha256": "c2fc0ea67b9878ac32deb4f29e7545599d4921e26c7e8b31eeb877ef24f4d0e2",
+  "runner_path": "scripts/check-l2-aggregate-lineage.py",
+  "runner_sha256": "678e5d79cf1633908d792c41c46be0bd795cd98e7882d904fee48cdc0a33cb4e",
+  "source_identities": [
+    {
+      "path": "data/raw/vision-physiology/pang-2025/dryad-v3/L2_ASAP2f.mat",
+      "bytes": 117007438,
+      "sha256": "31e3942cee9025c152f96f929d30357ff14e6cf3b4f3c972f005c89524e946df"
+    },
+    {
+      "path": "data/raw/vision-physiology/pang-2025/computational-model__data__L2_highLum.mat",
+      "bytes": 1463,
+      "sha256": "1c9266f5c387a217013f8715a49f6351f78e9a9de9894a5ac2892b2a06cf6e36"
+    },
+    {
+      "path": "data/raw/vision-physiology/pang-2025/computational-model__data__L2_lowLum.mat",
+      "bytes": 1459,
+      "sha256": "49c0e5587618f9d11e0dea12a218b6eecd511e563d8d42ad986e9c410c6d012c"
+    },
+    {
+      "path": "data/raw/vision-physiology/pang-2025/imaging-analysis__HHY_stimulusSpecificAnalysisScripts__shortFlashProcessed_saveMean.m",
+      "bytes": 1768,
+      "sha256": "e5c9daf537b4a3f20c7708e3b1c6ccac66b37f3e1cba943a1ffa4c6c6c447cb7",
+      "role": "static mathematical aggregation reference; never executed"
+    }
+  ],
+  "comparison_protocol": {
+    "schema_version": 1,
+    "id": "l2-aggregate-lineage-v1",
+    "scope": "SOURCE_AGGREGATE_PROVENANCE_CHECK_ONLY",
+    "fitting_allowed": false,
+    "gates_may_change": false,
+    "source_mat": {
+      "path": "data/raw/vision-physiology/pang-2025/dryad-v3/L2_ASAP2f.mat",
+      "sha256": "31e3942cee9025c152f96f929d30357ff14e6cf3b4f3c972f005c89524e946df"
+    },
+    "comparisons": [
+      {
+        "label": "author_highLum",
+        "path": "data/raw/vision-physiology/pang-2025/computational-model__data__L2_highLum.mat",
+        "sha256": "1c9266f5c387a217013f8715a49f6351f78e9a9de9894a5ac2892b2a06cf6e36"
+      },
+      {
+        "label": "author_lowLum",
+        "path": "data/raw/vision-physiology/pang-2025/computational-model__data__L2_lowLum.mat",
+        "sha256": "49c0e5587618f9d11e0dea12a218b6eecd511e563d8d42ad986e9c410c6d012c"
+      }
+    ],
+    "expected_matlab_roi_rows": 214,
+    "expected_source_selected_rows": 103,
+    "selection": "Use original one-based iResp in its stored order; experimental column 2 only. No additional selection or exclusion based on response values.",
+    "polarity_order": [
+      "dark",
+      "light"
+    ],
+    "expected_samples_per_polarity": 63,
+    "aggregation": "Equal-weight arithmetic mean of the 103 selected ROI response vectors independently for each original polarity; mirrors the mathematical operation in pinned shortFlashProcessed_saveMean.m, without executing author code.",
+    "comparison": "Compare original unnormalized raw fluorescence means and original time vector, with no sign inversion, rescaling, smoothing, shifts, fitting, row permutation or parameter search.",
+    "maximum_absolute_response_difference_for_match": 1e-12,
+    "maximum_absolute_time_difference_seconds_for_match": 1e-12,
+    "hypothesis": "Test whether the unmodified source-selected mean reproduces the deposited highLum aggregate; also report the separately named lowLum comparison without selecting a preferred transform or using it as biological validation.",
+    "failure_policy": "Preserve mismatches and invalid inputs; do not adjust selection, tolerance or transformation to force agreement.",
+    "exports": "Hashes, membership counts, dimensions, finite checks, maximum/mean absolute differences, comparison status and resource records. Do not export individual response values or aggregate response arrays in tracked artifacts.",
+    "data_exposure": "This check reads all source-selected response vectors to validate their aggregation. It is not a fit or biological holdout evaluation. Later assessment must disclose this source-validation exposure and prior published model/aggregate use of the data.",
+    "resources": {
+      "numerical_threads": 2,
+      "maximum_sampled_owned_process_tree_rss_bytes": 4294967296,
+      "maximum_wall_seconds": 2700
+    },
+    "limitations": "Numerical agreement links processed data products under the declared averaging operation. It does not validate microscopy preprocessing, absolute illumination, voltage or release units, population representativeness, MaleCNS transfer, whole-CNS vision or gameplay learning. Dryad CC0 does not establish licensing for the separate GitHub aggregates."
+  },
+  "method": "Only file-byte hashing and protocol parsing have occurred in this freeze command. No response arrays loaded, averaged, transformed or compared.",
+  "algorithm_details": [
+    "Read original one-based iResp in stored order; require 103 unique valid rows among214.",
+    "Dereference experimental column2 only; HDF5 struct axes are[2,214], each t/rats cell[2,1], each vector[63,1].",
+    "Require all selected time vectors exactly equal to the first selected dark vector, and strictly increasing. No alignment correction is permitted.",
+    "Use NumPy float64 arithmetic mean across selected ROI axis in original order independently for dark/light; do not use SEM or trial-count weighting.",
+    "Compare both unchanged MAT meanResp[2,63] and t[1,63] with fixed absolute1e-12 tolerances; all difference metrics are absolute, no relative tolerance.",
+    "A mismatch is a completed provenance result; invalid sources or resource interruption are recorded distinctly."
+  ],
+  "runtime_versions": {
+    "numpy": "2.2.6",
+    "scipy": "1.15.3",
+    "h5py": "3.16.0",
+    "psutil": "7.2.2"
+  }
+}
