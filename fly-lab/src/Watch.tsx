@@ -66,19 +66,20 @@ export default function Watch({ offline = false }: { offline?: boolean }) {
     vision.current?.getContext('2d')?.clearRect(0, 0, 96, 208);
     if (!ready || (!offline && !selected)) return;
     const abort = new AbortController(); let active = true; setLoading(true); setError('');
+    const deadline = setTimeout(() => abort.abort(), 15000);
     const url = offline ? './watch-manifest.json' : `/lab-api/watch/${encodeURIComponent(selected)}`;
     readJson<WatchManifest>(url, abort.signal).then(async next => {
       const frames = await readJson<WatchFrame[]>(next.timeline.url, abort.signal);
       if (!frames.length || frames.length !== next.timeline.entries || frames.some((row, index) => !Number.isFinite(row.videoTimeSeconds) || index > 0 && row.videoTimeSeconds < frames[index - 1].videoTimeSeconds)) throw new Error('The replay timeline is incomplete or invalid.');
       if (active) { setManifest(next); setTimeline(frames); setFrame(frames[0]); }
-    }).catch(e => { if (active) setError(e.message); }).finally(() => { if (active) setLoading(false); });
-    return () => { active = false; abort.abort(); };
+    }).catch(e => { if (active) setError(e.name === 'AbortError' ? 'Opening the recording timed out. Retry to load it again.' : e.message); }).finally(() => { clearTimeout(deadline); if (active) setLoading(false); });
+    return () => { active = false; clearTimeout(deadline); abort.abort(); };
   }, [offline, selected, ready, retry]);
   useEffect(() => {
     if (mode !== 'live' || !visible || offline) return;
     let active = true, timer: ReturnType<typeof setTimeout>; const abort = new AbortController();
     const poll = async () => {
-      try { const next = await api<WatchLive>('/watch/live', undefined, abort.signal); if (active) { setLive(next); setError(next.error || ''); } }
+      try { const next = await api<WatchLive>('/watch/live', undefined, AbortSignal.any([abort.signal, AbortSignal.timeout(5000)])); if (active) { setLive(next); setError(next.error || ''); } }
       catch (e) { if (active) setError((e as Error).message); }
       if (active) timer = setTimeout(poll, lowPower ? 500 : 200);
     }; void poll(); return () => { active = false; clearTimeout(timer); abort.abort(); };

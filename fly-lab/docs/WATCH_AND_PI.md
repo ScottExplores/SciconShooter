@@ -32,7 +32,7 @@ node scripts/export-watch.mjs RUN_ID
 The command creates a new `runtime/pi-display-RUN_ID` folder and never overwrites an existing directory. Copy that entire folder to the Pi. In a terminal inside the copied folder:
 
 ```sh
-python3 -m http.server 8080 --bind 127.0.0.1
+python3 serve-watch.py
 ```
 
 Open `http://127.0.0.1:8080/watch.html` in Chromium and press F11. Low power starts enabled. For kiosk mode, launch `chromium --kiosk http://127.0.0.1:8080/watch.html` from the Pi desktop terminal; some older images call the executable `chromium-browser`. Leave the file-server terminal open. Ctrl+C stops it.
