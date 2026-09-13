@@ -98,7 +98,8 @@ class RunWriter:
             'Run `python -m scicon_fly.replay EXPERIMENT_DIRECTORY` with the pinned runtime and local lab web server running. '+
             'Replay checks every recorded action against state and grayscale observation hashes. '+
             'Install the game assets separately from the source checkout; source.zip contains model and game source, not the artwork library.\n\n'+
-            'observations.jsonl.gz preserves the exact grayscale policy input. Reward is +1 per enemy destruction and -5 per life lost. '+
+            'observations.jsonl.gz preserves the exact grayscale policy input. '+
+            ('Boss practice reward is +1 per confirmed player-caused boss hull HP lost; components, blocked shots and score award no reward. ' if self.config.get('rewardProtocol')=='boss-hull-damage-v1' else 'Reward is +1 per enemy destruction and -5 per life lost. ')+
             'No hidden game state is sent to a neural worker. Inspect config.json, runtime.json and dataset-manifest.json for model and environment identity.\n',encoding='utf8')
         (self.path/'report.md').write_text(report_markdown(self.path),encoding='utf8')
         files={p.relative_to(self.path).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in self.path.rglob('*') if p.is_file() and p.name!='checksums.json'}
@@ -110,7 +111,7 @@ def report_markdown(path):
         '## Background\nA connectome is anatomical evidence; physiological and interface assumptions require separate validation.',
         '## Hypothesis\nA specified plastic model improves frozen held-out performance over matched controls.',
         '## Methods and conditions\n```json\n'+json.dumps(config,indent=2)+'\n```',
-        '## Primary endpoint\nReplica-level difference in pre/post frozen ORBIT ENTRY score, compared with fixed and yoked controls.',
+        ('## Primary endpoint\nBoss practice is an infrastructure validation session. Confirmed hull HP damage per simulated second is descriptive; no learning inference follows from cumulative score.' if config.get('rewardProtocol')=='boss-hull-damage-v1' else '## Primary endpoint\nReplica-level difference in pre/post frozen ORBIT ENTRY score, compared with fixed and yoked controls.'),
         '## Secondary endpoints\nSurvival, enemy destruction, losses, firing duty cycle, movement entropy; scenario transfer is separate.',
         '## Statistical plan\nPaired replica-level intervals and Holm-adjusted primary comparisons. An individual episode cannot establish learning.',
         '## Results\n```json\n'+json.dumps(summary,indent=2)+'\n```',

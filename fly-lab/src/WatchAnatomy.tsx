@@ -34,6 +34,7 @@ export type WatchAnatomyProps = {
   onMetadata?: (metadata: WatchAnatomyMetadata) => void;
   signals?: WatchSignals;
   illustrate?: boolean;
+  activity?: { id: string; spikes: number }[];
 };
 
 // Display-only waves on existing coordinates. These are neither measured cell
@@ -41,6 +42,7 @@ export type WatchAnatomyProps = {
 const POINT_VERTEX = `
   attribute vec3 color;
   attribute float displayGroup;
+  attribute float neuralAccent;
   varying vec3 pointColor;
   varying float accent;
   uniform float pointSize, halo, simTime, inputDrive, controlDrive, illustrate, travel;
@@ -52,6 +54,8 @@ const POINT_VERTEX = `
     accent = min(1.0, illustrate * drive * mix(0.72, 0.18 + 0.62 * band + 0.38 * glint, travel));
     vec3 signalColor = displayGroup == 1.0 ? vec3(0.11, 0.86, 1.0) : vec3(1.0, 0.46, 0.075);
     pointColor = mix(color, signalColor, min(1.0, accent * 1.6));
+    accent = max(accent, neuralAccent);
+    pointColor = mix(pointColor, vec3(0.60, 1.0, 0.82), neuralAccent);
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
     gl_PointSize = halo > 0.5 ? pointSize * (3.0 + accent * 4.0) : pointSize * (1.0 + accent * 1.2);
   }`;
@@ -117,14 +121,14 @@ function validateData(value: AnatomyData) {
 }
 
 /** Actual source anatomy, optionally overlaid with explicitly engineered input/action cues. */
-export default function WatchAnatomy({ active = true, lowPower = false, dataUrl = DEFAULT_DATA_URL, onMetadata, signals, illustrate = false }: WatchAnatomyProps) {
+export default function WatchAnatomy({ active = true, lowPower = false, dataUrl = DEFAULT_DATA_URL, onMetadata, signals, illustrate = false, activity }: WatchAnatomyProps) {
   const host = useRef<HTMLDivElement>(null);
-  const options = useRef({ active, lowPower, signals, illustrate });
+  const options = useRef({ active, lowPower, signals, illustrate, activity });
   const invalidate = useRef<() => void>(() => undefined);
   const metadataCallback = useRef(onMetadata);
   const [data, setData] = useState<AnatomyData | null>(null);
   const [error, setError] = useState('');
-  options.current = { active, lowPower, signals, illustrate };
+  options.current = { active, lowPower, signals, illustrate, activity };
   metadataCallback.current = onMetadata;
 
   useEffect(() => {
@@ -188,6 +192,10 @@ export default function WatchAnatomy({ active = true, lowPower = false, dataUrl 
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     geometry.setAttribute('displayGroup', new THREE.BufferAttribute(displayGroups, 1));
+    const neuralAccents = new Float32Array(data.displayedSomaCount);
+    const neuralAttribute = new THREE.BufferAttribute(neuralAccents, 1);
+    const neuronIndices = new Map(data.bodyIds.map((id, i) => [id, i]));
+    geometry.setAttribute('neuralAccent', neuralAttribute);
     const material = new THREE.ShaderMaterial({
       uniforms: { ...signalUniforms, halo: { value: 0 } },
       vertexShader: POINT_VERTEX, fragmentShader: POINT_FRAGMENT,
@@ -200,6 +208,7 @@ export default function WatchAnatomy({ active = true, lowPower = false, dataUrl 
     haloGeometry.setAttribute('position', geometry.getAttribute('position'));
     haloGeometry.setAttribute('color', geometry.getAttribute('color'));
     haloGeometry.setAttribute('displayGroup', geometry.getAttribute('displayGroup'));
+    haloGeometry.setAttribute('neuralAccent', neuralAttribute);
     haloGeometry.setIndex(Array.from({ length: Math.ceil(data.displayedSomaCount / 8) }, (_, i) => i * 8));
     const haloMaterial = new THREE.ShaderMaterial({ uniforms: { ...signalUniforms, halo: { value: 1 } },
       vertexShader: POINT_VERTEX, fragmentShader: POINT_FRAGMENT,
@@ -232,6 +241,8 @@ export default function WatchAnatomy({ active = true, lowPower = false, dataUrl 
     controls.autoRotateSpeed = .22;
     const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
     let intersecting = true, frame = 0, lastDraw = 0, dirty = true, disposed = false;
+    let lastActivity: WatchAnatomyProps['activity'];
+    let activeIndices: number[] = [];
 
     const requestDraw = () => { dirty = true; if (!frame && !disposed && !document.hidden && intersecting) frame = requestAnimationFrame(draw); };
     const draw = (now: number) => {
@@ -240,6 +251,18 @@ export default function WatchAnatomy({ active = true, lowPower = false, dataUrl 
       const animated = options.current.active && !motion.matches;
       const interval = 1000 / (options.current.lowPower ? 15 : 30);
       if (now - lastDraw >= interval || !lastDraw) {
+        if (lastActivity !== options.current.activity) {
+          neuralAccents.fill(0); activeIndices = [];
+          for (const sample of options.current.activity || []) {
+            const index = neuronIndices.get(sample.id);
+            if (index !== undefined && Number.isFinite(sample.spikes) && sample.spikes > 0) {
+              neuralAccents[index] = Math.min(1, .6 + Math.log1p(sample.spikes) * .1); activeIndices.push(index);
+            }
+          }
+          neuralAttribute.needsUpdate = true; lastActivity = options.current.activity;
+          haloGeometry.setIndex(activeIndices.length ? activeIndices : Array.from({ length: Math.ceil(data.displayedSomaCount / 8) }, (_, i) => i * 8));
+          dirty = true;
+        }
         const current = options.current.signals;
         const enabled = options.current.illustrate && !options.current.lowPower && current?.valid === true && Number.isFinite(current.timeSeconds);
         signalUniforms.illustrate.value = enabled ? 1 : 0;
@@ -247,7 +270,7 @@ export default function WatchAnatomy({ active = true, lowPower = false, dataUrl 
         signalUniforms.inputDrive.value = enabled ? strength(current.inputChange) : 0;
         signalUniforms.controlDrive.value = enabled ? Math.max(strength(current.movement), strength(current.fire)) : 0;
         signalUniforms.travel.value = motion.matches ? 0 : 1;
-        haloPoints.visible = enabled && (signalUniforms.inputDrive.value > 0 || signalUniforms.controlDrive.value > 0);
+        haloPoints.visible = activeIndices.length > 0 || enabled && (signalUniforms.inputDrive.value > 0 || signalUniforms.controlDrive.value > 0);
         controls.autoRotate = animated;
         if (animated) controls.update(Math.min((now - lastDraw) / 1000, .05));
         if (dirty || animated) { renderer.render(scene, camera); dirty = false; }
@@ -295,7 +318,7 @@ export default function WatchAnatomy({ active = true, lowPower = false, dataUrl 
     };
   }, [data]);
 
-  useEffect(() => { invalidate.current(); }, [active, lowPower, signals, illustrate]);
+  useEffect(() => { invalidate.current(); }, [active, lowPower, signals, illustrate, activity]);
 
   return <div ref={host} style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }}>
     {(!data || error) && <div role="status" style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', padding: 24, color: '#a6becb', font: '12px system-ui', textAlign: 'center' }}>{error || 'Loading recorded anatomy…'}</div>}

@@ -1819,6 +1819,10 @@ export interface GameEngineRuntimeHooks {
   fixedPerformanceMode?: boolean;
   /** Collision-free per-instance IDs, with a separate cosmetic namespace. */
   stableEntityIds?: boolean;
+  /** Explicit research arena policy; ordinary gameplay and previews leave this unset. */
+  playerInvulnerable?: boolean;
+  /** Keep research loadouts fixed, including coin/flask, bomb and powerup pickups. */
+  disablePickups?: boolean;
 }
 
 export interface GameEngineOptions {
@@ -5517,6 +5521,9 @@ export class GameEngine {
   }
 
   private applyPlayerLifeDamage(incomingDamage: number) {
+    if (this.runtimeHooks.playerInvulnerable) {
+      return resolvePlayerLifeDamage(this.lives, 0, GAME_CONFIG.MAX_LIVES);
+    }
     const requestedDamage = Math.max(1, Math.round(Number(incomingDamage) || 1));
     const boundedDamage = this.maxPlayerDamagePerHit === null
       ? requestedDamage
@@ -21009,7 +21016,7 @@ export class GameEngine {
     if (state.damageApplied) return false;
     state.damageApplied = true;
     const shieldActive = this.isPowerupActive(PowerupType.SHIELD);
-    const protectedFromDamage = this.testMode
+    const protectedFromDamage = this.runtimeHooks.playerInvulnerable || this.testMode
       || (this.previewMode && this.previewInvincible)
       || this.invincibleTimer > 0
       || shieldActive
@@ -23107,6 +23114,7 @@ export class GameEngine {
   }
 
   private creditCoinValue(coin: Entity) {
+    if (this.runtimeHooks.disablePickups) return false;
     if (coin.coinValueCredited) return false;
 
     coin.coinValueCredited = true;
@@ -23238,6 +23246,7 @@ export class GameEngine {
   }
 
   private collectCoinIfReachedPlayer(coin: Entity) {
+    if (this.runtimeHooks.disablePickups) return false;
     const playerBox = this.getCollisionBox(this.player);
     const coinBox = this.getCollisionBox(coin);
     if (!this.boxesIntersect(playerBox, coinBox) && !this.isCoinCollectedBySquadMagnet(coin)) return false;
@@ -23293,6 +23302,7 @@ export class GameEngine {
   }
 
   activatePowerup(type: PowerupType, countUse: boolean = true) {
+    if (this.runtimeHooks.disablePickups) return;
     if (countUse) {
       this.stats.powerupUses = {
         ...this.stats.powerupUses,
@@ -23614,7 +23624,7 @@ export class GameEngine {
         playerShots.push(e);
       }
 
-      if (e.type === EntityType.POWERUP && intersectsPlayer(e)) {
+      if (!this.runtimeHooks.disablePickups && e.type === EntityType.POWERUP && intersectsPlayer(e)) {
         e.markedForDeletion = true;
         const type = e.text as PowerupType;
         this.spawnBurst(e.x + e.width / 2, e.y + e.height / 2, '#ffffff', 9, 3.2, 4);
@@ -23623,7 +23633,7 @@ export class GameEngine {
         this.activatePowerup(type);
       }
 
-      if (e.type === EntityType.BOMB && intersectsPlayer(e)) {
+      if (!this.runtimeHooks.disablePickups && e.type === EntityType.BOMB && intersectsPlayer(e)) {
         e.markedForDeletion = true;
         this.stats.bombs = Math.max(0, Math.floor(this.stats.bombs || 0)) + 1;
         this.spawnFloatingText(e.x + e.width / 2, e.y - 10, 'BOMB +1', '#facc15', 18);
@@ -23681,7 +23691,7 @@ export class GameEngine {
       // The Director is an inspection surface, so its preview ship must survive long
       // enough to observe a complete wave without changing production combat rules.
       const isPreviewInvincible = this.previewMode && this.previewInvincible;
-      const isInvincible = (this.previewMode && this.previewInvincible)
+      const isInvincible = this.runtimeHooks.playerInvulnerable || (this.previewMode && this.previewInvincible)
         || this.invincibleTimer > 0
         || this.isPowerupActive(PowerupType.SHIELD)
         || this.hasMaxShotShield();

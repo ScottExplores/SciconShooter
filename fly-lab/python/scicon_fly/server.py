@@ -108,6 +108,25 @@ def calculate_outcome_reward(previous_state,result):
         raise ValueError('Invalid reward telemetry: net life drop is missing player-life-lost events')
     return kills-5*losses
 
+def calculate_boss_damage_reward(result):
+    """Actual player-caused hull HP loss; components and blocked shots pay zero.
+
+    Multiple contacts in one tick are valid. The command sequence and event
+    position identify an event; neither a target ID nor a frame is a unique hit.
+    """
+    events=result.get('events')
+    if not isinstance(events,list):raise ValueError('Boss damage reward requires an event list')
+    total=0.
+    for event in events:
+        if not isinstance(event,dict):raise ValueError('Boss damage event must be an object')
+        if event.get('type')!='entity-damage' or event.get('sourceKind')!='player' or event.get('targetKind') not in ('BOSS','MINI_BOSS'):continue
+        amount=event.get('amount');remaining=event.get('remainingHealth')
+        if any(isinstance(v,bool) or not isinstance(v,(int,float)) or not np.isfinite(v) for v in (amount,remaining)) or amount<=0 or remaining<0:
+            raise ValueError('Boss hull damage must be finite applied HP loss with nonnegative remaining health')
+        if not isinstance(event.get('targetId'),str) or not event['targetId']:raise ValueError('Boss hull damage requires a target ID')
+        total+=amount
+    return total
+
 def neural_mode_for(controller,phase):
     if controller not in ('neural-fixed','neural-plastic'):
         return None
@@ -165,7 +184,7 @@ class Coordinator:
                 'neuralMode':self.config.get('neuralMode'),'reinforcementProtocol':self.config.get('reinforcementProtocol','none'),
                 'score':state.get('score',0),'lives':state.get('lives',3),'kills':state.get('enemiesDefeated',0),
                 'simTimeMs':(self.latest or {}).get('simTimeMs',0),'decisions':self.seq,'reward':self.total_reward,
-                'evidence':'INSUFFICIENT EVIDENCE','error':self.error,'yokedExposure':exposure})
+                'evidence':'INSUFFICIENT EVIDENCE','error':self.error,'yokedExposure':exposure,'practice':state.get('practice')})
         return status
     def checkpoint(self,label):
         name=self.run_id+'-'+label+'.npz'
@@ -188,8 +207,18 @@ class Coordinator:
             neural_mode=neural_mode_for(controller,phase)
             seed=body.get('seed',42)
             if isinstance(seed,bool) or not isinstance(seed,int) or not 0<=seed<2**32:raise ValueError('Seed must be a uint32 integer')
+            policy_seed=body.get('policySeed',seed^0x9E3779B9)
+            if type(policy_seed) is not int or not 0<=policy_seed<2**32:raise ValueError('Policy seed must be a uint32 integer')
             duration=body.get('timeLimitSeconds',90)
-            if not isinstance(duration,(int,float)) or not 1<=duration<=90:raise ValueError('Duration must be 1..90 seconds')
+            task=body.get('task')
+            if task not in (None,'boss-practice-v1'):raise ValueError('Unknown research task')
+            maximum_duration=180 if task else 90
+            if isinstance(duration,bool) or not isinstance(duration,(int,float)) or not 1<=duration<=maximum_duration:raise ValueError(f'Duration must be 1..{maximum_duration} seconds')
+            practice_phase=body.get('practicePhase','boss')
+            if task and practice_phase not in ('boss','wave'):raise ValueError('Unknown practice phase')
+            reward_protocol=body.get('rewardProtocol','boss-hull-damage-v1' if task else 'outcome-v1')
+            if reward_protocol not in ('outcome-v1','boss-hull-damage-v1') or reward_protocol=='boss-hull-damage-v1' and not task:
+                raise ValueError('Boss hull reward requires the declared boss practice task')
             neural_config=body.get('neuralConfig')
             frozen_model={}
             if controller.startswith('neural'):
@@ -222,12 +251,21 @@ class Coordinator:
             self.reinforcement_schedule=schedule
             render_profile=body.get('renderProfile','swiftshader')
             if render_profile not in ['swiftshader','local-d3d11']:raise ValueError('Unknown rendering profile')
-            self.config={'schemaVersion':1,'controller':controller,'seed':seed,'policySeed':seed^0x9E3779B9,
+            self.config={'schemaVersion':1,'controller':controller,'seed':seed,'policySeed':policy_seed,
                 'neuralMode':neural_mode,'reinforcementProtocol':('signed-dan-yoked-v1' if schedule is not None else 'signed-dan-outcome-v1') if neural_mode in ('training','training-fixed') else 'none',
                 'renderProfile':render_profile,
                 'episode':{'levelId':'operation-open-galaxy','timeLimitSeconds':duration,'presentationSeed':seed^0xA341316C},
                 'decisionHz':20,'gameHz':60,'movement':'native-keyboard-9','fire':'independent','constantFire':bool(body.get('constantFire',False)),
                 'reward':{'enemyDestroyed':1,'lifeLost':-5,'lifeLossEvent':'player-life-lost','lifeLossCountField':'count','terminalDeathAffectsReward':False},'neuralConfig':neural_config,'modelFiles':frozen_model,'calibrationActions':calibration,'reinforcementSchedule':schedule,'reinforcementSource':'yoked' if schedule is not None else 'outcomes','preserveEfficacy':bool(body.get('preserveEfficacy',False)),'phase':phase,'study':body.get('study'),'scope':'ORBIT ENTRY stochastic robustness; not scenario transfer'}
+            if task:
+                self.config['episode'].update(task=task,practicePhase=practice_phase)
+                self.config['episode'].pop('levelId')
+                self.config.update(movement='horizontal-W-idle-E',fire='held',constantFire=True,
+                                   scope='Boss aiming infrastructure validation; native opponent phases; invulnerable fixed-loadout player')
+            self.config['rewardProtocol']=reward_protocol
+            if reward_protocol=='boss-hull-damage-v1':
+                self.config['reward']={'bossHullHpLost':1,'components':0,'score':0,'blockedShots':0,'lifeLost':0,'event':'entity-damage','sourceKind':'player','targetKinds':['BOSS','MINI_BOSS']}
+                if neural_mode in ('training','training-fixed') and schedule is None:self.config['reinforcementProtocol']='signed-dan-boss-hull-v1'
             self.run_id=datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S')+'-'+uuid.uuid4().hex[:8]
             self.seq=0;self.history=[];self.total_reward=0;self.error=None;self.hold=0;self.neural_summary=None;self.latest=None;self.watch_snapshot=None
             self.rng=np.random.default_rng(self.config['policySeed']);self.action={'movement':'idle','fire':False};self.status='loading'
@@ -273,6 +311,9 @@ class Coordinator:
         else:action={'movement':'idle','fire':False}
         if self.config['constantFire']:action={**action,'fire':True}
         if action.get('movement') not in MOVEMENTS or not isinstance(action.get('fire'),bool):raise ValueError('Invalid action')
+        if self.config.get('episode',{}).get('task')=='boss-practice-v1':
+            horizontal={'NW':'W','SW':'W','W':'W','NE':'E','SE':'E','E':'E'}
+            action={'movement':horizontal.get(action['movement'],'idle'),'fire':True}
         return {'movement':action['movement'],'fire':action['fire']}
     def training_reward(self,index):
         return self.reinforcement_schedule[index] if self.reinforcement_schedule is not None else self.history[index]['reward']
@@ -284,7 +325,7 @@ class Coordinator:
             try:
                 previous=self.latest['state'];previous_observation=self.latest.get('observation');action=self.choose_action(manual)
                 result=self.driver.call({'op':'step','action':action,'seq':self.seq+1})
-                reward=calculate_outcome_reward(previous,result)
+                reward=calculate_boss_damage_reward(result) if self.config.get('rewardProtocol')=='boss-hull-damage-v1' else calculate_outcome_reward(previous,result)
                 pixel_change=input_change(previous_observation,result['observation']) if previous_observation is not None and result.get('observation') is not None else None
                 self.seq+=1;self.action=action;self.total_reward+=reward
                 self.writer.append(self.seq,action,result,reward,self.neural_summary)
@@ -451,6 +492,14 @@ class Handler(BaseHTTPRequestHandler):
         if not self.valid_origin():return self.respond({'error':'Loopback origin required'},403)
         path=unquote(urlparse(self.path).path)
         try:
+            if path=='/continuous/live':
+                from .continuous import ROOT as continuous_root, public_snapshot, active_owner
+                value=read_json(continuous_root/'latest.json')
+                if not value:return self.respond({'error':'No continuous session has published a frame yet'},404)
+                snapshot=public_snapshot(value)
+                if not active_owner() and snapshot['status'] in ('running','transitioning'):
+                    snapshot.update(status='error',error='Local experiment worker is no longer running; this is its last saved frame.')
+                return self.respond(snapshot)
             if path=='/watch':return self.respond(WATCH.catalog(PROCESS_SOURCE_TREE_HASH))
             if path=='/watch/live':return self.respond(WATCH.live(COORDINATOR))
             if path.startswith('/watch/live/frame/'):
@@ -501,7 +550,7 @@ class Handler(BaseHTTPRequestHandler):
             length=int(self.headers.get('Content-Length',0))
             if length>65536:raise ValueError('Request too large')
             body=json.loads(self.rfile.read(length) or '{}');path=urlparse(self.path).path
-            if path not in ('/reset','/start','/pause','/step','/stop','/replay','/watch/build','/watch/demo','/watch/cancel','/teaching/run'):
+            if path not in ('/reset','/start','/pause','/step','/stop','/replay','/watch/build','/watch/demo','/watch/cancel','/teaching/run','/continuous/stop'):
                 return self.respond({'error':'Not found'},404)
             # Admission and launch are atomic across HTTP threads. The lock is
             # released after starting a background job, not held during replay.
@@ -509,6 +558,14 @@ class Handler(BaseHTTPRequestHandler):
             self.respond(result)
         except Exception as error:self.respond({'error':str(error)},400)
     def post_action(self,path,body):
+        from .continuous import ROOT as continuous_root, active_owner
+        owner=active_owner()
+        if path=='/continuous/stop':
+            if not owner:return {'status':'not-running'}
+            atomic_json(continuous_root/'stop-request.json',{'pid':owner['pid'],'createdAt':owner['createdAt']})
+            return {'status':'stop-requested','sessionId':owner['sessionId']}
+        if owner and path in ('/reset','/start','/step','/replay','/watch/build','/watch/demo','/teaching/run'):
+            raise ValueError('The continuous experiment owns the game worker. Stop it privately before launching another workload.')
         if path=='/teaching/run':
             assert_process_source_current();assert_watch_workload_available()
             return teaching_service.run(body)

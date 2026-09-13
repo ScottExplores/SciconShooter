@@ -1,7 +1,7 @@
 import { Rectangle } from 'pixi.js';
 import { ASSETS } from '../../constants';
 import { DEFAULT_GAME_CAMPAIGN } from '../../services/levelConfig';
-import { collectCampaignTextureWindow } from '../../services/gameplayAssetManifest';
+import { collectRuntimeTextureUrls } from '../../services/gameplayAssetManifest';
 import { createSeededGameplayRandom } from '../../services/gameplay/random';
 import { getEnvironmentWindowTextureUrls, resolveCampaignEnvironmentWindow } from '../../services/pixi/PixiEnvironment';
 import { PixiGameRenderer } from '../../services/pixi/PixiGameRenderer';
@@ -114,10 +114,15 @@ export const sciconFlyEnvironment = {
       if (!document.fonts.check('700 16px Orbitron')) throw new Error('Required local Orbitron font did not load.');
       const environmentWindow = resolveCampaignEnvironmentWindow(DEFAULT_GAME_CAMPAIGN, config.levelId, config.waveId);
       const level = DEFAULT_GAME_CAMPAIGN.levels.find(candidate => candidate.id === config.levelId)!;
+      const wave = level.waves.find(candidate => candidate.id === config.waveId)!;
+      // Component art is chosen by the canonical Pixi rig, not embedded in wave spriteKey.
+      const componentTextures = wave.events.some(event => event.kind === 'boss' && event.rigId === 'open-orbit')
+        ? [ASSETS.PIXI_BOSS_OPEN_ORBIT_ARM_LEFT, ASSETS.PIXI_BOSS_OPEN_ORBIT_ARM_RIGHT] : [];
       const textureUrls = [...new Set([
         config.playerShipUrl,
-        ...collectCampaignTextureWindow(DEFAULT_GAME_CAMPAIGN, config.levelId, 1),
-        ...level.waves.flatMap(wave => getEnvironmentWindowTextureUrls(resolveCampaignEnvironmentWindow(DEFAULT_GAME_CAMPAIGN, config.levelId, wave.id))),
+        ...componentTextures,
+        ...collectRuntimeTextureUrls(DEFAULT_GAME_CAMPAIGN.hudAssets, DEFAULT_GAME_CAMPAIGN.recordCard, { ...level, waves: [wave] }),
+        ...getEnvironmentWindowTextureUrls(environmentWindow),
         ...ASSETS.POWERUP_PROJECTILE_UPGRADE_FRAMES,
         ASSETS.POWERUP_MAX_SHOT,
         ...ASSETS.POWERUP_MAGNET_FRAMES,

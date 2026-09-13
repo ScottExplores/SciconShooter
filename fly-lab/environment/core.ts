@@ -14,6 +14,9 @@ export type Movement = typeof MOVEMENTS[number];
 export interface Action { movement: Movement; fire: boolean }
 export interface EpisodeOptions {
   levelId?: string;
+  waveId?: string;
+  task?: 'boss-practice-v1';
+  practicePhase?: 'boss' | 'wave';
   timeLimitSeconds?: number;
   presentationSeed?: GameplayRandomSeed;
 }
@@ -41,19 +44,43 @@ export const resolveEpisode = (input: ResetOptions) => {
   if (!input || typeof input !== 'object') throw new Error('A reset configuration is required.');
   const seed = validateSeed(input.seed);
   const episode = input.episode ?? {};
-  const levelId = episode.levelId ?? 'operation-open-galaxy';
+  if (episode.task !== undefined && episode.task !== 'boss-practice-v1') throw new Error('Unknown research task.');
+  if (episode.practicePhase !== undefined && (!episode.task || !['boss', 'wave'].includes(episode.practicePhase))) {
+    throw new Error('practicePhase requires the boss-practice-v1 task and boss or wave.');
+  }
+  const practicePhase = episode.task ? episode.practicePhase ?? 'boss' : null;
+  const practiceLevelId = practicePhase === 'boss' ? 'stage-bastion-protocol' : 'operation-open-galaxy';
+  if (episode.task && episode.levelId !== undefined && episode.levelId !== practiceLevelId) {
+    throw new Error('Boss Practice uses its frozen Mission configuration.');
+  }
+  const levelId = episode.task ? practiceLevelId : episode.levelId ?? 'operation-open-galaxy';
   const level = DEFAULT_GAME_CAMPAIGN.levels.find(candidate => candidate.id === levelId);
   if (!level) throw new Error(`Unknown campaign Mission: ${levelId}`);
-  const timeLimitSeconds = episode.timeLimitSeconds ?? 90;
-  if (!Number.isFinite(timeLimitSeconds) || timeLimitSeconds <= 0 || timeLimitSeconds > 90) {
-    throw new Error('timeLimitSeconds must be greater than zero and at most 90.');
+  const practiceWaveId = practicePhase === 'boss' ? 'stage-bastion-protocol-wave-4' : level.waves[0].id;
+  if (episode.task && episode.waveId !== undefined && episode.waveId !== practiceWaveId) {
+    throw new Error('Boss Practice uses its frozen wave configuration.');
+  }
+  const waveId = episode.task ? practiceWaveId : episode.waveId ?? level.waves[0].id;
+  if (!level.waves.some(wave => wave.id === waveId)) throw new Error(`Unknown wave in selected Mission: ${waveId}`);
+  const timeLimitSeconds = episode.timeLimitSeconds ?? (practicePhase === 'wave' ? 30 : practicePhase === 'boss' ? 180 : 90);
+  const maximumDuration = episode.task ? 180 : 90;
+  if (!Number.isFinite(timeLimitSeconds) || timeLimitSeconds <= 0 || timeLimitSeconds > maximumDuration) {
+    throw new Error(`timeLimitSeconds must be greater than zero and at most ${maximumDuration}.`);
   }
   return freezeSnapshot({
     seed,
     presentationSeed: validateSeed(episode.presentationSeed ?? `${seed}:presentation`),
     levelId,
     levelName: level.name,
-    waveId: level.waves[0].id,
+    waveId,
+    task: episode.task ?? null,
+    practicePhase,
+    practicePolicy: episode.task ? {
+      playerInvulnerable: true, pickupsEnabled: false, constantFire: true,
+      allowedMovements: ['W', 'idle', 'E'], playerTopY: Math.round(VIEWPORT.height * 0.82),
+      bossBehavior: 'Canonical Gatekeeper patrol, shielding, components and health-dependent phases are preserved.',
+      comparisonStatus: 'Engineered aiming assay; no claim of neural learning.'
+    } : null,
     timeLimitSeconds,
     maxTicks: Math.max(1, Math.floor(timeLimitSeconds * SIMULATION_FPS)),
     width: VIEWPORT.width,
@@ -114,6 +141,8 @@ export class EpisodeRuntime {
   private readonly pendingEvents: EpisodeEvent[] = [];
   private readonly offeredEvents = new Set<string>();
   private previousFire = false;
+  private appliedAction: Action = { movement: 'idle', fire: false };
+  private bossDefeated = false;
 
   constructor(options: ResetOptions) {
     this.config = resolveEpisode(options);
@@ -146,7 +175,9 @@ export class EpisodeRuntime {
           this.recordEvent(event);
         },
         fixedPerformanceMode: false,
-        stableEntityIds: true
+        stableEntityIds: true,
+        playerInvulnerable: Boolean(this.config.task),
+        disablePickups: Boolean(this.config.task)
       },
       telemetrySink: {
         record: event => { this.telemetry.record(event); this.recordEvent(event); },
@@ -155,6 +186,10 @@ export class EpisodeRuntime {
       }
     });
     this.engine.init(VIEWPORT.width, VIEWPORT.height);
+    if (this.config.task) {
+      this.engine.stats.bombs = 0;
+      this.engine.stats.bombCharge = 0;
+    }
     // The engine initializes native bomb inventory; v1 deliberately exposes neither bombs nor abilities.
     this.engine.handleInput({}, null);
   }
@@ -166,13 +201,20 @@ export class EpisodeRuntime {
   get truncated() { return !this.terminated && this.tick >= this.config.maxTicks; }
 
   private recordEvent(event: GameplayTelemetryEvent | GameEngineRuntimeEvent | { type: 'primary-fire-input'; held: boolean; frame: number }) {
+    if (event.type === 'entity-damage' && event.targetKind === EntityType.BOSS && event.fatal) this.bossDefeated = true;
     this.pendingEvents.push(copy({ ...event, tick: this.tick, simTimeMs: this.tick * 1000 / SIMULATION_FPS }));
   }
 
   advanceTick(action: Action) {
     if (this.closed) throw new Error('Episode is closed.');
     if (this.terminated || this.truncated) return false;
-    const accepted = validateAction(action);
+    const requested = validateAction(action);
+    if (this.config.task && !['W', 'idle', 'E'].includes(requested.movement)) {
+      throw new Error('Boss Practice accepts only W, idle or E movement.');
+    }
+    const accepted = this.config.task ? { ...requested, fire: true } : requested;
+    this.appliedAction = accepted;
+    this.constrainPracticePosition();
     this.engine.handleInput(actionKeys(accepted), null);
     this.tick++;
     if (accepted.fire !== this.previousFire) {
@@ -180,7 +222,14 @@ export class EpisodeRuntime {
       this.recordEvent({ type: 'primary-fire-input', held: accepted.fire, frame: this.engine.frameCount });
     }
     this.engine.update(false);
+    this.constrainPracticePosition();
     return true;
+  }
+
+  private constrainPracticePosition() {
+    if (!this.config.practicePolicy || this.engine.introFlightFrames > 0 || this.engine.waveDepartureFrames > 0) return;
+    this.engine.player.y = this.config.practicePolicy.playerTopY;
+    this.engine.playerVel.y = 0;
   }
 
   takeEvents() {
@@ -194,6 +243,11 @@ export class EpisodeRuntime {
       tick: this.tick,
       simTimeMs: this.tick * 1000 / SIMULATION_FPS,
       terminated: this.terminated, truncated: this.truncated,
+      appliedAction: copy(this.appliedAction),
+      practice: this.config.task ? {
+        phase: this.config.practicePhase, bossDefeated: this.bossDefeated,
+        outcome: this.bossDefeated ? 'boss-defeated' : this.truncated ? 'time-limit' : this.terminated ? 'wave-complete' : 'in-progress'
+      } : null,
       score: engine.stats.score, lives: engine.lives, coins: engine.stats.coins,
       totalCoins: engine.stats.totalCoins, enemiesDefeated: engine.stats.enemiesDefeated,
       runtime: engine.getRuntimeState(),
