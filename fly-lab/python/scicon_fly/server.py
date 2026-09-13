@@ -162,6 +162,7 @@ class Coordinator:
                 'score':state.get('score',0),'lives':state.get('lives',3),'kills':state.get('enemiesDefeated',0),
                 'simTimeMs':(self.latest or {}).get('simTimeMs',0),'decisions':self.seq,'reward':self.total_reward,
                 'evidence':'INSUFFICIENT EVIDENCE','error':self.error,'yokedExposure':exposure})
+        return status
     def checkpoint(self,label):
         name=self.run_id+'-'+label+'.npz'
         info=self.neural.call({'op':'checkpoint','name':name})
@@ -283,17 +284,20 @@ class Coordinator:
                 with self.lock:
                     self.latest=result;self.history.append({'tick':result['tick'],'seconds':result['simTimeMs']/1000,'score':result['state'].get('score',0),'reward':reward,'lives':result['state'].get('lives',3),'movement':action['movement'],'fire':action['fire']})
                 if result.get('terminated') or result.get('truncated'):
+                    with self.lock:self.running=False;self.status='finalizing'
                     mode=self.config.get('neuralMode',neural_mode_for(self.config['controller'],self.config.get('phase','training' if self.config['controller']=='neural-plastic' else 'evaluation')))
                     if self.neural and mode in ('training','training-fixed'):
                         terminal=self.neural.call({'op':'reinforce','reinforcement':self.training_reward(self.seq-1)})
                         if not isinstance(terminal.get('summary'),dict) or terminal['summary'].get('mode')!=mode:raise ValueError('Worker terminal reinforcement did not verify the configured neural mode')
                         atomic_json(self.writer.path/'terminal-reinforcement.json',terminal)
                         self.writer.record_neural(result['tick'],terminal.get('summary'))
-                    self.running=False;self.status='completed';self.finish('completed')
+                    finalized_status=self.finish('completed')
+                    with self.lock:self.status=finalized_status
                 return self.public()
             except Exception as error:
                 self.error=str(error);self.running=False;self.status='error';self.finish('interrupted');raise
     def start(self):
+        if self.status=='finalizing':raise ValueError('Episode is finalizing; wait for completion before starting another run')
         if not self.latest:self.reset({})
         if self.running:return self.public()
         if not self.writer or self.writer.closed:raise ValueError('Reset the closed episode first')
@@ -305,7 +309,7 @@ class Coordinator:
         self.thread=threading.Thread(target=loop,daemon=True);self.thread.start();return self.public()
     def stop(self):
         self.pause()
-        with self.step_lock:self.finish('stopped');self.status='stopped'
+        with self.step_lock:self.status=self.finish('stopped')
     def close(self):
         self.stop()
         if self.driver:self.driver.close()
