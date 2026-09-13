@@ -1,5 +1,108 @@
 # Continued research checkpoint
 
+## Current: September 13, 2026, live reduced-circuit boss experiment
+
+The actual game, neural worker and public publisher are running. This supersedes
+the earlier recorded exhibit as the public homepage. The user has repeatedly
+authorized real gameplay, retained learning, continued operation and public
+viewing. Do not restart the obsolete random controller or substitute recorded
+conditioning for gameplay. Keep every earlier attempt and negative result.
+
+Read [BOSS_PILOT_REPORT.md](BOSS_PILOT_REPORT.md) for the plain-language result and
+[BOSS_LEARNING_MODEL.md](BOSS_LEARNING_MODEL.md) for the precise engineering and
+biological boundaries. The current 250-cell model differs from the earlier
+722-cell assay and the full-CNS candidate. Whole-CNS gates remain unchanged.
+
+Canonical lab: `C:/Users/scott/Documents/Scicon Shooter/fly-lab`.
+Current session directory: `runtime/boss-learning-v1/boss-learning-live-v2`.
+Current session identity: `boss-learning-live-v2-494657ea`.
+Source commit: `d1921ac92cf83d5656261562db7e4d23ea4b8aeb`.
+Source tree hash: `e8cc737dca1cd7e01b1ff4a33c87dc823973b562c7eab1d16b98f52bbbeafd9a`.
+Read current `owner.json`, `public/latest.json`, `broadcast/status.json` and logs;
+stored process IDs are diagnostic history, not permission to kill a reused PID.
+At verified handoff, hidden runner PID 5640 and publisher PID 7332 were healthy.
+
+The frozen protocol uses a 1924 input-codebook/training seed, three 60-second
+training bouts followed by three 20-second evaluations on action seeds
+9124/9125/9126. Baseline evaluations precede training. The player fires constantly
+and is invulnerable; horizontal movement comes from the reduced circuit.
+Boss hull damage supplies reward during training only. Efficacies persist across
+bouts; evaluation freezes them and restores the complete training state afterward.
+The displayed total persists while game encounters reset internally. The primary
+measurement is per-evaluation damage and alignment, not accumulated points.
+
+The first comparison after 180 training seconds was negative: mean damage/s
+2.4525 before versus 1.44 after, with all three matched seeds worse. There is one
+training controller, so this is exploratory and cannot establish statistical
+learning or topology benefit. The first independent journal/checkpoint audit
+passed; its immutable snapshot is `docs/evidence/boss-learning-first-pilot-audit-v2.json`.
+This pass checks implementation integrity, not successful learning.
+
+To stop cleanly, create an empty `stop.request` file in the exact session directory
+and wait for the owner status to become stopped. Audit only after the journal and
+checkpoint are quiescent:
+
+```text
+node scripts/audit-boss-learning.mjs runtime/boss-learning-v1/boss-learning-live-v2 --output runtime/boss-learning-v1/boss-learning-live-v2/independent-audit.json
+```
+
+To resume the same memory and session, run from the canonical lab:
+
+```text
+node scripts/run-boss-learning.mjs --session boss-learning-live-v2 --boss-seconds 60 --evaluation-seconds 20 --evaluation-seeds 9124,9125,9126 --training-bouts 3 --disk-budget-gib 8 --resume
+```
+
+On Windows launch persistent helpers using `Start-Process -WindowStyle Hidden`,
+with separate stdout/stderr files. Ensure the prior owner is no longer running.
+Never create a second owner. The runner verifies method/source hashes, original
+Python checkpoint bytes, and replayed game state and image hashes. On mismatch,
+preserve evidence and investigate; do not discard memory or relax checks.
+Changes to model, engine, scripts or configuration require a new versioned run.
+Documentation and test edits do not alter the scientific source hash.
+
+The public outbound publisher is:
+
+```text
+node --use-system-ca scripts/publish-boss-learning.mjs 'C:/Users/scott/Documents/Scicon Shooter/fly-lab/runtime/boss-learning-v1/boss-learning-live-v2'
+```
+
+The quoted path is one PowerShell argument. The existing private publisher
+credential remains in ignored local runtime configuration. Do not print or publish it.
+Check the publisher lock before starting another publisher. Only whitelisted game
+and sampled neural telemetry leave the PC. The public browser cannot control it.
+
+The website is https://scicon-fly-watch.scottexplores.chatgpt.site, Site version 6,
+deployment `appgdep_6aa722b7722c8191be16a41269484b9e`. Its separate checkout is
+`C:/Users/scott/Documents/ChatGPT/Science/scicon-fly-watch`, commit
+`edb5a11073954909a8b8b630b6f7d7c315117db7`. It shows actual game frames and sampled
+rates. The old completed conditioning assay remains at `#conditioning`.
+
+The lab Vite service at 5180 is needed by the canonical Chromium engine driver.
+The temporary Site preview at 5191 was shut down; it is not a simulation dependency.
+The PC can turn its display off but must remain awake. No Raspberry Pi, wallet,
+production score submission or purchase is required. Disk limits stop cleanly;
+never bypass them or erase records to maintain a decorative LIVE badge.
+
+Next scientific comparison: independent controller seeds under plastic,
+fixed-weight and temporally shuffled reward conditions, with frozen evaluation
+and damage/alignment metrics. Keep the present candidate unchanged. Delayed
+projectile impacts crediting the wrong preceding action is one hypothesis for a
+separately versioned experiment; the current results do not establish that cause.
+More play alone cannot validate fly physiology, and this bounded positive-only
+rule can saturate. Continue displaying the current evidence status truthfully.
+
+An hourly thread heartbeat, `watch-scicon-boss-experiment`, now monitors this
+existing session. It stays quiet on routine healthy checks. After at least 24
+training bouts and their complete matched evaluation group, it should preserve
+the initial report, perform a clean-stop artifact audit, write one new dated
+progress report and resume the same session if the audit passes. This is an
+exploratory reporting milestone, not a prespecified significance threshold.
+The local runner performs the simulation between follow-ups; the assistant is
+not continuously computing. Automatic recovery must never bypass source,
+checkpoint, ownership or storage checks.
+
+**All entries below are historical and do not supersede this checkpoint.**
+
 ## September 13 afternoon: completed reduced conditioning exhibit supersedes random play
 
 Scott explicitly rejected continuing a random shooter and authorized a concrete

@@ -1,11 +1,26 @@
 # Scott's research journal — September 13, 2026
 
-**Latest direction:** the random game is stopped. A completed reduced-circuit
-conditioning experiment now supplies actual saved model activity and measured
-control results to the public exhibit. It uses 722 actual MaleCNS cells under
-an explicitly programmed plasticity rule. It is not whole-brain or game learning.
-See the September 13 afternoon entry below and REDUCED_CONDITIONING.md. Earlier
-entries are preserved history; no random-game restart automation remains active.
+**Latest, September 13 at 15:33 PDT:** the public website now shows an actual
+Scicon boss fight controlled by a reduced model of 250 MaleCNS cells. Confirmed
+boss hits change retained connection efficacies; those changes affect subsequent
+movement choices. This is a running game experiment, not the earlier recording.
+The first comparison showed worse aim after practice, so improved gameplay has
+not been demonstrated. Read the [plain-language pilot report](BOSS_PILOT_REPORT.md)
+and [current operating instructions](OVERNIGHT_RESEARCH.md) for the current status.
+
+The model uses real anatomical contacts with deliberately engineered screen
+features, movement assignments and a numerical reward rule. It is not the full
+fly nervous system. The public highlights show actual sampled model rates;
+unmodeled optic lobes and nerve cord remain anatomical context. All original
+whole-CNS gates remain unchanged. The earlier 722-cell conditioning recording
+is preserved as a separate exhibit, not substituted for gameplay.
+
+**Everything below is historical.** Statements below about the public page being
+a recording, no training job running, or rewards not yet connected describe
+earlier versions and are superseded by the dated entry above. No random-game
+restart automation should be restored.
+
+## Historical entries
 
 We are turning a fly's published wiring diagram into a computer model and testing whether that model can eventually learn to play Scicon Shooter. The project is running real experiments, but **we have not demonstrated a learning fly controller yet**.
 

@@ -1,0 +1,278 @@
+{
+  "schemaVersion": 1,
+  "audit": "independent-boss-journal-v1",
+  "session": "boss-learning-live-v2",
+  "auditedAt": "2026-09-13T22:30:51.358Z",
+  "status": "PASS",
+  "interpretation": "Implementation/artifact audit only. A single training controller and reused evaluation seeds do not establish a replicated learning effect or anatomical-topology benefit.",
+  "journal": {
+    "records": 6391,
+    "decisions": 6369,
+    "policyDecisions": 1593,
+    "sha256": "aca364cd62b8bf4ba3dff8ea33e4fd62bd8a0e389de7641b12eddda301346e43",
+    "lastChainHash": "3dc9a261d6049559ed75fc9a61d096ff6023d0ea0b2d82c3b05231e0521cad20",
+    "completedBouts": 9,
+    "unfinishedBout": "bout-000010"
+  },
+  "rewards": {
+    "confirmedHullDamage": 445.5000000000075,
+    "trainingRewardComputed": 211.95000000000357,
+    "rawReinforcementDelivered": 211.95000000000357,
+    "pending": 0,
+    "nonzeroNumericalDoses": 153
+  },
+  "neural": {
+    "changedEdgeRecords": 3777,
+    "distinctEfficaciesChanged": 108,
+    "meanReconstructedEfficacy": 0.9011684770698373,
+    "probabilityDecisionsDifferentFromUniform": 1208,
+    "actionSwitches": 1061,
+    "frozenBouts": 6,
+    "frozenChangeRecords": 0
+  },
+  "vision": {
+    "visibleDecisions": 1473,
+    "totalPolicyDecisions": 1593,
+    "visibilityFraction": 0.9246704331450094,
+    "playerCenterError": {
+      "n": 1473,
+      "meanAbsolutePixels": 4.070444581898793,
+      "maximumAbsolutePixels": 25.405122235157158
+    },
+    "targetCenterError": {
+      "n": 1473,
+      "meanAbsolutePixels": 0.37469177673953014,
+      "maximumAbsolutePixels": 2.171950633711873
+    },
+    "comparison": "Pixel centroids versus exact inputDiagnostics centers, or preceding row centers for older journals; diagnostic state never enters controller."
+  },
+  "bounds": {
+    "recordedChecks": 6369,
+    "inside": 6369,
+    "violations": 0
+  },
+  "checkpoint": {
+    "available": true,
+    "journalMatches": true,
+    "format": "opaque-python-json-v1",
+    "rawBytesVerified": true,
+    "weightsCompared": true,
+    "meanEfficacy": 0.9011684770698373
+  },
+  "stages": [
+    {
+      "stage": "baseline",
+      "nEvaluationSeeds": 3,
+      "meanDamagePerSecond": 2.4525000000000414,
+      "pairedChangesFromBaseline": [],
+      "meanPairedChangeFromBaseline": null
+    },
+    {
+      "stage": "after-3",
+      "nEvaluationSeeds": 3,
+      "meanDamagePerSecond": 1.4400000000000244,
+      "pairedChangesFromBaseline": [
+        {
+          "seed": 9124,
+          "damagePerSecondChange": -0.20250000000000346
+        },
+        {
+          "seed": 9125,
+          "damagePerSecondChange": -2.025000000000034
+        },
+        {
+          "seed": 9126,
+          "damagePerSecondChange": -0.8100000000000138
+        }
+      ],
+      "meanPairedChangeFromBaseline": -1.012500000000017
+    }
+  ],
+  "bouts": [
+    {
+      "id": "bout-000001",
+      "mode": "evaluation",
+      "stage": "baseline",
+      "seed": 9124,
+      "trainingBoutsAtStart": 0,
+      "trainingSecondsAtStart": 0,
+      "damage": 18.90000000000032,
+      "hits": 14,
+      "score": 0,
+      "seconds": 20,
+      "damagePerSecond": 0.9450000000000159,
+      "outcome": "time-limit",
+      "meanAbsoluteCenterSeparation": 156.0771834454563,
+      "alignmentSamples": 367,
+      "weightHash": "5e9a6856e1801a895d64649f027e4e69a2f7fc7df352a6c287329aa706168c1f"
+    },
+    {
+      "id": "bout-000002",
+      "mode": "evaluation",
+      "stage": "baseline",
+      "seed": 9125,
+      "trainingBoutsAtStart": 0,
+      "trainingSecondsAtStart": 0,
+      "damage": 59.400000000001,
+      "hits": 44,
+      "score": 0,
+      "seconds": 20,
+      "damagePerSecond": 2.97000000000005,
+      "outcome": "time-limit",
+      "meanAbsoluteCenterSeparation": 62.848231086501876,
+      "alignmentSamples": 367,
+      "weightHash": "5e9a6856e1801a895d64649f027e4e69a2f7fc7df352a6c287329aa706168c1f"
+    },
+    {
+      "id": "bout-000003",
+      "mode": "evaluation",
+      "stage": "baseline",
+      "seed": 9126,
+      "trainingBoutsAtStart": 0,
+      "trainingSecondsAtStart": 0,
+      "damage": 68.85000000000116,
+      "hits": 51,
+      "score": 0,
+      "seconds": 20,
+      "damagePerSecond": 3.442500000000058,
+      "outcome": "time-limit",
+      "meanAbsoluteCenterSeparation": 73.14222791590275,
+      "alignmentSamples": 367,
+      "weightHash": "5e9a6856e1801a895d64649f027e4e69a2f7fc7df352a6c287329aa706168c1f"
+    },
+    {
+      "id": "bout-000004",
+      "mode": "training",
+      "stage": "training",
+      "seed": 1924,
+      "trainingBoutsAtStart": 0,
+      "trainingSecondsAtStart": 0,
+      "damage": 101.2500000000017,
+      "hits": 75,
+      "score": 0,
+      "seconds": 60,
+      "damagePerSecond": 1.6875000000000284,
+      "outcome": "time-limit",
+      "meanAbsoluteCenterSeparation": 127.00856493786351,
+      "alignmentSamples": 1167,
+      "weightHash": "da5a419bdf45f84c5b0a5486887ccfb7fc822c2ed4f2dde7a422fef71279625c"
+    },
+    {
+      "id": "bout-000005",
+      "mode": "training",
+      "stage": "training",
+      "seed": 1924,
+      "trainingBoutsAtStart": 1,
+      "trainingSecondsAtStart": 59.99999999999873,
+      "damage": 51.300000000000864,
+      "hits": 38,
+      "score": 0,
+      "seconds": 60,
+      "damagePerSecond": 0.8550000000000144,
+      "outcome": "time-limit",
+      "meanAbsoluteCenterSeparation": 155.47607189475144,
+      "alignmentSamples": 1167,
+      "weightHash": "31737d0a5d755a13557e5026f17c909b5854c8d91514d87c485dd7a17eeb2a48"
+    },
+    {
+      "id": "bout-000006",
+      "mode": "training",
+      "stage": "training",
+      "seed": 1924,
+      "trainingBoutsAtStart": 2,
+      "trainingSecondsAtStart": 119.99999999999532,
+      "damage": 39.15000000000066,
+      "hits": 29,
+      "score": 0,
+      "seconds": 60,
+      "damagePerSecond": 0.652500000000011,
+      "outcome": "time-limit",
+      "meanAbsoluteCenterSeparation": 166.0298579444069,
+      "alignmentSamples": 1167,
+      "weightHash": "142daa6cd37e746d8dc6836077c9aa4def3714bfd27ca30fce8e82f5f3de7cb8"
+    },
+    {
+      "id": "bout-000007",
+      "mode": "evaluation",
+      "stage": "after-3",
+      "seed": 9124,
+      "trainingBoutsAtStart": 3,
+      "trainingSecondsAtStart": 180.00000000000668,
+      "damage": 14.85000000000025,
+      "hits": 11,
+      "score": 0,
+      "seconds": 20,
+      "damagePerSecond": 0.7425000000000125,
+      "outcome": "time-limit",
+      "meanAbsoluteCenterSeparation": 172.21646697261139,
+      "alignmentSamples": 367,
+      "weightHash": "142daa6cd37e746d8dc6836077c9aa4def3714bfd27ca30fce8e82f5f3de7cb8"
+    },
+    {
+      "id": "bout-000008",
+      "mode": "evaluation",
+      "stage": "after-3",
+      "seed": 9125,
+      "trainingBoutsAtStart": 3,
+      "trainingSecondsAtStart": 180.00000000000668,
+      "damage": 18.90000000000032,
+      "hits": 14,
+      "score": 0,
+      "seconds": 20,
+      "damagePerSecond": 0.9450000000000159,
+      "outcome": "time-limit",
+      "meanAbsoluteCenterSeparation": 147.27635979457938,
+      "alignmentSamples": 367,
+      "weightHash": "142daa6cd37e746d8dc6836077c9aa4def3714bfd27ca30fce8e82f5f3de7cb8"
+    },
+    {
+      "id": "bout-000009",
+      "mode": "evaluation",
+      "stage": "after-3",
+      "seed": 9126,
+      "trainingBoutsAtStart": 3,
+      "trainingSecondsAtStart": 180.00000000000668,
+      "damage": 52.65000000000089,
+      "hits": 39,
+      "score": 0,
+      "seconds": 20,
+      "damagePerSecond": 2.6325000000000442,
+      "outcome": "time-limit",
+      "meanAbsoluteCenterSeparation": 121.30117851625538,
+      "alignmentSamples": 367,
+      "weightHash": "142daa6cd37e746d8dc6836077c9aa4def3714bfd27ca30fce8e82f5f3de7cb8"
+    }
+  ],
+  "failures": [],
+  "warnings": [
+    "The journal ends with an unfinished bout; pending reward is retained separately and is not a completed evaluation."
+  ],
+  "limitations": [
+    "Hash verification detects corruption, not independent proof that source events are physically true.",
+    "Recorded rates and plasticity are modeled quantities, not chemical dopamine or biological recordings.",
+    "No statistical significance or learning-success gate is assigned by this audit.",
+    "Pixel extraction and canonical game replay need their separate validation."
+  ],
+  "config": {
+    "session": "boss-learning-live-v2",
+    "seed": 1924,
+    "bossSeconds": 60,
+    "evaluationSeconds": 20,
+    "evaluationSeeds": [
+      9124,
+      9125,
+      9126
+    ],
+    "trainingBouts": 3,
+    "renderProfile": "local-d3d11",
+    "origin": "http://127.0.0.1:5180",
+    "circuit": "configs/boss-learning-circuit-v1.json",
+    "visionMethod": "rgba-connected-color-v1",
+    "controllerIntervalSeconds": 0.2,
+    "engineObservationSeconds": 0.05,
+    "terminalReinforcementInterval": "Actual final held-action game ticks divided by 60",
+    "reward": "confirmed boss hull HP loss only",
+    "reinforcement": "Engineered PAM stimulation; dose is declared by model manifest",
+    "evidence": "INSUFFICIENT EVIDENCE"
+  }
+}
