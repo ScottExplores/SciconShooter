@@ -1,5 +1,11 @@
 # Scott's research journal — September 13, 2026
 
+**Follow-up, 16:36 PDT:** [the longer-practice report is ready](BOSS_PROGRESS_2026-09-13.md).
+After 33 simulated minutes of practice, damage per second remained 70.6% below
+baseline and the ship stayed farther from the boss horizontally. The memory and
+recording audit passed. The same live session resumed with its learned state;
+the earlier negative report is preserved. This candidate has not improved its aim.
+
 **Latest, September 13 at 15:33 PDT:** the public website now shows an actual
 Scicon boss fight controlled by a reduced model of 250 MaleCNS cells. Confirmed
 boss hits change retained connection efficacies; those changes affect subsequent

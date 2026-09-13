@@ -2,6 +2,14 @@
 
 ## Current: September 13, 2026, live reduced-circuit boss experiment
 
+**16:36 PDT follow-up:** the scheduled milestone report is complete at
+[BOSS_PROGRESS_2026-09-13.md](BOSS_PROGRESS_2026-09-13.md). At 33 completed training
+bouts' evaluation, mean damage remained 70.6% below baseline and alignment was
+worse. The audit passed for 34 training bouts and 36 frozen evaluations. The same
+session resumed successfully; the new runner PID was 26628 at verification.
+Read current owner/status files rather than reusing that PID blindly. The initial
+pilot report remains unchanged. Do not repeat this milestone report each hour.
+
 The actual game, neural worker and public publisher are running. This supersedes
 the earlier recorded exhibit as the public homepage. The user has repeatedly
 authorized real gameplay, retained learning, continued operation and public
@@ -91,12 +99,12 @@ separately versioned experiment; the current results do not establish that cause
 More play alone cannot validate fly physiology, and this bounded positive-only
 rule can saturate. Continue displaying the current evidence status truthfully.
 
-An hourly thread heartbeat, `watch-scicon-boss-experiment`, now monitors this
-existing session. It stays quiet on routine healthy checks. After at least 24
-training bouts and their complete matched evaluation group, it should preserve
-the initial report, perform a clean-stop artifact audit, write one new dated
-progress report and resume the same session if the audit passes. This is an
-exploratory reporting milestone, not a prespecified significance threshold.
+An hourly thread heartbeat, `watch-scicon-boss-experiment`, monitors this existing
+session. It stays quiet on routine healthy checks. The at-least-24-bout reporting
+milestone was completed September 13 at 16:36 PDT; preserve its report and audit
+as well as the initial report. This was an exploratory reporting milestone, not
+a prespecified significance threshold. Future checks maintain the same session
+and report only meaningful changes or problems, without repeating this report.
 The local runner performs the simulation between follow-ups; the assistant is
 not continuously computing. Automatic recovery must never bypass source,
 checkpoint, ownership or storage checks.
