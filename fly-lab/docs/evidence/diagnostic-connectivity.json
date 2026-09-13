@@ -1,0 +1,1924 @@
+{
+  "schemaVersion": 1,
+  "scope": "POST_SCREEN_CONNECTIVITY_DIAGNOSTIC_NOT_A_FIT",
+  "synthetic": false,
+  "trainingAllowed": false,
+  "identity": {
+    "graph": "93d5a84e93e73f32a699a47ecfeaabf977505c942192920da383fdb3884288f4",
+    "dynamics": "ebe758e5c2c99e6fce6b63310b3dd387c566dcd18ec6b2fa01b49e9082c06512",
+    "vision": "b18e1e570350f69a316ffd97b6f8398ba618dae4d6c9d1eef5c2f34050d70794",
+    "decoder": "353415fe4ab6ee7a8f977c88ba3294770e14a937b74c2876cdebf995b22df5de",
+    "assaySpecification": "382d2a09e3823ad87bd3b66faad982338ed9546bcd529bff6caf608124134774"
+  },
+  "parameters": {
+    "dt_ms": 0.1,
+    "rest_mv": -52.0,
+    "reset_mv": -52.0,
+    "threshold_mv": -45.0,
+    "membrane_ms": 20.0,
+    "synapse_ms": 5.0,
+    "refractory_ms": 2.2,
+    "delay_ms": 1.8,
+    "mv_per_contact": 0.275
+  },
+  "neurons": 166700,
+  "directedPairs": 25582938,
+  "contacts": 124177617,
+  "candidateDurationMs": 50.0,
+  "inputBoundary": {
+    "drivenNeurons": 1767,
+    "sourceTypes": {
+      "L1": 1767
+    },
+    "sourceNeurotransmitters": {
+      "glutamate": 1767
+    },
+    "sourceModeledSigns": {
+      "-1": 1767
+    },
+    "outgoingDirectedPairs": 28233,
+    "outgoingContacts": 587494,
+    "uniqueDirectTargets": 14518,
+    "targetModeledSigns": {
+      "0": 54,
+      "-1": 6397,
+      "1": 8067
+    },
+    "topTargetTypesByContacts": [
+      {
+        "type": "Tm3",
+        "contacts": 151160
+      },
+      {
+        "type": "Mi1",
+        "contacts": 141767
+      },
+      {
+        "type": "L5",
+        "contacts": 135875
+      },
+      {
+        "type": "C3",
+        "contacts": 94261
+      },
+      {
+        "type": "C2",
+        "contacts": 53331
+      },
+      {
+        "type": "L2",
+        "contacts": 2275
+      },
+      {
+        "type": "R1-R6",
+        "contacts": 1632
+      },
+      {
+        "type": "T1",
+        "contacts": 1078
+      },
+      {
+        "type": "Dm1",
+        "contacts": 781
+      },
+      {
+        "type": "L3",
+        "contacts": 736
+      },
+      {
+        "type": "Mi4",
+        "contacts": 671
+      },
+      {
+        "type": "L4",
+        "contacts": 318
+      },
+      {
+        "type": "Dm10",
+        "contacts": 263
+      },
+      {
+        "type": "TmY3",
+        "contacts": 173
+      },
+      {
+        "type": "Mi15",
+        "contacts": 169
+      }
+    ]
+  },
+  "populationCounts": {
+    "L1": 1776,
+    "visual_kc": 335,
+    "MBON": 97
+  },
+  "decoder": {
+    "uniqueEffectiveCells": 97,
+    "cellsAlsoInMBONPopulation": 97,
+    "channels": {
+      "x": {
+        "nonzeroCells": 97,
+        "negativeTerms": 48,
+        "positiveTerms": 49,
+        "thresholdHz": 1.0
+      },
+      "y": {
+        "nonzeroCells": 4,
+        "negativeTerms": 2,
+        "positiveTerms": 2,
+        "thresholdHz": 1.0
+      },
+      "fire": {
+        "nonzeroCells": 97,
+        "negativeTerms": 0,
+        "positiveTerms": 97,
+        "thresholdHz": 1.0
+      }
+    },
+    "filterMs": 100.0,
+    "interpretation": "Arbitrary fixed MBON readout for an engineering screen; no evidence that these cells encode movement or shooting",
+    "MBONToReadoutIsZeroHopSoftwareBoundary": true
+  },
+  "directContacts": {
+    "inputsToVisualKCs": {
+      "directedPairs": 0,
+      "contacts": 0,
+      "contributingSources": 0,
+      "reachedTargets": 0
+    },
+    "visualKCsToMBONs": {
+      "directedPairs": 4407,
+      "contacts": 40114,
+      "contributingSources": 335,
+      "reachedTargets": 68
+    }
+  },
+  "edgeModeDefinitions": {
+    "anatomical": "Every positive-contact directed edge; transmitter effects ignored",
+    "fast_nonzero": "Edges with nonzero presynaptic modeled fast sign; inhibition retained as influence, never treated as excitation",
+    "excitatory_only": "Only positive presynaptic modeled fast signs; a restricted structural diagnostic, not a complete dynamics model"
+  },
+  "routes": {
+    "anatomical": {
+      "retainedEdges": 25582938,
+      "reachableNetworkNeurons": 166325,
+      "inputToVisualKCs": {
+        "targetCount": 335,
+        "reachable": 335,
+        "unreachable": 0,
+        "minimumHops": 2,
+        "maximumShortestHops": 3,
+        "shortestHopHistogram": {
+          "2": 25,
+          "3": 310
+        },
+        "delayOnlyMinimumMs": 3.6,
+        "scheduleOnlyMinimumMs": 3.8000000000000003,
+        "withinDelayOnlyHorizon": 335,
+        "unreachableIds": [],
+        "examples": [
+          {
+            "neuronIds": [
+              "558480",
+              "20486",
+              "36723"
+            ],
+            "types": [
+              "L1",
+              "MeVPLo2",
+              "KCg-d"
+            ],
+            "edges": [
+              {
+                "pre": "558480",
+                "post": "20486",
+                "contacts": 1,
+                "modeledPresynapticSign": -1
+              },
+              {
+                "pre": "20486",
+                "post": "36723",
+                "contacts": 1,
+                "modeledPresynapticSign": 1
+              }
+            ]
+          },
+          {
+            "neuronIds": [
+              "518096",
+              "532334",
+              "44069"
+            ],
+            "types": [
+              "L1",
+              "aMe12",
+              "KCg-d"
+            ],
+            "edges": [
+              {
+                "pre": "518096",
+                "post": "532334",
+                "contacts": 1,
+                "modeledPresynapticSign": -1
+              },
+              {
+                "pre": "532334",
+                "post": "44069",
+                "contacts": 12,
+                "modeledPresynapticSign": 1
+              }
+            ]
+          },
+          {
+            "neuronIds": [
+              "518096",
+              "532334",
+              "44948"
+            ],
+            "types": [
+              "L1",
+              "aMe12",
+              "KCg-d"
+            ],
+            "edges": [
+              {
+                "pre": "518096",
+                "post": "532334",
+                "contacts": 1,
+                "modeledPresynapticSign": -1
+              },
+              {
+                "pre": "532334",
+                "post": "44948",
+                "contacts": 7,
+                "modeledPresynapticSign": 1
+              }
+            ]
+          }
+        ]
+      },
+      "inputToMBONs": {
+        "targetCount": 97,
+        "reachable": 97,
+        "unreachable": 0,
+        "minimumHops": 2,
+        "maximumShortestHops": 3,
+        "shortestHopHistogram": {
+          "2": 4,
+          "3": 93
+        },
+        "delayOnlyMinimumMs": 3.6,
+        "scheduleOnlyMinimumMs": 3.8000000000000003,
+        "withinDelayOnlyHorizon": 97,
+        "unreachableIds": [],
+        "examples": [
+          {
+            "neuronIds": [
+              "34035",
+              "10050",
+              "11785"
+            ],
+            "types": [
+              "L1",
+              "5-HTPMPV03",
+              "MBON33"
+            ],
+            "edges": [
+              {
+                "pre": "34035",
+                "post": "10050",
+                "contacts": 1,
+                "modeledPresynapticSign": -1
+              },
+              {
+                "pre": "10050",
+                "post": "11785",
+                "contacts": 1,
+                "modeledPresynapticSign": 0
+              }
+            ]
+          },
+          {
+            "neuronIds": [
+              "46625",
+              "11369",
+              "18406"
+            ],
+            "types": [
+              "L1",
+              "DNc01",
+              "MBON24"
+            ],
+            "edges": [
+              {
+                "pre": "46625",
+                "post": "11369",
+                "contacts": 1,
+                "modeledPresynapticSign": -1
+              },
+              {
+                "pre": "11369",
+                "post": "18406",
+                "contacts": 1,
+                "modeledPresynapticSign": 0
+              }
+            ]
+          },
+          {
+            "neuronIds": [
+              "34035",
+              "10050",
+              "28622"
+            ],
+            "types": [
+              "L1",
+              "5-HTPMPV03",
+              "MBON28"
+            ],
+            "edges": [
+              {
+                "pre": "34035",
+                "post": "10050",
+                "contacts": 1,
+                "modeledPresynapticSign": -1
+              },
+              {
+                "pre": "10050",
+                "post": "28622",
+                "contacts": 1,
+                "modeledPresynapticSign": 0
+              }
+            ]
+          }
+        ]
+      },
+      "inputToDecoder": {
+        "targetCount": 97,
+        "reachable": 97,
+        "unreachable": 0,
+        "minimumHops": 2,
+        "maximumShortestHops": 3,
+        "shortestHopHistogram": {
+          "2": 4,
+          "3": 93
+        },
+        "delayOnlyMinimumMs": 3.6,
+        "scheduleOnlyMinimumMs": 3.8000000000000003,
+        "withinDelayOnlyHorizon": 97,
+        "unreachableIds": [],
+        "examples": [
+          {
+            "neuronIds": [
+              "34035",
+              "10050",
+              "11785"
+            ],
+            "types": [
+              "L1",
+              "5-HTPMPV03",
+              "MBON33"
+            ],
+            "edges": [
+              {
+                "pre": "34035",
+                "post": "10050",
+                "contacts": 1,
+                "modeledPresynapticSign": -1
+              },
+              {
+                "pre": "10050",
+                "post": "11785",
+                "contacts": 1,
+                "modeledPresynapticSign": 0
+              }
+            ]
+          },
+          {
+            "neuronIds": [
+              "46625",
+              "11369",
+              "18406"
+            ],
+            "types": [
+              "L1",
+              "DNc01",
+              "MBON24"
+            ],
+            "edges": [
+              {
+                "pre": "46625",
+                "post": "11369",
+                "contacts": 1,
+                "modeledPresynapticSign": -1
+              },
+              {
+                "pre": "11369",
+                "post": "18406",
+                "contacts": 1,
+                "modeledPresynapticSign": 0
+              }
+            ]
+          },
+          {
+            "neuronIds": [
+              "34035",
+              "10050",
+              "28622"
+            ],
+            "types": [
+              "L1",
+              "5-HTPMPV03",
+              "MBON28"
+            ],
+            "edges": [
+              {
+                "pre": "34035",
+                "post": "10050",
+                "contacts": 1,
+                "modeledPresynapticSign": -1
+              },
+              {
+                "pre": "10050",
+                "post": "28622",
+                "contacts": 1,
+                "modeledPresynapticSign": 0
+              }
+            ]
+          }
+        ]
+      },
+      "reachableVisualKCsToMBONs": {
+        "targetCount": 97,
+        "reachable": 97,
+        "unreachable": 0,
+        "minimumHops": 1,
+        "maximumShortestHops": 2,
+        "shortestHopHistogram": {
+          "1": 68,
+          "2": 29
+        },
+        "delayOnlyMinimumMs": 1.8,
+        "scheduleOnlyMinimumMs": 1.9000000000000001,
+        "withinDelayOnlyHorizon": 97,
+        "unreachableIds": [],
+        "examples": [
+          {
+            "neuronIds": [
+              "19102",
+              "10013"
+            ],
+            "types": [
+              "KCg-d",
+              "MBON01"
+            ],
+            "edges": [
+              {
+                "pre": "19102",
+                "post": "10013",
+                "contacts": 26,
+                "modeledPresynapticSign": 1
+              }
+            ]
+          },
+          {
+            "neuronIds": [
+              "915893",
+              "10079"
+            ],
+            "types": [
+              "KCab-p",
+              "MBON06"
+            ],
+            "edges": [
+              {
+                "pre": "915893",
+                "post": "10079",
+                "contacts": 10,
+                "modeledPresynapticSign": 1
+              }
+            ]
+          },
+          {
+            "neuronIds": [
+              "533211",
+              "10267"
+            ],
+            "types": [
+              "KCab-p",
+              "MBON14"
+            ],
+            "edges": [
+              {
+                "pre": "533211",
+                "post": "10267",
+                "contacts": 1,
+                "modeledPresynapticSign": 1
+              }
+            ]
+          }
+        ]
+      },
+      "reachableMBONsToDecoder": {
+        "targetCount": 97,
+        "reachable": 97,
+        "unreachable": 0,
+        "minimumHops": 0,
+        "maximumShortestHops": 0,
+        "shortestHopHistogram": {
+          "0": 97
+        },
+        "delayOnlyMinimumMs": 0.0,
+        "scheduleOnlyMinimumMs": 0.0,
+        "withinDelayOnlyHorizon": 97,
+        "unreachableIds": [],
+        "examples": [
+          {
+            "neuronIds": [
+              "10013"
+            ],
+            "types": [
+              "MBON01"
+            ],
+            "edges": []
+          },
+          {
+            "neuronIds": [
+              "10079"
+            ],
+            "types": [
+              "MBON06"
+            ],
+            "edges": []
+          },
+          {
+            "neuronIds": [
+              "10267"
+            ],
+            "types": [
+              "MBON14"
+            ],
+            "edges": []
+          }
+        ]
+      },
+      "orderedWaypointChainExists": true,
+      "wallSeconds": 0.9868477999989409
+    },
+    "fast_nonzero": {
+      "retainedEdges": 24559135,
+      "reachableNetworkNeurons": 166311,
+      "inputToVisualKCs": {
+        "targetCount": 335,
+        "reachable": 335,
+        "unreachable": 0,
+        "minimumHops": 2,
+        "maximumShortestHops": 3,
+        "shortestHopHistogram": {
+          "2": 25,
+          "3": 310
+        },
+        "delayOnlyMinimumMs": 3.6,
+        "scheduleOnlyMinimumMs": 3.8000000000000003,
+        "withinDelayOnlyHorizon": 335,
+        "unreachableIds": [],
+        "examples": [
+          {
+            "neuronIds": [
+              "33236",
+              "17475",
+              "36723"
+            ],
+            "types": [
+              "L1",
+              "MeVP63",
+              "KCg-d"
+            ],
+            "edges": [
+              {
+                "pre": "33236",
+                "post": "17475",
+                "contacts": 1,
+                "modeledPresynapticSign": -1
+              },
+              {
+                "pre": "17475",
+                "post": "36723",
+                "contacts": 1,
+                "modeledPresynapticSign": -1
+              }
+            ]
+          },
+          {
+            "neuronIds": [
+              "518096",
+              "532334",
+              "44069"
+            ],
+            "types": [
+              "L1",
+              "aMe12",
+              "KCg-d"
+            ],
+            "edges": [
+              {
+                "pre": "518096",
+                "post": "532334",
+                "contacts": 1,
+                "modeledPresynapticSign": -1
+              },
+              {
+                "pre": "532334",
+                "post": "44069",
+                "contacts": 12,
+                "modeledPresynapticSign": 1
+              }
+            ]
+          },
+          {
+            "neuronIds": [
+              "518096",
+              "532334",
+              "44948"
+            ],
+            "types": [
+              "L1",
+              "aMe12",
+              "KCg-d"
+            ],
+            "edges": [
+              {
+                "pre": "518096",
+                "post": "532334",
+                "contacts": 1,
+                "modeledPresynapticSign": -1
+              },
+              {
+                "pre": "532334",
+                "post": "44948",
+                "contacts": 7,
+                "modeledPresynapticSign": 1
+              }
+            ]
+          }
+        ]
+      },
+      "inputToMBONs": {
+        "targetCount": 97,
+        "reachable": 97,
+        "unreachable": 0,
+        "minimumHops": 3,
+        "maximumShortestHops": 4,
+        "shortestHopHistogram": {
+          "3": 95,
+          "4": 2
+        },
+        "delayOnlyMinimumMs": 5.4,
+        "scheduleOnlyMinimumMs": 5.7,
+        "withinDelayOnlyHorizon": 97,
+        "unreachableIds": [],
+        "examples": [
+          {
+            "neuronIds": [
+              "27063",
+              "14300",
+              "10381",
+              "10013"
+            ],
+            "types": [
+              "L1",
+              "MeVP9",
+              "OCG01e",
+              "MBON01"
+            ],
+            "edges": [
+              {
+                "pre": "27063",
+                "post": "14300",
+                "contacts": 7,
+                "modeledPresynapticSign": -1
+              },
+              {
+                "pre": "14300",
+                "post": "10381",
+                "contacts": 2,
+                "modeledPresynapticSign": 1
+              },
+              {
+                "pre": "10381",
+                "post": "10013",
+                "contacts": 1,
+                "modeledPresynapticSign": 1
+              }
+            ]
+          },
+          {
+            "neuronIds": [
+              "518096",
+              "532334",
+              "10977",
+              "10079"
+            ],
+            "types": [
+              "L1",
+              "aMe12",
+              "APL",
+              "MBON06"
+            ],
+            "edges": [
+              {
+                "pre": "518096",
+                "post": "532334",
+                "contacts": 1,
+                "modeledPresynapticSign": -1
+              },
+              {
+                "pre": "532334",
+                "post": "10977",
+                "contacts": 2,
+                "modeledPresynapticSign": 1
+              },
+              {
+                "pre": "10977",
+                "post": "10079",
+                "contacts": 234,
+                "modeledPresynapticSign": -1
+              }
+            ]
+          },
+          {
+            "neuronIds": [
+              "518096",
+              "532334",
+              "521150",
+              "10267"
+            ],
+            "types": [
+              "L1",
+              "aMe12",
+              "pC1x_a",
+              "MBON14"
+            ],
+            "edges": [
+              {
+                "pre": "518096",
+                "post": "532334",
+                "contacts": 1,
+                "modeledPresynapticSign": -1
+              },
+              {
+                "pre": "532334",
+                "post": "521150",
+                "contacts": 4,
+                "modeledPresynapticSign": 1
+              },
+              {
+                "pre": "521150",
+                "post": "10267",
+                "contacts": 3,
+                "modeledPresynapticSign": 1
+              }
+            ]
+          }
+        ]
+      },
+      "inputToDecoder": {
+        "targetCount": 97,
+        "reachable": 97,
+        "unreachable": 0,
+        "minimumHops": 3,
+        "maximumShortestHops": 4,
+        "shortestHopHistogram": {
+          "3": 95,
+          "4": 2
+        },
+        "delayOnlyMinimumMs": 5.4,
+        "scheduleOnlyMinimumMs": 5.7,
+        "withinDelayOnlyHorizon": 97,
+        "unreachableIds": [],
+        "examples": [
+          {
+            "neuronIds": [
+              "27063",
+              "14300",
+              "10381",
+              "10013"
+            ],
+            "types": [
+              "L1",
+              "MeVP9",
+              "OCG01e",
+              "MBON01"
+            ],
+            "edges": [
+              {
+                "pre": "27063",
+                "post": "14300",
+                "contacts": 7,
+                "modeledPresynapticSign": -1
+              },
+              {
+                "pre": "14300",
+                "post": "10381",
+                "contacts": 2,
+                "modeledPresynapticSign": 1
+              },
+              {
+                "pre": "10381",
+                "post": "10013",
+                "contacts": 1,
+                "modeledPresynapticSign": 1
+              }
+            ]
+          },
+          {
+            "neuronIds": [
+              "518096",
+              "532334",
+              "10977",
+              "10079"
+            ],
+            "types": [
+              "L1",
+              "aMe12",
+              "APL",
+              "MBON06"
+            ],
+            "edges": [
+              {
+                "pre": "518096",
+                "post": "532334",
+                "contacts": 1,
+                "modeledPresynapticSign": -1
+              },
+              {
+                "pre": "532334",
+                "post": "10977",
+                "contacts": 2,
+                "modeledPresynapticSign": 1
+              },
+              {
+                "pre": "10977",
+                "post": "10079",
+                "contacts": 234,
+                "modeledPresynapticSign": -1
+              }
+            ]
+          },
+          {
+            "neuronIds": [
+              "518096",
+              "532334",
+              "521150",
+              "10267"
+            ],
+            "types": [
+              "L1",
+              "aMe12",
+              "pC1x_a",
+              "MBON14"
+            ],
+            "edges": [
+              {
+                "pre": "518096",
+                "post": "532334",
+                "contacts": 1,
+                "modeledPresynapticSign": -1
+              },
+              {
+                "pre": "532334",
+                "post": "521150",
+                "contacts": 4,
+                "modeledPresynapticSign": 1
+              },
+              {
+                "pre": "521150",
+                "post": "10267",
+                "contacts": 3,
+                "modeledPresynapticSign": 1
+              }
+            ]
+          }
+        ]
+      },
+      "reachableVisualKCsToMBONs": {
+        "targetCount": 97,
+        "reachable": 97,
+        "unreachable": 0,
+        "minimumHops": 1,
+        "maximumShortestHops": 2,
+        "shortestHopHistogram": {
+          "1": 68,
+          "2": 29
+        },
+        "delayOnlyMinimumMs": 1.8,
+        "scheduleOnlyMinimumMs": 1.9000000000000001,
+        "withinDelayOnlyHorizon": 97,
+        "unreachableIds": [],
+        "examples": [
+          {
+            "neuronIds": [
+              "19102",
+              "10013"
+            ],
+            "types": [
+              "KCg-d",
+              "MBON01"
+            ],
+            "edges": [
+              {
+                "pre": "19102",
+                "post": "10013",
+                "contacts": 26,
+                "modeledPresynapticSign": 1
+              }
+            ]
+          },
+          {
+            "neuronIds": [
+              "915893",
+              "10079"
+            ],
+            "types": [
+              "KCab-p",
+              "MBON06"
+            ],
+            "edges": [
+              {
+                "pre": "915893",
+                "post": "10079",
+                "contacts": 10,
+                "modeledPresynapticSign": 1
+              }
+            ]
+          },
+          {
+            "neuronIds": [
+              "533211",
+              "10267"
+            ],
+            "types": [
+              "KCab-p",
+              "MBON14"
+            ],
+            "edges": [
+              {
+                "pre": "533211",
+                "post": "10267",
+                "contacts": 1,
+                "modeledPresynapticSign": 1
+              }
+            ]
+          }
+        ]
+      },
+      "reachableMBONsToDecoder": {
+        "targetCount": 97,
+        "reachable": 97,
+        "unreachable": 0,
+        "minimumHops": 0,
+        "maximumShortestHops": 0,
+        "shortestHopHistogram": {
+          "0": 97
+        },
+        "delayOnlyMinimumMs": 0.0,
+        "scheduleOnlyMinimumMs": 0.0,
+        "withinDelayOnlyHorizon": 97,
+        "unreachableIds": [],
+        "examples": [
+          {
+            "neuronIds": [
+              "10013"
+            ],
+            "types": [
+              "MBON01"
+            ],
+            "edges": []
+          },
+          {
+            "neuronIds": [
+              "10079"
+            ],
+            "types": [
+              "MBON06"
+            ],
+            "edges": []
+          },
+          {
+            "neuronIds": [
+              "10267"
+            ],
+            "types": [
+              "MBON14"
+            ],
+            "edges": []
+          }
+        ]
+      },
+      "orderedWaypointChainExists": true,
+      "wallSeconds": 1.0742954999986978
+    },
+    "excitatory_only": {
+      "retainedEdges": 14745137,
+      "reachableNetworkNeurons": 1767,
+      "inputToVisualKCs": {
+        "targetCount": 335,
+        "reachable": 0,
+        "unreachable": 335,
+        "minimumHops": null,
+        "maximumShortestHops": null,
+        "shortestHopHistogram": {},
+        "delayOnlyMinimumMs": null,
+        "scheduleOnlyMinimumMs": null,
+        "withinDelayOnlyHorizon": 0,
+        "unreachableIds": [
+          "19102",
+          "19788",
+          "28848",
+          "30397",
+          "32683",
+          "34870",
+          "35180",
+          "36723",
+          "38657",
+          "39316",
+          "39771",
+          "40027",
+          "41134",
+          "42185",
+          "42370",
+          "42969",
+          "43867",
+          "44069",
+          "44485",
+          "44948",
+          "46196",
+          "46398",
+          "47181",
+          "47354",
+          "47567",
+          "47847",
+          "48122",
+          "48147",
+          "48219",
+          "48438",
+          "48533",
+          "48632",
+          "48641",
+          "48978",
+          "49052",
+          "49345",
+          "49709",
+          "49710",
+          "50582",
+          "50933",
+          "51394",
+          "51600",
+          "51679",
+          "51686",
+          "51998",
+          "52594",
+          "52751",
+          "52907",
+          "53217",
+          "53271",
+          "53430",
+          "53505",
+          "53680",
+          "55316",
+          "55946",
+          "56145",
+          "56284",
+          "56352",
+          "57244",
+          "57302",
+          "57413",
+          "57460",
+          "57498",
+          "57545",
+          "57550",
+          "57865",
+          "58169",
+          "58295",
+          "58501",
+          "58524",
+          "58782",
+          "58802",
+          "59787",
+          "60166",
+          "60344",
+          "60708",
+          "60829",
+          "61056",
+          "61947",
+          "62076",
+          "62087",
+          "62274",
+          "62457",
+          "62641",
+          "63543",
+          "63794",
+          "64302",
+          "64310",
+          "65404",
+          "65633",
+          "66659",
+          "66973",
+          "67355",
+          "67853",
+          "67984",
+          "68484",
+          "69047",
+          "69337",
+          "69885",
+          "70747",
+          "71486",
+          "71688",
+          "72230",
+          "72438",
+          "72512",
+          "73227",
+          "74094",
+          "74269",
+          "74362",
+          "74542",
+          "76023",
+          "76076",
+          "76091",
+          "76455",
+          "76688",
+          "76702",
+          "76984",
+          "78768",
+          "79184",
+          "79419",
+          "79522",
+          "80543",
+          "80612",
+          "80905",
+          "80924",
+          "81049",
+          "81056",
+          "81177",
+          "81203",
+          "81577",
+          "81631",
+          "81656",
+          "81781",
+          "81885",
+          "82728",
+          "83052",
+          "83584",
+          "83924",
+          "84011",
+          "84472",
+          "84628",
+          "85033",
+          "85213",
+          "85349",
+          "85368",
+          "85428",
+          "85851",
+          "85923",
+          "86183",
+          "86372",
+          "86909",
+          "86940",
+          "87324",
+          "87387",
+          "87776",
+          "87868",
+          "88824",
+          "88899",
+          "89327",
+          "90790",
+          "91244",
+          "91382",
+          "91487",
+          "91751",
+          "91926",
+          "91960",
+          "92008",
+          "92013",
+          "92168",
+          "92967",
+          "93108",
+          "93976",
+          "94240",
+          "94845",
+          "95291",
+          "95349",
+          "95484",
+          "95591",
+          "95970",
+          "96304",
+          "96723",
+          "96825",
+          "97591",
+          "98462",
+          "98901",
+          "99281",
+          "99391",
+          "100592",
+          "101647",
+          "102283",
+          "103278",
+          "103640",
+          "103663",
+          "103715",
+          "103770",
+          "103832",
+          "104513",
+          "105662",
+          "105684",
+          "106301",
+          "107737",
+          "108072",
+          "109413",
+          "109478",
+          "110269",
+          "110746",
+          "111197",
+          "111744",
+          "114179",
+          "115470",
+          "116057",
+          "116917",
+          "117171",
+          "117192",
+          "117811",
+          "117936",
+          "118184",
+          "118280",
+          "118341",
+          "118569",
+          "119167",
+          "119901",
+          "120949",
+          "122110",
+          "122647",
+          "124097",
+          "124376",
+          "125644",
+          "125813",
+          "127046",
+          "127577",
+          "128925",
+          "129022",
+          "129659",
+          "130231",
+          "132622",
+          "132649",
+          "133102",
+          "135219",
+          "135241",
+          "135354",
+          "135421",
+          "135662",
+          "135897",
+          "136046",
+          "136048",
+          "136196",
+          "136912",
+          "137257",
+          "137283",
+          "137302",
+          "137837",
+          "137952",
+          "137977",
+          "138186",
+          "138198",
+          "139032",
+          "139591",
+          "139976",
+          "140175",
+          "141007",
+          "141163",
+          "141559",
+          "142069",
+          "142203",
+          "142733",
+          "143262",
+          "144134",
+          "144220",
+          "144578",
+          "144747",
+          "144819",
+          "145085",
+          "146301",
+          "147444",
+          "147585",
+          "148137",
+          "148145",
+          "148150",
+          "149136",
+          "149401",
+          "150014",
+          "150259",
+          "150761",
+          "151944",
+          "152470",
+          "152688",
+          "152784",
+          "153080",
+          "153545",
+          "153584",
+          "155716",
+          "155996",
+          "156785",
+          "157325",
+          "158263",
+          "158447",
+          "159580",
+          "162951",
+          "166081",
+          "170179",
+          "170293",
+          "171048",
+          "174546",
+          "184536",
+          "190056",
+          "192421",
+          "197363",
+          "213996",
+          "216580",
+          "228917",
+          "374700",
+          "520204",
+          "520206",
+          "524455",
+          "526900",
+          "531096",
+          "531428",
+          "533211",
+          "533220",
+          "533345",
+          "534786",
+          "535720",
+          "535795",
+          "536363",
+          "537090",
+          "542818",
+          "546275",
+          "546905",
+          "552553",
+          "553483",
+          "556005",
+          "571903",
+          "901937",
+          "915893"
+        ],
+        "examples": []
+      },
+      "inputToMBONs": {
+        "targetCount": 97,
+        "reachable": 0,
+        "unreachable": 97,
+        "minimumHops": null,
+        "maximumShortestHops": null,
+        "shortestHopHistogram": {},
+        "delayOnlyMinimumMs": null,
+        "scheduleOnlyMinimumMs": null,
+        "withinDelayOnlyHorizon": 0,
+        "unreachableIds": [
+          "10013",
+          "10079",
+          "10267",
+          "10495",
+          "10599",
+          "10704",
+          "10804",
+          "10816",
+          "10826",
+          "11145",
+          "11176",
+          "11402",
+          "11455",
+          "11777",
+          "11785",
+          "11805",
+          "11873",
+          "11990",
+          "12690",
+          "12726",
+          "12859",
+          "12918",
+          "13728",
+          "13768",
+          "14221",
+          "15626",
+          "15708",
+          "17946",
+          "18406",
+          "18603",
+          "18713",
+          "19267",
+          "19366",
+          "20835",
+          "21242",
+          "26485",
+          "26853",
+          "28622",
+          "31016",
+          "31083",
+          "33617",
+          "36094",
+          "38853",
+          "38859",
+          "39608",
+          "41692",
+          "44619",
+          "47551",
+          "49262",
+          "58401",
+          "70924",
+          "76585",
+          "87077",
+          "92112",
+          "110448",
+          "133427",
+          "160320",
+          "187741",
+          "208566",
+          "394860",
+          "508595",
+          "512788",
+          "512789",
+          "513174",
+          "513387",
+          "513391",
+          "514853",
+          "515015",
+          "515034",
+          "515338",
+          "519128",
+          "519131",
+          "519368",
+          "519371",
+          "519373",
+          "519619",
+          "520151",
+          "520186",
+          "520395",
+          "521086",
+          "521526",
+          "522444",
+          "522749",
+          "523043",
+          "523060",
+          "523628",
+          "523987",
+          "524733",
+          "524893",
+          "525780",
+          "530875",
+          "531829",
+          "540383",
+          "556300",
+          "558665",
+          "562782",
+          "579919"
+        ],
+        "examples": []
+      },
+      "inputToDecoder": {
+        "targetCount": 97,
+        "reachable": 0,
+        "unreachable": 97,
+        "minimumHops": null,
+        "maximumShortestHops": null,
+        "shortestHopHistogram": {},
+        "delayOnlyMinimumMs": null,
+        "scheduleOnlyMinimumMs": null,
+        "withinDelayOnlyHorizon": 0,
+        "unreachableIds": [
+          "10013",
+          "10079",
+          "10267",
+          "10495",
+          "10599",
+          "10704",
+          "10804",
+          "10816",
+          "10826",
+          "11145",
+          "11176",
+          "11402",
+          "11455",
+          "11777",
+          "11785",
+          "11805",
+          "11873",
+          "11990",
+          "12690",
+          "12726",
+          "12859",
+          "12918",
+          "13728",
+          "13768",
+          "14221",
+          "15626",
+          "15708",
+          "17946",
+          "18406",
+          "18603",
+          "18713",
+          "19267",
+          "19366",
+          "20835",
+          "21242",
+          "26485",
+          "26853",
+          "28622",
+          "31016",
+          "31083",
+          "33617",
+          "36094",
+          "38853",
+          "38859",
+          "39608",
+          "41692",
+          "44619",
+          "47551",
+          "49262",
+          "58401",
+          "70924",
+          "76585",
+          "87077",
+          "92112",
+          "110448",
+          "133427",
+          "160320",
+          "187741",
+          "208566",
+          "394860",
+          "508595",
+          "512788",
+          "512789",
+          "513174",
+          "513387",
+          "513391",
+          "514853",
+          "515015",
+          "515034",
+          "515338",
+          "519128",
+          "519131",
+          "519368",
+          "519371",
+          "519373",
+          "519619",
+          "520151",
+          "520186",
+          "520395",
+          "521086",
+          "521526",
+          "522444",
+          "522749",
+          "523043",
+          "523060",
+          "523628",
+          "523987",
+          "524733",
+          "524893",
+          "525780",
+          "530875",
+          "531829",
+          "540383",
+          "556300",
+          "558665",
+          "562782",
+          "579919"
+        ],
+        "examples": []
+      },
+      "reachableVisualKCsToMBONs": {
+        "targetCount": 97,
+        "reachable": 0,
+        "unreachable": 97,
+        "minimumHops": null,
+        "maximumShortestHops": null,
+        "shortestHopHistogram": {},
+        "delayOnlyMinimumMs": null,
+        "scheduleOnlyMinimumMs": null,
+        "withinDelayOnlyHorizon": 0,
+        "unreachableIds": [
+          "10013",
+          "10079",
+          "10267",
+          "10495",
+          "10599",
+          "10704",
+          "10804",
+          "10816",
+          "10826",
+          "11145",
+          "11176",
+          "11402",
+          "11455",
+          "11777",
+          "11785",
+          "11805",
+          "11873",
+          "11990",
+          "12690",
+          "12726",
+          "12859",
+          "12918",
+          "13728",
+          "13768",
+          "14221",
+          "15626",
+          "15708",
+          "17946",
+          "18406",
+          "18603",
+          "18713",
+          "19267",
+          "19366",
+          "20835",
+          "21242",
+          "26485",
+          "26853",
+          "28622",
+          "31016",
+          "31083",
+          "33617",
+          "36094",
+          "38853",
+          "38859",
+          "39608",
+          "41692",
+          "44619",
+          "47551",
+          "49262",
+          "58401",
+          "70924",
+          "76585",
+          "87077",
+          "92112",
+          "110448",
+          "133427",
+          "160320",
+          "187741",
+          "208566",
+          "394860",
+          "508595",
+          "512788",
+          "512789",
+          "513174",
+          "513387",
+          "513391",
+          "514853",
+          "515015",
+          "515034",
+          "515338",
+          "519128",
+          "519131",
+          "519368",
+          "519371",
+          "519373",
+          "519619",
+          "520151",
+          "520186",
+          "520395",
+          "521086",
+          "521526",
+          "522444",
+          "522749",
+          "523043",
+          "523060",
+          "523628",
+          "523987",
+          "524733",
+          "524893",
+          "525780",
+          "530875",
+          "531829",
+          "540383",
+          "556300",
+          "558665",
+          "562782",
+          "579919"
+        ],
+        "examples": []
+      },
+      "reachableMBONsToDecoder": {
+        "targetCount": 97,
+        "reachable": 0,
+        "unreachable": 97,
+        "minimumHops": null,
+        "maximumShortestHops": null,
+        "shortestHopHistogram": {},
+        "delayOnlyMinimumMs": null,
+        "scheduleOnlyMinimumMs": null,
+        "withinDelayOnlyHorizon": 0,
+        "unreachableIds": [
+          "10013",
+          "10079",
+          "10267",
+          "10495",
+          "10599",
+          "10704",
+          "10804",
+          "10816",
+          "10826",
+          "11145",
+          "11176",
+          "11402",
+          "11455",
+          "11777",
+          "11785",
+          "11805",
+          "11873",
+          "11990",
+          "12690",
+          "12726",
+          "12859",
+          "12918",
+          "13728",
+          "13768",
+          "14221",
+          "15626",
+          "15708",
+          "17946",
+          "18406",
+          "18603",
+          "18713",
+          "19267",
+          "19366",
+          "20835",
+          "21242",
+          "26485",
+          "26853",
+          "28622",
+          "31016",
+          "31083",
+          "33617",
+          "36094",
+          "38853",
+          "38859",
+          "39608",
+          "41692",
+          "44619",
+          "47551",
+          "49262",
+          "58401",
+          "70924",
+          "76585",
+          "87077",
+          "92112",
+          "110448",
+          "133427",
+          "160320",
+          "187741",
+          "208566",
+          "394860",
+          "508595",
+          "512788",
+          "512789",
+          "513174",
+          "513387",
+          "513391",
+          "514853",
+          "515015",
+          "515034",
+          "515338",
+          "519128",
+          "519131",
+          "519368",
+          "519371",
+          "519373",
+          "519619",
+          "520151",
+          "520186",
+          "520395",
+          "521086",
+          "521526",
+          "522444",
+          "522749",
+          "523043",
+          "523060",
+          "523628",
+          "523987",
+          "524733",
+          "524893",
+          "525780",
+          "530875",
+          "531829",
+          "540383",
+          "556300",
+          "558665",
+          "562782",
+          "579919"
+        ],
+        "examples": []
+      },
+      "orderedWaypointChainExists": false,
+      "wallSeconds": 0.1679128000014316
+    }
+  },
+  "quiescentBarrier": {
+    "sufficientBarrierPresent": true,
+    "conditions": [
+      "Every directly driven neuron has nonpositive outgoing fast weights",
+      "All other neurons begin at rest with zero synaptic current and empty delay queues",
+      "No external/tonic current reaches undriven neurons; efficacy is nonnegative",
+      "Threshold exceeds rest/reset; current-based LIF has no rebound or graded transmission"
+    ],
+    "implication": "Under these conditions, undriven membrane potentials cannot exceed rest: nonpositive input cannot initiate downstream spikes. More simulated time alone cannot remove this barrier.",
+    "scope": "This model configuration only; not a claim about inhibitory circuits or living fly vision"
+  },
+  "observedFrozenScreen": {
+    "dark": {
+      "networkSpikes": 0,
+      "L1Spikes": 0,
+      "visualKCSpikes": 0,
+      "MBONSpikes": 0,
+      "firstL1ResponseBinEndMs": null
+    },
+    "illumination": {
+      "networkSpikes": 10602,
+      "L1Spikes": 10602,
+      "visualKCSpikes": 0,
+      "MBONSpikes": 0,
+      "firstL1ResponseBinEndMs": 10.0
+    },
+    "flash": {
+      "networkSpikes": 5301,
+      "L1Spikes": 5301,
+      "visualKCSpikes": 0,
+      "MBONSpikes": 0,
+      "firstL1ResponseBinEndMs": 35.0
+    },
+    "movingBar": {
+      "networkSpikes": 5168,
+      "L1Spikes": 5168,
+      "visualKCSpikes": 0,
+      "MBONSpikes": 0,
+      "firstL1ResponseBinEndMs": 10.0
+    },
+    "mirror": {
+      "networkSpikes": 5325,
+      "L1Spikes": 5325,
+      "visualKCSpikes": 0,
+      "MBONSpikes": 0,
+      "firstL1ResponseBinEndMs": 10.0
+    },
+    "scramble": {
+      "networkSpikes": 7340,
+      "L1Spikes": 7340,
+      "visualKCSpikes": 0,
+      "MBONSpikes": 0,
+      "firstL1ResponseBinEndMs": 10.0
+    }
+  },
+  "interpretationLimits": [
+    "Reachability is not response, causality, cue coding, learning, or validation of a visual/effector map.",
+    "Paths may traverse arbitrary recurrent routes and mixed neuronal classes; these are not canonical visual pathways.",
+    "Hop-based delay bounds ignore integration, inhibition, filtering and source first-spike latency.",
+    "Stage-wise hop minima are not added to claim one global shortest waypoint-constrained route.",
+    "No candidate gain, transmitter sign, threshold, wiring, decoder, assay criterion, or gate was changed."
+  ],
+  "provenance": {
+    "graph": {
+      "path": "C:\\Users\\scott\\Documents\\Scicon Shooter\\fly-lab\\data\\compiled\\v1.0\\graph.npz",
+      "sha256": "518bf3441daf58733005aee559c40b437bd1366602baa11e3a9d8ef0867e05d9"
+    },
+    "manifest": {
+      "path": "C:\\Users\\scott\\Documents\\Scicon Shooter\\fly-lab\\data\\compiled\\v1.0\\manifest.json",
+      "sha256": "eb0fb3c73a569efbf5733d832afabaf9a1be1557460ca060f43c470193ba50ca"
+    },
+    "vision": {
+      "path": "C:\\Users\\scott\\Documents\\Scicon Shooter\\fly-lab\\configs\\candidates\\malecns-hex-v0.1-vision.json",
+      "sha256": "ec100f76e1a31799e5b389666ce151f183526ab059838c81c93842c1955d494c"
+    },
+    "decoder": {
+      "path": "C:\\Users\\scott\\Documents\\Scicon Shooter\\fly-lab\\configs\\candidates\\malecns-hex-v0.1-decoder.json",
+      "sha256": "b94d97962d773e224cf8d691d4db4b5645f8ebd8df4019dea6b369b247fd417f"
+    },
+    "specification": {
+      "path": "C:\\Users\\scott\\Documents\\Scicon Shooter\\fly-lab\\configs\\candidates\\malecns-hex-v0.1-specification.json",
+      "sha256": "f263386d241ff656f96071a3aee6fdb84f3ab54d4316439df62303de89afe6cd"
+    },
+    "screen": {
+      "path": "C:\\Users\\scott\\Documents\\Scicon Shooter\\fly-lab\\docs\\evidence\\malecns-hex-v0.1-screen.json",
+      "sha256": "6eabee53e9240b31ad4937407e16c1f471d11657b5580f5c5853952548c21733"
+    }
+  },
+  "resources": {
+    "loadWallSeconds": 1.3340110999997705,
+    "totalWallSeconds": 3.793120899999849,
+    "residentBytesAtCompletion": 423002112,
+    "peakWorkingSetBytes": 937172992,
+    "simulatedMilliseconds": 0
+  },
+  "runtime": {
+    "python": "3.12.14",
+    "executable": "C:\\Users\\scott\\Documents\\Scicon Shooter\\fly-lab\\.venv\\Scripts\\python.exe",
+    "moduleWorkingDirectory": "C:\\Users\\scott\\Documents\\Scicon Shooter\\fly-lab\\python",
+    "numpy": "2.2.6",
+    "scipy": "1.15.3",
+    "moduleSha256": "74d3ecebd28253b4be11bdffc91f22bc880082dfda31a1abd2299987fa8468ab"
+  },
+  "reproduction": "python -m scicon_fly.diagnostics --graph \"fly-lab/data/compiled/v1.0/graph.npz\" --manifest \"fly-lab/data/compiled/v1.0/manifest.json\" --vision \"fly-lab/configs/candidates/malecns-hex-v0.1-vision.json\" --decoder \"fly-lab/configs/candidates/malecns-hex-v0.1-decoder.json\" --specification \"fly-lab/configs/candidates/malecns-hex-v0.1-specification.json\" --screen \"fly-lab/docs/evidence/malecns-hex-v0.1-screen.json\" --output \"fly-lab/docs/evidence/diagnostic-connectivity.json\""
+}

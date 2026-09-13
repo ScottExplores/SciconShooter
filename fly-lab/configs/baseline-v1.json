@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "orbit-entry-engineering-baseline-v1",
+  "purpose": "ENGINEERING_BASELINE_NOT_LEARNING",
+  "scenario": "operation-open-galaxy",
+  "seeds": [31001, 31002, 31003],
+  "conditions": ["idle", "random"],
+  "timeLimitSeconds": 30,
+  "constantFire": true,
+  "renderProfile": "local-d3d11",
+  "seedRole": "development-only; never reuse as sealed evaluation seeds",
+  "interpretation": "Descriptive gameplay and throughput measurements. No neural model, training, matched neural-action control, or biological learning claim."
+}

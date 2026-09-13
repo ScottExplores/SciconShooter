@@ -4,6 +4,8 @@ The simple spectator display is at **http://127.0.0.1:5180/#watch**. It shows re
 
 Private experimental application using Scicon Shooter's canonical engine and Pixi renderer. The real MaleCNS graph is supported. **No validated MaleCNS visual/game controller or biological learning result is supplied.** Missing evidence is a visible gate, not substituted with a random policy carrying a fly label.
 
+The next research stage is underway: [bounded baseline collection, sensory diagnosis and next steps](docs/RESEARCH_START.md). A [local ResearchHub proposal draft](docs/RESEARCHHUB_PROPOSAL_DRAFT.md) scopes scientific review and sensory validation; it has not been submitted or funded.
+
 ## Start on this computer
 
 ```powershell
