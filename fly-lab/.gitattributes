@@ -1,0 +1,5 @@
+* text eol=lf
+# Frozen evidence is byte-hashed; never translate its original line endings.
+configs/candidates/*.json -text
+docs/evidence/*.json -text
+docs/evidence/*.sha256 -text

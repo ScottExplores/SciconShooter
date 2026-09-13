@@ -1,0 +1,1234 @@
+{
+  "version": "malecns_hex_candidate_v0.1",
+  "graphHash": "93d5a84e93e73f32a699a47ecfeaabf977505c942192920da383fdb3884288f4",
+  "candidate": {
+    "assayOnly": true,
+    "evidence": [
+      "https://storage.googleapis.com/flyem-male-cns/v1.0/connectome-data/flat-connectome/body-annotations-male-cns-v1.0-minconf-0.5.feather",
+      "annotation SHA256 2177e246113e4cfbf1e7772ec37c6da1955ff22e8063d0b1f833101f99a9a3b2"
+    ],
+    "interpretation": "ENGINEERED_CANDIDATE_NOT_BIOLOGICALLY_VALIDATED"
+  },
+  "filterMs": 100,
+  "interpretation": "Arbitrary fixed MBON readout for an engineering screen; no evidence that these cells encode movement or shooting",
+  "channels": {
+    "x": {
+      "neurons": [
+        {
+          "id": "10013",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON01",
+          "sourceSide": "R"
+        },
+        {
+          "id": "10079",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON06",
+          "sourceSide": "R"
+        },
+        {
+          "id": "10267",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON14",
+          "sourceSide": "R"
+        },
+        {
+          "id": "10495",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON05",
+          "sourceSide": "R"
+        },
+        {
+          "id": "10804",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON20",
+          "sourceSide": "R"
+        },
+        {
+          "id": "11176",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON26",
+          "sourceSide": "R"
+        },
+        {
+          "id": "11402",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON11",
+          "sourceSide": "R"
+        },
+        {
+          "id": "11777",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON15",
+          "sourceSide": "R"
+        },
+        {
+          "id": "11805",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON31",
+          "sourceSide": "R"
+        },
+        {
+          "id": "11990",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON22",
+          "sourceSide": "R"
+        },
+        {
+          "id": "12859",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON07",
+          "sourceSide": "R"
+        },
+        {
+          "id": "14221",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON18",
+          "sourceSide": "R"
+        },
+        {
+          "id": "15708",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON24",
+          "sourceSide": "R"
+        },
+        {
+          "id": "17946",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON14",
+          "sourceSide": "R"
+        },
+        {
+          "id": "20835",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON23",
+          "sourceSide": "R"
+        },
+        {
+          "id": "21242",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON09",
+          "sourceSide": "R"
+        },
+        {
+          "id": "26485",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON28",
+          "sourceSide": "R"
+        },
+        {
+          "id": "26853",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON19",
+          "sourceSide": "R"
+        },
+        {
+          "id": "33617",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON19",
+          "sourceSide": "R"
+        },
+        {
+          "id": "41692",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON17",
+          "sourceSide": "R"
+        },
+        {
+          "id": "44619",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON15-like",
+          "sourceSide": "R"
+        },
+        {
+          "id": "49262",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON10",
+          "sourceSide": "R"
+        },
+        {
+          "id": "58401",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON15",
+          "sourceSide": "R"
+        },
+        {
+          "id": "76585",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON25-like",
+          "sourceSide": "R"
+        },
+        {
+          "id": "92112",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON34",
+          "sourceSide": "R"
+        },
+        {
+          "id": "133427",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON10",
+          "sourceSide": "R"
+        },
+        {
+          "id": "187741",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON15-like",
+          "sourceSide": "R"
+        },
+        {
+          "id": "394860",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON25",
+          "sourceSide": "R"
+        },
+        {
+          "id": "508595",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON35",
+          "sourceSide": "R"
+        },
+        {
+          "id": "513391",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON17-like",
+          "sourceSide": "R"
+        },
+        {
+          "id": "514853",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON13",
+          "sourceSide": "R"
+        },
+        {
+          "id": "515015",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON30",
+          "sourceSide": "R"
+        },
+        {
+          "id": "515034",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON27",
+          "sourceSide": "R"
+        },
+        {
+          "id": "515338",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON07",
+          "sourceSide": "R"
+        },
+        {
+          "id": "519131",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON32",
+          "sourceSide": "R"
+        },
+        {
+          "id": "519368",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON12",
+          "sourceSide": "R"
+        },
+        {
+          "id": "521086",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON12",
+          "sourceSide": "R"
+        },
+        {
+          "id": "521526",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON03",
+          "sourceSide": "R"
+        },
+        {
+          "id": "522444",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON02",
+          "sourceSide": "R"
+        },
+        {
+          "id": "523043",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON33",
+          "sourceSide": "R"
+        },
+        {
+          "id": "523060",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON09",
+          "sourceSide": "R"
+        },
+        {
+          "id": "523628",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON21",
+          "sourceSide": "R"
+        },
+        {
+          "id": "523987",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON29",
+          "sourceSide": "R"
+        },
+        {
+          "id": "525780",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON04",
+          "sourceSide": "R"
+        },
+        {
+          "id": "540383",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON10",
+          "sourceSide": "R"
+        },
+        {
+          "id": "556300",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON25-like",
+          "sourceSide": "R"
+        },
+        {
+          "id": "558665",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON10",
+          "sourceSide": "R"
+        },
+        {
+          "id": "562782",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON16",
+          "sourceSide": "R"
+        },
+        {
+          "id": "579919",
+          "gain": 0.02040816326530612,
+          "sourceType": "MBON10",
+          "sourceSide": "R"
+        },
+        {
+          "id": "10599",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON35",
+          "sourceSide": "L"
+        },
+        {
+          "id": "10704",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON11",
+          "sourceSide": "L"
+        },
+        {
+          "id": "10816",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON31",
+          "sourceSide": "L"
+        },
+        {
+          "id": "10826",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON21",
+          "sourceSide": "L"
+        },
+        {
+          "id": "11145",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON20",
+          "sourceSide": "L"
+        },
+        {
+          "id": "11455",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON32",
+          "sourceSide": "L"
+        },
+        {
+          "id": "11785",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON33",
+          "sourceSide": "L"
+        },
+        {
+          "id": "11873",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON14",
+          "sourceSide": "L"
+        },
+        {
+          "id": "12690",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON06",
+          "sourceSide": "L"
+        },
+        {
+          "id": "12726",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON13",
+          "sourceSide": "L"
+        },
+        {
+          "id": "12918",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON22",
+          "sourceSide": "L"
+        },
+        {
+          "id": "13728",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON12",
+          "sourceSide": "L"
+        },
+        {
+          "id": "13768",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON12",
+          "sourceSide": "L"
+        },
+        {
+          "id": "15626",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON07",
+          "sourceSide": "L"
+        },
+        {
+          "id": "18406",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON24",
+          "sourceSide": "L"
+        },
+        {
+          "id": "18603",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON07",
+          "sourceSide": "L"
+        },
+        {
+          "id": "18713",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON09",
+          "sourceSide": "L"
+        },
+        {
+          "id": "19267",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON09",
+          "sourceSide": "L"
+        },
+        {
+          "id": "19366",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON14",
+          "sourceSide": "L"
+        },
+        {
+          "id": "28622",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON28",
+          "sourceSide": "L"
+        },
+        {
+          "id": "31016",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON17",
+          "sourceSide": "L"
+        },
+        {
+          "id": "31083",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON15-like",
+          "sourceSide": "L"
+        },
+        {
+          "id": "36094",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON19",
+          "sourceSide": "L"
+        },
+        {
+          "id": "38853",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON15",
+          "sourceSide": "L"
+        },
+        {
+          "id": "38859",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON15-like",
+          "sourceSide": "L"
+        },
+        {
+          "id": "39608",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON10",
+          "sourceSide": "L"
+        },
+        {
+          "id": "47551",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON19",
+          "sourceSide": "L"
+        },
+        {
+          "id": "70924",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON10",
+          "sourceSide": "L"
+        },
+        {
+          "id": "87077",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON25",
+          "sourceSide": "L"
+        },
+        {
+          "id": "110448",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON25-like",
+          "sourceSide": "L"
+        },
+        {
+          "id": "160320",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON25-like",
+          "sourceSide": "L"
+        },
+        {
+          "id": "208566",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON34",
+          "sourceSide": "L"
+        },
+        {
+          "id": "512788",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON18",
+          "sourceSide": "L"
+        },
+        {
+          "id": "512789",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON23",
+          "sourceSide": "L"
+        },
+        {
+          "id": "513174",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON30",
+          "sourceSide": "L"
+        },
+        {
+          "id": "513387",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON17-like",
+          "sourceSide": "L"
+        },
+        {
+          "id": "519128",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON27",
+          "sourceSide": "L"
+        },
+        {
+          "id": "519371",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON05",
+          "sourceSide": "L"
+        },
+        {
+          "id": "519373",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON03",
+          "sourceSide": "L"
+        },
+        {
+          "id": "519619",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON29",
+          "sourceSide": "L"
+        },
+        {
+          "id": "520151",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON01",
+          "sourceSide": "L"
+        },
+        {
+          "id": "520186",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON16",
+          "sourceSide": "L"
+        },
+        {
+          "id": "520395",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON15",
+          "sourceSide": "L"
+        },
+        {
+          "id": "522749",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON02",
+          "sourceSide": "L"
+        },
+        {
+          "id": "524733",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON10",
+          "sourceSide": "L"
+        },
+        {
+          "id": "524893",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON26",
+          "sourceSide": "L"
+        },
+        {
+          "id": "530875",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON04",
+          "sourceSide": "L"
+        },
+        {
+          "id": "531829",
+          "gain": -0.020833333333333332,
+          "sourceType": "MBON10",
+          "sourceSide": "L"
+        }
+      ],
+      "thresholdHz": 1,
+      "evidence": [
+        "https://storage.googleapis.com/flyem-male-cns/v1.0/connectome-data/flat-connectome/body-annotations-male-cns-v1.0-minconf-0.5.feather",
+        "annotation SHA256 2177e246113e4cfbf1e7772ec37c6da1955ff22e8063d0b1f833101f99a9a3b2"
+      ],
+      "engineeringRationale": "Mean all annotated right MBON rates minus mean left MBON rates"
+    },
+    "y": {
+      "neurons": [
+        {
+          "id": "10013",
+          "gain": 0.5,
+          "sourceType": "MBON01",
+          "sourceSide": "R"
+        },
+        {
+          "id": "520151",
+          "gain": 0.5,
+          "sourceType": "MBON01",
+          "sourceSide": "L"
+        },
+        {
+          "id": "522444",
+          "gain": -0.5,
+          "sourceType": "MBON02",
+          "sourceSide": "R"
+        },
+        {
+          "id": "522749",
+          "gain": -0.5,
+          "sourceType": "MBON02",
+          "sourceSide": "L"
+        }
+      ],
+      "thresholdHz": 1,
+      "evidence": [
+        "https://storage.googleapis.com/flyem-male-cns/v1.0/connectome-data/flat-connectome/body-annotations-male-cns-v1.0-minconf-0.5.feather",
+        "annotation SHA256 2177e246113e4cfbf1e7772ec37c6da1955ff22e8063d0b1f833101f99a9a3b2"
+      ],
+      "engineeringRationale": "Mean exact MBON01 rate minus mean exact MBON02 rate; arbitrary declared contrast"
+    },
+    "fire": {
+      "neurons": [
+        {
+          "id": "10013",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON01",
+          "sourceSide": "R"
+        },
+        {
+          "id": "10079",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON06",
+          "sourceSide": "R"
+        },
+        {
+          "id": "10267",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON14",
+          "sourceSide": "R"
+        },
+        {
+          "id": "10495",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON05",
+          "sourceSide": "R"
+        },
+        {
+          "id": "10599",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON35",
+          "sourceSide": "L"
+        },
+        {
+          "id": "10704",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON11",
+          "sourceSide": "L"
+        },
+        {
+          "id": "10804",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON20",
+          "sourceSide": "R"
+        },
+        {
+          "id": "10816",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON31",
+          "sourceSide": "L"
+        },
+        {
+          "id": "10826",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON21",
+          "sourceSide": "L"
+        },
+        {
+          "id": "11145",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON20",
+          "sourceSide": "L"
+        },
+        {
+          "id": "11176",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON26",
+          "sourceSide": "R"
+        },
+        {
+          "id": "11402",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON11",
+          "sourceSide": "R"
+        },
+        {
+          "id": "11455",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON32",
+          "sourceSide": "L"
+        },
+        {
+          "id": "11777",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON15",
+          "sourceSide": "R"
+        },
+        {
+          "id": "11785",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON33",
+          "sourceSide": "L"
+        },
+        {
+          "id": "11805",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON31",
+          "sourceSide": "R"
+        },
+        {
+          "id": "11873",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON14",
+          "sourceSide": "L"
+        },
+        {
+          "id": "11990",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON22",
+          "sourceSide": "R"
+        },
+        {
+          "id": "12690",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON06",
+          "sourceSide": "L"
+        },
+        {
+          "id": "12726",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON13",
+          "sourceSide": "L"
+        },
+        {
+          "id": "12859",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON07",
+          "sourceSide": "R"
+        },
+        {
+          "id": "12918",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON22",
+          "sourceSide": "L"
+        },
+        {
+          "id": "13728",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON12",
+          "sourceSide": "L"
+        },
+        {
+          "id": "13768",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON12",
+          "sourceSide": "L"
+        },
+        {
+          "id": "14221",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON18",
+          "sourceSide": "R"
+        },
+        {
+          "id": "15626",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON07",
+          "sourceSide": "L"
+        },
+        {
+          "id": "15708",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON24",
+          "sourceSide": "R"
+        },
+        {
+          "id": "17946",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON14",
+          "sourceSide": "R"
+        },
+        {
+          "id": "18406",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON24",
+          "sourceSide": "L"
+        },
+        {
+          "id": "18603",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON07",
+          "sourceSide": "L"
+        },
+        {
+          "id": "18713",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON09",
+          "sourceSide": "L"
+        },
+        {
+          "id": "19267",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON09",
+          "sourceSide": "L"
+        },
+        {
+          "id": "19366",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON14",
+          "sourceSide": "L"
+        },
+        {
+          "id": "20835",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON23",
+          "sourceSide": "R"
+        },
+        {
+          "id": "21242",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON09",
+          "sourceSide": "R"
+        },
+        {
+          "id": "26485",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON28",
+          "sourceSide": "R"
+        },
+        {
+          "id": "26853",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON19",
+          "sourceSide": "R"
+        },
+        {
+          "id": "28622",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON28",
+          "sourceSide": "L"
+        },
+        {
+          "id": "31016",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON17",
+          "sourceSide": "L"
+        },
+        {
+          "id": "31083",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON15-like",
+          "sourceSide": "L"
+        },
+        {
+          "id": "33617",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON19",
+          "sourceSide": "R"
+        },
+        {
+          "id": "36094",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON19",
+          "sourceSide": "L"
+        },
+        {
+          "id": "38853",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON15",
+          "sourceSide": "L"
+        },
+        {
+          "id": "38859",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON15-like",
+          "sourceSide": "L"
+        },
+        {
+          "id": "39608",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON10",
+          "sourceSide": "L"
+        },
+        {
+          "id": "41692",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON17",
+          "sourceSide": "R"
+        },
+        {
+          "id": "44619",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON15-like",
+          "sourceSide": "R"
+        },
+        {
+          "id": "47551",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON19",
+          "sourceSide": "L"
+        },
+        {
+          "id": "49262",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON10",
+          "sourceSide": "R"
+        },
+        {
+          "id": "58401",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON15",
+          "sourceSide": "R"
+        },
+        {
+          "id": "70924",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON10",
+          "sourceSide": "L"
+        },
+        {
+          "id": "76585",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON25-like",
+          "sourceSide": "R"
+        },
+        {
+          "id": "87077",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON25",
+          "sourceSide": "L"
+        },
+        {
+          "id": "92112",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON34",
+          "sourceSide": "R"
+        },
+        {
+          "id": "110448",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON25-like",
+          "sourceSide": "L"
+        },
+        {
+          "id": "133427",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON10",
+          "sourceSide": "R"
+        },
+        {
+          "id": "160320",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON25-like",
+          "sourceSide": "L"
+        },
+        {
+          "id": "187741",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON15-like",
+          "sourceSide": "R"
+        },
+        {
+          "id": "208566",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON34",
+          "sourceSide": "L"
+        },
+        {
+          "id": "394860",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON25",
+          "sourceSide": "R"
+        },
+        {
+          "id": "508595",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON35",
+          "sourceSide": "R"
+        },
+        {
+          "id": "512788",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON18",
+          "sourceSide": "L"
+        },
+        {
+          "id": "512789",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON23",
+          "sourceSide": "L"
+        },
+        {
+          "id": "513174",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON30",
+          "sourceSide": "L"
+        },
+        {
+          "id": "513387",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON17-like",
+          "sourceSide": "L"
+        },
+        {
+          "id": "513391",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON17-like",
+          "sourceSide": "R"
+        },
+        {
+          "id": "514853",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON13",
+          "sourceSide": "R"
+        },
+        {
+          "id": "515015",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON30",
+          "sourceSide": "R"
+        },
+        {
+          "id": "515034",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON27",
+          "sourceSide": "R"
+        },
+        {
+          "id": "515338",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON07",
+          "sourceSide": "R"
+        },
+        {
+          "id": "519128",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON27",
+          "sourceSide": "L"
+        },
+        {
+          "id": "519131",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON32",
+          "sourceSide": "R"
+        },
+        {
+          "id": "519368",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON12",
+          "sourceSide": "R"
+        },
+        {
+          "id": "519371",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON05",
+          "sourceSide": "L"
+        },
+        {
+          "id": "519373",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON03",
+          "sourceSide": "L"
+        },
+        {
+          "id": "519619",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON29",
+          "sourceSide": "L"
+        },
+        {
+          "id": "520151",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON01",
+          "sourceSide": "L"
+        },
+        {
+          "id": "520186",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON16",
+          "sourceSide": "L"
+        },
+        {
+          "id": "520395",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON15",
+          "sourceSide": "L"
+        },
+        {
+          "id": "521086",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON12",
+          "sourceSide": "R"
+        },
+        {
+          "id": "521526",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON03",
+          "sourceSide": "R"
+        },
+        {
+          "id": "522444",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON02",
+          "sourceSide": "R"
+        },
+        {
+          "id": "522749",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON02",
+          "sourceSide": "L"
+        },
+        {
+          "id": "523043",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON33",
+          "sourceSide": "R"
+        },
+        {
+          "id": "523060",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON09",
+          "sourceSide": "R"
+        },
+        {
+          "id": "523628",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON21",
+          "sourceSide": "R"
+        },
+        {
+          "id": "523987",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON29",
+          "sourceSide": "R"
+        },
+        {
+          "id": "524733",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON10",
+          "sourceSide": "L"
+        },
+        {
+          "id": "524893",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON26",
+          "sourceSide": "L"
+        },
+        {
+          "id": "525780",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON04",
+          "sourceSide": "R"
+        },
+        {
+          "id": "530875",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON04",
+          "sourceSide": "L"
+        },
+        {
+          "id": "531829",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON10",
+          "sourceSide": "L"
+        },
+        {
+          "id": "540383",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON10",
+          "sourceSide": "R"
+        },
+        {
+          "id": "556300",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON25-like",
+          "sourceSide": "R"
+        },
+        {
+          "id": "558665",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON10",
+          "sourceSide": "R"
+        },
+        {
+          "id": "562782",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON16",
+          "sourceSide": "R"
+        },
+        {
+          "id": "579919",
+          "gain": 0.010309278350515464,
+          "sourceType": "MBON10",
+          "sourceSide": "R"
+        }
+      ],
+      "thresholdHz": 1,
+      "evidence": [
+        "https://storage.googleapis.com/flyem-male-cns/v1.0/connectome-data/flat-connectome/body-annotations-male-cns-v1.0-minconf-0.5.feather",
+        "annotation SHA256 2177e246113e4cfbf1e7772ec37c6da1955ff22e8063d0b1f833101f99a9a3b2"
+      ],
+      "engineeringRationale": "Mean all annotated MBON rate; arbitrary positive readout"
+    }
+  }
+}

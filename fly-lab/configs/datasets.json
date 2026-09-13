@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "dataset": "male-cns:v1.0",
+  "release": "v1.0",
+  "release_date": "2026-06-08",
+  "source_page": "https://male-cns.janelia.org/download/",
+  "license": "CC-BY-4.0",
+  "license_url": "https://creativecommons.org/licenses/by/4.0/",
+  "attribution": "FlyEM / HHMI Janelia, University of Cambridge, MRC Laboratory of Molecular Biology, and Google Research",
+  "source_synapse_confidence": 0.5,
+  "files": {
+    "annotations": {
+      "filename": "body-annotations-male-cns-v1.0-minconf-0.5.feather",
+      "url": "https://storage.googleapis.com/flyem-male-cns/v1.0/connectome-data/flat-connectome/body-annotations-male-cns-v1.0-minconf-0.5.feather",
+      "sha256": "2177e246113e4cfbf1e7772ec37c6da1955ff22e8063d0b1f833101f99a9a3b2",
+      "size_bytes": 14483314
+    },
+    "neurotransmitters": {
+      "filename": "body-neurotransmitters-male-cns-v1.0.feather",
+      "url": "https://storage.googleapis.com/flyem-male-cns/v1.0/connectome-data/flat-connectome/body-neurotransmitters-male-cns-v1.0.feather",
+      "sha256": "95c9289220663abeb3409f3ad9e5a7f8a53f8093f5139d15502cd08da8879621",
+      "size_bytes": 43282834
+    },
+    "weights": {
+      "filename": "connectome-weights-male-cns-v1.0-minconf-0.5.feather",
+      "url": "https://storage.googleapis.com/flyem-male-cns/v1.0/connectome-data/flat-connectome/connectome-weights-male-cns-v1.0-minconf-0.5.feather",
+      "sha256": "e35da783d1c686b2b58b3b87cd6a403ae43bfcfba8bff28e08ef752c1a56afc1",
+      "size_bytes": 1051241946
+    }
+  },
+  "node_policy": "Retain every assigned neuronal superclass, including uncertain neuronal classes; exclude explicit glia and unassigned segmentation objects. Do not require Traced status or a cell type.",
+  "edge_policy": "All positive released contacts between retained neurons; no additional confidence/contact threshold; preserve autapses; merge repeated directed pairs by summing contact counts.",
+  "neurotransmitter_signs": {
+    "acetylcholine": 1,
+    "gaba": -1,
+    "glutamate": -1,
+    "histamine": -1,
+    "dopamine": 0,
+    "octopamine": 0,
+    "serotonin": 0,
+    "unknown": 0
+  },
+  "sign_policy_note": "Exploratory current-based single-sign-per-neuron approximation, not measured receptor-specific polarity. Zero means unsupported fast transmission, not a missing anatomical edge. Modulatory transmission requires a separate validated model."
+}

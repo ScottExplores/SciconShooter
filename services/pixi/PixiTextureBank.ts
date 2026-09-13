@@ -9,11 +9,29 @@ import {
 export class PixiTextureBank {
   private readonly textures = new Map<string, Texture>();
   private readonly pending = new Map<string, Promise<Texture>>();
+  private manifestSealed = false;
+  private readonly unexpectedUrls = new Set<string>();
+
+  sealManifest() {
+    this.assertManifest();
+    this.manifestSealed = true;
+  }
+
+  assertManifest() {
+    if (this.unexpectedUrls.size > 0) {
+      throw new Error(`Texture requested outside the preloaded manifest: ${[...this.unexpectedUrls].sort().join(', ')}`);
+    }
+    if (this.pending.size > 0) throw new Error('Texture preload barrier has not completed.');
+  }
 
   async load(url: string) {
     const cached = this.textures.get(url);
     if (cached) return cached;
 
+    if (this.manifestSealed) {
+      this.unexpectedUrls.add(url);
+      throw new Error(`Texture is absent from the sealed manifest: ${url}`);
+    }
     const pending = this.pending.get(url);
     if (pending) return pending;
 

@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "scope": "POST_SCREEN_DIAGNOSTIC_NOT_A_NEW_FIT",
+  "sourceGraphSha256": "518bf3441daf58733005aee559c40b437bd1366602baa11e3a9d8ef0867e05d9",
+  "graphIdentity": "93d5a84e93e73f32a699a47ecfeaabf977505c942192920da383fdb3884288f4",
+  "screenSha256": "6eabee53e9240b31ad4937407e16c1f471d11657b5580f5c5853952548c21733",
+  "drivenCells": 1767,
+  "exactAnnotationType": "L1",
+  "neurotransmitterCounts": {"glutamate": 1767},
+  "modeledSignCounts": {"-1": 1767},
+  "observed": "Every network spike was in a directly driven L1 cell. All six stimuli produced zero spikes in the nominated 335 visual KCs and 97 MBONs. Both preregistered candidate criteria failed.",
+  "modelDeduction": "All undriven cells start at rest below threshold with zero external current and no tonic drive. The only initially active sources are driven L1 cells, whose fast outputs are all negative under the declared glutamate sign assumption. Nonpositive synaptic input cannot raise an undriven cell above rest in these dynamics. Thus this L1-only quiescent configuration cannot recruit downstream spikes; simply extending the probe duration cannot repair it.",
+  "interpretation": "This result rejects the crude L1-only interface coupled to this uniform quiescent LIF/sign configuration. It is not evidence that MaleCNS anatomy lacks visual pathways or that a living fly cannot learn.",
+  "nextScientificRequirement": "A separately versioned, evidence-based candidate must address graded early vision, appropriate spontaneous/tonic dynamics, and receptor-specific transmitter effects or a validated upstream drive. Do not change glutamate signs, inject visual KC labels, lower thresholds, or alter readout after observing this failure merely to manufacture a passing result.",
+  "frozenInputsModified": false,
+  "trainingAllowed": false,
+  "biologicalLearning": "UNKNOWN"
+}

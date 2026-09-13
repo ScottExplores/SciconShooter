@@ -10,6 +10,8 @@ if (!fs.existsSync(indexPath)) {
 }
 
 const forbiddenPathFragments = [
+  'fly-lab',
+  'scicon_fly',
   'director',
   'director-data',
   '__director',
@@ -39,6 +41,8 @@ const forbiddenPrototypeAssetBasenames = [
   'aurora-boss-vfx-sheet-v1'
 ];
 const forbiddenText = [
+  'Scicon Fly Lab',
+  'sciconFlyEnvironment',
   'Scicon Director',
   '/__director',
   'director-data/',
@@ -82,14 +86,14 @@ const visit = (directory) => {
 visit(distRoot);
 
 const vercelIgnore = fs.readFileSync(path.join(repositoryRoot, '.vercelignore'), 'utf8');
-for (const required of ['director/', 'director-data/']) {
+for (const required of ['director/', 'director-data/', 'fly-lab/']) {
   if (!vercelIgnore.split(/\r?\n/).map((line) => line.trim()).includes(required)) {
     violations.push(`.vercelignore is missing ${required}`);
   }
 }
 
 if (violations.length > 0) {
-  throw new Error(`Scicon Director production exclusion failed:\n- ${violations.join('\n- ')}`);
+  throw new Error(`Scicon private-tool production exclusion failed:\n- ${violations.join('\n- ')}`);
 }
 
-console.log('Scicon Director exclusion verified: root dist contains no Director files or markers.');
+console.log('Scicon production exclusion verified: root dist contains no Director or Fly Lab files or markers.');

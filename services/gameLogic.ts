@@ -1190,15 +1190,16 @@ export class Entity {
 }
 
 export class Particle extends Entity {
-  constructor(x: number, y: number, color: string, speed: number, size: number = 4, life: number = 40 + Math.random() * 20) {
-    super(EntityType.PARTICLE, x, y);
+  constructor(x: number, y: number, color: string, speed: number, size: number = 4, life?: number, random: () => number = Math.random) {
+    const resolvedLife = life ?? 40 + random() * 20;
+    super(EntityType.PARTICLE, x, y, random());
     this.width = size;
     this.height = size;
     this.color = color;
-    const angle = Math.random() * Math.PI * 2;
+    const angle = random() * Math.PI * 2;
     this.vx = Math.cos(angle) * speed;
     this.vy = Math.sin(angle) * speed;
-    this.life = life;
+    this.life = resolvedLife;
     this.maxLife = this.life;
   }
 }
@@ -1206,8 +1207,8 @@ export class Particle extends Entity {
 export class VisualEffect extends Entity {
   effectType: 'text' | 'ring' | 'sprite';
   fontSize: number = 32;
-  constructor(x: number, y: number, type: 'text' | 'ring' | 'sprite', content: string = '', color: string = '#FFF', fontSize: number = 32) {
-    super(EntityType.EFFECT, x, y);
+  constructor(x: number, y: number, type: 'text' | 'ring' | 'sprite', content: string = '', color: string = '#FFF', fontSize: number = 32, idSample?: number) {
+    super(EntityType.EFFECT, x, y, idSample);
     this.effectType = type;
     this.text = content;
     this.color = color;
@@ -1232,14 +1233,14 @@ class Star {
   twinkleDir: number;
   drift: number;
 
-  constructor(width: number, height: number) {
-    const depth = Math.random();
-    this.x = Math.random() * width;
-    this.y = Math.random() * height;
+  constructor(width: number, height: number, private readonly random: () => number = Math.random) {
+    const depth = this.random();
+    this.x = this.random() * width;
+    this.y = this.random() * height;
     this.size = 0.6 + (depth * 2.4);
     this.speed = 0.08 + (depth * 1.35);
     this.alpha = 0.2 + (depth * 0.7);
-    this.twinkleDir = (Math.random() > 0.5 ? 1 : -1) * (0.003 + (depth * 0.01));
+    this.twinkleDir = (this.random() > 0.5 ? 1 : -1) * (0.003 + (depth * 0.01));
     this.drift = -0.02 - (depth * 0.12);
   }
 
@@ -1259,7 +1260,7 @@ class Star {
 
     if (this.y > height) {
       this.y = 0;
-      this.x = Math.random() * width;
+      this.x = this.random() * width;
     }
     if (this.x < 0) {
       this.x = width;
@@ -1280,21 +1281,21 @@ class BackgroundEntity {
   speed: number;
   type: 'planet' | 'nebula';
 
-  constructor(width: number, height: number) {
-    this.type = Math.random() > 0.3 ? 'planet' : 'nebula';
-    this.x = Math.random() * width;
-    this.y = Math.random() * height;
+  constructor(width: number, height: number, private readonly random: () => number = Math.random) {
+    this.type = this.random() > 0.3 ? 'planet' : 'nebula';
+    this.x = this.random() * width;
+    this.y = this.random() * height;
 
     if (this.type === 'planet') {
-      this.size = 50 + Math.random() * 100;
-      this.speed = 0.2 + Math.random() * 0.3;
+      this.size = 50 + this.random() * 100;
+      this.speed = 0.2 + this.random() * 0.3;
       const hues = [240, 260, 280, 200];
-      const hue = hues[Math.floor(Math.random() * hues.length)];
+      const hue = hues[Math.floor(this.random() * hues.length)];
       this.color = `hsl(${hue}, 40%, 20%)`;
     } else {
-      this.size = 200 + Math.random() * 300;
+      this.size = 200 + this.random() * 300;
       this.speed = 0.1;
-      this.color = `rgba(${Math.floor(Math.random()*50)}, ${Math.floor(Math.random()*20)}, ${Math.floor(Math.random()*80) + 50}, 0.1)`;
+      this.color = `rgba(${Math.floor(this.random()*50)}, ${Math.floor(this.random()*20)}, ${Math.floor(this.random()*80) + 50}, 0.1)`;
     }
   }
 
@@ -1302,7 +1303,7 @@ class BackgroundEntity {
     this.y += this.speed;
     if (this.y > height + this.size) {
       this.y = -this.size * 2;
-      this.x = Math.random() * 1000;
+      this.x = this.random() * 1000;
     }
   }
 
@@ -1436,7 +1437,6 @@ const moveToward = (current: number, target: number, maxDelta: number) => {
 
 const lerp = (current: number, target: number, amount: number) => current + ((target - current) * amount);
 
-const randomRange = (min: number, max: number) => min + Math.random() * (max - min);
 export const PLAYER_PRIMARY_SHOT_SPREAD_DEGREES = 5;
 const PLAYER_PRIMARY_SHOT_SPREAD_RADIANS = PLAYER_PRIMARY_SHOT_SPREAD_DEGREES * (Math.PI / 180);
 export const MAX_SHOT_PROJECTILE_COUNT = MAX_SHOT_PROJECTILE_CAP;
@@ -1799,7 +1799,29 @@ type EnemyRuntimeOverrides = {
   burstCount?: number;
 };
 
+export type GameEngineRuntimeEvent = { frame: number; campaignIndex: number } & (
+  | { type: 'primary-fire-cycle'; accepted: boolean; intervalFrames: number; queuedProjectiles: number }
+  | { type: 'player-projectile-spawn'; entityId: string; weaponKind: string; x: number; y: number; damage: number }
+  | { type: 'enemy-spawn-offer'; sourceEventId: string; targetCount: number; startSeconds: number; durationSeconds: number; releasedEarly: boolean }
+  | { type: 'enemy-spawn'; entityId: string; sourceEventId: string; sourceItemId: string; spawnIndex: number; targetCount: number; filler: boolean; x: number; y: number; hp: number }
+);
+
+/** Optional host services. Ordinary gameplay keeps its existing browser defaults. */
+export interface GameEngineRuntimeHooks {
+  nowMs?: () => number;
+  presentationRandom?: () => number;
+  loadCanvasImage?: (url: string) => HTMLImageElement;
+  emitDomainEvent?: typeof emitSquadDomainEvent;
+  /** Read-only research diagnostics; never supplied to a controller as sensory input. */
+  recordRuntimeEvent?: (event: GameEngineRuntimeEvent) => void;
+  /** Pin simulation budgets independently of rendering speed and cosmetic load. */
+  fixedPerformanceMode?: boolean;
+  /** Collision-free per-instance IDs, with a separate cosmetic namespace. */
+  stableEntityIds?: boolean;
+}
+
 export interface GameEngineOptions {
+  runtimeHooks?: GameEngineRuntimeHooks;
   campaign?: GameCampaign;
   previewMode?: boolean;
   /** Local playtests may chain authored waves, but never leave their Mission. */
@@ -2682,6 +2704,11 @@ export class GameEngine {
   initialWaveId?: string;
   testMode: boolean = false;
   campaignComplete: boolean = false;
+  private readonly runtimeHooks: GameEngineRuntimeHooks;
+  private readonly presentationRandom: () => number;
+  private readonly loadCanvasImage: (url: string) => HTMLImageElement;
+  private nextSimulationEntityId = 0;
+  private nextPresentationEntityId = 0;
   private gameplayRandom: GameplayRandom;
   private gameplayRandomSeed: number;
   private readonly telemetrySink?: GameplayTelemetrySink;
@@ -2719,6 +2746,10 @@ export class GameEngine {
   private readonly previewInvincibleBossComponents = new WeakSet<BossComponentState>();
 
   constructor(stats: Stats, options: GameEngineOptions = {}) {
+    this.runtimeHooks = options.runtimeHooks ?? {};
+    this.presentationRandom = this.runtimeHooks.presentationRandom ?? (() => Math.random());
+    this.loadCanvasImage = this.runtimeHooks.loadCanvasImage ?? loadImage;
+    this.performanceMode = this.runtimeHooks.fixedPerformanceMode ?? false;
     this.stats = stats;
     this.gameplayRandom = options.gameplayRandom ?? createGameplayRandom(options.randomSeed);
     this.gameplayRandomSeed = this.gameplayRandom.seed;
@@ -2731,8 +2762,8 @@ export class GameEngine {
     this.campaign = cloneGameCampaign(options.campaign ?? DEFAULT_GAME_CAMPAIGN);
     this.bombSpriteUrl = getPrimaryAssetPath(this.campaign.hudAssets.bombIconAssetKey);
     this.playerShipUrl = options.playerShipUrl || ASSETS.PLAYER_SHIP;
-    loadImage(this.bombSpriteUrl);
-    loadImage(this.playerShipUrl);
+    this.loadCanvasImage(this.bombSpriteUrl);
+    this.loadCanvasImage(this.playerShipUrl);
     this.campaignWaves = this.buildCampaignWaveEntries(this.campaign);
     this.previewMode = options.previewMode ?? false;
     this.previewContinuousWaves = this.previewMode && options.previewContinuousWaves === true;
@@ -2796,17 +2827,36 @@ export class GameEngine {
     this.currentCampaignIndex = initialIndex >= 0 ? initialIndex : 0;
     this.previewInvincible = options.previewInvincible ?? true;
     this.player = new Entity(EntityType.PLAYER, 0, 0, 0.5);
+    if (this.runtimeHooks.stableEntityIds) this.player.id = 'player';
     this.player.width = Math.round(128 * PLAYER_SHIP_SCALE);
     this.player.height = Math.round(128 * PLAYER_SHIP_SCALE);
 
     this.preloadCanvasAssets = options.preloadCanvasAssets !== false;
     if (this.preloadCanvasAssets) {
-      GAMEPLAY_ASSET_URLS.forEach(loadImage);
+      GAMEPLAY_ASSET_URLS.forEach(this.loadCanvasImage);
     }
   }
 
   private createEntity(type: EntityType, x: number, y: number) {
-    return new Entity(type, x, y, this.gameplayRandom.next());
+    const entity = new Entity(type, x, y, this.gameplayRandom.next());
+    if (this.runtimeHooks.stableEntityIds) entity.id = `sim-${this.nextSimulationEntityId++}`;
+    return entity;
+  }
+
+  private presentationRandomRange(min: number, max: number) {
+    return min + this.presentationRandom() * (max - min);
+  }
+
+  private createParticle(x: number, y: number, color: string, speed: number, size = 4, life?: number) {
+    const particle = new Particle(x, y, color, speed, size, life, this.presentationRandom);
+    if (this.runtimeHooks.stableEntityIds) particle.id = `fx-${this.nextPresentationEntityId++}`;
+    return particle;
+  }
+
+  private createVisualEffect(x: number, y: number, type: 'text' | 'ring' | 'sprite', content = '', color = '#FFF', fontSize = 32) {
+    const effect = new VisualEffect(x, y, type, content, color, fontSize, this.presentationRandom());
+    if (this.runtimeHooks.stableEntityIds) effect.id = `fx-${this.nextPresentationEntityId++}`;
+    return effect;
   }
 
   private nextGameplayRandom() {
@@ -2991,7 +3041,7 @@ export class GameEngine {
     const nextBombSpriteUrl = getPrimaryAssetPath(this.campaign.hudAssets.bombIconAssetKey);
     if (nextBombSpriteUrl !== this.bombSpriteUrl) {
       this.bombSpriteUrl = nextBombSpriteUrl;
-      loadImage(this.bombSpriteUrl);
+      this.loadCanvasImage(this.bombSpriteUrl);
     }
     this.advanceContinuousRunwayIfReady();
     return true;
@@ -4637,7 +4687,7 @@ export class GameEngine {
 
     this.playerShipId = update.playerShipId;
     this.playerShipUrl = update.playerShipUrl || ASSETS.PLAYER_SHIP;
-    loadImage(this.playerShipUrl);
+    this.loadCanvasImage(this.playerShipUrl);
     this.stats.shipAbilityCooldownMax = this.getShipAbilityCooldownFrames(
       getShipAbilityDefinition(this.playerShipId).cooldownFrames
     );
@@ -4656,7 +4706,7 @@ export class GameEngine {
       ])
     );
     const nextCompanions = (nextLoadout?.companions ?? []).map((companion, index) => {
-      companion.frames.forEach(loadImage);
+      companion.frames.forEach(this.loadCanvasImage);
       const previous = previousCompanions.get(`${companion.slot}:${companion.id}`);
       const target = getSquadCompanionFormationTarget(
         this.player.x,
@@ -4909,6 +4959,8 @@ export class GameEngine {
   }
 
   restartPreview() {
+    this.nextSimulationEntityId = 0;
+    this.nextPresentationEntityId = 0;
     this.combatImpacts.clear();
     this.combatDestructions.clear();
     this.previewBossAttackLoop = null;
@@ -5152,7 +5204,7 @@ export class GameEngine {
   }
 
   setPerformanceMode(enabled: boolean) {
-    this.performanceMode = enabled;
+    this.performanceMode = this.runtimeHooks.fixedPerformanceMode ?? enabled;
   }
 
   getGlowBlur(blur: number) {
@@ -5298,16 +5350,16 @@ export class GameEngine {
 
     for (let i = 0; i < count; i++) {
       const side = i % 2 === 0 ? -1 : 1;
-      const particle = new Particle(
-        baseX + (side * spread) + randomRange(-4, 4),
-        baseY + randomRange(4, 14),
+      const particle = this.createParticle(
+        baseX + (side * spread) + this.presentationRandomRange(-4, 4),
+        baseY + this.presentationRandomRange(4, 14),
         i % 3 === 0 ? '#ffffff' : '#22d3ee',
-        randomRange(0.7, 2.4) * strength,
-        randomRange(2.5, 5.8),
-        randomRange(16, 32)
+        this.presentationRandomRange(0.7, 2.4) * strength,
+        this.presentationRandomRange(2.5, 5.8),
+        this.presentationRandomRange(16, 32)
       );
       particle.vx *= 0.22;
-      particle.vy = Math.abs(particle.vy) + randomRange(2.4, 5.8) * strength;
+      particle.vy = Math.abs(particle.vy) + this.presentationRandomRange(2.4, 5.8) * strength;
       this.entities.push(particle);
     }
     this.liveParticleCount += count;
@@ -5507,7 +5559,11 @@ export class GameEngine {
       });
     }
     this.deathSequenceFrames = this.deathSequenceDuration;
-    this.deathSequenceStartedAtMs = Date.now();
+    if (this.runtimeHooks.nowMs) {
+      this.deathSequenceStartedAtMs = this.runtimeHooks.nowMs();
+    } else {
+      this.deathSequenceStartedAtMs = Date.now();
+    }
     this.invincibleTimer = 999;
     this.flashAlpha = Math.max(this.flashAlpha, 0.72);
     this.addShake(14);
@@ -5521,7 +5577,9 @@ export class GameEngine {
 
     if (
       this.deathSequenceStartedAtMs > 0
-      && Date.now() - this.deathSequenceStartedAtMs >= this.deathSequenceMaxDurationMs
+      && (this.runtimeHooks.nowMs
+        ? this.runtimeHooks.nowMs() - this.deathSequenceStartedAtMs >= this.deathSequenceMaxDurationMs
+        : Date.now() - this.deathSequenceStartedAtMs >= this.deathSequenceMaxDurationMs)
     ) {
       this.finishDeathSequence();
       return;
@@ -5533,8 +5591,8 @@ export class GameEngine {
     this.addShake(0.55 + progress * 0.85);
     if (this.frameCount % 5 === 0) {
       this.spawnBurst(
-        this.player.x + this.player.width / 2 + randomRange(-18, 18),
-        this.player.y + this.player.height / 2 + randomRange(-18, 18),
+        this.player.x + this.player.width / 2 + this.presentationRandomRange(-18, 18),
+        this.player.y + this.player.height / 2 + this.presentationRandomRange(-18, 18),
         progress < 0.5 ? '#67e8f9' : '#fb7185',
         4,
         3.4,
@@ -5587,6 +5645,8 @@ export class GameEngine {
   }
 
   init(width: number, height: number) {
+    this.nextSimulationEntityId = 0;
+    this.nextPresentationEntityId = 0;
     this.combatImpacts.clear();
     this.combatDestructions.clear();
     this.width = width;
@@ -5603,10 +5663,10 @@ export class GameEngine {
     const lowDetail = this.mobileProfile;
 
     for (let i = 0; i < (lowDetail ? 2 : 4); i++) {
-        this.bgEntities.push(new BackgroundEntity(width, height));
+        this.bgEntities.push(new BackgroundEntity(width, height, this.presentationRandom));
     }
     for (let i = 0; i < (lowDetail ? 92 : 160); i++) {
-      this.stars.push(new Star(width, height));
+      this.stars.push(new Star(width, height, this.presentationRandom));
     }
 
     this.gameActive = true;
@@ -6616,8 +6676,8 @@ export class GameEngine {
     } else {
       this.shakeStrength = moveToward(this.shakeStrength, 0, GAME_FEEL.shakeDecay);
       if (this.shakeStrength > 0.01) {
-        this.shakeX = randomRange(-1, 1) * this.shakeStrength;
-        this.shakeY = randomRange(-1, 1) * this.shakeStrength;
+        this.shakeX = this.presentationRandomRange(-1, 1) * this.shakeStrength;
+        this.shakeY = this.presentationRandomRange(-1, 1) * this.shakeStrength;
       } else {
         this.shakeX = 0;
         this.shakeY = 0;
@@ -6691,13 +6751,13 @@ export class GameEngine {
     const particleAmount = Math.min(scaledAmount, available);
 
     for (let i = 0; i < particleAmount; i++) {
-      this.entities.push(new Particle(
+      this.entities.push(this.createParticle(
         x,
         y,
         color,
-        randomRange(speed * 0.45, speed),
-        randomRange(size * 0.65, size * 1.35),
-        randomRange(22, 48)
+        this.presentationRandomRange(speed * 0.45, speed),
+        this.presentationRandomRange(size * 0.65, size * 1.35),
+        this.presentationRandomRange(22, 48)
       ));
     }
     this.liveParticleCount += particleAmount;
@@ -6779,13 +6839,13 @@ export class GameEngine {
       && this.frameCount % (this.shouldUseLeanEffects() ? 12 : 6) === 0
       && this.liveParticleCount < this.getParticleCap()
     ) {
-      this.entities.push(new Particle(
+      this.entities.push(this.createParticle(
         this.player.x + this.player.width / 2 - this.playerVel.x * 3,
         this.player.y + this.player.height * 0.78,
         moveSpeed > maxSpeed ? '#67e8f9' : '#22d3ee',
-        randomRange(0.7, 1.8),
-        randomRange(3, 7),
-        randomRange(18, 34)
+        this.presentationRandomRange(0.7, 1.8),
+        this.presentationRandomRange(3, 7),
+        this.presentationRandomRange(18, 34)
       ));
       this.liveParticleCount++;
     }
@@ -7189,6 +7249,13 @@ export class GameEngine {
         this.playerFireCooldownFrames += fireInterval
           * getPlayerShipWeaponProfile(this.playerShipId).cadenceScale
           * (getPlayerPrimaryBurst(this.playerShipId, level, false)?.cadenceScale ?? 1);
+        this.runtimeHooks.recordRuntimeEvent?.({
+          type: 'primary-fire-cycle', frame: this.frameCount, campaignIndex: this.currentCampaignIndex,
+          accepted: this.lastShotFrame === this.frameCount,
+          intervalFrames: fireInterval * getPlayerShipWeaponProfile(this.playerShipId).cadenceScale
+            * (getPlayerPrimaryBurst(this.playerShipId, level, false)?.cadenceScale ?? 1),
+          queuedProjectiles: this.pendingPlayerShots.length
+        });
       }
       this.playerFireCooldownFrames -= 1;
     } else {
@@ -7309,7 +7376,7 @@ export class GameEngine {
 
           // Spawn trail - Use missile color
           if (this.frameCount % (this.shouldUseLeanEffects() ? 8 : 4) === 0 && this.liveParticleCount < this.getParticleCap()) {
-              this.entities.push(new Particle(e.x + e.width/2, e.y + e.height, e.color, 1));
+              this.entities.push(this.createParticle(e.x + e.width/2, e.y + e.height, e.color, 1));
               this.liveParticleCount++;
           }
 
@@ -7937,7 +8004,9 @@ export class GameEngine {
     this.liveEffectCount = effects;
     this.liveThreatCount = threats;
 
-    this.heavySceneLoad = this.mobileProfile && (
+    this.heavySceneLoad = this.runtimeHooks.fixedPerformanceMode !== undefined
+      ? this.runtimeHooks.fixedPerformanceMode
+      : this.mobileProfile && (
       this.performanceMode
       || playerShots >= MOBILE_LEAN_PLAYER_SHOT_CAP
       || particles >= MOBILE_PARTICLE_CAP * 0.7
@@ -8147,6 +8216,10 @@ export class GameEngine {
     }
     this.entities.push(b);
     this.livePlayerShotCount++;
+    this.runtimeHooks.recordRuntimeEvent?.({
+      type: 'player-projectile-spawn', frame: this.frameCount, campaignIndex: this.currentCampaignIndex,
+      entityId: b.id, weaponKind, x: b.x, y: b.y, damage: b.damage
+    });
     if (playSound) {
       this.playSound('shoot', 1, {
         pitchJitter: isBioLaser ? 0.055 : isEthShard ? 0.07 : isBtcHash ? 0.045 : isSingularity ? 0.035 : isNova ? 0.05 : weaponKind === 'ion' ? 0.08 : 0.06,
@@ -8626,7 +8699,7 @@ export class GameEngine {
 
     const abilityUpgradeProfile = getShipAbilityUpgradeProfile(this.stats.upgrades?.ability || 0);
     const impactSize = 148 + (abilityUpgradeProfile.impactTier - 1) * 18;
-    const impact = new VisualEffect(
+    const impact = this.createVisualEffect(
       centerX - impactSize / 2,
       centerY - impactSize / 2,
       'sprite',
@@ -9553,7 +9626,7 @@ export class GameEngine {
       }
 
       if (this.frameCount % 8 === 0) {
-        this.entities.push(new Particle(target.x + target.width / 2, target.y + target.height / 2, '#a855f7', 1.8));
+        this.entities.push(this.createParticle(target.x + target.width / 2, target.y + target.height / 2, '#a855f7', 1.8));
       }
 
       if (target.hp <= 0) {
@@ -10007,7 +10080,7 @@ export class GameEngine {
           // Canvas presentation lazily decodes configured art here. Pixi-owned
           // gameplay has already warmed these textures and skips the duplicate
           // HTMLImageElement cache entirely.
-          if (this.preloadCanvasAssets) loadImage(catalogPath);
+          if (this.preloadCanvasAssets) this.loadCanvasImage(catalogPath);
           return catalogPath;
         }
       } catch {
@@ -10046,7 +10119,7 @@ export class GameEngine {
     try {
       const paths = getAssetPaths(spriteKey as AssetKey);
       if (paths.length > 1) {
-        if (this.preloadCanvasAssets) paths.forEach(loadImage);
+        if (this.preloadCanvasAssets) paths.forEach(this.loadCanvasImage);
         return [...paths];
       }
       return undefined;
@@ -11214,6 +11287,12 @@ export class GameEngine {
     if (countTowardCombatBudget) this.authoredWaveThreatSpent += threatCost;
     this.configuredSpawnCounts.set(event.id, spawnIndex + 1);
     this.configuredSpawnFrames.set(event.id, this.waveProgressFrames);
+    this.runtimeHooks.recordRuntimeEvent?.({
+      type: 'enemy-spawn', frame: this.frameCount, campaignIndex: this.currentCampaignIndex,
+      entityId: enemy.id, sourceEventId: event.id, sourceItemId: enemySetting.enemyId,
+      spawnIndex, targetCount, filler: !countTowardCombatBudget,
+      x: enemy.x, y: enemy.y, hp: enemy.hp
+    });
     return true;
   }
 
@@ -11319,6 +11398,10 @@ export class GameEngine {
         || (!finishingClearWave && !releasedEarly && elapsedSeconds > endSeconds)
         || spawned >= count
       ) continue;
+      this.runtimeHooks.recordRuntimeEvent?.({
+        type: 'enemy-spawn-offer', frame: this.frameCount, campaignIndex: this.currentCampaignIndex,
+        sourceEventId: event.id, targetCount: count, startSeconds, durationSeconds, releasedEarly
+      });
       if (this.getActiveThreatCount() >= threatCap) break;
 
       const pack = this.getCampaignFormationPackForSpawn(event);
@@ -11624,11 +11707,11 @@ export class GameEngine {
     }
     if (overrides.spriteUrl) {
       e.spriteUrl = overrides.spriteUrl;
-      if (this.preloadCanvasAssets) loadImage(e.spriteUrl);
+      if (this.preloadCanvasAssets) this.loadCanvasImage(e.spriteUrl);
     }
     if (overrides.spriteFrames?.length) {
       e.spriteFrames = [...overrides.spriteFrames];
-      if (this.preloadCanvasAssets) e.spriteFrames.forEach(loadImage);
+      if (this.preloadCanvasAssets) e.spriteFrames.forEach(this.loadCanvasImage);
     }
     if (overrides.spriteStyle) e.spriteStyle = { ...overrides.spriteStyle };
     e.maxHp = e.hp;
@@ -11885,8 +11968,8 @@ export class GameEngine {
         healthRatio: 1
       }, 0) ?? binding?.url;
       if (binding?.frames?.length) entity.spriteFrames = [...binding.frames];
-      if (entity.spriteUrl) loadImage(entity.spriteUrl);
-      entity.spriteFrames?.forEach(loadImage);
+      if (entity.spriteUrl) this.loadCanvasImage(entity.spriteUrl);
+      entity.spriteFrames?.forEach(this.loadCanvasImage);
       state.memberEntityIds.set(instance.id, entity.id);
       this.entities.push(entity);
     }
@@ -11962,9 +12045,9 @@ export class GameEngine {
         mb.sourceItemId = configured.bossId;
         if (configured.bossId === BOTTLENECK_DRONE_BOSS_ID) {
           mb.spriteFrames = [...ASSETS.BOTTLENECK_DRONE_FRAMES];
-          mb.spriteFrames.forEach(loadImage);
+          mb.spriteFrames.forEach(this.loadCanvasImage);
         }
-        if (mb.spriteUrl) loadImage(mb.spriteUrl);
+        if (mb.spriteUrl) this.loadCanvasImage(mb.spriteUrl);
       }
       spawned.push(mb);
       this.entities.push(mb);
@@ -12078,8 +12161,8 @@ export class GameEngine {
               e.configuredSpeed = Math.max(0.1, (Number(configured.speed) || 1.15) * difficultyMultiplier);
               e.sourceEventId = configured.id;
               e.sourceItemId = configured.bossId;
-              if (e.spriteUrl) loadImage(e.spriteUrl);
-              e.spriteFrames?.forEach(loadImage);
+              if (e.spriteUrl) this.loadCanvasImage(e.spriteUrl);
+              e.spriteFrames?.forEach(this.loadCanvasImage);
             } else {
               e.spriteUrl = ASSETS.PAYWALL_BASTION_FRAMES[1];
               e.spriteFrames = [...ASSETS.PAYWALL_BASTION_FRAMES];
@@ -12137,8 +12220,8 @@ export class GameEngine {
         asteroid.powerupDropChance = clamp(Number(configured.powerupDropChance) || 0, 0, 1);
         asteroid.sourceEventId = configured.id;
         asteroid.sourceItemId = 'asteroid-belt';
-        if (asteroid.spriteUrl) loadImage(asteroid.spriteUrl);
-        asteroid.spriteFrames?.forEach(loadImage);
+        if (asteroid.spriteUrl) this.loadCanvasImage(asteroid.spriteUrl);
+        asteroid.spriteFrames?.forEach(this.loadCanvasImage);
       } else {
         asteroid.spriteFrames = [...ASSETS.ASTEROID_BELT_FRAMES];
       }
@@ -12183,8 +12266,8 @@ export class GameEngine {
     packageEntity.supplyDropKind = configured.presentKind;
     packageEntity.sourceEventId = configured.id;
     packageEntity.sourceItemId = `supply-drop:${configured.presentKind}`;
-    if (packageEntity.spriteUrl) loadImage(packageEntity.spriteUrl);
-    packageEntity.spriteFrames?.forEach(loadImage);
+    if (packageEntity.spriteUrl) this.loadCanvasImage(packageEntity.spriteUrl);
+    packageEntity.spriteFrames?.forEach(this.loadCanvasImage);
     this.entities.push(packageEntity);
     this.presentDropWaveActive = true;
     this.presentDropStageActive = true;
@@ -12306,7 +12389,7 @@ export class GameEngine {
       projectile.spriteFrameFixedRotationRadians = pending.angleRadians + Math.PI / 2;
       projectile.weaponVisualStartFrame = this.frameCount;
       projectile.variant = pending.variant;
-      pending.frames.forEach(loadImage);
+      pending.frames.forEach(this.loadCanvasImage);
       this.entities.push(projectile);
     }
   }
@@ -12576,8 +12659,8 @@ export class GameEngine {
         ...(reinforcement.spriteStyle ?? {}),
         opacity: 0.46
       };
-      if (reinforcement.spriteUrl) loadImage(reinforcement.spriteUrl);
-      reinforcement.spriteFrames?.forEach(loadImage);
+      if (reinforcement.spriteUrl) this.loadCanvasImage(reinforcement.spriteUrl);
+      reinforcement.spriteFrames?.forEach(this.loadCanvasImage);
       this.entities.push(reinforcement);
     }
     state.reinforcementsSpawned += spawnCount;
@@ -12620,7 +12703,7 @@ export class GameEngine {
     const frames = definition.assets.find((asset) => asset.usage === 'death-vfx')?.frames;
     if (!frames?.length || this.liveEffectCount >= this.getEffectCap()) return;
     const size = Math.max(70, Math.max(entity.width, entity.height) * 1.35);
-    const effect = new VisualEffect(
+    const effect = this.createVisualEffect(
       entity.x + entity.width / 2 - size / 2,
       entity.y + entity.height / 2 - size / 2,
       'sprite',
@@ -12633,7 +12716,7 @@ export class GameEngine {
     effect.life = frames.length * 6;
     effect.maxLife = effect.life;
     effect.sourceEventId = entity.sourceEventId;
-    frames.forEach(loadImage);
+    frames.forEach(this.loadCanvasImage);
     this.entities.push(effect);
     this.liveEffectCount++;
   }
@@ -12653,7 +12736,7 @@ export class GameEngine {
     const sequence = Math.floor((this.frameCount + entity.variant) / 72);
     const socketRatio = 0.2 + ((sequence + entity.variant) % 4) * 0.2;
     const size = clamp(Math.min(entity.width, entity.height) * 0.28, 16, 28);
-    const spark = new VisualEffect(
+    const spark = this.createVisualEffect(
       entity.x + entity.width * socketRatio - size / 2,
       entity.y + entity.height * (0.38 + ((sequence % 2) * 0.24)) - size / 2,
       'sprite',
@@ -12667,7 +12750,7 @@ export class GameEngine {
     spark.maxLife = spark.life;
     spark.bossOwnerId = entity.id;
     spark.sourceEventId = entity.sourceEventId;
-    spark.spriteFrames.forEach(loadImage);
+    spark.spriteFrames.forEach(this.loadCanvasImage);
     this.entities.push(spark);
     this.liveEffectCount++;
   }
@@ -12964,7 +13047,7 @@ export class GameEngine {
       );
       if (activeSpriteUrl && activeSpriteUrl !== entity.spriteUrl) {
         entity.spriteUrl = activeSpriteUrl;
-        loadImage(activeSpriteUrl);
+        this.loadCanvasImage(activeSpriteUrl);
       }
       const guardedBySample = !sampled.damageable;
       const forcedGuard = state.shieldOverride === true
@@ -14028,8 +14111,8 @@ export class GameEngine {
       }
       boss.bossRevivalBaseWidth = boss.width;
       boss.bossRevivalBaseHeight = boss.height;
-      if (boss.spriteUrl) loadImage(boss.spriteUrl);
-      boss.spriteFrames?.forEach(loadImage);
+      if (boss.spriteUrl) this.loadCanvasImage(boss.spriteUrl);
+      boss.spriteFrames?.forEach(this.loadCanvasImage);
     }
     boss.bossRigId ??= 'open-orbit';
     boss.bossComponents ??= this.createBossComponents(boss, configured?.componentHealth);
@@ -14234,7 +14317,7 @@ export class GameEngine {
 
   private spawnGatekeeperPrimeChargeCue(boss: Entity) {
     for (const origin of this.getGatekeeperPrimeActiveCannonOrigins(boss)) {
-      const cue = new VisualEffect(origin.x, origin.y, 'ring', '', '#67e8f9');
+      const cue = this.createVisualEffect(origin.x, origin.y, 'ring', '', '#67e8f9');
       cue.life = 48;
       cue.maxLife = cue.life;
       cue.bossOwnerId = boss.id;
@@ -14435,7 +14518,7 @@ export class GameEngine {
       const previousPhase = boss.gatekeeperPrimePhaseId;
       boss.gatekeeperPrimePhaseId = sample.phase.id;
       if (previousPhase) {
-        const transition = new VisualEffect(
+        const transition = this.createVisualEffect(
           boss.x + boss.width / 2,
           boss.y + boss.height * 0.5,
           'ring',
@@ -23180,13 +23263,13 @@ export class GameEngine {
 
   spawnFloatingText(x: number, y: number, text: string, color: string, fontSize: number = 32) {
     if (this.liveEffectCount >= this.getEffectCap()) return;
-    this.entities.push(new VisualEffect(x, y, 'text', text, color, fontSize));
+    this.entities.push(this.createVisualEffect(x, y, 'text', text, color, fontSize));
     this.liveEffectCount++;
   }
 
   spawnRingEffect(x: number, y: number, color: string) {
     if (this.liveEffectCount >= this.getEffectCap()) return;
-    this.entities.push(new VisualEffect(x, y, 'ring', '', color));
+    this.entities.push(this.createVisualEffect(x, y, 'ring', '', color));
     this.liveEffectCount++;
   }
 
@@ -23263,7 +23346,7 @@ export class GameEngine {
       this.spawnFloatingText(cx, cy - 20, "+1 LIFE!", "#ff4444");
       this.spawnRingEffect(cx, cy, "#ff4444");
     }
-    emitSquadDomainEvent('powerup_collected', {
+    (this.runtimeHooks.emitDomainEvent ?? emitSquadDomainEvent)('powerup_collected', {
       profileId: this.squadLoadout?.profileId ?? 'guest',
       powerup: type
     });
@@ -23945,7 +24028,7 @@ export class GameEngine {
     ctx.fillRect(x + 1, y + 1, 5, panelHeight - 2);
     ctx.globalAlpha = alpha;
 
-    loadImage(comms.image);
+    this.loadCanvasImage(comms.image);
     const portrait = getReadyImage(comms.image);
     ctx.save();
     ctx.beginPath();
@@ -24380,7 +24463,7 @@ export class GameEngine {
   }
 
   drawLaser(ctx: CanvasRenderingContext2D, e: Entity) {
-      const flicker = Math.random() * 10;
+      const flicker = this.presentationRandom() * 10;
       const glowColor = e.color || '#ff0000';
       ctx.save();
       ctx.fillStyle = '#FFF';
@@ -24391,8 +24474,8 @@ export class GameEngine {
       ctx.globalAlpha = 1;
       for(let i=0; i<5; i++) {
          ctx.fillStyle = '#FFDD00';
-         const px = e.x + Math.random() * e.width;
-         const py = e.y + Math.random() * e.height;
+         const px = e.x + this.presentationRandom() * e.width;
+         const py = e.y + this.presentationRandom() * e.height;
          ctx.fillRect(px, py, 4, 20);
       }
       ctx.restore();
@@ -24840,7 +24923,7 @@ export class GameEngine {
         const frameIndex = Math.floor((this.frameCount + e.variant) / 8) % frames.length;
         const imgUrl = frames[frameIndex];
 
-        const img = loadImage(imgUrl);
+        const img = this.loadCanvasImage(imgUrl);
         if (img && img.complete && img.naturalWidth > 0) {
             ctx.drawImage(img, -23, -23, 46, 46);
         } else {
@@ -24959,7 +25042,7 @@ export class GameEngine {
         if (eff.effectType === 'sprite' && eff.spriteFrames?.length) {
             const age = Math.max(0, eff.maxLife - eff.life);
             const frameIndex = Math.min(eff.spriteFrames.length - 1, Math.floor(age / 6));
-            const image = loadImage(eff.spriteFrames[frameIndex]);
+            const image = this.loadCanvasImage(eff.spriteFrames[frameIndex]);
             if (image.complete && image.naturalWidth > 0) {
               ctx.globalAlpha = Math.min(1, eff.life / 8);
               ctx.drawImage(image, -eff.width / 2, -eff.height / 2, eff.width, eff.height);
@@ -24970,18 +25053,18 @@ export class GameEngine {
             ctx.globalAlpha = eff.life / eff.maxLife;
 
             if (eff.text?.startsWith("WAVE")) {
-                const jitterX = (Math.random() - 0.5) * 4;
-                const jitterY = (Math.random() - 0.5) * 4;
+                const jitterX = (this.presentationRandom() - 0.5) * 4;
+                const jitterY = (this.presentationRandom() - 0.5) * 4;
                 ctx.shadowBlur = this.getGlowBlur(20);
                 ctx.shadowColor = '#00FFFF';
                 ctx.fillStyle = this.frameCount % 10 < 5 ? '#FFF' : '#00FFFF';
                 ctx.fillText(eff.text || "", jitterX, jitterY);
-                if (Math.random() > 0.7) {
+                if (this.presentationRandom() > 0.7) {
                     ctx.strokeStyle = '#FFF';
                     ctx.lineWidth = 2;
                     ctx.beginPath();
                     ctx.moveTo(-50, 0);
-                    ctx.lineTo(50, (Math.random()-0.5)*20);
+                    ctx.lineTo(50, (this.presentationRandom()-0.5)*20);
                     ctx.stroke();
                 }
                 ctx.shadowBlur = 0;

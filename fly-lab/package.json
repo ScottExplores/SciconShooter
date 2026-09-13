@@ -1,0 +1,15 @@
+{
+  "name": "scicon-fly-lab", "version": "0.1.0", "private": true, "type": "module",
+  "scripts": {
+    "dev": "node --use-system-ca scripts/start.mjs",
+    "web": "vite --host 127.0.0.1 --port 5180 --strictPort",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test tests/*.test.cjs",
+    "test:python": ".venv\\Scripts\\python.exe -m pytest -c python/pytest.ini -q",
+    "setup:browser": "playwright install chromium",
+    "verify:replay": "node scripts/verify-replay.mjs"
+  },
+  "dependencies": {"react":"18.3.1","react-dom":"18.3.1","pixi.js":"8.19.0","three":"0.180.0"},
+  "devDependencies": {"@types/node":"26.1.1","@types/react":"18.3.3","@types/react-dom":"18.3.0","@vitejs/plugin-react":"4.7.0","typescript":"5.8.3","vite":"5.4.21","playwright":"1.63.0"}
+}

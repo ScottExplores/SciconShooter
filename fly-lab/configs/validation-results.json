@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "numerical": {"status":"PASS","scope":"REFERENCE_EQUATIONS_ONLY","reason":"Independent Brian2 comparisons pass for delayed excitation/inhibition, autapses and refractory behavior. Published behavioral reproduction and MaleCNS physiology remain unvalidated."},
+  "vision": {"status":"FAIL","scope":"CANDIDATE_SCREEN_ONLY","reason":"The frozen L1/optic-hex candidate drove L1 but no visual KC response. All stimulated L1 outputs are inhibitory in this quiescent baseline. This rejects this interface/model configuration, not fly vision.","report":"docs/evidence/malecns-hex-v0.1-screen.json","sha256":"6eabee53e9240b31ad4937407e16c1f471d11657b5580f5c5853952548c21733"},
+  "decoder": {"status":"FAIL","scope":"CANDIDATE_SCREEN_ONLY","reason":"All six real-data candidate stimuli produced zero MBON activity and idle/no-fire readout. This crude decoder is not validated for game control.","report":"docs/evidence/malecns-hex-v0.1-screen.json"},
+  "conditioning": {"status":"NOT_RUN","reason":"Real candidate circuit must pass counterbalanced paired/unpaired/frozen/erasure assays."},
+  "learning": {"status":"NOT_RUN","reason":"Independent replicas and frozen held-out controls have not been run."}
+}

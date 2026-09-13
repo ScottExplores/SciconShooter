@@ -624,7 +624,8 @@ export class PixiEnvironment {
   constructor(
     private readonly backgroundLayer: Container,
     private readonly environmentLayer: Container,
-    private readonly textures: PixiTextureBank
+    private readonly textures: PixiTextureBank,
+    private readonly random: () => number = Math.random
   ) {}
 
   async init(
@@ -695,20 +696,20 @@ export class PixiEnvironment {
     const starCount = this.width < 620 ? 72 : 120;
     for (let index = 0; index < starCount; index++) {
       const sprite = new Sprite(Texture.WHITE);
-      const depth = 0.25 + Math.random() * 0.75;
+      const depth = 0.25 + this.random() * 0.75;
       sprite.tint = index % 8 === 0 ? '#67e8f9' : index % 13 === 0 ? '#c4b5fd' : '#e2f4ff';
       sprite.alpha = 0.2 + depth * 0.7;
       const size = 0.7 + depth * 1.9;
       sprite.width = size;
       sprite.height = size;
-      const baseX = Math.random();
-      const baseY = Math.random();
+      const baseX = this.random();
+      const baseY = this.random();
       const baseAlpha = 0.2 + depth * 0.58;
       sprite.eventMode = 'none';
       this.stars.push({
         sprite,
         speed: 0.025 + depth * 0.16,
-        phase: Math.random() * Math.PI * 2,
+        phase: this.random() * Math.PI * 2,
         baseX,
         baseY,
         baseAlpha
@@ -727,10 +728,10 @@ export class PixiEnvironment {
       this.drawGlyph(graphic, family, '#67e8f9');
       this.glyphs.push({
         graphic,
-        baseX: Math.random(),
-        baseY: Math.random(),
-        speed: 0.012 + Math.random() * 0.035,
-        phase: Math.random() * Math.PI * 2,
+        baseX: this.random(),
+        baseY: this.random(),
+        speed: 0.012 + this.random() * 0.035,
+        phase: this.random() * Math.PI * 2,
         family
       });
       this.environmentLayer.addChild(graphic);

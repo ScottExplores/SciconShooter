@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "orbit-entry-pilot-v1",
+  "status": "EXPLORATORY",
+  "primaryEndpoint": "Replica-level post-minus-pre frozen episode score difference versus fixed and yoked controls",
+  "scenario": "operation-open-galaxy",
+  "replicas": 8,
+  "trainingEpisodes": 50,
+  "evaluationEpisodes": 20,
+  "timeLimitSeconds": 90,
+  "masterSeed": 94721,
+  "conditions": ["intact-fixed", "intact-plastic", "shuffled-fixed", "shuffled-plastic", "matched-random", "yoked-reward", "plasticity-block", "sham"],
+  "models": {},
+  "yokedMode": "temporally-shuffled",
+  "minimumShiftBins": 200,
+  "replicateUnit": "independently initialized and trained model",
+  "evaluation": {"plasticity": false, "passiveEfficacyRelaxation": false, "resetTransientState": true, "sealed": true},
+  "analysis": {"familywiseAlpha": 0.05, "correction": "Holm", "power": 0.9, "minimumConfirmatoryReplicas": 20, "minimumStandardizedEffect": 0.5},
+  "prohibitedClaims": ["living fly", "real dopamine", "learning confirmed", "scenario generalization from RNG seeds alone"]
+}

@@ -1354,6 +1354,11 @@ const usesStandaloneBossArt = (entity: Entity, previewArtwork = false) => (
 );
 
 export interface PixiGameRendererOptions {
+  /** Optional host-controlled visual streams and display settings. */
+  readonly environmentRandom?: () => number;
+  readonly effectRandom?: () => number;
+  readonly resolution?: number;
+  readonly reducedMotion?: boolean;
   readonly previewBossArtwork?: PreviewBossArtwork;
   readonly startupTextureUrls?: readonly string[];
   readonly startupTexturePolicy?: 'required' | 'resilient-preview';
@@ -1390,7 +1395,7 @@ export class PixiGameRenderer {
   private readonly previewDebugOverlay = new Graphics();
   private readonly views = new Map<string, EntityView>();
   private readonly recycledViews = new Map<EntityType, EntityView[]>();
-  private readonly environment = new PixiEnvironment(this.layers.background, this.layers.environment, this.textureBank);
+  private readonly environment: PixiEnvironment;
   private readonly warningShade = new Graphics();
   private readonly warningFrame = new Graphics();
   private readonly warningRoot = new Container();
@@ -1418,7 +1423,7 @@ export class PixiGameRenderer {
     { length: COMBAT_LIGHT_POOL_SIZE },
     () => createSoftRadialLight()
   );
-  private readonly effectPool = new ArcadeEffectPool(this.layers.effects);
+  private readonly effectPool: ArcadeEffectPool;
   private readonly maxShotAura = new Sprite(Texture.WHITE);
   private readonly stageLaunchStreak = new Graphics();
   private readonly playerThrusterRoot = new Container();
@@ -1504,7 +1509,14 @@ export class PixiGameRenderer {
   private previewBossReferenceComparison: PreviewBossReferenceComparisonState =
     DEFAULT_PREVIEW_BOSS_REFERENCE_COMPARISON;
 
+  private readonly configuredResolution?: number;
+  private readonly configuredReducedMotion?: boolean;
+
   constructor(options: PixiGameRendererOptions = {}) {
+    this.environment = new PixiEnvironment(this.layers.background, this.layers.environment, this.textureBank, options.environmentRandom);
+    this.effectPool = new ArcadeEffectPool(this.layers.effects, options.effectRandom);
+    this.configuredResolution = options.resolution;
+    this.configuredReducedMotion = options.reducedMotion;
     this.previewBossArtwork = options.previewBossArtwork;
     this.startupTextureUrls = options.startupTextureUrls ?? [];
     this.startupTexturePolicy = options.startupTexturePolicy ?? 'required';
@@ -1774,9 +1786,9 @@ export class PixiGameRenderer {
   ) {
     this.width = Math.max(1, width);
     this.height = Math.max(1, height);
-    this.reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    this.reducedMotion = this.configuredReducedMotion ?? (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false);
     const mobile = this.width < 620 || this.height > this.width * 1.25;
-    const resolution = Math.min(window.devicePixelRatio || 1, mobile ? 1.35 : 1.75);
+    const resolution = this.configuredResolution ?? Math.min(window.devicePixelRatio || 1, mobile ? 1.35 : 1.75);
 
     await this.app.init({
       width: this.width,
@@ -2046,6 +2058,15 @@ export class PixiGameRenderer {
     this.bindStartupTextures();
     if (this.destroyed) return;
     this.initialized = true;
+  }
+
+  /** A fixed-scenario host can reject any texture requested after its preload barrier. */
+  sealTextureManifest() {
+    this.textureBank.sealManifest();
+  }
+
+  assertTextureManifest() {
+    this.textureBank.assertManifest();
   }
 
   get canvas() {

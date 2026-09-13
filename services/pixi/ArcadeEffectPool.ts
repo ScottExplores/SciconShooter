@@ -50,7 +50,7 @@ export class ArcadeEffectPool {
   private maxEffects = 150;
   private maxLights = MAX_POOLED_LIGHTS;
 
-  constructor(private readonly layer: Container) {
+  constructor(private readonly layer: Container, private readonly random: () => number = Math.random) {
     for (let index = 0; index < MAX_POOLED_LIGHTS; index++) {
       const visual = createSoftRadialLight();
       this.lights.push({
@@ -190,9 +190,9 @@ export class ArcadeEffectPool {
     effect.duration = duration;
     effect.size = size;
     effect.color = color;
-    effect.velocityX = kind === 'spark' || kind === 'debris' ? (Math.random() - 0.5) * 2.5 : 0;
-    effect.velocityY = kind === 'smoke' ? -0.24 : kind === 'spark' || kind === 'debris' ? (Math.random() - 0.5) * 2.5 : 0;
-    effect.spin = (Math.random() - 0.5) * (kind === 'debris' ? 0.16 : 0.08);
+    effect.velocityX = kind === 'spark' || kind === 'debris' ? (this.random() - 0.5) * 2.5 : 0;
+    effect.velocityY = kind === 'smoke' ? -0.24 : kind === 'spark' || kind === 'debris' ? (this.random() - 0.5) * 2.5 : 0;
+    effect.spin = (this.random() - 0.5) * (kind === 'debris' ? 0.16 : 0.08);
     effect.root.position.set(x, y);
     this.drawEffect(effect, 0);
     return effect;
@@ -205,15 +205,15 @@ export class ArcadeEffectPool {
     this.spawn('burst', x, y, size, color, 420);
     const sparks = Math.max(3, Math.round(5 * intensity));
     for (let index = 0; index < sparks; index++) {
-      const spark = this.spawn('spark', x, y, Math.max(2, size * 0.08), index % 2 ? '#ffffff' : color, 260 + Math.random() * 240);
-      spark.velocityX = (Math.random() - 0.5) * size * 0.045;
-      spark.velocityY = (Math.random() - 0.5) * size * 0.045;
+      const spark = this.spawn('spark', x, y, Math.max(2, size * 0.08), index % 2 ? '#ffffff' : color, 260 + this.random() * 240);
+      spark.velocityX = (this.random() - 0.5) * size * 0.045;
+      spark.velocityY = (this.random() - 0.5) * size * 0.045;
     }
     const debrisCount = Math.max(0, Math.round(3 * intensity));
     for (let index = 0; index < debrisCount; index++) {
-      const debris = this.spawn('debris', x, y, Math.max(3, size * 0.075), index % 2 ? '#94a3b8' : color, 520 + Math.random() * 420);
-      debris.velocityX = (Math.random() - 0.5) * size * 0.035;
-      debris.velocityY = (Math.random() - 0.42) * size * 0.038;
+      const debris = this.spawn('debris', x, y, Math.max(3, size * 0.075), index % 2 ? '#94a3b8' : color, 520 + this.random() * 420);
+      debris.velocityX = (this.random() - 0.5) * size * 0.035;
+      debris.velocityY = (this.random() - 0.42) * size * 0.038;
     }
     if (size > 80) {
       this.spawn('smoke', x - size * 0.2, y, size * 0.42, '#64748b', 900);
@@ -227,9 +227,9 @@ export class ArcadeEffectPool {
     this.spawn('shockwave', x, y, size * 1.35, '#fef08a', 480);
     const sparks = Math.max(4, Math.round(6 * intensity));
     for (let index = 0; index < sparks; index++) {
-      const spark = this.spawn('spark', x, y, Math.max(2, size * 0.065), index % 2 ? '#ffffff' : '#fb923c', 280 + Math.random() * 240);
-      spark.velocityX = (Math.random() - 0.5) * size * 0.042;
-      spark.velocityY = (Math.random() - 0.55) * size * 0.042;
+      const spark = this.spawn('spark', x, y, Math.max(2, size * 0.065), index % 2 ? '#ffffff' : '#fb923c', 280 + this.random() * 240);
+      spark.velocityX = (this.random() - 0.5) * size * 0.042;
+      spark.velocityY = (this.random() - 0.55) * size * 0.042;
     }
   }
 
@@ -251,9 +251,9 @@ export class ArcadeEffectPool {
     effect.sprite.visible = true;
     effect.sprite.width = width;
     effect.sprite.height = height;
-    effect.velocityX = direction * (1.4 + Math.random() * 0.8);
-    effect.velocityY = -1.3 - Math.random() * 0.8;
-    effect.spin = direction * (0.055 + Math.random() * 0.035);
+    effect.velocityX = direction * (1.4 + this.random() * 0.8);
+    effect.velocityY = -1.3 - this.random() * 0.8;
+    effect.spin = direction * (0.055 + this.random() * 0.035);
   }
 
   spawnImpact(x: number, y: number, size: number, color = '#67e8f9') {
@@ -303,7 +303,7 @@ export class ArcadeEffectPool {
   private spawnSpriteExplosion(x: number, y: number, size: number, duration: number) {
     if (this.explosionTextures.length === 0) return;
     const effect = this.spawn('sprite-explosion', x, y, size, '#ffffff', duration);
-    effect.spin = (Math.random() - 0.5) * 0.035;
+    effect.spin = (this.random() - 0.5) * 0.035;
   }
 
   private spawnBossSpriteExplosion(x: number, y: number, size: number, duration: number) {
@@ -312,7 +312,7 @@ export class ArcadeEffectPool {
       return;
     }
     const effect = this.spawn('boss-sprite-explosion', x, y, size, '#ffffff', duration);
-    effect.spin = (Math.random() - 0.5) * 0.025;
+    effect.spin = (this.random() - 0.5) * 0.025;
   }
 
   private drawEffect(effect: PooledEffect, progress: number) {
