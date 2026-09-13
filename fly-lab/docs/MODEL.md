@@ -129,6 +129,14 @@ and efficacy while clearing v, g, delayed spikes, eligibility traces, retinal
 filters, decoder filters, and pending reinforcement. A full reset also removes
 learned efficacy. Flush terminal reinforcement before a preserving reset.
 
+The distinct `training-fixed` mode is the fixed-plasticity training control. It
+receives the same signed DAN reinforcement protocol, neural integration, and
+acquisition lesions as plastic training, while freezing all plasticity traces,
+u, w, efficacy, and passive relaxation. Its terminal reinforcement is drained
+under that same freeze. It requires the same scientific gates and configured
+plasticity/DAN mappings; it is not reward-free evaluation. Checkpoints preserve
+this phase as last_mode=3, and changing modes requires a transient reset.
+
 ## Pixels and actions
 
 The worker observes only base64 grayscale pixels, dimensions, and a scalar
@@ -174,14 +182,14 @@ stdout JSON response. Unrecognized fields are rejected.
 | --- | --- | --- |
 | status | none | Graph/model/interface identities and actual gate status |
 | reset | preserveEfficacy boolean, default false | Reset episode transient state |
-| step | observation:{grayBase64,width,height}, reinforcement, mode:training/frozen | Advance declared neural time; return action and activity |
+| step | observation:{grayBase64,width,height}, reinforcement, mode:training/training-fixed/frozen | Advance declared neural time; return action and activity |
 | reinforce | reinforcement signed scalar, including zero | Flush pending and final terminal pulse with last retinal drive held; no action; reset required afterward |
 | retain | seconds | Analytic passive memory retention with zero KC and centered DAN input; no full-network activity; reset required afterward |
 | checkpoint | name: simple filename ending .npz | Save all mutable state |
 | restore | name | Verify identity/hash and restore complete state atomically |
 | transferMemory | name, sourceIdentity | Explicit compatible transfer across lesion conditions; retain learned memory and reset all transients |
 
-`reinforce` requires a training episode and matching gates. It reports additional
+`reinforce` requires a plastic or fixed training episode and matching gates. It reports additional
 `terminalNeuralMs`; game time does not advance. Zero drains pending pulses; with
 no pending dose it takes zero modeled time. `retain` requires matching gates and
 flushed pulses. It analytically evolves the declared trace/memory/efficacy rule
@@ -217,6 +225,15 @@ cannot escape the configured worker directory. The process should use
 artifacts. These are trusted-code separation controls, not an adversarial OS
 sandbox: native extensions and same-account administrator access are outside
 this threat model.
+
+The coordinator records `neuralMode` and `reinforcementProtocol` in both run
+configuration and final summary, and verifies the worker's returned mode on
+each step and terminal pulse. Fixed training must explicitly record
+`training-fixed`; frozen evaluation has no reinforcement protocol. The
+coordinator also captures its source-tree fingerprint at import and checks it
+before each reset. Source changes require a visible lab restart, preventing a
+long-lived process from executing old imported code while exporting newly
+edited source bytes. This check runs per reset, not per numerical tick.
 
 ## Controls and inference
 

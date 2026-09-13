@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 1,
+  "startedAt": "2026-09-13T04:56:34.514Z",
+  "clone": "C:\\Users\\scott\\AppData\\Local\\Temp\\scicon-fly-reproduction-20260913",
+  "commit": "e4ec9745a1dc6811d723335b568a983e174317b5",
+  "sourceTreeHash": "af5786570b548e7a4fc9d46a93bba5e2118f50f7f979a8fcfc5bd25477361599",
+  "sourceArchiveSha256": "ef77af79c4baf9a0f1634a9255eabf64abf809c6faec7993561d6d269d168065",
+  "restoredFiles": 311,
+  "filesNeedingByteRestoration": 6,
+  "exportChecksumsVerified": true,
+  "freshNodeModulesConfirmed": true,
+  "pythonAnalysisInterpreter": "C:\\Users\\scott\\Documents\\Scicon Shooter\\fly-lab\\.venv\\Scripts\\python.exe",
+  "pythonAnalysisReused": true,
+  "runId": "20260913T045443-b84de665",
+  "cloneBaseCommit": "b54c4c0892be866805a7651eb9c63b26f3854023",
+  "sourceRestoreMethod": "Original clean clone with exported source.zip overlay; exact file bytes independently verified.",
+  "dependencyInstallationReusedFrom": "clean-install-reproduction-20260913",
+  "supersedes": "Earlier worker PNG response-body hashes were empty and did not prove asset-byte integrity.",
+  "origin": "http://127.0.0.1:5190",
+  "limitations": [
+    "Same Windows hardware and Intel GPU driver",
+    "Shared pinned Chromium browser cache",
+    "Existing Python interpreter used read-only for Parquet decoding/source identity; no second Python install claimed",
+    "Reused the dependency trees installed afresh for the earlier separate-install check; lockfiles are unchanged."
+  ],
+  "dependencies": {
+    "playwright": "C:\\Users\\scott\\AppData\\Local\\Temp\\scicon-fly-reproduction-20260913\\fly-lab\\node_modules\\playwright\\index.js",
+    "pixi": "C:\\Users\\scott\\AppData\\Local\\Temp\\scicon-fly-reproduction-20260913\\fly-lab\\node_modules\\pixi.js\\lib\\index.js",
+    "vite": "C:\\Users\\scott\\AppData\\Local\\Temp\\scicon-fly-reproduction-20260913\\fly-lab\\node_modules\\vite\\index.cjs"
+  },
+  "packageLocks": {
+    "root": "941267c282ad71e7d27560fbd0a0e114eeea99d90ea1c03637875795ba32e031",
+    "lab": "3d4bc8270f5527b33d556746fbc1738c751bd79350f283d958be7df07aa944a3"
+  },
+  "installs": {
+    "root": {
+      "directory": "root",
+      "npm": "11.6.2",
+      "exitCode": 0,
+      "elapsedSeconds": 20.5531562,
+      "node": "v24.12.0"
+    },
+    "lab": {
+      "elapsedSeconds": 11.9623138,
+      "npm": "11.6.2",
+      "node": "v24.12.0",
+      "directory": "fly-lab",
+      "exitCode": 0
+    }
+  },
+  "expectedDecisions": 240,
+  "checkedDecisions": 240,
+  "passed": true,
+  "resetSeconds": 3.8496778999999997,
+  "initialHashesMatched": true,
+  "runtimeIdentityMatched": true,
+  "nonemptyAssetHashesVerified": true,
+  "assetHash": "0cb9abc5a551138ea037e9f7a8c3d48e694562607298def778159cabce079e1a",
+  "assetCount": 235,
+  "chromium": "153.0.8010.12",
+  "gpu": {
+    "renderer": "ANGLE (Intel, Intel(R) Iris(R) Xe Graphics (0x00009A49) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "vendor": "Google Inc. (Intel)",
+    "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)"
+  },
+  "replaySeconds": 11.9698576,
+  "decisionsPerSecond": 20.050363840585707,
+  "meanDecisionTimings": {
+    "engineMs": 0.7933333332766779,
+    "renderMs": 3.5333333333954213,
+    "pixelReadbackMs": 7.081249999968956,
+    "grayscaleMs": 2.399166666677532,
+    "pngMs": 18.100416666688396,
+    "stateMs": 0.09666666665580123,
+    "ticks": 3,
+    "totalMs": 32.03708333336593
+  },
+  "final": {
+    "tick": 720,
+    "score": 84,
+    "lives": 3,
+    "kills": 8,
+    "terminated": false,
+    "truncated": true
+  },
+  "checkedFields": [
+    "Initial state/grayscale/PNG",
+    "Every action state/grayscale/PNG/event hash",
+    "Every decision asset hash",
+    "Full initial runtime identity"
+  ],
+  "traceSha256": "96f29a7bb18795e3a1cab12e8d77ec68ef430db8f70bccaa1b3cf0df90cbfb5c",
+  "blockedRequests": [],
+  "finishedAt": "2026-09-13T04:56:50.429Z",
+  "sourceCommit": "e4ec9745a1dc6811d723335b568a983e174317b5",
+  "sourceIdentityRecheckedAfterReplay": true,
+  "postReplaySourceTreeHash": "af5786570b548e7a4fc9d46a93bba5e2118f50f7f979a8fcfc5bd25477361599",
+  "postReplaySourceFileCount": 311,
+  "assetFilesIndependentlyHashed": true,
+  "verifiedAssetFileCount": 235,
+  "verifiedAssetByteCount": 9949981,
+  "cloneServerStopped": true,
+  "canonicalServersPreserved": {
+    "vitePort": 5180,
+    "pythonPort": 8766
+  },
+  "dependencyLocksUnchangedSinceFreshInstall": true,
+  "nodeModulesFreshlyInstalledForThisReplay": false,
+  "proofSealedAt": "2026-09-13T04:58:03.169144+00:00"
+}
