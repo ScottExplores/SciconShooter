@@ -1,5 +1,7 @@
 # Scicon Fly Lab
 
+The simple spectator display is at **http://127.0.0.1:5180/#watch**. It shows real gameplay, movement commands and authentic anatomy, with lightweight replay and a portable Raspberry Pi edition. [Display controls, Pi setup and future profile guidance](docs/WATCH_AND_PI.md).
+
 Private experimental application using Scicon Shooter's canonical engine and Pixi renderer. The real MaleCNS graph is supported. **No validated MaleCNS visual/game controller or biological learning result is supplied.** Missing evidence is a visible gate, not substituted with a random policy carrying a fly label.
 
 ## Start on this computer

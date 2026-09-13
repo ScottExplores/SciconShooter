@@ -12,6 +12,7 @@ from PIL import Image
 from .artifacts import LAB_ROOT, RunWriter, atomic_json, digest, source_identity
 from .controls import TimingMatchedRandom
 from .validation import validate_gate_evidence,evidence_file
+from .watch import WatchLibrary, PreviewCancelled, byte_range, compact_neural, close_driver
 
 MOVEMENTS=['idle','N','NE','E','SE','S','SW','W','NW']
 EXPERIMENTS=LAB_ROOT/'experiments';RUNTIME=LAB_ROOT/'runtime';DATA=LAB_ROOT/'data'
@@ -133,6 +134,7 @@ class Coordinator:
         self.run_id=None;self.seq=0;self.error=None;self.history=[];self.total_reward=0;self.action={'movement':'idle','fire':False}
         self.status='idle';self.neural_summary=None;self.rng=np.random.default_rng(42);self.hold=0;self.neural_signature=None
         self.matched_random=None;self.reinforcement_schedule=None;self.driver_profile=None
+        self.watch_snapshot=None
     def public(self):
         with self.lock:
             latest=self.latest or {};state=latest.get('state',{})
@@ -225,7 +227,7 @@ class Coordinator:
                 'decisionHz':20,'gameHz':60,'movement':'native-keyboard-9','fire':'independent','constantFire':bool(body.get('constantFire',False)),
                 'reward':{'enemyDestroyed':1,'lifeLost':-5,'lifeLossEvent':'player-life-lost','lifeLossCountField':'count','terminalDeathAffectsReward':False},'neuralConfig':neural_config,'modelFiles':frozen_model,'calibrationActions':calibration,'reinforcementSchedule':schedule,'reinforcementSource':'yoked' if schedule is not None else 'outcomes','preserveEfficacy':bool(body.get('preserveEfficacy',False)),'phase':phase,'study':body.get('study'),'scope':'ORBIT ENTRY stochastic robustness; not scenario transfer'}
             self.run_id=datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S')+'-'+uuid.uuid4().hex[:8]
-            self.seq=0;self.history=[];self.total_reward=0;self.error=None;self.hold=0;self.neural_summary=None;self.latest=None
+            self.seq=0;self.history=[];self.total_reward=0;self.error=None;self.hold=0;self.neural_summary=None;self.latest=None;self.watch_snapshot=None
             self.rng=np.random.default_rng(self.config['policySeed']);self.action={'movement':'idle','fire':False};self.status='loading'
             self.writer=RunWriter(EXPERIMENTS,self.run_id,self.config,dataset_manifest() if controller.startswith('neural') else None)
             try:
@@ -283,6 +285,7 @@ class Coordinator:
                 self.writer.append(self.seq,action,result,reward,self.neural_summary)
                 with self.lock:
                     self.latest=result;self.history.append({'tick':result['tick'],'seconds':result['simTimeMs']/1000,'score':result['state'].get('score',0),'reward':reward,'lives':result['state'].get('lives',3),'movement':action['movement'],'fire':action['fire']})
+                    self.watch_snapshot={'seq':self.seq,'action':dict(action),'neural':compact_neural(self.neural_summary)}
                 if result.get('terminated') or result.get('truncated'):
                     with self.lock:self.running=False;self.status='finalizing'
                     mode=self.config.get('neuralMode',neural_mode_for(self.config['controller'],self.config.get('phase','training' if self.config['controller']=='neural-plastic' else 'evaluation')))
@@ -316,8 +319,42 @@ class Coordinator:
         if self.neural:self.neural.close()
 
 COORDINATOR=Coordinator()
+WATCH=WatchLibrary(EXPERIMENTS,RUNTIME/'watch')
 REPLAY_JOB={'status':'idle'}
 REPLAY_LOCK=threading.Lock()
+WORKLOAD_ADMISSION_LOCK=threading.RLock()
+
+def watch_driver(profile):
+    return JsonProcess(['node',str(LAB_ROOT/'scripts'/'driver.mjs'),'--render-profile',profile],'watch')
+
+def assert_watch_workload_available():
+    if COORDINATOR.running or REPLAY_JOB['status']=='running' or WATCH.busy():
+        raise ValueError('Pause the active experiment and wait for the current replay/video job before starting another workload')
+
+def start_watch_demo(body):
+    assert_process_source_current();assert_watch_workload_available()
+    duration=body.get('timeLimitSeconds',30)
+    if isinstance(duration,bool) or not isinstance(duration,(int,float)) or not 1<=duration<=60:
+        raise ValueError('Demo duration must be 1..60 seconds')
+    profile=body.get('renderProfile','local-d3d11' if os.name=='nt' else 'swiftshader')
+    if profile not in ('local-d3d11','swiftshader'):raise ValueError('Unknown demo render profile')
+    seed=body.get('seed',1924)
+    if type(seed) is not int or not 0<=seed<2**32:raise ValueError('Demo seed must be a uint32 integer')
+    def record(progress,cancel,register_resource):
+        demo=Coordinator()
+        register_resource(demo)
+        try:
+            if cancel.is_set():raise PreviewCancelled('Demo recording cancelled')
+            demo.reset({'controller':'random','seed':seed,'timeLimitSeconds':duration,'renderProfile':profile,'constantFire':True})
+            progress(runId=demo.run_id)
+            while demo.writer and not demo.writer.closed:
+                if cancel.is_set():raise PreviewCancelled('Demo recording cancelled; the partial experiment was finalized')
+                demo.step();progress(done=demo.seq)
+            return demo.run_id
+        finally:
+            try:demo.stop()
+            finally:close_driver(demo.driver);demo.driver=None
+    return WATCH.start_demo(record,watch_driver,int(duration*20))
 
 def start_replay(run_id):
     global REPLAY_JOB
@@ -367,9 +404,33 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(status);self.send_header('Content-Type',content_type);self.send_header('Content-Length',str(len(payload)));self.send_header('Cache-Control','no-store');self.send_header('Connection','close');self.send_header('X-Content-Type-Options','nosniff')
         if compressed:self.send_header('Content-Encoding','gzip');self.send_header('Vary','Accept-Encoding')
         self.end_headers()
+        if self.command=='HEAD':return
         try:
             for offset in range(0,len(payload),65536):self.wfile.write(payload[offset:offset+65536])
             self.wfile.flush()
+        except (BrokenPipeError,ConnectionResetError):pass
+    def watch_file(self,path,sha256):
+        size=path.stat().st_size;etag='"'+sha256+'"'
+        if self.headers.get('If-None-Match')==etag and not self.headers.get('Range'):
+            self.send_response(304);self.send_header('ETag',etag);self.send_header('Content-Length','0');self.end_headers();return
+        try:start,end,partial=byte_range(self.headers.get('Range'),size)
+        except ValueError:
+            self.send_response(416);self.send_header('Content-Range',f'bytes */{size}');self.send_header('Content-Length','0');self.end_headers();return
+        content_type={'.mp4':'video/mp4','.png':'image/png','.json':'application/json; charset=utf-8'}[path.suffix]
+        self.send_response(206 if partial else 200);self.send_header('Content-Type',content_type)
+        self.send_header('Content-Length',str(end-start+1));self.send_header('Accept-Ranges','bytes')
+        self.send_header('Cache-Control','private, max-age=86400, immutable');self.send_header('ETag',etag)
+        self.send_header('X-Content-Type-Options','nosniff');self.send_header('Connection','close')
+        if partial:self.send_header('Content-Range',f'bytes {start}-{end}/{size}')
+        self.end_headers()
+        if self.command=='HEAD':return
+        try:
+            with path.open('rb') as stream:
+                stream.seek(start);remaining=end-start+1
+                while remaining:
+                    chunk=stream.read(min(65536,remaining))
+                    if not chunk:break
+                    self.wfile.write(chunk);remaining-=len(chunk)
         except (BrokenPipeError,ConnectionResetError):pass
     def valid_origin(self):
         host=self.headers.get('Host','').split(':')[0]
@@ -379,6 +440,17 @@ class Handler(BaseHTTPRequestHandler):
         if not self.valid_origin():return self.respond({'error':'Loopback origin required'},403)
         path=unquote(urlparse(self.path).path)
         try:
+            if path=='/watch':return self.respond(WATCH.catalog(PROCESS_SOURCE_TREE_HASH))
+            if path=='/watch/live':return self.respond(WATCH.live(COORDINATOR))
+            if path.startswith('/watch/live/frame/'):
+                key=path.removeprefix('/watch/live/frame/').removesuffix('.png');frame=WATCH.live_frame(key)
+                if frame is None:return self.respond({'error':'Live snapshot expired; refresh the lightweight snapshot'},404)
+                return self.respond(frame,content_type='image/png')
+            if path.startswith('/watch/'):
+                parts=path.split('/')
+                if len(parts)==3:return self.respond(WATCH.manifest(parts[2]))
+                if len(parts)==4:return self.watch_file(*WATCH.artifact(parts[2],parts[3]))
+                return self.respond({'error':'Unknown watch route'},404)
             if path=='/status':return self.respond(COORDINATOR.public())
             if path=='/replay':return self.respond(dict(REPLAY_JOB))
             if path=='/studies':return self.respond([read_json(p) for p in sorted((EXPERIMENTS/'studies').glob('*/analysis.json'))])
@@ -416,17 +488,31 @@ class Handler(BaseHTTPRequestHandler):
             length=int(self.headers.get('Content-Length',0))
             if length>65536:raise ValueError('Request too large')
             body=json.loads(self.rfile.read(length) or '{}');path=urlparse(self.path).path
-            if path=='/reset':result=COORDINATOR.reset(body)
-            elif path=='/start':result=COORDINATOR.start()
-            elif path=='/pause':COORDINATOR.pause();result=COORDINATOR.public()
-            elif path=='/step':
-                if COORDINATOR.running:raise ValueError('Pause before a manual step')
-                result=COORDINATOR.step(body.get('action'))
-            elif path=='/stop':COORDINATOR.stop();result=COORDINATOR.public()
-            elif path=='/replay':result=start_replay(body.get('runId'))
-            else:return self.respond({'error':'Not found'},404)
+            if path not in ('/reset','/start','/pause','/step','/stop','/replay','/watch/build','/watch/demo','/watch/cancel'):
+                return self.respond({'error':'Not found'},404)
+            # Admission and launch are atomic across HTTP threads. The lock is
+            # released after starting a background job, not held during replay.
+            with WORKLOAD_ADMISSION_LOCK:result=self.post_action(path,body)
             self.respond(result)
         except Exception as error:self.respond({'error':str(error)},400)
+    def post_action(self,path,body):
+        if path in ('/reset','/start','/step','/replay') and WATCH.busy():
+            raise ValueError('A watch demo/replay build is active; cancel or wait before starting another workload')
+        if path=='/reset':return COORDINATOR.reset(body)
+        if path=='/start':return COORDINATOR.start()
+        if path=='/pause':COORDINATOR.pause();return COORDINATOR.public()
+        if path=='/step':
+            if COORDINATOR.running:raise ValueError('Pause before a manual step')
+            return COORDINATOR.step(body.get('action'))
+        if path=='/stop':COORDINATOR.stop();return COORDINATOR.public()
+        if path=='/replay':return start_replay(body.get('runId'))
+        if path=='/watch/build':
+            assert_process_source_current();assert_watch_workload_available()
+            return WATCH.start(body.get('runId'),watch_driver)
+        if path=='/watch/demo':return start_watch_demo(body)
+        if path=='/watch/cancel':return WATCH.cancel()
+        raise ValueError('Unknown lab action')
+    def do_HEAD(self):self.do_GET()
 
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('--port',type=int,default=8766);args=parser.parse_args()
@@ -437,5 +523,5 @@ def main():
     print(f'Scicon experiment coordinator: 127.0.0.1:{args.port}',flush=True)
     try:server.serve_forever()
     except KeyboardInterrupt:pass
-    finally:COORDINATOR.close();server.server_close()
+    finally:WATCH.close();COORDINATOR.close();server.server_close()
 if __name__=='__main__':main()

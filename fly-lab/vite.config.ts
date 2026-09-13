@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 const root = path.dirname(fileURLToPath(import.meta.url));
 // Deliberately never imports the production Vite configuration or .env.local.
 export default defineConfig({
-  root, envDir: root, plugins: [react()],
+  root, base: './', envDir: root, plugins: [react()],
   publicDir: path.resolve(root, '../public'),
   resolve: { dedupe: ['react', 'react-dom', 'pixi.js'] },
   server: {
@@ -13,7 +13,7 @@ export default defineConfig({
     fs: { allow: [path.resolve(root, '..')] },
     proxy: { '/lab-api': { target: 'http://127.0.0.1:8766', rewrite: p => p.replace(/^\/lab-api/, '') } }
   },
-  build: { outDir: 'dist', copyPublicDir: false,
-    rollupOptions: { input: { dashboard: path.resolve(root,'index.html'), runner: path.resolve(root,'environment/runner.html') } }
+  build: { outDir: 'dist', copyPublicDir: false, manifest: true,
+    rollupOptions: { input: { dashboard: path.resolve(root,'index.html'), watch: path.resolve(root,'watch.html'), runner: path.resolve(root,'environment/runner.html') } }
   }
 });
