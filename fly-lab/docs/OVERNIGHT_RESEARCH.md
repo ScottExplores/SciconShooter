@@ -1,5 +1,35 @@
 # Continued research checkpoint
 
+## September 13 afternoon: completed reduced conditioning exhibit supersedes random play
+
+Scott explicitly rejected continuing a random shooter and authorized a concrete
+scientific exhibit. The random Boss Practice session was gracefully stopped at
+sequence 6777 (860 points, 2515.05 hull damage, 1352.15 simulated seconds); records
+are preserved. Its publisher was stopped and its automatic restart monitor deleted.
+Do not resume it as training or restart it automatically.
+
+The new actual MaleCNS gamma1pedc reduced-circuit assay completed 96 executions:
+720 KCs, MBON11 11402, PPL101 11327. All seven prespecified mechanism checks passed.
+Mean paired cue-specific suppression was 36.367684%; delayed/backward controls
+were near zero and absent/frozen/erased controls zero. Full exact reproduction and
+portable reproduction succeeded. The root independent audit reconstructed all
+540 recorded frames and the trained checkpoint without importing the simulator.
+
+This is a declared phenomenological direct-input rate/plasticity model on actual
+contacts, not biological validation, whole-CNS learning or game learning. The
+direction of depression is explicitly encoded in the rule. No existing whole-CNS
+gate changed. See REDUCED_CONDITIONING.md, REDUCED_CONDITIONING_REPRODUCTION.md,
+evidence/reduced-conditioning-v1, and docs/evidence/reduced-conditioning-v1-independent-audit.json.
+The public Site now owns its viewer source separately from canonical lab source;
+it displays the completed recording and control outcomes, not a live training job.
+
+Further scientific work should test robustness to cue overlap, parameter choices
+and omitted feedback before making stronger learning claims. Existing physiology
+calibration is preserved. There is no active study or restart automation; do not
+invent unattended progress from a looping recording.
+
+Earlier entries below are historical and do not supersede this direction.
+
 Updated September 13, 2026, morning (America/Los_Angeles).
 
 ## Current direction: a spectator website

@@ -1,9 +1,11 @@
 # Scott's research journal — September 13, 2026
 
-**Latest direction:** a simple spectator website using the larger Watch brain
-visual. The first version shows verified recorded random-baseline gameplay,
-illustrated cues and actual recorded points. It is not live fly training. The
-real connectome research remains preserved; hourly background work is paused.
+**Latest direction:** the random game is stopped. A completed reduced-circuit
+conditioning experiment now supplies actual saved model activity and measured
+control results to the public exhibit. It uses 722 actual MaleCNS cells under
+an explicitly programmed plasticity rule. It is not whole-brain or game learning.
+See the September 13 afternoon entry below and REDUCED_CONDITIONING.md. Earlier
+entries are preserved history; no random-game restart automation remains active.
 
 We are turning a fly's published wiring diagram into a computer model and testing whether that model can eventually learn to play Scicon Shooter. The project is running real experiments, but **we have not demonstrated a learning fly controller yet**.
 
@@ -312,3 +314,27 @@ TypeScript checking and the private lab build passed. Browser checks covered
 Advanced expand/collapse, Watch returning to Live, and a 390-pixel phone viewport
 with no horizontal overflow. The anatomy view explicitly says live neural
 activity is not connected yet. Simulation and controller behavior were unchanged.
+# September 13 afternoon: a measured conditioning result replaces the random shooter
+
+We stopped the random game because it could never learn. The records remain safe.
+Its automatic restart was removed, so it will not quietly return.
+
+We built and ran a small model using 722 actual fly cells and their released
+connections. Two cues were delivered directly to selected cells. Pairing one cue
+with a modeled aversive dopamine signal changed selected connection strengths.
+The output cell subsequently responded about 36% less to that cue. Disabling the
+learning rule or erasing the changed strengths removed the effect; mistiming the
+signal produced almost no change. We ran all six conditions under eight input
+seeds with both cue identities paired, giving 96 controlled executions.
+
+This shows that the mechanism we specified works on this anatomical reduction
+and saves its changed state. It does not show that a living fly was reconstructed,
+that the whole brain is valid, or that it can see or play Scicon. The direction
+of the change is built into our model's rule. That limitation matters.
+
+The new public page replays actual saved rates and shows the measured controls.
+Only the sampled cells light up at their real anatomical coordinates. A labeled
+magnified diagram makes their activity easier to see. The replay is explicitly
+recorded; watching it does not create new results or continue training. The
+download includes the circuit, model, protocol, results and checkpoints and
+reproduces the result without the large full-connectome download.

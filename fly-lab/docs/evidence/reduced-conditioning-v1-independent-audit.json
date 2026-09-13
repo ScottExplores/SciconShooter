@@ -1,0 +1,60 @@
+{
+  "auditedAt": "2026-09-13T21:14:42.212411+00:00",
+  "status": "PASS",
+  "scope": "Independent saved-artifact arithmetic and equation reconstruction; not biological validation. No original simulator imported.",
+  "publicExperimentSha256": "16d866ced78b55b4bd13c5d940c424abfa7716afa5ed1d24379b82aa5bbd8894",
+  "checks": [
+    {
+      "id": "artifact-checksums",
+      "passed": true,
+      "detail": "Every original frozen artifact matches its checksum."
+    },
+    {
+      "id": "source-freeze",
+      "passed": true,
+      "detail": "Exact model, runner and configuration still match the pre-outcome freeze."
+    },
+    {
+      "id": "circuit-freeze",
+      "passed": true,
+      "detail": "Extracted real circuit equals its pre-outcome hash."
+    },
+    {
+      "id": "all-assignments",
+      "passed": true,
+      "detail": "Six conditions x eight assignment seeds x two reinforced cue identities; no dropped result."
+    },
+    {
+      "id": "all-summary-arithmetic",
+      "passed": true,
+      "detail": "All 192 cue effects and all condition means independently agree; max error 5.551115123125783e-17."
+    },
+    {
+      "id": "real-selected-edges",
+      "passed": true,
+      "detail": "Every selected KC has positive released contacts to MBON11402 and from DAN11327; no invented zero-contact edge."
+    },
+    {
+      "id": "cue-identity",
+      "passed": true,
+      "detail": "Two fixed 5% direct-input patterns, disjoint by design; not biological sensory representations."
+    },
+    {
+      "id": "all-recorded-activity",
+      "passed": true,
+      "detail": "Independent equation reconstruction agrees with all 540 frames and 18 recorded cells; max absolute error 1.4210854715202004e-14."
+    },
+    {
+      "id": "checkpoint-equations",
+      "passed": true,
+      "detail": "Independently reconstructed trained rates, eligibility and 720 efficacies match saved checkpoint; max error 6.661338147750939e-16."
+    },
+    {
+      "id": "probe-measurements",
+      "passed": true,
+      "detail": "Independent pre/post probe means match the selected published execution."
+    }
+  ],
+  "maximumRecordedValueError": 1.4210854715202004e-14,
+  "maximumCheckpointError": 6.661338147750939e-16
+}
