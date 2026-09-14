@@ -1,5 +1,12 @@
 # Scott's research journal — September 13, 2026
 
+**17:36 PDT incident:** a software race in the disk-usage check stopped the live
+experiment. Results and the last model checkpoint are preserved; 45 simulated
+seconds of newer records need verified state recovery before restarting. The
+website correctly displays FEED STOPPED. See the
+[incident and recovery requirements](BOSS_INCIDENT_2026-09-13.md). The reports
+below remain unchanged historical results, not evidence of ongoing computation.
+
 **Follow-up, 16:36 PDT:** [the longer-practice report is ready](BOSS_PROGRESS_2026-09-13.md).
 After 33 simulated minutes of practice, damage per second remained 70.6% below
 baseline and the ship stayed farther from the boss horizontally. The memory and

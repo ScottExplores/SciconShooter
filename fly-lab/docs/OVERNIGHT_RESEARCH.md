@@ -2,6 +2,17 @@
 
 ## Current: September 13, 2026, live reduced-circuit boss experiment
 
+**17:36 PDT incident: the experiment is currently stopped.** A disk-usage scan
+encountered a publisher temporary file that disappeared during atomic rename.
+The journal is intact, but 45 simulated seconds extend beyond the last saved
+model checkpoint. Ordinary resume correctly rejects that mismatch. No restart,
+checkpoint relabeling or evidence truncation was attempted. Read
+[BOSS_INCIDENT_2026-09-13.md](BOSS_INCIDENT_2026-09-13.md) before any continuation.
+The public page visibly says FEED STOPPED. The old runner PID 26628 is dead;
+the publisher remains available. The hourly monitor was deleted pending
+a tested recovery implementation, rather than repeatedly inspecting this known
+failure. Statements below about the experiment running describe prior handoffs.
+
 **16:36 PDT follow-up:** the scheduled milestone report is complete at
 [BOSS_PROGRESS_2026-09-13.md](BOSS_PROGRESS_2026-09-13.md). At 33 completed training
 bouts' evaluation, mean damage remained 70.6% below baseline and alignment was
