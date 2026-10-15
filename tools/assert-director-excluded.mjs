@@ -10,6 +10,7 @@ if (!fs.existsSync(indexPath)) {
 }
 
 const forbiddenPathFragments = [
+  'jev-lab',
   'fly-lab',
   'scicon_fly',
   'director',
@@ -41,6 +42,8 @@ const forbiddenPrototypeAssetBasenames = [
   'aurora-boss-vfx-sheet-v1'
 ];
 const forbiddenText = [
+  '/__jev/',
+  'Jev plays Scicon Shooter',
   'Scicon Fly Lab',
   'sciconFlyEnvironment',
   'Scicon Director',
@@ -86,7 +89,7 @@ const visit = (directory) => {
 visit(distRoot);
 
 const vercelIgnore = fs.readFileSync(path.join(repositoryRoot, '.vercelignore'), 'utf8');
-for (const required of ['director/', 'director-data/', 'fly-lab/']) {
+for (const required of ['director/', 'director-data/', 'fly-lab/', 'jev-lab/']) {
   if (!vercelIgnore.split(/\r?\n/).map((line) => line.trim()).includes(required)) {
     violations.push(`.vercelignore is missing ${required}`);
   }

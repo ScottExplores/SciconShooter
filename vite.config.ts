@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import path from 'node:path';
+import { jevPlaytestPlugin } from './tools/jev/proxy.mjs';
 
 const require = createRequire(import.meta.url);
 const leaderboardHandler = require('./api/leaderboard.js');
@@ -212,7 +213,7 @@ const excludeSandboxTestAssetsFromProduction = () => ({
 });
 
 export default defineConfig({
-  plugins: [react(), localApiRoutes(), excludeSandboxTestAssetsFromProduction()],
+  plugins: [react(), jevPlaytestPlugin(), localApiRoutes(), excludeSandboxTestAssetsFromProduction()],
   publicDir: 'public', // Ensures public/ folder is served at root
   build: {
     outDir: 'dist',

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Scicon Shooter · Jev Playtest</title>
+  <link rel="icon" type="image/png" href="/icon.png">
+  <style>
+    @font-face{font-family:Orbitron;src:url('/fonts/orbitron-latin.woff2') format('woff2');font-weight:400 900;font-display:swap}
+    *{box-sizing:border-box}body{margin:0;background:#08111c;color:#e3edf7;font:15px/1.5 system-ui,sans-serif}main{max-width:1060px;margin:auto;padding:28px;display:grid;grid-template-columns:390px 1fr;gap:32px}h1{font-size:28px;line-height:1.2;margin:8px 0 14px}h2{font-size:17px;margin:22px 0 8px}p{color:#acbfd0}a{color:#80d4ff}.eyebrow{color:#7fe2b7;font-size:12px;letter-spacing:2px}#arena{width:390px;height:844px;background:#020617;border:1px solid #294054;border-radius:12px;overflow:hidden}canvas{display:block;width:100%;height:100%}.panel{background:#102132;padding:16px;border:1px solid #2a4258;border-radius:12px;margin:14px 0}.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.metrics strong{display:block;font-size:26px;color:#fff}.metrics span{font-size:12px;color:#a5bacd}button,input{font:inherit;border-radius:6px;padding:10px;border:1px solid #466078}button{background:#29465e;color:#fff;cursor:pointer}button.primary{background:#78e7b1;color:#07261c;font-weight:700}button:disabled{opacity:.4;cursor:default}input{background:#06121f;color:white;max-width:100%}input[type=password]{width:100%;margin:8px 0}.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.small{font-size:12px}#status{color:#ffd789}#decision{min-height:24px;color:#8fe9bc}#feedback{white-space:pre-wrap}ol{padding-left:20px}#history{font-size:13px}.muted{color:#a5bacd}@media(max-width:850px){main{display:flex;flex-direction:column;padding:16px;align-items:center}.controls{order:-1;width:100%;max-width:540px}#arena{max-width:100%;height:auto;aspect-ratio:390/844}}
+  </style>
+</head>
+<body><main>
+  <div id="arena" aria-label="Live Scicon Shooter playtest"><p style="padding:28px;text-align:center;margin-top:280px">Your playtest appears here.<br><span class="small">Connect Jev or start the free scripted baseline.</span></p></div>
+  <section class="controls">
+    <div class="eyebrow">LOCAL PLAYTEST · NORMAL DAMAGE</div>
+    <h1>Jev plays Scicon Shooter</h1>
+    <p>Watch Jev choose moves and special attacks using live game-state data. Each trial starts fresh with three lives and no upgrades.</p>
+    <div class="panel">
+      <div id="status" role="status">Checking TypeSafe connection…</div>
+      <label for="key" class="small">TypeSafe API key · held only in the local server’s memory</label>
+      <input id="key" type="password" autocomplete="off" placeholder="Paste your key here, never in chat">
+      <div class="row"><button id="connect">Connect key</button><a href="https://console.typesafe.ai/settings/keys" target="_blank" rel="noreferrer">Get TypeSafe access ↗</a></div>
+      <p class="small">Jev is early access. Listed input price: $0.042 per million tokens; output is free. This trial can use credits or incur API charges. No purchase or automatic top-up is made here.</p>
+    </div>
+    <div class="metrics panel"><div><strong id="score">0</strong><span>SCORE</span></div><div><strong id="lives">3</strong><span>LIVES</span></div><div><strong id="time">0s</strong><span>PLAY TIME</span></div></div>
+    <div class="row"><label>Seed <input id="seed" type="number" value="91801" min="0" max="999999999" style="width:115px"></label><span class="small muted">60-second trial · up to 4 decisions/sec</span></div>
+    <p><label><input id="allow" type="checkbox"> Use my TypeSafe credits or metered API for this trial.</label></p>
+    <div class="row"><button id="start" class="primary" disabled>Start Jev trial</button><button id="stop" disabled>Stop</button></div>
+    <p id="decision">Jev has not played yet.</p>
+    <div id="usage" class="small muted">No API requests made.</div>
+    <h2>Connection check</h2>
+    <p class="small">The free baseline below uses a simple scripted pilot to check the game connection. Its results are labeled separately.</p>
+    <button id="baseline">Run scripted baseline (free)</button>
+    <h2>Playtest feedback</h2>
+    <div id="feedback" class="panel muted">After a Jev run, request its assessment of mechanics and possible concerns. This is based on game data, not images, sound, or subjective enjoyment.</div>
+    <div class="row"><button id="review" disabled>Ask Jev to assess this run</button><button id="download" disabled>Download run evidence</button></div>
+    <h2>Recent local runs</h2><ol id="history"><li>No completed trials.</li></ol>
+    <p class="small muted">Scores stay in this tab and downloaded evidence. These trials do not submit leaderboard entries or touch your player profile. A high score is not guaranteed.</p>
+  </section>
+</main><script type="module" src="./main.ts"></script></body></html>
