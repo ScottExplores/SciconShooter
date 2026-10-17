@@ -5,6 +5,13 @@ export {
   resolveCampaignDifficulty
 } from './DifficultyResolver';
 
+export {
+  isAuthoredMajorBossEventId,
+  isWeeklyRunLevelId,
+  resolveCampaignCombatScales,
+  resolveCombatScales
+} from './CampaignCombatScale';
+
 export type {
   CampaignDifficultyInput,
   DifficultySource

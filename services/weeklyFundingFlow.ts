@@ -2,7 +2,7 @@ import type { ArchivedWinner, LeaderboardEntry } from '../types';
 import type { RunReceipt } from './runReceiptService';
 import { WEEKLY_ALLOCATION_RSC } from '../shared/weeklyCompetitionBoundary.browser';
 
-export type MissionRecordFundingStatus = 'current-leader' | 'claimable' | 'selected';
+export type MissionRecordFundingStatus = 'current-leader' | 'claimable' | 'selected' | 'awaiting-release';
 
 export interface MissionRecordWeeklyFunding {
   status: MissionRecordFundingStatus;
@@ -54,6 +54,17 @@ export const getMissionRecordWeeklyFunding = ({
   if (receipt.testRun) return null;
 
   const archivedWinner = archivedWinners.find((winner) => winnerMatchesRun(winner, receipt, pilotName));
+  if (archivedWinner?.status === 'pending-funding') {
+    return {
+      status: 'awaiting-release',
+      allocationRsc: archivedWinner.allocationRsc ?? 100,
+      winner: archivedWinner,
+      proposalId: archivedWinner.proposalId,
+      proposalTitle: archivedWinner.proposalTitle,
+      proposalUrl: archivedWinner.proposalUrl,
+      proposalAuthor: archivedWinner.proposalAuthor
+    };
+  }
   if (archivedWinner?.status === 'claimed' || archivedWinner?.status === 'funded') {
     return {
       status: 'selected',

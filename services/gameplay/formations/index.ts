@@ -9,6 +9,7 @@ export {
   resolveFormationCohortEntryPose,
   resolveFormationAttackIndices,
   resolveFormationChoreography,
+  applyGalagaEntryVariety,
   resolveFormationEntryPlan,
   resolveFormationMovementPoint,
   resolveFormationSlotTransition,

@@ -769,6 +769,41 @@ const defaultAttackForMode = (mode: ConfiguredFormationMode): FormationAttackBeh
   return 'paired-dive';
 };
 
+const GALAGA_ENTRY_ROTATION: Partial<Record<ConfiguredFormationMode, readonly FormationEntryPathId[]>> = {
+  row: ['mirrored-swoop', 'sweep-bank-reentry', 'paired-flank'],
+  v: ['paired-flank', 'mirrored-swoop', 'sweep-bank-reentry'],
+  'staggered-row': ['sweep-bank-reentry', 'mirrored-swoop', 'paired-flank'],
+  sine: ['serpentine-weave', 'double-helix', 'loop-the-loop'],
+  snake: ['loop-the-loop', 'serpentine-weave', 'double-helix'],
+  grid: ['formation-drop', 'lane-stagger', 'armored-grid'],
+  spiral: ['spiral-entry', 'ring-assemble', 'spiral-entry'],
+  pincer: ['paired-flank', 'side-wall-entry', 'mirrored-swoop'],
+  diamond: ['diamond-lock', 'mirrored-swoop', 'paired-flank'],
+  crescent: ['diamond-lock', 'sweep-bank-reentry', 'paired-flank'],
+  arc: ['sweep-bank-reentry', 'diamond-lock', 'mirrored-swoop']
+};
+
+/**
+ * Gives an unspecified squadron a stable Galaga-style entrance.
+ *
+ * Authored `formationBehavior` and formation packs keep their path. Only
+ * loose campaign spawns, which used to share one default per shape, rotate
+ * through the existing swoop, flank, helix, and loop routes. The event id
+ * is the seed, so the same squadron enters the same way on every device.
+ */
+export const applyGalagaEntryVariety = (
+  eventId: string,
+  patternId: string | undefined,
+  choreography: ResolvedFormationChoreography
+): ResolvedFormationChoreography => {
+  const mode = resolveConfiguredFormationMode(patternId);
+  const options = GALAGA_ENTRY_ROTATION[mode];
+  if (!options || options.length === 0) return choreography;
+  const entryPathId = options[getFormationGroupSeed(eventId) % options.length];
+  if (entryPathId === choreography.entryPathId) return choreography;
+  return { ...choreography, entryPathId };
+};
+
 /** Resolves pack defaults plus a Wave's surgical choreography overrides. */
 export const resolveFormationChoreography = (
   event: FormationChoreographyEvent,

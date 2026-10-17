@@ -98,7 +98,7 @@ const StoryTransmission: React.FC<StoryTransmissionProps> = ({ beat, onComplete 
                 {beat.speaker}
               </div>
               <div className="mt-1.5 font-mono text-[9px] uppercase leading-[1.3] tracking-[0.12em] text-yellow-200/85">
-                Sector {beat.phase}: {beat.title}
+                {beat.kicker ?? `Sector ${beat.phase}`}: {beat.title}
               </div>
             </div>
           </div>
@@ -110,8 +110,24 @@ const StoryTransmission: React.FC<StoryTransmissionProps> = ({ beat, onComplete 
             </p>
           </div>
 
-          <div className="border-t border-cyan-200/20 pt-2 text-right font-mono text-[9px] uppercase tracking-[0.16em] text-cyan-200/65">
-            {isComplete ? 'Tap to deploy' : 'Receiving transmission'}
+          <div className="flex items-center justify-between gap-3 border-t border-cyan-200/20 pt-2 font-mono text-[9px] uppercase tracking-[0.16em] text-cyan-200/65">
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={(event) => {
+                event.stopPropagation();
+                onComplete();
+              }}
+              onKeyDown={(event) => {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                event.preventDefault();
+                event.stopPropagation();
+                onComplete();
+              }}
+            >
+              Skip
+            </span>
+            <span>{isComplete ? 'Tap to deploy' : 'Tap to finish the line'}</span>
           </div>
         </button>
       </FundingVaultUnseal>

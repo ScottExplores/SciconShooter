@@ -186,9 +186,11 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
                   <h3 className="arcade-font mt-1 text-sm font-black uppercase tracking-wider text-white">
                     {weeklyFunding.status === 'claimable'
                       ? 'Weekly champion confirmed'
-                      : weeklyFunding.status === 'selected'
-                        ? 'Funding choice saved'
-                        : 'Weekly high score'}
+                      : weeklyFunding.status === 'awaiting-release'
+                        ? 'Awaiting admin release'
+                        : weeklyFunding.status === 'selected'
+                          ? 'Funding choice saved'
+                          : 'Weekly high score'}
                   </h3>
                 </div>
                 <span className="shrink-0 border border-yellow-200/30 bg-black/30 px-2 py-1 font-mono text-[9px] font-black uppercase tracking-[0.12em] text-yellow-100">
@@ -198,9 +200,11 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
               <p className="mt-2 text-[10px] font-semibold leading-relaxed text-slate-200">
                 {weeklyFunding.status === 'claimable'
                   ? 'Your winning score is locked. Choose the ResearchHub proposal for this weekly allocation before minting or sharing.'
-                  : weeklyFunding.status === 'selected'
-                    ? weeklyFunding.proposalTitle || 'Your weekly funding proposal is saved with this mission record.'
-                    : 'You hold the weekly high score. Choose the proposal that follows this score into the weekly cutoff.'}
+                  : weeklyFunding.status === 'awaiting-release'
+                    ? 'An admin approved this proposal. RSC is not sent from the game. A person still has to make the transfer and record it.'
+                    : weeklyFunding.status === 'selected'
+                      ? weeklyFunding.proposalTitle || 'Your weekly funding proposal is saved with this mission record.'
+                      : 'You hold the weekly high score. Choose the proposal that follows this score into the weekly cutoff.'}
               </p>
               {weeklyFunding.status === 'selected' && weeklyFunding.proposalAuthor ? (
                 <p className="mt-1 truncate font-mono text-[8px] font-black uppercase tracking-[0.12em] text-cyan-100/75">

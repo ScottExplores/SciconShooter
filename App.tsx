@@ -7529,7 +7529,10 @@ const App: React.FC = () => {
 
   const openMissionRecordWeeklyFunding = () => {
     if (!missionRecordWeeklyFunding) return;
-    if (missionRecordWeeklyFunding.status === 'selected' && !missionRecordWeeklyFunding.canEditProposal) {
+    if (
+      missionRecordWeeklyFunding.status === 'awaiting-release'
+      || (missionRecordWeeklyFunding.status === 'selected' && !missionRecordWeeklyFunding.canEditProposal)
+    ) {
       return;
     }
 

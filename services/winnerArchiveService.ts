@@ -3,7 +3,7 @@ import { ArchivedWinner } from '../types';
 const WINNERS_API_URL = (import.meta.env.VITE_WEEKLY_COMPETITIONS_API_URL as string | undefined)?.trim() || '/api/weekly-competitions';
 
 type RawWinner = Record<string, any>;
-const TERMINAL_COMPETITION_STATUSES = new Set(['finalized', 'claimed', 'funded', 'expired']);
+const TERMINAL_COMPETITION_STATUSES = new Set(['finalized', 'claimed', 'pending-funding', 'funded', 'expired']);
 
 export interface WeeklyCompetitionArchive {
   winners: ArchivedWinner[];

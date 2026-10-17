@@ -2018,7 +2018,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
           <div className="max-h-[min(62vh,48rem)] space-y-3 overflow-y-auto overscroll-contain pr-1 custom-scrollbar">
             {sortedPastPicks.map((winner) => {
               const proposalSelection = resolveProposalSelection(winner, proposalReferencePool);
-              const proposalClaimed = winner.status === 'claimed' || winner.status === 'funded';
+              const proposalClaimed = winner.status === 'claimed' || winner.status === 'pending-funding' || winner.status === 'funded';
               return (
                 <button
                   key={`${winner.periodKey}-${winner.winnerName}`}
