@@ -4354,7 +4354,7 @@ const App: React.FC = () => {
       // Keep the idempotency marker until every synchronous local write that
       // acknowledges this reservation has succeeded.
       clearPendingWeeklyRunAdmission(sessionKey);
-      setRunReceiptStatus('idle');
+      setRunReceiptStatus(session.localOnly ? 'local' : 'idle');
       setWeeklyRunLaunchError(null);
     } catch (error) {
       runSessionPromiseRef.current = null;

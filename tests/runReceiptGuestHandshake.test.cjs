@@ -83,6 +83,44 @@ test('the client sends wallet intent and never hides a session mismatch behind a
   }
 });
 
+test('a missing receipt API starts a local weekly practice session', async () => {
+  const client = loadClient();
+  const previousFetch = global.fetch;
+  global.fetch = async () => jsonResponse(404, { error: 'not found' });
+  try {
+    const session = await client.startRunSession({
+      runMode: 'weekly-streak',
+      weeklyCampaignProof: { schemaVersion: 1 }
+    });
+    assert.equal(session.localOnly, true);
+    assert.equal(session.runMode, 'weekly-streak');
+    assert.equal(session.startToken, '');
+  } finally {
+    global.fetch = previousFetch;
+  }
+});
+
+test('a live weekly admission rejection is not turned into practice', async () => {
+  const client = loadClient();
+  const previousFetch = global.fetch;
+  global.fetch = async () => jsonResponse(422, {
+    error: 'No attempts remain.',
+    code: 'WEEKLY_ATTEMPTS',
+    details: ['weekly_run_attempts_exhausted']
+  });
+  try {
+    await assert.rejects(
+      () => client.startRunSession({
+        runMode: 'weekly-streak',
+        weeklyCampaignProof: { schemaVersion: 1 }
+      }),
+      (error) => error?.statusCode === 422
+    );
+  } finally {
+    global.fetch = previousFetch;
+  }
+});
+
 test('a repeated guest handshake response does not create an unbounded retry loop', async () => {
   const client = loadClient();
   const previousFetch = global.fetch;

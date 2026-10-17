@@ -128,6 +128,17 @@ const isRetryableReceiptError = (error: unknown) => {
     || statusCode === 429;
 };
 
+/**
+ * A static host has no receipt function. 404/405 and a failed fetch mean the
+ * run can be practiced locally. A live server that answers with any other
+ * status is still authoritative.
+ */
+const isAbsentReceiptApi = (error: unknown) => {
+  const statusCode = Number((error as { statusCode?: unknown })?.statusCode);
+  if (!Number.isFinite(statusCode)) return true;
+  return statusCode === 404 || statusCode === 405;
+};
+
 const createLocalRunSession = (
   testRun = false,
   playerShipId: PlayerShipId = 'researchhub',
@@ -182,10 +193,11 @@ export const startRunSession = async ({
       return await postReceiptAction(startPayload);
     }
   } catch (error) {
-    if (runMode === 'weekly-streak') {
+    if (runMode === 'weekly-streak' && !isAbsentReceiptApi(error)) {
       // Competitive Weekly Run admission is server-authoritative. Falling
       // back to a local session here would let quota/persistence failures look
-      // playable even though the result can never be verified.
+      // ranked even though the result can never be verified. A missing /api
+      // is practice only: localOnly, with no receipt token to submit.
       throw error;
     }
     const statusCode = Number((error as { statusCode?: unknown })?.statusCode);

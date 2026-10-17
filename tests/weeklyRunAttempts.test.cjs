@@ -67,7 +67,8 @@ test('verified Weekly Run admission is server-authoritative and database-atomic'
   assert.match(sql, /create or replace function public\.scicon_settle_weekly_run_attempt/);
   assert.match(sql, /revoke all on table public\.scicon_weekly_run_attempts[\s\S]*from public, anon, authenticated/);
   assert.match(route, /await createReservedRunStart/);
-  assert.match(client, /if \(runMode === 'weekly-streak'\)[\s\S]*throw error/);
+  assert.match(client, /if \(runMode === 'weekly-streak' && !isAbsentReceiptApi\(error\)\)[\s\S]*throw error/);
+  assert.match(client, /statusCode === 404 \|\| statusCode === 405/);
   assert.match(client, /if \(session\.runMode === 'weekly-streak'\)[\s\S]*No wallet is required/);
   assert.match(client, /Weekly Run verification was interrupted; keeping the signed run available for retry/);
   assert.match(app, /canRetryPendingWeeklyRunAdmission/);
