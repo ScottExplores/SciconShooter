@@ -20,7 +20,7 @@ Comparable games, from reviews rather than from playing them here:
 
 ## What that means here
 
-- One portrait arena, 390 by 844, on every device. A desktop window letterboxes. Score, lanes, and bullet speed do not grow with the monitor. The step is fixed at 60 Hz.
+- One portrait arena, 390 by 844, on every device. A desktop window letterboxes. Score, lanes, and bullet speed do not grow with the monitor. The step is fixed at 60 Hz. The ship fires while the pointer or the space bar is held. A still ship on Mission 1, not firing, is still alive past ten seconds. The first peel can reach it after that.
 - Wings are the two drones: distinct guns (fan, pierce, homing, heavy) that get more visible as the hangar level rises, plus a cooldown trick on the orbiter and the magnet. They are not a second player.
 - Regular waves keep Scott's roles and add one sector signature so sector 6 is not sector 4 again: a shield you have to break, a hull that splits, a commit that does not return, or a turret that sits and fans shots. The choice is seeded from the event id.
 - Bosses that already have clip timelines keep those attacks. A phase change now names the clip, opens a glowing core, and calls one orbiting drone from the existing drone art. Bosses without a timeline change pattern by health: a named phase, a short telegraph, the same drone, a fan, and a ram. Destructible cannons that were already authored stay the weak points. The boss-sandbox zip is a read-only runner around prototype sheets; those sheets stay out of the campaign.
