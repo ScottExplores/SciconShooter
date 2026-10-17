@@ -119,6 +119,9 @@ const readTopEligibleScore = async (weekKey) => {
     String(row?.wallet_address || '').toLowerCase() !== PILOT_TEST_WALLET
     && Boolean(row?.run_id)
     && row?.verified === true
+  )).sort((left, right) => (
+    Number(right.score) - Number(left.score)
+    || String(left.date || '').localeCompare(String(right.date || ''))
   ));
   if (candidates.length === 0) return null;
 

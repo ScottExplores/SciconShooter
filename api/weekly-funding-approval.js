@@ -1,13 +1,32 @@
 const { fetchSupabaseJson, supabaseHeaders } = require('./_lib/supabase');
 const {
-  isAuthorized,
-  parseBody,
-  sendJson
-} = require('./_lib/weeklyCompetitionService');
-const {
   approveClaimedSelection,
   recordManualFundingTransfer
 } = require('../shared/weeklyFundingApproval');
+
+const sendJson = (res, status, payload) => {
+  res.statusCode = status;
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Cache-Control', 'no-store');
+  res.end(JSON.stringify(payload));
+};
+
+const parseBody = (body) => {
+  if (!body) return {};
+  if (typeof body === 'string') {
+    try {
+      return JSON.parse(body);
+    } catch {
+      return {};
+    }
+  }
+  return body;
+};
+
+const isAuthorized = (req) => {
+  const tokens = [process.env.ADMIN_SECRET, process.env.CRON_SECRET].filter(Boolean);
+  return tokens.some((token) => req.headers.authorization === `Bearer ${token}`);
+};
 
 const COMPETITIONS_TABLE = process.env.SUPABASE_WEEKLY_COMPETITIONS_TABLE || 'scicon_weekly_competitions';
 

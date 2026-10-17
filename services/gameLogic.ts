@@ -118,6 +118,20 @@ import {
 } from './squadProgression';
 import { resolveBossPhaseConfig } from './bossPhaseConfig';
 import {
+  resolveSectorIndex,
+  resolveSectorSignature,
+  signatureAppliesTo,
+  steerCommittedDive
+} from './gameplay/enemyBehaviors/sectorSignature';
+import {
+  readableBossPhaseLabel,
+  resolveUntimedBossBand,
+  resolveUntimedFan,
+  untimedBossPatternLabel,
+  untimedBossShouldSummon,
+  untimedBossWeakPointOpen
+} from './gameplay/bossEncounters/untimedBossSupport';
+import {
   BOTTLENECK_DRONE_BOSS_ID,
   isBottleneckDroneCharging,
   resolveBottleneckDroneFrameIndex
@@ -1140,6 +1154,18 @@ export class Entity {
   activeBossPhaseIndex: number = -1;
   /** Frames a phase change holds fire so the next pattern can be read. */
   bossPhaseBreathFrames: number = 0;
+  /** Health band for a boss that has no authored timeline. -1 until the first tick. */
+  untimedBossBand: number = -1;
+  /** Hull shots count more while this window is open. */
+  bossWeakPointOpen: boolean = false;
+  /** Sector signature: shielded, splitter, turret, kamikaze, or diver. */
+  sectorBehavior?: string;
+  /** Hits absorbed before the hull. Zero means no shield. */
+  shieldHits: number = 0;
+  splitterParent: boolean = false;
+  splitterChild: boolean = false;
+  /** Set on a minion so one boss cannot flood the arena. */
+  supportOwnerId?: string;
   activeBossPhaseId?: string;
   activeBossPhaseSpeedMultiplier: number = 1;
   isElite: boolean = false;
@@ -7342,6 +7368,10 @@ export class GameEngine {
       }
 
       if (e.type === EntityType.ENEMY_DRONE || e.type === EntityType.ENEMY_JOURNAL || e.type === EntityType.ENEMY_SWARM || e.type === EntityType.ENEMY_BRICK) {
+        if (e.supportOwnerId) {
+          this.updateBossSupportMinion(e);
+          return;
+        }
         const formationHandled = this.updateConfiguredEnemyFormation(e);
         if (e.type === EntityType.ENEMY_SWARM && !formationHandled) {
           if (e.formation === 'orbit') {
@@ -7725,7 +7755,15 @@ export class GameEngine {
     }
 
     if (!this.shouldUseLeanEffects()) {
-      this.spawnBurst(companion.x, companion.y - 14, companion.projectileColor, 1, 0.8, 2);
+      const heavy = companion.ability === 'heavy-cannon' || companion.ability === 'homing-missile';
+      this.spawnBurst(
+        companion.x,
+        companion.y - 18,
+        companion.projectileColor,
+        heavy ? 5 : 3,
+        heavy ? 2.4 : 1.5,
+        2.6
+      );
     }
   }
 
@@ -9377,6 +9415,7 @@ export class GameEngine {
       target.bossHeliosMachineGunChannelState = undefined;
       this.removeBossCornerAmbushBeams(target);
     }
+    this.spawnSplitterChildren(target);
     const countsTowardCampaignRewards = !target.campaignFiller;
     if (
       countsTowardCampaignRewards
@@ -9421,6 +9460,13 @@ export class GameEngine {
           ? 0.9
           : 0.58;
     this.spawnExplosion(target.x, target.y, target.color, destructionIntensity);
+    if (countsTowardCampaignRewards && target.type !== EntityType.SUPPLY_DROP && !this.shouldUseLeanEffects()) {
+      this.spawnRingEffect(
+        target.x + target.width / 2,
+        target.y + target.height / 2,
+        target.color || '#67e8f9'
+      );
+    }
     if (countsTowardCampaignRewards && target.type !== EntityType.SUPPLY_DROP) {
       this.stats.enemiesDefeated++;
     }
@@ -9574,7 +9620,7 @@ export class GameEngine {
       else if (target.type === EntityType.BOSS || target.type === EntityType.MINI_BOSS) {
         this.damageBossHull(target, beamDamage);
       }
-      else {
+      else if (!this.absorbSectorShield(target, true)) {
         const previousHealth = target.hp;
         target.hp -= beamDamage;
         this.recordEntityDamage(target, previousHealth);
@@ -9674,21 +9720,33 @@ export class GameEngine {
     const requestedBurst = formationAttackId === 'spread-volley'
       ? Math.max(3, source.configuredBurstCount ?? 3)
       : source.configuredBurstCount ?? 3;
-    const burstCount = authoredBurst
-      ? Math.min(requestedBurst, Math.max(1, standardShotCap - activeEnemyShots))
-      : 1;
+    const turretFan = source.sectorBehavior === 'turret';
+    const burstCount = turretFan
+      ? Math.min(3, Math.max(1, standardShotCap - activeEnemyShots))
+      : authoredBurst
+        ? Math.min(requestedBurst, Math.max(1, standardShotCap - activeEnemyShots))
+        : 1;
     source.campaignLastFireFrame = this.frameCount;
+    if (!this.shouldUseLeanEffects()) {
+      this.spawnBurst(sourceX, sourceY, turretFan ? '#fde68a' : '#fb7185', 3, 1.4, 2);
+    }
     const baseAngle = Math.atan2(dy, dx);
     for (let index = 0; index < burstCount; index++) {
       const centered = index - ((burstCount - 1) / 2);
-      const spreadRadians = formationAttackId === 'spread-volley' ? 0.22 : 0.13;
+      const spreadRadians = turretFan
+        ? 0.34
+        : formationAttackId === 'spread-volley' ? 0.22 : 0.13;
       const angle = baseAngle + centered * spreadRadians;
-      const shot = this.createEntity(EntityType.PROJECTILE, sourceX - 5, sourceY);
-      shot.width = this.wave >= 4 ? 12 : 10;
-      shot.height = this.wave >= 4 ? 12 : 10;
+      const shot = this.createEntity(EntityType.PROJECTILE, sourceX - 4, sourceY);
+      shot.width = 8;
+      shot.height = 16;
       shot.vx = Math.cos(angle) * speed;
       shot.vy = Math.sin(angle) * speed;
-      shot.color = source.type === EntityType.ENEMY_JOURNAL ? '#f472b6' : this.wave >= 4 ? '#fbbf24' : '#fb7185';
+      shot.color = turretFan
+        ? '#fde68a'
+        : source.sectorBehavior === 'kamikaze'
+          ? '#fb7185'
+          : source.type === EntityType.ENEMY_JOURNAL ? '#f472b6' : '#fbbf24';
       shot.isPlayerShot = false;
       shot.damage = Math.max(1, Number(source.projectileDamage) || 1);
       shot.sourceEventId = source.sourceEventId;
@@ -10995,6 +11053,7 @@ export class GameEngine {
         enemy.vy = diveMotion.velocityY;
         enemy.angle = diveMotion.angle;
         enemy.formationState = 'dive';
+        this.steerKamikazeIfNeeded(enemy);
         enemy.formationStateFrame = this.frameCount;
         // A commander takes its neighbours with it, so the block visibly breaks
         // apart around one unit instead of trickling out one at a time.
@@ -11018,6 +11077,7 @@ export class GameEngine {
       enemy.vx = lerp(enemy.vx, diveMotion.velocityX, diveMotion.steering);
       enemy.vy = lerp(enemy.vy, diveMotion.velocityY, diveMotion.steering);
       enemy.angle = diveMotion.angle;
+      this.steerKamikazeIfNeeded(enemy);
     }
 
     if (shouldEndFormationDivePass({
@@ -11085,6 +11145,86 @@ export class GameEngine {
       // as one block.
       follower.formationDiveFrame = this.frameCount
         + 6 + (Math.abs(follower.formationIndex - leader.formationIndex) % 4) * 5;
+    }
+  }
+
+  steerKamikazeIfNeeded(enemy: Entity) {
+    if (enemy.campaignCharacteristic !== 'kamikaze' || enemy.formationState !== 'dive') return;
+    const aimX = (this.player.x + this.player.width / 2) - (enemy.x + enemy.width / 2);
+    const aimY = (this.player.y + this.player.height / 2) - (enemy.y + enemy.height / 2);
+    const steered = steerCommittedDive(enemy.vx, enemy.vy, aimX, aimY);
+    enemy.vx = steered.vx;
+    enemy.vy = steered.vy;
+  }
+
+  applySectorSignature(enemy: Entity, eventId: string, spawnIndex: number) {
+    const levelId = this.getCurrentCampaignEntry()?.level.id;
+    const sector = resolveSectorIndex(levelId, this.getStageNumberForCampaignIndex());
+    const characteristic = String(enemy.campaignCharacteristic || 'diver');
+    const signature = resolveSectorSignature(sector, eventId, spawnIndex);
+    if (!signatureAppliesTo(signature, characteristic)) return;
+    enemy.sectorBehavior = signature;
+    if (signature === 'shielded') enemy.shieldHits = 2;
+    if (signature === 'splitter') enemy.splitterParent = true;
+    if (signature === 'kamikaze') enemy.campaignCharacteristic = 'kamikaze';
+    if (signature === 'turret') {
+      enemy.campaignCharacteristic = 'holder';
+      enemy.campaignFireBehavior = enemy.campaignFireBehavior && enemy.campaignFireBehavior !== 'none'
+        ? enemy.campaignFireBehavior
+        : 'aimed-burst';
+    }
+  }
+
+  /**
+   * A shield hit spends the plate and leaves the hull. Returns true when the
+   * shot should not also reduce health.
+   */
+  absorbSectorShield(target: Entity, paced = false) {
+    if (target.shieldHits <= 0 || target.splitterChild) return false;
+    if (paced && this.frameCount - target.lastDamageFlashFrame < 8) return true;
+    target.shieldHits -= 1;
+    this.flashDamageTarget(target, 8);
+    this.spawnRingEffect(
+      target.x + target.width / 2,
+      target.y + target.height / 2,
+      '#e0f2fe'
+    );
+    if (target.shieldHits === 0) {
+      this.spawnFloatingText(target.x + target.width / 2, target.y, 'SHIELD DOWN', '#e0f2fe', 14);
+    }
+    return true;
+  }
+
+  spawnSplitterChildren(target: Entity) {
+    if (!target.splitterParent || target.splitterChild) return;
+    if (this.getActiveThreatCount() > 26) return;
+    const offsets = [-18, 18];
+    for (const offset of offsets) {
+      const child = this.createEnemy(
+        target.type,
+        target.x + offset,
+        target.y + 8,
+        {
+          health: Math.max(1, target.maxHp * 0.45),
+          speed: Math.max(1.2, Math.abs(target.vy) || target.configuredSpeed || 2),
+          contactDamage: target.contactDamage,
+          projectileDamage: Math.max(1, target.projectileDamage),
+          scoreValue: 0,
+          sizeMultiplier: 0.72,
+          spriteFrames: target.spriteFrames,
+          spriteUrl: target.spriteUrl
+        }
+      );
+      child.splitterChild = true;
+      child.splitterParent = false;
+      child.shieldHits = 0;
+      child.vx = offset < 0 ? -1.6 : 1.6;
+      child.vy = Math.max(2.2, Math.abs(child.vy));
+      child.campaignFiller = true;
+      child.campaignFireBehavior = 'none';
+      child.sectorBehavior = 'splitter-child';
+      child.color = target.color;
+      child.sourceEventId = target.sourceEventId;
     }
   }
 
@@ -11198,6 +11338,7 @@ export class GameEngine {
     enemy.formationCohortId = this.getCampaignFormationPackInstanceId(event.id);
     enemy.campaignSpawnFrame = this.frameCount;
     enemy.campaignFiller = !countTowardCombatBudget;
+    if (countTowardCombatBudget) this.applySectorSignature(enemy, event.id, spawnIndex);
     if (
       countTowardCombatBudget
       && role?.fireBehavior
@@ -11727,10 +11868,11 @@ export class GameEngine {
       boss.attackTimer = 0;
       boss.bossPhaseBreathFrames = 22;
       if (!this.isAbyssalOctarch(boss)) {
+        if (boss.bossTimeline) this.spawnBossSupportMinion(boss);
         this.spawnFloatingText(
           boss.x + boss.width / 2,
           Math.max(72, boss.y + boss.height * 0.2),
-          'PATTERN SHIFT',
+          readableBossPhaseLabel(resolved.phaseId),
           '#fef08a',
           16
         );
@@ -13934,7 +14076,8 @@ export class GameEngine {
       return;
     }
     const previousHealth = boss.hp;
-    boss.hp -= damage;
+    const hullDamage = boss.bossWeakPointOpen ? damage * 1.45 : damage;
+    boss.hp -= hullDamage;
     this.detachPaywallHelmetForHullHealth(boss);
     const firstDepletionWillRevive = boss.hp <= 0 && this.canBeginBossRevival(boss);
     const firstDepletionWillEscape = boss.hp <= 0
@@ -22769,6 +22912,118 @@ export class GameEngine {
     }
   }
 
+  updateTimelineBossReadability(boss: Entity) {
+    if (!boss.bossTimeline) return;
+    const phaseIndex = Math.max(0, boss.activeBossPhaseIndex);
+    const weakPointOpen = phaseIndex >= 1 && untimedBossWeakPointOpen(1, boss.attackTimer);
+    if (weakPointOpen && !boss.bossWeakPointOpen) {
+      this.spawnFloatingText(boss.x + boss.width / 2, boss.y + boss.height * 0.45, 'CORE', '#fef08a', 15);
+      this.spawnRingEffect(boss.x + boss.width / 2, boss.y + boss.height * 0.5, '#fef08a');
+    }
+    boss.bossWeakPointOpen = weakPointOpen;
+  }
+
+  updateBossSupportMinion(minion: Entity) {
+    const owner = this.entities.find((entity) => (
+      entity.id === minion.supportOwnerId && !entity.markedForDeletion
+    ));
+    if (!owner) {
+      minion.markedForDeletion = true;
+      return;
+    }
+    const radius = Math.min(this.width * 0.28, owner.width * 0.55 + 28);
+    const angle = (minion.variant || 0) * 0.7 + this.frameCount * 0.03;
+    const centerX = owner.x + owner.width / 2;
+    const centerY = owner.y + owner.height * 0.62;
+    minion.x = centerX + Math.cos(angle) * radius - minion.width / 2;
+    minion.y = centerY + Math.sin(angle) * radius * 0.55 - minion.height / 2;
+    minion.vx = 0;
+    minion.vy = 0;
+  }
+
+  updateUntimedBossSupport(boss: Entity) {
+    if (boss.type !== EntityType.BOSS || boss.bossTimeline) {
+      boss.bossWeakPointOpen = false;
+      return;
+    }
+    const healthRatio = boss.maxHp > 0 ? boss.hp / boss.maxHp : 1;
+    const band = resolveUntimedBossBand(healthRatio);
+    const previousBand = boss.untimedBossBand;
+    boss.untimedBossBand = band;
+    if (untimedBossShouldSummon(previousBand, band)) {
+      this.spawnBossSupportMinion(boss);
+      this.spawnFloatingText(
+        boss.x + boss.width / 2,
+        boss.y - 12,
+        untimedBossPatternLabel(String(boss.sourceItemId || ''), band),
+        '#fde68a',
+        16
+      );
+    }
+    const weakPointOpen = untimedBossWeakPointOpen(band, boss.attackTimer);
+    if (weakPointOpen && !boss.bossWeakPointOpen) {
+      this.spawnFloatingText(boss.x + boss.width / 2, boss.y + boss.height * 0.45, 'CORE', '#fef08a', 15);
+      this.spawnRingEffect(boss.x + boss.width / 2, boss.y + boss.height * 0.5, '#fef08a');
+    }
+    boss.bossWeakPointOpen = weakPointOpen;
+    const dedicated = boss.sourceItemId === GATEKEEPER_PRIME_BOSS_ID
+      || boss.bossRigId === 'paywall-siege'
+      || boss.bossRigId === 'crown-claw';
+    if (dedicated) return;
+    const fan = resolveUntimedFan(boss.attackTimer);
+    if (fan === 'telegraph') {
+      this.spawnFloatingText(boss.x + boss.width / 2, boss.y + boss.height, 'FAN', '#fde68a', 14);
+    } else if (fan === 'fire') {
+      this.spawnUntimedBossFan(boss);
+    }
+  }
+
+  spawnBossSupportMinion(boss: Entity) {
+    let living = 0;
+    for (const entity of this.entities) {
+      if (!entity.markedForDeletion && entity.supportOwnerId === boss.id) living += 1;
+    }
+    if (living >= 3) return;
+    const minion = this.createEnemy(
+      EntityType.ENEMY_DRONE,
+      boss.x + boss.width * 0.35,
+      boss.y + boss.height * 0.72,
+      {
+        health: 6,
+        speed: 1.55,
+        contactDamage: 1,
+        projectileDamage: 1,
+        scoreValue: 0
+      }
+    );
+    minion.supportOwnerId = boss.id;
+    minion.campaignFiller = true;
+    minion.campaignFireBehavior = 'none';
+    minion.sectorBehavior = undefined;
+    minion.splitterParent = false;
+    minion.sourceEventId = boss.sourceEventId;
+  }
+
+  spawnUntimedBossFan(boss: Entity) {
+    const originX = boss.x + boss.width / 2;
+    const originY = boss.y + boss.height * 0.82;
+    const aimX = this.player.x + this.player.width / 2;
+    const aimY = this.player.y + this.player.height / 2;
+    const base = Math.atan2(aimY - originY, aimX - originX);
+    for (const offset of [-0.32, 0, 0.32]) {
+      const shot = this.createEntity(EntityType.PROJECTILE, originX - 4, originY);
+      shot.width = 8;
+      shot.height = 16;
+      shot.vx = Math.cos(base + offset) * 3.15;
+      shot.vy = Math.sin(base + offset) * 3.15;
+      shot.color = '#fde68a';
+      shot.isPlayerShot = false;
+      shot.damage = Math.max(1, boss.projectileDamage || boss.contactDamage || 1);
+      shot.sourceEventId = boss.sourceEventId;
+      this.entities.push(shot);
+    }
+  }
+
   updateBoss(boss: Entity) {
     if (this.updateAbyssalOctarchDefeatSequence(boss)) return;
     if (this.updateSingularityDefeatSequence(boss)) return;
@@ -22776,11 +23031,13 @@ export class GameEngine {
     if (this.updateUmbraEscape(boss)) return;
     if (boss.bossPhaseBreathFrames > 0) {
       this.applyConfiguredBossPhase(boss);
+      boss.bossWeakPointOpen = false;
       boss.bossPhaseBreathFrames -= 1;
       if (boss.bossPhaseBreathFrames === 0) boss.attackTimer = 0;
       return;
     }
     boss.attackTimer++;
+    if (!boss.bossTimeline) this.updateUntimedBossSupport(boss);
     this.applyPreviewBossAttackLoop(boss);
     const healthRatio = boss.maxHp > 0 ? boss.hp / boss.maxHp : 1;
     const resolvedPhase = this.applyConfiguredBossPhase(boss);
@@ -22795,6 +23052,7 @@ export class GameEngine {
     }
     if (this.updateConfiguredBossTimeline(boss, phase)) {
       this.updateTimelineBossMovement(boss, healthRatio);
+      this.updateTimelineBossReadability(boss);
       this.updateBossVanishReentry(boss);
       if (
         boss.bossActionPresentation?.stage === 'fire'
@@ -22857,7 +23115,24 @@ export class GameEngine {
     const allowsBeam = !hasConfiguredWeapons || boss.weaponKinds.some((kind) => kind.includes('beam'));
     const allowsBurst = !hasConfiguredWeapons || boss.weaponKinds.some((kind) => !kind.includes('beam'));
 
-    if (attackCycle < burstEnd || !allowsBeam) {
+    if (boss.untimedBossBand === 2) {
+        const ramTick = boss.attackTimer % 180;
+        const playerCenter = this.player.x + this.player.width / 2;
+        if (ramTick < 36) {
+          boss.isCharging = true;
+          if (ramTick % 12 === 0) {
+            this.spawnFloatingText(boss.x + boss.width / 2, boss.y + boss.height, 'RAM', '#fb7185', 15);
+          }
+        } else if (ramTick < 96) {
+          boss.isCharging = false;
+          const dx = playerCenter - (boss.x + boss.width / 2);
+          boss.x += Math.max(-7.5, Math.min(7.5, dx * 0.08));
+          boss.y = Math.min(this.height * 0.42, boss.y + 1.6);
+        } else {
+          boss.isCharging = false;
+          boss.y += (Math.max(72, this.height * 0.12) - boss.y) * 0.04;
+        }
+    } else if (attackCycle < burstEnd || !allowsBeam) {
         boss.isCharging = false;
         const baseFireRate = boss.attackIntervalFrames ?? Math.max(20, 60 - (phase * 7));
         const isGatekeeper = isMajorBossId(boss.sourceItemId) || boss.text === 'GATEKEEPER';
@@ -23820,6 +24095,8 @@ export class GameEngine {
           this.damageBossComponent(target, bossComponent, dmg);
         } else if (isBossTarget) {
           this.damageBossHull(target, dmg);
+        } else if (this.absorbSectorShield(target)) {
+          // The plate took the hit. The shot is already spent above.
         } else {
           target.hp -= dmg;
           this.recordEntityDamage(target, previousTargetHealth);
@@ -23844,7 +24121,10 @@ export class GameEngine {
           });
         }
         this.registerPrimaryWeaponImpact(target, shot);
-        this.spawnBurst(shot.x + shot.width / 2, shot.y + shot.height / 2, shot.color || '#67e8f9', shot.type === EntityType.MISSILE ? 8 : 3, shot.type === EntityType.MISSILE ? 3.8 : 1.6, shot.type === EntityType.MISSILE ? 4 : 2.5);
+        this.spawnBurst(shot.x + shot.width / 2, shot.y + shot.height / 2, shot.color || '#67e8f9', shot.type === EntityType.MISSILE || shot.squadAbilityKind ? 8 : 4, shot.type === EntityType.MISSILE ? 3.8 : 2.2, shot.type === EntityType.MISSILE ? 4 : 2.8);
+        if (shot.squadAbilityKind && !shot.isBeam) {
+          this.spawnRingEffect(shot.x + shot.width / 2, shot.y + shot.height / 2, shot.color || '#67e8f9');
+        }
         this.playSound('impact', isBossTarget ? 0.78 : 0.46, {
           pitchJitter: 0.18,
           pitchOffset: isBossTarget ? -0.08 : 0.08

@@ -84,6 +84,63 @@ test('unspecified squadrons rotate through existing swoop paths', () => {
   assert.equal(authored.entryPathId, 'formation-drop');
 });
 
+test('sector signatures change by sector and stay stable for an event', () => {
+  const sector = loadTypeScriptModule(
+    'services',
+    'gameplay',
+    'enemyBehaviors',
+    'sectorSignature.ts'
+  );
+  const first = sector.resolveSectorSignature(2, 'stage-wave-4', 0);
+  const again = sector.resolveSectorSignature(2, 'stage-wave-4', 0);
+  assert.equal(first, 'shielded');
+  assert.equal(again, first);
+  assert.equal(sector.resolveSectorSignature(5, 'stage-wave-4', 0), 'turret');
+  assert.equal(sector.resolveSectorIndex('weekly-run-stage-7', 1), 7);
+  assert.equal(sector.signatureAppliesTo('splitter', 'holder'), true);
+  assert.equal(sector.signatureAppliesTo('splitter', 'diver'), false);
+  const steered = sector.steerCommittedDive(0, 3.2, 10, 0);
+  assert.ok(steered.vx > 0.5);
+  assert.ok(steered.vy > 0);
+});
+
+test('untimed bosses change pattern by health and telegraph the fan', () => {
+  const bosses = loadTypeScriptModule(
+    'services',
+    'gameplay',
+    'bossEncounters',
+    'untimedBossSupport.ts'
+  );
+  assert.equal(bosses.resolveUntimedBossBand(0.9), 0);
+  assert.equal(bosses.resolveUntimedBossBand(0.5), 1);
+  assert.equal(bosses.resolveUntimedBossBand(0.2), 2);
+  assert.equal(bosses.untimedBossPatternLabel('paywall-decimator', 2), 'BREACH');
+  assert.equal(bosses.untimedBossShouldSummon(0, 1), true);
+  assert.equal(bosses.untimedBossShouldSummon(-1, 0), false);
+  assert.equal(bosses.untimedBossWeakPointOpen(0, 50), false);
+  assert.equal(bosses.untimedBossWeakPointOpen(1, 40), true);
+  assert.equal(bosses.resolveUntimedFan(220), 'telegraph');
+  assert.equal(bosses.resolveUntimedFan(244), 'fire');
+  assert.equal(bosses.readableBossPhaseLabel('sandbox-moth-crystal-nursery'), 'CRYSTAL NURSERY');
+});
+
+test('midnight hour 24 rolls the weekly calendar forward one day', () => {
+  const boundary = require('../shared/weeklyCompetitionBoundary');
+  const rolled = boundary.normalizeZonedClockParts({
+    year: 2026,
+    month: 10,
+    day: 18,
+    hour: 24,
+    minute: 0,
+    second: 0,
+    weekday: 'Sun'
+  });
+  assert.equal(rolled.hour, 0);
+  assert.equal(rolled.day, 19);
+  assert.equal(rolled.weekdayIndex, 1);
+  assert.equal(rolled.weekday, 'Mon');
+});
+
 test('weekly funding approval never transfers and cannot skip the admin gate', () => {
   const approval = require('../shared/weeklyFundingApproval');
   const claimed = {

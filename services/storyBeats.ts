@@ -177,7 +177,11 @@ const BRIDGE_LINES = [
   'Same rule as the lab: if you cannot point at the result, it is not a result yet.',
   'Hold formation. The swarm looks random until you watch who peels first.',
   'Science is a magnifying glass. Get closer, and the pattern stops being noise.',
-  'Pickups are data. Leave them and the next wave is just a harder version of this one.'
+  'Pickups are data. Leave them and the next wave is just a harder version of this one.',
+  'Brian says the shield on a holder is the paywall. Break the plate, then the hull.',
+  'Jeffrey: if it splits, you did not kill the claim. You published the correction.',
+  'Patrick: a turret that sits still is a grant review. It will not chase you. You still have to cross its lane.',
+  'Arshia: the one that commits and does not come back is a result that was never replicated. Do not be under it.'
 ];
 
 const sectorForMission = (mission: number) => (
@@ -213,7 +217,7 @@ const bossIntroBeat = (mission: number): StoryBeat | null => {
     accent: opener.accent,
     title: intro.title,
     kicker: `Boss · Mission ${mission}`,
-    text: `.... ${intro.name} is on the scope. ${intro.tell} Skip this if you already know the fight.`
+    text: `.... ${opener.speaker.split(' ')[0]} here. ${intro.name} is what this sector has been building. ${intro.tell} The core glows when the hull is the thing to shoot. Skip this if you already know the fight.`
   };
 };
 
