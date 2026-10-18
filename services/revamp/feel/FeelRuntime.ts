@@ -15,7 +15,7 @@ export const FEEL_TUNING = Object.freeze({
 
 export type FeelExplosionTier = 'small' | 'elite' | 'boss';
 interface FeelPosition { readonly frame: number; readonly x: number; readonly y: number; }
-interface KillInput extends FeelPosition { readonly tier: FeelExplosionTier; readonly score: number; readonly color?: string; readonly width?: number; readonly height?: number; }
+interface KillInput extends FeelPosition { readonly tier: FeelExplosionTier; readonly score: number; readonly color?: string; readonly width?: number; readonly height?: number; readonly bossDeathSequence?: boolean; }
 interface PartInput extends FeelPosition { readonly score?: number; readonly color?: string; }
 interface PickupInput extends FeelPosition {
   readonly pickupType: 'coin' | 'power' | 'other';

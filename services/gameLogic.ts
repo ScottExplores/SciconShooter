@@ -21,6 +21,8 @@ import { CombatImpactBuffer, getProjectileCombatContact } from './gameplay/Comba
 import { FeelRuntime } from './revamp/feel/FeelRuntime';
 import { getFeelSettings } from './revamp/feel/FeelSettings';
 import { cancelPhaseBullets, recordFeelKill, recordPerfectWave, kickCredit, markAimedShot } from './revamp/feel/FeelGameplay';
+// REVAMP(S): Bespoke terminal deaths start the same presentation before delayed rewards.
+import { hasBossDeathSequence, playBossDeathSequence } from './revamp/vfx/BossDeathSequence';
 import { ASSETS, GAME_CONFIG, COLORS } from '../constants';
 import type {
   AssetKey,
@@ -13025,6 +13027,7 @@ export class GameEngine {
     definition: MiniBossEncounterDefinition,
     entity: Entity
   ) {
+    if (hasBossDeathSequence(this, entity)) return; // REVAMP(S): The retained mini death already owns its fireball.
     const frames = definition.assets.find((asset) => asset.usage === 'death-vfx')?.frames;
     if (!frames?.length || this.liveEffectCount >= this.getEffectCap()) return;
     const size = Math.max(70, Math.max(entity.width, entity.height) * 1.35);
@@ -18150,6 +18153,7 @@ export class GameEngine {
       return false;
     }
     boss.bossSingularityDefeatConsumed = true;
+    playBossDeathSequence(this, boss); // REVAMP(S): Terminal only; revival/escape keep their own art.
     boss.bossSingularityDefeatStartFrame = this.frameCount;
     boss.bossSingularityDefeatLastStage = undefined;
     boss.hp = 0;
@@ -21703,6 +21707,7 @@ export class GameEngine {
       return false;
     }
     boss.bossAbyssalDefeatConsumed = true;
+    playBossDeathSequence(this, boss); // REVAMP(S): The later kill receipt is deduplicated.
     boss.bossAbyssalDefeatStartFrame = this.frameCount;
     boss.bossAbyssalDefeatStage = undefined;
     boss.bossAbyssalDefeatProgress = 0;

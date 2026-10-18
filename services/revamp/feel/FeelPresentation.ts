@@ -113,6 +113,8 @@ export class FeelPresentation {
       if (engine.frameCount - event.frame > 90) continue;
       switch (event.type) {
         case 'kill':
+          // REVAMP(S): Retained hull, chained blasts and final flash have one owner.
+          if (event.bossDeathSequence) break;
           if (event.tier === 'boss') this.effects.startBossDefeat(event.x, event.y, event.width ?? 240, event.height ?? 200);
           else this.pool.spawnTieredExplosion(event.x, event.y, event.tier === 'elite' ? 66 : 32, event.tier, event.color);
           break;
