@@ -11,6 +11,8 @@ import {
   getShipAbilityUpgradeProfile
 } from '../services/shipAbilityService';
 import { getFireRateTier, getFireRateTierProgress } from '../services/weaponTierProgression';
+// REVAMP(P): Event-only counter ticks leave the existing HUD update cadence intact.
+import HudCounter from './revamp/HudCounter';
 
 export interface UIOverlayProps {
   stats: Stats;
@@ -34,6 +36,8 @@ export interface UIOverlayProps {
   unlimitedBombs?: boolean;
   /** Permanent capacity for this Mission; temporary Extra Hearts may exceed it. */
   lifeCapacity?: number;
+  /** REVAMP(P): Wing specials share the thin top row instead of covering the flight lane. */
+  wingControls?: React.ReactNode;
 }
 
 type HudIconName = 'play' | 'pause' | 'freeze' | 'lab' | 'ship' | 'heart' | 'bomb' | 'flask' | 'bolt' | 'plus';
@@ -259,7 +263,8 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
   bombIconSrc = getPrimaryAssetPath(DEFAULT_GAME_CAMPAIGN.hudAssets.bombIconAssetKey),
   bombLocked = false,
   unlimitedBombs = false,
-  lifeCapacity
+  lifeCapacity,
+  wingControls
 }) => {
   useEffect(() => {
     if (!showLabGlow) return;
@@ -311,14 +316,14 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
   const pauseActionHandlers = useMultitouchAction(onPause);
 
   return (
-    <div className="scicon-hud-shell pointer-events-none absolute inset-0 z-10 flex flex-col justify-between p-1.5 sm:p-3">
-      <div className="flex w-full items-start justify-between gap-2">
+    <div className="scicon-hud-shell scicon-combat-hud pointer-events-none absolute inset-0 z-10 flex flex-col justify-between p-1.5 sm:p-3">
+      <div className="scicon-combat-toprow flex w-full items-start justify-between gap-2">
         <div
           className="sci-compact-status-hud pointer-events-auto h-[2.125rem] w-[10.75rem] shrink-0"
           data-testid="compact-status-hud"
         >
           <div className="sci-compact-status-hud__inner flex h-full w-full">
-            <div className="relative z-10 flex h-full w-[3.625rem] shrink-0 items-center pl-[0.22rem] pr-[0.38rem]" aria-label={`${stats.lives} lives remaining`}>
+            <div className="scicon-top-lives relative z-10 flex h-full w-[3.625rem] shrink-0 items-center pl-[0.22rem] pr-[0.38rem]" aria-label={`${stats.lives} lives remaining`}>
               <div className="relative h-[1.5rem] w-[1.5rem] shrink-0">
                 <img
                   src={compactHudAssets.heartFill}
@@ -337,12 +342,12 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
                 />
               </div>
               <span className="arcade-font ml-auto -translate-y-[3%] text-[0.8rem] font-black leading-none tracking-[0.04em] text-slate-50 drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]">
-                {stats.lives}
+                <HudCounter value={stats.lives}>{stats.lives}</HudCounter>
               </span>
               <span className="sci-compact-status-hud__separator" aria-hidden="true" />
             </div>
 
-            <div className="relative z-10 flex h-full min-w-0 flex-1 items-center pl-[0.3rem] pr-[0.75rem]" aria-label={`${formatTokenAmount(stats.coins)} collected this match`}>
+            <div className="scicon-top-coins relative z-10 flex h-full min-w-0 flex-1 items-center pl-[0.3rem] pr-[0.75rem]" aria-label={`${formatTokenAmount(stats.coins)} collected this match`}>
               <div className="relative h-[1.5rem] w-[1.5rem] shrink-0">
                 <img
                   src={compactHudAssets.matchCoin}
@@ -353,13 +358,13 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
                 />
               </div>
               <span className={`arcade-font ml-[0.35rem] min-w-[3.25rem] flex-1 -translate-y-[3%] whitespace-nowrap text-center font-black leading-none text-slate-50 drop-shadow-[0_1px_2px_rgba(245,158,11,0.42)] [font-variant-numeric:tabular-nums] ${stats.coins >= 1000000 ? 'text-[0.66rem] tracking-[-0.04em]' : stats.coins >= 10000 ? 'text-[0.74rem] tracking-[-0.01em]' : 'text-[0.82rem] tracking-[0.04em]'}`}>
-                x{stats.coins}
+                <HudCounter value={stats.coins} compactAbove={100_000} prefix="x">x{stats.coins}</HudCounter>
               </span>
             </div>
           </div>
         </div>
 
-        <div className="pointer-events-auto flex shrink-0 items-start gap-1">
+        <div className="scicon-top-actions pointer-events-auto flex shrink-0 items-start gap-1">
           <div
             className="sci-compact-score-hud h-[2.125rem] w-[6.5rem] shrink-0"
             data-testid="compact-score-hud"
@@ -367,12 +372,13 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
           >
             <div className="sci-compact-score-hud__inner flex h-full w-full items-center">
               <span className={`arcade-font relative z-10 w-full -translate-y-[2%] whitespace-nowrap pl-[0.8rem] pr-[0.3rem] text-center font-black leading-none text-slate-50 drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)] [font-variant-numeric:tabular-nums] ${stats.score >= 100000000 ? 'text-[0.58rem] tracking-[0]' : stats.score >= 1000000 ? 'text-[0.68rem] tracking-[0.02em]' : 'text-[0.78rem] tracking-[0.06em]'}`}>
-                {stats.score.toString().padStart(6, '0')}
+                <HudCounter value={stats.score} compactAbove={1_000_000}>{stats.score.toString().padStart(6, '0')}</HudCounter>
               </span>
             </div>
           </div>
 
-          <div className="flex flex-col gap-1">
+          {wingControls}
+          <div className="scicon-top-pause flex flex-col gap-1">
             <button
               type="button"
               {...pauseActionHandlers}
@@ -408,14 +414,15 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
         </div>
       </div>
 
-      <div className="scicon-left-actions pointer-events-auto absolute left-3 top-[57%] z-20 flex -translate-y-1/2 flex-col gap-2 sm:left-5">
+      {/* REVAMP(P): These corner targets sit below the ship lane and stay clear of central steering. */}
+      <div className="scicon-thumb-actions scicon-left-actions pointer-events-none absolute inset-x-0 bottom-0 z-20">
         <button
           type="button"
           data-audio="none"
           data-onboarding-target="flight-bomb"
           {...bombActionHandlers}
           disabled={!canUseBomb}
-          className={`relative flex h-[4.375rem] w-[4.375rem] items-center justify-center rounded-[22px] border shadow-[0_18px_44px_rgba(0,0,0,0.38)] backdrop-blur-md transition active:scale-95 ${
+          className={`scicon-thumb-button scicon-thumb-button--bomb relative flex h-[4.375rem] w-[4.375rem] items-center justify-center rounded-[22px] border shadow-[0_18px_44px_rgba(0,0,0,0.38)] backdrop-blur-md transition active:scale-95 ${
             canUseBomb
               ? 'border-yellow-200/70 bg-slate-950/70 text-white shadow-[0_0_34px_rgba(251,191,36,0.2)] hover:border-yellow-100 hover:brightness-110'
               : 'border-slate-400/20 bg-slate-900/54 text-slate-400 opacity-75'
@@ -436,7 +443,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
             data-ability-state={abilityState}
             {...shipAbilityActionHandlers}
             disabled={!abilityReady}
-            className={`relative flex h-[4.375rem] w-[4.375rem] items-center justify-center overflow-hidden rounded-[22px] border shadow-[0_18px_44px_rgba(0,0,0,0.38)] backdrop-blur-md transition active:scale-95 ${
+            className={`scicon-thumb-button scicon-thumb-button--ability relative flex h-[4.375rem] w-[4.375rem] items-center justify-center overflow-hidden rounded-[22px] border shadow-[0_18px_44px_rgba(0,0,0,0.38)] backdrop-blur-md transition active:scale-95 ${
               abilityReady
                 ? 'border-cyan-200/75 bg-slate-950/72 shadow-[0_0_34px_rgba(34,211,238,0.26)] hover:border-cyan-100 hover:brightness-110'
                 : 'border-slate-400/20 bg-slate-900/62'

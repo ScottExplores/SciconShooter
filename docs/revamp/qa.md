@@ -85,6 +85,7 @@ Available runner options:
 | `--output <path>` | `/workspace/scicon-revamp/qa` | Artifact parent directory |
 | `--run-id <name>` | UTC timestamp | Unique directory name; existing names are rejected |
 | `--devices mobile,desktop` | Both, sequentially | Select viewports |
+| `--devices 360x640,390x844` | Opt-in phone sizes | Capture both phone aspects with the same 390×844 simulation |
 | `--stages mission-1,boss` | All scenarios | Targeted diagnostic; not full coverage |
 | `--seed <n>` | `12345` | Same gameplay RNG seed for all scenarios |
 | `--seconds <n>` | 60/45/45 | Short diagnostic duration override |

@@ -8,6 +8,8 @@ import { RevampFlight, addResearchRounds, type RevampFlightMetrics } from './rev
 import { EntityType, GamePolishSettings, PowerupType, Stats } from '../types';
 // REVAMP(B): Isolated regular-enemy runtime and deterministic formation cadence.
 import { RevampCombatBridge, isRevampRole, isOpeningMission } from './revamp/integration/RevampCombatBridge';
+// REVAMP(P): Enemy art, hitboxes and formation clearance share one world-space size.
+import { READABLE_REGULAR_ENEMY_SCALE } from './revamp/enemies/EnemyReadability';
 // REVAMP(I): Projectile family styling follows its emitter without changing collision geometry.
 import { markProjectileFamily } from './revamp/feel/ProjectileReadability';
 import { CombatImpactBuffer, getProjectileCombatContact } from './gameplay/CombatImpactBuffer';
@@ -1646,7 +1648,8 @@ export const CROWNCLAW_ARM_HITBOX_SCALE = 1.12;
 const BOSS_COMPONENT_WEAK_POINT_MULTIPLIER = 1;
 const BOSS_DAMAGE_FLASH_FRAMES = 2;
 const BOSS_DAMAGE_FLASH_COOLDOWN_FRAMES = 5;
-export const REGULAR_ENEMY_SIZE_SCALE = 1.1;
+// REVAMP(P): Keep the public tuning export while centralizing phone readability.
+export const REGULAR_ENEMY_SIZE_SCALE = READABLE_REGULAR_ENEMY_SCALE;
 type PendingBossStrike = {
   bossId: string;
   x: number;
@@ -23821,6 +23824,8 @@ export class GameEngine {
     if (type === PowerupType.OVERDRIVE) this.feel.recordPickup({
       frame: this.frameCount, x: cx, y: cy, pickupType: 'power', powerLevel: this.missionOverdriveLevel + 1
     });
+    // REVAMP(P): All accepted powerups get a local collect accent from the feel pool.
+    else this.feel.recordPickup({ frame: this.frameCount, x: cx, y: cy, pickupType: 'other' });
     emitSquadDomainEvent('powerup_collected', {
       profileId: this.squadLoadout?.profileId ?? 'guest',
       powerup: type

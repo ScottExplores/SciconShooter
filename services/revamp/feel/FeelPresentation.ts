@@ -7,6 +7,7 @@ import { FeelEffects } from './FeelEffects';
 import { getFeelSettings } from './FeelSettings';
 import { isAimedShot } from './FeelGameplay';
 import { drawProjectileGlyph, getProjectileFamily, hostileProjectileColor, playerProjectileColor } from './ProjectileReadability';
+import { sampleFeedbackPop } from './AliveFeedback';
 
 type FeelView = {
   root: Container; sprite: Sprite; body: Graphics; aura: Graphics; trail: Graphics;
@@ -29,10 +30,11 @@ const label = (size: number, color = '#e0f2fe') => {
 export class FeelPresentation {
   private readonly hits = new Map<string, Hit>();
   private readonly root = new Container();
-  private readonly chainText = label(15, '#67e8f9');
+  private readonly chainText = label(13, '#67e8f9');
   private readonly chainBar = new Graphics();
-  private readonly banner = label(27, '#fef08a');
-  private readonly power = label(28, '#ffffff');
+  private readonly banner = label(16, '#fef08a');
+  private readonly power = label(18, '#e0fbff');
+  private readonly bannerPlate = new Graphics();
   private readonly flash = new Graphics();
   private readonly effects: FeelEffects;
   private source: GameEngine | null = null;
@@ -41,14 +43,21 @@ export class FeelPresentation {
   private bannerMs = 0;
   private powerMs = 0;
   private muzzleBudget = 0;
+  private pickupBudget = 0;
+  private seenPickups = new WeakSet<Entity>();
+  private chain = 1;
+  private chainPopMs = 0;
 
   // REVAMP(J) signature kept; REVAMP(I) additive tint needs no baked white silhouette.
   constructor(private readonly pool: ArcadeEffectPool, overlay: Container, private readonly silhouette?: (texture: Texture) => Texture | null) {
     this.effects = new FeelEffects(pool);
     this.root.eventMode = 'none';
-    this.root.addChild(this.chainBar, this.chainText, this.banner, this.power, this.flash);
+    this.root.addChild(this.chainBar, this.chainText, this.bannerPlate, this.banner, this.power, this.flash);
     overlay.addChild(this.root);
   }
+
+  /** One header slot prevents a new wave title covering the preceding reward. */
+  get headerOccupied() { return this.banner.visible || this.power.visible; }
 
   impact(impact: CombatImpactEvent) {
     // Sustained beams/volleys must leave a visible unlit interval per target.
@@ -59,7 +68,7 @@ export class FeelPresentation {
     this.hits.set(impact.targetId, { age: 0, vx: impact.vx, vy: impact.vy, x: impact.x, y: impact.y });
   }
 
-  beginFrame(engine: GameEngine, deltaMs: number) {
+  beginFrame(engine: GameEngine, deltaMs: number, qualityScale = 1, headerOffset = 0) {
     if (this.source !== engine || this.generation !== engine.feel.resetGeneration) {
       this.source = engine;
       this.generation = engine.feel.resetGeneration;
@@ -67,17 +76,37 @@ export class FeelPresentation {
       this.bannerMs = this.powerMs = 0;
       this.hits.clear();
       this.effects.reset();
+      this.seenPickups = new WeakSet();
+      this.chain = 1;
+      this.chainPopMs = 0;
     }
-    this.muzzleBudget = engine.performanceMode ? 3 : 6;
+    const settings = getFeelSettings();
+    const density = Math.max(0.4, Math.min(1, Number.isFinite(qualityScale) ? qualityScale : 1));
+    this.muzzleBudget = Math.max(1, Math.round((engine.performanceMode ? 3 : 6) * density));
+    this.pickupBudget = settings.reducedMotion ? 1 : Math.max(1, Math.round(4 * density));
     for (const [id, hit] of this.hits) {
       hit.age += deltaMs;
       if (hit.age > 180) this.hits.delete(id);
     }
     this.bannerMs = Math.max(0, this.bannerMs - deltaMs);
     this.powerMs = Math.max(0, this.powerMs - deltaMs);
-    const settings = getFeelSettings();
+    this.chainPopMs = Math.max(0, this.chainPopMs - deltaMs);
     this.effects.setReducedFlash(settings.reducedMotion || settings.reduceScreenShake);
     this.effects.update(deltaMs);
+    // REVAMP(P): First sight of a pickup gets one local pixel burst. Track weak
+    // entity references so showers, missed frames and renderer reuse stay bounded.
+    for (const pickup of engine.entities ?? []) {
+      if (pickup.markedForDeletion || (pickup.type !== EntityType.COIN && pickup.type !== EntityType.POWERUP
+        && pickup.type !== EntityType.BOMB && pickup.type !== EntityType.SUPPLY_DROP)) continue;
+      if (pickup.y + pickup.height < 0 || pickup.y > engine.height || this.seenPickups.has(pickup)) continue;
+      this.seenPickups.add(pickup);
+      if (this.pickupBudget <= 0 || settings.reducedMotion) continue;
+      this.pickupBudget--;
+      const power = pickup.type !== EntityType.COIN;
+      const x = pickup.x + pickup.width / 2, y = pickup.y + pickup.height / 2;
+      this.pool.spawn('burst', x, y, power ? 12 : 6, power ? '#a7f3d0' : '#fde68a', 180);
+      if (power) this.pool.spawnLightPulse(x, y, 25, '#a7f3d0', 0.15, 180);
+    }
     for (const event of engine.feel.events) {
       if (event.sequence <= this.sequence) continue;
       this.sequence = event.sequence;
@@ -91,39 +120,57 @@ export class FeelPresentation {
         case 'bullet-cancel': this.pool.spawnScoreSpark(event.x, event.y, engine.width - 40, 24); break;
         case 'phase-change': this.pool.spawnPickupRing(event.x, event.y, false); break;
         case 'pickup':
-          this.pool.spawnPickupRing(event.x, event.y, event.pickupType === 'power');
+          if (event.pickupType !== 'coin' || this.pickupBudget > 0) {
+            this.pickupBudget--;
+            this.pool.spawnPickupRing(event.x, event.y, event.pickupType !== 'coin');
+          }
           if (event.pickupType === 'power') {
             this.power.text = `POWER ${event.powerLevel}`;
-            this.power.position.set(Math.max(100, Math.min(engine.width - 100, event.x)), Math.max(100, event.y - 55));
             this.powerMs = 950;
           }
+          if (event.pickupType !== 'coin' && !settings.reducedMotion) this.pool.spawn('burst', event.x, event.y, 18, '#d9fff0', 230);
           break;
         case 'perfect-wave': this.bannerMs = 1500; this.banner.text = 'PERFECT WAVE'; break;
       }
     }
     const combo = engine.feel.comboMultiplier;
-    let showChain = combo >= 2 && !engine.inBossWarningSequence;
-    if (showChain && engine.entities) for (const target of engine.entities) {
+    if (combo > this.chain) this.chainPopMs = 290;
+    this.chain = combo;
+    let bossActive = false;
+    if (engine.entities) for (const target of engine.entities) {
       if (!target.markedForDeletion && (target.type === EntityType.BOSS || target.type === EntityType.MINI_BOSS)) {
-        showChain = false;
+        bossActive = true;
         break;
       }
     }
+    const showChain = combo >= 2 && !bossActive && !engine.inBossWarningSequence && !this.bannerMs && !this.powerMs;
     // REVAMP(I): Keep the formation's upper rows clear; bosses own the whole header.
     this.chainText.text = showChain ? `CHAIN x${combo}` : '';
-    this.chainText.position.set(engine.width - 72, 65);
+    this.chainText.position.set(engine.width - 72, 74 + headerOffset);
+    this.chainBar.y = this.bannerPlate.y = headerOffset;
+    this.chainText.scale.set(this.chainPopMs > 0 ? sampleFeedbackPop(290 - this.chainPopMs, 600, settings.reducedMotion).scale : 1);
     this.chainBar.clear();
     if (showChain) {
-      this.chainBar.roundRect(engine.width - 128, 51, 112, 30, 5).fill({ color: '#081327', alpha: 0.8 });
-      this.chainBar.rect(engine.width - 120, 77, 96, 3).fill({ color: '#164e63' });
-      this.chainBar.rect(engine.width - 120, 77, 96 * engine.feel.comboRemaining, 3).fill({ color: '#67e8f9' });
+      this.chainBar.roundRect(engine.width - 128, 62, 112, 23, 5).fill({ color: '#081327', alpha: 0.8 });
+      this.chainBar.rect(engine.width - 120, 83, 96, 2).fill({ color: '#164e63' });
+      this.chainBar.rect(engine.width - 120, 83, 96 * engine.feel.comboRemaining, 2).fill({ color: '#67e8f9' });
     }
-    this.banner.position.set(engine.width / 2, engine.height * 0.31);
-    this.banner.visible = this.bannerMs > 0;
-    this.banner.alpha = Math.min(1, this.bannerMs / 220);
-    this.power.visible = this.powerMs > 0;
-    this.power.alpha = Math.min(1, this.powerMs / 200);
-    this.power.scale.set(settings.reducedMotion ? 1 : 1 + Math.max(0, this.powerMs - 700) / 1250);
+    // REVAMP(P): Short reward banners share the header, leaving the central
+    // flight lanes open. Pop/slide is presentation-only and honors OS motion.
+    const visibleBanner = this.powerMs > 0 ? this.power : this.banner;
+    const remaining = this.powerMs > 0 ? this.powerMs : this.bannerMs;
+    const duration = this.powerMs > 0 ? 950 : 1500;
+    const pose = sampleFeedbackPop(duration - remaining, duration, settings.reducedMotion);
+    this.banner.visible = this.bannerMs > 0 && this.powerMs <= 0 && !engine.inBossWarningSequence && !bossActive;
+    this.power.visible = this.powerMs > 0 && !engine.inBossWarningSequence && !bossActive;
+    visibleBanner.position.set(engine.width / 2, 74 + headerOffset + (settings.reducedMotion ? 0 : Math.max(0, remaining - duration + 140) / 35));
+    visibleBanner.alpha = pose.alpha;
+    visibleBanner.scale.set(pose.scale);
+    this.bannerPlate.clear();
+    if (this.banner.visible || this.power.visible) {
+      this.bannerPlate.roundRect(engine.width / 2 - 109, 61, 218, 26, 4).fill({ color: '#081327', alpha: 0.8 * pose.alpha });
+      this.bannerPlate.rect(engine.width / 2 - 97, 85, 194 * remaining / duration, 2).fill({ color: '#67e8f9', alpha: 0.55 * pose.alpha });
+    }
     this.flash.clear();
     const alpha = this.effects.screenFlashAlpha;
     if (alpha > 0) this.flash.rect(0, 0, engine.width, engine.height).fill({ color: '#ffffff', alpha });
@@ -191,7 +238,13 @@ export class FeelPresentation {
       entity.squadAbilityKind ? 10 : 13, entity.vx, entity.vy, playerProjectileColor(entity));
   }
 
-  destroy() { this.hits.clear(); this.effects.reset(); this.root.destroy({ children: true }); }
+  destroy() {
+    this.hits.clear();
+    this.effects.reset();
+    this.seenPickups = new WeakSet();
+    this.source = null;
+    this.root.destroy({ children: true });
+  }
 }
 
 /** Readability accents keep all original texture files and authored silhouettes. */

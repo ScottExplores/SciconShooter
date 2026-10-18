@@ -1,6 +1,7 @@
 import { Container, Graphics } from 'pixi.js';
 import type { Entity } from '../../gameLogic';
 import type { BossEncounterState } from '../bosses/runtime';
+import { BOSS_STATUS_TOP, BOSS_STATUS_HEIGHT, BOSS_INTRO_CARD_HEIGHT } from '../presentation/BossHudLayout';
 
 const AMBER = 0xffcc66;
 const CYAN = 0x8cf2e5;
@@ -110,14 +111,14 @@ export class BossCueGeometry {
 
   syncStatus(width: number, underline: number | null): void {
     const backWidth = Math.min(width - 22, 330);
-    this.status.position.set(width / 2, width < 520 ? 103 : 107);
+    this.status.position.set(width / 2, BOSS_STATUS_TOP);
     if (backWidth === this.statusWidth && underline === this.statusUnderline) return;
     this.statusWidth = backWidth;
     this.statusUnderline = underline;
-    this.status.clear().roundRect(-backWidth / 2, 0, backWidth, 39, 5)
+    this.status.clear().roundRect(-backWidth / 2, 0, backWidth, BOSS_STATUS_HEIGHT, 3)
       .fill({ color: INK, alpha: 0.79 });
     if (underline !== null) {
-      this.status.moveTo(-backWidth / 2 + 10, 40).lineTo(backWidth / 2 - 10, 40)
+      this.status.moveTo(-backWidth / 2 + 10, BOSS_STATUS_HEIGHT).lineTo(backWidth / 2 - 10, BOSS_STATUS_HEIGHT)
         .stroke({ color: underline, width: 1, alpha: 0.65 });
     }
   }
@@ -125,7 +126,7 @@ export class BossCueGeometry {
   syncCard(width: number): void {
     if (width === this.cardWidth) return;
     this.cardWidth = width;
-    const height = 106;
+    const height = BOSS_INTRO_CARD_HEIGHT;
     this.card.clear().roundRect(-width / 2, -height / 2, width, height, 6)
       .fill({ color: INK, alpha: 0.93 })
       .stroke({ color: AMBER, width: 1, alpha: 0.64 });

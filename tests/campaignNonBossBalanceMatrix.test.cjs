@@ -137,6 +137,7 @@ test('extracted choreography, wing tuning, and fair-arena changes invalidate mea
     for (const sourcePath of [
       'services/revamp/formations/DenseFormationFire.ts',
       'services/revamp/enemies/EnemyBehaviorRuntime.ts',
+      'services/revamp/enemies/EnemyReadability.ts',
       'services/revamp/wings/wingTuning.ts',
       'services/gameplay/fairArena.ts'
     ]) {

@@ -3,6 +3,7 @@ import { EntityType } from '../../../types';
 import type { Entity, GameEngine } from '../../gameLogic';
 import { BOSS_INTRO_FRAMES, bossDamageMultiplier, getBossEncounter, type BossEncounterState } from './runtime';
 import { BossCueGeometry } from '../performance/BossCueGeometry';
+import { BOSS_STATUS_Y, BOSS_INTRO_CARD_Y } from '../presentation/BossHudLayout';
 
 const AMBER = 0xffcc66;
 const MAGENTA = 0xf799e5;
@@ -41,10 +42,10 @@ export class BossPolishPresentation {
   private readonly card = new Container({ eventMode: 'none' });
   private readonly cardBackground = new Graphics();
   private readonly cardEyebrow = label(10, AMBER, true);
-  private readonly title = label(23, WHITE, true);
-  private readonly epithet = label(12, 0xc8d6ed);
+  private readonly title = label(15, WHITE, true);
+  private readonly epithet = label(10, 0xc8d6ed);
   private readonly phase = label(10, AMBER, true);
-  private readonly status = label(11, WHITE);
+  private readonly status = label(10, WHITE);
   private readonly statusBackground = new Graphics();
   private readonly transitionHalo = new Container({ eventMode: 'none' });
   // REVAMP(J): Static cue geometry survives movement, pulses and HUD text changes.
@@ -67,6 +68,9 @@ export class BossPolishPresentation {
     return getBossEncounter(boss)?.definition.name.toUpperCase();
   }
 
+  // REVAMP(P): The introduction card temporarily owns the boss header slot.
+  isIntroducing(boss: Entity): boolean { return getBossEncounter(boss)?.stage === 'intro'; }
+
   /** Add readable milestones to Scott's existing frame and health bar artwork. */
   decorateHealthBar(graphics: Graphics, boss: Entity, width: number, y: number, height: number): void {
     const state = getBossEncounter(boss);
@@ -83,7 +87,8 @@ export class BossPolishPresentation {
       .fill({ color: MAGENTA, alpha: 1 });
   }
 
-  sync(engine: GameEngine, width: number, height: number, reducedMotion: boolean): boolean {
+  sync(engine: GameEngine, width: number, height: number, reducedMotion: boolean, headerOffset = 0): boolean {
+    this.hud.y = headerOffset;
     const boss = engine.entities.find((entity) => entity.type === EntityType.BOSS && !entity.markedForDeletion);
     const state = boss && getBossEncounter(boss);
     const visible = Boolean(state && state.stage !== 'defeated');
@@ -174,10 +179,14 @@ export class BossPolishPresentation {
   private drawHud(state: BossEncounterState, width: number, height: number, reducedMotion: boolean): void {
     const intro = state.stage === 'intro';
     this.card.visible = intro;
+    this.phase.visible = this.status.visible = this.statusBackground.visible = !intro;
     const center = width / 2;
     const color = state.rage ? MAGENTA : AMBER;
-    this.phase.text = `PHASE ${state.phase} / 3${state.rage ? '   •   RAGE' : ''}`;
-    this.phase.position.set(center, width < 520 ? 113 : 117);
+    this.phase.text = state.rage ? `P${state.phase}/3 · RAGE` : `PHASE ${state.phase}/3`;
+    // REVAMP(P): Phase and mandatory attack text fit one slim status row.
+    this.phase.position.set(50, BOSS_STATUS_Y);
+    this.phase.scale.set(1);
+    this.phase.scale.set(Math.min(1, 78 / Math.max(1, this.phase.width)));
     this.phase.style.fill = color;
 
     const warning = state.stage === 'warning';
@@ -191,8 +200,8 @@ export class BossPolishPresentation {
               : state.part.broken ? 'WEAPON DISABLED' : state.attack?.name.toUpperCase() ?? '';
     this.status.text = status;
     this.status.style.fill = exposed ? CYAN : warning ? (state.attack?.color === 'magenta' ? MAGENTA : AMBER) : WHITE;
-    this.status.position.set(center, width < 520 ? 132 : 136);
-    this.status.scale.set(Math.min(1, Math.max(180, width - 30) / Math.max(1, this.status.width / this.status.scale.x)));
+    this.status.position.set((width + 90) / 2, BOSS_STATUS_Y);
+    this.status.scale.set(Math.min(1, Math.max(140, width - 112) / Math.max(1, this.status.width / this.status.scale.x)));
     this.cueGeometry.syncStatus(width, warning || exposed || state.stage === 'transition' ? exposed ? CYAN : color : null);
     if (!intro) return;
 
@@ -201,16 +210,16 @@ export class BossPolishPresentation {
     const opacity = Math.min(clamp01(elapsed / 6), clamp01(remaining / 10));
     const cardWidth = Math.min(width - 28, 420);
     this.card.alpha = reducedMotion ? 1 : opacity;
-    this.card.position.set(center, Math.min(height * 0.32, 300) + (reducedMotion ? 0 : (1 - clamp01(elapsed / 10)) * 8));
+    this.card.position.set(center, BOSS_INTRO_CARD_Y + (reducedMotion ? 0 : (1 - clamp01(elapsed / 10)) * -8));
     this.cueGeometry.syncCard(cardWidth);
     this.cardEyebrow.text = 'PAYWALL SYNDICATE';
-    this.cardEyebrow.position.set(0, -31);
+    this.cardEyebrow.position.set(0, -19);
     this.title.text = state.definition.name.toUpperCase();
     this.title.position.set(0, -2);
     this.title.scale.set(1);
     this.title.scale.set(Math.min(1, (cardWidth - 26) / Math.max(1, this.title.width)));
     this.epithet.text = state.definition.epithet;
-    this.epithet.position.set(0, 29);
+    this.epithet.position.set(0, 18);
     this.epithet.scale.set(1);
     this.epithet.scale.set(Math.min(1, (cardWidth - 30) / Math.max(1, this.epithet.width)));
   }

@@ -23,7 +23,7 @@ export function options(argv) {
       else result[key === '--run-id' ? 'runId' : key.slice(2)] = value;
     } else throw new Error(`Unknown option: ${key}`);
   }
-  if (result.devices.some(device => !DEVICES[device])) throw new Error('--devices must be mobile, desktop, or mobile,desktop');
+  if (result.devices.some(device => !DEVICES[device])) throw new Error('--devices must select mobile, desktop, 360x640, or 390x844');
   if (result.stages?.some(stage => !['start-screen', 'mission-1', 'mid-campaign', 'boss'].includes(stage))) throw new Error('Unknown --stages scenario');
   if (result.baseline && result.stages?.some(stage => !['start-screen', 'mission-1'].includes(stage))) throw new Error('Baseline only supports start-screen and mission-1');
   if (!Number.isFinite(result.seed)) throw new Error('--seed must be finite');

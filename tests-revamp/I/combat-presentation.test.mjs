@@ -145,7 +145,7 @@ test('chain header stays above the formation and yields to every boss size', () 
   p.beginFrame(e,0);
   const [bar, text]=overlay.children[0].children;
   assert.equal(text.text,'CHAIN x8');
-  assert.equal(text.y,65);
+  assert.equal(text.y,74);
   assert.ok(bar.commands[0][2] + bar.commands[0][4] < 90);
   for (const type of [EntityType.BOSS,EntityType.MINI_BOSS]) {
     e.entities=[entity(type)];p.beginFrame(e,16);
@@ -153,7 +153,7 @@ test('chain header stays above the formation and yields to every boss size', () 
   }
 });
 
-test('dense regular-wave introductions leave entry lanes visible and preserve boss layouts', () => {
+test('wave introductions leave entry lanes visible and defer to the named boss warning', () => {
   const root=new Container(), counter=new Container(), level=new api.Text({}), name=new api.Text({});
   const aura=new Graphics(), pixels=new Graphics(), sweep=new Graphics();
   name.width=170; counter.addChild(new Sprite({}));
@@ -161,11 +161,12 @@ test('dense regular-wave introductions leave entry lanes visible and preserve bo
   const events=[{kind:'spawn',enemies:[{roleId:'role-revamp-linefighter'}]}];
   const e={getCurrentWaveDefinition:()=>({events})};
   assert.equal(presentation.sync(e,500,390),true);
-  assert.equal(root.y,46); assert.equal(level.visible,false);
+  assert.equal(root.y,74); assert.equal(level.visible,false);
   assert.ok(aura.commands[0][4]<=18); assert.equal(counter.scale.x,.30);
   presentation.sync(e,1400,390); assert.equal(root.visible,false);
   events.push({kind:'boss'});
-  assert.equal(presentation.sync(e,500,390),false);
+  assert.equal(presentation.sync(e,500,390),true);
+  assert.equal(root.visible,false, 'bosses own their single named header');
   assert.equal(counter.scale.x,1,'boss counters recover their full authored size');
 });
 
@@ -173,9 +174,11 @@ test('first-sighting callouts fit the header without changing ordinary floating 
   const root=new Container(), label=new api.Text({text:'NEW ENEMY: DIVER'});
   label.width=270; root.position.set(195,220);
   api.fitCombatCallout(root,label,390);
-  assert.equal(root.y,65); assert.ok(root.scale.x<=.68);
+  assert.equal(root.y,74); assert.ok(root.scale.x<=.68);
   assert.ok(root.x-label.width*root.scale.x/2>=16);
+  api.fitCombatCallout(root,label,390,43);
+  assert.equal(root.y,117, 'first-sighting receipts clear a notched phone header');
   label.text='POWER UP'; root.position.set(195,220);
-  api.fitCombatCallout(root,label,390);
+  api.fitCombatCallout(root,label,390,43);
   assert.equal(root.y,220); assert.equal(root.scale.x,1);
 });

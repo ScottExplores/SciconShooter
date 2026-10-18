@@ -10,7 +10,7 @@ interface Props {
   onAutoCastChange: (enabled: boolean) => void;
 }
 
-/** Two 58px thumb targets; the middle of the playfield remains transparent to steering. */
+/** REVAMP(P): Inline 44px targets merge wing state into the thin top HUD. */
 export default function WingSupportHud({ snapshot, disabled = false, onCast, onAutoCastChange }: Props) {
   if (!snapshot.enabled || snapshot.wings.length === 0) return null;
   return <aside className="revamp-wing-hud" aria-label="Wing support controls">
@@ -22,17 +22,16 @@ export default function WingSupportHud({ snapshot, disabled = false, onCast, onA
         disabled={!ready} onClick={() => onCast(wing.slot)}
         onPointerDown={event => event.stopPropagation()}
         aria-label={`${wing.slot === 'left' ? 'Offense' : 'Utility'} wing: ${wing.label}${wing.cooldownFrames > 0 ? `, ${Math.ceil(wing.cooldownFrames / 60)} seconds` : ready ? ', ready' : ', standby'}`}
+        title={`${wing.slot === 'left' ? 'Offense' : 'Utility'}: ${wing.label}${wing.evolved ? ' (evolved)' : ''}`}
         style={{ '--wing-charge': `${progress * 100}%` } as React.CSSProperties}>
-        <span className="revamp-wing-button__role">{wing.slot === 'left' ? 'OFFENSE' : 'UTILITY'}</span>
         <img src={wing.image} alt="" draggable={false} />
-        <strong>{wing.cooldownFrames > 0 ? `${Math.ceil(wing.cooldownFrames / 60)}s` : !ready ? 'STANDBY' : wing.evolved ? 'EVOLVED' : 'READY'}</strong>
-        <span className="revamp-wing-button__name">{wing.label}</span>
+        <strong aria-hidden="true">{wing.cooldownFrames > 0 ? `${Math.ceil(wing.cooldownFrames / 60)}s` : !ready ? '—' : 'READY'}</strong>
       </button>;
     })}
     <button type="button" className="revamp-wing-auto" aria-pressed={snapshot.autoCast}
       aria-label="Auto-cast wing specials" disabled={disabled}
       onPointerDown={event => event.stopPropagation()} onClick={() => onAutoCastChange(!snapshot.autoCast)}>
-      WINGS AUTO <strong>{snapshot.autoCast ? 'ON' : 'OFF'}</strong>
+      <span aria-hidden="true">AUTO</span><strong aria-hidden="true">{snapshot.autoCast ? 'ON' : 'OFF'}</strong>
     </button>
   </aside>;
 }

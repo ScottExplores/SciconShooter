@@ -97,7 +97,9 @@ test('main bosses use the authored boss alert before the transmission panel', ()
 });
 
 test('white Citation Wraiths and standard red Paywall Interceptors use enlarged gameplay bounds', () => {
-  assert.match(engineSource, /REGULAR_ENEMY_SIZE_SCALE = 1\.1/);
+  assert.match(engineSource, /REGULAR_ENEMY_SIZE_SCALE = READABLE_REGULAR_ENEMY_SCALE/);
+  const readability = fs.readFileSync(path.join(root, 'services/revamp/enemies/EnemyReadability.ts'), 'utf8');
+  assert.match(readability, /READABLE_REGULAR_ENEMY_SCALE = 1\.35/);
   assert.match(engineSource, /PAYWALL_INTERCEPTOR_SCALE = 1\.1/);
   assert.match(engineSource, /SPIRAL_PAYWALL_INTERCEPTOR_SCALE = 1\.05/);
   assert.match(engineSource, /CITATION_WRAITH_SCALE = 1\.32/);
