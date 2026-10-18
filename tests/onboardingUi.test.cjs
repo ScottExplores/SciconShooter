@@ -139,7 +139,8 @@ test('all action anchors remain mounted on the surfaces that own them', () => {
     ['components/UIOverlay.tsx', ['flight-bomb', 'flight-special']],
     ['components/WaveVictoryOverlay.tsx', ['mission-home']],
     ['components/StartScreen.tsx', ['hangar-nav']],
-    ['components/revamp/HomeFlightDeckBrand.tsx', ['rewards-open']],
+    // REVAMP(K): Daily Gift returns to the ship-stage side tab.
+    ['components/revamp/HomeDailyGift.tsx', ['rewards-open']],
     ['components/RewardCenter.tsx', ['rewards-achievements', 'rewards-daily', 'rewards-daily-claim', 'rewards-close']],
     ['components/SquadHangar.tsx', ['hangar-wings']],
   ];

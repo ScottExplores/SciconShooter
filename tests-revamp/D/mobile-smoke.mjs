@@ -41,15 +41,20 @@ try {
     return url.startsWith(origin) || url.startsWith('data:') || url.startsWith('blob:') ? route.continue() : route.abort();
   });
   await page.goto(origin);
-  await page.locator('.revamp-progression summary:visible').waitFor({ timeout: 60000 });
+  await page.locator('[data-onboarding-target="campaign-start"]:visible').waitFor({ timeout: 60000 });
   await page.locator('.sci-mission-loader').waitFor({ state: 'hidden', timeout: 60000 });
   await page.screenshot({ path: join(output, 'D-home.png') });
+  // REVAMP(K): Progression lives behind More; the original home deck stays compact.
+  await page.locator('button[data-dashboard-tab="more"]:visible').click();
   await page.locator('.revamp-progression summary:visible').click();
   await page.locator('.revamp-progression:visible button').filter({ hasText: /^Research$/ }).click();
   report.researchNodes = await page.locator('.revamp-tree:visible button').count();
   if (report.researchNodes !== 25) throw new Error('Expected 25 research nodes');
   await page.locator('.revamp-tree:visible').scrollIntoViewIfNeeded();
   await page.screenshot({ path: join(output, 'D-tree.png') });
+  // REVAMP(K): Return to the existing campaign launch control before timing entry.
+  await page.locator('button[data-dashboard-tab="home"]:visible').click();
+  await page.locator('[data-onboarding-target="campaign-start"]:visible').waitFor();
   const start = Date.now();
   await page.locator('[data-onboarding-target="campaign-start"]:visible').click();
   await page.locator('.revamp-first-flight').waitFor({ timeout: 30000 });

@@ -42,7 +42,8 @@ try {
     if (label === 'desktop') await page.getByRole('button', { name: 'Start Browser Run' }).click();
     const surface = label === 'desktop' ? page.frameLocator('[data-testid=desktop-mobile-game-frame]') : page;
     await surface.getByText('TEST BUILD — scores not submitted', { exact: true }).waitFor({ timeout: 60000 }).catch(async (error) => { await page.screenshot({ path: `${output}/${label}-failure.png` }); console.log(await page.locator('body').innerText()); throw error; });
-    await surface.locator('button[data-dashboard-tab="home"]:visible').click();
+    // REVAMP(K): The expanded competition briefing now lives behind More.
+    await surface.locator('button[data-dashboard-tab="more"]:visible').click();
     const card = surface.locator('.revamp-weekly-card:visible');
     await card.getByText('Live weekly board', { exact: true }).click();
     await card.locator('ol li').first().waitFor({ timeout: 20000 });

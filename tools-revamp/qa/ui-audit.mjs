@@ -146,12 +146,13 @@ async function runDevice(browser, server, config, report, device) {
     await screen('campaign-map', async g => { await click(g, /^Open Campaign Map/,{exact:false}); await g.locator('.campaign-map-selection').waitFor({timeout:15000}); });
     await screen('mission-briefing', async g => { await click(g, /^Open Campaign Map/,{exact:false}); await g.locator('[data-onboarding-target="campaign-mission"]').filter({ visible: true }).first().click({ force: true }); });
     await screen('campaign-locked-mission', async g => { await click(g, /^Open Campaign Map/,{exact:false}); await g.locator('.campaign-map-node:not([data-map-current="true"]):not([disabled])').filter({visible:true}).first().click({force:true}); });
-    await screen('frontier-daily', async g => { await expand(g,'.revamp-progression > summary'); });
-    await screen('frontier-weekly', async g => { await expand(g,'.revamp-progression > summary'); await click(g,'Weekly · 5'); });
-    await screen('research-tree', async g => { await expand(g,'.revamp-progression > summary'); await click(g,'Research'); });
-    await screen('research-node-locked', async g => { await expand(g,'.revamp-progression > summary'); await click(g,'Research'); await g.locator('.revamp-tree__branch--overdrive button').filter({visible:true}).last().click({force:true}); });
-    await screen('weekly-briefing', async g => { await g.locator('.revamp-weekly-card:visible').first().scrollIntoViewIfNeeded(); });
-    await screen('weekly-live-board', async g => { await expand(g,'.revamp-weekly-board > summary'); });
+    // REVAMP(K): Frontier and competition details now live behind the existing More tab.
+    await screen('frontier-daily', async g => { await tab(g,'more'); await expand(g,'.revamp-progression > summary'); });
+    await screen('frontier-weekly', async g => { await tab(g,'more'); await expand(g,'.revamp-progression > summary'); await click(g,'Weekly · 5'); });
+    await screen('research-tree', async g => { await tab(g,'more'); await expand(g,'.revamp-progression > summary'); await click(g,'Research'); });
+    await screen('research-node-locked', async g => { await tab(g,'more'); await expand(g,'.revamp-progression > summary'); await click(g,'Research'); await g.locator('.revamp-tree__branch--overdrive button').filter({visible:true}).last().click({force:true}); });
+    await screen('weekly-briefing', async g => { await tab(g,'more'); await g.locator('.revamp-weekly-card:visible').first().scrollIntoViewIfNeeded(); });
+    await screen('weekly-live-board', async g => { await tab(g,'more'); await expand(g,'.revamp-weekly-board > summary'); });
     await screen('weekly-entry', async g => { await click(g,/^Play Weekly Run/,{exact:false}); });
     await screen('daily-gift', async g => { await click(g,'Claim daily gift'); });
     await screen('gift-reveal', async g => { await click(g,'Claim daily gift'); await g.locator('.sci-daily-card.is-today button,button.sci-daily-card.is-today').first().filter({ visible: true }).first().click({ force: true }); });
