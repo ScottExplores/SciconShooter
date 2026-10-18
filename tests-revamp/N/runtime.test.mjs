@@ -18,6 +18,7 @@ globalThis.window = {
 const bundle = await build({
   stdin: {
     contents: `export { SectorBackdrop } from './services/revamp/backgrounds/SectorBackdrop';
+      export { bakeNebula } from './services/revamp/backgrounds/pixelArt';
       export { Container, Texture, Shader } from 'pixi.js';`,
     resolveDir: process.cwd(), loader: 'ts',
   }, bundle: true, write: false, platform: 'node', format: 'esm', logLevel: 'silent',
@@ -25,14 +26,14 @@ const bundle = await build({
 const directory = await mkdtemp(join(tmpdir(), 'scicon-N-runtime-'));
 after(() => rm(directory, { recursive: true, force: true }));
 await writeFile(join(directory, 'bundle.mjs'), bundle.outputFiles[0].text);
-const { SectorBackdrop, Container, Texture, Shader } = await import(pathToFileURL(join(directory, 'bundle.mjs')));
+const { SectorBackdrop, bakeNebula, Container, Texture, Shader } = await import(pathToFileURL(join(directory, 'bundle.mjs')));
 const campaign = JSON.parse(await readFile(new URL('../../game-config/campaign.json', import.meta.url), 'utf8'));
 
 function fixture() {
   const calls = [], contexts = new Set();
   const renderer = {
     runners: { contextChange: { add(listener) { contexts.add(listener); }, remove(listener) { contexts.delete(listener); } } },
-    render({ container, target, clear }) { calls.push({ original: container.texture, source: container.texture.source, target, clear }); },
+    render({ container, target, clear }) { calls.push({ original: container.texture, source: container.texture.source, target, targetSource: target.source, clear }); },
   };
   const parent = new Container(), preserved = new Container({ label: 'unrelated-art' });
   parent.addChild(preserved);
@@ -80,6 +81,41 @@ test('six retained planes and one small atlas do not allocate textures during an
   } finally { f.destroy(); }
 });
 
+test('the opaque nebula preserves its native pixels and blend-free output while silhouettes stay blended', () => {
+  const f = fixture();
+  try {
+    f.backdrop.update(f.engine, 1);
+    const meshes = f.backdrop.nebula, texture = meshes[0].texture, source = texture.source;
+    const expected = bakeNebula(f.backdrop.selection.theme, f.backdrop.layout.nebulae[0].seed);
+    assert.deepEqual([source.width, source.height], [128, 256]);
+    assert.equal(source.scaleMode, 'nearest');
+    assert.equal(source.autoGenerateMipmaps, false);
+    assert.deepEqual(source.resource, expected.pixels, 'all authored color bytes survive without an atlas blit');
+    for (let i = 3; i < source.resource.length; i += 4) assert.equal(source.resource[i], 255, 'no destination color is needed for any base pixel');
+    assert.equal(texture.textureMatrix.isSimple, true, 'native UVs cover only the nebula source');
+    assert.ok(!f.calls.some(call => call.original === texture), 'the unbatched base is never copied into an atlas');
+    assert.ok(f.calls.every(call => call.targetSource !== source));
+    assert.equal(f.parent.groupBlendMode, 'normal');
+    assert.ok(allSprites(f.backdrop).filter(sprite => !meshes.includes(sprite)).every(sprite => {
+      for (let node = sprite; node; node = node.parent) {
+        if (node.blendMode !== 'inherit') return node.blendMode === 'normal';
+      }
+      return f.parent.groupBlendMode === 'normal';
+    }), 'transparent silhouettes keep normal alpha blending through their parent chain');
+    f.step(180);
+    const y = meshes[1].y, tint = meshes[1].tint;
+    f.runtime.majorBossActive = true;
+    f.step(60);
+    assert.notEqual(meshes[1].y, y, 'the native plane keeps scrolling');
+    assert.notEqual(meshes[1].tint, tint, 'boss color grading still animates');
+    for (const mesh of meshes) {
+      assert.equal(mesh.texture, texture);
+      assert.equal(mesh.blendMode, 'none');
+      assert.equal(mesh.alpha, 1);
+    }
+  } finally { f.destroy(); }
+});
+
 test('Low quality culls optional objects and keeps the same seeded primary landmark and world', () => {
   const f = fixture();
   try {
@@ -107,11 +143,17 @@ test('mission replacement, restart and unknown fallback retire owned textures wi
   try {
     f.backdrop.update(f.engine, 1);
     const old = f.calls.slice();
+    const oldNebula = f.backdrop.nebula[0].texture, oldNebulaSource = oldNebula.source;
     f.step(120);
     f.mission(campaign.sectors[0].missionIds[1]);
     assert.equal(f.backdrop.update(f.engine, 1), true);
     assert.equal(f.backdrop.snapshot().seconds, 0);
-    for (const call of old) { assert.equal(call.original.destroyed, true); assert.equal(call.source.destroyed, true); }
+    for (const call of old) {
+      assert.equal(call.original.destroyed, true); assert.equal(call.source.destroyed, true);
+      assert.equal(call.target.destroyed, true); assert.equal(call.targetSource.destroyed, true);
+    }
+    assert.equal(oldNebula.destroyed, true);
+    assert.equal(oldNebulaSource.destroyed, true, 'standalone source shares mission ownership with atlas sources');
     assert.equal(f.contexts.size, 1);
     assert.equal(f.preserved.destroyed, false);
     f.step(120);
@@ -167,12 +209,14 @@ test('context restoration falls back to live CPU-backed originals without new ba
   const f = fixture();
   try {
     f.backdrop.update(f.engine, 1);
-    const nebula = f.backdrop.nebula[0], packedSource = nebula.texture.source;
+    const nebula = f.backdrop.nebula[0], nativeSource = nebula.texture.source;
+    const landmark = f.backdrop.landmarks[0].sprite, packedSource = landmark.texture.source;
     const copies = f.calls.length, expected = f.calls[0].original;
     f.restore();
-    assert.notEqual(nebula.texture.source, packedSource);
-    assert.equal(nebula.texture.source, expected.source);
-    assert.deepEqual(nebula.texture.frame, expected.frame);
+    assert.equal(nebula.texture.source, nativeSource, 'native CPU-backed pixels survive without atlas restoration');
+    assert.notEqual(landmark.texture.source, packedSource);
+    assert.equal(landmark.texture.source, expected.source);
+    assert.deepEqual(landmark.texture.frame, expected.frame);
     f.step(1);
     assert.equal(f.calls.length, copies);
     assert.equal(f.backdrop.snapshot().atlas.disabled, true);
@@ -183,14 +227,14 @@ test('context restoration falls back to live CPU-backed originals without new ba
   } finally { f.destroy(); }
 });
 
-test('disposing an atlas or restored source detaches real Pixi shared mesh bindings before destruction', () => {
-  for (const restored of [false, true]) {
+test('disposing native, atlas or restored sources detaches real Pixi shared mesh bindings before destruction', () => {
+  for (const restored of [false, true]) for (const kind of ['native', 'atlas']) {
     const f = fixture();
     let shader;
     try {
       f.backdrop.update(f.engine, 1);
       if (restored) f.restore();
-      const source = f.backdrop.nebula[0].texture.source;
+      const source = kind === 'native' ? f.backdrop.nebula[0].texture.source : f.backdrop.landmarks[0].sprite.texture.source;
       shader = new Shader({ resources: { uTexture: source, uSampler: source.style } });
       const group = shader.groups[99];
       f.renderer.renderPipes = { mesh: { _adaptor: { _shader: shader } } };

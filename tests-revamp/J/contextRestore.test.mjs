@@ -14,6 +14,7 @@ const output = await build({
     export { HitFlashTextureCache } from './services/revamp/performance/HitFlashTextureCache';
     export { PixiEnvironment } from './services/pixi/PixiEnvironment';
     export { FeelPresentation } from './services/revamp/feel/FeelPresentation';
+    export { configureRenderBudget } from './services/revamp/performance/RendererBudget';
     export { Container, Graphics, Sprite, Texture, TextureSource, RenderTexture, Shader } from 'pixi.js';
     export { EntityType } from './types';
   `, resolveDir: process.cwd(), loader: 'ts' },
@@ -22,7 +23,7 @@ const output = await build({
 const directory = await mkdtemp(join(tmpdir(), 'scicon-J-context-'));
 after(() => rm(directory, { recursive: true, force: true }));
 await writeFile(join(directory, 'bundle.mjs'), output.outputFiles[0].text);
-const { BackgroundTextureCache, HitFlashTextureCache, PixiEnvironment, FeelPresentation, Container, Graphics, Sprite, Texture, TextureSource, RenderTexture, Shader, EntityType } = await import(pathToFileURL(join(directory, 'bundle.mjs')));
+const { BackgroundTextureCache, HitFlashTextureCache, PixiEnvironment, FeelPresentation, configureRenderBudget, Container, Graphics, Sprite, Texture, TextureSource, RenderTexture, Shader, EntityType } = await import(pathToFileURL(join(directory, 'bundle.mjs')));
 
 const rendererFixture = () => {
   const listeners = new Set(), generated = [];
@@ -40,6 +41,24 @@ const rendererFixture = () => {
     },
   };
 };
+
+test('background art first baked at reduced output retains full resolution through restore and High', () => {
+  const f = rendererFixture();
+  f.renderer.limits = { maxBatchableTextures: 16 };
+  configureRenderBudget(f.renderer);
+  f.renderer.resolution = 1;
+  const cache = new BackgroundTextureCache(() => f.renderer);
+  try {
+    const low = cache.get(Texture.WHITE, 390, 844, 0.55);
+    assert.equal(low.source.resolution, 2);
+    f.restore();
+    const restored = cache.get(Texture.WHITE, 390, 844, 0.55);
+    assert.equal(restored.source.resolution, 2);
+    f.renderer.resolution = 2;
+    assert.equal(cache.get(Texture.WHITE, 390, 844, 0.55), restored);
+    assert.equal(f.generated.length, 2, 'High uses the retained full-quality source without rebaking');
+  } finally { cache.destroy(); }
+});
 
 test('background restore waits for a frame, invalidates once, and detaches its listener on disposal', () => {
   const f = rendererFixture();
@@ -63,7 +82,7 @@ test('background restore waits for a frame, invalidates once, and detaches its l
 test('same-profile environment update rebinds every cached plane after restoration', async () => {
   const f = rendererFixture();
   const original = new Texture({ source: new TextureSource({ width: 1024, height: 1024 }) });
-  const bank = { get: () => original, preload: async () => {}, preloadRequired: async () => {} };
+  const bank = { get: () => original, getMutedBackground: () => original, retainMutedBackgrounds() {}, preload: async () => {}, preloadRequired: async () => {} };
   const background = new Container(), foreground = new Container();
   const environment = new PixiEnvironment(background, foreground, bank, () => f.renderer);
   try {
@@ -97,24 +116,45 @@ test('same-profile environment update rebinds every cached plane after restorati
   }
 });
 
-test('an active flash replaces its already-bound mask on the first post-restore frame', () => {
+test('a derived flash mask regenerates on demand after restoration without disposing original art', () => {
+  const f = rendererFixture();
+  const cache = new HitFlashTextureCache(() => f.renderer);
+  const original = new Texture({ source: new TextureSource({ width: 32, height: 40 }) });
+  const before = cache.get(original);
+  f.restore();
+  assert.equal(f.generated.length, 1, 'restoration callback never renders recursively');
+  const after = cache.get(original);
+  assert.notEqual(after, before);
+  assert.equal(after.destroyed, false); assert.equal(before.destroyed, true);
+  assert.equal(f.generated.length, 2);
+  cache.destroy(); cache.destroy();
+  assert.equal(f.listeners.size, 0); assert.equal(cache.get(original), null);
+  assert.equal(original.destroyed, false);
+  original.destroy(true);
+});
+
+test('the merged additive actor tint retains original art through restoration and bosses keep contact-only light', () => {
   const f = rendererFixture();
   const cache = new HitFlashTextureCache(() => f.renderer);
   const original = new Texture({ source: new TextureSource({ width: 32, height: 40 }) });
   const overlay = new Container();
   const feel = new FeelPresentation({}, overlay, texture => cache.get(texture));
   const view = { root: new Container(), sprite: new Sprite(original), body: new Graphics(), aura: new Graphics(), trail: new Graphics(), flash: new Graphics(), hasFallbackBody: false };
-  const entity = { id: 'boss', type: EntityType.BOSS };
-  feel.impact({ targetId: entity.id, vx: 0, vy: 1 });
+  const entity = { id: 'actor', type: EntityType.ENEMY_DRONE };
+  feel.impact({ targetId: entity.id, x: 0, y: 0, vx: 0, vy: 1 });
   feel.entity(view, entity);
-  const before = view.hitFlash.texture;
+  assert.equal(view.hitFlash.texture, original);
+  assert.equal(view.hitFlash.blendMode, 'add');
   f.restore();
-  assert.equal(view.hitFlash.texture, before); assert.equal(f.generated.length, 1);
   feel.entity(view, entity);
   assert.equal(view.hitFlash.visible, true);
-  assert.notEqual(view.hitFlash.texture, before);
-  assert.equal(view.hitFlash.texture.destroyed, false); assert.equal(before.destroyed, true);
-  assert.equal(f.generated.length, 2);
+  assert.equal(view.hitFlash.texture, original);
+  assert.equal(view.hitFlash.texture.destroyed, false);
+  assert.equal(f.generated.length, 0, 'the merged tint does not allocate white masks');
+  entity.type = EntityType.BOSS;
+  feel.entity(view, entity);
+  assert.equal(view.hitFlash.visible, false, 'bosses never receive silhouette wash');
+  assert.ok(view.flash.context.instructions.length > 0, 'boss contact light remains visible');
   // Exercise real FeelPresentation cleanup without invoking unrelated particles.
   feel.effects.reset = () => {};
   feel.destroy(); cache.destroy(); cache.destroy();

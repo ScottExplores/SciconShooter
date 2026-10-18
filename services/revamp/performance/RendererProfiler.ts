@@ -48,6 +48,8 @@ export function installRendererProfiler(owner: object) {
   });
   for (const key of ['syncEntities', 'syncCombatImpacts', 'syncPlayerThrusters', 'syncGunPods', 'syncCombatLighting', 'syncBossHealthHud', 'updateWavePresentation', 'updateWarnings', 'updateBossPresentation']) timed(key, target, key);
   timed('environment', target.environment, 'update');
+  // REVAMP(L): Sector worlds bypass the legacy environment; attribute them separately.
+  if (target.sectorBackdrop) timed('sectorBackdrop', target.sectorBackdrop, 'update');
   timed('effects', target.effectPool, 'update');
   timed('feel', target.feelPresentation, 'beginFrame');
   timed('bossCues', target.bossPolishPresentation, 'sync');
@@ -65,6 +67,7 @@ export function installRendererProfiler(owner: object) {
         resolution: target.app.renderer.resolution,
         particles: target.effectPool.getStats(),
         atlas: target.textureBank.getAtlasStats(),
+        backdrop: target.sectorBackdrop?.snapshot?.() ?? null,
         views: target.views.size,
         quality: target.feelQuality.budget ?? { particleScale: target.feelQuality.scale },
         phases: Object.fromEntries(Object.entries(timings).map(([name, value]) => [name, { ...value, meanMs: value.totalMs / value.calls, clearsPerCall: value.graphicsClears / value.calls }]))

@@ -97,9 +97,11 @@ export class SectorBackdrop {
     this.parent.addChild(this.root); // Legacy initialization may have appended its planes later.
     const layout = this.layout = createMissionBackdropLayout(selection), theme = selection.theme;
     const bank = this.textures = new BackdropTextures(this.renderer());
-    const cloud = bank.add('nebula', bakeNebula(theme, layout.nebulae[0].seed));
+    // REVAMP(L): This opaque, unbatched plane needs neither an atlas copy nor blending.
+    const cloud = bank.add('nebula', bakeNebula(theme, layout.nebulae[0].seed), { atlas: false });
     for (let i = 0; i < 2; i++) {
       const mesh = createBackgroundQuad(); mesh.texture = cloud;
+      mesh.blendMode = 'none';
       this.planes[0].addChild(mesh); this.nebula.push(mesh);
     }
     for (const planet of layout.planets) {

@@ -8,11 +8,15 @@ import { launchChrome, isolatedContext, waitForMission, samplePage, collectError
 
 const args = process.argv.slice(2);
 const option = (key, fallback) => args.includes(key) ? args[args.indexOf(key) + 1] : fallback;
+const quality = option('--quality', 'auto');
+if (!['auto', 'high', 'low'].includes(quality)) throw new Error('--quality must be auto, high, or low');
+const dpr = Number(option('--dpr', '2'));
+if (![1, 2].includes(dpr)) throw new Error('--dpr must be 1 or 2 (diagnostic device emulation only)');
 const directory = path.resolve(option('--output', '/workspace/scicon-revamp/qa/J-profile'));
 await mkdir(directory, { recursive: true });
 const server = await startStaticServer({ dist: path.resolve(option('--dist', 'dist')) });
 const browser = await launchChrome();
-const report = { consoleErrors: [], pageErrors: [], samples: [], environment: { cpuCount: os.cpus().length, loadStart: os.loadavg() } };
+const report = { quality, deviceDpr: dpr, consoleErrors: [], pageErrors: [], samples: [], environment: { cpuCount: os.cpus().length, loadStart: os.loadavg() } };
 try {
   const context = await isolatedContext(browser, server.origin, 'mobile');
   // Works on the untouched baseline too. Counters do not force GPU readback.
@@ -29,10 +33,21 @@ try {
     }
   });
   const page = await context.newPage();
+  // REVAMP(L): Explicit raster-cost diagnostic; ordinary QA always retains DPR 2.
+  if (dpr !== 2) {
+    const cdp = await context.newCDPSession(page);
+    await cdp.send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: dpr, mobile: true });
+  }
   collectErrors(page, report);
   const stage = option('--stage', 'mission-1');
   await page.goto(`${server.origin}/?qa=1&seed=12345&autoplay=1&skipIntro=1&perf=1&${stage === 'boss' ? 'bosslab=first' : 'mission=operation-open-galaxy'}`, { waitUntil: 'domcontentloaded' });
   await waitForMission(page);
+  if (quality !== 'auto') await page.evaluate(mode => {
+    // Exercise the real persisted setting after QA installs disposable storage.
+    const key = 'scicon:render-quality:v1';
+    localStorage.setItem(key, JSON.stringify({ version: 1, mode }));
+    window.dispatchEvent(new StorageEvent('storage', { key }));
+  }, quality);
   await page.waitForTimeout(3000);
   await page.evaluate(() => { window.__sciconPerf?.reset(); for (const key in window.__sciconGL) window.__sciconGL[key] = 0; });
   await browser.startTracing(page, { path: path.join(directory, 'chrome-trace.json'), screenshots: false, categories: ['devtools.timeline', 'v8', 'blink', 'gpu', 'cc', 'disabled-by-default-devtools.timeline', 'disabled-by-default-v8.cpu_profiler'] });

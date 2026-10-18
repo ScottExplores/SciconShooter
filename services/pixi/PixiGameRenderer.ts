@@ -56,6 +56,8 @@ import { FeelPresentation, drawReadableProjectile } from '../revamp/feel/FeelPre
 import { AdaptiveRenderQuality } from '../revamp/performance/AdaptiveRenderQuality';
 import { getRenderQualityMode } from '../revamp/performance/RenderQualitySettings';
 import { configureRenderBudget, renderResolution } from '../revamp/performance/RendererBudget';
+// REVAMP(L): Last-resort raster budget follows decorative detail, preserving High.
+import { AdaptiveRasterResolution, applyRasterResolution } from '../revamp/performance/AdaptiveRasterResolution';
 import { installSelectedSpriteBatcher, tagLargeSprite } from '../revamp/performance/SelectedSpriteBatcher';
 import { isTransientOutsideViewport, syncPixelParticle } from '../revamp/performance/EntityPresentationBudget';
 import { HitFlashTextureCache } from '../revamp/performance/HitFlashTextureCache';
@@ -1464,6 +1466,7 @@ export class PixiGameRenderer {
   private readonly hitFlashTextures = new HitFlashTextureCache(() => this.app.renderer);
   private readonly feelPresentation = new FeelPresentation(this.effectPool, this.layers.overlay, (texture) => this.hitFlashTextures.get(texture));
   private readonly feelQuality = new AdaptiveRenderQuality();
+  private readonly rasterResolution = new AdaptiveRasterResolution();
   private readonly maxShotAura = new Sprite(Texture.WHITE);
   private readonly stageLaunchStreak = new Graphics();
   private readonly playerThrusterRoot = new Container();
@@ -1825,6 +1828,8 @@ export class PixiGameRenderer {
     const mobile = this.width < 620 || this.height > this.width * 1.25;
     // REVAMP(J): Crisp DPR2 output, capped equally for phones and desktop.
     const resolution = renderResolution(window.devicePixelRatio || 1);
+    // REVAMP(L): Preserve the renderer's startup High resolution, including its baked art.
+    this.rasterResolution.setDevicePixelRatio(resolution);
 
     await this.app.init({
       width: this.width,
@@ -6501,8 +6506,9 @@ export class PixiGameRenderer {
     } else if (entity.type === EntityType.EFFECT) {
       view.sprite.visible = false;
       view.body.clear();
-      view.label.text = '';
       const effect = entity as VisualEffect;
+      // REVAMP(L): Retain text across animation frames; clear only when a pooled view changes kind.
+      if (effect.effectType !== 'text') view.label.text = '';
       if (effect.effectType === 'text') {
         view.label.text = effect.text ?? '';
         view.label.style.fontSize = effect.fontSize;
@@ -7974,6 +7980,9 @@ export class PixiGameRenderer {
     const elapsedMs = this.lastTimestamp ? timestamp - this.lastTimestamp : 16.667;
     // REVAMP(J): Auto/High/Low is a renderer-only choice, including recovery.
     const quality = this.feelQuality.observe(elapsedMs, getRenderQualityMode(), getFeelSettings().reducedMotion, !document.hidden && presentationActive);
+    // REVAMP(L): Change backing pixels only; keep the shared world and fitted canvas CSS.
+    const resolution = this.rasterResolution.observe(elapsedMs, getRenderQualityMode(), quality.tier, !document.hidden && presentationActive);
+    applyRasterResolution(this.app.renderer, resolution, this.rasterResolution.fullResolution);
     const deltaMs = clamp(elapsedMs, 0, 50);
     this.lastTimestamp = timestamp;
     this.updatePlayerSteeringPresentation(engine, deltaMs);

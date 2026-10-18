@@ -256,3 +256,185 @@ at 54.0 median / 26.9 minimum FPS. Smoke artifacts are
 Build, typecheck, exact legacy parity, visual critique, limitations and merge
 hooks are recorded in `REVAMP_NOTES_J.md`. Real low-end Android GPU, touch,
 battery and audio testing remain outside this headless run.
+
+## Round 3 — Job L regression investigation
+
+Reference: round-2 commit `8ffbd9e`; comparison: round-3 K/N/P/Q merge before L.
+The historical 57.5 FPS Mission 1 result is not a same-session control. The first
+alternating, uninstrumented mobile runs used normal 60/45-second Mission 1/boss
+captures, normal damage, DPR 2, screenshots and `--no-video` on both builds:
+
+| Run, in execution order | Mission 1 median FPS | Boss median FPS | Host 1m load, start → end |
+| --- | --- | --- | --- |
+| `L-ref-before-1` | 18.8 | 22.0 | 17.66 → 23.60 |
+| `L-current-before-1` | 19.3 | 24.2 | 26.91 → 25.37 |
+| `L-ref-before-2` | 25.0 | 29.0 | 25.37 → 19.31 |
+| `L-current-before-2` | 12.1 | 14.9 | 19.31 → 38.33 |
+
+All eight scenario medians miss the unchanged 30 FPS gate, with zero recorded
+browser/runtime errors. Median-of-run-medians current/reference ratios are
+0.717 for Mission 1 and 0.767 for boss. Those ratios record the failed baseline;
+they do not isolate a code regression. In particular, the second current run
+experienced rising load 19→38 while its preceding reference improved at 25→19
+on eight CPUs. Raw reports remain under the four run names above; the compact
+comparison is `/workspace/scicon-revamp/qa/L-validation/before-comparison.json`.
+
+### Attribution
+
+Sequential 12-second Mission 1 traces identify a large software GPU/readback
+cost. `GLES2::ReadPixels` occupies roughly 9.7 seconds of each trace, nested in
+the browser's layer commit and GPU command waits. CPU renderer sync is much
+smaller. These inclusive events overlap and must not be summed.
+
+| Diagnostic | Output pixels | Mean renderer sync | GL draws/render | Graphics clears/render | Mean ReadPixels call |
+| --- | --- | --- | --- | --- | --- |
+| `L-trace-reference` | 780×1688 | 3.17 ms | 34.9 | 168.4 | 24.1 ms |
+| `L-trace-before` | 780×1688 | 4.86 ms | 31.9 | 169.9 | 39.7 ms |
+| `L-trace-native-diagnostic` | 390×844 | 3.02 ms | 31.4 | 165.1 | 23.8 ms |
+
+All three settle at Low decorative detail and record zero filter passes or
+browser errors. Reference/current-before atlas entries are 58/53, with no atlas
+disablement. The current trace records 60 uploads over 299 renders; source
+inspection confirms N retains its geometry and generated textures and moves
+them using transforms. There is no demonstrated per-frame N redraw, texture
+generation or filter loop. Its nebula is already a 128×256 nearest-sampled
+source. P's additive engine glows are already hidden at Low; its HUD still uses
+the existing throttled publication path. Most entity Graphics clears predate P.
+The current build's draws per render are lower, so a draw-call explosion does
+not explain these captures.
+
+The native-resolution diagnostic reduces backing pixels fourfold while CSS
+size stays 390×844. Its 33.6 FPS median of profiler samples versus 20.2 before,
+at nearby but unequal host loads around 30, supports raster/readback pressure
+as a useful optimization target. This is attribution evidence, not an ordinary
+QA acceptance result or a measured production speedup. The diagnostic explicitly
+emulated DPR 1. Full `profile.json`, `trace-summary.json`, Chrome traces and PNGs
+are retained under `/workspace/scicon-revamp/qa/L-trace-{reference,before,native-diagnostic}/`.
+
+### Implementation and quality contract
+
+- N's opaque nebula stays in its native 128×256 buffer instead of being copied
+  into a 1024² atlas; its existing single-texture mesh uses opaque rendering.
+  Palette, parallax, stars, landmarks, events and High artwork are retained.
+- Text effects retain unchanged label text through animation frames instead of
+  assigning empty text and restoring it every render. Existing pooling remains.
+- `AdaptiveRasterResolution` is a production fallback after J's detail budget
+  is exhausted. Auto reduces one decorative tier after two seconds below 50 FPS,
+  or one second below 30 FPS. Once Low, output changes to resolution 1 after two
+  additional seconds averaging below 40 FPS, or one second below 20 FPS. Recovery requires the detail
+  governor to return through Medium to High, followed by eight additional seconds
+  averaging at least 57 FPS. One-second windows average frame pressure; paused,
+  hidden, invalid and ≥1000 ms samples reset measurement but retain learned output.
+- Explicit High immediately restores the renderer's startup `min(DPR, 2)`;
+  explicit Low selects resolution 1. Startup DPR stays fixed for the renderer's
+  lifetime, matching prior behavior and the background cache's full resolution.
+  Derived legacy backgrounds always bake at that full resolution, including
+  scenes first visited during fallback and regeneration after context restoration.
+- Resizing occurs only when output resolution changes. The helper restores the
+  canvas CSS width/height after Pixi autoDensity writes, uses `image-rendering:
+  pixelated` while reduced, then restores the previous style. The DOM HUD keeps
+  its original resolution. World size, camera, touch mapping, simulation,
+  collision, attack timing and reward rules are unchanged.
+
+Auto deliberately lowers output resolution under sustained pressure; this is a
+quality tradeoff, not pixel-for-pixel equivalence with High. High remains available
+without this fallback. Native DPR-1 screens cannot be reduced further. Software
+Chrome evidence does not establish real-phone GPU, battery or touch performance.
+
+### Reproduction and acceptance status
+
+Use immutable built snapshots and unused run IDs. Run CPU-heavy suites and
+profiling separately from acceptance; retain failures and all alternating legs.
+The comparison tool records executable/argument arrays, hashes, host loads,
+errors, individual medians and their median-of-medians. It does not change QA
+thresholds, duration, device DPR or simulation settings.
+
+```sh
+# Build reference once in /tmp/L-ref (git worktree at 8ffbd9e, node_modules symlink).
+# From that worktree: npx vite build --outDir /tmp/L-ref-dist
+npm run build
+cp -a dist /tmp/L-review-dist # use a fresh snapshot path
+node tools-revamp/perf/compare.mjs --reference /tmp/L-ref-dist \
+  --current /tmp/L-review-dist --runs 2 --run-id L-review-ab
+node tools-revamp/perf/profile.mjs --dist /tmp/L-review-dist --stage mission-1 --seconds 12 \
+  --quality high --dpr 2 --output /workspace/scicon-revamp/qa/L-high-profile-new
+node tools-revamp/perf/raster-check.mjs --dist /tmp/L-review-dist \
+  --output /workspace/scicon-revamp/qa/L-raster-check-new
+node --test tests-revamp/L/raster.test.mjs tests-revamp/J/contextRestore.test.mjs
+SCICON_QA_DIST=/tmp/L-review-dist node --test tests-revamp/F/smoke.test.mjs
+npm run qa:ui -- --dist /tmp/L-review-dist --run-id L-ui-new
+```
+
+`profile.mjs --dpr 1` is a labeled device-emulation diagnostic only; it is never
+used by `compare.mjs` or ordinary QA. `raster-check.mjs` exercises real persisted
+High→Low→High settings on 360×640, 390×844 and desktop, checking output size,
+unchanged canvas rectangle/world, frame advancement and screenshots. It is a
+transition check, not an FPS benchmark or proof of Auto fallback timing.
+
+Final ordinary comparison: `/workspace/scicon-revamp/qa/L-final-ab-complete/`
+(`compare.json` and `compare.md`), using the frozen `/tmp/L-severe-dist` build.
+Order was reference 1, current 1, reference 2, current 2; all four legs completed.
+
+| Build/run | Mission 1 median FPS | Boss median FPS | Host load 1m start → end |
+| --- | ---: | ---: | --- |
+| Reference 1 | 23.0 | 26.5 | 13.92 → 18.13 |
+| Current 1 | 52.0 | 51.4 | 18.13 → 22.35 |
+| Reference 2 | 26.5 | 27.5 | 22.35 → 16.34 |
+| Current 2 | 55.0 | 56.5 | 16.34 → 17.07 |
+
+Median-of-run-medians: **53.5 versus 24.75 FPS** for Mission 1 (ratio **2.162**),
+and **53.95 versus 27.0 FPS** for boss (ratio **1.998**). Both relative ≥.9 targets
+and the current Mission 1 ≥45 target are met in this session. All four current
+scenarios pass ordinary QA. The comparison's overall status intentionally remains
+**failed** because all four reference scenarios fail the unchanged 30 FPS gate;
+there are no current scenario failures. One-minute load at leg boundaries ranged
+from 13.92 to 22.35 on an eight-core host. These results do not establish quiet-host
+or phone-GPU performance, nor isolate every component's contribution to the gain.
+
+The earlier `L-final-ab/` attempt terminated with shell exit 143 during its second
+reference boss capture. Its original partial reports and `INTERRUPTED.md` remain
+available. Its completed current medians (46.9/57.5 FPS) are corroborating evidence,
+not substituted into the completed comparison. Initial baseline and failed smoke
+runs also remain available.
+
+Final validation on the same frozen build (full suites used `--test-concurrency=2`):
+
+- `npm run build` and `npx tsc --noEmit`: pass; zero TypeScript errors.
+- Full revamp suite: **405 passed, 0 failed** (`L-validation/revamp-final.log`).
+  This includes smoke at **52 median FPS**. Separate smoke passes all five checks
+  at **54 median FPS** (`smoke-2026-10-18T05-36-38-440Z/smoke.json`). Earlier
+  failed smoke runs at 8.9, 17.9 and 25 FPS are retained, not overwritten.
+- Full legacy suite: **1782 passed, 7 failed, 12 skipped**, identical to baseline.
+  `L-validation/legacy-complete-parity.json` verifies exact failure names after
+  removing only checkout path prefixes. Six files require the unavailable local
+  Director `pngjs`; the seventh is the inherited non-boss matrix assertion.
+- Final setting transitions: all **9 phases pass** under `L-raster-final/`.
+  Mobile backing sizes are 780×1688 → 390×844 → 780×1688; CSS rectangles and
+  logical world dimensions remain fixed. Desktop DPR 1 stays native throughout.
+- Final opt-in traces (`L-trace-final-auto/`, `L-trace-final-high/`) confirm Auto
+  uses resolution 1 and High uses 2 at the same emulated DPR 2. Auto's backdrop
+  update averages **0.045 ms**, with zero Graphics clears and a healthy atlas.
+  These instrumented, nonalternating traces are diagnostics, not the acceptance
+  comparison. High's 22.1 FPS trace confirms full detail remains costly on this
+  software renderer; no High-mode speedup is claimed from the Auto result.
+- UI full matrix: **436/436 cases pass, zero overflows, navigation failures,
+  blank screens or coverage/browser errors**. All seven natural gameplay-victory
+  cases pass. `L-ui/report.md` combines `L-ui-short` (186 cases) and
+  `L-ui-standard` (250 cases) with the existing `ui-report.mjs` coverage checker;
+  original reports, per-case build paths and 1418 screenshot references remain
+  available. Both groups used the same frozen build, after all FPS measurements.
+
+Visually reviewed final captures include
+`L-final-ab-complete/current-2/mobile/mission-1/007-time-30s.png`,
+`L-final-ab-complete/current-2/mobile/boss/009-time-30s.png`,
+`L-raster-final/mobile/03-high-restored.png` and
+`L-raster-final/360x640/02-low.png`, all below `/workspace/scicon-revamp/qa/`.
+The dark sector palette, station silhouettes, bright ships/pickups and boss
+telegraph lanes remain legible. Native output has visibly chunkier diagonal
+edges; High restores finer edges and its decorative effects. The short viewport
+retains its letterbox and HUD clearance. Opening wave/enemy banners can overlap
+in the short capture; their existing placement is outside this performance fix.
+These screenshots depict different simulation moments, not a pixel-diff proof.
+
+Changes remain uncommitted: Git rejected staging because worktree metadata is
+read-only. No push, deployment or external write API was performed.
