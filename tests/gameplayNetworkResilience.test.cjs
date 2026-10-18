@@ -30,7 +30,7 @@ test('wallet hydration cannot replace the immutable loadout of a mounted flight'
   );
 
   assert.doesNotMatch(hydration, /activeRunSquadLoadoutRef\.current\s*=/);
-  assert.match(launch, /const squadLoadout = runMode === 'weekly-streak'[\s\S]*\? buildWeeklyRankedLoadout\(campaignLabState\)[\s\S]*\(runMode === 'campaign' \|\| runMode === 'campaign-replay'\) && !authorizedCampaignLabRequest[\s\S]*\? buildRevampCampaignLoadout\(campaignLabState, permanentSquadStateRef\.current, runShipId\)[\s\S]*: buildRuntimeSquadLoadout\(campaignLabState, runShipId\)/);
+  assert.match(launch, /const squadLoadout = runMode === 'weekly-streak'[\s\S]*\? buildWeeklyRankedLoadout\(campaignLabState\)[\s\S]*\(runMode === 'campaign' \|\| runMode === 'campaign-replay' \|\| \(QA_CONFIG\.enabled && runMode === 'campaign-lab'\)\) && !authorizedCampaignLabRequest[\s\S]*\? buildRevampCampaignLoadout\(campaignLabState, permanentSquadStateRef\.current, runShipId\)[\s\S]*: buildRuntimeSquadLoadout\(campaignLabState, runShipId\)/);
   assert.match(launch, /activeRunSquadLoadoutRef\.current = squadLoadout/);
   assert.ok(
     launch.indexOf('activeRunSquadLoadoutRef.current = squadLoadout')

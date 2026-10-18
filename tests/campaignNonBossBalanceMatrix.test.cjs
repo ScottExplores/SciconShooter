@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict');
 const childProcess = require('node:child_process');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 const { pathToFileURL } = require('node:url');
@@ -28,8 +29,9 @@ test('checked-in non-boss runtime matrix covers every non-boss graph Mission and
     return !node.bossId && level?.campaignProgression?.missionRole !== 'major-boss';
   });
 
-  assert.equal(artifact.metadata.schemaVersion, 2);
+  assert.equal(artifact.metadata.schemaVersion, 3);
   assert.equal(artifact.metadata.runtime, 'GameEngine');
+  assert.equal(artifact.metadata.loadoutRevision, 'campaign-research-wings-v1');
   assert.equal(artifact.metadata.campaignRevision, campaign.revision);
   assert.equal(artifact.coverage.sectorCount, 10);
   assert.equal(artifact.coverage.nonBossMissionCount, 50);
@@ -121,6 +123,63 @@ test('non-boss matrix artifact and Markdown remain tied to the current runtime s
   assert.doesNotMatch(fs.readFileSync(reportPath, 'utf8'), /Ã¢|Â·|ï¿½/);
 });
 
+test('extracted choreography, wing tuning, and fair-arena changes invalidate measured evidence', async () => {
+  const tool = await loadTool();
+  const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'scicon-matrix-digest-'));
+  try {
+    for (const sourcePath of tool.CAMPAIGN_NONBOSS_SOURCE_PATHS) {
+      const destination = path.join(temporaryRoot, sourcePath);
+      fs.mkdirSync(path.dirname(destination), { recursive: true });
+      fs.copyFileSync(path.join(root, sourcePath), destination);
+    }
+    const original = tool.computeCampaignNonBossSourceDigest(temporaryRoot);
+    assert.equal(original, tool.computeCampaignNonBossSourceDigest(root));
+    for (const sourcePath of [
+      'services/revamp/formations/DenseFormationFire.ts',
+      'services/revamp/enemies/EnemyBehaviorRuntime.ts',
+      'services/revamp/wings/wingTuning.ts',
+      'services/gameplay/fairArena.ts'
+    ]) {
+      const destination = path.join(temporaryRoot, sourcePath);
+      fs.appendFileSync(destination, '\n// simulated tuning edit\n');
+      assert.notEqual(tool.computeCampaignNonBossSourceDigest(temporaryRoot), original, sourcePath);
+      fs.copyFileSync(path.join(root, sourcePath), destination);
+      assert.equal(tool.computeCampaignNonBossSourceDigest(temporaryRoot), original);
+    }
+  } finally {
+    fs.rmSync(temporaryRoot, { recursive: true, force: true });
+  }
+});
+
+test('all measured mobile and desktop cells use the same world and produce identical gameplay', () => {
+  const artifact = readArtifact();
+  const mobileRows = artifact.results.filter(({ viewport }) => viewport === 'mobile');
+  assert.equal(mobileRows.length, 300);
+  for (const row of mobileRows) {
+    const desktop = artifact.results.find(candidate => candidate.viewport === 'desktop'
+      && candidate.missionId === row.missionId && candidate.tier === row.tier && candidate.support === row.support);
+    assert.ok(desktop, `${row.missionId}/${row.tier}/${row.support}`);
+    for (const result of [row, desktop]) {
+      assert.equal(result.worldWidth, 390);
+      assert.equal(result.worldHeight, 844);
+      assert.equal(result.campaignWingsEnabled, true);
+      assert.equal(result.companionCount, result.support === 'paired' ? 2 : 0);
+      // Direct missile/ability sparks remain in engine.entities: Particle has
+      // an unseeded 40..60-tick cosmetic lifetime. Keep their mixed total
+      // beneath the runtime's 132-entity heavy-scene trigger, independently of
+      // strict projectile/threat/budget/performance and outcome parity below.
+      assert.ok(Number.isInteger(result.maximumActiveEntities));
+      assert.ok(result.maximumActiveEntities >= Math.max(1,
+        result.maximumHostileProjectiles, result.maximumPlayerProjectiles));
+      assert.ok(result.maximumActiveEntities < 132);
+    }
+    assert.deepEqual([row.displayWidth, row.displayHeight], [390, 844]);
+    assert.deepEqual([desktop.displayWidth, desktop.displayHeight], [1280, 720]);
+    const gameplayOnly = ({ viewport, displayWidth, displayHeight, maximumActiveEntities, ...gameplay }) => gameplay;
+    assert.deepEqual(gameplayOnly(row), gameplayOnly(desktop));
+  }
+});
+
 test('focused M2/M7 smoke executes actual GameEngine runtime rather than config-only analysis', () => {
   const stdout = childProcess.execFileSync(
     process.execPath,
@@ -140,4 +199,6 @@ test('focused M2/M7 smoke executes actual GameEngine runtime rather than config-
   assert.deepEqual(runtime.missionSummaries.map(({ missionLabel }) => missionLabel), ['M2', 'M7']);
   assert.equal(runtime.results.every(({ maximumActiveEntities }) => maximumActiveEntities > 0), true);
   assert.equal(runtime.results.every(({ wavesCleared }) => wavesCleared >= 0), true);
+  assert.equal(runtime.results.every(({ worldWidth, worldHeight }) => worldWidth === 390 && worldHeight === 844), true);
+  assert.equal(runtime.results.every(({ campaignWingsEnabled, companionCount }) => campaignWingsEnabled && companionCount === 0), true);
 });

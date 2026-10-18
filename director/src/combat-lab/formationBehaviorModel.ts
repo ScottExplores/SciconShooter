@@ -16,6 +16,14 @@ export interface FormationBehaviorOption<T extends string> {
 }
 
 export const FORMATION_ENTRY_OPTIONS: readonly FormationBehaviorOption<FormationEntryPathId>[] = [
+  { id: 'revamp-swoop', label: 'Squadron swoop' },
+  { id: 'revamp-loop', label: 'Squadron loop' },
+  { id: 'revamp-s-curve', label: 'Squadron S-curve' },
+  { id: 'revamp-side-sweep', label: 'Squadron side sweep' },
+  { id: 'revamp-pincer', label: 'Squadron pincer' },
+  { id: 'revamp-corkscrew', label: 'Squadron corkscrew' },
+  { id: 'revamp-bottom-flank', label: 'Squadron bottom flank' },
+  { id: 'revamp-train', label: 'Squadron train' },
   { id: 'sweep-bank-reentry', label: 'Sweep, bank, re-entry' },
   { id: 'formation-drop', label: 'Formation drop' },
   { id: 'spiral-entry', label: 'Spiral entry' },
@@ -34,6 +42,7 @@ export const FORMATION_ENTRY_OPTIONS: readonly FormationBehaviorOption<Formation
 ];
 
 export const FORMATION_MOVEMENT_OPTIONS: readonly FormationBehaviorOption<FormationMovementId>[] = [
+  { id: 'revamp-breathe', label: 'Squadron breathing' },
   { id: 'gentle-drift', label: 'Gentle drift' },
   { id: 'lateral-sweep', label: 'Lateral sweep' },
   { id: 'expand-collapse', label: 'Expand and collapse' },
@@ -44,6 +53,8 @@ export const FORMATION_MOVEMENT_OPTIONS: readonly FormationBehaviorOption<Format
 ];
 
 export const FORMATION_ATTACK_OPTIONS: readonly FormationBehaviorOption<FormationAttackBehaviorId>[] = [
+  { id: 'revamp-dive', label: 'Squadron dive' },
+  { id: 'revamp-escort', label: 'Squadron escort dive' },
   { id: 'single-dive', label: 'Single dive' },
   { id: 'paired-dive', label: 'Paired dive' },
   { id: 'alternating-wings', label: 'Alternating wings' },

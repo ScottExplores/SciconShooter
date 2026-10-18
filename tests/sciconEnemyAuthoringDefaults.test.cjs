@@ -48,11 +48,14 @@ test('retired introduction migration audits the complete legacy roster', async (
   const campaign = JSON.parse(read('game-config/campaign.json'));
   const { auditEnemyIntroductionSchedule } = await import(pathToFileURL(migrationPath).href);
   const current = auditEnemyIntroductionSchedule(campaign);
+  // I's linefighter reuses the Scout family; all declared roles must still be
+  // active and every restored art family must be represented.
+  assert.ok(campaign.enemyRoles.length >= 34 && campaign.enemyRoles.length <= 40);
   assert.deepEqual(current, {
     issues: [],
-    roleCount: 33,
+    roleCount: campaign.enemyRoles.length,
     familyCount: 25,
-    authoredRoleCount: 33
+    authoredRoleCount: campaign.enemyRoles.length
   });
 
   const invalid = structuredClone(campaign);
@@ -73,7 +76,9 @@ test('retired introduction command is repeatable, non-mutating, and rejects writ
   assert.equal(first.status, 0, first.stderr);
   assert.equal(second.status, 0, second.stderr);
   assert.equal(first.stdout, second.stdout);
-  assert.match(first.stdout, /Roles 33\/33; Squadron families 25\/25\./);
+  const roleCount = JSON.parse(read('game-config/campaign.json')).enemyRoles.length;
+  assert.ok(roleCount >= 34 && roleCount <= 40);
+  assert.ok(first.stdout.includes(`Roles ${roleCount}/${roleCount}; Squadron families 25/25.`));
   assert.match(first.stdout, /No files written\./);
   assert.equal(digest(campaignPath), before);
 

@@ -9,12 +9,14 @@ const recordCardHandler = require('../api/record-card');
 const campaign = require('../game-config/campaign.json');
 const { loadService } = require('./helpers/loadService.cjs');
 const { ASSETS } = loadService(require('node:path').join(__dirname, '../constants.ts'));
-// REVAMP(G): B changes the early finale roster, not the record-card art contract.
-const finalEnemyArt = stage => {
+// REVAMP(G): I restores dedicated checkpoint finales; both enemy and boss art
+// must be fetched from the actual encounter, never the unrelated legacy boss.
+const finalEncounterArt = stage => {
   const finale = campaign.levels.find(level => level.order === stage).waves.at(-1);
-  const enemy = finale.events.filter(event => event.kind === 'spawn').at(-1).enemies[0];
-  const asset = ASSETS[enemy.spriteKey];
-  assert.ok(asset, `registered encounter art for ${enemy.roleId}`);
+  const encounter = finale.events.find(event => event.kind === 'boss')
+    ?? finale.events.filter(event => event.kind === 'spawn').at(-1).enemies[0];
+  const asset = ASSETS[encounter.spriteKey];
+  assert.ok(asset, `registered encounter art for ${encounter.roleId ?? encounter.bossId}`);
   return Array.isArray(asset) ? asset[0] : asset;
 };
 
@@ -78,7 +80,7 @@ test('record card embeds encounter art and meaningful run values', async () => {
     assert.match(res.body, /preserveAspectRatio="none" style="image-rendering:pixelated"/);
     assert.doesNotMatch(res.body, /SERVER VERIFIED/);
     assert.ok(fetchedUrls.some((url) => url.includes('/game-art/branding/bio-ship.png')));
-    assert.ok(fetchedUrls.some((url) => url.endsWith(finalEnemyArt(2))));
+    assert.ok(fetchedUrls.some((url) => url.endsWith(finalEncounterArt(2))));
     assert.equal(fetchedUrls.some((url) => url.includes('/game-art/generated/boss-weapons/citation-storm-plasma-claw-left.png')), false);
     assert.equal(fetchedUrls.some((url) => url.includes('/game-art/generated/boss-weapons/citation-storm-plasma-claw-right.png')), false);
     assert.equal(fetchedUrls.some((url) => url.includes('/game-art/bosses/final-boss-sentinel.png')), false);
@@ -94,9 +96,9 @@ test('record card embeds encounter art and meaningful run values', async () => {
 test('revamp record cards embed their resolved mission encounter art without the legacy boss fallback', async () => {
   const runId = '66666666-7777-4888-8999-000000000000';
   const expectedStages = new Map([
-    [7, finalEnemyArt(7)],
-    [8, finalEnemyArt(8)],
-    [9, finalEnemyArt(9)],
+    [7, finalEncounterArt(7)],
+    [8, finalEncounterArt(8)],
+    [9, finalEncounterArt(9)],
     [20, '/game-art/generated/bosses/campaign-packages/frontier-crownclaw/assembled.png'],
     [25, '/game-art/generated/bosses/campaign-packages/helios-clawcarrier/assembled.png'],
     [50, '/game-art/generated/bosses/campaign-packages/umbra-needlewing/assembled.png']

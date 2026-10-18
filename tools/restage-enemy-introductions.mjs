@@ -51,7 +51,9 @@ const INTRODUCTION_SCHEDULE = Object.freeze({
   'role-revamp-mine-layer': [2, 1],
   'role-revamp-sniper': [2, 2],
   'role-revamp-teleporter': [2, 3],
-  'role-revamp-carrier': [2, 4]
+  'role-revamp-carrier': [2, 4],
+  // REVAMP(I) adds an ordinary hull role, sharing the existing Orbit Scout art.
+  'role-revamp-linefighter': [1, 1]
 });
 
 // Compact Retraction Fleet art replaces the obsolete pink terrain jets and
@@ -90,7 +92,8 @@ const ROLE_SPRITE_KEYS = Object.freeze({
   'role-revamp-mine-layer': 'CAMPAIGN_ENEMY_CRESCENT_MINELAYER',
   'role-revamp-sniper': 'CAMPAIGN_ENEMY_WALL_SNIPER_LEFT',
   'role-revamp-teleporter': 'SCICON_ENEMY_RIFT_WEAVER_FRAMES',
-  'role-revamp-carrier': 'CAMPAIGN_ENEMY_DNA_CONDUCTOR'
+  'role-revamp-carrier': 'CAMPAIGN_ENEMY_DNA_CONDUCTOR',
+  'role-revamp-linefighter': 'LEGACY_ENEMY_DRONE_FRAMES'
 });
 
 const SCICON_FAMILY_KEYS = new Set(Object.values(ROLE_SPRITE_KEYS));

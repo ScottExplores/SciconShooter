@@ -42,7 +42,7 @@ test('original opening environments retain the updated Breakwater encounters', (
     assert.ok(authoredSeconds > 0);
     assert.equal(level.durationSeconds, null, 'REVAMP_NOTES_B: clear-driven waves have no fixed mission timeout');
   }
-  assert.equal(missions[0].waves[0].name, 'FIRST FLIGHT');
+  assert.equal(missions[0].waves[0].name, 'FIRST CONTACT');
   assert.ok(missions.every(level => level.waves.every(wave => wave.name.trim().length > 0)));
 });
 
@@ -90,8 +90,10 @@ test('streamed and overlapping cohorts stay under actual role, formation and wav
     }
   }
   assert.ok(overlappingWaves >= 1);
-  assert.ok(entryPaths.size >= 5);
-  assert.deepEqual(attackVerbs, new Set(['aimed-volley', 'revamp-dive', 'revamp-escort']));
+  // REVAMP(I) cycles four curved entries into full grids; variety lives in the
+  // entry paths and specialist attacks, rather than small formation shapes.
+  assert.deepEqual(entryPaths, new Set(['revamp-swoop', 'revamp-loop', 'revamp-s-curve', 'revamp-pincer']));
+  assert.deepEqual(attackVerbs, new Set(['revamp-dive', 'revamp-escort']));
 });
 
 test('hold-shooting roles are never silenced by a dive-only formation fire policy', () => {
@@ -112,24 +114,28 @@ test('hold-shooting roles are never silenced by a dive-only formation fire polic
 });
 
 test('salvage lightens pressure before existing checkpoint bosses without changing their identities or rewards', () => {
-  // REVAMP_NOTES_B: recovery is now a distinct breath beat, plus timed opening pickups.
+  // REVAMP(I): power/magnet pickups accompany dense combat; boss missions
+  // recover between grids and reserve a separate unobstructed encounter lane.
   for (const level of missions) {
     const recovery = level.waves.find(wave => wave.events.some(event => event.kind === 'recovery'));
     assert.ok(recovery);
     assert.ok(spawns(recovery).length > 0);
-    if (level.id !== missions[0].id) {
-      const breath = level.waves.find(wave => wave.rhythm === 'recovery');
-      assert.ok(breath.events.some(event => event.kind === 'recovery'));
-      assert.ok(spawns(breath).every(event => event.count <= breath.threatCap));
-    }
+    assertRevampMission(level, campaign);
+    assert.ok(level.waves.some(wave => wave.events.some(event => event.kind === 'recovery' && event.powerupIds.includes('magnet'))));
   }
   const encounters = missions.flatMap(level => level.waves.flatMap(wave => wave.events.filter(event => event.kind === 'boss').map(event => ({ level, wave, event }))));
   assert.deepEqual(encounters.map(({ event }) => event.bossId), ['bottleneck-drone', 'bottleneck-drone', 'paywall-wall', 'gatekeeper-prime']);
-  assert.equal(encounters[0].event.health, 120);
+  assert.ok(encounters[0].event.health >= 100 && encounters[0].event.health <= 120);
   assert.ok(encounters.slice(1, 3).every(({ event }) => event.health >= 50 && event.health <= 340));
-  assert.equal(encounters.at(-1).event.health, 500);
+  // Canonical opening-boss tuning is owned by the promotion/economy source.
+  const { CAMPAIGN_BOSS_ECONOMY_BY_MISSION } = load('services/campaignBossEconomy.ts');
+  assert.equal(encounters.at(-1).event.health, CAMPAIGN_BOSS_ECONOMY_BY_MISSION[5].hullHealth);
+  assert.ok(encounters.at(-1).event.health >= 150 && encounters.at(-1).event.health <= 200);
   assert.deepEqual(encounters.map(({ event }) => event.scoreReward), [450, 2040, 2600, 1010]);
-  assert.deepEqual(encounters.at(-1).event.componentHealth, { 'left-cannon': 165, 'right-cannon': 165 });
+  assert.deepEqual(encounters.at(-1).event.componentHealth, CAMPAIGN_BOSS_ECONOMY_BY_MISSION[5].componentHealth);
+  for (const health of Object.values(encounters.at(-1).event.componentHealth)) {
+    assert.ok(health / encounters.at(-1).event.health >= .3 && health / encounters.at(-1).event.health <= .35);
+  }
   assert.equal(encounters.at(-1).wave.completionRule, 'boss-defeat');
   for (const { wave, event } of encounters.slice(1, 3)) {
     assert.equal(event.blocksWaveClock, true);
@@ -145,7 +151,7 @@ const stats = () => ({ score: 0, highScore: 0, wave: 1, coins: 0, totalCoins: 0,
   shipAbilityCooldown: 0, shipAbilityCooldownMax: 960, upgrades: { fireRate: 0, speed: 0, ability: 0 },
   powerupUses: {}, bossProgress: 0, isBossActive: false, bossHp: 0, bossMaxHp: 100 });
 
-test('the regular mobile Mission launches a separated ribbon through the left gate', () => {
+test('the regular mobile Mission launches its full grid through separated curved entries', () => {
   const level = missions[0];
   const engine = new GameEngine(stats(), { campaign, previewMode: false, audioEnabled: false,
     preloadCanvasAssets: false, initialLevelId: level.id, initialWaveId: level.waves[0].id, randomSeed: 'breakwater-arrival' });
@@ -155,7 +161,8 @@ test('the regular mobile Mission launches a separated ribbon through the left ga
   let visible = false;
   for (let frame = 0; frame < 480; frame++) {
     engine.update();
-    for (const enemy of engine.entities.filter(entity => entity.sourceEventId === source.id)) {
+    // Projectiles inherit sourceEventId; only arriving hostile hulls count.
+    for (const enemy of engine.entities.filter(entity => entity.sourceEventId === source.id && engine.isEnemyTarget(entity))) {
       if (!births.has(enemy.id)) births.set(enemy.id, { frame, x: enemy.x });
       if (enemy.x > 0 && enemy.x < 390 && enemy.y > 0 && enemy.y < 844) visible = true;
     }

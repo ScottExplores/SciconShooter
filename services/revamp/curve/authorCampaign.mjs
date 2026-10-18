@@ -33,6 +33,9 @@ export function authorRevampCampaign(source) {
   const sectors = campaign.sectors.slice(0, 3);
   const sectorIds = sectors.map((sector) => sector.id);
   campaign.enemyRoles = campaign.enemyRoles.filter((role) => !role.id.startsWith('role-revamp-'));
+  for (const role of campaign.enemyRoles) {
+    role.compatibleFormationPackIds = role.compatibleFormationPackIds.filter(id => !id.startsWith('pack-revamp-'));
+  }
   const newRoles = REVAMP_ROSTER.map(([slug, label, enemyId, spriteKey, role, threatCost, introductionSector,
     introductionMission, durabilityClass, fireBehavior, characteristic]) => ({
       id: roleId(slug), label, enemyId, spriteKey, role, threatCost, introductionSector,
@@ -55,13 +58,18 @@ export function authorRevampCampaign(source) {
   };
   campaign.enemyRoles.push(...newRoles, linefighter);
   const scout = campaign.enemyRoles.find((role) => role.id === 'role-orbit-scout');
+  // REVAMP(G): Restore Vanguard's second-wave teaching pair without crowding
+  // the Splitter mechanic or changing I's grid density.
+  const researchDrone = campaign.enemyRoles.find((role) => role.id === 'role-research-drone');
+  const vanguard = campaign.enemyRoles.find((role) => role.id === 'role-protocol-vanguard');
   campaign.formationPacks = campaign.formationPacks.filter((pack) => !pack.id.startsWith('pack-revamp-'));
-  const packRoles = [scout, ...newRoles, linefighter];
-  for (const [index, role] of packRoles.entries()) {
-    const slug = role === linefighter ? 'linefighter' : index === 0 ? 'swoop' : REVAMP_ROSTER[index - 1][0];
+  const packRoles = [['swoop', scout], ...newRoles.map((role, index) => [REVAMP_ROSTER[index][0], role]),
+    ['linefighter', linefighter], ['protocol-vanguard', vanguard]];
+  for (const [index, [slug, role]] of packRoles.entries()) {
     const [entry, shape, direction] = ENTRY_LIBRARY[index % ENTRY_LIBRARY.length];
     const escort = slug === 'escort';
-    const count = role === linefighter ? 36 : escort ? 6 : Math.min(role.maximumSimultaneousCount, 6);
+    const count = role === linefighter ? 36 : role === vanguard ? 2
+      : escort ? 6 : Math.min(role.maximumSimultaneousCount, 6);
     campaign.formationPacks.push({
       id: packId(slug), label: `Revamp ${role.label}`, enemyRoleIds: [role.id], enemyCount: count,
       totalThreatCost: roundCurve(count * role.threatCost), entryDirection: role === linefighter ? 'split' : direction,
@@ -147,11 +155,17 @@ export function authorRevampCampaign(source) {
       : formationCount === 3 ? [0.9, 1.1, 1] : [0.9, 1.05, 0.85, 1.2];
     waves = factors.map((factor, index) => {
       const total = Math.min(40, 30 + (curve.slot >= 3 || !node.mainPath ? 2 : 0) + (index === 3 ? 2 : 0));
-      const special = index % 2 === 0 ? newest : available[Math.max(0, (index + curve.slot - 1) % available.length)];
+      const specialistDebut = index === 1 && node.mainPath && curve.sector === 1 && curve.slot === 4
+        ? vanguard : null;
+      const repeatedSpecial = index % 2 === 0 ? newest : available[Math.max(0, (index + curve.slot - 1) % available.length)];
+      const special = specialistDebut ?? repeatedSpecial;
       const specialCount = 2;
       const regularCount = total - specialCount;
       const targetThreat = curve.threat * factor;
-      const cadence = roundCurve(CURVE.referenceFireIntervalSeconds * (regularCount + specialCount * special.threatCost) / targetThreat, 5);
+      // REVAMP(G): Keep the grid's authored cadence. A costlier legacy pair
+      // spends its own pressure through slower shots, without retiming 30 hulls.
+      const cadence = roundCurve(CURVE.referenceFireIntervalSeconds * (regularCount + specialCount * repeatedSpecial.threatCost) / targetThreat, 5);
+      const specialCadence = roundCurve(cadence * special.threatCost / repeatedSpecial.threatCost, 5);
       const entry = ['swoop', 'loop', 's-curve', 'pincer'][(index + curve.slot - 1) % 4];
       const regular = spawn(level, own(`wave-${index + 1}-grid`), linefighter, targetThreat, index, 0, regularCount);
       regular.count = regularCount;
@@ -177,7 +191,7 @@ export function authorRevampCampaign(source) {
       support.spawnIntervalSeconds = 0.24;
       support.formationSlots = [{ x: 0.37, y: 0.105 }, { x: 0.63, y: 0.105 }];
       support.enemies[0].sizeMultiplier = 0.72;
-      support.enemies[0].attackIntervalSeconds = cadence;
+      support.enemies[0].attackIntervalSeconds = specialCadence;
       support.enemies[0].projectileSpeed = regular.enemies[0].projectileSpeed;
       support.formationBehavior.holdSeconds = 1.0;
       support.formationBehavior.attackGroupSize = specialCount;
@@ -236,7 +250,19 @@ export function authorRevampCampaign(source) {
     }
     delete level.__depth;
   }
-  campaign.revision = Math.max(source.revision, 25);
+  // REVAMP(G): The preserved Sector 4's third wave otherwise debuts Research
+  // Drone, Laser Stalker and Orbit Disc together. Teach the Drone in its existing
+  // eight-hull opening cohort. Its slower fire keeps that wave's pressure at 8;
+  // counts, health, hitboxes, rewards and the dense opening sectors are untouched.
+  const legacyIntroduction = campaign.levels.find(level => level.id === 'stage-eclipse-swarm').waves[0];
+  const legacyCohort = legacyIntroduction.events.find(event => event.kind === 'spawn');
+  legacyIntroduction.formationPackIds = ['pack-orbit-grid'];
+  legacyCohort.label = 'Research Drone arrival formation';
+  legacyCohort.enemies = [{ ...legacyCohort.enemies[0], enemyId: researchDrone.enemyId,
+    roleId: researchDrone.id, spriteKey: researchDrone.spriteKey, attackPatternId: 'aimed-burst',
+    attackIntervalSeconds: 6, projectileSpeed: 4.865, burstCount: 1 }];
+  // REVAMP(G): Three-wave missions must not reinterpret an unfinished rev25 save.
+  campaign.revision = Math.max(source.revision, 26);
   campaign.updatedAt = '2026-10-17T00:00:00.000Z';
   return campaign;
 }

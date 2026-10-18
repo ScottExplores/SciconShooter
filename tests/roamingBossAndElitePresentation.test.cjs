@@ -6,6 +6,7 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), 'utf8');
 const campaign = JSON.parse(read('game-config/campaign.json'));
+const { assertRevampMission } = require('./helpers/campaignRevampAssertions.cjs');
 
 const findCampaignLevel = (levelId) => {
   const level = campaign.levels.find((candidate) => candidate.id === levelId);
@@ -29,14 +30,15 @@ test('Citation Storm is a bossless formation-remix Mission with compact authored
 
   assert.equal(stage.campaignProgression.missionRole, 'formation-remix');
   assert.ok(packedSpawns.length >= 4);
-  // REVAMP(G): B replaces fixed ring/pincer scripts with varied splines and returning dives.
+  // REVAMP(G): I varies curved entry paths into large grids with two specialists.
+  assertRevampMission(stage, campaign);
   assert.ok(new Set(packedSpawns.map(event => event.formationBehavior?.entryPathId)).size >= 3);
-  assert.ok(new Set(packedSpawns.map(event => event.patternId)).size >= 2);
+  assert.ok(packedSpawns.every(event => event.patternId === 'grid'));
   assert.ok(packedSpawns.every(event => event.formationBehavior?.movementId === 'revamp-breathe'));
   assert.ok(packedSpawns.every(event => ['revamp-dive', 'revamp-escort'].includes(event.formationBehavior?.attackId)));
   assert.ok(packedSpawns.every(event => event.formationBehavior?.telegraphSeconds >= 0.6
     && event.formationBehavior?.returnId === 'reform'));
-  assert.ok(packedSpawns.every((event) => event.count >= 3));
+  assert.ok(packedSpawns.every((event) => event.count >= 2 && event.count <= 38));
   assert.ok(packedSpawns.every((event) => event.formationPackIds === undefined));
 
   assert.ok(stage.waves.every((wave) => wave.completionRule === 'clear-after-duration'));

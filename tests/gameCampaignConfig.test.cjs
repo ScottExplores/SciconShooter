@@ -50,11 +50,11 @@ test('revision 24 contains ten five-depth sectors, explicit routes, and a compac
     ['ORBIT ENTRY', 'CITATION CROSSING', 'PAYWALL CHECKPOINT', 'BASTION APPROACH', 'BASTION PROTOCOL']
   );
   assert.deepEqual(campaign.levels.map((level) => level.order), Array.from({ length: 60 }, (_, index) => index + 1));
-  // Surge waves: sector 1 runs six/seven; late sectors deepen (introductions
-  // to 7 from sector 7, first remixes to 8 from sector 4) while boss-ended
-  // Missions stay compact so their climax remains the final beat.
+  // REVAMP(I): first-three-sector density lives inside 3–4 full-grid beats;
+  // later sectors retain their longer role-specific cadence.
   firstFive.forEach(assertMissionCadence);
-  assert.ok(campaign.levels.reduce((total, level) => total + level.waves.length, 0) >= 300);
+  const totalWaves = campaign.levels.reduce((total, level) => total + level.waves.length, 0);
+  assert.ok(totalWaves >= 250 && totalWaves <= 320);
   assert.deepEqual(firstFive.map((level) => level.waves[0].scoreMultiplier), [1, 2, 3, 4, 5]);
   campaign.levels.forEach((level) => {
     assert.equal(level.loopWaves, false);
