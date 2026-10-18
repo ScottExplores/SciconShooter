@@ -11,6 +11,8 @@ export interface CombatImpactInput {
   readonly projectileId: string;
   readonly componentId?: string;
   readonly boss: boolean;
+  /** REVAMP(A): Accepted armor deflection, even when hull HP is unchanged. */
+  readonly armored?: boolean;
 }
 
 export interface CombatImpactEvent extends CombatImpactInput {

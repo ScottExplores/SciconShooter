@@ -205,6 +205,14 @@ export type EnemyRank = 'standard' | 'elite';
 export type EnemyAttackPatternId = 'aimed-burst';
 
 export type FormationEntryPathId =
+  | 'revamp-swoop'
+  | 'revamp-loop'
+  | 'revamp-s-curve'
+  | 'revamp-side-sweep'
+  | 'revamp-pincer'
+  | 'revamp-corkscrew'
+  | 'revamp-bottom-flank'
+  | 'revamp-train'
   | 'sweep-bank-reentry'
   | 'formation-drop'
   | 'spiral-entry'
@@ -222,6 +230,7 @@ export type FormationEntryPathId =
   | 'convoy-column';
 
 export type FormationMovementId =
+  | 'revamp-breathe'
   | 'gentle-drift'
   | 'lateral-sweep'
   | 'expand-collapse'
@@ -231,6 +240,8 @@ export type FormationMovementId =
   | 'lane-shift';
 
 export type FormationAttackBehaviorId =
+  | 'revamp-dive'
+  | 'revamp-escort'
   | 'single-dive'
   | 'paired-dive'
   | 'alternating-wings'

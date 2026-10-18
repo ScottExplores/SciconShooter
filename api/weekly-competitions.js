@@ -1,5 +1,4 @@
 const {
-  ensureRecentWeeklyCompetitions,
   finalizeWeeklyCompetition,
   getCompletedWeeklyCompetitionKeys,
   isAuthorized,
@@ -12,13 +11,12 @@ module.exports = async (req, res) => {
   if (req.method === 'OPTIONS') return sendJson(res, 204, {});
   try {
     if (req.method === 'GET') {
-      let competitions = await readWeeklyCompetitions();
-      const recovery = await ensureRecentWeeklyCompetitions({ existingCompetitions: competitions });
-      if (recovery.changed) competitions = await readWeeklyCompetitions();
+      // REVAMP(E): Public reads must stay safe for cached preview proxies.
+      // Recovery/finalization belongs to the authenticated cron or POST route.
+      const competitions = await readWeeklyCompetitions();
       return sendJson(res, 200, {
         competitions,
-        completedWeekKeys: getCompletedWeeklyCompetitionKeys(competitions),
-        recovery
+        completedWeekKeys: getCompletedWeeklyCompetitionKeys(competitions)
       });
     }
     if (req.method === 'POST') {

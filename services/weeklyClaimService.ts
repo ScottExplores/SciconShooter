@@ -1,5 +1,6 @@
 import type { Address, Hex } from 'viem';
 import type { ResearchHubProposal } from './researchHubProposals';
+import { assertPreviewWritable } from './revamp/preview/previewMode';
 
 const post = async (payload: Record<string, unknown>) => {
   const response = await fetch('/api/weekly-claim', {
@@ -21,6 +22,7 @@ export const claimWeeklyChampionProposal = async ({
   address: Address;
   signMessage: (address: Address, message: string) => Promise<Hex>;
 }) => {
+  assertPreviewWritable();
   const challenge = await post({ action: 'challenge', weekKey, proposalId: proposal.id, address });
   const signature = await signMessage(address, challenge.message);
   const result = await post({ action: 'claim', weekKey, proposalId: proposal.id, address, challengeId: challenge.challengeId, signature });

@@ -1,0 +1,92 @@
+.revamp-boss-lab {
+  height: 100dvh;
+  min-height: 320px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #020617;
+  color: #e2e8f0;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
+.revamp-boss-lab__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: max(10px, env(safe-area-inset-top)) 14px 10px;
+  border-bottom: 1px solid #234450;
+  background: #071522;
+}
+.revamp-boss-lab__header > div { flex: 0 0 auto; }
+.revamp-boss-lab__eyebrow { display: block; font-size: 9px; letter-spacing: .12em; color: #67e8f9; }
+.revamp-boss-lab__header label { font-size: 13px; font-weight: 700; }
+.revamp-boss-lab__header select {
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+  padding: 0 8px;
+  color: #f1f5f9;
+  border: 1px solid #325260;
+  border-radius: 8px;
+  background: #102432;
+  font-size: 12px;
+}
+.revamp-boss-lab__header a { color: #9ab8c5; font-size: 28px; text-decoration: none; }
+.revamp-boss-lab__arena {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  background: radial-gradient(ellipse at center, #0a1d2c, #020617 70%);
+}
+.revamp-boss-lab__world { position: absolute; left: 50%; top: 50%; transform-origin: center; }
+.revamp-boss-lab__status {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  max-width: 88%;
+  padding: 16px 22px;
+  background: #071522ee;
+  border: 1px solid #2c6778;
+  border-radius: 10px;
+  text-align: center;
+  color: #a5f3fc;
+  pointer-events: none;
+}
+.revamp-boss-lab__controls {
+  padding: 7px 12px max(7px, env(safe-area-inset-bottom));
+  background: #071522;
+  border-top: 1px solid #234450;
+}
+.revamp-boss-lab__buttons { display: flex; align-items: center; justify-content: center; gap: 6px; }
+.revamp-boss-lab__buttons button {
+  flex: 1;
+  min-width: 0;
+  max-width: 112px;
+  min-height: 36px;
+  border: 1px solid #355464;
+  border-radius: 7px;
+  padding: 4px 7px;
+  background: #102432;
+  color: #d7e9ef;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.revamp-boss-lab__buttons button[aria-pressed=true] { border-color: #438b93; background: #12363d; color: #a5f3fc; }
+.revamp-boss-lab__buttons button:disabled { opacity: .35; cursor: default; }
+.revamp-boss-lab__buttons button:focus-visible,
+.revamp-boss-lab__header select:focus-visible { outline: 2px solid #67e8f9; outline-offset: 2px; }
+.revamp-boss-lab__phases { margin-top: 5px; font-size: 10px; color: #8ca9b8; }
+.revamp-boss-lab__phases button { min-height: 29px; max-width: 78px; font-size: 11px; }
+.revamp-boss-lab__power { color: #f8cf72; font-size: 9px; white-space: nowrap; letter-spacing: .04em; }
+.revamp-boss-lab__controls p { margin: 5px 0 0; text-align: center; color: #8ca9b8; font-size: 9px; }
+@media (min-width: 700px) {
+  .revamp-boss-lab__header { justify-content: center; }
+  .revamp-boss-lab__header select { flex: 0 1 320px; }
+}
+@media (max-height: 600px) {
+  .revamp-boss-lab__header { padding-top: 4px; padding-bottom: 4px; }
+  .revamp-boss-lab__controls p { display: none; }
+}

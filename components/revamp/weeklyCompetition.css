@@ -1,0 +1,25 @@
+.revamp-weekly-card{min-width:0;padding:12px 14px;border:1px solid #52cce74d;border-radius:7px;background:linear-gradient(135deg,#0b2133f5,#10162bf5);color:#edfaff;box-shadow:inset 0 1px #b7f4ff14;text-align:left}
+.revamp-weekly-card__heading{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap}
+.revamp-weekly-eyebrow{font-size:10px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#8ee9e9}
+.revamp-weekly-card time{font:700 11px ui-monospace,monospace;color:#f5dd95;font-variant-numeric:tabular-nums;white-space:nowrap}
+.revamp-weekly-card h3{font-size:14px;line-height:1.4;font-weight:800;margin:7px 0 5px}
+.revamp-weekly-copy{font-size:11px;line-height:1.55;color:#b5c5d7;margin:5px 0}
+.revamp-weekly-bosses{font-size:11px;line-height:1.5;color:#d3dff1;margin:8px 0;overflow-wrap:anywhere}
+.revamp-weekly-bosses span{display:block;color:#8db3c9;font-size:9px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px}
+.revamp-weekly-board{margin-top:8px;border-top:1px solid #67cce829}
+.revamp-weekly-board summary{min-height:44px;display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;font-size:11px;color:#b5d3e8}
+.revamp-weekly-board summary strong{font-size:10px;color:#8ee9e9}
+.revamp-weekly-board summary::after{content:'+';color:#8ee9e9;font-size:17px}
+.revamp-weekly-board[open] summary::after{content:'−'}
+.revamp-weekly-board ol{list-style:none;padding:0;margin:0}
+.revamp-weekly-board li{display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:8px;align-items:center;padding:8px 6px;border-bottom:1px solid #87dbed12;font-size:12px}
+.revamp-weekly-board li:first-child{color:#ffe69c;background:#f5d7780a}
+.revamp-weekly-board li[data-you=true]{background:#5eead415}
+.revamp-weekly-rank{font:700 11px ui-monospace,monospace;color:#83b1c8}
+.revamp-weekly-pilot{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.revamp-weekly-board strong{font-variant-numeric:tabular-nums}
+.revamp-weekly-own{display:flex;gap:10px;justify-content:space-between;padding:9px 6px;color:#8ee9e9;font-size:12px}
+.revamp-weekly-board button{display:flex;justify-content:space-between;gap:8px;align-items:center;width:100%;min-height:44px;color:#9de5ef;font-size:11px;font-weight:700;text-align:left}
+.revamp-weekly-board :is(button,summary):focus-visible{outline:2px solid #9de5ef;outline-offset:3px}
+.revamp-weekly-nudge{margin:6px 0;padding:10px 12px;border:1px solid #5eead447;border-radius:6px;background:#134e4a33;color:#b2f5e6;font-size:12px;font-weight:700;line-height:1.5;text-align:center}
+@media(prefers-reduced-motion:reduce){.revamp-weekly-card *{animation:none!important;transition:none!important}}

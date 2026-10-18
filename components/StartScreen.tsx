@@ -1,11 +1,17 @@
+import WeeklyCompetitionCard from './revamp/WeeklyCompetitionCard';
+import SignalsPanel from './revamp/SignalsPanel';
+import { isPreviewMode } from '../services/revamp/preview/previewMode';
+import { getCampaignWeeklyBossPool, selectWeeklyBossRotation } from '../services/revamp/weekly/bossRotation.browser';
+import { DEFAULT_GAME_CAMPAIGN } from '../services/levelConfig';
+// REVAMP(D): Campaign goals and the research tree share existing profile currencies.
+import ProgressionPanel from './revamp/ProgressionPanel';
+import type { useRevampProgression } from '../services/revamp/runtime/useProgression';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ArchivedWinner, LeaderboardEntry, MintRecord } from '../types';
 import { ResearchHubProposal } from '../services/researchHubProposals';
 import {
-  formatFundingAmount,
   formatFundingPercent,
-  getProposalFundingMetrics,
-  sortProposalsByFunding
+  getProposalFundingMetrics
 } from '../services/proposalFunding';
 import {
   ASSETS,
@@ -87,6 +93,7 @@ type ProposalFeedStatus = 'loading' | 'ready' | 'empty' | 'error';
 
 interface StartScreenProps {
   onStart: () => void;
+  revampActions?: ReturnType<typeof useRevampProgression>;
   onOpenCampaignMap?: () => void;
   campaignNotificationCount?: number;
   campaignCheckpoint: {
@@ -98,6 +105,11 @@ interface StartScreenProps {
   };
   allTimeLeaderboard: LeaderboardEntry[];
   monthlyLeaderboard: LeaderboardEntry[];
+  weeklyLiveLeaderboard?: LeaderboardEntry[];
+  weeklyPilotRunIds?: string[];
+  proposalFeedSource?: 'live' | 'server-cache' | 'local-cache' | 'dev-fixture';
+  proposalFetchedAt?: string;
+  onRetryProposals?: () => void;
   archivedWinners: ArchivedWinner[];
   weeklyPresentationTime?: number;
   walletRecords: MintRecord[];
@@ -335,7 +347,7 @@ const dashboardTabs: Array<{
 }> = [
   {
     id: 'proposals',
-    label: 'Proposals',
+    label: 'Signals',
     hint: 'Live',
     spriteColumn: 0
   },
@@ -467,15 +479,6 @@ const getPastPickTime = (pick: ArchivedWinner) => {
   }
 
   return 0;
-};
-
-const getProposalTag = (proposal: ResearchHubProposal, index: number) => {
-  const text = `${proposal.title} ${proposal.organization ?? ''}`.toLowerCase();
-  if (text.includes('climate') || text.includes('ocean') || text.includes('plastic')) return 'Environment';
-  if (text.includes('protein') || text.includes('health') || text.includes('clinical')) return 'Health';
-  if (text.includes('battery') || text.includes('fusion') || text.includes('energy')) return 'Energy';
-  if (text.includes('open') || text.includes('software') || text.includes('ai')) return 'Open Science';
-  return ['Research', 'Biotech', 'Materials', 'Base Native'][index % 4];
 };
 
 const leaderboardName = (entry?: LeaderboardEntry) => entry?.name || 'Open pilot slot';
@@ -740,11 +743,17 @@ const MoreMenuTile: React.FC<{
 
 const StartScreen: React.FC<StartScreenProps> = ({
   onStart,
+  revampActions,
   onOpenCampaignMap,
   campaignNotificationCount = 0,
   campaignCheckpoint,
   allTimeLeaderboard,
   monthlyLeaderboard,
+  weeklyLiveLeaderboard,
+  weeklyPilotRunIds = [],
+  proposalFeedSource,
+  proposalFetchedAt,
+  onRetryProposals,
   archivedWinners,
   weeklyPresentationTime,
   walletRecords,
@@ -842,7 +851,6 @@ const StartScreen: React.FC<StartScreenProps> = ({
       ? requested
       : 'home';
   });
-  const [proposalSearch, setProposalSearch] = useState('');
   const [playerReportKind, setPlayerReportKind] = useState<PlayerReportKind | null>(null);
   const [showTreasury, setShowTreasury] = useState(false);
   const [showRscAcquire, setShowRscAcquire] = useState(false);
@@ -1142,16 +1150,6 @@ const StartScreen: React.FC<StartScreenProps> = ({
     () => getWeeklyAllocationMeta(new Date(weeklyPresentationTime ?? weeklyClock)),
     [weeklyClock, weeklyPresentationTime]
   );
-  const sortedProposals = useMemo(() => sortProposalsByFunding(proposals), [proposals]);
-
-  const filteredProposals = useMemo(() => {
-    const query = proposalSearch.trim().toLowerCase();
-    if (!query) return sortedProposals;
-    return sortedProposals.filter((proposal) => (
-      `${proposal.title} ${proposal.author} ${proposal.organization ?? ''}`.toLowerCase().includes(query)
-    ));
-  }, [proposalSearch, sortedProposals]);
-
   const weeklyStartTime = weeklyAllocation.startsAt.getTime();
   const weeklyEndTime = weeklyAllocation.endsAt.getTime();
   const activeWeeklyLeaderboard = useMemo(() => (
@@ -1161,6 +1159,12 @@ const StartScreen: React.FC<StartScreenProps> = ({
     })
   ), [monthlyLeaderboard, weeklyEndTime, weeklyStartTime]);
   const weeklyLeader = activeWeeklyLeaderboard[0];
+  const weeklyBossNames = useMemo(() => {
+    const pool = selectWeeklyBossRotation(weeklySquadState.weekKey, getCampaignWeeklyBossPool(DEFAULT_GAME_CAMPAIGN));
+    const labels = new Map(DEFAULT_GAME_CAMPAIGN.levels.flatMap((level) => level.waves.flatMap((wave) =>
+      wave.events.filter((event) => event.kind === 'boss').map((event) => [event.bossId, event.label] as const))));
+    return [...pool.eliteBossIds, ...pool.majorBossIds].map((id) => labels.get(id) || id.replace(/-/g, ' '));
+  }, [weeklySquadState.weekKey]);
 
   const sortedPastPicks = useMemo(() => (
     [...archivedWinners].sort((a, b) => getPastPickTime(b) - getPastPickTime(a))
@@ -1238,74 +1242,13 @@ const StartScreen: React.FC<StartScreenProps> = ({
     }
   };
 
-  const renderProposalRow = (proposal: ResearchHubProposal, index: number, compact = false) => {
-    const funding = getProposalFundingMetrics(proposal);
-    const progressLabel = formatFundingPercent(funding.progressPercent);
-    const tag = getProposalTag(proposal, index);
-
-    return (
-      <button
-        key={proposal.id}
-        type="button"
-        onClick={() => testChampionWinner
-          ? setTestSelectedProposal(proposal)
-          : championClaimWinner
-            ? onClaimWeeklyChampion(championClaimWinner, proposal)
-            : onOpenProposal(proposal.url)}
-        className={`group w-full rounded-[6px] border p-3 text-left transition hover:border-cyan-300/35 hover:bg-cyan-300/10 ${testSelectedProposal?.id === proposal.id ? 'border-yellow-200/60 bg-yellow-300/12' : 'border-white/5 bg-white/[0.025]'}`}
-      >
-        <div className="grid grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-[6px] border border-cyan-300/30 bg-cyan-300/10 text-cyan-100 shadow-[0_0_18px_rgba(34,211,238,0.14)]">
-            {proposal.imageUrl ? (
-              <img
-                src={proposal.imageUrl}
-                alt=""
-                className="h-full w-full rounded-[6px] object-cover"
-                loading={index < 6 ? 'eager' : 'lazy'}
-                decoding="async"
-              />
-            ) : (
-              <Icon name="flask" className="h-5 w-5" />
-            )}
-          </div>
-          <div className="min-w-0">
-            <div className="flex min-w-0 items-center gap-2">
-              <p className="truncate text-sm font-semibold text-white">{proposal.title}</p>
-              {!compact && (
-                <span className="hidden shrink-0 rounded bg-emerald-400/12 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-emerald-200 sm:inline">
-                  {tag}
-                </span>
-              )}
-            </div>
-            <div className="mt-2 flex items-center gap-2">
-              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-800">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-cyan-300 to-blue-400"
-                  style={{ width: `${funding.barPercent}%` }}
-                />
-              </div>
-              <span className="w-12 text-right text-[0.68rem] font-semibold text-cyan-100">{progressLabel}</span>
-            </div>
-          </div>
-          <div className="min-w-[6.75rem] text-right">
-            {funding.currency ? (
-              <>
-                <p className="whitespace-nowrap text-xs font-black text-white">
-                  {formatFundingAmount(funding.raisedAmount, funding.currency)} / {formatFundingAmount(funding.goalAmount, funding.currency)}
-                </p>
-                <p className="text-[0.54rem] font-bold uppercase text-cyan-200/70">{funding.currency} raised / goal</p>
-              </>
-            ) : (
-              <>
-                <p className="text-xs font-black text-slate-300">Not reported</p>
-                <p className="text-[0.54rem] font-bold uppercase text-slate-500">Funding progress</p>
-              </>
-            )}
-          </div>
-        </div>
-      </button>
-    );
-  };
+  const renderRevampPanel = () => revampActions ? <>
+    <ProgressionPanel state={permanentSquadState.revamp} credits={weeklySquadState.coins}
+      onPurchase={revampActions.purchase} onClaim={revampActions.claim}
+      onCosmeticChange={id => revampActions.preference({ equippedCosmeticId: id })}
+      />
+    {revampActions.notice ? <p role="status" className="revamp-save-notice">{revampActions.notice}</p> : null}
+  </> : null;
 
   const renderHeroPanel = ({ compact = false, fill = false }: { compact?: boolean; fill?: boolean } = {}) => (
     <HudPanel className={compact ? `sci-home-hero-surface sci-home-hero-surface--compact sci-mobile-hero min-h-[17.5rem] ${fill ? 'flex-1' : ''}` : 'sci-home-hero-surface min-h-[34rem] xl:min-h-[40rem]'}>
@@ -1474,7 +1417,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
               <span className={`sci-start-button__play flex items-center justify-center text-emerald-950 transition group-hover:scale-105 ${compact ? 'h-8 w-8' : 'h-9 w-9'}`}>
                 <Icon name="play" className="h-5 w-5 translate-x-0.5" />
               </span>
-              <span>{campaignCheckpoint.action}</span>
+              <span>{permanentSquadState.campaignProgress.completedMissionIds.length === 0 ? 'PLAY' : campaignCheckpoint.action}</span>
             </span>
           </PixelActionButton>
           {!compact ? <p className="text-sm font-bold text-emerald-200">Complete. Earn. Fund.</p> : null}
@@ -1489,14 +1432,14 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const renderWeeklyRunEntry = () => {
     const needsServerVerification = weeklyRunAttemptQuotaUnknown
       && weeklyRunAttemptsRemaining <= 0;
-    const attemptsExhausted = weeklyRunAttemptsRemaining <= 0
+    const attemptsExhausted = !isPreviewMode() && weeklyRunAttemptsRemaining <= 0
       && !needsServerVerification;
     const weeklyRunEntryState = attemptsExhausted
       ? 'exhausted'
       : needsServerVerification
         ? 'checking'
         : 'available';
-    const attemptLabel = `${weeklyRunAttemptsRemaining} Attempt${weeklyRunAttemptsRemaining === 1 ? '' : 's'} Left`;
+    const attemptLabel = isPreviewMode() ? 'Unlimited practice' : `${weeklyRunAttemptsRemaining} Attempt${weeklyRunAttemptsRemaining === 1 ? '' : 's'} Left`;
 
     return onStartWeeklyRun ? (
       <>
@@ -1519,7 +1462,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
               Weekly Run
             </span>
             <span className="sci-weekly-run-entry__sub">
-              {weeklyRunAttemptsRemaining > 0
+              {isPreviewMode() || weeklyRunAttemptsRemaining > 0
                 ? attemptLabel
                 : needsServerVerification
                   ? 'Checking Wallet Attempts'
@@ -1528,7 +1471,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
           </span>
           <span className="sci-weekly-run-entry__action" aria-hidden="true">
             <span>{weeklyRunEntryState === 'available'
-              ? 'Try Here'
+              ? isPreviewMode() ? 'Practice' : 'Fly Run'
               : weeklyRunEntryState === 'checking'
                 ? 'Check Entry'
                 : 'No Attempts'}</span>
@@ -1751,10 +1694,18 @@ const StartScreen: React.FC<StartScreenProps> = ({
     <div className="sci-weekly-competition-stack">
       {renderWeeklyFundingCard({ compact })}
       {renderWeeklyRunEntry()}
+      <WeeklyCompetitionCard
+        entries={weeklyLiveLeaderboard ?? monthlyLeaderboard}
+        walletAddress={walletAddress}
+        runIds={weeklyPilotRunIds}
+        loading={isLoading}
+        bossNames={weeklyBossNames}
+        onViewLeaderboard={() => { setTrophyCategory('weeklyFunding'); setLeaderboardView('weekly'); setDashboardTab('trophies'); }}
+      />
     </div>
   );
 
-  const DashboardNav = ({ docked = false }: { docked?: boolean }) => (
+  const renderDashboardNav = ({ docked = false }: { docked?: boolean } = {}) => (
     <nav className={`${docked ? 'mt-auto shrink-0' : ''} sci-dashboard-nav-shell pt-3`} aria-label="Primary dashboard">
       <div className="sci-dashboard-nav grid grid-cols-5 overflow-visible rounded-[8px] border border-cyan-300/24 bg-slate-950/92 shadow-[0_0_28px_rgba(8,145,178,0.18)] backdrop-blur-xl">
         {dashboardTabs.map((tab) => {
@@ -1804,25 +1755,9 @@ const StartScreen: React.FC<StartScreenProps> = ({
     </nav>
   );
 
-  const ProposalsDashboard = () => (
+  const renderProposalsDashboard = () => (
     <HudPanel>
       <div className="p-4 md:p-5">
-        <div className="mb-4 grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
-          <div>
-            <h2 className="text-2xl font-black text-white">Proposal Hangar</h2>
-            <p className="text-sm text-slate-300">Search eligible ResearchHub proposals sorted by their live funded percentage. USD values can move with the RSC market price.</p>
-          </div>
-          <label className="relative block min-w-[15rem]">
-            <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-cyan-200/70" />
-            <input
-              value={proposalSearch}
-              onChange={(event) => setProposalSearch(event.target.value)}
-              placeholder="Search proposals"
-              className="w-full rounded-[6px] border border-cyan-300/20 bg-slate-950/75 py-2 pl-9 pr-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300/60"
-            />
-          </label>
-        </div>
-
         {championClaimWinner ? (
           <div className="mb-4 rounded-[8px] border border-yellow-200/30 bg-yellow-300/10 p-3">
             <div className="flex items-start justify-between gap-3">
@@ -1861,26 +1796,20 @@ const StartScreen: React.FC<StartScreenProps> = ({
           </div>
         ) : null}
 
-        <div className="mb-3 flex items-center justify-between gap-3 text-xs font-bold uppercase text-slate-400">
-          <span>{filteredProposals.length} active proposal{filteredProposals.length === 1 ? '' : 's'}</span>
-          <span>{proposalSearch.trim() ? 'Search filtered · ' : ''}Most funded first</span>
-        </div>
-
-        <div className="max-h-[min(62vh,48rem)] space-y-2 overflow-y-auto pr-1">
-          {proposalStatus === 'loading' ? (
-            <div className="rounded-[6px] border border-cyan-300/15 bg-cyan-300/8 p-4 text-sm text-slate-200 animate-pulse">
-              Loading active ResearchHub proposals...
-            </div>
-          ) : filteredProposals.length > 0 ? (
-            filteredProposals.map((proposal, index) => renderProposalRow(proposal, index))
-          ) : (
-            <div className="rounded-[6px] border border-cyan-300/15 bg-cyan-300/8 p-4 text-sm text-slate-200">
-              {proposalStatus === 'error'
-                ? 'The live proposal feed is temporarily unavailable. No ineligible fallback choices are shown.'
-                : 'No active proposal matches that search yet.'}
-            </div>
-          )}
-          </div>
+        <SignalsPanel
+          proposals={proposals}
+          proposalStatus={proposalStatus}
+          source={proposalFeedSource}
+          fetchedAt={proposalFetchedAt}
+          onRetry={onRetryProposals}
+          onSelectProposal={testChampionWinner
+            ? setTestSelectedProposal
+            : championClaimWinner
+              ? (proposal) => onClaimWeeklyChampion(championClaimWinner, proposal)
+              : undefined}
+          selectedProposalId={testSelectedProposal?.id}
+          selectionDisabled={championClaimStatus === 'connecting' || championClaimStatus === 'signing'}
+        />
       </div>
     </HudPanel>
   );
@@ -2315,6 +2244,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
       return (
         <SquadHangar
           state={weeklySquadState}
+          campaignWingLevel={Math.min(5, 1 + permanentSquadState.revamp.upgrades.support)}
           mainShipId={shipFocusId}
           mainShipName={focusedShip.name}
           shipUnlocks={shipUnlocks}
@@ -2343,14 +2273,15 @@ const StartScreen: React.FC<StartScreenProps> = ({
         />
       );
     }
-    if (dashboardTab === 'proposals') return <ProposalsDashboard />;
+    if (dashboardTab === 'proposals') return renderProposalsDashboard();
     if (dashboardTab === 'trophies') return <TrophiesDashboard />;
     if (dashboardTab === 'more') return <AboutDashboard />;
 
     return (
       <div className="scicon-mobile-home flex min-h-full flex-col gap-2">
-        {renderWeeklyCompetitionStack({ compact: true })}
         {renderHeroPanel({ compact: true, fill: true })}
+        {renderRevampPanel()}
+        {renderWeeklyCompetitionStack({ compact: true })}
       </div>
     );
   };
@@ -2360,6 +2291,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
       return (
         <SquadHangar
           state={weeklySquadState}
+          campaignWingLevel={Math.min(5, 1 + permanentSquadState.revamp.upgrades.support)}
           mainShipId={shipFocusId}
           mainShipName={focusedShip.name}
           shipUnlocks={shipUnlocks}
@@ -2388,7 +2320,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
         />
       );
     }
-    if (dashboardTab === 'proposals') return <ProposalsDashboard />;
+    if (dashboardTab === 'proposals') return renderProposalsDashboard();
     if (dashboardTab === 'trophies') return <TrophiesDashboard />;
     if (dashboardTab === 'more') return <AboutDashboard />;
     return null;
@@ -2546,7 +2478,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
             <div className="grid gap-5 lg:grid-cols-[minmax(0,1.14fr)_minmax(25rem,0.86fr)]">
               <div className="space-y-5">
                 {renderHeroPanel()}
-                <DashboardNav />
+                {renderRevampPanel()}
+                {renderDashboardNav()}
               </div>
 
               {renderWeeklyCompetitionStack()}
@@ -2554,7 +2487,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
           ) : (
             <div className="flex min-h-[calc(100svh-3rem)] flex-col gap-5">
               {renderSelectedDashboard()}
-              <DashboardNav docked />
+              {renderDashboardNav({ docked: true })}
             </div>
           )}
         </main>
@@ -2565,7 +2498,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
           <div className="scicon-mobile-scroll min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-px custom-scrollbar">
             {renderMobileDashboardContent()}
           </div>
-          <DashboardNav docked />
+          {renderDashboardNav({ docked: true })}
         </main>
       </div>
 

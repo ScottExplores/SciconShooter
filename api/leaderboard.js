@@ -7,6 +7,7 @@ const RUN_RECEIPTS_TABLE = process.env.SUPABASE_RUN_RECEIPTS_TABLE || 'scicon_ru
 const WEEKLY_PROPOSAL_CHALLENGE_STALE_CODE = 'WEEKLY_PROPOSAL_CHALLENGE_STALE';
 const { verifyRunReceipt } = require('./_lib/runReceipts');
 const { findEligibleProposal } = require('./_lib/researchHubEligibility');
+const { eligibleWeeklyScoreRows } = require('./_lib/weeklyScoreEligibility');
 const { verifyBaseMessage } = require('./_lib/baseSignatures');
 const {
   clearWalletProfileSessionCookie,
@@ -121,7 +122,7 @@ const dedupeAndSort = (scores, limit = ALL_TIME_SCORE_LIMIT) => {
     // Identity-less legacy rows predate receipts and remain visible by policy.
     .filter((score) => !score.runId || score.verified === true)
     .filter((score) => {
-      const key = `${score.name}|${score.score}|${score.wave}|${score.date}`;
+      const key = score.runId || `${score.name}|${score.score}|${score.wave}|${score.date}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
@@ -129,7 +130,8 @@ const dedupeAndSort = (scores, limit = ALL_TIME_SCORE_LIMIT) => {
 
   normalized.sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;
-    return new Date(a.date || 0).getTime() - new Date(b.date || 0).getTime();
+    return new Date(a.date || 0).getTime() - new Date(b.date || 0).getTime()
+      || String(a.runId || '').localeCompare(String(b.runId || ''));
   });
 
   return normalized.slice(0, limit);
@@ -193,7 +195,7 @@ const fromSupabaseRow = (row) => sanitizeEntry({
 });
 
 const requestSupabaseScores = async (selectColumns, query = '') => {
-  const response = await fetch(supabaseUrl(`${SUPABASE_TABLE}?select=${selectColumns}&order=score.desc,date.asc${query}`), {
+  const response = await fetch(supabaseUrl(`${SUPABASE_TABLE}?select=${selectColumns}&order=score.desc,date.asc,run_id.asc${query}`), {
     headers: supabaseHeaders()
   });
 
@@ -206,14 +208,11 @@ const requestSupabaseScores = async (selectColumns, query = '') => {
 };
 
 const readSupabaseScores = async () => {
-  const { start, end } = getCurrentWeekRange();
-  const monthlyQuery = `&date=gte.${encodeURIComponent(start.toISOString())}&date=lt.${encodeURIComponent(end.toISOString())}&limit=${WEEKLY_SCORE_LIMIT}`;
+  const { weekKey } = getCurrentWeekRange();
   let rows;
-  let monthlyRows;
 
   try {
     rows = await requestSupabaseScores(SUPABASE_SELECT, `&limit=${ALL_TIME_SCORE_LIMIT}`);
-    monthlyRows = await requestSupabaseScores(SUPABASE_SELECT, monthlyQuery);
   } catch (error) {
     if (!isMissingProposalImageColumnError(error)) {
       if (isSchemaColumnError(error)) {
@@ -223,7 +222,6 @@ const readSupabaseScores = async () => {
     }
     try {
       rows = await requestSupabaseScores(VERIFIED_SUPABASE_SELECT, `&limit=${ALL_TIME_SCORE_LIMIT}`);
-      monthlyRows = await requestSupabaseScores(VERIFIED_SUPABASE_SELECT, monthlyQuery);
     } catch (verifiedError) {
       if (isSchemaColumnError(verifiedError)) {
         throw createLeaderboardSchemaNotReadyError(verifiedError.message);
@@ -232,13 +230,15 @@ const readSupabaseScores = async () => {
     }
   }
 
-  const combinedRows = [
-    ...(Array.isArray(rows) ? rows : []),
-    ...(Array.isArray(monthlyRows) ? monthlyRows : [])
+  const weeklyScores = await readSupabaseWeekScores(weekKey);
+  const weeklyRunIds = new Set(weeklyScores.map((entry) => entry.runId));
+  // REVAMP(E): Keep older all-time history, but never reintroduce an ineligible
+  // current-week entry through the all-time query into the prize leaderboard.
+  const scores = [
+    ...(Array.isArray(rows) ? rows : []).map(fromSupabaseRow).filter(Boolean)
+      .filter((entry) => !isCurrentWeekEntry(entry) || weeklyRunIds.has(entry.runId)),
+    ...weeklyScores
   ];
-  const scores = combinedRows.length > 0
-    ? combinedRows.map(fromSupabaseRow).filter(Boolean)
-    : [];
   return dedupeAndSort(scores, SYNC_SCORE_LIMIT);
 };
 
@@ -247,7 +247,8 @@ const requireDurableWeeklyReceipt = async (
   receiptToken,
   { allowReissuedToken = false } = {}
 ) => {
-  if (process.env.NODE_ENV !== 'production') return;
+  // REVAMP(E): A configured server always requires the durable receipt,
+  // including test/preview environments connected to a database.
   const receiptHash = crypto.createHash('sha256').update(String(receiptToken || '')).digest('hex');
   const response = await fetch(supabaseUrl(
     `${RUN_RECEIPTS_TABLE}?select=run_id,receipt_hash,integrity_status,score,wave,receipt_provenance_version`
@@ -279,32 +280,31 @@ const requireDurableWeeklyReceipt = async (
 
 const readSupabaseWeekScores = async (weekKey) => {
   const { start, end } = getWeekRange(weekKey);
-  const weeklyQuery = `&date=gte.${encodeURIComponent(start.toISOString())}&date=lt.${encodeURIComponent(end.toISOString())}&limit=${WEEKLY_SCORE_LIMIT}`;
-  let rows;
-
-  try {
-    rows = await requestSupabaseScores(SUPABASE_SELECT, weeklyQuery);
-  } catch (error) {
-    if (!isMissingProposalImageColumnError(error)) {
-      if (isSchemaColumnError(error)) {
-        throw createLeaderboardSchemaNotReadyError(error.message);
-      }
-      throw error;
-    }
+  const eligible = [];
+  for (let offset = 0; offset < 10_000; offset += WEEKLY_SCORE_LIMIT) {
+    const weeklyQuery = `&date=gte.${encodeURIComponent(start.toISOString())}&date=lt.${encodeURIComponent(end.toISOString())}`
+      + `&verified=eq.true&run_id=not.is.null&limit=${WEEKLY_SCORE_LIMIT}&offset=${offset}`;
+    let rows;
     try {
-      rows = await requestSupabaseScores(VERIFIED_SUPABASE_SELECT, weeklyQuery);
-    } catch (verifiedError) {
-      if (isSchemaColumnError(verifiedError)) {
-        throw createLeaderboardSchemaNotReadyError(verifiedError.message);
+      rows = await requestSupabaseScores(SUPABASE_SELECT, weeklyQuery);
+    } catch (error) {
+      if (!isMissingProposalImageColumnError(error)) {
+        if (isSchemaColumnError(error)) throw createLeaderboardSchemaNotReadyError(error.message);
+        throw error;
       }
-      throw verifiedError;
+      try {
+        rows = await requestSupabaseScores(VERIFIED_SUPABASE_SELECT, weeklyQuery);
+      } catch (verifiedError) {
+        if (isSchemaColumnError(verifiedError)) throw createLeaderboardSchemaNotReadyError(verifiedError.message);
+        throw verifiedError;
+      }
+    }
+    eligible.push(...await eligibleWeeklyScoreRows(rows, { start, end }));
+    if (eligible.length >= WEEKLY_SCORE_LIMIT || !Array.isArray(rows) || rows.length < WEEKLY_SCORE_LIMIT) {
+      return dedupeAndSort(eligible.map(fromSupabaseRow).filter(Boolean), WEEKLY_SCORE_LIMIT);
     }
   }
-
-  return dedupeAndSort(
-    (Array.isArray(rows) ? rows : []).map(fromSupabaseRow).filter(Boolean),
-    WEEKLY_SCORE_LIMIT
-  );
+  throw createLeaderboardSchemaNotReadyError('Weekly leaderboard scan exceeded its safe limit.');
 };
 
 const insertSupabaseRows = async (rows) => {

@@ -1,5 +1,6 @@
 import type { Address, Hex } from 'viem';
 import type { RunReceipt } from './runReceiptService';
+import { assertPreviewWritable } from './revamp/preview/previewMode';
 
 const API_URL = '/api/run-claims';
 
@@ -23,6 +24,7 @@ export const associateRunWithWallet = async ({
   receipt: RunReceipt;
   signMessage: (address: Address, message: string) => Promise<Hex>;
 }) => {
+  assertPreviewWritable();
   if (!receipt.receiptToken || receipt.integrity === 'local-unverified') {
     throw new Error('Only a server-verified run can be associated with a wallet.');
   }

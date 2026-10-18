@@ -1,10 +1,10 @@
 import { getWeeklyBoundaryMeta } from '../shared/weeklyCompetitionBoundary.browser';
 import { isFundingDeadlineAfter } from '../shared/researchHubProposalEligibility.browser';
 import { getProposalFundingMetrics } from './proposalFunding';
+import { fetchProposalJson, readProposalSnapshot, writeProposalSnapshot } from './revamp/researchhub/feedSnapshot';
 
 const RESEARCHHUB_FUND_URL = 'https://www.researchhub.com/fund';
 const PROPOSAL_FEED_PATH = '/api/researchhub-proposals';
-const PROPOSAL_REQUEST_TIMEOUT_MS = 12_000;
 
 type RawRecord = Record<string, any>;
 
@@ -12,6 +12,7 @@ export interface ResearchHubProposal {
   id: string;
   title: string;
   author: string;
+  authors?: string[];
   organization?: string;
   goalCurrency?: string;
   requestedUsd?: number;
@@ -35,6 +36,8 @@ export interface ResearchHubProposalFeedOptions {
 
 export interface ResearchHubProposalFeedResult {
   eligibleProposals: ResearchHubProposal[];
+  source: 'live' | 'server-cache' | 'local-cache' | 'dev-fixture';
+  fetchedAt: string;
   /**
    * Exact requested proposal snapshots, including proposals that are no
    * longer eligible. A requested ID missing from this array has unknown
@@ -72,21 +75,9 @@ export const isWeeklyProposalEligible = (
   proposal: ResearchHubProposal,
   requiredOpenUntil: Date | string | number
 ) => {
-  const status = proposal.status?.trim().toLowerCase();
-  const closedStatuses = new Set([
-    'closed',
-    'complete',
-    'completed',
-    'funded',
-    'fulfilled',
-    'ended',
-    'expired',
-    'cancelled',
-    'canceled',
-    'inactive'
-  ]);
-
-  if (status && closedStatuses.has(status)) return false;
+  const status = proposal.status?.trim().toUpperCase() || 'OPEN';
+  // Match the authoritative server rule; unknown states are never eligible.
+  if (status !== 'OPEN') return false;
   if (!isFundingDeadlineAfter(proposal.endDate, requiredOpenUntil)) return false;
   const funding = getProposalFundingMetrics(proposal);
   if (funding.progressPercent !== null && funding.progressPercent >= 100) return false;
@@ -97,9 +88,10 @@ export const isWeeklyProposalEligible = (
 const fullName = (source: unknown): string | undefined => {
   if (!isRecord(source)) return undefined;
 
+  if (isRecord(source.author_profile)) return fullName(source.author_profile);
   const firstName = asString(source.first_name);
   const lastName = asString(source.last_name);
-  return [firstName, lastName].filter(Boolean).join(' ') || undefined;
+  return [firstName, lastName].filter(Boolean).join(' ') || asString(source.name) || undefined;
 };
 
 const validImageUrl = (value: unknown): string | undefined => {
@@ -134,9 +126,13 @@ const normalizeProposal = (entry: RawRecord): ResearchHubProposal | null => {
     ? entry.associated_grants[0]
     : undefined;
   const title = asString(content.title);
-  const id = asNumber(content.id) ?? asNumber(entry.id);
+  const id = String(content.id ?? entry.id ?? '');
 
-  if (!title || !id) return null;
+  if (!title || !/^\d{1,20}$/.test(id)) return null;
+  const authors = Array.isArray(content.authors)
+    ? [...new Set(content.authors.map(fullName).filter((name): name is string => Boolean(name)))]
+    : [];
+  if (authors.length === 0 && fullName(authorProfile)) authors.push(fullName(authorProfile)!);
 
   const slug = asString(content.slug);
   const metrics = isRecord(entry.metrics) ? entry.metrics : undefined;
@@ -151,7 +147,8 @@ const normalizeProposal = (entry: RawRecord): ResearchHubProposal | null => {
   return {
     id: String(id),
     title,
-    author: fullName(authorProfile) ?? 'ResearchHub researcher',
+    author: authors.join(', ') || 'ResearchHub researcher',
+    authors,
     organization: asString(entry.nonprofit?.name)
       ?? asString(firstGrant?.organization)
       ?? asString(authorProfile?.headline),
@@ -184,7 +181,7 @@ const normalizeIncludedProposalIds = (proposalIds: readonly string[] = []) => {
 
   proposalIds.forEach((value) => {
     const proposalId = String(value).trim();
-    if (!/^\d{1,20}$/.test(proposalId) || seen.has(proposalId) || uniqueIds.length >= 10) return;
+    if (!/^\d{1,20}$/.test(proposalId) || seen.has(proposalId) || uniqueIds.length >= 1) return;
     seen.add(proposalId);
     uniqueIds.push(proposalId);
   });
@@ -201,24 +198,6 @@ const normalizeProposalEntries = (entries: unknown): ResearchHubProposal[] => (
     : []
 );
 
-const fetchProposalResponse = async (url: string): Promise<Response> => {
-  const controller = new AbortController();
-  const timeoutId = globalThis.setTimeout(() => controller.abort(), PROPOSAL_REQUEST_TIMEOUT_MS);
-  try {
-    return await fetch(url, {
-      headers: { Accept: 'application/json' },
-      signal: controller.signal
-    });
-  } catch (error) {
-    if (error && typeof error === 'object' && 'name' in error && error.name === 'AbortError') {
-      throw new Error('Proposal feed timed out.');
-    }
-    throw error;
-  } finally {
-    globalThis.clearTimeout(timeoutId);
-  }
-};
-
 export const getResearchHubProposalFeed = async ({
   requiredOpenUntil = getWeeklyBoundaryMeta().endsAt,
   includeProposalIds = []
@@ -227,33 +206,50 @@ export const getResearchHubProposalFeed = async ({
   const proposalFeedUrl = requestedProposalIds.length
     ? `${PROPOSAL_FEED_PATH}?includeProposalIds=${requestedProposalIds.join(',')}`
     : PROPOSAL_FEED_PATH;
-  let response = await fetchProposalResponse(proposalFeedUrl);
-
-  if (!response.ok && import.meta.env.DEV) {
-    response = await fetchProposalResponse('/dev-researchhub-proposals.json');
+  let payload: any;
+  let source: ResearchHubProposalFeedResult['source'] = 'live';
+  let fetchedAt = new Date().toISOString();
+  try {
+    payload = await fetchProposalJson(proposalFeedUrl);
+    if (!Array.isArray(payload?.results) && !Array.isArray(payload?.proposals)) {
+      throw new Error('Proposal feed returned an invalid snapshot.');
+    }
+    if (payload.cached === true) source = 'server-cache';
+    if (typeof payload.fetchedAt === 'string' && Number.isFinite(Date.parse(payload.fetchedAt))) {
+      fetchedAt = payload.fetchedAt;
+    }
+    writeProposalSnapshot(payload.results ?? payload.proposals, fetchedAt);
+  } catch (error) {
+    const snapshot = readProposalSnapshot();
+    if (snapshot) {
+      payload = snapshot;
+      fetchedAt = snapshot.fetchedAt;
+      source = 'local-cache';
+    } else if (import.meta.env.DEV) {
+      // Local fixtures are deliberately labeled and never treated as live evidence.
+      payload = await fetchProposalJson('/dev-researchhub-proposals.json');
+      source = 'dev-fixture';
+    } else {
+      throw error;
+    }
   }
-
-  if (!response.ok) {
-    throw new Error(`Proposal feed returned ${response.status}`);
-  }
-
-  const payload = await response.json();
   const results = Array.isArray(payload?.results)
     ? payload.results
-    : Array.isArray(payload?.proposals)
-      ? payload.proposals
-      : [];
+    : Array.isArray(payload?.proposals) ? payload.proposals : [];
   const proposals = normalizeProposalEntries(results);
   const referencedResults = normalizeProposalEntries(payload?.referencedProposals);
   const referencedById = new Map<string, ResearchHubProposal>();
 
-  [...proposals, ...referencedResults].forEach((proposal) => {
+  // Snapshot data is display-only. Never infer archive/completion state from stale references.
+  (source === 'live' ? [...proposals, ...referencedResults] : []).forEach((proposal) => {
     if (requestedProposalIds.includes(proposal.id)) {
       referencedById.set(proposal.id, proposal);
     }
   });
 
   return {
+    source,
+    fetchedAt,
     eligibleProposals: proposals.filter((proposal) => (
       isWeeklyProposalEligible(proposal, requiredOpenUntil)
     )),

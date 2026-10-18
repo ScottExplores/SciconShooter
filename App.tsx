@@ -1,4 +1,20 @@
+// REVAMP(E): Weekly presentation and read-only preview hooks live in isolated modules.
+import { PreviewBuildBadge } from './services/revamp/preview/PreviewBuildBadge';
+import { isPreviewMode, PREVIEW_READ_ONLY_MESSAGE } from './services/revamp/preview/previewMode';
+import { weeklyResultNudge } from './services/revamp/weekly/presentation';
+import { buildWeeklyRankedLoadout, WEEKLY_RANKED_SHIP } from './services/revamp/weekly/rankedLoadout';
+// REVAMP(D): Isolated Campaign research, goals, medals and wing controls.
+import { buildRevampCampaignLoadout, grantRevampWings } from './services/revamp/runtime/profile';
+import { useRevampProgression } from './services/revamp/runtime/useProgression';
+import { settleRevampMission, sanitizeRevampProgress, recordRevampEarnedCredits } from './services/revamp/progression';
+import type { RevampMissionSettlement } from './services/revamp/progression/types';
+import WingSupportHud from './components/revamp/WingSupportHud';
+import type { WingHudSnapshot } from './services/revamp/wings/wingRuntime';
+import FirstFlightHint from './components/revamp/FirstFlightHint';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+// REVAMP(F): Query-only launch helpers keep QA in the real campaign runtime.
+import { readQAConfig } from './services/revamp/qa/config';
+import { useQAMissionLaunch } from './services/revamp/qa/launch';
 import type { Address } from 'viem';
 import StartScreen from './components/StartScreen';
 import SciconOnboarding, { type OnboardingSurface } from './components/SciconOnboarding';
@@ -30,7 +46,7 @@ import {
   getResearchHubProposalFeed,
   ResearchHubProposal
 } from './services/researchHubProposals';
-import { getStoryBeatForPhase, StoryBeat } from './services/storyBeats';
+import { getStoryBeatForPhase, getStoryBeatForMission, StoryBeat } from './services/storyBeats';
 import {
   hasSeenStoryBeatTodayForProfile,
   markStoryBeatSeenTodayForProfile
@@ -633,6 +649,8 @@ type AnalyticsRunTelemetry = {
 };
 
 const OWNER_TEST_FLASK_COUNT = 40;
+// REVAMP(F): Frozen per page load; absent qa=1 leaves every normal path unchanged.
+const QA_CONFIG = readQAConfig();
 const DEPLOYMENT_UPDATE_CHECK_MS = 60_000;
 const INITIAL_DEPLOYMENT_UPDATE_CHECK_MS = 12_000;
 const OWNER_TEST_FLASK_CHARGE = getChargeForStoredFlasks(OWNER_TEST_FLASK_COUNT);
@@ -789,6 +807,8 @@ const App: React.FC = () => {
   }, [weeklySquadState.weekKey]);
   const [fundingProposals, setFundingProposals] = useState<ResearchHubProposal[]>([]);
   const [proposalReferences, setProposalReferences] = useState<ResearchHubProposal[]>([]);
+  // REVAMP(E): Show snapshot provenance without treating cached eligibility as authority.
+  const [proposalFeedMeta, setProposalFeedMeta] = useState<{ source?: 'live' | 'server-cache' | 'local-cache' | 'dev-fixture'; fetchedAt?: string }>({});
   const [proposalStatus, setProposalStatus] = useState<ProposalFeedStatus>('loading');
   const [playerNameInput, setPlayerNameInput] = useState<string>(() => (
     readPilotStats(pilotProfile.id).playerName
@@ -838,6 +858,10 @@ const App: React.FC = () => {
   const [continuePaymentHash, setContinuePaymentHash] = useState<string>('');
   const [continuePaymentError, setContinuePaymentError] = useState<string>('');
   const [continuesUsed, setContinuesUsed] = useState(0);
+  // REVAMP(D): Presentation state never changes competition simulation.
+  const [revampResult, setRevampResult] = useState<RevampMissionSettlement | null>(null);
+  const [wingSnapshot, setWingSnapshot] = useState<WingHudSnapshot | null>(null);
+  const [wingCommand, setWingCommand] = useState<{ nonce: number; slot?: 'left' | 'right'; autoCast?: boolean } | null>(null);
   const [activeStoryBeat, setActiveStoryBeat] = useState<StoryBeat | null>(null);
   const [bombCommand, setBombCommand] = useState<{ nonce: number } | null>(null);
   const [shipAbilityCommand, setShipAbilityCommand] = useState<{ nonce: number } | null>(null);
@@ -846,6 +870,7 @@ const App: React.FC = () => {
     nonce: number;
     targetLevelId?: string;
     targetWaveId?: string;
+    revampLoadout?: RuntimeSquadLoadout; // REVAMP(D): Adopt earned wings between missions.
   } | null>(null);
   const [waveVictorySummary, setWaveVictorySummary] = useState<WaveVictorySummary | null>(null);
   const [campaignResultPresentation, setCampaignResultPresentation] = useState<CampaignResultPresentation | null>(null);
@@ -1786,6 +1811,8 @@ const App: React.FC = () => {
     });
   }, [updatePermanentSquadState]);
   const beginRunSession = useCallback((testRun: boolean, runMode: ActiveRunMode) => {
+    // REVAMP(F): Disposable QA runs never request signed competitive receipts.
+    if (QA_CONFIG.enabled) return;
     if (runSessionPromiseRef.current) return;
 
     deploymentReloadSafeRef.current = false;
@@ -1949,6 +1976,7 @@ const App: React.FC = () => {
         includeProposalIds: requestedProposalId ? [requestedProposalId] : []
       });
       if (!isCurrentRefresh()) return;
+      setProposalFeedMeta({ source: feed.source, fetchedAt: feed.fetchedAt });
       setFundingProposals(feed.eligibleProposals);
       setProposalReferences(feed.referencedProposals);
       setProposalStatus(feed.eligibleProposals.length > 0 ? 'ready' : 'empty');
@@ -1963,6 +1991,7 @@ const App: React.FC = () => {
         try {
           const openFeed = await getResearchHubProposalFeed();
           if (!isCurrentRefresh()) return;
+          setProposalFeedMeta({ source: openFeed.source, fetchedAt: openFeed.fetchedAt });
           setFundingProposals(openFeed.eligibleProposals);
           setProposalReferences([]);
           setProposalStatus(openFeed.eligibleProposals.length > 0 ? 'ready' : 'empty');
@@ -1976,6 +2005,7 @@ const App: React.FC = () => {
       if (!background && isCurrentRefresh()) {
         setFundingProposals([]);
         setProposalReferences([]);
+        setProposalFeedMeta({});
         setProposalStatus('error');
       }
     }
@@ -2130,7 +2160,7 @@ const App: React.FC = () => {
       && !ownerFrameFrozen
       && !onboardingGameplayFreeze
       && !introMissionLocked
-      && !activeStoryBeat
+      && (!activeStoryBeat || activeStoryBeat.presentation === 'inline')
       && !isOwnerTestRun
       && !isCampaignLabRun
     );
@@ -2327,6 +2357,8 @@ const App: React.FC = () => {
         };
         walletTokenSpendPendingRef.current.set(normalizedAddress, pending);
         const settlement = await applyWalletTokenSpend(pending);
+        // REVAMP(D): Purchased reserve stays unavailable to the earned research tree.
+        settlement.profile.snapshot.permanentState.revamp = sanitizeRevampProgress({ ...settlement.profile.snapshot.permanentState.revamp, paidCreditReserve: settlement.purchasedTokensAvailable });
         if (
           walletProfileAddressRef.current !== normalizedAddress
           || settlement.profile.walletAddress.toLowerCase() !== normalizedAddress
@@ -3189,7 +3221,8 @@ const App: React.FC = () => {
         : campaignRequest && requestedCampaignMission
         ? {
             ...campaignRequest,
-            waveId: requestedCampaignMission.waveIds[0],
+            // REVAMP(F): bosslab selects an authored boss wave through this same launch funnel.
+            waveId: QA_CONFIG.enabled ? campaignRequest.waveId : requestedCampaignMission.waveIds[0],
             kind: campaignRequest.kind === 'replay' ? 'replay' as const : 'mission' as const
           }
         : campaignRequest);
@@ -3205,6 +3238,8 @@ const App: React.FC = () => {
     );
     if (
       campaignRequest
+      // REVAMP(F): QA can inspect locked missions without editing campaign progress.
+      && !QA_CONFIG.enabled
       && !authorizedCampaignLabRequest
       && !weeklyLaunchAllowed
       && (
@@ -3441,7 +3476,8 @@ const App: React.FC = () => {
       }
     }
 
-    const runMode: ActiveRunMode = authorizedCampaignLabRequest
+    // REVAMP(F): Reuse the existing noncompetitive mode and settlement exclusions.
+    const runMode: ActiveRunMode = authorizedCampaignLabRequest || (QA_CONFIG.enabled && normalizedCampaignRequest)
       ? 'campaign-lab'
       : requestedBossReplay
       ? 'boss-archive'
@@ -3568,7 +3604,8 @@ const App: React.FC = () => {
 
     if (missionLaunchNonceRef.current !== launchNonce) return;
 
-    const startInTestMode = runMode === 'owner-test' || runMode === 'campaign-lab';
+    // REVAMP(F): QA uses the normal loadout; only explicit god=1 changes survivability.
+    const startInTestMode = runMode === 'owner-test' || (runMode === 'campaign-lab' && !QA_CONFIG.enabled);
     const nextGameId = gameId + 1;
     const missionNumber = requestedBossReplay?.missionNumber
       ?? (requestedWeeklyRunLevel ? getWeeklyRunDepth(requestedWeeklyRunLevel.id) : undefined)
@@ -3578,7 +3615,8 @@ const App: React.FC = () => {
     const requestedLabShipId = authorizedCampaignLabRequest?.shipId
       ? parsePlayerShipId(authorizedCampaignLabRequest.shipId)
       : null;
-    const runShipId = requestedLabShipId ?? usableShipId;
+    // REVAMP(E): The ranked ship and power budget are identical for every pilot.
+    const runShipId = runMode === 'weekly-streak' ? WEEKLY_RANKED_SHIP : requestedLabShipId ?? usableShipId;
     const requestedSupportIds = authorizedCampaignLabRequest
       ? [authorizedCampaignLabRequest.supportId, authorizedCampaignLabRequest.rightSupportId]
       : [];
@@ -3638,7 +3676,14 @@ const App: React.FC = () => {
           }
         }
       : weeklySquadState;
-    const squadLoadout = buildRuntimeSquadLoadout(campaignLabState, runShipId);
+    // REVAMP(E)+(D): Weekly uses the fixed ranked loadout; Campaign research never enters Weekly Run, paid challenges or the lab.
+    const squadLoadout = runMode === 'weekly-streak'
+      ? buildWeeklyRankedLoadout(campaignLabState)
+      : (runMode === 'campaign' || runMode === 'campaign-replay') && !authorizedCampaignLabRequest
+        ? buildRevampCampaignLoadout(campaignLabState, permanentSquadStateRef.current, runShipId)
+        : buildRuntimeSquadLoadout(campaignLabState, runShipId);
+    setRevampResult(null);
+    setWingSnapshot(null);
     const weeklyStreakForLaunch = runMode === 'weekly-streak'
       ? weeklySquadStateRef.current.weeklyCampaignStreak
       : null;
@@ -3646,10 +3691,10 @@ const App: React.FC = () => {
     // same footing: exactly ten lives, regardless of Campaign Starting Hearts.
     // Lives persist only inside the mounted engine; a later launch is always a
     // new attempt and never restores a saved checkpoint.
-    const startingLives = resolveRunStartingLives({
+    const startingLives = Math.min(GAME_CONFIG.MAX_LIVES, (squadLoadout.revamp?.extraLives ?? 0) + resolveRunStartingLives({
       weeklyRun: runMode === 'weekly-streak',
       startingHeartLevel: squadLoadout.upgrades.startingHearts
-    });
+    }));
     setActiveRunLifeCapacity(startingLives);
     const weeklyRunKeyForLaunch = weeklyStreakForLaunch
       ? `${weeklyStreakForLaunch.weeklyId}:${weeklyStreakForLaunch.startNodeId}:${weeklyStreakForLaunch.createdAtMs}`
@@ -3791,6 +3836,10 @@ const App: React.FC = () => {
     setGameState(GameState.PLAYING);
   };
 
+  // REVAMP(F): Wait for startup assets, then launch the requested authored mission once.
+  useQAMissionLaunch(!startupLoading && !walletIdentityHydrating, CAMPAIGN_MISSIONS, BOSS_ARCHIVE_CATALOG,
+    (request) => { void launchGame(null, 'challenge', 'standard', request); });
+
   const startGame = () => {
     const mission = getCampaignMissionById(campaignCheckpoint.missionId);
     void launchGame(null, 'challenge', 'standard', {
@@ -3864,6 +3913,11 @@ const App: React.FC = () => {
     missionLaunchPendingRef.current = false;
     setGameRuntimeReady(true);
     setMissionLoading(null);
+    // REVAMP(F): Skip only the briefing/onboarding lock, preserving runtime startup and HUD.
+    if (QA_CONFIG.enabled && QA_CONFIG.skipIntro) {
+      setIntroMissionLocked(false);
+      return;
+    }
     recordPlayerReportBreadcrumb('runtime_ready', {
       game_id: runtimeGameId,
       run_mode: pendingLaunch.runMode
@@ -3891,6 +3945,16 @@ const App: React.FC = () => {
       companions: pendingLaunch.squadLoadout.companions.map((companion) => companion.id)
     });
 
+    // REVAMP(D): Campaign comms overlay active flight; the guide is an inline hint.
+    if (pendingLaunch.runMode === 'campaign' || pendingLaunch.runMode === 'campaign-replay') {
+      clearIntroStoryTimeout();
+      setIntroMissionLocked(false);
+      const missionId = activeCampaignLaunch?.missionId ?? CAMPAIGN_MISSIONS[0]?.id;
+      const beat = missionId ? getStoryBeatForMission(missionId) : null;
+      if (beat && !hasSeenStoryBeatTodayForProfile(beat, pendingLaunch.squadLoadout.profileId)) setActiveStoryBeat(beat);
+      beginRunSession(pendingLaunch.startInTestMode || isOwnerWallet, pendingLaunch.runMode);
+      return;
+    }
     clearIntroStoryTimeout();
     introStoryTimeoutRef.current = window.setTimeout(() => {
       introStoryTimeoutRef.current = null;
@@ -4195,6 +4259,11 @@ const App: React.FC = () => {
    * next sector rather than bouncing the player back to the home screen.
    */
   const startWeeklyRunFromHome = useCallback(async () => {
+    // REVAMP(F): QA assistance must never enter competitive admission or spend attempts.
+    if (QA_CONFIG.enabled) {
+      setWeeklyRunLaunchError('Weekly Run is unavailable in QA. Remove qa=1 for a ranked flight.');
+      return;
+    }
     if (weeklyRunAdmissionPendingRef.current || missionLaunchPendingRef.current) return;
     if (
       walletIdentityHydrating
@@ -4254,7 +4323,8 @@ const App: React.FC = () => {
       && walletProfileStatus === 'ready'
       && !currentQuota
     );
-    if (!retryPendingAdmission && attemptsRemaining <= 0 && !serverCanVerifyUnknownWalletQuota) {
+    // REVAMP(E): Preview flights are unlimited practice and consume no ranked entry.
+    if (!isPreviewMode() && !retryPendingAdmission && attemptsRemaining <= 0 && !serverCanVerifyUnknownWalletQuota) {
       setCampaignMapError(
         `All ${WEEKLY_RUN_ATTEMPT_LIMIT} free Weekly Run attempts have been used. `
         + 'Wait for the weekly reset to play another ranked run.'
@@ -4275,7 +4345,7 @@ const App: React.FC = () => {
           nowMs: now.getTime()
         });
         const preparedAdmission = {
-          ...consumeWeeklyRunAttempt(stateBeforeLaunch),
+          ...(isPreviewMode() ? stateBeforeLaunch : consumeWeeklyRunAttempt(stateBeforeLaunch)),
           weeklyCampaignStreak: startedStreak,
           updatedAt: new Date().toISOString()
         };
@@ -4325,7 +4395,7 @@ const App: React.FC = () => {
       runStartedAtRef.current = Date.now();
       const sessionPromise = startRunSession({
         testRun: isOwnerWallet,
-        playerShipId: usableShipId,
+        playerShipId: WEEKLY_RANKED_SHIP,
         runMode: 'weekly-streak',
         profileId: weeklySquadStateRef.current.profileId,
         walletAddress: runWalletIntent,
@@ -5244,6 +5314,20 @@ const App: React.FC = () => {
     stats.totalCoins
   ]);
 
+  // REVAMP(D): One existing journal saves both currencies and versioned meta before UI updates.
+  const revamp = useRevampProgression({
+    profileId: activeProfileId,
+    read: () => ({ weekly: weeklySquadStateRef.current, permanent: permanentSquadStateRef.current }),
+    commit: (weekly, permanent) => {
+      commitCampaignSquadSettlement({ resultId: `revamp:${activeProfileId}:${Date.now()}`, weeklyState: weekly, permanentState: permanent });
+      weeklySquadStateRef.current = weekly;
+      permanentSquadStateRef.current = permanent;
+      setWeeklySquadState(weekly);
+      setPermanentSquadState(permanent);
+      markCampaignSettlementWalletDirty(weekly, permanent);
+    }
+  });
+
   const selectCampaignRouteFromMap = useCallback((request: CampaignMapRouteSelectionRequest) => {
     const current = permanentSquadStateRef.current;
     const selection = selectCampaignRoute(
@@ -5670,6 +5754,8 @@ const App: React.FC = () => {
     const resultId = `${activeProfileId}:${attemptId}:${summary.levelId}:${summary.waveId}`;
     if (processedCampaignSummaryKeysRef.current.has(resultId)) return;
 
+    // REVAMP(D): Settle live goal deltas before applying Mission receipts.
+    revamp.flush();
     const currentPermanent = permanentSquadStateRef.current;
     const completion = applyCampaignCompletion(currentPermanent.campaignProgress, {
       resultId,
@@ -5734,6 +5820,19 @@ const App: React.FC = () => {
       nextPermanent = recordBossVictory(nextPermanent, summary.bossEncounterId);
     }
 
+    // REVAMP(D): Separate medals preserve legacy Campaign mastery and reward receipts.
+    const metaResult = summary.revampMetrics ? settleRevampMission(nextPermanent.revamp, {
+      runId: resultId, missionId: summary.levelId, cleared: true,
+      kills: summary.revampMetrics.kills, spawned: summary.revampMetrics.spawned,
+      damageTaken: Math.max(summary.damageTaken, summary.revampMetrics.hits),
+      durationMs: summary.elapsedSeconds * 1000, recordCombatEvents: false,
+      scienceCreditsEarned: credit.creditedAmount
+    }) : null;
+    if (metaResult?.accepted) {
+      nextPermanent = { ...nextPermanent, revamp: metaResult.state };
+      credit.state = grantRevampWings(credit.state, metaResult.unlocks, completion.settlement.firstClear);
+    }
+
     try {
       commitCampaignSquadSettlement({
         resultId,
@@ -5754,6 +5853,7 @@ const App: React.FC = () => {
     permanentSquadStateRef.current = nextPermanent;
     setPermanentSquadState(nextPermanent);
     markCampaignSettlementWalletDirty(credit.state, nextPermanent);
+    if (metaResult) setRevampResult(metaResult); // REVAMP(D): Results read the committed receipt.
     setCampaignResultPresentation({
       summaryId: summary.id,
       settlement: {
@@ -5815,6 +5915,8 @@ const App: React.FC = () => {
     const nextPermanent: PermanentSquadState = {
       ...currentPermanent,
       campaignProgress: metrics.progress,
+      // REVAMP(D): Count the actual final coin sweep and late grants once, without replaying medals/time.
+      revamp: recordRevampEarnedCredits(currentPermanent.revamp, `${resultId}:collected`, credit.creditedAmount),
       lifetimeStats: {
         ...currentPermanent.lifetimeStats,
         coinsCollected: currentPermanent.lifetimeStats.coinsCollected + creditedCollectedCoins
@@ -5926,6 +6028,8 @@ const App: React.FC = () => {
       }
     }
     setOwnerFrameFrozen(false);
+    // REVAMP(D): Sector liberation line accompanies the existing results screen.
+    if (isCampaignRun) { const beat = getStoryBeatForMission(summary.levelId, 'victory'); if (beat) setActiveStoryBeat(beat); }
     setWaveVictorySummary(summary);
     setGameState(GameState.WAVE_COMPLETE);
   };
@@ -6008,22 +6112,36 @@ const App: React.FC = () => {
           waveId: nextWaveId,
           kind: nextKind
         });
-        setActiveRunMode(nextKind === 'replay' ? 'campaign-replay' : 'campaign');
+        // REVAMP(F): Continuing a QA mission retains noncompetitive settlement rules.
+        setActiveRunMode(QA_CONFIG.enabled ? 'campaign-lab' : nextKind === 'replay' ? 'campaign-replay' : 'campaign');
         continuationTarget = {
           targetLevelId: nextMission.id,
           targetWaveId: nextWaveId
         };
       }
     }
+    // REVAMP(D): A continuous campaign keeps its engine; adopt the newly earned wing at this boundary.
+    const revampLoadout = isCampaignRun
+      ? buildRevampCampaignLoadout(weeklySquadStateRef.current, permanentSquadStateRef.current, usableShipId)
+      : undefined;
+    if (revampLoadout) activeRunSquadLoadoutRef.current = revampLoadout;
     setWaveContinueCommand(current => ({
       nonce: (current?.nonce ?? 0) + 1,
-      ...(continuationTarget ?? {})
+      ...(continuationTarget ?? {}),
+      revampLoadout
     }));
+    setRevampResult(null);
     setWaveVictorySummary(null);
     setGameState(GameState.PLAYING);
   };
 
   const completeStoryTransmission = () => {
+    // REVAMP(D): Inline comms never start another run or open a tutorial modal.
+    if (activeStoryBeat?.presentation === 'inline') {
+      markStoryBeatSeenTodayForProfile(activeStoryBeat, activeProfileId);
+      setActiveStoryBeat(null);
+      return;
+    }
     const completedPhase = activeStoryBeat?.phase;
     const shouldOfferFirstFlightGuide = completedPhase === 1
       && isCompetitiveCampaignRun
@@ -6297,6 +6415,8 @@ const App: React.FC = () => {
   }, [activeWalletAddress, isOwnerWallet, walletProfileStatus]);
 
   const handleWalletPurchaseSuccess = useCallback((settlement: WalletPurchaseSettlement) => {
+    // REVAMP(D): A purchase cannot temporarily appear as earned research credit.
+    settlement.profile.snapshot.permanentState.revamp = sanitizeRevampProgress({ ...settlement.profile.snapshot.permanentState.revamp, paidCreditReserve: settlement.entitlements.purchasedTokensAvailable });
     const normalizedAddress = settlement.profile.walletAddress.toLowerCase();
     // A first purchase can connect and authenticate the wallet inside the same
     // trusted tap. In that path the authoritative settlement may arrive one
@@ -6938,26 +7058,30 @@ const App: React.FC = () => {
       return;
     }
 
+    // REVAMP(F): skipIntro also covers later mission transmissions during QA playback.
+    if (QA_CONFIG.enabled && QA_CONFIG.skipIntro) return;
+
     // Story transmissions are Campaign narrative. The Weekly Run is a separate
     // mode with no missions and no story, so a generated depth-3 wave must not
     // interrupt the run with "Mission 1: Research Frontier".
-    if (isWeeklyCampaignRun) {
+    if (!isCampaignRun) return; // REVAMP(D): Only authored Campaign gets chapter comms.
+
+    if (!activeCampaignLaunch && stats.wave <= lastStoryWaveRef.current) {
       return;
     }
 
-    if (stats.wave <= lastStoryWaveRef.current) {
-      return;
-    }
-
-    const nextBeat = getStoryBeatForPhase(stats.wave);
+    // REVAMP(D): Resolve authored IDs, including alternate routes.
+    const nextBeat = activeCampaignLaunch ? getStoryBeatForMission(activeCampaignLaunch.missionId) : getStoryBeatForPhase(stats.wave);
     lastStoryWaveRef.current = stats.wave;
 
     if (nextBeat && !hasSeenStoryBeatTodayForProfile(nextBeat, activeProfileId)) {
       setActiveStoryBeat(nextBeat);
     }
-  }, [activeProfileId, activeStoryBeat, gameState, isWeeklyCampaignRun, stats.wave]);
+  }, [activeProfileId, activeStoryBeat, gameState, isWeeklyCampaignRun, isCampaignRun, stats.wave, activeCampaignLaunch]);
 
   const finalizeCurrentRun = async (): Promise<RunReceipt | null> => {
+    // REVAMP(F): QA results cannot be minted or submitted as verified runs.
+    if (QA_CONFIG.enabled) return null;
     if (isBossArchiveRun) return null;
     if (runReceipt) return runReceipt;
     if (runReceiptPromiseRef.current) return runReceiptPromiseRef.current;
@@ -7075,6 +7199,8 @@ const App: React.FC = () => {
   }, [isWeeklyCampaignRun, persistWeeklyCampaignStreak]);
 
   const persistHighScore = async () => {
+    // REVAMP(E): Never optimistically insert a preview score or request a signature.
+    if (isPreviewMode()) { setShowNameInput(false); setScoreSaved(false); return false; }
     if (!isWeeklyLeaderboardRun || !playerNameInput.trim() || submittingScoreRef.current) return false;
 
     submittingScoreRef.current = true;
@@ -7325,6 +7451,8 @@ const App: React.FC = () => {
   };
 
   const claimWeeklyChampion = (winner: ArchivedWinner, proposal: ResearchHubProposal) => {
+    // REVAMP(E): Stop before opening the wallet UI on test deployments.
+    if (isPreviewMode()) { setChampionClaimStatus('error'); setChampionClaimMessage(PREVIEW_READ_ONLY_MESSAGE); return; }
     const matchingReceipt = runReceipt?.runId === winner.winnerRunId
       ? runReceipt
       : weeklyGuestProposalCapabilities.find((capability) => (
@@ -7454,6 +7582,8 @@ const App: React.FC = () => {
   };
 
   const confirmWeeklyLeaderProposal = async (proposal: ResearchHubProposal) => {
+    // REVAMP(E): Proposal selection in preview cannot sign or persist a claim.
+    if (isPreviewMode()) { setWeeklyProposalSelectionStatus('error'); setWeeklyProposalSelectionMessage(PREVIEW_READ_ONLY_MESSAGE); return; }
     if (!runReceipt || weeklyProposalSelectionStatus === 'saving') return;
 
     deploymentReloadSafeRef.current = false;
@@ -7726,6 +7856,7 @@ const App: React.FC = () => {
 
   return (
     <div className="relative h-full w-full select-none bg-[#0b1020]">
+      <PreviewBuildBadge />
       {localHangarSaveError ? (
         <div role="alert" className="absolute inset-x-3 top-3 z-[100] rounded-lg border border-red-300/50 bg-slate-950 p-4 text-sm text-red-100">
           <p>{localHangarSaveError}</p>
@@ -7808,7 +7939,8 @@ const App: React.FC = () => {
                 });
               },
               onRuntimeState: handleRuntimeState,
-              onDebugSnapshot: isCampaignLabRun
+              // REVAMP(F): QA has lightweight telemetry; skip unused founder snapshot allocation.
+              onDebugSnapshot: isCampaignLabRun && !QA_CONFIG.enabled
                 ? (snapshot: Readonly<GameEngineDebugSnapshot>) => {
                     if (!founderAuthorizationRef.current) return;
                     setCampaignLabTelemetry({
@@ -7824,7 +7956,8 @@ const App: React.FC = () => {
                 && !onboardingGameplayFreeze,
               onReady: () => completeMissionRuntimeLaunch(gameId),
               onInitializationError: (error) => failMissionRuntimeLaunch(gameId, error),
-              onGameOver: async () => {
+              onGameOver: async (summary) => {
+                if (isCampaignRun) revamp.recordFailure(summary); // REVAMP(D): Failure never removes progression.
                 setOwnerFrameFrozen(false);
                 emitRunOutcomeTelemetry('defeated');
                 if (isWeeklyCampaignRun) {
@@ -7850,13 +7983,16 @@ const App: React.FC = () => {
               onContinueStarted: () => setGameState(GameState.PLAYING),
               onCampaignProgress: handleCampaignProgress,
               onWaveVictory: showWaveVictory,
-              isTransmissionOpen: introMissionLocked || Boolean(activeStoryBeat),
+              isTransmissionOpen: introMissionLocked || Boolean(activeStoryBeat && activeStoryBeat.presentation !== 'inline'),
               bombLocked: onboardingGameplayFreeze
                 || onboardingBombLocked
                 || introMissionLocked
-                || Boolean(activeStoryBeat),
+                || Boolean(activeStoryBeat && activeStoryBeat.presentation !== 'inline'),
               bombCommand,
               shipAbilityCommand,
+              // REVAMP(D): Explicit engine commands keep preview and live flight isolated.
+              wingCommand,
+              onWingSupportState: setWingSnapshot,
               continueCommand,
               waveContinueCommand,
               polishSettings,
@@ -7914,9 +8050,9 @@ const App: React.FC = () => {
                 || onboardingGameplayFreeze
                 || onboardingBombLocked
                 || introMissionLocked
-                || Boolean(activeStoryBeat),
+                || Boolean(activeStoryBeat && activeStoryBeat.presentation !== 'inline'),
               onUseBomb: () => {
-                if (onboardingGameplayFreeze || onboardingBombLocked || introMissionLocked || activeStoryBeat) return;
+                if (onboardingGameplayFreeze || onboardingBombLocked || introMissionLocked || (activeStoryBeat && activeStoryBeat.presentation !== 'inline')) return;
                 setBombCommand({ nonce: Date.now() });
               },
               selectedShipId: activeMissionShipId,
@@ -7925,9 +8061,9 @@ const App: React.FC = () => {
                 || onboardingGameplayFreeze
                 || onboardingAbilityLocked
                 || introMissionLocked
-                || Boolean(activeStoryBeat),
+                || Boolean(activeStoryBeat && activeStoryBeat.presentation !== 'inline'),
               onUseShipAbility: () => {
-                if (onboardingGameplayFreeze || onboardingAbilityLocked || introMissionLocked || activeStoryBeat) return;
+                if (onboardingGameplayFreeze || onboardingAbilityLocked || introMissionLocked || (activeStoryBeat && activeStoryBeat.presentation !== 'inline')) return;
                 setShipAbilityCommand({ nonce: Date.now() });
               },
               lifeCapacity: activeRunLifeCapacity,
@@ -7937,6 +8073,14 @@ const App: React.FC = () => {
           />
         </React.Suspense>
       )}
+
+      {/* REVAMP(D): Thumb controls and first-flight hints do not capture steering input. */}
+      {isCampaignRun && gameState === GameState.PLAYING && !campaignMapOpen && !missionLoading && wingSnapshot ? <WingSupportHud
+        snapshot={wingSnapshot} disabled={ownerFrameFrozen || onboardingGameplayFreeze}
+        onCast={slot => setWingCommand({ nonce: performance.now(), slot })}
+        onAutoCastChange={autoCast => { setWingCommand({ nonce: performance.now(), autoCast }); revamp.preference({ wingAutoCast: autoCast }); }}
+      /> : null}
+      {isCampaignRun && gameState === GameState.PLAYING && gameRuntimeReady && !hasCampaignClear ? <FirstFlightHint key={gameId} /> : null}
 
       {!campaignMapOpen && gameState === GameState.WAVE_COMPLETE && waveVictorySummary && isCampaignBranchRun && campaignBranchResult ? (
         <React.Suspense fallback={null}>
@@ -7952,6 +8096,7 @@ const App: React.FC = () => {
         <React.Suspense fallback={null}>
           <WaveVictoryOverlay
             summary={waveVictorySummary}
+            revampSettlement={revampResult}
             onContinue={continueAfterWaveVictory}
             bossArchiveReplay={isBossArchiveRun}
             campaignSettlement={isCampaignRun && campaignResultPresentation?.summaryId === waveVictorySummary.id
@@ -7973,11 +8118,18 @@ const App: React.FC = () => {
       {gameState === GameState.MENU && !campaignMapOpen && (
         <StartScreen
           onStart={startGame}
+          // REVAMP(D): Start-screen goals and research use the same saved credit balance.
+          revampActions={revamp}
           onOpenCampaignMap={() => openCampaignMap()}
           campaignNotificationCount={campaignNotificationCount}
           campaignCheckpoint={campaignCheckpoint}
           allTimeLeaderboard={leaderboard}
           monthlyLeaderboard={monthlyLeaderboard}
+          weeklyLiveLeaderboard={weeklyRecoveryLeaderboard}
+          weeklyPilotRunIds={weeklyGuestProposalCapabilities.map((capability) => capability.receipt.runId)}
+          proposalFeedSource={proposalFeedMeta.source}
+          proposalFetchedAt={proposalFeedMeta.fetchedAt}
+          onRetryProposals={() => void refreshFundingProposals()}
           archivedWinners={archivedWinners}
           weeklyPresentationTime={weeklyPresentationTime}
           walletRecords={walletRecords}
@@ -8100,6 +8252,7 @@ const App: React.FC = () => {
           <CampaignMap
             open
             progress={permanentSquadState.campaignProgress}
+            researchMedals={permanentSquadState.revamp.missionMedals}
             status={campaignMapStatus}
             errorMessage={campaignMapError}
             initialMissionId={campaignMapFocusMissionId}
@@ -8126,6 +8279,11 @@ const App: React.FC = () => {
             campaignCheckpoint={campaignCheckpoint}
             allTimeLeaderboard={leaderboard}
             monthlyLeaderboard={monthlyLeaderboard}
+            weeklyLiveLeaderboard={weeklyRecoveryLeaderboard}
+            weeklyPilotRunIds={weeklyGuestProposalCapabilities.map((capability) => capability.receipt.runId)}
+            proposalFeedSource={proposalFeedMeta.source}
+            proposalFetchedAt={proposalFeedMeta.fetchedAt}
+            onRetryProposals={() => void refreshFundingProposals()}
             archivedWinners={archivedWinners}
             weeklyPresentationTime={weeklyPresentationTime}
             walletRecords={walletRecords}
@@ -8357,9 +8515,14 @@ const App: React.FC = () => {
                   </div>
                 </div>
               ) : null}
+              {weeklyRunResultSummary ? (
+                <p className="revamp-weekly-nudge" role="status">{isPreviewMode()
+                  ? PREVIEW_READ_ONLY_MESSAGE
+                  : weeklyResultNudge(weeklyRecoveryLeaderboard, weeklyRunResultSummary.points, runReceipt?.runId)}</p>
+              ) : null}
               {weeklyRunResultSummary ? null : missionResultBanner}
 
-              {showNameInput ? (
+              {showNameInput && !isPreviewMode() ? (
                 <>
                   <form onSubmit={submitScore} className="grid gap-2">
                     {scoreSubmitError ? (
@@ -8515,7 +8678,7 @@ const App: React.FC = () => {
             selectionStatus={weeklyProposalSelectionStatus}
             selectionMessage={weeklyProposalSelectionMessage}
             initialProposalId={monthlyLeaderboard.find((entry) => entry.runId === runReceipt.runId)?.proposalId ?? null}
-            dismissible={weeklyProposalSelectionMode === 'recovery'}
+            dismissible={weeklyProposalSelectionMode === 'recovery' || proposalStatus === 'error' || proposalStatus === 'empty' || weeklyProposalSelectionStatus === 'error'}
             onConfirm={(proposal) => void confirmWeeklyLeaderProposal(proposal)}
             onProposalChange={() => {
               if (weeklyProposalSelectionStatus !== 'error') return;

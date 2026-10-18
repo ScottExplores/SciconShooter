@@ -1,4 +1,6 @@
 /** Fixed-step flight geometry. Hulls, bullets and collision stay in the same 2D plane. */
+// REVAMP(B): Complete Galaga arcs and shot timing live outside the shared engine.
+import { createGalagaDive } from '../../revamp/formations/galagaDive';
 type Point = { x: number; y: number };
 type Cubic = readonly [Point, Point, Point, Point];
 export interface FormationFlight {
@@ -6,6 +8,8 @@ export interface FormationFlight {
   readonly distances: readonly number[];
   readonly length: number;
   readonly duration: number;
+  readonly revampShotAtAge?: number;
+  readonly revampReturnsToSlot?: boolean;
 }
 const clamp = (n: number, low: number, high: number) => Math.max(low, Math.min(high, n));
 const mix = (a: number, b: number, t: number) => a + (b - a) * t;
@@ -50,6 +54,7 @@ export const sampleFormationFlight = (flight: FormationFlight, age: number): Poi
 export interface FormationAttackFlightInput {
   start: Point;
   target: Point;
+  returnSlot?: Point;
   width: number;
   height: number;
   hullHeight: number;
@@ -61,6 +66,16 @@ export interface FormationAttackFlightInput {
 
 /** A committed line: dodging changes the outcome, not the enemy's destination. */
 export const createFormationAttackFlight = (input: FormationAttackFlightInput): FormationFlight => {
+  // REVAMP(B): One committed shot at the arc bottom, then a continuous return to slot.
+  if (input.attack === 'revamp-dive' || input.attack === 'revamp-escort') {
+    const dive = createGalagaDive({ start: input.start, target: input.target, returnSlot: input.returnSlot,
+      world: { width: input.width, height: input.height }, speedPerSecond: input.speed * 60,
+      cycle: input.cycle, escortPosition: input.attack === 'revamp-escort'
+        ? ([0, -1, 1] as const)[input.index % 3] : 0 });
+    return { points: dive.spline.points, distances: dive.spline.distances, length: dive.spline.length,
+      duration: dive.spline.durationSeconds * 60, revampShotAtAge: dive.shotAtSeconds * 60,
+      revampReturnsToSlot: true };
+  }
   const { start, width, height, index, cycle, attack } = input;
   const side = start.x < width / 2 ? -1 : 1;
   const wing = (index + cycle) % 2 === 0 ? -1 : 1;

@@ -1,3 +1,5 @@
+// REVAMP(D): Research medals are separate from legacy route mastery rewards.
+import type { RevampMedal } from '../services/revamp/progression/types';
 import React, {
   useCallback,
   useEffect,
@@ -422,6 +424,7 @@ export const runCampaignMapDeveloperAction = (
 interface CampaignMapProps {
   open: boolean;
   progress: CampaignProgress;
+  researchMedals?: Record<string, RevampMedal[]>;
   missions?: CampaignMissionDefinition[];
   status?: CampaignMapStatus;
   errorMessage?: string;
@@ -713,6 +716,7 @@ const formatBranchType = (missionType: CampaignMapBranchMissionType) => missionT
 const CampaignMap: React.FC<CampaignMapProps> = ({
   open,
   progress,
+  researchMedals,
   missions = CAMPAIGN_MISSIONS,
   status = 'ready',
   errorMessage = '',
@@ -1664,6 +1668,9 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
                         </div>;
                       })}
                     </div>
+                    {researchMedals ? <div className="campaign-map-records" aria-label="Research Data medals">
+                      {(['clear', 'kills', 'noHit'] as RevampMedal[]).map(medal => <span key={medal}><small>{medal === 'clear' ? 'Clear' : medal === 'kills' ? '90% kills' : 'No hit'}</small><strong>{researchMedals[selectedMission.id]?.includes(medal) ? '★ Earned' : '☆ Available'}</strong></span>)}
+                    </div> : null}
                     <div className="campaign-map-records campaign-map-records--personal">
                       <span><small>Best score</small><strong>{(selectedRecord?.bestScore ?? 0).toLocaleString()}</strong></span>
                       <span><small>Best time</small><strong>{formatTime(selectedRecord?.bestClearTimeMs ?? null)}</strong></span>

@@ -3,22 +3,28 @@ import type { StoryBeat } from './storyBeats';
 export const STORY_TRANSMISSION_STORAGE_KEY = 'scicon:story-transmissions:daily:v1';
 
 type StoryTransmissionStorage = Pick<Storage, 'getItem' | 'setItem'>;
+type StoryBeatIdentity = Pick<StoryBeat, 'phase' | 'title'> & Pick<StoryBeat, 'id'>;
 
 type DailyStoryTransmissionState = {
   dayKey: string;
   beatIds: string[];
 };
 
-const getBrowserStorage = (): StoryTransmissionStorage | null => (
-  typeof window === 'undefined' ? null : window.localStorage
-);
+const getBrowserStorage = (): StoryTransmissionStorage | null => {
+  try { return typeof window === 'undefined' ? null : window.localStorage; } catch { return null; }
+};
+
+const writeDailyState = (storage: StoryTransmissionStorage, key: string, state: DailyStoryTransmissionState) => {
+  // Private browsing or a full quota must never interrupt a running Mission.
+  try { storage.setItem(key, JSON.stringify(state)); } catch { /* Session continues without the seen marker. */ }
+};
 
 export const getLocalStoryDayKey = (now = new Date()) => (
   `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 );
 
-export const getStoryBeatDailyId = (beat: Pick<StoryBeat, 'phase' | 'title'>) => (
-  `${beat.phase}:${beat.title}`
+export const getStoryBeatDailyId = (beat: StoryBeatIdentity) => (
+  beat.id ?? `${beat.phase}:${beat.title}`
 );
 
 const getScopedStoryStorageKey = (profileId: string) => {
@@ -48,7 +54,7 @@ const readDailyState = (
 };
 
 export const hasSeenStoryBeatToday = (
-  beat: Pick<StoryBeat, 'phase' | 'title'>,
+  beat: StoryBeatIdentity,
   storageOverride?: StoryTransmissionStorage | null,
   now = new Date()
 ) => {
@@ -59,7 +65,7 @@ export const hasSeenStoryBeatToday = (
 };
 
 export const markStoryBeatSeenToday = (
-  beat: Pick<StoryBeat, 'phase' | 'title'>,
+  beat: StoryBeatIdentity,
   storageOverride?: StoryTransmissionStorage | null,
   now = new Date()
 ) => {
@@ -69,16 +75,16 @@ export const markStoryBeatSeenToday = (
   const state = readDailyState(storage, dayKey);
   const beatId = getStoryBeatDailyId(beat);
   if (!state.beatIds.includes(beatId)) state.beatIds.push(beatId);
-  storage.setItem(STORY_TRANSMISSION_STORAGE_KEY, JSON.stringify(state));
+  writeDailyState(storage, STORY_TRANSMISSION_STORAGE_KEY, state);
 };
 
 /**
  * First-flight narrative state is profile-scoped so a second guest or wallet
- * on the same device still receives Brian's briefing and its guide invitation.
+ * on the same device still receives the Explorer's opening transmission.
  * The legacy browser-global helpers remain above for old daily transmissions.
  */
 export const hasSeenStoryBeatTodayForProfile = (
-  beat: Pick<StoryBeat, 'phase' | 'title'>,
+  beat: StoryBeatIdentity,
   profileId: string,
   storageOverride?: StoryTransmissionStorage | null,
   now = new Date()
@@ -91,7 +97,7 @@ export const hasSeenStoryBeatTodayForProfile = (
 };
 
 export const markStoryBeatSeenTodayForProfile = (
-  beat: Pick<StoryBeat, 'phase' | 'title'>,
+  beat: StoryBeatIdentity,
   profileId: string,
   storageOverride?: StoryTransmissionStorage | null,
   now = new Date()
@@ -103,5 +109,5 @@ export const markStoryBeatSeenTodayForProfile = (
   const state = readDailyState(storage, dayKey, storageKey);
   const beatId = getStoryBeatDailyId(beat);
   if (!state.beatIds.includes(beatId)) state.beatIds.push(beatId);
-  storage.setItem(storageKey, JSON.stringify(state));
+  writeDailyState(storage, storageKey, state);
 };

@@ -1,0 +1,61 @@
+# Deterministic local QA
+
+Build once with `npx vite build`, then run `npm run qa:playthrough`. The harness never builds, deploys, connects a wallet, or writes to a remote API. It serves the existing `dist` directory on an ephemeral loopback port. All `/api/*` GETs use JSON fixtures in `tools-revamp/qa/fixtures/`; POSTs receive `{ "ok": true }`. Browser requests outside the local origin are fulfilled offline, and WebSockets are closed. Request bodies, headers, and query values are not recorded.
+
+The full run opens the start screen, plays mission 1 for 60 seconds, a campaign midpoint mission for 45 seconds, and a boss for 45 seconds, first on mobile (390×844, DPR 2, touch), then desktop (1280×800). Desktop uses the real **Start Browser Run** shell and its game iframe. Both use the same authored mission and RNG seed. The boss query jumps directly to the first authored boss wave; the first boss mission is also provided as a fallback. Contexts are fresh for each scenario to avoid cross-run saves or cache interference. God mode is off by default so death counts remain useful.
+
+```sh
+npx vite build
+node --test tests-revamp/F/*.test.mjs
+npm run qa:playthrough
+# Fast diagnostic; explicitly labeled as shorter coverage in the report:
+npm run qa:playthrough -- --devices mobile --seconds 12 --run-id F-check
+# Recheck one scenario at its normal duration:
+npm run qa:playthrough -- --devices mobile --stages mission-1
+# Longer boss observation with damage disabled (report explicitly marks god mode):
+npm run qa:playthrough -- --god
+# Capture an untouched build that has no QA hooks:
+node tools-revamp/qa/playthrough.mjs --baseline --dist /tmp/scicon-F-baseline-dist
+```
+
+Artifacts go to `/workspace/scicon-revamp/qa/<runId>/`. Each scenario includes screenshots at least every five seconds of sampling and on wave changes, life loss, boss phase changes, and run state changes. A full viewport screenshot includes the desktop shell. Playwright writes a WebM; `/usr/bin/ffmpeg` produces a ten-second MP4 and GIF excerpt. The Playwright ffmpeg executable is a scratch-directory symlink to the system binary, so no package/browser installation is necessary. If video is unwanted, pass `--no-video`; conversion failures remain visible in report notes. Video and screenshot overhead is included in measured FPS.
+
+`report.json` contains per-second game state, browser and game FPS, console/page errors, maximum enemies and enemy bullets, observed life losses, boss presence, world dimensions, API request metadata, and artifact paths. `livesLost` counts life decreases; `deaths` counts transitions from positive lives to zero, so damage is not mislabeled as a complete ship loss. `report.md` provides a summary table and linked image/video list. Errors, blank canvas, a frozen simulation frame counter, active-game median FPS below 30, missing boss coverage, and mismatched world dimensions fail the full run. Reports are preserved even when startup fails. Browser FPS is labeled separately and never substituted for game FPS in a passing QA run. Baseline runs cannot read game telemetry or jump to locked missions: they exercise the real first-mission UI with pointer sweeps and mark missing mid/boss coverage explicitly.
+
+Available runner options:
+
+| Option | Default | Effect |
+| --- | --- | --- |
+| `--dist <path>` | `./dist` | Existing build to serve |
+| `--output <path>` | `/workspace/scicon-revamp/qa` | Artifact parent directory |
+| `--run-id <name>` | UTC timestamp | Unique directory name; existing names are rejected |
+| `--devices mobile,desktop` | Both, sequentially | Select viewports |
+| `--stages mission-1,boss` | All scenarios | Targeted diagnostic; not full coverage |
+| `--seed <n>` | `12345` | Same gameplay RNG seed for all scenarios |
+| `--seconds <n>` | 60/45/45 | Short diagnostic duration override |
+| `--god` | Off | Disable damage for coverage; not a fairness test |
+| `--baseline` | Off | Observe a build without QA hooks |
+| `--no-video` | Off | Skip recording and conversion |
+
+Use `SCICON_CHROME=/path/to/chrome` to override `/usr/bin/google-chrome`. Chrome launches with `--no-sandbox --disable-dev-shm-usage --use-gl=swiftshader --enable-unsafe-swiftshader`. No new browser dependencies are downloaded. This workflow uses the requested `playwright-core` with the installed system browser.
+
+## In-game flags and inspection
+
+Flags are inert without `qa=1`. QA has no normal gameplay UI. For example:
+
+```text
+/?qa=1&seed=12345&mission=operation-open-galaxy&autoplay=1&skipIntro=1
+/?qa=1&seed=12345&bosslab=first&autoplay=1&skipIntro=1&god=1
+```
+
+`mission` accepts an authored level ID from `game-config/campaign.json`. `bosslab` accepts `first`, an authored boss event ID, or a boss ID, and takes priority over `mission`. `skipIntro=1` skips mission introduction delays. `autoplay=1` drives the ordinary input path with a deterministic dodge/sweep bot and auto-fire. `god=1` is intended for QA coverage only. A QA session uses isolated temporary progress and excludes normal campaign rewards.
+
+In the game document (the child iframe on desktop), `window.__sciconQA.state()` reports readiness, active gameplay, mission/wave, score, lives, boss HP/phase, simulation frame, world size, and captured errors. `fps()` reports the render loop frame rate; `counts()` reports enemies and enemy bullets. The API is observational and returns snapshots.
+
+## Smoke coverage and interpretation
+
+`tests-revamp/F/smoke.test.mjs` verifies the actual built HTML, the first ten seconds of the start screen without page errors, direct mission launch, advancing simulation frames, enemy spawning, nonblank canvas pixel variance, at least eight active FPS samples with median ≥30, and local fixture GET/POST calls. Canvas pixels are sampled from a screenshot so WebGL's drawing-buffer settings stay unchanged. `SCICON_QA_DIST` selects a different existing build. Smoke artifacts are written under `/workspace/scicon-revamp/qa/smoke-<timestamp>/` even on failure.
+
+Median FPS is a repeatable smoke gate, not a claim that every frame meets budget; the full report also records p10 and minimum FPS. SwiftShader is CPU rendering and is sensitive to machine contention. Run browser scenarios sequentially, investigate failures, and preserve their reports. The harness does not establish device GPU performance, human dodgeability, complete campaign progression, wallet flows, production API behavior, or deterministic rendering. RNG is seeded; timestamps and frame presentation can still differ. Review screenshots and clips for bullet contrast, telegraph readability, HUD thumb clearance, enemy entrances, and the tempo of the opening minute against the design document.
+
+Samples are timestamped after collection and include collection duration. The report includes the largest sample gap, including the opening and final intervals; a gap or stalled sample longer than ten seconds fails coverage. Life losses and bullet maxima are observed lower bounds, not a continuous event log. Active FPS excludes the zero-life death animation. A ship loss is reported explicitly; the remainder of that scenario records the result screen rather than silently restarting or enabling god mode.

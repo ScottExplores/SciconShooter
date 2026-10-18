@@ -24,8 +24,9 @@ const parseBody = (body) => {
 };
 
 const isAuthorized = (req) => {
-  const tokens = [process.env.ADMIN_SECRET, process.env.CRON_SECRET].filter(Boolean);
-  return tokens.some((token) => req.headers.authorization === `Bearer ${token}`);
+  // REVAMP(E): The scheduled finalizer is not an authority to approve funding.
+  const token = process.env.ADMIN_SECRET;
+  return Boolean(token && req.headers?.authorization === `Bearer ${token}`);
 };
 
 const COMPETITIONS_TABLE = process.env.SUPABASE_WEEKLY_COMPETITIONS_TABLE || 'scicon_weekly_competitions';

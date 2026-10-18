@@ -1,5 +1,7 @@
 'use strict';
 
+const { selectWeeklyBossRotation } = require('../services/revamp/weekly/bossRotation');
+
 /**
  * Deterministic Weekly Run route authority shared by the browser generator and
  * the CommonJS API validators. Keep this module data-only: server receipts must
@@ -95,13 +97,14 @@ const buildWeeklyRunStagePlans = (weekKey, {
   const count = normalizeStageCount(stageCount);
   const normalizedWeekKey = String(weekKey);
   const stageRandom = createRandom(hashSeed(`${normalizedWeekKey}:stage-rhythm`));
+  const rotation = selectWeeklyBossRotation(normalizedWeekKey, { eliteBossIds, majorBossIds });
   const eliteOrder = shuffleInStrengthBands(
     createRandom(hashSeed(`${normalizedWeekKey}:elite-bosses`)),
-    normalizeIds(eliteBossIds)
+    normalizeIds(rotation.eliteBossIds)
   );
   const majorOrder = shuffleInStrengthBands(
     createRandom(hashSeed(`${normalizedWeekKey}:major-bosses`)),
-    normalizeIds(majorBossIds)
+    normalizeIds(rotation.majorBossIds)
   );
   const stages = [];
   let eliteCursor = 0;

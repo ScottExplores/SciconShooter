@@ -2,6 +2,7 @@ import { GAME_VERSION } from './runReceiptService';
 import { getClientSessionId } from './clientSession';
 import { recordPlayerReportBreadcrumb } from './playerReportService';
 import { readSocialCampaignAttribution } from '../shared/socialCampaignAttribution.mjs';
+import { isPreviewMode } from './revamp/preview/previewMode';
 
 export type ProductEventName =
   | 'app_opened'
@@ -108,7 +109,7 @@ export const trackEvent = (
   properties: Record<string, string | number | boolean> = {}
 ) => {
   // Local Codex/Claude/Vite playtests must never inflate production player counts.
-  if (isLoopbackAnalyticsHost()) return;
+  if (isLoopbackAnalyticsHost() || isPreviewMode()) return;
   const payload = JSON.stringify({
     eventName,
     sessionId: getClientSessionId(),
@@ -141,7 +142,7 @@ export const setAnalyticsGameplayActive = (active: boolean) => {
  * emitted from the Pixi frame loop.
  */
 export const trackInitialVisit = () => {
-  if (isLoopbackAnalyticsHost()) return () => undefined;
+  if (isLoopbackAnalyticsHost() || isPreviewMode()) return () => undefined;
   let firstSeen: string | null = null;
   try {
     firstSeen = localStorage.getItem(SEEN_KEY);

@@ -1,3 +1,5 @@
+import { selectWeeklyBossRotation } from '../services/revamp/weekly/bossRotation.browser';
+
 /**
  * Browser/ESM build of the deterministic Weekly Run route authority.
  *
@@ -117,13 +119,14 @@ export const buildWeeklyRunStagePlans = (
   const count = normalizeStageCount(stageCount);
   const normalizedWeekKey = String(weekKey);
   const stageRandom = createRandom(hashSeed(`${normalizedWeekKey}:stage-rhythm`));
+  const rotation = selectWeeklyBossRotation(normalizedWeekKey, { eliteBossIds, majorBossIds });
   const eliteOrder = shuffleInStrengthBands(
     createRandom(hashSeed(`${normalizedWeekKey}:elite-bosses`)),
-    normalizeIds(eliteBossIds)
+    normalizeIds(rotation.eliteBossIds)
   );
   const majorOrder = shuffleInStrengthBands(
     createRandom(hashSeed(`${normalizedWeekKey}:major-bosses`)),
-    normalizeIds(majorBossIds)
+    normalizeIds(rotation.majorBossIds)
   );
   const stages: SharedWeeklyRunStagePlan[] = [];
   let eliteCursor = 0;

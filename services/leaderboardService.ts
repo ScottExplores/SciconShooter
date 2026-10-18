@@ -4,6 +4,8 @@ import type { RunReceipt } from './runReceiptService';
 import type { Address, Hex } from 'viem';
 import { getWeeklyBoundaryMeta } from '../shared/weeklyCompetitionBoundary.browser';
 import { selectWeeklyProposalWithFreshChallenge } from './weeklyProposalAuthorization';
+import { assertPreviewWritable, isPreviewMode, PREVIEW_READ_ONLY_MESSAGE } from './revamp/preview/previewMode';
+import { readLeaderboardJson } from './revamp/leaderboard/readLeaderboard';
 
 const API_URL = (import.meta.env.VITE_LEADERBOARD_API_URL as string | undefined)?.trim() || '/api/leaderboard';
 export const ALL_TIME_SCORE_LIMIT = 100;
@@ -89,21 +91,7 @@ const toLeaderboardData = (scores: LeaderboardEntry[], remoteSaved?: boolean): L
 };
 
 const readRemoteLeaderboardData = async (): Promise<LeaderboardData> => {
-  const response = await fetch(API_URL, {
-    method: 'GET',
-    headers: { 'Accept': 'application/json' }
-  });
-
-  if (!response.ok) {
-    throw new Error(`Leaderboard fetch failed with ${response.status}`);
-  }
-
-  const contentType = response.headers.get('content-type') || '';
-  if (!contentType.includes('application/json')) {
-    throw new Error('Leaderboard endpoint did not return JSON');
-  }
-
-  const data = await response.json();
+  const data = await readLeaderboardJson(API_URL);
   const scores = Array.isArray(data.scores) ? dedupeAndSort(data.scores, ALL_TIME_SCORE_LIMIT) : [];
   const monthlyScores = Array.isArray(data.monthlyScores)
     ? dedupeAndSort(data.monthlyScores, WEEKLY_SCORE_LIMIT)
@@ -119,16 +107,7 @@ export const getLeaderboardWeekScores = async (
 
   try {
     const separator = API_URL.includes('?') ? '&' : '?';
-    const response = await fetch(`${API_URL}${separator}weekKey=${encodeURIComponent(weekKey)}`, {
-      method: 'GET',
-      headers: { Accept: 'application/json' }
-    });
-
-    if (!response.ok) return null;
-    const contentType = response.headers.get('content-type') || '';
-    if (!contentType.includes('application/json')) return null;
-
-    const data = await response.json();
+    const data = await readLeaderboardJson(`${API_URL}${separator}weekKey=${encodeURIComponent(weekKey)}`);
     if (data?.weekKey !== weekKey || !Array.isArray(data?.weekScores)) return null;
     return dedupeAndSort(data.weekScores, WEEKLY_SCORE_LIMIT);
   } catch (error) {
@@ -199,6 +178,7 @@ export const saveScore = async (
     receipt?: RunReceipt;
   } = {}
 ): Promise<LeaderboardData> => {
+  if (isPreviewMode()) return { scores: [], monthlyScores: [], remoteSaved: false, remoteError: PREVIEW_READ_ONLY_MESSAGE };
   const newEntry: LeaderboardEntry = {
     name: name.trim().substring(0, 15).toUpperCase(),
     score: Math.max(0, Math.floor(score)),
@@ -235,6 +215,7 @@ export const saveWeeklyLeaderProposal = async (
     signMessage: (address: Address, message: string) => Promise<Hex>;
   }
 ): Promise<LeaderboardData> => {
+  assertPreviewWritable();
   if (!receipt.receiptToken || receipt.integrity === 'local-unverified' || receipt.testRun) {
     throw new Error('A verified weekly-leading run is required to choose a proposal.');
   }

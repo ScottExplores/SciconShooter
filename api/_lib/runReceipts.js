@@ -113,6 +113,17 @@ const normalizePlayerShipId = (value) => (
     : 'researchhub'
 );
 
+// REVAMP(E): Match services/revamp/weekly/rankedLoadout.ts. Reject alternate
+// ranked ships before reserving an attempt; standard/Campaign ships are intact.
+const assertWeeklyRankedShip = (playerShipId = 'researchhub') => {
+  if (String(playerShipId).trim().toLowerCase() === 'researchhub') return;
+  const error = new Error('Weekly Run uses the same ResearchHub ship for every pilot. Refresh the game and retry.');
+  error.statusCode = 422;
+  error.code = 'WEEKLY_RANKED_SHIP_REQUIRED';
+  error.details = ['weekly_ranked_ship_required'];
+  throw error;
+};
+
 const normalizeGuestProfileId = (value) => {
   const profileId = String(value || '').trim().toLowerCase();
   return /^pilot:[a-z0-9-]{8,}$/.test(profileId) ? profileId : 'guest';
@@ -310,6 +321,7 @@ const createRunStart = (
     : null;
   const identity = createRunIdentityBinding({ profileId, guestIdentityId, walletSession });
   const generatedWeeklyRun = weeklyCampaignBinding?.startNodeId?.startsWith('weekly-run-');
+  if (generatedWeeklyRun) assertWeeklyRankedShip(playerShipId);
   if (generatedWeeklyRun && !weeklyAttemptReservation) {
     const error = new Error('Weekly Run starts require a server attempt reservation.');
     error.statusCode = 503;
@@ -321,7 +333,8 @@ const createRunStart = (
     const purchasedAttempts = Math.floor(Number(weeklyAttemptReservation.purchasedAttempts));
     const attemptsUsed = Math.floor(Number(weeklyAttemptReservation.attemptsUsed));
     const attemptsRemaining = Math.floor(Number(weeklyAttemptReservation.attemptsRemaining));
-    const dynamicCapacity = WEEKLY_RUN_FREE_ATTEMPT_LIMIT + purchasedAttempts;
+    // REVAMP(E): Purchases never grant extra ranked attempts.
+    const dynamicCapacity = WEEKLY_RUN_FREE_ATTEMPT_LIMIT;
     if (
       !generatedWeeklyRun
       || weeklyAttemptReservation.weeklyId !== weeklyCampaignBinding.weeklyId
@@ -790,6 +803,7 @@ const createReservedRunStart = async (gameVersion = 'unknown', options = {}) => 
   if (!binding.startNodeId.startsWith('weekly-run-')) {
     return createRunStart(gameVersion, { ...options, nowMs: issuedAt });
   }
+  assertWeeklyRankedShip(options.playerShipId);
   if (
     binding.currentNodeId !== binding.startNodeId
     || binding.revision !== 1

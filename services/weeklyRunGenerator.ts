@@ -22,6 +22,7 @@ import {
   getWeeklyRunSpawnCount
 } from '../shared/weeklyRunPlan.browser';
 import { DEFAULT_GAME_CAMPAIGN } from './levelConfig';
+import { getCampaignWeeklyBossPool } from './revamp/weekly/bossRotation.browser';
 
 /**
  * Weekly Run is an endless escalating gauntlet, generated fresh each week.
@@ -109,23 +110,6 @@ const shuffle = <T>(random: () => number, items: readonly T[]): T[] => {
   return out;
 };
 
-const orderedEliteBossIds = (campaign: GameCampaignConfig) => [...campaign.miniBosses]
-  .map((entry, authoredIndex) => ({ entry, authoredIndex }))
-  .sort((left, right) => (
-    left.entry.recommendedPower - right.entry.recommendedPower
-    || left.entry.threatCost - right.entry.threatCost
-    || left.authoredIndex - right.authoredIndex
-  ))
-  .map(({ entry }) => entry.bossId);
-
-const orderedMajorBossIds = (campaign: GameCampaignConfig) => [...campaign.sectors]
-  .map((sector, authoredIndex) => ({ sector, authoredIndex }))
-  .sort((left, right) => (
-    left.sector.order - right.sector.order
-    || left.authoredIndex - right.authoredIndex
-  ))
-  .map(({ sector }) => sector.majorBossId);
-
 /**
  * A linear graph over the generated stages.
  *
@@ -139,8 +123,7 @@ export const buildWeeklyRunGraph = (
   campaign: GameCampaignConfig = DEFAULT_GAME_CAMPAIGN,
   stageCount = WEEKLY_RUN_INITIAL_STAGE_COUNT
 ) => buildWeeklyRunGraphDefinition(weekKey, {
-  eliteBossIds: orderedEliteBossIds(campaign),
-  majorBossIds: orderedMajorBossIds(campaign),
+  ...getCampaignWeeklyBossPool(campaign),
   stageCount
 }) as GameCampaignConfig['campaignGraph'];
 
@@ -170,8 +153,7 @@ export const planWeeklyRunStages = (
   campaign: GameCampaignConfig = DEFAULT_GAME_CAMPAIGN,
   stageCount = WEEKLY_RUN_INITIAL_STAGE_COUNT
 ): WeeklyRunStagePlan[] => buildWeeklyRunStagePlans(weekKey, {
-  eliteBossIds: orderedEliteBossIds(campaign),
-  majorBossIds: orderedMajorBossIds(campaign),
+  ...getCampaignWeeklyBossPool(campaign),
   stageCount
 }) as WeeklyRunStagePlan[];
 

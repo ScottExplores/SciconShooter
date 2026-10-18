@@ -4,6 +4,7 @@ const {
   supabaseHeaders
 } = require('./supabase');
 const { sendBaseNotificationBroadcast } = require('./baseNotifications');
+const { eligibleWeeklyScoreRows } = require('./weeklyScoreEligibility');
 const {
   fetchOpenProposalEntries,
   resolveEligibleProposalForFinalization
@@ -17,7 +18,6 @@ const {
 } = require('../../shared/weeklyCompetitionBoundary.js');
 
 const LEADERBOARD_TABLE = process.env.SUPABASE_LEADERBOARD_TABLE || 'scicon_leaderboard';
-const RUN_RECEIPTS_TABLE = process.env.SUPABASE_RUN_RECEIPTS_TABLE || 'scicon_run_receipts';
 const COMPETITIONS_TABLE = process.env.SUPABASE_WEEKLY_COMPETITIONS_TABLE || 'scicon_weekly_competitions';
 const PROPOSAL_CACHE_TABLE = process.env.SUPABASE_PROPOSAL_CACHE_TABLE || 'scicon_proposal_cache';
 const WEEKLY_PROPOSAL_CACHE_PREFIX = 'researchhub-open-preregistrations:week:';
@@ -34,9 +34,6 @@ const CLAIM_WINDOW_MS = 72 * 60 * 60 * 1000;
 const TERMINAL_WEEKLY_COMPETITION_STATUSES = new Set(['finalized', 'claimed', 'pending-funding', 'funded', 'expired']);
 const LEADER_PROPOSAL_SELECT = 'name,score,wave,date,wallet_address,run_id,verified,receipt_hash,proposal_id,proposal_title,proposal_url,proposal_author';
 const LEADER_PROPOSAL_IMAGE_SELECT = `${LEADER_PROPOSAL_SELECT},proposal_image_url`;
-const PILOT_TEST_WALLET = String(
-  process.env.PILOT_TEST_WALLET || '0x3a8d692aabdd4981080a8f6af8375a21359464bf'
-).toLowerCase();
 
 const weeklyProposalSnapshotPrefix = (weekKey) => (
   `${WEEKLY_PROPOSAL_CACHE_PREFIX}${weekKey}:snapshot:`
@@ -95,61 +92,37 @@ const getCompletedWeeklyCompetitionKeys = (competitions = []) => (
 
 const readTopEligibleScore = async (weekKey) => {
   const { start, end } = getWeekRange(weekKey);
-  const queryFor = (selectColumns) => [
+  const queryFor = (selectColumns, offset) => [
     `select=${selectColumns}`,
-    'order=score.desc,date.asc',
+    'order=score.desc,date.asc,run_id.asc',
+    'verified=eq.true',
+    'run_id=not.is.null',
     'limit=100',
+    `offset=${offset}`,
     `date=gte.${encodeURIComponent(start.toISOString())}`,
     `date=lt.${encodeURIComponent(end.toISOString())}`
   ].join('&');
-  let rows;
-  try {
-    rows = await fetchSupabaseJson(`${LEADERBOARD_TABLE}?${queryFor(LEADER_PROPOSAL_IMAGE_SELECT)}`, {
-      headers: supabaseHeaders()
-    });
-  } catch (error) {
-    if (!/proposal_image_url|schema cache/i.test(error?.message || '')) throw error;
-    rows = await fetchSupabaseJson(`${LEADERBOARD_TABLE}?${queryFor(LEADER_PROPOSAL_SELECT)}`, {
-      headers: supabaseHeaders()
-    });
+  // REVAMP(E): Invalid historic rows must not crowd a valid winner out of the
+  // first page. Bound work and fail closed rather than archive a false empty week.
+  for (let offset = 0; offset < 10_000; offset += 100) {
+    let rows;
+    try {
+      rows = await fetchSupabaseJson(`${LEADERBOARD_TABLE}?${queryFor(LEADER_PROPOSAL_IMAGE_SELECT, offset)}`, {
+        headers: supabaseHeaders()
+      });
+    } catch (error) {
+      if (!/proposal_image_url|schema cache/i.test(error?.message || '')) throw error;
+      rows = await fetchSupabaseJson(`${LEADERBOARD_TABLE}?${queryFor(LEADER_PROPOSAL_SELECT, offset)}`, {
+        headers: supabaseHeaders()
+      });
+    }
+    const candidates = await eligibleWeeklyScoreRows(rows, { start, end });
+    if (candidates.length) return candidates[0];
+    if (!Array.isArray(rows) || rows.length < 100) return null;
   }
-  if (!Array.isArray(rows)) return null;
-
-  const candidates = rows.filter((row) => (
-    String(row?.wallet_address || '').toLowerCase() !== PILOT_TEST_WALLET
-    && Boolean(row?.run_id)
-    && row?.verified === true
-  )).sort((left, right) => (
-    Number(right.score) - Number(left.score)
-    || String(left.date || '').localeCompare(String(right.date || ''))
-  ));
-  if (candidates.length === 0) return null;
-
-  // Production finalization must never promote a pre-hardening receipt. Those
-  // rows could not preserve whether the privileged Pilot Test path was used.
-  // Keep local fixture tests lightweight; the production-only path is covered
-  // by a dedicated provenance regression.
-  if (process.env.NODE_ENV !== 'production') return candidates[0];
-  const runIds = [...new Set(candidates.map((row) => String(row.run_id)))];
-  const receiptRows = await fetchSupabaseJson(
-    `${RUN_RECEIPTS_TABLE}?select=run_id,score,wave,receipt_hash,integrity_status,receipt_provenance_version`
-      + `&run_id=in.(${runIds.map(encodeURIComponent).join(',')})`
-      + '&receipt_provenance_version=eq.1&integrity_status=eq.server-verified'
-      + `&limit=${runIds.length}`,
-    { headers: supabaseHeaders() }
-  );
-  const trustedByRunId = new Map(
-    (Array.isArray(receiptRows) ? receiptRows : []).map((row) => [String(row.run_id), row])
-  );
-  return candidates.find((row) => {
-    const receipt = trustedByRunId.get(String(row.run_id));
-    return receipt
-      && Number(receipt.receipt_provenance_version) === 1
-      && receipt.integrity_status === 'server-verified'
-      && Number(receipt.score) === Number(row.score)
-      && Number(receipt.wave) === Number(row.wave || 1)
-      && String(receipt.receipt_hash || '') === String(row.receipt_hash || '');
-  }) || null;
+  throw Object.assign(new Error('Weekly winner scan exceeded its safe limit; manual review is required.'), {
+    statusCode: 503, code: 'WEEKLY_WINNER_REVIEW_REQUIRED'
+  });
 };
 
 const winnerMatchesCompetition = (winner, competition) => {

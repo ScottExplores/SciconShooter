@@ -540,7 +540,7 @@ export const RSC_PURCHASE_SKUS = Object.freeze({
     tokenReward: 0,
     weeklyAttemptReward: 1,
     grantsRightSupport: false,
-    enabled: true
+    enabled: false
   }),
   'tokens-500': Object.freeze({
     id: 'tokens-500',

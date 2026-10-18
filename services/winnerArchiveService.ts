@@ -1,4 +1,5 @@
 import { ArchivedWinner } from '../types';
+import { readLeaderboardJson } from './revamp/leaderboard/readLeaderboard';
 
 const WINNERS_API_URL = (import.meta.env.VITE_WEEKLY_COMPETITIONS_API_URL as string | undefined)?.trim() || '/api/weekly-competitions';
 
@@ -79,13 +80,7 @@ const normalizeWinner = (winner: RawWinner): ArchivedWinner | null => {
 
 export const getArchivedWeeklyWinners = async (): Promise<WeeklyCompetitionArchive | null> => {
   try {
-    const response = await fetch(WINNERS_API_URL, {
-      headers: { Accept: 'application/json' }
-    });
-
-    if (!response.ok) return null;
-
-    const payload = await response.json();
+    const payload = await readLeaderboardJson(WINNERS_API_URL);
     const competitions = (Array.isArray(payload?.competitions) ? payload.competitions : [])
       .filter((winner): winner is RawWinner => Boolean(winner) && typeof winner === 'object' && !Array.isArray(winner))
       .filter(isTerminalCompetition);

@@ -256,15 +256,19 @@ const ENEMY_ENTRY_BEHAVIORS = new Set(['formation', 'dive', 'flank', 'lane']);
 const FORMATION_ENTRY_DIRECTIONS = new Set(['top', 'left', 'right', 'split']);
 const FORMATION_FIRING_BEHAVIORS = new Set(['none', 'post-formation', 'staggered', 'priority']);
 const FORMATION_ENTRY_PATHS = new Set([
+  'revamp-swoop', 'revamp-loop', 'revamp-s-curve', 'revamp-side-sweep',
+  'revamp-pincer', 'revamp-corkscrew', 'revamp-bottom-flank', 'revamp-train',
   'sweep-bank-reentry', 'formation-drop', 'spiral-entry', 'paired-flank', 'diamond-lock',
   'double-helix', 'side-wall-entry', 'lane-stagger', 'ring-assemble', 'armored-grid',
   'mirrored-swoop', 'pod-converge', 'convoy-column', 'loop-the-loop', 'serpentine-weave'
 ]);
 const FORMATION_MOVEMENTS = new Set([
+  'revamp-breathe',
   'gentle-drift', 'lateral-sweep', 'expand-collapse', 'rotating-wheel', 'snake-weave',
   'split-pods', 'lane-shift'
 ]);
 const FORMATION_ATTACK_BEHAVIORS = new Set([
+  'revamp-dive', 'revamp-escort',
   'single-dive', 'paired-dive', 'alternating-wings', 'leader-escorts', 'row-sequence',
   'diagonal-groups', 'sweep-strafe', 'pincer-pass', 'ring-collapse', 'aimed-volley',
   'spread-volley', 'lane-pass', 'split-hunt'
@@ -3629,9 +3633,11 @@ const validateCampaignManifestCrossReferences = (
         'formation-remix': [4, 8],
         'elite-checkpoint': [4, 7],
         'boss-preparation': [4, 7],
-        'major-boss': graph ? [2, 2] : [1, 1]
+        'major-boss': graph ? [2, 8] : [1, 1]
       };
-      const range = waveRange[expectedRole];
+      // REVAMP(B): The authored first-minute onboarding is one timed beat sheet.
+      const range = level.id === 'operation-open-galaxy' && expectedRole === 'introduction'
+        ? [1, 7] : waveRange[expectedRole];
       if (waveCount < range[0] || waveCount > range[1]) {
         pushIssue(issues, `/levels/${levels.indexOf(level)}/waves`, 'invalid_wave_count', `${expectedRole} Missions require ${range[0] === range[1] ? range[0] : `${range[0]}-${range[1]}`} waves`);
       }

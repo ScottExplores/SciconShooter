@@ -1,0 +1,78 @@
+{
+  "count": 4,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": 4001,
+      "content_type": "RESEARCHHUBPOST",
+      "content_object": {
+        "id": 9001,
+        "slug": "open-cell-imaging",
+        "title": "Open cell imaging for reproducible science",
+        "type": "PREREGISTRATION",
+        "image_url": "https://www.researchhub.com/images/example-cell.png",
+        "authors": [{ "first_name": "Ada", "last_name": "Chen" }, { "first_name": "Luis", "last_name": "Reyes" }],
+        "fundraise": {
+          "status": "OPEN",
+          "goal_currency": "USD",
+          "goal_amount": { "usd": "10,000", "rsc": "100000" },
+          "amount_raised": { "usd": "2500", "rsc": "25000" },
+          "end_date": "2026-10-30T19:00:00Z",
+          "contributors": { "total": 23 },
+          "created_by": { "author_profile": { "first_name": "Ada", "last_name": "Chen" } }
+        }
+      },
+      "author": { "first_name": "Ada", "last_name": "Chen", "headline": "Open Science Institute" },
+      "metrics": { "votes": 41, "replies": 8, "review_metrics": { "avg": 4.5 } },
+      "associated_grants": [{ "organization": "Open Science Institute" }]
+    },
+    {
+      "id": 4002,
+      "content_type": "RESEARCHHUBPOST",
+      "content_object": {
+        "id": "90071992547409931234",
+        "title": "Low-cost water quality sensors",
+        "slug": "water-sensors",
+        "authors": [{ "author_profile": { "first_name": "Mina", "last_name": "Patel" } }],
+        "fundraise": {
+          "status": "OPEN",
+          "goal_currency": "RSC",
+          "goal_amount": { "rsc": "50000" },
+          "amount_raised": { "rsc": "1250" },
+          "end_date": "2026-11-01T19:00:00Z",
+          "contributors": { "total": 4 }
+        }
+      },
+      "metrics": { "votes": 12, "replies": 0 }
+    },
+    {
+      "id": 4003,
+      "content_object": {
+        "id": 9003,
+        "title": "Already funded study",
+        "fundraise": {
+          "status": "OPEN",
+          "goal_currency": "USD",
+          "goal_amount": { "usd": 2000 },
+          "amount_raised": { "usd": 2000 },
+          "end_date": "2026-11-01T19:00:00Z"
+        }
+      }
+    },
+    {
+      "id": 4004,
+      "content_object": {
+        "id": 9004,
+        "title": "Closed replication study",
+        "fundraise": {
+          "status": "CLOSED",
+          "goal_currency": "USD",
+          "goal_amount": { "usd": 2000 },
+          "amount_raised": { "usd": 500 },
+          "end_date": "2026-11-01T19:00:00Z"
+        }
+      }
+    }
+  ]
+}

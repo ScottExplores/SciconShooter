@@ -1,3 +1,7 @@
+// REVAMP(D): Animated research medals augment the existing Mission result.
+import MissionMedals from './revamp/MissionMedals';
+import { useCountUp } from './revamp/useCountUp';
+import type { RevampMissionSettlement } from '../services/revamp/progression/types';
 import React from 'react';
 import type { CampaignCompletionSettlement } from '../services/campaignProgression';
 import type { WaveVictorySummary } from '../services/gameLogic';
@@ -8,6 +12,7 @@ const RECORD_PARTS = '/game-art/generated/ui/scicon-ui-system-v2/animations/miss
 
 export interface WaveVictoryOverlayProps {
   summary: WaveVictorySummary;
+  revampSettlement?: RevampMissionSettlement | null;
   onContinue: () => void;
   bossArchiveReplay?: boolean;
   campaignSettlement?: CampaignCompletionSettlement | null;
@@ -29,6 +34,7 @@ const LayerImage: React.FC<{ className: string; src: string }> = ({ className, s
 
 const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
   summary,
+  revampSettlement,
   onContinue,
   bossArchiveReplay = false,
   campaignSettlement = null,
@@ -37,6 +43,8 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
   onOpenCampaignMap,
   onReturnHome
 }) => {
+  const animatedScore = useCountUp(summary.scoreEarned);
+  const animatedCoins = useCountUp(summary.coinsCollected);
   const campaignResult = Boolean(campaignSettlement);
   const campaignComplete = summary.campaignComplete || !summary.hasNextStage;
   const missionMastered = Boolean(
@@ -129,7 +137,7 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
 
             <div className="wave-record-score">
               <span>Mission Score</span>
-              <strong>{summary.scoreEarned.toLocaleString()}</strong>
+              <strong>{animatedScore.toLocaleString()}</strong>
             </div>
 
             <div className="wave-record-stats">
@@ -139,7 +147,7 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
               </div>
               <div>
                 <span>Tokens</span>
-                <strong>{summary.coinsCollected.toLocaleString()}</strong>
+                <strong>{animatedCoins.toLocaleString()}</strong>
               </div>
               <div>
                 <span>Lives</span>
@@ -164,7 +172,7 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
               ) : null}
             </div>
 
-            {campaignSettlement ? (
+            {campaignSettlement && !revampSettlement ? (
               <div className="wave-record-campaign-details">
                 <div
                   className="wave-record-stars"
@@ -188,6 +196,7 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
               </div>
             ) : null}
 
+            {revampSettlement ? <MissionMedals settlement={revampSettlement} /> : null}
             <div className="wave-record-status">
               <span className="wave-record-status-light" aria-hidden="true" />
               {recordStatus}

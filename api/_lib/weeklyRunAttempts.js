@@ -8,7 +8,8 @@ const { getWeeklyBoundaryMeta } = require('../../shared/weeklyCompetitionBoundar
 
 const WEEKLY_RUN_FREE_ATTEMPT_LIMIT = 5;
 // Backward-compatible name for callers that only need the free weekly grant.
-// Purchased capacity is dynamic and must never be validated against this value.
+// REVAMP(E): Ranked capacity is equal for every pilot; historical purchases
+// remain metadata and never increase ranked admission.
 const WEEKLY_RUN_ATTEMPT_LIMIT = WEEKLY_RUN_FREE_ATTEMPT_LIMIT;
 const RESERVATION_RPC = process.env.SUPABASE_WEEKLY_RUN_RESERVATION_RPC
   || 'scicon_reserve_weekly_run_attempt';
@@ -43,7 +44,7 @@ const normalizeQuota = ({
   attemptsUsed = 0,
   resetAt
 }) => {
-  const normalizedFree = Math.max(0, Math.floor(Number(freeAttempts) || 0));
+  const normalizedFree = WEEKLY_RUN_FREE_ATTEMPT_LIMIT;
   const normalizedPurchased = Math.max(0, Math.floor(Number(purchasedAttempts) || 0));
   const normalizedUsed = Math.max(0, Math.floor(Number(attemptsUsed) || 0));
   const resetDate = resetAt instanceof Date ? resetAt : new Date(resetAt);
@@ -59,7 +60,7 @@ const normalizeQuota = ({
     freeAttempts: normalizedFree,
     purchasedAttempts: normalizedPurchased,
     attemptsUsed: normalizedUsed,
-    attemptsRemaining: Math.max(0, normalizedFree + normalizedPurchased - normalizedUsed),
+    attemptsRemaining: Math.max(0, normalizedFree - normalizedUsed),
     resetAt: resetDate.toISOString(),
     resetAtMs: resetDate.getTime()
   };
@@ -264,10 +265,14 @@ const reserveWeeklyRunAttempt = async ({ identity, binding, guestAdmissionScope 
       attemptsUsed: value.attemptsUsed ?? value.attempts_used,
       resetAt: resetAtMs
     });
+    const attemptNumber = Number(value.attemptNumber || value.attempt_number);
+    if (attemptNumber > WEEKLY_RUN_FREE_ATTEMPT_LIMIT) {
+      throw new Error('weekly_run_attempts_exhausted');
+    }
     return {
       reservationId: String(value.reservationId || value.reservation_id || ''),
       runId: String(value.runId || value.run_id || ''),
-      attemptNumber: Number(value.attemptNumber || value.attempt_number),
+      attemptNumber,
       identityHash,
       attemptKey,
       ...quota

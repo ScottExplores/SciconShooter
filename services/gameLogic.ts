@@ -1,7 +1,18 @@
+// REVAMP(C): Encounter rules live outside the shared engine.
+import { attachRevampBoss, updateRevampBoss, revampHullDamage, afterRevampHullDamage, getRevampPartHit, damageRevampPart, defeatRevampBoss } from './revamp/bosses/engineAdapter';
+import { getBossEncounter, bossCanTakeDamage } from './revamp/bosses/runtime';
+// REVAMP(D): Campaign research effects and observed medal/event counters.
+import { RevampFlight, addResearchRounds, type RevampFlightMetrics } from './revamp/runtime/flight';
 
 
 import { EntityType, GamePolishSettings, PowerupType, Stats } from '../types';
+// REVAMP(B): Isolated regular-enemy runtime and deterministic formation cadence.
+import { RevampCombatBridge, isRevampRole, isOpeningMission } from './revamp/integration/RevampCombatBridge';
 import { CombatImpactBuffer, getProjectileCombatContact } from './gameplay/CombatImpactBuffer';
+// REVAMP(A): Isolated presentation receipts and fixed-step game-feel hooks.
+import { FeelRuntime } from './revamp/feel/FeelRuntime';
+import { getFeelSettings } from './revamp/feel/FeelSettings';
+import { cancelPhaseBullets, recordFeelKill, recordPerfectWave, kickCredit, markAimedShot } from './revamp/feel/FeelGameplay';
 import { ASSETS, GAME_CONFIG, COLORS } from '../constants';
 import type {
   AssetKey,
@@ -74,6 +85,9 @@ import { sampleTripleShotSideAngleRadians } from './playerShotSpread';
 import { BIO_PRIMARY_DAMAGE_PER_ROUND, getBioPrimaryShotPlan } from './bioPrimaryWeapon';
 import { getPlayerPrimaryBurst, getPlayerPrimaryMuzzle, getPlayerPrimaryPulseLayout, isPlayerPrimaryBurstHull } from './playerPrimaryBurst';
 import { findSalvageTarget, findInterceptTarget, getInterceptorCooldown } from './supportUtility';
+// REVAMP(D): Campaign wings use a bounded, device-independent support runtime.
+import { WingSupportRuntime } from './revamp/wings/wingRuntime';
+import { getMainWeaponDps } from './revamp/wings/wingTuning';
 import {
   FIRE_RATE_LEVELS_PER_TIER,
   FIRE_RATE_MAX_LEVEL,
@@ -323,6 +337,8 @@ import {
   ESCORT_POD_SIZE,
   resolveFormationDiveMotion,
   resolveFormationTrainDuration,
+  // REVAMP(B): Every spline route preserves its authored single-file release cadence.
+  isTrainEntryPath,
   shouldEndFormationDivePass
 } from './gameplay/formations/FormationRuntime';
 import { resolveKamikazeSpinnerFrameIndex } from './gameplay/enemies/KamikazeSpinnerRuntime';
@@ -1177,6 +1193,8 @@ export class Entity {
   sourceEventId?: string;
   sourceItemId?: string;
   campaignRoleId?: string;
+  // REVAMP(B): Carrier ownership is separate from boss support-minion choreography.
+  revampCarrierId?: string;
   campaignGameplayRole?: EnemyGameplayRole;
   campaignDurabilityClass?: EnemyDurabilityClass;
   campaignThreatCost: number = 1;
@@ -1901,6 +1919,9 @@ export interface SquadCompanionVisual {
   alpha: number;
   scale: number;
   utilityActive: boolean;
+  // REVAMP(D): Spring tilt and capstone halo preserve the existing ship textures.
+  tilt?: number;
+  evolved?: boolean;
 }
 
 type ActiveSquadCompanion = RuntimeSquadCompanion & {
@@ -2004,6 +2025,9 @@ export interface WaveVictorySummary {
   waveNumber: number;
   waveTotal: number;
   stageComplete: boolean;
+  // REVAMP(D): Actual spawn/hit observations, never inferred from authored targets.
+  revampMetrics?: RevampFlightMetrics;
+  revampRunId?: string;
   bossEncounterId: string | null;
   /** Distinguishes a destroyed boss from a resolved encounter that escaped. */
   bossTerminalOutcome?: 'destroyed' | 'escaped' | null;
@@ -2554,6 +2578,8 @@ interface MiniBossLabEngineState {
 }
 
 export class GameEngine {
+  // REVAMP(B): The callback keeps entity creation and gameplay RNG inside the engine.
+  readonly revampEnemies = new RevampCombatBridge((type, x, y) => this.createEntity(type, x, y));
   width: number = 0;
   height: number = 0;
   player: Entity;
@@ -2704,6 +2730,8 @@ export class GameEngine {
   pendingBossStrikes: PendingBossStrike[] = [];
   /** Bounded presentation receipts; never enter collision, entity, or score budgets. */
   readonly combatImpacts = new CombatImpactBuffer();
+  // REVAMP(A): Independent feedback clock never advances gameplay while frozen.
+  readonly feel = new FeelRuntime();
   /** Ordinary death receipts survive entity compaction between rendered frames. */
   readonly combatDestructions = new CombatImpactBuffer();
   pendingEnemyLasers: PendingEnemyLaser[] = [];
@@ -2720,7 +2748,10 @@ export class GameEngine {
   private readonly telemetryCompletedWaveKeys: Set<string> = new Set();
   private readonly telemetryBossPhaseByEntityId: Map<string, number> = new Map();
   private squadLoadout: RuntimeSquadLoadout | null;
+  private revampFlight: RevampFlight | null = null; // REVAMP(D): Campaign only.
   private readonly squadCompanions: ActiveSquadCompanion[];
+  // REVAMP(D): Profile bonuses opt Campaign into wings; Weekly retains its existing rules.
+  private readonly wingSupport: WingSupportRuntime;
   private readonly startingLives: number;
   private readonly refillLivesAtMissionBoundary: boolean;
   private readonly continuousStageBoundaries: boolean;
@@ -2808,6 +2839,11 @@ export class GameEngine {
         : null;
     this.testMode = Boolean(options.testMode);
     this.squadLoadout = options.squadLoadout ?? null;
+    // REVAMP(D): No global upgrades can enter Weekly Run or archive challenges.
+    if (this.squadLoadout?.revamp && !this.previewMode) this.revampFlight = new RevampFlight(this.squadLoadout.profileId, this.squadLoadout.revamp);
+    // REVAMP(D): No profile modifiers means no campaign wing combat changes.
+    this.wingSupport = new WingSupportRuntime(Boolean(options.squadLoadout?.revamp),
+      options.squadLoadout?.revamp?.firstFlight, options.squadLoadout?.revamp?.wingAutoCast ?? true);
     this.squadCompanions = (options.squadLoadout?.companions ?? []).map((companion, index) => ({
       ...companion,
       x: 0,
@@ -2962,6 +2998,8 @@ export class GameEngine {
     if (amount <= 0) return;
     this.waveDamageTaken += Math.max(0, amount);
     this.tacticalWaveDamageTaken += Math.max(0, amount);
+    // REVAMP(A): Damage breaks the presentation-only kill chain.
+    this.feel.recordDamage(amount);
     if (!this.telemetrySink || !this.telemetrySessionActive) return;
     this.telemetrySink.record({
       ...this.getTelemetryContext(),
@@ -4864,6 +4902,9 @@ export class GameEngine {
       waveNumber: (entry?.waveIndex ?? 0) + 1,
       waveTotal: entry?.level.waves.length ?? 1,
       stageComplete,
+      // REVAMP(D): Snapshot before the next Mission resets its counters.
+      revampMetrics: this.revampFlight ? { ...this.revampFlight.metrics } : undefined,
+      revampRunId: this.revampFlight?.runId,
       bossEncounterId: defeatedMainBoss?.id ?? null,
       bossTerminalOutcome: defeatedMainBoss
         ? this.lastBossTerminalOutcome ?? 'destroyed'
@@ -4975,6 +5016,8 @@ export class GameEngine {
     this.pendingPlayerShots = [];
     this.activePowerups.clear();
     this.frameCount = 0;
+    // REVAMP(A): Reset feedback on a new run/preview, never on a wave boundary.
+    this.feel.reset();
     this.cancelPreviewEncounterCameraRestore();
     this.previewEncounterCameraMode = 'auto';
     this.previewEncounterCameraStartFrame = 0;
@@ -5516,9 +5559,15 @@ export class GameEngine {
 
   private applyPlayerLifeDamage(incomingDamage: number) {
     const requestedDamage = Math.max(1, Math.round(Number(incomingDamage) || 1));
+    // REVAMP(D): Shield absorbs life damage but contact still disqualifies no-hit.
+    const shieldedDamage = this.revampFlight?.absorb(requestedDamage) ?? requestedDamage;
+    if (shieldedDamage <= 0) {
+      this.spawnRingEffect(this.player.x + this.player.width / 2, this.player.y + this.player.height / 2, '#67e8f9');
+      return resolvePlayerLifeDamage(this.lives, 0, GAME_CONFIG.MAX_LIVES);
+    }
     const boundedDamage = this.maxPlayerDamagePerHit === null
-      ? requestedDamage
-      : Math.min(requestedDamage, this.maxPlayerDamagePerHit);
+      ? shieldedDamage
+      : Math.min(shieldedDamage, this.maxPlayerDamagePerHit);
     const transition = resolvePlayerLifeDamage(
       this.lives,
       boundedDamage,
@@ -5638,6 +5687,8 @@ export class GameEngine {
   }
 
   init(width: number, height: number) {
+    // REVAMP(B): Restart warnings, mines and first-seen role callouts with the run.
+    this.revampEnemies.clear();
     this.combatImpacts.clear();
     this.combatDestructions.clear();
     this.width = width;
@@ -5684,6 +5735,8 @@ export class GameEngine {
     );
     this.stats.wave = this.wave;
     this.frameCount = 0;
+    // REVAMP(A): Reset feedback on a new run/preview, never on a wave boundary.
+    this.feel.reset();
     this.waveVictoryKillCounts = createWaveVictoryKillCounts();
     this.creditedMiniBossEncounterIds.clear();
     this.creditedMajorBossEncounterIds.clear();
@@ -5738,6 +5791,8 @@ export class GameEngine {
   }
 
   resetWaveProgress(resetStageSummary: boolean = true) {
+    // REVAMP(A): Preserve pending clear receipts across the wave boundary.
+    this.feel.beginWave();
     this.previewBossAttackLoop = null;
     this.miniBossLabEncounters.clear();
     this.compactMiniBossHealthBarsVisible = true;
@@ -5797,6 +5852,7 @@ export class GameEngine {
     this.presentDropWaveActive = currentWaveHasPresentDrop;
     this.presentDropCueShown = false;
     if (resetStageSummary) {
+      this.revampFlight?.resetMission(); // REVAMP(D): Per-Mission shields and medals.
       this.waveStartScore = this.stats.score;
       this.waveStartEnemiesDefeated = this.stats.enemiesDefeated;
       this.waveStartVictoryKillCounts = { ...this.waveVictoryKillCounts };
@@ -5846,6 +5902,30 @@ export class GameEngine {
 
     this.waveVictoryReady = false;
     this.startNextWave();
+    return true;
+  }
+
+  // REVAMP(D): Earned Campaign wings join at a settled Mission boundary, without resetting cooldowns.
+  adoptRevampCampaignLoadout(loadout: RuntimeSquadLoadout) {
+    if (this.previewMode || this.continuousStageBoundaries || !this.revampFlight || !this.wingSupport.enabled
+      || !this.waveVictoryReady || !this.waveTransitionPending || !this.isCurrentWaveStageFinal()
+      || !loadout.revamp || loadout.profileId !== this.squadLoadout?.profileId
+      || loadout.mainShipId !== this.playerShipId) return false;
+    const next = loadout.companions.map((companion, index) => {
+      const existing = this.squadCompanions.find(current => current.slot === companion.slot && current.id === companion.id);
+      // The controller keys cooldown/spring state by object identity; never replace a retained wing.
+      if (existing) return Object.assign(existing, companion);
+      const target = getSquadCompanionFormationTarget(this.player.x, this.player.y,
+        this.player.width, this.player.height, companion.slot, index);
+      if (this.preloadCanvasAssets) companion.frames.forEach(loadImage);
+      return { ...companion, x: target.x, y: target.y, frameIndex: 0,
+        fireTimer: Math.max(8, Math.floor(companion.fireIntervalFrames * 0.42)),
+        shotSequence: 0, entryProgress: 0 };
+    });
+    this.squadCompanions.splice(0, this.squadCompanions.length, ...next);
+    Object.assign(this.revampFlight.bonuses, loadout.revamp);
+    this.squadLoadout = loadout;
+    this.wingSupport.setAutoCast(loadout.revamp.wingAutoCast ?? this.wingSupport.autoCast);
     return true;
   }
 
@@ -5948,6 +6028,8 @@ export class GameEngine {
   }
 
   beginTacticalWaveCompletion() {
+    // REVAMP(A): Capture before startNextWave resets damage counters.
+    recordPerfectWave(this);
     this.waveTransitionPending = true;
     this.clearStageBoundaryDebris(false, true, false, true);
     this.pendingBossStrikes = [];
@@ -5960,6 +6042,8 @@ export class GameEngine {
   }
 
   beginStageCompletion(label: string, color: string) {
+    // REVAMP(A): Uses accepted damage, including continuous mission runs.
+    recordPerfectWave(this);
     if (this.continuousStageBoundaries) {
       this.beginContinuousStageCompletion();
       return;
@@ -6660,20 +6744,13 @@ export class GameEngine {
   }
 
   updateJuiceSystems() {
-    if (!this.polishSettings.screenShake) {
-      this.shakeStrength = 0;
-      this.shakeX = 0;
-      this.shakeY = 0;
-    } else {
-      this.shakeStrength = moveToward(this.shakeStrength, 0, GAME_FEEL.shakeDecay);
-      if (this.shakeStrength > 0.01) {
-        this.shakeX = randomRange(-1, 1) * this.shakeStrength;
-        this.shakeY = randomRange(-1, 1) * this.shakeStrength;
-      } else {
-        this.shakeX = 0;
-        this.shakeY = 0;
-      }
-    }
+    // REVAMP(A): Bounded trauma² shake; no simulation RNG or viewport scaling.
+    const feelSettings = getFeelSettings();
+    const shake = this.feel.getShake(undefined, this.polishSettings.screenShake,
+      feelSettings.reduceScreenShake, feelSettings.reducedMotion);
+    this.shakeStrength = shake.strength;
+    this.shakeX = shake.x;
+    this.shakeY = shake.y;
 
     this.flashAlpha = moveToward(this.flashAlpha, 0, GAME_FEEL.flashDecay);
 
@@ -6702,7 +6779,8 @@ export class GameEngine {
 
   addShake(amount: number) {
     if (!this.polishSettings.screenShake) return;
-    this.shakeStrength = Math.max(this.shakeStrength, amount);
+    // REVAMP(A): Small impacts accumulate; trauma remains capped at one.
+    this.feel.addTrauma(Math.min(0.65, Math.max(0, amount) / 12));
   }
 
   registerPrimaryWeaponImpact(target: Entity, shot: Entity) {
@@ -6726,7 +6804,8 @@ export class GameEngine {
   }
 
   addHitStop(frames: number) {
-    this.hitStopFrames = Math.max(this.hitStopFrames, frames);
+    // REVAMP(A): At 60 Hz, 3–4 ticks give 50–67 ms; never stack long freezes.
+    this.hitStopFrames = Math.max(this.hitStopFrames, Math.min(4, Math.max(0, frames)));
   }
 
   kickPlayerSquash(amount: number) {
@@ -6992,6 +7071,15 @@ export class GameEngine {
       }
       return;
     }
+    // REVAMP(A): Pause simulation before frame count, cooldowns, or queued shots.
+    // Pointer/key handlers still run; Pixi effects advance on their render clock.
+    this.feel.advanceFrame();
+    const slowStep = this.feel.shouldSkipSlowMotionStep();
+    if (this.hitStopFrames > 0 || slowStep) {
+      if (this.hitStopFrames > 0) this.hitStopFrames--;
+      this.updateJuiceSystems();
+      return;
+    }
     this.cinematicPaused = cinematicPause;
     if (cinematicPause || this.lives <= 0 || this.deathSequenceFrames > 0
       || this.waveDepartureFrames > 0 || this.introFlightFrames > 0
@@ -7011,14 +7099,6 @@ export class GameEngine {
     this.stars.forEach(star => star.update(this.width, this.height));
     this.bgEntities.forEach(bg => bg.update(this.height));
 
-    if (this.hitStopFrames > 0) {
-      // Gameplay is frozen, so preserve the burst's spacing instead of
-      // releasing every overdue pulse together when the impact pause ends.
-      for (const shot of this.pendingPlayerShots) if (shot.hullPulse) shot.fireFrame++;
-      this.hitStopFrames--;
-      this.updatePassiveEntities();
-      return;
-    }
 
     if (this.deathSequenceFrames > 0) {
       this.updateDeathSequence();
@@ -7062,6 +7142,9 @@ export class GameEngine {
       return;
     }
 
+    // REVAMP(D): Observe real non-filler targets; Overdrive follows simulation ticks.
+    this.revampFlight?.observe(this.entities);
+    this.revampFlight?.tick();
     this.waveFlightFrames++;
     this.tacticalWaveFlightFrames++;
     this.updatePendingBossStrikes();
@@ -7250,6 +7333,8 @@ export class GameEngine {
 
     this.spawnConfiguredSupportEvents();
     this.spawnEnemies();
+    // REVAMP(B): Advance only on active simulation ticks, after this frame's spawns.
+    this.revampEnemies.tick(this);
     this.updateEnemyFire();
 
     this.entities.forEach(e => {
@@ -7487,6 +7572,8 @@ export class GameEngine {
     });
 
     this.separateAssembledFormationMembers();
+    // REVAMP(B): One total hostile projectile budget across all emitters.
+    this.revampEnemies.enforceBulletCap(this);
     this.checkCollisions();
     this.applyResearchBeamDamage();
     this.retireStrandedRegularThreatsAtWaveEnd();
@@ -7500,8 +7587,22 @@ export class GameEngine {
     return EMPTY_GUN_POD_OFFSETS;
   }
 
+  // REVAMP(D): Explicit HUD commands stay bound to this engine, including preview teardown.
+  getWingSupportSnapshot() { return this.wingSupport.snapshot(this.squadCompanions); }
+  getRevampCosmeticId() { return this.squadLoadout?.revamp?.cosmeticId ?? null; }
+  setWingAutoCast(enabled: boolean) { this.wingSupport.setAutoCast(enabled); }
+  activateWingSpecial(slot: SquadSlotId) {
+    return this.wingSupport.activate(slot, this.squadCompanions, this.canUseWingSpecial());
+  }
+  private canUseWingSpecial() {
+    return this.gameActive && this.lives > 0 && !this.cinematicPaused && this.introFlightFrames <= 0
+      && this.deathSequenceFrames <= 0 && this.stageRewardCollectionFrames <= 0
+      && this.waveDepartureFrames <= 0 && !this.inBossWarningSequence;
+  }
+
   getSquadCompanionVisuals(): SquadCompanionVisual[] {
-    const size = this.mobileProfile ? 42 : 50;
+    // REVAMP(D): Both inputs share the same 38px wings and spring pose.
+    const size = this.wingSupport.enabled ? 38 : this.mobileProfile ? 42 : 50;
     return this.squadCompanions.map((companion) => ({
       slot: companion.slot,
       id: companion.id,
@@ -7511,9 +7612,11 @@ export class GameEngine {
       y: companion.y,
       width: size,
       height: size,
-      alpha: this.playerDrawAlpha * companion.entryProgress,
+      alpha: this.playerDrawAlpha * companion.entryProgress * (this.wingSupport.isDeployed() ? 1 : 0),
       scale: this.waveDepartureFrames > 0 ? this.playerDrawScale : 1,
-      utilityActive: companion.utilityActive ?? false
+      utilityActive: companion.utilityActive ?? false,
+      tilt: this.wingSupport.enabled ? this.wingSupport.getTilt(companion) : undefined,
+      evolved: this.wingSupport.enabled && companion.level >= 5
     }));
   }
 
@@ -7521,6 +7624,8 @@ export class GameEngine {
     const coinCenterX = coin.x + coin.width / 2;
     const coinCenterY = coin.y + coin.height / 2;
     return this.squadCompanions.some((companion) => {
+      // REVAMP(D): Utility belongs to the right wing in Campaign.
+      if (this.wingSupport.enabled && companion.slot !== 'right') return false;
       if (companion.ability !== 'coin-magnet' || companion.entryProgress < 0.5) return false;
       const pickupRadius = 24 + companion.level * 2;
       return Math.hypot(companion.x - coinCenterX, companion.y - coinCenterY) <= pickupRadius;
@@ -7528,6 +7633,8 @@ export class GameEngine {
   }
 
   private resetSquadCompanionPositions() {
+    // REVAMP(D): Reset spring velocity when the ship respawns or changes stages.
+    this.wingSupport.reset(this.squadCompanions);
     resetSquadCompanionFormation(
       this.squadCompanions,
       this.player.x,
@@ -7558,6 +7665,26 @@ export class GameEngine {
 
   private updateSquadCompanions() {
     if (this.squadCompanions.length === 0) return;
+
+    // REVAMP(D): All new wing combat lives in the module; legacy Weekly stays below.
+    if (this.wingSupport.enabled) {
+      this.wingSupport.update(this.squadCompanions, {
+        centerX: this.player.x + this.player.width / 2, centerY: this.player.y + this.player.height / 2,
+        width: this.width, height: this.height, frame: this.frameCount, canFire: this.canUseWingSpecial(),
+        mainDps: getMainWeaponDps(this.playerShipId, this.stats.upgrades.fireRate, this.hasMaxShotShield(), this.missionOverdriveLevel,
+          this.squadLoadout?.revamp?.extraProjectiles ?? 0, this.revampFlight?.damageMultiplier() ?? 1),
+        entities: this.entities, supportDpsMultiplier: this.squadLoadout?.revamp?.wingDamageMultiplier,
+        supportCooldownMultiplier: this.squadLoadout?.revamp?.wingCooldownMultiplier,
+        spawn: (wing, options) => {
+          const source = this.squadCompanions.find(companion => companion.slot === wing.slot);
+          if (source) this.spawnSquadProjectile({ ...source, projectileDamage: wing.projectileDamage }, options);
+        },
+        ring: (x, y, color) => this.spawnRingEffect(x, y, color),
+        shield: frames => { this.invincibleTimer = Math.max(this.invincibleTimer, frames); },
+        magnet: frames => { this.activePowerups.set(PowerupType.MAGNET, Math.max(this.activePowerups.get(PowerupType.MAGNET) ?? 0, frames)); }
+      });
+      return;
+    }
 
     const centerX = this.player.x + this.player.width / 2;
     const centerY = this.player.y + this.player.height / 2;
@@ -8187,6 +8314,7 @@ export class GameEngine {
               : 1;
     const rawDamage = Number.isFinite(damageOverride) ? Math.max(0, Number(damageOverride)) : baseDamage;
     b.damage = overdrivePrimary ? rawDamage * overdriveTier.damageScale : rawDamage;
+    if (hullPrimary) b.damage *= this.revampFlight?.damageMultiplier() ?? 1; // REVAMP(D): Primary research.
     if (maxShotVisualPattern?.length) {
       b.life = MAX_SHOT_BUNDLE_LIFETIME_FRAMES;
       b.maxLife = MAX_SHOT_BUNDLE_LIFETIME_FRAMES;
@@ -8269,8 +8397,9 @@ export class GameEngine {
   }
 
   fireBullet() {
-    const burst = getPlayerPrimaryBurst(this.playerShipId, this.stats.upgrades.fireRate || 0,
-      this.hasMaxShotShield(), this.weaponVolley);
+    // REVAMP(D): Preserve each hull’s shot art and burst timing.
+    const burst = addResearchRounds(getPlayerPrimaryBurst(this.playerShipId, this.stats.upgrades.fireRate || 0,
+      this.hasMaxShotShield(), this.weaponVolley), this.squadLoadout?.revamp?.extraProjectiles ?? 0);
     if (burst) {
       if (!this.gameActive || this.lives <= 0 || this.cinematicPaused
         || !this.hasPlayerShotCapacity(burst.shots.length)
@@ -8303,7 +8432,8 @@ export class GameEngine {
     const hullProfile = getPlayerShipWeaponProfile(this.playerShipId);
     const weaponKind: PlayerWeaponKind = hullProfile.primaryKind === 'btc-bolt' ? 'btc-bolt' : 'pulse';
     const weaponSpeed = weaponKind === 'btc-bolt' ? 9 : 10;
-    const volleySize = getFireRateVolleySize(this.stats.upgrades.fireRate || 0);
+    // REVAMP(D): Default hull gains real rounds at Firepower milestones.
+    const volleySize = Math.min(FIRE_RATE_MAX_VOLLEY_SIZE, getFireRateVolleySize(this.stats.upgrades.fireRate || 0) + (this.squadLoadout?.revamp?.extraProjectiles ?? 0));
     const volleyProjectileDamage = getFireRateProjectileDamageMultiplier(volleySize)
       * hullProfile.laneDamageScale;
     // ETH is the triple-spread ship: centre lane plus the authored 15-20
@@ -8754,6 +8884,9 @@ export class GameEngine {
   }
 
   isBossCombatInteractive(entity: Entity) {
+    // REVAMP(C): Intro and phase shields also suppress body contact.
+    const polished = getBossEncounter(entity);
+    if (polished) return bossCanTakeDamage(polished);
     if (entity.type !== EntityType.BOSS) return true;
     if (entity.bossEscapeState) return false;
     if (
@@ -9359,6 +9492,8 @@ export class GameEngine {
 
   handleEnemyDestroyed(target: Entity) {
     if (target.markedForDeletion) return;
+    // REVAMP(B): Splitter children/carrier rewards are issued once before removal.
+    this.revampEnemies.onDeath(this, target);
     if (
       target.type === EntityType.PROJECTILE
       && target.prismMothArtifactState?.kind === 'brood'
@@ -9385,7 +9520,9 @@ export class GameEngine {
       this.beginMiniBossLabMemberDeath(target);
       return;
     }
-    if (target.type === EntityType.BOSS) {
+    // REVAMP(C): Emit effect hooks once; the common path still awards the real coin burst.
+    if (target.type === EntityType.BOSS) defeatRevampBoss(this, target);
+    if (target.type === EntityType.BOSS && !getBossEncounter(target)) {
       if (!this.isBossCombatInteractive(target)) return;
       if (this.beginAbyssalOctarchDefeat(target)) return;
       if (this.beginBossRevival(target)) return;
@@ -9460,15 +9597,11 @@ export class GameEngine {
           ? 0.9
           : 0.58;
     this.spawnExplosion(target.x, target.y, target.color, destructionIntensity);
-    if (countsTowardCampaignRewards && target.type !== EntityType.SUPPLY_DROP && !this.shouldUseLeanEffects()) {
-      this.spawnRingEffect(
-        target.x + target.width / 2,
-        target.y + target.height / 2,
-        target.color || '#67e8f9'
-      );
-    }
+    // REVAMP(A): The pooled explosion owns its ring; avoid a second arena-size ring.
     if (countsTowardCampaignRewards && target.type !== EntityType.SUPPLY_DROP) {
       this.stats.enemiesDefeated++;
+      // REVAMP(D): Real deaths feed goals and the research overdrive charge.
+      if (this.revampFlight?.kill(target.type, target.id)) this.spawnFloatingText(this.player.x, this.player.y - 24, "RESEARCH OVERDRIVE", "#c4b5fd", 16);
     }
     const configuredScoreMultiplier = Number(this.getCurrentWaveDefinition()?.scoreMultiplier);
     const waveMult = Number.isFinite(configuredScoreMultiplier) && configuredScoreMultiplier > 0
@@ -9490,6 +9623,8 @@ export class GameEngine {
         ? Math.max(0, target.scoreValue as number)
         : basePoints * waveMult;
     this.stats.score += points;
+    // REVAMP(A): Death receipt survives compaction, without modifying rewards.
+    recordFeelKill(this, target, points);
     const centerX = target.x + target.width / 2;
     const centerY = target.y + target.height / 2;
     const supplyDropKind = target.supplyDropKind;
@@ -9507,7 +9642,8 @@ export class GameEngine {
       || target.type === EntityType.ENEMY_BRICK
       || target.type === EntityType.MINI_BOSS
       || target.type === EntityType.ENEMY_INVADER;
-    this.addHitStop(isElite ? 4 : 2);
+    // REVAMP(A): Ordinary kills stay fluid; elite kills get a short punctuation.
+    if (isElite || target.isElite) this.addHitStop(3);
     this.addShake(isElite ? 1.8 : 0.7);
     this.spawnBurst(centerX, centerY, isElite ? '#facc15' : target.color, isElite ? 12 : 6, isElite ? 5.2 : 3.2, isElite ? 5 : 3);
     const configuredPowerupDropChance = Number(target.powerupDropChance);
@@ -9656,7 +9792,8 @@ export class GameEngine {
       const entity = this.entities[index];
       if (!entity.markedForDeletion && entity.type === EntityType.PROJECTILE && !entity.isPlayerShot) activeEnemyShots++;
     }
-    const standardShotCap = getCampaignBaseSimultaneousShooterLimit(this.wave);
+    // REVAMP(B): Difficulty tiers share the same cap on every input/device profile.
+    const standardShotCap = Math.min(getCampaignBaseSimultaneousShooterLimit(this.wave), this.revampEnemies.cap(this));
     if (activeEnemyShots >= standardShotCap) return;
 
     const candidates = this.homingTargetsBuffer;
@@ -9675,6 +9812,8 @@ export class GameEngine {
         if (priorityPass === 0 && !isPriorityCandidate) continue;
         if (
           candidate.markedForDeletion
+          // REVAMP(B): Screen-entry grace and special-role ownership precede legacy fire.
+          || !this.revampEnemies.canLegacyFire(candidate)
           || candidate.isElite
           || candidate.campaignSpecialAttack !== undefined
           || candidate.formation === 'orbit'
@@ -9750,6 +9889,8 @@ export class GameEngine {
       shot.isPlayerShot = false;
       shot.damage = Math.max(1, Number(source.projectileDamage) || 1);
       shot.sourceEventId = source.sourceEventId;
+      // REVAMP(A): Larger halo for rounds aimed at the player.
+      markAimedShot(shot);
       this.entities.push(shot);
     }
   }
@@ -9976,12 +10117,15 @@ export class GameEngine {
     let activeEnemyShots = this.entities.reduce((count, entity) => (
       count + (!entity.markedForDeletion && entity.type === EntityType.PROJECTILE && !entity.isPlayerShot ? 1 : 0)
     ), 0);
-    const shotCap = Math.min(18, 7 + this.wave * 2);
+    // REVAMP(B): Elite volleys consume the same hostile projectile budget.
+    const shotCap = Math.min(18, 7 + this.wave * 2, this.revampEnemies.cap(this));
     const allowedCampaignShooterIds = this.getAllowedCampaignShooterIds();
 
     for (const source of this.entities) {
       if (
         source.markedForDeletion
+        // REVAMP(B): Prevent special enemies from also firing an untelegraphed legacy volley.
+        || !this.revampEnemies.canLegacyFire(source)
         || (
           source.campaignSpecialAttack === undefined
           && (!source.isElite || source.eliteAttackPattern !== 'aimed-burst')
@@ -10346,7 +10490,8 @@ export class GameEngine {
           })),
           reservedTargets,
           bounds,
-          this.mobileProfile ? 5 : 6
+          // REVAMP(B): Authored spline cohorts use one collision spacing on all devices.
+          members.some(member => member.formationEntryPath?.startsWith('revamp-')) ? 5 : this.mobileProfile ? 5 : 6
         );
         const lockedTargetById = new Map(lockedTargets.map((point) => [point.id, point]));
         members.forEach((member) => {
@@ -10436,13 +10581,15 @@ export class GameEngine {
           height: member.height
         })),
         bounds,
-        this.mobileProfile ? 5 : 6
+        // REVAMP(B): Sway separation cannot introduce device-dependent simulation.
+        orderedHolders.some(member => member.formationEntryPath?.startsWith('revamp-')) ? 5 : this.mobileProfile ? 5 : 6
       );
       const globalPointById = new Map(globallySeparated.map((point) => [point.id, point]));
       orderedHolders.forEach((member) => {
         const point = globalPointById.get(member.id);
         if (!point) return;
-        const maxCorrectionPerFrame = this.mobileProfile ? 4 : 6;
+        // REVAMP(B): Use the phone-safe correction speed for the new choreography everywhere.
+        const maxCorrectionPerFrame = member.formationEntryPath?.startsWith('revamp-') ? 4 : this.mobileProfile ? 4 : 6;
         member.x = moveToward(member.x, point.x, maxCorrectionPerFrame);
         member.y = moveToward(member.y, point.y, maxCorrectionPerFrame);
       });
@@ -10483,10 +10630,13 @@ export class GameEngine {
     enemy.formationAttackStartedCycle = attackCycle;
     enemy.formationFlight = createFormationAttackFlight({
       start: { x: enemy.x, y: enemy.y },
+      // REVAMP(B): Finish the loop on the immutable grid slot, independent of sway.
+      returnSlot: { x: enemy.formationTargetX ?? enemy.x, y: enemy.formationTargetY ?? enemy.y },
       target: { x: enemy.formationAimX ?? aimX, y: enemy.formationAimY ?? aimY },
       width: this.width, height: this.height, hullHeight: enemy.height,
       index: enemy.formationIndex, cycle: attackCycle, attack: choreography.attackId,
-      speed: Math.min(7, diveSpeed * 1.12)
+      // REVAMP(B): Authored cadence changes the whole dive cycle, preserving one shot/pass.
+      speed: Math.min(7, diveSpeed * 1.12 / this.revampEnemies.cadenceScale(enemy))
     });
     enemy.formationFlightAge = 0;
     enemy.vx = 0;
@@ -10537,7 +10687,9 @@ export class GameEngine {
         member.formationAttackSelected = false;
         member.formationAttackActive = false;
       });
-      if (elapsed >= frames(choreography.holdSeconds)) {
+      // REVAMP(B): Later beats and tiers peel more often, with a readable minimum hold.
+      const holdSeconds = this.revampEnemies.diveHoldSeconds(this, members[0], choreography.holdSeconds);
+      if (elapsed >= frames(holdSeconds)) {
         const volleyAttack = isFormationVolleyAttack(choreography.attackId);
         const eligibleMembers = members.filter((member) => {
           if (volleyAttack) return true;
@@ -10606,7 +10758,8 @@ export class GameEngine {
       return instance;
     }
 
-    if (instance.phase === 'recovering' && elapsed >= frames(choreography.recoverySeconds)) {
+    // REVAMP(B): Recovery scales with authored firing pressure, while warning time stays fixed.
+    if (instance.phase === 'recovering' && elapsed >= frames(choreography.recoverySeconds * this.revampEnemies.cadenceScale(members[0]))) {
       instance.attackCycle++;
       const cycleSetComplete = choreography.attackCycles > 0
         && instance.attackCycle >= choreography.attackCycles;
@@ -10707,7 +10860,8 @@ export class GameEngine {
     // "Single/random" describes the loose slot layout, not unrelated travel.
     // Multi-ship loose traffic still enters as one small flight so the player
     // sees an intentional squadron rather than isolated objects popping in.
-    enemy.formationCohortEntry = count > 1;
+    // REVAMP(B): Single teaching enemies also fly their authored spline.
+    enemy.formationCohortEntry = count > 1 || choreography.entryPathId.startsWith('revamp-');
     enemy.formationChoreography = choreography;
     enemy.formationSlotLocked = false;
     enemy.formationSlotTransitionActive = false;
@@ -10829,6 +10983,8 @@ export class GameEngine {
   }
 
   stepConfiguredEnemyFormation(enemy: Entity) {
+    // REVAMP(B): Hold side/bottom/kamikaze entries offscreen for the full warning.
+    if (this.revampEnemies.holdForWarning(this, enemy)) return true;
     const formation = enemy.formation;
     const targetX = enemy.formationTargetX;
     const targetY = enemy.formationTargetY;
@@ -11048,6 +11204,11 @@ export class GameEngine {
       if (!characteristic.divesFromFormation) return true;
 
       if (this.frameCount >= enemy.formationDiveFrame) {
+        // REVAMP(B): Singleton/unpacked previews use the same committed loop as packs.
+        if (choreography?.attackId.startsWith('revamp-')) {
+          this.beginConfiguredFormationAttack(enemy, enemy.formationCycle);
+          return true;
+        }
         const diveMotion = this.resolveConfiguredFormationDiveMotion(enemy, formation, 0);
         enemy.vx = diveMotion.velocityX;
         enemy.vy = diveMotion.velocityY;
@@ -11072,6 +11233,8 @@ export class GameEngine {
       enemy.y = next.y;
       enemy.vx = 0;
       enemy.vy = 0;
+      // REVAMP(B): One shot at the arc bottom, then finish exactly on the grid slot.
+      if (this.revampEnemies.finishDiveStep(this, enemy)) return true;
     } else {
       const diveMotion = this.resolveConfiguredFormationDiveMotion(enemy, formation, diveAge);
       enemy.vx = lerp(enemy.vx, diveMotion.velocityX, diveMotion.steering);
@@ -11158,6 +11321,8 @@ export class GameEngine {
   }
 
   applySectorSignature(enemy: Entity, eventId: string, spawnIndex: number) {
+    // REVAMP(B): Explicit teaching roles must not gain a second hidden sector mechanic.
+    if (isRevampRole(enemy)) return;
     const levelId = this.getCurrentCampaignEntry()?.level.id;
     const sector = resolveSectorIndex(levelId, this.getStageNumberForCampaignIndex());
     const characteristic = String(enemy.campaignCharacteristic || 'diver');
@@ -11179,7 +11344,14 @@ export class GameEngine {
    * A shield hit spends the plate and leaves the hull. Returns true when the
    * shot should not also reduce health.
    */
-  absorbSectorShield(target: Entity, paced = false) {
+  absorbSectorShield(target: Entity, paced = false, impact?: { x: number; y: number }) {
+    // REVAMP(B): The front plate blocks frontal hits; lateral hits reach the hull.
+    if (this.revampEnemies.director.blocksShieldHit(target,
+      impact?.x ?? this.player.x + this.player.width / 2,
+      impact?.y ?? this.player.y + this.player.height / 2)) {
+      this.flashDamageTarget(target, 4);
+      return true;
+    }
     if (target.shieldHits <= 0 || target.splitterChild) return false;
     if (paced && this.frameCount - target.lastDamageFlashFrame < 8) return true;
     target.shieldHits -= 1;
@@ -11290,7 +11462,9 @@ export class GameEngine {
       formationPack,
       role
     );
-    const combatScales = this.getCombatScales(event.id);
+    // REVAMP(B): The new roster's HP/pressure are already authored by the curve model.
+    const combatScales = role?.id.startsWith('role-revamp-')
+      ? { durability: 1, pressure: 1, hazard: 1 } : this.getCombatScales(event.id);
     const enemy = this.createEnemy(enemyType, point.x, point.y, {
       speed: Number(enemySetting.speed) * combatScales.pressure,
       health: Number(enemySetting.health) * combatScales.durability,
@@ -11316,6 +11490,10 @@ export class GameEngine {
     enemy.sourceEventId = event.id;
     enemy.sourceItemId = enemySetting.enemyId;
     enemy.campaignRoleId = role?.id;
+    // REVAMP(B): Avoid multiplying authored firing cadence by the legacy progression tier.
+    if (isRevampRole(enemy) && Number.isFinite(enemySetting.attackIntervalSeconds)) {
+      enemy.attackIntervalFrames = Math.max(48, Math.round(Number(enemySetting.attackIntervalSeconds) * GAME_CONFIG.FPS));
+    }
     enemy.campaignGameplayRole = role?.role;
     enemy.campaignDurabilityClass = role?.durabilityClass;
     enemy.campaignCharacteristic = countTowardCombatBudget
@@ -11361,6 +11539,8 @@ export class GameEngine {
       formationPack,
       role
     );
+    // REVAMP(B): Apply spawn clearance and edge telegraphs after final hull/route setup.
+    this.revampEnemies.register(this, enemy);
     if (formationPack && formationInstanceId) {
       const nextInstance: CampaignFormationPackInstanceState = formationInstance && !formationInstance.retired
         ? formationInstance
@@ -11405,6 +11585,8 @@ export class GameEngine {
    * what pushes peak entity load over the mobile performance budget.
    */
   releaseNextSquadronWhenFieldIsClear(events: readonly RuntimeSpawnEvent[]) {
+    // REVAMP(B): Preserve the authored six-second drop and thirty-second opening boss.
+    if (isOpeningMission(this)) return;
     if (this.inBossWarningSequence || this.pendingConfiguredEncounter) return;
     if (this.waveTransitionPending || this.introFlightFrames > 0) return;
     // Dead air is about what the player can SEE. A hostile that has spawned
@@ -11494,7 +11676,8 @@ export class GameEngine {
 
       const pack = this.getCampaignFormationPackForSpawn(event);
       const entryPath = this.resolveRuntimeFormationChoreography(event, pack).entryPathId;
-      const singleFile = entryPath === 'loop-the-loop' || entryPath === 'serpentine-weave';
+      // REVAMP(B): Batched releases made adjacent spline members overlap exactly.
+      const singleFile = isTrainEntryPath(entryPath);
       const spawnPressure = this.getCombatScales(event.id).pressure;
       const intervalFrames = Math.max(singleFile ? 8 : 1, Math.round(
         ((Number(event.spawnIntervalSeconds) || 0.8) * GAME_CONFIG.FPS) / spawnPressure
@@ -11836,6 +12019,8 @@ export class GameEngine {
     if (boss.activeBossPhaseIndex === resolved.phaseIndex) return resolved.phaseIndex + 1;
 
     const transitionedBetweenActivePhases = boss.activeBossPhaseIndex >= 0;
+    // REVAMP(A): A phase boundary grants identical bullet relief on every device.
+    if (transitionedBetweenActivePhases) cancelPhaseBullets(this, boss);
     boss.activeBossPhaseIndex = resolved.phaseIndex;
     boss.activeBossPhaseId = resolved.phaseId;
     boss.bossTimelinePhaseId = resolved.phaseId;
@@ -12864,6 +13049,8 @@ export class GameEngine {
     const state = this.miniBossLabEncounters.get(eventId);
     const definition = state ? this.getMiniBossLabDefinition(state) : undefined;
     if (!state || !definition) return false;
+    // REVAMP(A): Authored multi-member mini-boss deaths bypass the regular handler.
+    recordFeelKill(this, entity, 0);
     entity.hp = 0;
     entity.vx = 0;
     entity.vy = 0;
@@ -12977,6 +13164,7 @@ export class GameEngine {
       this.waveVictoryKillCounts.miniBossKills++;
     }
     this.stats.enemiesDefeated++;
+    this.revampFlight?.kill(EntityType.MINI_BOSS); // REVAMP(D): One goal kill per encounter.
     this.waveEnemyTimeToKillFrames += Math.max(1, this.frameCount - state.startFrame);
     this.waveEnemyKillsMeasured++;
 
@@ -13225,6 +13413,8 @@ export class GameEngine {
   }
 
   updateMiniBoss(boss: Entity) {
+     // REVAMP(B): The onboarding encounter teaches one locked, 0.8-second warning.
+     if (this.revampEnemies.updateOpeningBoss(this, boss)) return;
      if (boss.miniBossLabEncounterId && boss.sourceEventId) {
        return;
      }
@@ -13799,6 +13989,8 @@ export class GameEngine {
   }
 
   getBossComponentHit(boss: Entity, shotBox: CollisionBox) {
+    // REVAMP(C): Use the same visible circular part marker for every rig.
+    if (getBossEncounter(boss)) return getRevampPartHit(boss, shotBox);
     const shotCenterX = shotBox.x + shotBox.width / 2;
     const shotCenterY = shotBox.y + shotBox.height / 2;
     const candidates = (boss.bossComponents ?? [])
@@ -13921,6 +14113,8 @@ export class GameEngine {
   }
 
   damageBossComponent(boss: Entity, component: BossComponentState, damage: number) {
+    // REVAMP(C): Part damage disables its attack and opens a stagger window.
+    if (damageRevampPart(this, boss, component, damage)) return;
     if (!this.isBossCombatInteractive(boss)) return;
     if (boss.bossRigId === 'paywall-siege' && component.id === 'helmet') {
       // Paywall's helmet is hull-linked presentation armor, not a separate
@@ -13955,6 +14149,7 @@ export class GameEngine {
     const impactX = box.x + box.width / 2;
     const impactY = box.y + box.height / 2;
     if (damageResult.destroyedNow) {
+      this.revampFlight?.event('bossParts'); // REVAMP(D): Destruction edge only.
       if (this.isAbyssalOctarch(boss)) {
         boss.bossAbyssalOctarchTransition = undefined;
         if (boss.bossAbyssalOctarchState?.plan.tentacleIds.includes(
@@ -13997,8 +14192,9 @@ export class GameEngine {
       }
       this.spawnBurst(impactX, impactY, '#ffffff', 18, 5.2, 5);
       this.addShake(component.id === 'helmet' ? 5 : 3.5);
-      this.addHitStop(component.id === 'helmet' ? 9 : 6);
-      this.playSound('explode', component.id === 'helmet' ? 1.55 : 1.3, {
+      // REVAMP(A): Part-break receipt drives the pooled large explosion tier.
+      this.addHitStop(this.feel.recordPartBreak({ frame: this.frameCount, x: impactX, y: impactY }));
+      this.playSound('explosion_boss_part', component.id === 'helmet' ? 1.55 : 1.3, {
         pitchJitter: 0.08,
         pitchOffset: component.id === 'helmet' ? -0.14 : -0.06
       });
@@ -14022,6 +14218,7 @@ export class GameEngine {
       boss.maxHp
     );
     if (!helmet) return false;
+    this.revampFlight?.event('bossParts'); // REVAMP(D): Hull-linked plate breaks once.
 
     const box = this.getBossComponentBox(boss, helmet);
     const impactX = box.x + box.width / 2;
@@ -14044,6 +14241,8 @@ export class GameEngine {
   }
 
   isBossHullProtected(boss: Entity) {
+    // REVAMP(C): Parts are tactical targets; hull damage is never gated by them.
+    if (getBossEncounter(boss)) return false;
     if (this.isAbyssalOctarch(boss)) {
       return (boss.bossComponents ?? []).some((component) => !component.destroyed);
     }
@@ -14056,6 +14255,8 @@ export class GameEngine {
   damageBossHull(boss: Entity, damage: number) {
     if (boss.type !== EntityType.BOSS && boss.type !== EntityType.MINI_BOSS) return;
     if (!this.isBossCombatInteractive(boss)) return;
+    // REVAMP(B): Peer Reviewer's visible front plate has its own breakable durability.
+    if (this.revampEnemies.openingBoss.absorbShield(this, boss, damage)) return;
     if (boss.miniBossLabEncounterId && !boss.miniBossLabDamageable) {
       this.pulseDamageFlash(boss);
       if (this.frameCount % 8 === 0) {
@@ -14076,9 +14277,11 @@ export class GameEngine {
       return;
     }
     const previousHealth = boss.hp;
-    const hullDamage = boss.bossWeakPointOpen ? damage * 1.45 : damage;
+    // REVAMP(C): Clamp burst damage at phase gates; preserve common damage telemetry.
+    const hullDamage = revampHullDamage(boss, damage) ?? (boss.bossWeakPointOpen ? damage * 1.45 : damage);
     boss.hp -= hullDamage;
-    this.detachPaywallHelmetForHullHealth(boss);
+    afterRevampHullDamage(this, boss);
+    if (!getBossEncounter(boss)) this.detachPaywallHelmetForHullHealth(boss);
     const firstDepletionWillRevive = boss.hp <= 0 && this.canBeginBossRevival(boss);
     const firstDepletionWillEscape = boss.hp <= 0
       && this.isUmbraNeedlewing(boss)
@@ -14219,6 +14422,8 @@ export class GameEngine {
     }
     boss.bossRigId ??= 'open-orbit';
     boss.bossComponents ??= this.createBossComponents(boss, configured?.componentHealth);
+    // REVAMP(C): Keep existing art/rewards, delegate registered encounter combat.
+    attachRevampBoss(this, boss);
     this.bossRef = boss;
     this.entities.push(boss);
   }
@@ -14273,6 +14478,8 @@ export class GameEngine {
       b.damage = Math.max(1, Number(boss.projectileDamage) || 1);
       b.text = "";
       b.bossOwnerId = boss.id;
+      // REVAMP(A): Aimed volley presentation tag.
+      markAimedShot(b);
       this.entities.push(b);
     }
 
@@ -21115,7 +21322,7 @@ export class GameEngine {
     let fatal = false;
     if (!protectedFromDamage) {
       const damage = this.applyPlayerLifeDamage(Math.max(1, boss.contactDamage));
-      this.invincibleTimer = 60;
+      this.invincibleTimer = Math.round(60 * (this.squadLoadout?.revamp?.invulnerabilityMultiplier ?? 1)); // REVAMP(D): Survival recovery.
       fatal = damage.lives <= 0;
     } else if (shieldActive) {
       const currentShieldTime = this.activePowerups.get(PowerupType.SHIELD) || 0;
@@ -23025,6 +23232,8 @@ export class GameEngine {
   }
 
   updateBoss(boss: Entity) {
+    // REVAMP(C): Deterministic warnings, three phases, rage and recovery.
+    if (updateRevampBoss(this, boss)) return;
     if (this.updateAbyssalOctarchDefeatSequence(boss)) return;
     if (this.updateSingularityDefeatSequence(boss)) return;
     if (this.updateBossRevival(boss)) return;
@@ -23252,6 +23461,8 @@ export class GameEngine {
     c.vy = 2.0;
     c.vx = this.gameplayRandomRange(-0.25, 0.25);
     c.variant = this.gameplayRandom.integer(0, 1000);
+    // REVAMP(A): Reuse coin burst physics; preserve coin count and RNG sequence.
+    kickCredit(c);
     this.entities.push(c);
     return c;
   }
@@ -23346,8 +23557,10 @@ export class GameEngine {
     if (coin.coinValueCredited) return false;
 
     coin.coinValueCredited = true;
-    this.stats.coins++;
-    this.stats.totalCoins++;
+    // REVAMP(D): Fractional Fortune gains carry over; never round every coin up.
+    const creditedValue = this.revampFlight?.credit() ?? 1;
+    this.stats.coins += creditedValue;
+    this.stats.totalCoins += creditedValue;
     this.stats.score += this.activePowerups.has(PowerupType.MAGNET) ? 2 : 1;
     this.addFlaskChargeFromCoin();
     return true;
@@ -23431,6 +23644,8 @@ export class GameEngine {
     const coinCenterX = coin.x + coin.width / 2;
     const coinCenterY = coin.y + coin.height / 2;
     const magnetCompanion = this.squadCompanions.find((companion) => (
+      // REVAMP(D): A left offense ship cannot gain a second passive utility role.
+      (!this.wingSupport.enabled || companion.slot === 'right') &&
       companion.ability === 'coin-magnet' && companion.entryProgress >= 0.5
     ));
     const hasPowerupMagnet = this.activePowerups.has(PowerupType.MAGNET);
@@ -23454,7 +23669,7 @@ export class GameEngine {
       ? POWERUP_COIN_MAGNET_RADIUS
       : useCompanionMagnet
         ? companionRadius
-        : BASE_COIN_MAGNET_RADIUS;
+        : BASE_COIN_MAGNET_RADIUS * (this.squadLoadout?.revamp?.magnetRadiusMultiplier ?? 1);
 
     if (dist < radius) {
       const closeness = missionClearSweep ? Math.max(0, 1 - dist / 640) : 1 - (dist / radius);
@@ -23487,22 +23702,17 @@ export class GameEngine {
   }
 
   spawnExplosion(x: number, y: number, color: string, intensity: number = 1) {
-    if (intensity >= 1.2) {
-      this.playSound('explode', intensity, {
-        pitchJitter: 0.08,
-        pitchOffset: -0.14
-      });
-    } else {
-      this.playSound('impact', Math.max(0.18, intensity * 0.32), {
-        pitchJitter: 0.08,
-        pitchOffset: -0.1
-      });
-    }
+    // REVAMP(A): Match layered sound weight to the visual destruction tier.
+    this.playSound(intensity >= 2 ? 'explosion_boss_part'
+      : intensity >= 1.2 ? 'explosion_elite' : 'explosion_small', intensity,
+    { pitchJitter: 0.08, pitchOffset: intensity >= 1.2 ? -0.14 : -0.1 });
     this.spawnBurst(x, y, color, this.shouldUseLeanEffects() ? 7 : 12, 5, 5);
     this.addShake(this.shouldUseLeanEffects() ? 0.55 : 0.9);
   }
 
   spawnFloatingText(x: number, y: number, text: string, color: string, fontSize: number = 32) {
+    // REVAMP(A): Hide optional score labels while preserving gameplay messages.
+    if (!getFeelSettings().showScoreNumbers && /^\+\d+(?:[.,]\d+)*(?:\s+x\d+)?$/.test(text)) return;
     if (this.liveEffectCount >= this.getEffectCap()) return;
     this.entities.push(new VisualEffect(x, y, 'text', text, color, fontSize));
     this.liveEffectCount++;
@@ -23519,7 +23729,9 @@ export class GameEngine {
     this.coinComboTimer = GAME_FEEL.comboWindowFrames;
     const label = this.coinCombo > 1 ? `+1 x${Math.min(this.coinCombo, 99)}` : '+1';
     const lean = this.shouldUseLeanEffects();
-    this.playSound('coin', Math.min(this.coinCombo, 10));
+    // REVAMP(A): Pickup receipt adds a pooled ring; existing audio owns the ladder.
+    this.feel.recordPickup({ frame: this.frameCount, x, y, pickupType: 'coin', amount: 1 });
+    this.playSound('coin', Math.min(this.coinCombo, 10), { pickupCombo: this.coinCombo });
     if (!lean || this.coinCombo % 3 === 0) {
       this.spawnFloatingText(x, y - 12, label, this.coinCombo > 1 ? '#facc15' : '#67e8f9', this.coinCombo > 1 ? 18 : 16);
     }
@@ -23530,6 +23742,7 @@ export class GameEngine {
 
   activatePowerup(type: PowerupType, countUse: boolean = true) {
     if (countUse) {
+      this.revampFlight?.event('powerups'); // REVAMP(D): Pickups only, excludes scripted effects.
       this.stats.powerupUses = {
         ...this.stats.powerupUses,
         [type]: (this.stats.powerupUses?.[type] || 0) + 1
@@ -23587,6 +23800,10 @@ export class GameEngine {
       this.spawnFloatingText(cx, cy - 20, "+1 LIFE!", "#ff4444");
       this.spawnRingEffect(cx, cy, "#ff4444");
     }
+    // REVAMP(A): Large POWER n label reflects the existing projectile-upgrade tier.
+    if (type === PowerupType.OVERDRIVE) this.feel.recordPickup({
+      frame: this.frameCount, x: cx, y: cy, pickupType: 'power', powerLevel: this.missionOverdriveLevel + 1
+    });
     emitSquadDomainEvent('powerup_collected', {
       profileId: this.squadLoadout?.profileId ?? 'guest',
       powerup: type
@@ -23712,7 +23929,7 @@ export class GameEngine {
       if (!this.testMode) {
         this.applyPlayerLifeDamage(incomingDamage);
       }
-      this.invincibleTimer = 60;
+      this.invincibleTimer = Math.round(60 * (this.squadLoadout?.revamp?.invulnerabilityMultiplier ?? 1)); // REVAMP(D): Survival recovery.
     } else if (this.activePowerups.has(PowerupType.SHIELD)) {
       const shieldPenalty = bossContact ? 150 : 30;
       const currentShieldTime = this.activePowerups.get(PowerupType.SHIELD) || 0;
@@ -23963,7 +24180,7 @@ export class GameEngine {
             this.applyPlayerLifeDamage(incomingDamage);
            }
            this.stats.lives = this.lives;
-           this.invincibleTimer = 60;
+           this.invincibleTimer = Math.round(60 * (this.squadLoadout?.revamp?.invulnerabilityMultiplier ?? 1)); // REVAMP(D): Survival recovery.
            this.registerPlayerProjectileHitFeedback(e, false);
            // Only delete bullet if it isn't a beam
            if (e.type === EntityType.PROJECTILE && !e.isBeam) {
@@ -24087,6 +24304,8 @@ export class GameEngine {
           }
         }
         const previousTargetHealth = target.hp;
+        // REVAMP(A): Armor contact is still an impact when hull health is unchanged.
+        const previousShieldHits = target.shieldHits;
         const previousComponentHealth = bossComponent?.hp;
         const impactBounds = !shot.isBeam && shot.isPlayerShot
           ? bossComponent ? this.getBossComponentBox(target, bossComponent) : getBox(target)
@@ -24095,7 +24314,10 @@ export class GameEngine {
           this.damageBossComponent(target, bossComponent, dmg);
         } else if (isBossTarget) {
           this.damageBossHull(target, dmg);
-        } else if (this.absorbSectorShield(target)) {
+        // REVAMP(B): Use the incoming side so a fast shot cannot tunnel behind the front plate.
+        } else if (this.absorbSectorShield(target, false, shot.isBeam ? undefined : {
+          x: shot.x + shot.width / 2 - shot.vx, y: shot.y + shot.height / 2 - shot.vy
+        })) {
           // The plate took the hit. The shot is already spent above.
         } else {
           target.hp -= dmg;
@@ -24103,7 +24325,7 @@ export class GameEngine {
           this.flashDamageTarget(target);
         }
         if (impactBounds && (
-          target.hp < previousTargetHealth
+          target.hp < previousTargetHealth || target.shieldHits < previousShieldHits
           || (bossComponent && previousComponentHealth !== undefined && bossComponent.hp < previousComponentHealth)
         )) {
           const contact = getProjectileCombatContact(shotBox, impactBounds, shot.vx, shot.vy);
@@ -24117,7 +24339,9 @@ export class GameEngine {
             targetId: target.id,
             projectileId: shot.id,
             componentId: bossComponent?.id,
-            boss: isBossTarget
+            boss: isBossTarget,
+            // REVAMP(A): Distinct plate deflection in the existing impact buffer.
+            armored: target.shieldHits < previousShieldHits
           });
         }
         this.registerPrimaryWeaponImpact(target, shot);
@@ -24125,7 +24349,7 @@ export class GameEngine {
         if (shot.squadAbilityKind && !shot.isBeam) {
           this.spawnRingEffect(shot.x + shot.width / 2, shot.y + shot.height / 2, shot.color || '#67e8f9');
         }
-        this.playSound('impact', isBossTarget ? 0.78 : 0.46, {
+        this.playSound(target.shieldHits < previousShieldHits ? 'armored_hit' : 'impact', isBossTarget ? 0.78 : 0.46, {
           pitchJitter: 0.18,
           pitchOffset: isBossTarget ? -0.08 : 0.08
         });

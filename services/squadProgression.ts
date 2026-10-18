@@ -1,3 +1,7 @@
+// REVAMP(D): Versioned Campaign meta stays inside the existing permanent profile.
+import { createRevampProgress, sanitizeRevampProgress, mergeRevampProgress } from './revamp/progression';
+import type { RevampProgress } from './revamp/progression/types';
+import type { RevampLoadout } from './revamp/runtime/flight';
 import { getWeeklyBoundaryMeta } from '../shared/weeklyCompetitionBoundary.browser';
 import type { CampaignGraphDefinition } from '../game-config/types';
 import { PLAYABLE_PLAYER_SHIP_IDS, type PlayerShipId } from './playerShipService';
@@ -33,6 +37,7 @@ import {
 export type { CampaignProgress } from './campaignProgression';
 import { createCampaignGraphIndex, indexCampaignGraph, type CampaignGraphIndex } from './campaignGraph';
 import { DEFAULT_GAME_CAMPAIGN } from './levelConfig';
+import { getCampaignWeeklyBossPool } from './revamp/weekly/bossRotation.browser';
 import {
   WEEKLY_RUN_INITIAL_STAGE_COUNT,
   WEEKLY_RUN_MAX_PROOF_STAGE_COUNT,
@@ -47,10 +52,10 @@ import {
 import { preloadDecodedImageUrls } from './browserImagePreload';
 
 const SQUAD_CAMPAIGN_GRAPH = createCampaignGraphIndex(DEFAULT_GAME_CAMPAIGN);
-const WEEKLY_RUN_ELITE_BOSS_IDS = DEFAULT_GAME_CAMPAIGN.miniBosses
-  .map((entry) => entry.bossId);
-const WEEKLY_RUN_MAJOR_BOSS_IDS = DEFAULT_GAME_CAMPAIGN.sectors
-  .map((sector) => sector.majorBossId);
+const {
+  eliteBossIds: WEEKLY_RUN_ELITE_BOSS_IDS,
+  majorBossIds: WEEKLY_RUN_MAJOR_BOSS_IDS
+} = getCampaignWeeklyBossPool(DEFAULT_GAME_CAMPAIGN);
 
 const weeklyRunGraphForStoredStreaks = (
   weekKey: string,
@@ -228,6 +233,7 @@ export interface PermanentSquadState {
   unlockedPlayerShips: PlayerShipId[];
   bossArchive: BossArchiveProgress;
   campaignProgress: CampaignProgress;
+  revamp: RevampProgress;
   updatedAt: string;
 }
 
@@ -274,6 +280,8 @@ export interface RuntimeSquadLoadout {
   mainShipId: PlayerShipId;
   upgrades: MainShipUpgradeLevels;
   companions: RuntimeSquadCompanion[];
+  /** REVAMP(D): Campaign only; omitted from competitive and paid challenge runs. */
+  revamp?: RevampLoadout;
 }
 
 export interface SquadRunResult {
@@ -502,9 +510,8 @@ const createWeeklySquadStats = (): WeeklySquadStats => ({
 });
 
 /**
- * Free Weekly Run entries granted at each competition reset. Paid entries are
- * server-owned wallet credits and deliberately do not expand this local
- * presentation counter; the run-admission API reports that larger quota.
+ * Equal ranked Weekly Run entries granted at each competition reset.
+ * Purchased credits never expand the ranked quota.
  */
 export const WEEKLY_RUN_ATTEMPT_LIMIT = 5;
 
@@ -641,6 +648,7 @@ export const createPermanentSquadState = (profileId?: string | null): PermanentS
   unlockedPlayerShips: [],
   bossArchive: createBossArchiveProgress(),
   campaignProgress: createCampaignProgress(),
+  revamp: createRevampProgress(),
   updatedAt: nowIso()
 });
 
@@ -965,6 +973,7 @@ export const loadPermanentSquadState = (requestedProfileId?: string | null): Per
         unlockedEventIds,
         seenEventIds
       }),
+      revamp: sanitizeRevampProgress(parsed.revamp),
       campaignProgress: sanitizeCampaignProgress(parsed.campaignProgress, {
         legacyHighestMission: parsedStats?.highestWave
       })
@@ -1261,6 +1270,7 @@ const mergePermanentSquadProfiles = (
     ])),
     bossArchive,
     campaignProgress,
+    revamp: mergeRevampProgress(target.revamp, source.revamp),
     updatedAt: nowIso()
   };
 };

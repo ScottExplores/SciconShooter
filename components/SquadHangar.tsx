@@ -66,6 +66,7 @@ const TOKEN_EXCHANGE_SKU_IDS = [
 
 interface SquadHangarProps {
   state: WeeklySquadState;
+  campaignWingLevel?: number;
   mainShipId: PlayerShipId;
   mainShipName: string;
   shipUnlocks: PlayerShipUnlocks;
@@ -270,6 +271,7 @@ const CurrencyRail = ({
 
 const SquadHangar: React.FC<SquadHangarProps> = ({
   state,
+  campaignWingLevel,
   mainShipId,
   mainShipName,
   shipUnlocks,
@@ -417,58 +419,29 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
     const miniId = state.equipped[slot];
     const entry = miniId ? MINI_SHIP_BY_ID[miniId] : null;
     const active = activePosition === slot;
-    const purchaseBusy = walletPurchaseStatus.status !== 'idle'
-      && walletPurchaseStatus.status !== 'confirmed'
-      && walletPurchaseStatus.status !== 'error';
-    const rightPurchaseStatus = slot === 'right' && walletPurchaseStatus.skuId === 'right-support'
-      ? walletPurchaseStatus.status
-      : 'idle';
-    const rightPurchaseStage = rightPurchaseStatus === 'connecting'
-      ? 'CONNECTING'
-      : rightPurchaseStatus === 'authorizing'
-        ? 'AUTHORIZE'
-        : rightPurchaseStatus === 'confirming'
-          ? 'CONFIRM RSC'
-          : rightPurchaseStatus === 'settling'
-            ? 'VERIFYING'
-            : rightPurchaseStatus === 'error'
-              ? 'TRY AGAIN'
-              : 'LOCK';
-    const rightPurchaseBusy = slot === 'right'
-      && walletPurchaseStatus.skuId === 'right-support'
-      && purchaseBusy;
-    const rightSupportCostRaw = BigInt(RSC_PURCHASE_SKUS['right-support'].rscAmountRaw);
-    const hasRightSupportRsc = Boolean(
-      rscBalance && rscBalance.raw >= rightSupportCostRaw
-    );
-    const slotUnlockReady = !unlocked && (
-      founderSandbox
-      || (slot === 'right' ? hasRightSupportRsc : state.coins >= unlockCost)
-    );
-    const unlockLabel = slot === 'right' && !founderSandbox ? '10 RSC' : `${unlockCost} Tokens`;
+    // REVAMP(D): Formation roles and the utility unlock come from Campaign play.
+    const slotUnlockReady = !unlocked && founderSandbox;
+    const unlockLabel = slot === 'right' ? 'CLEAR MISSION 1' : 'FREE ON LAUNCH';
 
     return (
       <button
         type="button"
         onClick={() => choosePosition(slot)}
-        disabled={!unlocked && slot === 'right' && purchaseBusy}
+        disabled={!unlocked && !founderSandbox}
         data-onboarding-target={slot === 'left' ? 'hangar-wings' : undefined}
         data-upgrade-ready={slotUnlockReady ? 'true' : 'false'}
         className="sci-upgrade-ready-frame relative flex aspect-square w-[5.25rem] shrink-0 items-center justify-center disabled:cursor-not-allowed disabled:opacity-55 sm:w-[6.25rem]"
         aria-label={unlocked
-          ? `${slot} wing${entry ? `, ${entry.name}` : ', empty'}`
-          : rightPurchaseBusy
-            ? `${rightPurchaseStage.toLowerCase()} for right wing purchase`
-            : `Unlock ${slot} wing for ${unlockLabel}`}
+          ? `${slot === 'left' ? 'Offense' : 'Utility'} wing${entry ? `, ${entry.name}` : ', empty'}`
+          : `Unlock ${slot} wing: ${unlockLabel}`}
       >
         <span className={`absolute inset-[13%] ${active ? 'sci-hangar-active-light' : ''}`}>
           {active ? <AnimatedSelector size="ship" color="lime" className="absolute inset-0 h-full w-full scale-[1.8]" /> : <span className="absolute inset-0 rotate-45 border border-cyan-300/35 bg-cyan-300/5" />}
         </span>
         {!unlocked ? (
           <span className="relative z-10 flex min-h-14 min-w-16 flex-col items-center justify-center border border-slate-400/55 bg-slate-800/90 px-2 text-slate-200" aria-hidden="true">
-            <span className={`${rightPurchaseBusy ? 'text-[0.58rem]' : 'text-sm'} font-black`}>{slot === 'right' ? rightPurchaseStage : 'LOCK'}</span>
+            <span className="text-sm font-black">{slot === 'left' ? 'OFFENSE' : 'UTILITY'}</span>
             <span className="mt-0.5 flex items-center gap-1 whitespace-nowrap text-[0.5rem] font-black uppercase text-yellow-200">
-              {slot === 'right' && !founderSandbox ? <img src={ASSETS.REAL_RSC_ICON} alt="" className="h-4 w-4 object-contain" /> : null}
               {unlockLabel}
             </span>
           </span>
@@ -686,6 +659,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_46%,rgba(14,165,233,0.1),transparent_38%),linear-gradient(180deg,rgba(3,8,28,0.18),rgba(3,8,28,0.58))]" />
           <AnimatedTraceLabel>{activeName}</AnimatedTraceLabel>
 
+          <p className="text-center text-xs text-cyan-200">Left · Offense / Right · Utility · Level 5 evolves your special</p>
           <div className="relative mx-auto mt-1 h-[12.75rem] w-full max-w-[26rem] sm:h-[16rem]">
             <div
               className={`pointer-events-none absolute top-[-0.25rem] border-cyan-300/65 drop-shadow-[0_0_7px_rgba(34,211,238,0.55)] transition-all duration-300 ${SQUAD_CONNECTOR_POSITION[activePosition]}`}
@@ -939,6 +913,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
               <div className="min-w-0">
                 <h3 className="truncate text-sm font-black uppercase text-white">{activeMini.name}</h3>
                 <p className="mt-1 text-[0.65rem] text-slate-400">{activeMini.description}</p>
+                {campaignWingLevel !== undefined && !founderSandbox ? <p className="mt-2 text-[0.65rem] text-cyan-200">Campaign wing level {campaignWingLevel}/5 · Raise Support research in Home → Frontier log. Token upgrades below apply to legacy modes.</p> : null}
                 <div className="mt-2"><LevelPips level={activeMiniLevel} max={MINI_SHIP_MAX_LEVEL} /></div>
                 {founderSandbox ? (
                   <div className="mt-3 grid grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] gap-1.5">

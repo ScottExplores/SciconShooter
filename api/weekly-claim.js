@@ -239,6 +239,8 @@ const saveClaimedCompetition = async ({ competition, wallet, proposal, now }) =>
     'select=*',
     `week_key=eq.${encodeURIComponent(competition.week_key)}`,
     'status=eq.finalized',
+    // REVAMP(E): Eligibility fetches can cross the claim deadline.
+    `claim_deadline=gt.${encodeURIComponent(now)}`,
     `winner_run_id=eq.${encodeURIComponent(competition.winner_run_id)}`
   ];
   if (competition.updated_at && Number.isFinite(Date.parse(competition.updated_at))) {
@@ -357,6 +359,9 @@ const completeClaim = async ({ weekKey, proposalId, address, challengeId, signat
         409,
         'WEEKLY_CLAIM_WINNER_CHANGED'
       );
+    }
+    if (Date.parse(currentCompetition.claim_deadline) <= Date.now()) {
+      throw apiError('The champion claim window has closed.', 410, 'WEEKLY_CLAIM_WINDOW_CLOSED');
     }
     throw apiError(
       'The weekly claim commit could not be confirmed. Request a new challenge and retry.',

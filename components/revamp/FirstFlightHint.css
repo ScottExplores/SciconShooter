@@ -1,0 +1,4 @@
+.revamp-first-flight{position:absolute;z-index:24;left:18%;right:18%;top:27%;margin:0;padding:9px 12px;border:1px solid #67e8f955;border-radius:8px;background:#071426dd;color:#cffafe;text-align:center;font:600 12px/1.5 system-ui;pointer-events:none;animation:revamp-hint-in .4s ease-out}
+.revamp-save-notice{margin:8px 12px;color:#a5f3fc;font:500 12px/1.5 system-ui}
+@keyframes revamp-hint-in{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce){.revamp-first-flight{animation:none}}

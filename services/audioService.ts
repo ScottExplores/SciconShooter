@@ -1,3 +1,6 @@
+// REVAMP(A): Layered cues reuse the existing master/SFX buses and volume controls.
+import { FeelAudioSynth, PickupAudioLadder, type FeelAudioCue } from './revamp/feel/audioSynthesis';
+export { PLAYER_WEAPON_VOICE_PROFILES } from './revamp/feel/audioSynthesis';
 
 export const MATCH_MUSIC_TRACKS = [
   { id: 'combat', name: 'Research Velocity', url: '/audio/scicon-audio-v1/music-combat.wav' },
@@ -38,7 +41,8 @@ export const getSectorMatchMusicTrackId = (
   startingTrackId: MatchMusicTrackId = DEFAULT_MATCH_MUSIC_TRACK_ID
 ) => cycleMatchMusicTrackId(startingTrackId, Math.max(0, Math.floor(Number(sectorOrder) || 1) - 1));
 
-type GameSoundType = 'shoot' | 'boss_shoot' | 'boss_cannon' | 'boss_machinegun' | 'boss_alert' | 'impact' | 'explode' | 'coin' | 'powerup' | 'hit' | 'boss_roar' | 'electricity' | 'siren' | 'launch' | 'wave' | 'mission_victory' | 'gameover' | 'missile' | 'bomb';
+export type GameSoundType = 'shoot' | 'boss_shoot' | 'boss_cannon' | 'boss_machinegun' | 'boss_alert' | 'impact' | 'explode' | 'coin' | 'powerup' | 'hit' | 'boss_roar' | 'electricity' | 'siren' | 'launch' | 'wave' | 'mission_victory' | 'gameover' | 'missile' | 'bomb'
+  | 'explosion_small' | 'explosion_elite' | 'explosion_boss_part' | 'armored_hit' | 'phase_change';
 type SampleKey =
   | 'player-shot'
   | 'boss-shot'
@@ -95,18 +99,7 @@ const SAMPLE_PROFILES: Partial<Record<GameSoundType, SampleProfile>> = {
 
 const SILENCE_GAIN = 0.0001;
 const MAX_SFX_GAIN = 0.3;
-// Player fire is intentionally shorter than the other combat cues, but it
-// still needs enough level to survive small phone speakers and the shared SFX
-// bus. The old 0.045 peak was effectively inaudible beside impact cues.
-const PLAYER_SHOT_GAIN = 0.12;
 type PlayerWeaponVoiceFamily = 'research' | 'bio' | 'eth' | 'btc';
-// One short oscillator per existing fire event; no added timers, samples or
-// voices. RSC continues through its original triangle-chirp implementation.
-export const PLAYER_WEAPON_VOICE_PROFILES = {
-  bio: { waveform: 'triangle', startHz: 760, shoulderHz: 560, endHz: 240, duration: 0.068, attack: 0.0025, gain: 0.12 },
-  eth: { waveform: 'sine', startHz: 1320, shoulderHz: 1760, endHz: 620, duration: 0.055, attack: 0.0015, gain: 0.11 },
-  btc: { waveform: 'triangle', startHz: 510, shoulderHz: 330, endHz: 155, duration: 0.09, attack: 0.003, gain: 0.13 }
-} as const;
 const MAX_VOLUME_LEVEL = 5;
 /**
  * Background music. Menu is the home-screen bed, combat runs under normal
@@ -147,18 +140,43 @@ const MUSIC_VOLUME_STORAGE_KEY = 'scicon-shooter:music-volume:v1';
 const MATCH_MUSIC_STORAGE_KEY = 'scicon-shooter:match-music:v1';
 
 const SFX_VOLUME_STORAGE_KEY = 'scicon-shooter:sfx-volume:v1';
-const UI_SAMPLE_KEYS: ReadonlyArray<SampleKey> = [
-  'ui-click',
-  'ui-confirm',
-  'ui-back',
-  'ui-error',
-  'ui-open',
-  'ui-close'
-];
-const ALL_SAMPLE_KEYS = Object.keys(SAMPLE_URLS) as SampleKey[];
+// Legacy authored cues remain available; synthesized cues need no asset warmup.
+const ALL_SAMPLE_KEYS: SampleKey[] = ['boss-shot', 'boss-rotary-burst', 'mission-launch', 'mission-victory'];
+const FEEL_SOUND_TYPES = new Set<GameSoundType>([
+  'shoot', 'impact', 'hit', 'armored_hit', 'explosion_small', 'explosion_elite', 'explosion_boss_part',
+  'coin', 'powerup', 'boss_alert', 'siren', 'phase_change'
+]);
+
+const SOUND_MIN_SPACING_MS: Partial<Record<GameSoundType, number>> = {
+  shoot: 28,
+  boss_shoot: 95,
+  boss_cannon: 160,
+  boss_machinegun: 620,
+  boss_alert: 2_600,
+  impact: 58,
+  coin: 24,
+  explode: 72,
+  hit: 80,
+  powerup: 80,
+  missile: 70,
+  electricity: 40,
+  siren: 620,
+  boss_roar: 180,
+  mission_victory: 2_000,
+  bomb: 140,
+  explosion_small: 55,
+  explosion_elite: 90,
+  explosion_boss_part: 130,
+  armored_hit: 65,
+  phase_change: 350
+};
 
 class AudioService {
   private ctx: AudioContext | null = null;
+  private gestureUnlocked = false;
+  private feelSynth: FeelAudioSynth | null = null;
+  private pickupLadder = new PickupAudioLadder();
+  private musicDuckUntil = 0;
   private muted: boolean = false;
   private sfxVolumeLevel: number = MAX_VOLUME_LEVEL;
   private masterGain: GainNode | null = null;
@@ -169,7 +187,6 @@ class AudioService {
   private preparedSampleData: Partial<Record<SampleKey, ArrayBuffer>> = {};
   private samplePreparePromises: Partial<Record<SampleKey, Promise<void>>> = {};
   private sampleLoadPromises: Partial<Record<SampleKey, Promise<void>>> = {};
-  private pendingUiSound: UiSoundType | null = null;
   private pageActive: boolean = typeof document === 'undefined' ? true : !document.hidden;
   private lastSoundTime: Partial<Record<GameSoundType, number>> = {};
   private lastUiSoundTime: Partial<Record<UiSoundType, number>> = {};
@@ -185,42 +202,18 @@ class AudioService {
     return () => { this.playerWeaponVoiceScopes.delete(token); };
   }
 
-  private playHullPrimarySound(start: number, pitch: number) {
-    let family: PlayerWeaponVoiceFamily = 'research';
-    for (const scopedFamily of this.playerWeaponVoiceScopes.values()) family = scopedFamily;
-    if (family === 'research' || !this.ctx || !this.sfxGain) return false;
-    const voice = PLAYER_WEAPON_VOICE_PROFILES[family];
-    const oscillator = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-    const safePitch = Math.max(0.5, Math.min(1.5, pitch));
-    oscillator.type = voice.waveform;
-    oscillator.frequency.setValueAtTime(voice.startHz * safePitch, start);
-    oscillator.frequency.exponentialRampToValueAtTime(voice.shoulderHz * safePitch, start + 0.012);
-    oscillator.frequency.exponentialRampToValueAtTime(voice.endHz * safePitch, start + voice.duration);
-    gain.gain.setValueAtTime(SILENCE_GAIN, start);
-    gain.gain.linearRampToValueAtTime(voice.gain, start + voice.attack);
-    gain.gain.exponentialRampToValueAtTime(SILENCE_GAIN, start + voice.duration);
-    oscillator.connect(gain);
-    gain.connect(this.sfxGain);
-    oscillator.onended = () => this.activeProceduralNodes.delete(oscillator);
-    this.activeProceduralNodes.add(oscillator);
-    oscillator.start(start);
-    oscillator.stop(start + voice.duration + 0.006);
-    return true;
-  }
-
   constructor() {
     this.sfxVolumeLevel = this.readStoredVolumeLevel(SFX_VOLUME_STORAGE_KEY, MAX_VOLUME_LEVEL);
     this.matchMusicTrackId = this.readStoredMatchMusicTrack();
-
-    // Only tiny interface cues are fetched eagerly. Mission combat assets warm
-    // in the background and are never allowed to block gameplay launch.
-    void this.prepareSamples(UI_SAMPLE_KEYS);
 
     if (typeof document !== 'undefined') {
       document.addEventListener('visibilitychange', this.handleVisibilityChange);
     }
     if (typeof window !== 'undefined') {
+      // Capture runs before React/game handlers. Synthetic clicks cannot unlock audio.
+      window.addEventListener('pointerdown', this.handleAudioGesture, true);
+      window.addEventListener('touchend', this.handleAudioGesture, true);
+      window.addEventListener('keydown', this.handleAudioGesture, true);
       window.addEventListener('pagehide', this.handlePageHide);
       window.addEventListener('pageshow', this.handlePageShow);
       window.addEventListener('blur', this.handleBlur);
@@ -228,8 +221,26 @@ class AudioService {
     }
   }
 
+  private handleAudioGesture = (event: Event) => {
+    if (!event.isTrusted || this.gestureUnlocked) return;
+    this.gestureUnlocked = true;
+    window.removeEventListener('pointerdown', this.handleAudioGesture, true);
+    window.removeEventListener('touchend', this.handleAudioGesture, true);
+    window.removeEventListener('keydown', this.handleAudioGesture, true);
+    this.init();
+    // A menu can request its music before the user touches the page.
+    if (this.currentMusic && !this.musicPaused && !this.musicSource) {
+      void this.startMusicSource(this.currentMusic, 0.3, ++this.musicPlaybackRequest);
+    }
+  };
+
   private ensureAudioContext() {
     if (this.ctx) return this.ctx;
+    // Even browsers with permissive autoplay get no graph before real activation.
+    if (!this.gestureUnlocked) {
+      if (typeof navigator !== 'undefined' && navigator.userActivation?.hasBeenActive) this.gestureUnlocked = true;
+      else return null;
+    }
     try {
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioContextClass) return null;
@@ -238,8 +249,8 @@ class AudioService {
       this.sfxGain = this.ctx.createGain();
       this.sfxGain.connect(this.masterGain);
       this.masterGain.connect(this.ctx.destination);
+      this.feelSynth = new FeelAudioSynth(this.ctx, this.sfxGain);
       this.applyAudioLevels();
-      void this.preloadSamples(UI_SAMPLE_KEYS);
     } catch {
       console.error('WebAudio not supported');
     }
@@ -278,6 +289,7 @@ class AudioService {
   }
 
   private stopActiveProceduralNodes() {
+    this.feelSynth?.stop();
     this.activeProceduralNodes.forEach((node) => {
       try {
         node.stop();
@@ -379,16 +391,12 @@ class AudioService {
       return load;
     });
 
-    return Promise.all(loads).then(() => {
-      const pending = this.pendingUiSound;
-      if (!pending || !this.sampleBuffers[`ui-${pending}` as SampleKey]) return;
-      this.pendingUiSound = null;
-      this.playUiSound(pending);
-    });
+    return Promise.all(loads).then(() => undefined);
   }
 
   private playSample(type: GameSoundType, intensity: number, pitch: number) {
     if (!this.ctx || !this.sfxGain || this.sfxVolumeLevel === 0) return false;
+    if (this.activeSampleNodes.size >= 8) return true;
     const profile = SAMPLE_PROFILES[type];
     if (!profile) return false;
     const buffer = this.sampleBuffers[profile.sample];
@@ -418,38 +426,7 @@ class AudioService {
     gain.gain.exponentialRampToValueAtTime(SILENCE_GAIN, now + duration);
     source.connect(gain);
     gain.connect(this.sfxGain);
-    source.onended = () => this.activeSampleNodes.delete(source);
-    this.activeSampleNodes.add(source);
-    source.start(now);
-    source.stop(now + duration + 0.02);
-    return true;
-  }
-
-  private playDirectSample(
-    sample: SampleKey,
-    volume: number,
-    maxDuration: number,
-    pitch: number = 1
-  ) {
-    if (!this.ctx || !this.sfxGain || this.sfxVolumeLevel === 0) return false;
-    const buffer = this.sampleBuffers[sample];
-    if (!buffer || typeof this.ctx.createBufferSource !== 'function') return false;
-
-    const source = this.ctx.createBufferSource();
-    const gain = this.ctx.createGain();
-    const now = this.ctx.currentTime;
-    const playbackRate = Math.max(0.88, Math.min(1.12, pitch));
-    const duration = Math.max(0.035, Math.min(buffer.duration / playbackRate, maxDuration));
-    const fadeDuration = Math.min(0.08, duration * 0.3);
-
-    source.buffer = buffer;
-    source.playbackRate.setValueAtTime(playbackRate, now);
-    gain.gain.setValueAtTime(volume, now);
-    gain.gain.setValueAtTime(volume, now + Math.max(0.01, duration - fadeDuration));
-    gain.gain.exponentialRampToValueAtTime(SILENCE_GAIN, now + duration);
-    source.connect(gain);
-    gain.connect(this.sfxGain);
-    source.onended = () => this.activeSampleNodes.delete(source);
+    source.onended = () => { this.activeSampleNodes.delete(source); source.disconnect(); gain.disconnect(); };
     this.activeSampleNodes.add(source);
     source.start(now);
     source.stop(now + duration + 0.02);
@@ -462,26 +439,13 @@ class AudioService {
     } else if (this.pageActive && !this.muted && this.ctx.state === 'suspended') {
       void this.ctx.resume().catch(() => undefined);
     }
-    if (!this.ctx || this.muted || !this.pageActive || this.sfxVolumeLevel === 0) return;
+    if (!this.ctx || this.ctx.state !== 'running' || this.muted || !this.pageActive || this.sfxVolumeLevel === 0) return;
 
     const nowMs = performance.now();
     const cooldownMs = type === 'click' ? 45 : 70;
-    if (nowMs - (this.lastUiSoundTime[type] || 0) < cooldownMs) return;
-    const sample = `ui-${type}` as SampleKey;
-    if (!this.sampleBuffers[sample]) {
-      this.pendingUiSound = type;
-      void this.preloadSamples([sample]);
-      return;
-    }
-
+    if (nowMs - (this.lastUiSoundTime[type] ?? -Infinity) < cooldownMs) return;
     this.lastUiSoundTime[type] = nowMs;
-    const volume = type === 'confirm'
-      ? 0.16
-      : type === 'error'
-        ? 0.14
-        : 0.105;
-    const maxDuration = type === 'open' || type === 'close' ? 0.42 : 0.28;
-    this.playDirectSample(sample, volume, maxDuration);
+    this.feelSynth?.play(`ui_${type}`);
   }
 
   private setPageActive(active: boolean) {
@@ -511,7 +475,23 @@ class AudioService {
     // A track may have been created while the master bus was muted. Restore
     // its dedicated bus too so unmuting from Pause or More takes effect
     // immediately instead of waiting for a track or slider change.
-    this.setGainVolume(this.musicGain, this.pageActive ? this.musicTargetGain : 0);
+    this.applyMusicDuckLevel();
+  }
+
+  private applyMusicDuckLevel() {
+    if (!this.ctx || !this.musicGain) return;
+    const now = this.ctx.currentTime;
+    const target = this.pageActive ? this.musicTargetGain : 0;
+    const ducked = now < this.musicDuckUntil;
+    this.musicGain.gain.cancelScheduledValues(now);
+    this.musicGain.gain.setTargetAtTime(target * (ducked ? 0.32 : 1), now, ducked ? 0.035 : 0.08);
+    if (ducked) this.musicGain.gain.setTargetAtTime(target, this.musicDuckUntil, 0.24);
+  }
+
+  private duckMusic(seconds: number) {
+    if (!this.ctx) return;
+    this.musicDuckUntil = Math.max(this.musicDuckUntil, this.ctx.currentTime + seconds);
+    this.applyMusicDuckLevel();
   }
 
   private setGainVolume(gainNode: GainNode | null, volume: number) {
@@ -522,7 +502,6 @@ class AudioService {
 
   public init() {
     this.ensureAudioContext();
-    void this.preloadSamples(UI_SAMPLE_KEYS);
     if (this.pageActive && !this.muted && this.ctx?.state === 'suspended') {
       void this.ctx.resume().catch(() => undefined);
     }
@@ -580,7 +559,7 @@ class AudioService {
   }
 
   public playDialogBlip() {
-    if (!this.ctx || this.muted || !this.pageActive || this.sfxVolumeLevel === 0) return;
+    if (!this.ctx || this.ctx.state !== 'running' || this.muted || !this.pageActive || this.sfxVolumeLevel === 0 || this.activeProceduralNodes.size >= 12) return;
 
     const t = this.ctx.currentTime;
     const osc = this.ctx.createOscillator();
@@ -593,79 +572,24 @@ class AudioService {
 
     osc.connect(gain);
     gain.connect(this.sfxGain!);
+    this.activeProceduralNodes.add(osc);
+    osc.onended = () => { this.activeProceduralNodes.delete(osc); osc.disconnect(); gain.disconnect(); };
     osc.start(t);
     osc.stop(t + 0.045);
-  }
-
-  private playBossWarningSiren(startTime: number) {
-    if (!this.ctx || !this.sfxGain || this.sfxVolumeLevel === 0) return;
-
-    const bus = this.ctx.createGain();
-    const lowAlarm = this.ctx.createOscillator();
-    const highAlarm = this.ctx.createOscillator();
-    const stopTime = startTime + 0.72;
-
-    lowAlarm.type = 'sawtooth';
-    lowAlarm.frequency.setValueAtTime(172, startTime);
-    lowAlarm.frequency.linearRampToValueAtTime(236, startTime + 0.22);
-    lowAlarm.frequency.linearRampToValueAtTime(172, startTime + 0.36);
-    lowAlarm.frequency.linearRampToValueAtTime(248, startTime + 0.58);
-    lowAlarm.frequency.linearRampToValueAtTime(180, stopTime);
-
-    highAlarm.type = 'square';
-    highAlarm.detune.setValueAtTime(-9, startTime);
-    highAlarm.frequency.setValueAtTime(690, startTime);
-    highAlarm.frequency.linearRampToValueAtTime(510, startTime + 0.24);
-    highAlarm.frequency.linearRampToValueAtTime(760, startTime + 0.48);
-    highAlarm.frequency.linearRampToValueAtTime(540, stopTime);
-
-    bus.gain.setValueAtTime(SILENCE_GAIN, startTime);
-    bus.gain.linearRampToValueAtTime(0.16, startTime + 0.035);
-    bus.gain.exponentialRampToValueAtTime(0.045, startTime + 0.29);
-    bus.gain.linearRampToValueAtTime(0.15, startTime + 0.38);
-    bus.gain.exponentialRampToValueAtTime(SILENCE_GAIN, stopTime);
-
-    lowAlarm.connect(bus);
-    highAlarm.connect(bus);
-    bus.connect(this.sfxGain);
-    for (const oscillator of [lowAlarm, highAlarm]) {
-      oscillator.onended = () => this.activeProceduralNodes.delete(oscillator);
-      this.activeProceduralNodes.add(oscillator);
-      oscillator.start(startTime);
-      oscillator.stop(stopTime + 0.01);
-    }
   }
 
   // Procedural Sound Generation
   public playSound(
     type: GameSoundType,
     intensity: number = 1,
-    options: { pitchJitter?: number; pitchOffset?: number } = {}
+    options: { pitchJitter?: number; pitchOffset?: number; pickupCombo?: number } = {}
   ) {
     if (!this.ctx) this.init();
-    if (!this.ctx || this.muted || !this.pageActive || this.sfxVolumeLevel === 0) return;
+    if (!this.ctx || this.ctx.state !== 'running' || this.muted || !this.pageActive || this.sfxVolumeLevel === 0) return;
 
-    const minSpacingMs: Partial<Record<GameSoundType, number>> = {
-      shoot: 28,
-      boss_shoot: 95,
-      boss_cannon: 160,
-      boss_machinegun: 620,
-      boss_alert: 2_600,
-      impact: 58,
-      coin: 24,
-      explode: 72,
-      hit: 80,
-      powerup: 80,
-      missile: 70,
-      electricity: 40,
-      siren: 620,
-      boss_roar: 180,
-      mission_victory: 2_000,
-      bomb: 140
-    };
     const nowMs = performance.now();
-    const spacing = minSpacingMs[type] || 0;
-    const lastTime = this.lastSoundTime[type] || 0;
+    const spacing = SOUND_MIN_SPACING_MS[type] || 0;
+    const lastTime = this.lastSoundTime[type] ?? -Infinity;
     if (spacing > 0 && nowMs - lastTime < spacing) return;
     this.lastSoundTime[type] = nowMs;
 
@@ -673,22 +597,28 @@ class AudioService {
     const pitchJitter = options.pitchJitter ?? 0.12;
     const pitchOffset = options.pitchOffset ?? 0;
     const pitch = (1 - (pitchJitter / 2)) + (Math.random() * pitchJitter) + pitchOffset;
-    const comboLift = Math.min(Math.max(intensity - 1, 0), 8) * 0.07;
+    // REVAMP(A): Core feedback is synthesized consistently, even while samples load.
+    const feelCue: FeelAudioCue | null = type === 'explode'
+      ? (intensity >= 2 ? 'explosion_boss_part' : intensity >= 1.35 ? 'explosion_elite' : 'explosion_small')
+      : FEEL_SOUND_TYPES.has(type) ? type as FeelAudioCue : null;
+    if (feelCue) {
+      let family: PlayerWeaponVoiceFamily = 'research';
+      for (const scopedFamily of this.playerWeaponVoiceScopes.values()) family = scopedFamily;
+      if (type === 'boss_alert' || type === 'siren') this.duckMusic(1.05);
+      this.feelSynth?.play(feelCue, {
+        pitch: type === 'coin' ? 1 : pitch,
+        intensity,
+        family,
+        pickupCombo: type === 'coin' ? this.pickupLadder.next(nowMs, options.pickupCombo) : undefined
+      });
+      return;
+    }
     if (this.playSample(type, intensity, pitch)) return;
-    if (type === 'shoot' && this.playHullPrimarySound(t, pitch)) return;
-    if (type === 'boss_alert') {
-      this.playBossWarningSiren(t);
-      return;
-    }
-    if (type === 'siren') {
-      this.playBossWarningSiren(t);
-      return;
-    }
-
+    if (this.activeProceduralNodes.size >= 12) return;
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
 
-    osc.onended = () => this.activeProceduralNodes.delete(osc);
+    osc.onended = () => { this.activeProceduralNodes.delete(osc); osc.disconnect(); gain.disconnect(); };
     this.activeProceduralNodes.add(osc);
 
     osc.connect(gain);
@@ -708,16 +638,6 @@ class AudioService {
         
         osc.start(t);
         osc.stop(t + 0.5);
-        break;
-
-      case 'shoot':
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(520 * pitch, t);
-        osc.frequency.exponentialRampToValueAtTime(170 * pitch, t + 0.075);
-        gain.gain.setValueAtTime(PLAYER_SHOT_GAIN, t);
-        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.075);
-        osc.start(t);
-        osc.stop(t + 0.08);
         break;
 
       case 'boss_shoot':
@@ -752,16 +672,6 @@ class AudioService {
         gain.gain.exponentialRampToValueAtTime(0.01, t + 0.075);
         osc.start(t);
         osc.stop(t + 0.08);
-        break;
-
-      case 'impact':
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(260 * pitch, t);
-        osc.frequency.exponentialRampToValueAtTime(70 * pitch, t + 0.055);
-        gain.gain.setValueAtTime(0.06, t);
-        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.06);
-        osc.start(t);
-        osc.stop(t + 0.065);
         break;
 
       case 'missile':
@@ -817,37 +727,6 @@ class AudioService {
         osc.stop(t + 0.75);
         break;
 
-      case 'explode':
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(100 * pitch, t);
-        osc.frequency.exponentialRampToValueAtTime(0.01, t + 0.3);
-        gain.gain.setValueAtTime(0.3, t);
-        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
-        osc.start(t);
-        osc.stop(t + 0.3);
-        break;
-
-      case 'coin':
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(1200 * (1 + comboLift) * pitch, t);
-        osc.frequency.setValueAtTime(1600 * (1 + comboLift) * pitch, t + 0.05);
-        gain.gain.setValueAtTime(0.1 + Math.min(comboLift, 0.22), t);
-        gain.gain.linearRampToValueAtTime(0, t + 0.1);
-        osc.start(t);
-        osc.stop(t + 0.1);
-        break;
-      
-      case 'powerup':
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(300 * pitch, t);
-        osc.frequency.linearRampToValueAtTime(600 * pitch, t + 0.2);
-        osc.frequency.linearRampToValueAtTime(1200 * pitch, t + 0.4);
-        gain.gain.setValueAtTime(0.2, t);
-        gain.gain.linearRampToValueAtTime(0, t + 0.4);
-        osc.start(t);
-        osc.stop(t + 0.4);
-        break;
-
       case 'boss_roar':
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(50, t);
@@ -856,16 +735,6 @@ class AudioService {
         gain.gain.exponentialRampToValueAtTime(0.01, t + 1.5);
         osc.start(t);
         osc.stop(t + 1.5);
-        break;
-        
-       case 'hit':
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(150 * pitch, t);
-        osc.frequency.exponentialRampToValueAtTime(0.01, t + 0.1);
-        gain.gain.setValueAtTime(0.2, t);
-        gain.gain.linearRampToValueAtTime(0, t + 0.1);
-        osc.start(t);
-        osc.stop(t + 0.1);
         break;
     }
   }
@@ -998,7 +867,9 @@ class AudioService {
 
     gain.gain.cancelScheduledValues(startAt);
     gain.gain.setValueAtTime(0, startAt);
-    gain.gain.linearRampToValueAtTime(this.musicTargetGain, startAt + fadeSeconds);
+    const ducked = startAt < this.musicDuckUntil;
+    gain.gain.linearRampToValueAtTime(this.musicTargetGain * (ducked ? 0.32 : 1), startAt + fadeSeconds);
+    if (ducked) gain.gain.setTargetAtTime(this.musicTargetGain, Math.max(startAt + fadeSeconds, this.musicDuckUntil), 0.24);
   }
 
   /**
@@ -1050,10 +921,7 @@ class AudioService {
     this.ensureMusicVolumeLoaded();
     this.musicVolumeLevel = Math.max(0, Math.min(MAX_VOLUME_LEVEL, Math.round(level)));
     this.storeVolumeLevel(MUSIC_VOLUME_STORAGE_KEY, this.musicVolumeLevel);
-    const ctx = this.ctx;
-    if (this.musicGain && ctx) {
-      this.musicGain.gain.setTargetAtTime(this.musicTargetGain, ctx.currentTime, 0.05);
-    }
+    this.applyMusicDuckLevel();
     return this.musicVolumeLevel;
   }
 

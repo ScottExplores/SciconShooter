@@ -1,5 +1,7 @@
 import { Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { createSoftRadialLight, hideSoftRadialLight, showSoftRadialLight, type SoftRadialLight } from './SoftRadialLight';
+// REVAMP(A): Shared tuning keeps the game and FX lab on the same bounded pool.
+import { EXPLOSION_TIERS, impactSparkVelocity, scoreSparkPosition, type ExplosionTier } from '../revamp/feel/FeelEffects';
 
 export type ArcadeEffectKind =
   | 'burst'
@@ -11,7 +13,9 @@ export type ArcadeEffectKind =
   | 'debris'
   | 'sprite-explosion'
   | 'boss-sprite-explosion'
-  | 'sprite-debris';
+  | 'sprite-debris'
+  | 'score-spark'
+  | 'armor-ting';
 
 type PooledEffect = {
   root: Container;
@@ -26,6 +30,11 @@ type PooledEffect = {
   velocityY: number;
   spin: number;
   active: boolean;
+  targetX: number;
+  targetY: number;
+  startX: number;
+  startY: number;
+  bend: number;
 };
 
 type PooledLight = SoftRadialLight & {
@@ -49,6 +58,7 @@ export class ArcadeEffectPool {
   private bossExplosionTextures: Texture[] = [];
   private maxEffects = 150;
   private maxLights = MAX_POOLED_LIGHTS;
+  private readonly sparkPosition = { x: 0, y: 0 };
 
   constructor(private readonly layer: Container) {
     for (let index = 0; index < MAX_POOLED_LIGHTS; index++) {
@@ -74,13 +84,28 @@ export class ArcadeEffectPool {
     this.bossExplosionTextures = textures.filter((texture) => texture !== Texture.EMPTY);
   }
 
-  setQuality(performanceMode: boolean, mobileProfile: boolean) {
+  /** Lightweight counters for FX lab/performance assertions; no entity exposure. */
+  getStats() {
+    return {
+      active: this.effects.filter((effect) => effect.active).length,
+      allocated: this.effects.length,
+      cap: this.maxEffects,
+      lights: this.lights.filter((light) => light.active).length,
+      lightCap: this.maxLights
+    };
+  }
+
+  setQuality(performanceMode: boolean, mobileProfile: boolean, qualityScale = 1) {
     this.maxEffects = performanceMode
       ? (mobileProfile ? 54 : 84)
       : (mobileProfile ? 104 : 170);
     this.maxLights = performanceMode
       ? (mobileProfile ? 3 : 6)
       : (mobileProfile ? 5 : MAX_POOLED_LIGHTS);
+    // REVAMP(A): Sustained frame pressure reduces both allocation and live work.
+    const scale = Number.isFinite(qualityScale) ? clamp(qualityScale, 0.4, 1) : 1;
+    this.maxEffects = Math.max(16, Math.floor(this.maxEffects * scale));
+    this.maxLights = Math.max(1, Math.floor(this.maxLights * scale));
 
     // Adaptive quality can step down after a busy scene has already expanded
     // the pool. Retire the overflow immediately so the new cap is real rather
@@ -134,7 +159,12 @@ export class ArcadeEffectPool {
         velocityX: 0,
         velocityY: 0,
         spin: 0,
-        active: false
+        active: false,
+        targetX: 0,
+        targetY: 0,
+        startX: 0,
+        startY: 0,
+        bend: 0
       };
       this.effects.push(effect);
       this.layer.addChild(root);
@@ -187,15 +217,69 @@ export class ArcadeEffectPool {
     const effect = this.acquire(kind);
     effect.kind = kind;
     effect.age = 0;
-    effect.duration = duration;
-    effect.size = size;
+    effect.duration = Math.max(1, duration);
+    effect.size = Math.max(0.5, size);
     effect.color = color;
     effect.velocityX = kind === 'spark' || kind === 'debris' ? (Math.random() - 0.5) * 2.5 : 0;
     effect.velocityY = kind === 'smoke' ? -0.24 : kind === 'spark' || kind === 'debris' ? (Math.random() - 0.5) * 2.5 : 0;
     effect.spin = (Math.random() - 0.5) * (kind === 'debris' ? 0.16 : 0.08);
+    effect.targetX = effect.startX = x;
+    effect.targetY = effect.startY = y;
+    effect.bend = 0;
     effect.root.position.set(x, y);
     this.drawEffect(effect, 0);
     return effect;
+  }
+
+  /** Three readable sizes, with the same authored sprite art under pooled VFX. */
+  spawnTieredExplosion(x: number, y: number, size: number, tier: ExplosionTier, color = '#67e8f9') {
+    const tuning = EXPLOSION_TIERS[tier];
+    const radius = clamp(size, 14, tier === 'boss-part' ? 170 : 110);
+    const density = this.maxEffects <= 84 ? 0.55 : 1;
+    this.spawnLightPulse(x, y, Math.min(230, radius * 1.4), color, tuning.glow, tuning.duration);
+    this.spawnBossSpriteExplosion(x, y, radius, tuning.duration);
+    this.spawn('shockwave', x, y, radius * tuning.ring, color, tuning.duration + 100);
+    this.spawn('burst', x, y, radius * 0.42, color, Math.min(260, tuning.duration));
+    const sparkCount = Math.max(2, Math.round(tuning.sparks * density));
+    for (let index = 0; index < sparkCount; index++) {
+      const angle = (index + Math.random() * 0.55) * Math.PI * 2 / sparkCount;
+      const speed = radius * (0.025 + Math.random() * 0.025);
+      const spark = this.spawn('spark', x, y, Math.max(1.7, radius * 0.035), index % 2 ? '#fff7dc' : color, 200 + Math.random() * 230);
+      spark.velocityX = Math.cos(angle) * speed;
+      spark.velocityY = Math.sin(angle) * speed;
+      spark.root.rotation = angle + Math.PI / 2;
+      spark.spin = 0;
+    }
+    const debrisCount = Math.max(1, Math.round(tuning.debris * density));
+    for (let index = 0; index < debrisCount; index++) {
+      const angle = index * Math.PI * 2 / debrisCount + Math.random() * 0.65;
+      const debris = this.spawn('debris', x, y, Math.max(2.8, radius * 0.055), index % 2 ? '#64748b' : '#94a3b8', 520 + Math.random() * 250);
+      debris.velocityX = Math.cos(angle) * radius * 0.027;
+      debris.velocityY = Math.sin(angle) * radius * 0.025 - 0.8;
+      debris.spin = (index % 2 ? -1 : 1) * (0.06 + Math.random() * 0.09);
+    }
+    if (tier !== 'small') this.spawn('smoke', x, y, radius * 0.42, '#475569', 650);
+  }
+
+  /** Cosmetic bullet-cancel reward; currency and hitboxes stay in simulation. */
+  spawnScoreSpark(x: number, y: number, targetX: number, targetY: number) {
+    const spark = this.spawn('score-spark', x, y, 3.2, '#fef08a', 420 + Math.random() * 220);
+    spark.targetX = targetX;
+    spark.targetY = targetY;
+    spark.bend = (Math.random() - 0.5) * 100;
+    spark.spin = 0.08;
+  }
+
+  spawnMuzzle(x: number, y: number, size = 12, vx = 0, vy = -1) {
+    const muzzle = this.spawn('muzzle', x, y, size, '#67e8f9', 65);
+    muzzle.root.rotation = Math.atan2(vy, vx) + Math.PI / 2;
+    muzzle.spin = 0;
+  }
+
+  spawnPickupRing(x: number, y: number, power: boolean) {
+    const color = power ? '#67e8f9' : '#fde68a';
+    this.spawn('ring', x, y, power ? 48 : 20, color, power ? 360 : 190);
+    this.spawnLightPulse(x, y, power ? 70 : 30, color, power ? 0.26 : 0.12, power ? 220 : 110);
   }
 
   spawnExplosion(x: number, y: number, size: number, color = '#67e8f9', intensity = 1) {
@@ -234,14 +318,7 @@ export class ArcadeEffectPool {
   }
 
   spawnEnemyExplosion(x: number, y: number, size: number, color = '#67e8f9') {
-    this.spawnLightPulse(x, y, Math.min(140, size * 1.15), color, 0.26, 160);
-    this.spawnBossSpriteExplosion(x, y, size, 260);
-    this.spawn('ring', x, y, size * 0.62, color, 220);
-    for (let index = 0; index < 2; index++) {
-      const spark = this.spawn('spark', x, y, Math.max(2, size * 0.06), index === 0 ? '#ffffff' : color, 180 + index * 55);
-      spark.velocityX = (index === 0 ? -1 : 1) * size * 0.018;
-      spark.velocityY = -size * (0.012 + index * 0.004);
-    }
+    this.spawnTieredExplosion(x, y, size, 'small', color);
   }
 
   spawnDetachedSprite(texture: Texture, x: number, y: number, width: number, height: number, direction: number) {
@@ -262,16 +339,20 @@ export class ArcadeEffectPool {
   }
 
   /** A short, local pixel hit; regular fire must not fill the arena with rings. */
-  spawnProjectileHit(x: number, y: number, size: number, color: string, vx: number, vy: number, reducedEffects: boolean) {
-    this.spawnBossSpriteExplosion(x, y, Math.min(26, size), reducedEffects ? 100 : 135);
-    const speed = Math.max(1, Math.hypot(vx, vy));
-    const normalX = -vy / speed;
-    const normalY = vx / speed;
-    for (let index = 0; index < (reducedEffects ? 1 : 2); index++) {
-      const side = index === 0 ? -1 : 1;
-      const spark = this.spawn('spark', x, y, 1.8, index === 0 ? '#fff7dc' : color, 110 + index * 25);
-      spark.velocityX = normalX * side * 1.3 - vx / speed * 0.35;
-      spark.velocityY = normalY * side * 1.3 - vy / speed * 0.35;
+  spawnProjectileHit(x: number, y: number, size: number, color: string, vx: number, vy: number, reducedEffects: boolean, armored = false) {
+    if (armored) {
+      const ting = this.spawn('armor-ting', x, y, Math.min(11, size * 0.5), '#fef08a', 120);
+      ting.spin = 0;
+      ting.root.rotation = Math.atan2(vy, vx) + Math.PI / 2;
+    } else {
+      this.spawnBossSpriteExplosion(x, y, Math.min(26, size), reducedEffects ? 100 : 135);
+    }
+    for (let index = 0; index < (reducedEffects ? 2 : armored ? 4 : 3); index++) {
+      const velocity = impactSparkVelocity(vx, vy, index, armored);
+      const spark = this.spawn('spark', x, y, armored ? 1.5 : 1.8, index === 0 ? '#ffffff' : armored ? '#fef08a' : color, 110 + index * 22);
+      spark.velocityX = velocity.x;
+      spark.velocityY = velocity.y;
+      spark.root.rotation = Math.atan2(velocity.y, velocity.x) + Math.PI / 2;
       spark.spin = 0;
     }
   }
@@ -316,6 +397,8 @@ export class ArcadeEffectPool {
   }
 
   private drawEffect(effect: PooledEffect, progress: number) {
+    // Fixed particle geometry is uploaded once; animation only changes transforms.
+    if (progress > 0 && (effect.kind === 'spark' || effect.kind === 'debris' || effect.kind === 'score-spark' || effect.kind === 'armor-ting')) return;
     const graphic = effect.graphic;
     graphic.clear();
     effect.sprite.visible = false;
@@ -369,6 +452,18 @@ export class ArcadeEffectPool {
       return;
     }
 
+    if (effect.kind === 'score-spark' || effect.kind === 'armor-ting') {
+      const size = effect.size;
+      graphic.moveTo(0, -size * 1.8).lineTo(size * 0.3, -size * 0.3)
+        .lineTo(size, 0).lineTo(size * 0.3, size * 0.3)
+        .lineTo(0, size * 1.8).lineTo(-size * 0.3, size * 0.3)
+        .lineTo(-size, 0).lineTo(-size * 0.3, -size * 0.3).closePath()
+        .fill({ color: effect.color, alpha: 0.92 });
+      graphic.circle(0, 0, size * 0.25).fill({ color: '#ffffff', alpha: 1 });
+      if (effect.kind === 'armor-ting') graphic.circle(0, 0, size * 0.7).stroke({ color: '#dbeafe', alpha: 0.75, width: 1 });
+      return;
+    }
+
     if (effect.kind === 'debris') {
       graphic.moveTo(0, -effect.size).lineTo(effect.size * 0.7, effect.size * 0.65)
         .lineTo(-effect.size * 0.55, effect.size * 0.42).closePath()
@@ -397,17 +492,25 @@ export class ArcadeEffectPool {
   }
 
   update(deltaMs: number) {
+    deltaMs = Number.isFinite(deltaMs) ? clamp(deltaMs, 0, 100) : 0;
     for (const effect of this.effects) {
       if (!effect.active) continue;
       effect.age += deltaMs;
       const progress = clamp(effect.age / effect.duration, 0, 1);
-      effect.root.x += effect.velocityX * (deltaMs / 16.667);
-      effect.root.y += effect.velocityY * (deltaMs / 16.667);
-      if (effect.kind === 'sprite-debris') {
+      if (effect.kind === 'score-spark') {
+        const position = scoreSparkPosition(progress, effect.startX, effect.startY, effect.targetX, effect.targetY, effect.bend, this.sparkPosition);
+        effect.root.position.set(position.x, position.y);
+      } else {
+        effect.root.x += effect.velocityX * (deltaMs / 16.667);
+        effect.root.y += effect.velocityY * (deltaMs / 16.667);
+      }
+      if (effect.kind === 'sprite-debris' || effect.kind === 'debris') {
         effect.velocityY += 0.12 * (deltaMs / 16.667);
       }
       effect.root.rotation += effect.spin * (deltaMs / 16.667);
-      effect.root.alpha = effect.kind === 'sprite-explosion' || effect.kind === 'boss-sprite-explosion'
+      effect.root.alpha = effect.kind === 'score-spark'
+        ? Math.min(1, (1 - progress) * 6)
+        : effect.kind === 'sprite-explosion' || effect.kind === 'boss-sprite-explosion'
         ? (progress < 0.74 ? 1 : (1 - progress) / 0.26)
         : (1 - progress) * (effect.kind === 'smoke' ? 0.72 : 1);
       this.drawEffect(effect, progress);
@@ -431,10 +534,12 @@ export class ArcadeEffectPool {
   }
 
   destroy() {
+    for (const effect of this.effects) effect.root.destroy({ children: true });
     this.effects.length = 0;
     for (let index = 0; index < this.lights.length; index++) {
       this.lights[index].active = false;
       hideSoftRadialLight(this.lights[index]);
+      this.lights[index].root.destroy({ children: true });
     }
     this.lights.length = 0;
   }

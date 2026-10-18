@@ -10,6 +10,9 @@ import {
   Texture
 } from 'pixi.js';
 import { ASSETS, GAME_CONFIG } from '../../constants';
+// REVAMP(B): Procedural warnings preserve the existing sprite artwork.
+import { drawRevampEnemyTelegraphs } from '../revamp/enemies/EnemyTelegraphRenderer';
+import { fitCombatCallout } from '../revamp/enemies/CombatCalloutLayout';
 import { EntityType, PowerupType } from '../../types';
 import { BOSS_CANNON_SCALE, CROWNCLAW_ARM_SCALE, Entity, GameEngine, VisualEffect } from '../gameLogic';
 import type { BossComponentState, BossPartId, GameRuntimeState, StageTakeoffPresentation } from '../gameLogic';
@@ -40,12 +43,20 @@ import {
 import { getPlayerPrimaryPulseLayout } from '../playerPrimaryBurst';
 import { RESEARCH_IMPACT_ALL_FRAME_URLS, SHIP_ABILITY_FRAME_URLS } from '../shipAbilityService';
 import { MINI_SHIP_CATALOG } from '../squadProgression';
+// REVAMP(D): Earned cosmetics add subtle accents without modifying Scott's textures.
+import { drawRevampShipCosmetic } from '../revamp/wings/wingCosmetics';
 import {
   runRequiredGameplayAssetPreloadQueue
 } from '../gameplayAssetPreloadBudget';
 import { ArcadeEffectPool } from './ArcadeEffectPool';
 import { CombatImpactPresentation } from './CombatImpactPresentation';
+// REVAMP(A): Pooled feel presentation; shared renderer only delegates hooks.
+import { FeelPresentation, drawReadableProjectile } from '../revamp/feel/FeelPresentation';
+import { AdaptiveFeelQuality } from '../revamp/feel/AdaptiveFeelQuality';
+import { getFeelSettings } from '../revamp/feel/FeelSettings';
 import { BossHealthPresentation } from './BossHealthPresentation';
+// REVAMP(C): State-driven boss cues keep warnings visible independently of optional VFX.
+import { BossPolishPresentation } from '../revamp/bosses/BossPolishPresentation';
 import { sampleBossLowHealthDamageCue } from './BossDamagePresentation';
 import {
   PIXI_ENVIRONMENT_TEXTURE_URLS,
@@ -1386,6 +1397,8 @@ export class PixiGameRenderer {
   private readonly camera = createLayer();
   private readonly world = createLayer();
   private readonly cornerAmbushShade = new Graphics();
+  // REVAMP(B): One reused world-space layer for regular-enemy telegraphs.
+  private readonly revampEnemyTelegraphs = new Graphics();
   private readonly cornerAmbushGuide = new Graphics();
   private readonly previewDebugOverlay = new Graphics();
   private readonly views = new Map<string, EntityView>();
@@ -1419,6 +1432,9 @@ export class PixiGameRenderer {
     () => createSoftRadialLight()
   );
   private readonly effectPool = new ArcadeEffectPool(this.layers.effects);
+  // REVAMP(A): All transient effects share the existing bounded pool.
+  private readonly feelPresentation = new FeelPresentation(this.effectPool, this.layers.overlay);
+  private readonly feelQuality = new AdaptiveFeelQuality();
   private readonly maxShotAura = new Sprite(Texture.WHITE);
   private readonly stageLaunchStreak = new Graphics();
   private readonly playerThrusterRoot = new Container();
@@ -1436,6 +1452,8 @@ export class PixiGameRenderer {
   private readonly wallHealthLabel = createText(9, '#fef08a');
   private readonly bossHealthRoot = new Container();
   private readonly bossHealthPresentation = new BossHealthPresentation();
+  // REVAMP(C): Reusable procedural cues; Scott's rig and health frame remain intact.
+  private readonly bossPolishPresentation = new BossPolishPresentation();
   private readonly combatImpactPresentation = new CombatImpactPresentation();
   private readonly combatDestructionPresentation = new CombatImpactPresentation();
   private readonly bossHealthFrame = new Sprite(Texture.WHITE);
@@ -1875,6 +1893,8 @@ export class PixiGameRenderer {
       this.layers.effects,
       this.layers.foreground
     );
+    // REVAMP(C): World warnings follow the camera; name cards use display coordinates.
+    this.bossPolishPresentation.attach(this.layers.foreground, this.app.stage);
 
     this.cornerAmbushShade.eventMode = 'none';
     this.cornerAmbushShade.visible = false;
@@ -1961,6 +1981,9 @@ export class PixiGameRenderer {
       this.bossDeathText
     );
     this.layers.foreground.addChild(this.bossDeathRoot);
+    // REVAMP(B): Telegraphs follow the same camera/world as collision geometry.
+    this.revampEnemyTelegraphs.eventMode = 'none';
+    this.layers.foreground.addChild(this.revampEnemyTelegraphs);
 
     this.warningRoot.eventMode = 'none';
     this.warningRoot.visible = false;
@@ -3698,6 +3721,9 @@ export class PixiGameRenderer {
   private drawPlayerRig(view: EntityView, entity: Entity, engine: GameEngine) {
     view.trail.clear();
     view.aura.clear();
+    // REVAMP(D): Presentation-only, reuses pooled graphics and respects reduced motion.
+    drawRevampShipCosmetic(view.trail, view.aura, engine.getRevampCosmeticId(),
+      entity.width, entity.height, engine.frameCount, this.reducedMotion);
 
     const shielded = engine.activePowerups.has(PowerupType.SHIELD) || engine.invincibleTimer > 60;
     const beam = engine.activePowerups.has(PowerupType.RESEARCH_BEAM);
@@ -6465,6 +6491,8 @@ export class PixiGameRenderer {
 
     if (entity.type === EntityType.PROJECTILE || entity.type === EntityType.MISSILE) {
       this.drawProjectile(view, entity, engine);
+      // REVAMP(A): Side/color readability without replacing authored art.
+      drawReadableProjectile(view, entity, engine.frameCount);
     } else if (entity.type === EntityType.EFFECT) {
       view.sprite.visible = false;
       view.body.clear();
@@ -6475,6 +6503,8 @@ export class PixiGameRenderer {
         view.label.style.fontSize = effect.fontSize;
         view.label.style.fill = effect.color;
         view.label.alpha = clamp(effect.life / Math.max(1, effect.maxLife), 0, 1);
+        // REVAMP(B): Long pickup/teaching messages must fit the phone playfield.
+        fitCombatCallout(view.root, view.label, engine.width);
       } else if (effect.effectType === 'sprite' && effect.spriteFrames?.length) {
         const age = Math.max(0, effect.maxLife - effect.life);
         const frameIndex = Math.min(effect.spriteFrames.length - 1, Math.floor(age / 6));
@@ -6747,6 +6777,8 @@ export class PixiGameRenderer {
       this.drawFlash(view, entity);
     }
 
+    // REVAMP(A): Render-clock flash and local wobble never alter hitboxes.
+    this.feelPresentation.entity(view, entity);
     view.lastFlashFrames = entity.flashFrames;
     view.lastHp = entity.hp;
   }
@@ -6774,6 +6806,8 @@ export class PixiGameRenderer {
       if (!view) {
         view = this.createEntityView(entity);
         this.views.set(entity.id, view);
+        // REVAMP(A): Includes newly emitted wing shots; bounded per render.
+        this.feelPresentation.muzzle(entity, engine.frameCount);
         if (isEnemyType(entity.type) && entity.y > -entity.height * 2) {
           this.effectPool.spawn('ring', entity.x + entity.width / 2, entity.y + entity.height / 2, Math.max(22, entity.width * 0.55), entity.type === EntityType.BOSS ? '#fef08a' : '#67e8f9', 300);
         }
@@ -6792,18 +6826,6 @@ export class PixiGameRenderer {
 
     for (const [id, view] of this.views) {
       if (id.startsWith('__') || view.seenFrame === this.renderFrame) continue;
-      if (
-        isEnemyType(view.type)
-        && view.lastHp <= 0
-        && view.root.y > -80
-        && view.root.y < this.height + 80
-        && !(view.type === EntityType.BOSS && engine.lastBossTerminalOutcome === 'escaped')
-      ) {
-        const size = view.type === EntityType.BOSS ? 180 : view.type === EntityType.MINI_BOSS ? 110 : 46;
-        if (view.type === EntityType.BOSS) this.effectPool.spawnBossExplosion(view.root.x, view.root.y, size, 2.2);
-        else if (view.type === EntityType.MINI_BOSS) this.effectPool.spawnExplosion(view.root.x, view.root.y, size, '#67e8f9', 0.85);
-        // Ordinary deaths are received from the simulation, not a stale view HP.
-      }
       this.views.delete(id);
       this.seenBossPhase.delete(id);
       this.seenBossComponents.delete(id);
@@ -6815,12 +6837,12 @@ export class PixiGameRenderer {
     const reducedEffects = this.reducedMotion || engine.performanceMode || !engine.polishSettings.highDensityParticles;
     this.combatImpactPresentation.visitNew(engine.combatImpacts, engine.frameCount, reducedEffects, (impact) => {
       if (impact.x < -30 || impact.x > this.width + 30 || impact.y < -30 || impact.y > this.height + 30) return;
-      this.effectPool.spawnProjectileHit(impact.x, impact.y, impact.size, impact.color, impact.vx, impact.vy, reducedEffects);
+      // REVAMP(A): Reuse collision-approved contacts, including armor plates.
+      this.feelPresentation.impact(impact);
+      this.effectPool.spawnProjectileHit(impact.x, impact.y, impact.size, impact.color, impact.vx, impact.vy, reducedEffects, impact.armored);
     });
-    this.combatDestructionPresentation.visitNew(engine.combatDestructions, engine.frameCount, reducedEffects, (impact) => {
-      if (impact.x < -30 || impact.x > this.width + 30 || impact.y < -30 || impact.y > this.height + 30) return;
-      this.effectPool.spawnEnemyExplosion(impact.x, impact.y, 46, impact.color);
-    });
+    // REVAMP(A): Death receipts now use FeelRuntime so all three tiers share one path.
+
   }
 
   private syncGunPods(engine: GameEngine) {
@@ -6865,7 +6887,12 @@ export class PixiGameRenderer {
       pod.height = companion.height * companion.scale;
       pod.alpha = companion.alpha;
       pod.position.set(companion.x, companion.y);
-      pod.rotation = Math.sin(engine.frameCount * 0.04 + index * Math.PI) * 0.028;
+      // REVAMP(D): Follow lag drives the existing art's tilt; L5 adds a procedural halo.
+      pod.rotation = companion.tilt ?? Math.sin(engine.frameCount * 0.04 + index * Math.PI) * 0.028;
+      if (companion.evolved && !takeoffActive) {
+        this.gunPodUtility.circle(companion.x, companion.y, companion.width * 0.54)
+          .stroke({ color: '#a7f3d0', width: 1.3, alpha: companion.alpha * 0.42 });
+      }
       if (companion.utilityActive && !takeoffActive) {
         const color = companion.id === 'axiom-orbiter' ? '#93c5fd' : '#fde047';
         if (companion.id === 'axiom-orbiter') {
@@ -7161,7 +7188,9 @@ export class PixiGameRenderer {
         cursorX += segmentWidth + (index === 3 || index === 7 ? 0 : segmentGap);
       });
     }
-    this.bossHealthName.text = name;
+    // REVAMP(C): Three phase milestones and the 15% rage marker share the original HP frame.
+    this.bossPolishPresentation.decorateHealthBar(this.bossHealthBar, boss, barWidth, barY, barHeight);
+    this.bossHealthName.text = this.bossPolishPresentation.getName(boss) ?? name;
     this.bossHealthName.position.set(0, -frameHeight * 0.64);
   }
 
@@ -7988,7 +8017,10 @@ export class PixiGameRenderer {
   sync(engine: GameEngine, timestamp = performance.now()) {
     if (!this.initialized || this.destroyed) return;
     this.renderFrame++;
-    const deltaMs = this.lastTimestamp ? clamp(timestamp - this.lastTimestamp, 0, 50) : 16.667;
+    // REVAMP(A): Raw render duration drives quality only, never simulation speed.
+    const elapsedMs = this.lastTimestamp ? timestamp - this.lastTimestamp : 16.667;
+    this.feelQuality.observe(elapsedMs);
+    const deltaMs = clamp(elapsedMs, 0, 50);
     this.lastTimestamp = timestamp;
     this.updatePlayerSteeringPresentation(engine, deltaMs);
     const encounterCamera = engine.getEncounterCameraTransform();
@@ -7998,11 +8030,16 @@ export class PixiGameRenderer {
       encounterCamera.offsetY + engine.shakeY
     );
     this.environment.update(engine);
-    this.effectPool.setQuality(engine.performanceMode, engine.mobileProfile);
+    this.effectPool.setQuality(engine.performanceMode, engine.mobileProfile, this.feelQuality.scale);
+    // REVAMP(A): Advance VFX during simulation hit-stop and consume receipts once.
+    this.feelPresentation.beginFrame(engine, elapsedMs);
     this.syncCornerAmbushPresentation(engine);
     this.modularBossDebugSnapshot = null;
-    this.syncEntities(engine);
     this.syncCombatImpacts(engine);
+    this.syncEntities(engine);
+    // REVAMP(B): Render simulation-owned charge, ghost, mine and edge-warning state.
+    this.revampEnemyTelegraphs.clear();
+    drawRevampEnemyTelegraphs(this.revampEnemyTelegraphs, engine.revampEnemies.getTelegraphs(), engine.revampEnemies.frame);
     this.syncPreviewDebugOverlay(engine);
     this.syncMaxShotPresentation(engine);
     this.syncPlayerAfterimages(engine);
@@ -8016,6 +8053,11 @@ export class PixiGameRenderer {
     this.updateWavePresentation(engine, timestamp, deltaMs);
     this.updateWarnings(engine);
     this.updateBossPresentation(engine, deltaMs);
+    // REVAMP(C): Mandatory telegraphs and encounter status use the locked simulation plan.
+    if (this.bossPolishPresentation.sync(engine, this.width, this.height, this.reducedMotion)) {
+      this.phaseText.visible = false;
+      this.waveIntroRoot.visible = false;
+    }
     this.effectPool.update(deltaMs);
 
     if (engine.lastShotFrame !== this.lastShotFrame) this.lastShotFrame = engine.lastShotFrame;
@@ -8027,7 +8069,10 @@ export class PixiGameRenderer {
     }
 
     this.flashOverlay.visible = engine.flashAlpha > 0.01;
-    this.flashOverlay.alpha = clamp(engine.flashAlpha * 0.72, 0, 0.7);
+    // REVAMP(A): Legacy damage/bomb flashes obey the same accessibility ceiling.
+    const feelSettings = getFeelSettings();
+    this.flashOverlay.alpha = clamp(engine.flashAlpha * 0.72, 0,
+      feelSettings.reducedMotion || feelSettings.reduceScreenShake ? 0.035 : 0.16);
     this.app.renderer.render(this.app.stage);
   }
 
@@ -8039,6 +8084,8 @@ export class PixiGameRenderer {
     this.setCornerAmbushPlayerLayerRaised(false);
     this.destroyed = true;
     this.initialized = false;
+    // REVAMP(A): Release owned text/filter state before the stage is destroyed.
+    this.feelPresentation.destroy();
     this.effectPool.destroy();
     this.environment.destroy();
     this.destroyPreviewBossAtlasTextures();

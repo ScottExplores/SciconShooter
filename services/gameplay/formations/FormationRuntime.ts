@@ -8,6 +8,8 @@ import type {
   FormationReturnBehaviorId,
   SpawnPatternId
 } from '../../../game-config/types';
+// REVAMP(B): New spline choreography is isolated from the legacy route library.
+import { breatheFormationSlot, entrySide, entrySpawn, getEntryFlight, isRevampEntryPath, sampleEntry } from '../../revamp/formations/entryLibrary';
 
 export type ConfiguredFormationMode =
   | 'row'
@@ -679,6 +681,15 @@ interface FormationEntryPathProfile {
  * helix, pod, and convoy routes enough time to read on a phone.
  */
 const FORMATION_ENTRY_PATH_PROFILES: Readonly<Record<FormationEntryPathId, FormationEntryPathProfile>> = Object.freeze({
+  // REVAMP(B): Real durations come from baked arc lengths in resolveFormationTrainDuration.
+  'revamp-swoop': { entryFrames: 156, lateralScale: 0, turns: 0, bloomStart: 0.8 },
+  'revamp-loop': { entryFrames: 234, lateralScale: 0, turns: 0, bloomStart: 0.8 },
+  'revamp-s-curve': { entryFrames: 216, lateralScale: 0, turns: 0, bloomStart: 0.8 },
+  'revamp-side-sweep': { entryFrames: 180, lateralScale: 0, turns: 0, bloomStart: 0.8 },
+  'revamp-pincer': { entryFrames: 168, lateralScale: 0, turns: 0, bloomStart: 0.8 },
+  'revamp-corkscrew': { entryFrames: 252, lateralScale: 0, turns: 0, bloomStart: 0.8 },
+  'revamp-bottom-flank': { entryFrames: 252, lateralScale: 0, turns: 0, bloomStart: 0.8 },
+  'revamp-train': { entryFrames: 216, lateralScale: 0, turns: 0, bloomStart: 0.8 },
   'sweep-bank-reentry': { entryFrames: 102, lateralScale: 0.22, turns: 0.65, bloomStart: 0.48 },
   'formation-drop': { entryFrames: 84, lateralScale: 0.07, turns: 0, bloomStart: 0.52 },
   'spiral-entry': { entryFrames: 132, lateralScale: 0.28, turns: 2.05, bloomStart: 0.58 },
@@ -843,6 +854,13 @@ export const resolveFormationAttackIndices = (
   const normalizedCycle = Math.max(0, Math.floor(cycle));
   const unique = (values: number[]) => [...new Set(values.map((value) => ((value % size) + size) % size))]
     .slice(0, groupSize);
+
+  // REVAMP(B): A single peel or leader + two escorts; casualties cannot duplicate a member.
+  if (attackId === 'revamp-dive') return [normalizedCycle % size];
+  if (attackId === 'revamp-escort') {
+    const start = (normalizedCycle * 3) % size;
+    return unique([start, start + 1, start + 2]);
+  }
 
   if (attackId === 'paired-dive' || attackId === 'pincer-pass') {
     const offset = normalizedCycle % Math.ceil(size / 2);
@@ -1121,6 +1139,10 @@ export const resolveConfiguredFormationSpawnPoint = ({
   const entryPathId = event.entryPathId
     ?? entryPath as FormationEntryPathId | undefined
     ?? defaultEntryPathForMode(resolveConfiguredFormationMode(patternId));
+  // REVAMP(B): Shared gates create follow-the-leader trains with authored spawn stagger.
+  if (isRevampEntryPath(entryPathId)) {
+    return entrySpawn(entryPathId, viewport, entrySide(authoredDirection, getFormationGroupSeed(event.id), index, entryPathId));
+  }
   let x = clamp(Number(randomSample) || 0, 0, 0.999999999999) * Math.max(1, width - 56);
   let y = -60;
 
@@ -1389,7 +1411,7 @@ const cubicBezier = (
 /** The two arcade train routes ride bespoke constant-speed geometry. */
 export const isTrainEntryPath = (path: string | undefined) => {
   const normalized = normalizeEntryPath(path);
-  return normalized === 'loop-the-loop' || normalized === 'serpentine-weave';
+  return isRevampEntryPath(normalized) || normalized === 'loop-the-loop' || normalized === 'serpentine-weave';
 };
 
 const trainRouteSide = (
@@ -1574,6 +1596,10 @@ const sampleTrainRoutePoint = (
  * regardless of the length of their individual final glide into rank. */
 export const resolveFormationTrainDuration = (input: FormationCohortEntryPoseInput): number | undefined => {
   const path = normalizeEntryPath(input.entryPath) as FormationEntryPathId | undefined;
+  // REVAMP(B): Fixed-world cruise speed; followers share the ribbon before their slot glide.
+  if (isRevampEntryPath(path)) return getEntryFlight({ path, world: input.viewport,
+    start: input.start, slot: input.target, hullWidth: input.entityWidth,
+    side: entrySide(input.entryDirection, input.groupSeed, input.index, path) }).spline.durationSeconds * 60;
   if (!path || !isTrainEntryPath(path)) return undefined;
   const speed = (path === 'loop-the-loop' ? 4.8 : 5.3) * Math.max(0.8, input.viewport.width / 390);
   return cachedTrainRoute(path, input).reduce((sum, segment) => sum + segment.length, 0) / speed;
@@ -1586,6 +1612,12 @@ const sampleFormationCohortRoutePoint = (
   const progress = clamp(sampleProgress, 0, 1);
   const path = (normalizeEntryPath(input.entryPath)
     ?? defaultEntryPathForMode(input.mode)) as FormationEntryPathId;
+  // REVAMP(B): Sample the cached spline in seconds; no new state in the monolithic engine.
+  if (isRevampEntryPath(path)) {
+    const flight = getEntryFlight({ path, world: input.viewport, start: input.start, slot: input.target,
+      hullWidth: input.entityWidth, side: entrySide(input.entryDirection, input.groupSeed, input.index, path) });
+    return sampleEntry(flight, progress * flight.spline.durationSeconds);
+  }
   if (isTrainEntryPath(path)) return sampleTrainRoutePoint(path, input, progress);
   const profile = getFormationEntryPathProfile(path, input.mode);
   const direction = normalizeEntryDirection(input.entryDirection);
@@ -2014,6 +2046,10 @@ export const resolveFormationMovementPoint = ({
   viewport,
   transformCycle = 0
 }: FormationMovementPointInput): FormationPoint => {
+  // REVAMP(B): Mild coherent breathing preserves slot spacing during hold.
+  if (movementId === 'revamp-breathe') return breatheFormationSlot({
+    slot: base, center: groupCenter, elapsedSeconds: frame / 60, seed: groupSeed
+  });
   const phase = (frame + groupSeed) * 0.018;
   const memberPhase = phase + index * 0.42;
   let relativeX = base.x - groupCenter.x;

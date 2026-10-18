@@ -1,6 +1,8 @@
 const { randomUUID } = require('node:crypto');
-const RESEARCHHUB_FUNDING_FEED =
-  'https://backend.prod.researchhub.com/api/funding_feed/?fundraise_status=OPEN&ordering=best&page_size=100&content_type=PREREGISTRATION';
+const {
+  FEED_URL: RESEARCHHUB_FUNDING_FEED, FEED_TIMEOUT_MS, CACHE_TIMEOUT_MS,
+  fetchResearchHubJson, assertFundingFeed, safeNextFeedUrl, withDeadline, usableSnapshot
+} = require('../services/revamp/researchhub/serverFeed');
 const RESEARCHHUB_POST_API =
   'https://backend.prod.researchhub.com/api/researchhubpost';
 const MAX_PROPOSAL_PAGES = 5;
@@ -12,6 +14,7 @@ const { getCurrentWeekRange } = require('../shared/weeklyCompetitionBoundary.js'
 const PROPOSAL_CACHE_TABLE = process.env.SUPABASE_PROPOSAL_CACHE_TABLE || 'scicon_proposal_cache';
 const PROPOSAL_CACHE_KEY = 'researchhub-open-preregistrations';
 const WEEKLY_PROPOSAL_CACHE_PREFIX = `${PROPOSAL_CACHE_KEY}:week:`;
+let memorySnapshot = null;
 
 const buildWeeklyProposalSnapshotKey = (weekKey, fetchedAt) => (
   `${WEEKLY_PROPOSAL_CACHE_PREFIX}${weekKey}:snapshot:`
@@ -27,20 +30,9 @@ const sendJson = (res, status, payload) => {
   res.end(JSON.stringify(payload));
 };
 
-const fetchResearchHubFeedPage = async (url) => {
-  const response = await fetch(url, {
-    headers: {
-      Accept: 'application/json',
-      'User-Agent': 'SciconShooter/2.2 (+https://sciconshooter.xyz)'
-    }
-  });
-
-  if (!response.ok) {
-    throw new Error(`ResearchHub funding feed returned ${response.status}`);
-  }
-
-  return response.json();
-};
+const fetchResearchHubFeedPage = async (url, timeoutMs) => (
+  assertFundingFeed(await fetchResearchHubJson(url, { timeoutMs }))
+);
 
 const proposalIdOf = (entry) => String(entry?.content_object?.id ?? entry?.id ?? '');
 
@@ -59,10 +51,10 @@ const normalizePostAsFundingEntry = (payload) => {
       : [];
 
   return {
-    id: Number(id),
+    id,
     content_type: 'RESEARCHHUBPOST',
     content_object: {
-      id: Number(id),
+      id,
       slug: payload?.slug || post?.slug || '',
       title: payload?.title || post?.title || 'ResearchHub proposal',
       type: payload?.document_type || post?.document_type || 'PREREGISTRATION',
@@ -75,36 +67,9 @@ const normalizePostAsFundingEntry = (payload) => {
   };
 };
 
-const fetchReferencedProposal = async (proposalId) => {
-  const response = await fetch(`${RESEARCHHUB_POST_API}/${proposalId}/`, {
-    headers: {
-      Accept: 'application/json',
-      'User-Agent': 'SciconShooter/2.2 (+https://sciconshooter.xyz)'
-    }
-  });
-  if (response.status === 404) return null;
-  if (!response.ok) {
-    throw new Error(`ResearchHub proposal lookup returned ${response.status}`);
-  }
-  return normalizePostAsFundingEntry(await response.json());
-};
-
-const safeNextFeedUrl = (value) => {
-  if (typeof value !== 'string' || !value) return null;
-  let parsed;
-  try {
-    parsed = new URL(value, 'https://backend.prod.researchhub.com');
-  } catch {
-    throw new Error('ResearchHub funding feed returned an invalid next-page URL');
-  }
-  if (
-    parsed.protocol !== 'https:'
-    || parsed.hostname !== 'backend.prod.researchhub.com'
-    || parsed.pathname !== '/api/funding_feed/'
-  ) {
-    throw new Error('ResearchHub funding feed returned an unsafe next-page URL');
-  }
-  return parsed.toString();
+const fetchReferencedProposal = async (proposalId, timeoutMs) => {
+  const payload = await fetchResearchHubJson(`${RESEARCHHUB_POST_API}/${proposalId}/`, { allowNotFound: true, timeoutMs });
+  return payload ? normalizePostAsFundingEntry(payload) : null;
 };
 
 const fetchResearchHubFeed = async ({
@@ -116,9 +81,10 @@ const fetchResearchHubFeed = async ({
   let firstPayload = null;
   const results = [];
   const remainingIds = new Set(stopWhenIdsFound);
+  const deadline = Date.now() + FEED_TIMEOUT_MS;
 
   for (let page = 0; nextUrl && page < MAX_PROPOSAL_PAGES && results.length < maxResults; page += 1) {
-    const payload = await fetchResearchHubFeedPage(nextUrl);
+    const payload = await fetchResearchHubFeedPage(nextUrl, Math.min(4_000, deadline - Date.now()));
     if (!firstPayload) {
       firstPayload = payload;
     }
@@ -164,7 +130,7 @@ const parseReferencedProposalIds = (req) => {
   return [rawValue];
 };
 
-const resolveReferencedProposals = async (openResults, proposalIds) => {
+const resolveReferencedProposals = async (openResults, proposalIds, { deadline = Date.now() + 4_000 } = {}) => {
   if (proposalIds.length === 0) {
     return { referencedProposals: [], missingReferencedProposalIds: [] };
   }
@@ -176,7 +142,7 @@ const resolveReferencedProposals = async (openResults, proposalIds) => {
   );
   const missingProposalId = proposalIds.find((id) => !byId.has(id));
   if (missingProposalId) {
-    const referencedProposal = await fetchReferencedProposal(missingProposalId);
+    const referencedProposal = await fetchReferencedProposal(missingProposalId, Math.min(4_000, deadline - Date.now()));
     if (referencedProposal) byId.set(missingProposalId, referencedProposal);
   }
 
@@ -192,7 +158,8 @@ const writeProposalCache = async (payload, { fetchedAtDate = new Date() } = {}) 
     throw new Error('Invalid proposal cache timestamp');
   }
   const fetchedAt = fetchedAtDate.toISOString();
-  await fetchSupabaseJson(`${PROPOSAL_CACHE_TABLE}?on_conflict=cache_key`, {
+  await withDeadline((signal) => fetchSupabaseJson(`${PROPOSAL_CACHE_TABLE}?on_conflict=cache_key`, {
+    signal,
     method: 'POST',
     headers: supabaseHeaders({ Prefer: 'resolution=merge-duplicates,return=minimal' }),
     body: JSON.stringify({
@@ -200,7 +167,7 @@ const writeProposalCache = async (payload, { fetchedAtDate = new Date() } = {}) 
       payload,
       fetched_at: fetchedAt
     })
-  });
+  }), CACHE_TIMEOUT_MS);
 
   const currentWeek = getCurrentWeekRange(fetchedAtDate);
   const millisecondsUntilCutoff = currentWeek.end.getTime() - fetchedAtDate.getTime();
@@ -213,7 +180,8 @@ const writeProposalCache = async (payload, { fetchedAtDate = new Date() } = {}) 
     return;
   }
 
-  await fetchSupabaseJson(PROPOSAL_CACHE_TABLE, {
+  await withDeadline((signal) => fetchSupabaseJson(PROPOSAL_CACHE_TABLE, {
+    signal,
     method: 'POST',
     headers: supabaseHeaders({ Prefer: 'return=minimal' }),
     body: JSON.stringify({
@@ -225,16 +193,18 @@ const writeProposalCache = async (payload, { fetchedAtDate = new Date() } = {}) 
       },
       fetched_at: fetchedAt
     })
-  });
+  }), CACHE_TIMEOUT_MS);
 };
 
 const readProposalCache = async () => {
   if (!hasSupabaseConfig()) return null;
-  const rows = await fetchSupabaseJson(`${PROPOSAL_CACHE_TABLE}?select=payload,fetched_at&cache_key=eq.${PROPOSAL_CACHE_KEY}&limit=1`, {
+  const rows = await withDeadline((signal) => fetchSupabaseJson(`${PROPOSAL_CACHE_TABLE}?select=payload,fetched_at&cache_key=eq.${PROPOSAL_CACHE_KEY}&limit=1`, {
+    signal,
     headers: supabaseHeaders()
-  });
+  }), CACHE_TIMEOUT_MS);
   const row = Array.isArray(rows) ? rows[0] : null;
-  return row?.payload ? { ...row.payload, cached: true, fetchedAt: row.fetched_at } : null;
+  return row && usableSnapshot(row.payload, row.fetched_at)
+    ? { ...row.payload, cached: true, fetchedAt: row.fetched_at } : null;
 };
 
 module.exports = async (req, res) => {
@@ -249,9 +219,20 @@ module.exports = async (req, res) => {
   let referencedProposalIds;
   try {
     referencedProposalIds = parseReferencedProposalIds(req);
+    const deadline = Date.now() + 8_000;
     const payload = await fetchResearchHubFeed();
-    const referenced = await resolveReferencedProposals(payload.results, referencedProposalIds);
-    await writeProposalCache(payload).catch((error) => console.error('Proposal cache write failed:', error));
+    // A detail lookup outage must not hide an otherwise healthy public funding feed.
+    const referenced = await resolveReferencedProposals(payload.results, referencedProposalIds, { deadline })
+      .catch(() => ({ referencedProposals: [], missingReferencedProposalIds: [], referencedLookupUnavailable: true }));
+    const fetchedAt = new Date().toISOString();
+    memorySnapshot = { ...payload, cached: true, fetchedAt };
+    // REVAMP(E): Pages previews may read live proposals without persisting to production.
+    const previewReadOnly = req.query?.previewReadOnly === '1'
+      || new URL(req.url || '/', 'http://localhost').searchParams.get('previewReadOnly') === '1';
+    if (!previewReadOnly) {
+      await writeProposalCache(payload, { fetchedAtDate: new Date(fetchedAt) })
+        .catch(() => console.warn('ResearchHub proposal cache write unavailable.'));
+    }
     res.setHeader(
       'Cache-Control',
       referencedProposalIds.length > 0
@@ -260,20 +241,24 @@ module.exports = async (req, res) => {
     );
     return sendJson(res, 200, {
       ...payload,
-      ...referenced
+      ...referenced,
+      cached: false,
+      fetchedAt
     });
   } catch (error) {
     if (error.statusCode === 400) {
       return sendJson(res, 400, { error: error.message });
     }
-    console.error('ResearchHub proposals API error:', error);
+    console.warn('ResearchHub live proposal feed unavailable.');
     if (referencedProposalIds?.length > 0) {
       return sendJson(res, 502, {
-        error: 'ResearchHub referenced proposal lookup is unavailable',
-        details: error.message
+        error: 'ResearchHub referenced proposal lookup is unavailable'
       });
     }
-    const cachedPayload = await readProposalCache().catch(() => null);
+    const persistedSnapshot = await readProposalCache().catch(() => null);
+    const cachedPayload = [persistedSnapshot, memorySnapshot]
+      .filter((snapshot) => snapshot && usableSnapshot(snapshot, snapshot.fetchedAt))
+      .sort((left, right) => Date.parse(right.fetchedAt) - Date.parse(left.fetchedAt))[0];
     if (cachedPayload) {
       res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=900');
       return sendJson(res, 200, {
@@ -283,13 +268,15 @@ module.exports = async (req, res) => {
       });
     }
     return sendJson(res, 502, {
-      error: 'ResearchHub proposal feed is unavailable',
-      details: error.message
+      error: 'ResearchHub proposal feed is unavailable'
     });
   }
 };
 
 module.exports._test = {
+  fetchResearchHubFeed,
+  readProposalCache,
+  resetMemorySnapshot: () => { memorySnapshot = null; },
   parseReferencedProposalIds,
   normalizePostAsFundingEntry,
   proposalIdOf,

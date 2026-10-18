@@ -1,0 +1,15 @@
+.revamp-wing-hud{position:absolute;inset:0;z-index:28;pointer-events:none;font-family:inherit}
+.revamp-wing-button{position:absolute;bottom:calc(152px + env(safe-area-inset-bottom,0px));width:76px;min-height:92px;padding:5px 4px 7px;border:1px solid #67e8f966;border-radius:16px;color:#dffaff;background:linear-gradient(to top,#164e6370 var(--wing-charge),#081622ee var(--wing-charge));box-shadow:0 4px 18px #020617aa;pointer-events:auto;touch-action:manipulation;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer}
+.revamp-wing-button--left{left:12px}.revamp-wing-button--right{right:12px;border-color:#a7f3d066}
+.revamp-wing-button img{width:36px;height:36px;object-fit:contain;pointer-events:none}
+.revamp-wing-button__role{font-size:8px;font-weight:800;letter-spacing:1.4px;color:#9cc5d6}
+.revamp-wing-button strong{font-size:11px;font-variant-numeric:tabular-nums;letter-spacing:.6px}
+.revamp-wing-button__name{font-size:9px;line-height:1.2;color:#bdcedb}
+.revamp-wing-button.is-ready{border-color:#67e8f9;box-shadow:0 0 13px #67e8f925,inset 0 0 12px #67e8f91c}
+.revamp-wing-button--right.is-ready{border-color:#a7f3d0}.revamp-wing-button.is-evolved .revamp-wing-button__role{color:#a7f3d0}
+.revamp-wing-button:disabled{cursor:default;color:#9cb2be}.revamp-wing-button:active:not(:disabled){transform:scale(.96)}
+.revamp-wing-auto{position:absolute;left:50%;bottom:calc(106px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);min-height:44px;min-width:110px;padding:8px 12px;border:1px solid #67e8f933;border-radius:22px;color:#b4d2df;background:#081622df;font-size:9px;letter-spacing:1px;pointer-events:auto;touch-action:manipulation;cursor:pointer}
+.revamp-wing-auto strong{color:#a7f3d0}.revamp-wing-auto[aria-pressed=false] strong{color:#cbd5e1}
+.revamp-wing-auto:disabled{opacity:.55}.revamp-wing-button:focus-visible,.revamp-wing-auto:focus-visible{outline:2px solid #fff;outline-offset:3px}
+@media(max-height:640px){.revamp-wing-button{bottom:120px;min-height:76px}.revamp-wing-button img{width:28px;height:28px}.revamp-wing-auto{bottom:72px}}
+@media(prefers-reduced-motion:reduce){.revamp-wing-button:active:not(:disabled){transform:none}}

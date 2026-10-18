@@ -1,14 +1,40 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { audioService } from '../services/audioService';
 import { StoryBeat } from '../services/storyBeats';
 import FundingVaultUnseal, { FUNDING_VAULT_UNSEAL_DURATION_MS } from './FundingVaultUnseal';
+import { getInlineTransmissionDurationMs } from '../services/revamp/story/campaignStory';
+import './story-transmission.css';
 
 interface StoryTransmissionProps {
   beat: StoryBeat;
   onComplete: () => void;
 }
 
-const StoryTransmission: React.FC<StoryTransmissionProps> = ({ beat, onComplete }) => {
+const InlineStoryTransmission: React.FC<StoryTransmissionProps> = ({ beat, onComplete }) => {
+  const completionRef = useRef(onComplete);
+  completionRef.current = onComplete;
+  const duration = getInlineTransmissionDurationMs(beat.text);
+  useEffect(() => {
+    const timer = window.setTimeout(() => completionRef.current(), duration);
+    return () => window.clearTimeout(timer);
+  }, [beat.id, beat.title, beat.text, duration]);
+
+  return (
+    <aside className={`frontier-transmission${beat.kind === 'boss' ? ' frontier-transmission--hostile' : ''}${beat.kind === 'victory' ? ' frontier-transmission--victory' : ''}`} aria-label="Campaign transmission">
+      <div className="frontier-transmission__channel" aria-hidden="true">
+        {beat.portrait ? <img src={beat.portrait} alt="" /> : <span>{beat.kind === 'boss' ? 'PS' : 'V'}</span>}
+      </div>
+      <div className="frontier-transmission__body" role="status" aria-live="polite">
+        <div className="frontier-transmission__heading"><strong>{beat.speaker}</strong><span>{beat.title}</span></div>
+        <p>{beat.text}</p>
+      </div>
+      <button type="button" className="frontier-transmission__skip" onClick={onComplete} aria-label="Skip transmission">Skip</button>
+      <span className="frontier-transmission__timer" style={{ animationDuration: `${duration}ms` }} key={beat.id ?? beat.text} aria-hidden="true" />
+    </aside>
+  );
+};
+
+const VaultStoryTransmission: React.FC<StoryTransmissionProps> = ({ beat, onComplete }) => {
   const [visibleCount, setVisibleCount] = useState(0);
   const [vaultUnsealed, setVaultUnsealed] = useState(false);
   const isComplete = visibleCount >= beat.text.length;
@@ -24,7 +50,7 @@ const StoryTransmission: React.FC<StoryTransmissionProps> = ({ beat, onComplete 
     );
 
     return () => window.clearTimeout(timer);
-  }, [beat.phase]);
+  }, [beat.id, beat.phase, beat.title, beat.text]);
 
   useEffect(() => {
     if (!vaultUnsealed || isComplete) return;
@@ -134,5 +160,11 @@ const StoryTransmission: React.FC<StoryTransmissionProps> = ({ beat, onComplete 
     </div>
   );
 };
+
+const StoryTransmission: React.FC<StoryTransmissionProps> = (props) => (
+  props.beat.presentation === 'inline'
+    ? <InlineStoryTransmission {...props} />
+    : <VaultStoryTransmission {...props} />
+);
 
 export default StoryTransmission;

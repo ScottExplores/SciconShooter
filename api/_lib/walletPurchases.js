@@ -293,9 +293,9 @@ const createWalletPurchaseQuote = async ({ address, skuId, now = Date.now() }) =
   }
   const sku = walletPurchaseSku(skuId);
   if (!sku) throw apiError('This Research Coin purchase is not available.', 400, 'wallet_purchase_sku_invalid');
-  if (sku.purchaseEnabled === false) {
+  if (sku.weeklyAttemptReward > 0 || sku.purchaseEnabled === false) {
     throw apiError(
-      'Additional Weekly Run attempts are unavailable while guest ranked play is enabled.',
+      'Weekly Run gives every pilot the same five ranked attempts. Extra ranked attempts are not sold.',
       409,
       'weekly_attempt_purchases_disabled'
     );

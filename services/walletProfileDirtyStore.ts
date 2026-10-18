@@ -410,6 +410,10 @@ export const rebaseWalletProfileDirtyAfterServerPurchase = ({
     savedProfile.snapshot.weeklyState.unlockedSlots.right
   );
   const rebasedSnapshot = cloneSnapshot(current.snapshot);
+  // REVAMP(D): Preserve the server-owned paid reserve while rebasing local research receipts.
+  if (rebasedSnapshot.permanentState.revamp && savedProfile.snapshot.permanentState.revamp) {
+    rebasedSnapshot.permanentState.revamp.paidCreditReserve = savedProfile.snapshot.permanentState.revamp.paidCreditReserve;
+  }
   const baseWeekly = current.baseSnapshot?.weeklyState ?? null;
   const localWeekly = current.snapshot.weeklyState;
   const serverWeekly = savedProfile.snapshot.weeklyState;

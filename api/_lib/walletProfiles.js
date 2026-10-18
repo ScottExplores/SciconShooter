@@ -1,3 +1,6 @@
+// REVAMP(D): Same bounded versioned schema as local saves; no new endpoint or DB column.
+const { sanitizeRevampProgress } = require('../../services/revamp/progression/core.js');
+const { applyEarnedWingEntitlements } = require('../../services/revamp/progression/earnedWingEntitlements.js');
 const crypto = require('crypto');
 const {
   fetchSupabaseJson,
@@ -17,6 +20,7 @@ const {
   parseWeeklyRunNodeIndex
 } = require('../../shared/weeklyRunPlan');
 const campaign = require('../../game-config/campaign.json');
+const { getCampaignWeeklyBossPool } = require('../../services/revamp/weekly/bossRotation');
 const campaignMigration = require('../../game-config/campaign-migration-v22.json');
 const campaignGraphMigration = require('../../game-config/campaign-migration-v23.json');
 
@@ -223,16 +227,11 @@ const CAMPAIGN_GRAPH_EDGE_BY_ID = new Map(
       : []
   ))
 );
-const WEEKLY_RUN_ELITE_BOSS_IDS = Object.freeze(
-  (Array.isArray(campaign.miniBosses) ? campaign.miniBosses : [])
-    .map((entry) => entry?.bossId)
-    .filter((id) => typeof id === 'string' && id.length > 0)
-);
-const WEEKLY_RUN_MAJOR_BOSS_IDS = Object.freeze(
-  (Array.isArray(campaign.sectors) ? campaign.sectors : [])
-    .map((sector) => sector?.majorBossId)
-    .filter((id) => typeof id === 'string' && id.length > 0)
-);
+// REVAMP(E): Reconstruct exactly the same registered boss pool as the browser.
+const {
+  eliteBossIds: WEEKLY_RUN_ELITE_BOSS_IDS,
+  majorBossIds: WEEKLY_RUN_MAJOR_BOSS_IDS
+} = getCampaignWeeklyBossPool(campaign);
 const WEEKLY_RUN_MASTERY_OBJECTIVES = Object.freeze(
   Array.isArray(campaign.levels?.[0]?.campaignProgression?.masteryObjectives)
     ? campaign.levels[0].campaignProgression.masteryObjectives
@@ -2721,6 +2720,7 @@ const sanitizePermanentState = (rawValue, profileId, now) => {
     playerShipEntitlements: sanitizePlayerShipEntitlements(value.playerShipEntitlements),
     bossArchive: sanitizeBossArchiveProgress(bossArchive, unlockedEventIds, now),
     campaignProgress: sanitizeCampaignProgress(value.campaignProgress, lifetimeStats, now),
+    revamp: sanitizeRevampProgress(value.revamp),
     updatedAt: isoNow(now)
   };
 };
@@ -2773,7 +2773,10 @@ const fetchWalletProfile = async (address, now = Date.now()) => {
     `${PROFILES_TABLE}?select=wallet_address,revision,snapshot,updated_at&wallet_address=eq.${encodeURIComponent(walletAddress)}&limit=1`,
     { headers: supabaseHeaders() }
   );
-  return rowToProfile(Array.isArray(rows) ? rows[0] : null, now);
+  const profile = rowToProfile(Array.isArray(rows) ? rows[0] : null, now);
+  // REVAMP(D): Read the authoritative paid reserve before offering earned-only research.
+  if (profile) profile.snapshot.permanentState.revamp.paidCreditReserve = await fetchPurchasedTokensAvailable(walletAddress);
+  return profile;
 };
 
 const ensureWalletProfile = async (address, now = Date.now()) => {
@@ -2828,6 +2831,13 @@ const preserveWalletPurchaseServerState = ({
   ));
   const protectedTokens = integer(purchasedTokensAvailable, 0, 1_000_000_000);
   const incomingCoins = integer(incomingWeekly.coins, 0, 1_000_000_000);
+  // REVAMP(D): Paid Tokens cannot fund new research combat upgrades.
+  const incomingResearch = sanitizeRevampProgress({ ...incomingPermanent.revamp, paidCreditReserve: protectedTokens });
+  const currentResearch = sanitizeRevampProgress(currentPermanent.revamp);
+  if (incomingResearch.scienceCreditsSpent > currentResearch.scienceCreditsSpent && incomingCoins < protectedTokens) {
+    throw apiError('Research upgrades require Science Credits earned in flight.', 409, { code: 'research_requires_earned_credits' });
+  }
+  incomingPermanent.revamp = incomingResearch;
   const protectedCoins = Math.max(incomingCoins, protectedTokens);
   const incomingDurable = Math.min(
     protectedCoins,
@@ -3353,11 +3363,14 @@ const saveWalletProfile = async ({
   const purchasedTokensAvailable = current
     ? await fetchPurchasedTokensAvailable(walletAddress)
     : 0;
+  const earnedWingRequest = sanitizedSnapshot; // REVAMP(D): Preserve requested earned equipment.
   sanitizedSnapshot = preserveWalletPurchaseServerState({
     currentSnapshot: current?.snapshot ?? null,
     incomingSnapshot: sanitizedSnapshot,
     purchasedTokensAvailable
   });
+  // REVAMP(D): Earned supports survive cloud sync without accepting client purchase levels.
+  sanitizedSnapshot = applyEarnedWingEntitlements(sanitizedSnapshot, earnedWingRequest);
   sanitizedSnapshot = preserveCampaignBranchServerState({
     currentSnapshot: current?.snapshot ?? null,
     incomingSnapshot: sanitizedSnapshot,

@@ -1,5 +1,6 @@
 import type { PlayerShipId } from './playerShipService';
 import type { WeeklyCampaignStreakState } from './weeklyCampaignStreak';
+import { isPreviewMode } from './revamp/preview/previewMode';
 
 export type RunIntegrity = 'server-verified' | 'review' | 'local-unverified';
 export type RunReceiptMode = 'standard' | 'weekly-streak';
@@ -172,6 +173,8 @@ export const startRunSession = async ({
   walletAddress?: string | null;
   weeklyCampaignProof?: WeeklyCampaignStreakState | null;
 } = {}): Promise<RunSession> => {
+  // REVAMP(E): Preview flights are local practice and reserve no ranked attempt.
+  if (isPreviewMode()) return createLocalRunSession(true, playerShipId, runMode);
   const requestedWalletAddress = walletAddress?.trim().toLowerCase() || null;
   const startPayload = {
     action: 'start',
@@ -225,7 +228,8 @@ export const finishRunSession = async (
   metrics: RunMetrics,
   weeklyCampaignProof: WeeklyCampaignStreakState | null = null
 ): Promise<RunReceipt> => {
-  if (!session.localOnly && session.startToken) {
+  // REVAMP(E): Also protect an old signed session restored inside a test build.
+  if (!isPreviewMode() && !session.localOnly && session.startToken) {
     const finishPayload = {
       action: 'finish',
       startToken: session.startToken,
@@ -274,9 +278,9 @@ export const finishRunSession = async (
     finishedAt: new Date().toISOString(),
     expiresAt: session.expiresAt,
     metrics,
-    testRun: Boolean(session.testRun),
+    testRun: Boolean(session.testRun) || isPreviewMode(),
     integrity: 'local-unverified',
-    anomalies: ['server_receipt_unavailable'],
+    anomalies: [isPreviewMode() ? 'preview_read_only' : 'server_receipt_unavailable'],
     receiptToken: '',
     persisted: false
   };

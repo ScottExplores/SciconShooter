@@ -22,7 +22,9 @@
     "contract:compile": "node tools/compile-contract.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "test": "node --test tests/*.test.cjs"
+    "test": "node --test tests/*.test.cjs",
+    "qa:playthrough": "node tools-revamp/qa/playthrough.mjs",
+    "qa:test": "node --test tests-revamp/F/*.test.mjs"
   },
   "dependencies": {
     "@base-org/account": "^2.5.6",
@@ -44,6 +46,7 @@
     "eslint": "^10.6.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.7.0",
+    "playwright-core": "^1.55.0",
     "solc": "^0.8.36",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.5.3",

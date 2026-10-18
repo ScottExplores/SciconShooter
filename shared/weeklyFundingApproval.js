@@ -80,6 +80,14 @@ const recordManualFundingTransfer = (competition, txHash) => {
   }
   if (status === 'funded') {
     const stored = String(competition?.allocation_tx_hash || '');
+    // REVAMP(E): Never acknowledge a transfer hash that was not persisted.
+    if (!TX_HASH.test(stored)) {
+      throw fail(
+        'This funded week has no valid recorded transfer hash. An admin must repair the archive before retrying.',
+        409,
+        'WEEKLY_FUNDING_RECORD_INCOMPLETE'
+      );
+    }
     if (stored && stored.toLowerCase() !== hash.toLowerCase()) {
       throw fail(
         'This week already records a different funding transaction.',

@@ -171,6 +171,7 @@ const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
                 <button type="button" onClick={onRetry} className="mt-3 min-h-10 rounded-[6px] border border-white/25 bg-white/10 px-4 text-[10px] font-black uppercase tracking-[0.14em] text-white">
                   Try again
                 </button>
+                <a href="https://www.researchhub.com/fund" target="_blank" rel="noopener noreferrer" className="mt-2 block min-h-11 p-3 text-sm font-bold text-cyan-100 underline">Browse ResearchHub funding ↗</a>
               </div>
             ) : null}
 

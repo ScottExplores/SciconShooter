@@ -1,4 +1,6 @@
-const FEED_URL = 'https://backend.prod.researchhub.com/api/funding_feed/?fundraise_status=OPEN&ordering=best&page_size=100&content_type=PREREGISTRATION';
+const {
+  FEED_URL, FEED_TIMEOUT_MS, fetchResearchHubJson, assertFundingFeed, safeNextFeedUrl
+} = require('../../services/revamp/researchhub/serverFeed');
 const MAX_OPEN_FEED_PAGES = 5;
 const MAX_OPEN_PROPOSALS = 500;
 const { getCurrentWeekRange } = require('../../shared/weeklyCompetitionBoundary.js');
@@ -31,41 +33,20 @@ const getMoneyAmount = (value, currency) => {
 
 const proposalIdOf = (entry) => String(entry?.content_object?.id ?? entry?.id ?? '');
 
-const safeNextFeedUrl = (value) => {
-  if (typeof value !== 'string' || !value) return null;
-  let parsed;
-  try {
-    parsed = new URL(value, 'https://backend.prod.researchhub.com');
-  } catch {
-    throw Object.assign(new Error('ResearchHub eligibility feed returned an invalid next-page URL.'), { statusCode: 502 });
-  }
-  if (
-    parsed.protocol !== 'https:'
-    || parsed.hostname !== 'backend.prod.researchhub.com'
-    || parsed.pathname !== '/api/funding_feed/'
-  ) {
-    throw Object.assign(new Error('ResearchHub eligibility feed returned an unsafe next-page URL.'), { statusCode: 502 });
-  }
-  return parsed.toString();
-};
-
 const fetchOpenProposalEntries = async () => {
   const entries = [];
   let nextUrl = FEED_URL;
   let resultLimitExceeded = false;
+  const deadline = Date.now() + FEED_TIMEOUT_MS;
 
   for (
     let page = 0;
     nextUrl && page < MAX_OPEN_FEED_PAGES && entries.length < MAX_OPEN_PROPOSALS;
     page += 1
   ) {
-    const response = await fetch(nextUrl, {
-      headers: { Accept: 'application/json', 'User-Agent': 'SciconShooter/2.2 (+https://sciconshooter.xyz)' }
-    });
-    if (!response.ok) {
-      throw Object.assign(new Error('ResearchHub eligibility check is unavailable.'), { statusCode: 502 });
-    }
-    const payload = await response.json();
+    const payload = assertFundingFeed(await fetchResearchHubJson(nextUrl, {
+      timeoutMs: Math.min(4_000, deadline - Date.now())
+    }));
     if (Array.isArray(payload?.results)) {
       const remainingCapacity = MAX_OPEN_PROPOSALS - entries.length;
       if (payload.results.length > remainingCapacity) {

@@ -4,6 +4,8 @@ import type { MatchMusicTrackId } from '../services/audioService';
 import PixelActionButton from './PixelActionButton';
 import AudioSettingsControls from './AudioSettingsControls';
 import '../styles/pause-menu.css';
+// REVAMP(A): Persisted accessibility and optional score labels.
+import FeelSettingsControls from '../services/revamp/feel/FeelSettingsControls';
 
 interface PauseMenuProps {
   audioMuted: boolean;
@@ -152,6 +154,7 @@ const PauseMenu: React.FC<PauseMenuProps> = ({
               enabled={polishSettings.highDensityParticles}
               onToggle={() => onTogglePolishSetting('highDensityParticles')}
             />
+            <FeelSettingsControls />
           </div>
         </div>
       </section>

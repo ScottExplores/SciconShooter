@@ -1,0 +1,39 @@
+/* Radio traffic sits below the HUD; only its 44px Skip target captures input. */
+.frontier-transmission {
+  --frontier-signal: #67e8f9;
+  position: absolute;
+  z-index: 40;
+  top: max(96px, calc(env(safe-area-inset-top) + 80px));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  width: min(480px, calc(100% - 20px));
+  box-sizing: border-box;
+  padding: 10px 5px 12px 10px;
+  color: #ecfeff;
+  background: linear-gradient(115deg, rgba(6, 24, 43, .96), rgba(4, 12, 25, .91));
+  border: 1px solid #30536c;
+  border-left: 3px solid var(--frontier-signal);
+  border-radius: 3px 12px 3px 3px;
+  box-shadow: 0 4px 20px #0006;
+  pointer-events: none;
+  overflow: hidden;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.frontier-transmission--hostile { --frontier-signal: #fda4af; border-color: #733749; }
+.frontier-transmission--victory { z-index: 70; top: max(12px, env(safe-area-inset-top)); }
+.frontier-transmission__channel { width: 30px; height: 34px; display: grid; place-items: center; flex: 0 0 30px; color: var(--frontier-signal); border: 1px solid currentColor; background: #143044; font-weight: 900; font-size: 14px; }
+.frontier-transmission__channel img { width: 28px; height: 30px; object-fit: contain; image-rendering: pixelated; }
+.frontier-transmission__body { min-width: 0; flex: 1; }
+.frontier-transmission__heading { display: flex; flex-wrap: wrap; column-gap: 9px; row-gap: 2px; line-height: 1.25; }
+.frontier-transmission__heading strong { color: var(--frontier-signal); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+.frontier-transmission__heading span { color: #9aafc4; font-size: 10px; }
+.frontier-transmission__body p { font-size: 12px; line-height: 1.45; margin: 5px 0 0; }
+.frontier-transmission__skip { pointer-events: auto; align-self: center; flex: 0 0 44px; min-height: 44px; color: #c8deef; border: 1px solid #446077; border-radius: 4px; background: #12283d; font: 11px ui-monospace, monospace; cursor: pointer; touch-action: manipulation; }
+.frontier-transmission__skip:focus-visible { outline: 2px solid #fef08a; outline-offset: 2px; }
+.frontier-transmission__timer { position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: var(--frontier-signal); transform-origin: left; animation: frontier-transmission-time linear forwards; }
+@keyframes frontier-transmission-time { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+@media (prefers-reduced-motion: reduce) { .frontier-transmission__timer { animation: none; opacity: .4; } }
+@media (max-width: 359px) { .frontier-transmission__channel { display: none; } }

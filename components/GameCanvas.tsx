@@ -18,6 +18,8 @@ import {
 import { resolveCampaignEnvironmentWindow } from '../services/pixi/PixiEnvironment';
 import { DEFAULT_GAME_CAMPAIGN } from '../services/levelConfig';
 import type { RuntimeSquadLoadout } from '../services/squadProgression';
+// REVAMP(D): Typed wing commands are scoped to the mounted engine.
+import type { WingHudSnapshot } from '../services/revamp/wings/wingRuntime';
 import type { PlayerShipId } from '../services/playerShipService';
 import {
   clampPreviewTimeScale,
@@ -27,6 +29,9 @@ import {
   type PreviewSnapshot
 } from '../services/gameplay/previewSession';
 import type { GameplayRandomSeed } from '../services/gameplay/random';
+// REVAMP(F): Explicit query-only QA instrumentation uses the existing simulation/input path.
+import { readQAConfig } from '../services/revamp/qa/config';
+import { attachQARuntime } from '../services/revamp/qa/runtime';
 import {
   createBoundedGameplayTelemetrySink,
   type GameplayTelemetrySnapshot
@@ -135,7 +140,7 @@ export interface GameCanvasProps {
   stats: Stats;
   onStatsChange: (stats: Stats) => void;
   running: boolean;
-  onGameOver?: () => void;
+  onGameOver?: (summary?: WaveVictorySummary) => void;
   /** Fires after Pixi, the simulation, listeners, and the first rendered frame are ready. */
   onReady?: () => void;
   onInitializationError?: (error: unknown) => void;
@@ -148,12 +153,17 @@ export interface GameCanvasProps {
   bombLocked?: boolean;
   bombCommand?: { nonce: number } | null;
   shipAbilityCommand?: { nonce: number } | null;
+  // REVAMP(D): Campaign-only wing controls; absent for Weekly and other modes.
+  wingCommand?: { nonce: number; slot?: 'left' | 'right'; autoCast?: boolean } | null;
+  onWingSupportState?: (state: WingHudSnapshot) => void;
   continueCommand?: { nonce: number; lives: number } | null;
   waveContinueCommand?: {
     nonce: number;
     /** Explicit directed-graph destination for a completed Mission. */
     targetLevelId?: string;
     targetWaveId?: string;
+    /** REVAMP(D): Newly earned Campaign wings are adopted only at a Mission boundary. */
+    revampLoadout?: RuntimeSquadLoadout;
   } | null;
   polishSettings: GamePolishSettings;
   playerShipUrl?: string;
@@ -224,6 +234,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   bombLocked = false,
   bombCommand = null,
   shipAbilityCommand = null,
+  wingCommand = null,
+  onWingSupportState,
   continueCommand = null,
   waveContinueCommand = null,
   polishSettings,
@@ -330,6 +342,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const lastTimeRef = useRef<number>(0);
   const handledBombNonceRef = useRef<number | null>(null);
   const handledShipAbilityNonceRef = useRef<number | null>(null);
+  // REVAMP(D): Idempotent commands and throttled HUD snapshots.
+  const handledWingNonceRef = useRef<number | null>(null);
+  const onWingSupportStateRef = useRef(onWingSupportState);
+  onWingSupportStateRef.current = onWingSupportState;
   const handledContinueNonceRef = useRef<number | null>(null);
   const handledWaveContinueNonceRef = useRef<number | null>(null);
   const handledRestartTokenRef = useRef(restartToken);
@@ -762,6 +778,16 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     }
   }, [shipAbilityCommand, stats]);
 
+  // REVAMP(D): Pause and transmission gates apply to manual wing specials too.
+  useEffect(() => {
+    const engine = engineRef.current;
+    if (!engine || !wingCommand || handledWingNonceRef.current === wingCommand.nonce) return;
+    handledWingNonceRef.current = wingCommand.nonce;
+    if (typeof wingCommand.autoCast === 'boolean') engine.setWingAutoCast(wingCommand.autoCast);
+    if (wingCommand.slot && runningRef.current && !isTransmissionOpenRef.current) engine.activateWingSpecial(wingCommand.slot);
+    onWingSupportStateRef.current?.(engine.getWingSupportSnapshot());
+  }, [wingCommand]);
+
   useEffect(() => {
     if (!continueCommand || !engineRef.current) return;
     if (handledContinueNonceRef.current === continueCommand.nonce) return;
@@ -796,6 +822,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       handledWaveContinueNonceRef.current = waveContinueCommand.nonce;
       return;
     }
+    // REVAMP(D): Carry the settled unlock into this persistent engine before the next Mission starts.
+    if (waveContinueCommand.revampLoadout) engine.adoptRevampCampaignLoadout(waveContinueCommand.revampLoadout);
     const continued = waveContinueCommand.targetLevelId
       ? engine.continueToCampaignMission(
           waveContinueCommand.targetLevelId,
@@ -809,6 +837,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     lastPublishedStatsRef.current = statsSnapshot;
     onStatsChangeRef.current(statsSnapshot);
     onRuntimeStateRef.current?.(engine.getRuntimeState());
+    onWingSupportStateRef.current?.(engine.getWingSupportSnapshot());
   }, [campaign, continuousStageBoundaries, waveContinueCommand]);
 
   useEffect(() => {
@@ -921,6 +950,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     let disposed = false;
     let disposeRuntime = () => {};
     let pendingRenderer: PixiGameRenderer | null = null;
+    // REVAMP(F): Attach before async renderer setup so initialization errors remain inspectable.
+    const qaConfig = readQAConfig();
+    const qaRuntime = attachQARuntime(qaConfig, () => engineRef.current);
 
     const setupRuntime = async () => {
       // Capture one immutable setup snapshot before the first network/decoder
@@ -1022,7 +1054,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         continuousStageBoundaries: setup.continuousStageBoundaries,
         maxPlayerDamagePerHit: setup.maxPlayerDamagePerHit,
         testMode: testModeRef.current,
-        randomSeed: setup.randomSeed,
+        // REVAMP(F): Seed only gameplay/random; cosmetic particle randomness stays independent.
+        randomSeed: qaConfig.enabled ? qaConfig.seed : setup.randomSeed,
         previewBossCollisionEventId: setupBossArtwork?.eventId,
         previewBossCollisionMask: setupBossArtwork?.collisionMask,
         previewBossArtworkDesignSize:
@@ -1174,7 +1207,13 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       void applyPreviewCommandRef.current(engine, previewCommandRef.current);
     }
 
+    // REVAMP(D): Read at 8 Hz even when main HUD counters have not changed.
+    let lastWingPublishTime = -Infinity;
     const publishHudStats = (force = false, timestamp = performance.now()) => {
+      if (onWingSupportStateRef.current && (force || timestamp - lastWingPublishTime >= 125)) {
+        lastWingPublishTime = timestamp;
+        onWingSupportStateRef.current(engine.getWingSupportSnapshot());
+      }
       const elapsedMs = timestamp - lastStatsPublishTimeRef.current;
       const nextStats = engine.stats;
 
@@ -1199,7 +1238,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       runningRef.current = false;
       publishHudStats(true, timestamp);
       onRuntimeStateRef.current?.(engine.getRuntimeState());
-      onGameOverRef.current?.();
+      // REVAMP(D): Failed flights still earn goal progress and cadence time.
+      onGameOverRef.current?.(engine.buildWaveVictorySummary());
     };
 
     const armDeathSequenceSafetyTimer = () => {
@@ -1416,6 +1456,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         let simulationSteps = 0;
 
         while (simulationAccumulator >= SIMULATION_STEP_MS && simulationSteps < MAX_SIMULATION_STEPS_PER_FRAME) {
+          // REVAMP(F): The bot provides ordinary inputs once per fixed simulation step.
+          qaRuntime?.beforeStep(engine);
           engine.update(isTransmissionOpenRef.current);
           simulationAccumulator -= SIMULATION_STEP_MS;
           simulationSteps++;
@@ -1457,6 +1499,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         updateAdaptivePerformanceMode(renderElapsed);
         publishHudStats(false, timestamp);
         renderer.sync(engine, timestamp);
+        // REVAMP(F): Count completed renderer syncs, never rAF callbacks or simulation steps.
+        qaRuntime?.rendered(timestamp);
         if (!readinessReported) {
           readinessReported = true;
           if (!previewMode) {
@@ -1547,6 +1591,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
     void setupRuntime().catch((error) => {
       if (disposed) return;
+      // REVAMP(F): Preserve initialization failure evidence in the read-only bridge.
+      qaRuntime?.rememberError(error);
       pendingRenderer?.destroy();
       pendingRenderer = null;
       console.error('Failed to initialize the Pixi gameplay renderer.', error);
@@ -1555,6 +1601,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
     return () => {
       disposed = true;
+      // REVAMP(F): No bridge or global error listeners survive this opted-in runtime.
+      qaRuntime?.dispose();
       disposeRuntime();
       pendingRenderer?.destroy();
       pendingRenderer = null;
