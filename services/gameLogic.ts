@@ -1,5 +1,9 @@
 // REVAMP(C): Encounter rules live outside the shared engine.
 import { attachRevampBoss, updateRevampBoss, revampHullDamage, afterRevampHullDamage, getRevampPartHit, damageRevampPart, defeatRevampBoss } from './revamp/bosses/engineAdapter';
+// REVAMP(O): Optional mini hardware and owned escorts retain the existing encounter/art paths.
+import { attachInteractiveMini, updateInteractiveMini, updateInteractiveDrone, getInteractiveMiniHit, damageInteractiveMiniPart, absorbInteractiveMiniHull, interactiveMiniCanEmit, interactiveMiniGeneration, acceptInteractiveMiniHazard, defeatInteractiveMini } from './revamp/bosses/miniInteractive';
+import { updateInteractiveBossEscort, interactiveEscortCanDamage } from './revamp/bosses/interactiveEscorts';
+import { updateInteractiveWallFire } from './revamp/bosses/miniWall'; // REVAMP(O)
 import { getBossEncounter, bossCanTakeDamage } from './revamp/bosses/runtime';
 // REVAMP(D): Campaign research effects and observed medal/event counters.
 import { RevampFlight, addResearchRounds, type RevampFlightMetrics } from './revamp/runtime/flight';
@@ -2541,6 +2545,8 @@ interface PreviewEncounterCameraRestoreState {
 }
 
 interface MiniBossLabPendingProjectile {
+  supportAttack?: boolean; // REVAMP(O): Queued rounds retain their destructible weapon owner.
+  interactiveGeneration?: number; // REVAMP(O): No delayed shots survive a part-break cancellation.
   readonly fireFrame: number;
   readonly ownerEntityId: string;
   readonly eventId: string;
@@ -7349,6 +7355,9 @@ export class GameEngine {
     this.updateEnemyFire();
 
     this.entities.forEach(e => {
+      // REVAMP(O): Owned hangar craft have a bounded deploy/active/exit lifecycle.
+      if (updateInteractiveBossEscort(this, e)) return;
+      updateInteractiveMini(this, e);
       if (e.isBeam) {
           e.life--;
           if (e.life <= 0) e.markedForDeletion = true;
@@ -9528,6 +9537,8 @@ export class GameEngine {
       });
       return;
     }
+    // REVAMP(O): Retire mini armaments and grant the brief defeat collection window.
+    defeatInteractiveMini(this, target);
     if (target.type === EntityType.MINI_BOSS && target.miniBossLabEncounterId) {
       this.beginMiniBossLabMemberDeath(target);
       return;
@@ -12273,6 +12284,7 @@ export class GameEngine {
       if (entity.spriteUrl) loadImage(entity.spriteUrl);
       entity.spriteFrames?.forEach(loadImage);
       state.memberEntityIds.set(instance.id, entity.id);
+      attachInteractiveMini(this, entity); // REVAMP(O): Primary hardware over the existing mini rig.
       this.entities.push(entity);
     }
 
@@ -12351,6 +12363,7 @@ export class GameEngine {
         }
         if (mb.spriteUrl) loadImage(mb.spriteUrl);
       }
+      attachInteractiveMini(this, mb); // REVAMP(O): The campaign drone shares the two-stage shell.
       spawned.push(mb);
       this.entities.push(mb);
     }
@@ -12470,6 +12483,7 @@ export class GameEngine {
               e.spriteUrl = ASSETS.PAYWALL_BASTION_FRAMES[1];
               e.spriteFrames = [...ASSETS.PAYWALL_BASTION_FRAMES];
             }
+            attachInteractiveMini(this, e); // REVAMP(O): Existing wall segments remain destructible armaments.
             this.entities.push(e);
         }
     }
@@ -12609,6 +12623,7 @@ export class GameEngine {
       });
 
       const configuredAttackInterval = invaders.find((invader) => Number.isFinite(invader.attackIntervalFrames))?.attackIntervalFrames;
+      if (updateInteractiveWallFire(this, invaders)) return; // REVAMP(O): Warn from each surviving vent.
       const shootRate = configuredAttackInterval ?? (this.wave === 1 ? 42 : Math.max(8, 20 - this.wave));
       if (this.frameCount % shootRate === 0) {
           const shooter = invaders[this.gameplayRandom.integer(0, invaders.length)];
@@ -12671,7 +12686,7 @@ export class GameEngine {
       const owner = this.entities.find((entity) => (
         entity.id === pending.ownerEntityId && !entity.markedForDeletion && entity.hp > 0
       ));
-      if (!owner) continue;
+      if (!owner || !interactiveMiniCanEmit(owner, pending.supportAttack === true, pending.interactiveGeneration)) continue; // REVAMP(O)
       const projectile = this.createEntity(
         EntityType.PROJECTILE,
         pending.originX - pending.width / 2,
@@ -12820,6 +12835,8 @@ export class GameEngine {
         ? radialStart + availableArc * ((index + 0.5) / allowedCount)
         : targetAngle + (normalized - 0.5) * spread;
       state.pendingProjectiles.push({
+        supportAttack: command.attackId === definition.support.id, // REVAMP(O)
+        interactiveGeneration: interactiveMiniGeneration(owner), // REVAMP(O)
         fireFrame: this.frameCount + index * staggerFrames,
         ownerEntityId: owner.id,
         eventId: state.eventId,
@@ -12852,6 +12869,8 @@ export class GameEngine {
       ? this.getMiniBossLabMemberEntity(state, command.sourceMemberId)
       : undefined;
     if (!owner || owner.markedForDeletion || owner.hp <= 0) return;
+    // REVAMP(O): Support-cannon destruction removes its actual attack and warning.
+    if (!acceptInteractiveMiniHazard(owner, command.attackId, command.warning, this.frameCount, command.attackId === definition.support.id)) return;
     if (command.warning) {
       // The elite's registered charge pose is the anatomy-linked warning.
       // Spatial attacks still draw the exact beam/lane they will occupy, but
@@ -13429,6 +13448,7 @@ export class GameEngine {
   }
 
   updateMiniBoss(boss: Entity) {
+     if (updateInteractiveDrone(this, boss)) return; // REVAMP(O): Warned cannon/core teaching loop.
      // REVAMP(B): The onboarding encounter teaches one locked, 0.8-second warning.
      if (this.revampEnemies.updateOpeningBoss(this, boss)) return;
      if (boss.miniBossLabEncounterId && boss.sourceEventId) {
@@ -14005,6 +14025,9 @@ export class GameEngine {
   }
 
   getBossComponentHit(boss: Entity, shotBox: CollisionBox) {
+    // REVAMP(O): Use the visible mini armament bounds before the hull intercepts upward shots.
+    const miniPart = getInteractiveMiniHit(boss, shotBox);
+    if (miniPart) return miniPart;
     // REVAMP(C): Use the same visible circular part marker for every rig.
     if (getBossEncounter(boss)) return getRevampPartHit(boss, shotBox);
     const shotCenterX = shotBox.x + shotBox.width / 2;
@@ -14129,6 +14152,7 @@ export class GameEngine {
   }
 
   damageBossComponent(boss: Entity, component: BossComponentState, damage: number) {
+    if (damageInteractiveMiniPart(this, boss, component, damage)) return; // REVAMP(O)
     // REVAMP(C): Part damage disables its attack and opens a stagger window.
     if (damageRevampPart(this, boss, component, damage)) return;
     if (!this.isBossCombatInteractive(boss)) return;
@@ -14273,6 +14297,7 @@ export class GameEngine {
     if (!this.isBossCombatInteractive(boss)) return;
     // REVAMP(B): Peer Reviewer's visible front plate has its own breakable durability.
     if (this.revampEnemies.openingBoss.absorbShield(this, boss, damage)) return;
+    if (absorbInteractiveMiniHull(this, boss, damage)) return; // REVAMP(O): Armour gates the core.
     if (boss.miniBossLabEncounterId && !boss.miniBossLabDamageable) {
       this.pulseDamageFlash(boss);
       if (this.frameCount % 8 === 0) {
@@ -14440,7 +14465,8 @@ export class GameEngine {
     boss.bossComponents ??= this.createBossComponents(boss, configured?.componentHealth);
     // REVAMP(C): Keep existing art/rewards, delegate registered encounter combat.
     // REVAMP(G): Explicit Boss Sandbox weapon previews retain their authored lifecycle.
-    if (!this.isSelectedPreviewBoss(boss)) attachRevampBoss(this, boss);
+    // REVAMP(O): Explicit production lab IDs keep the original artwork but use campaign combat.
+    if (boss.sourceEventId?.startsWith('revamp:') || !this.isSelectedPreviewBoss(boss)) attachRevampBoss(this, boss);
     this.bossRef = boss;
     this.entities.push(boss);
   }
@@ -24141,6 +24167,9 @@ export class GameEngine {
           }
       }
 
+      // REVAMP(O): Deploying/retiring escorts stay shootable but cannot ram the player.
+      if (!interactiveEscortCanDamage(e)) hurtsPlayer = false;
+
       // The Director is an inspection surface, so its preview ship must survive long
       // enough to observe a complete wave without changing production combat rules.
       const isPreviewInvincible = this.previewMode && this.previewInvincible;
@@ -24258,7 +24287,7 @@ export class GameEngine {
         if (shot.hitTargetIds?.has(target.id)) continue;
         const bossComponent = target.type === EntityType.BOSS
           ? this.getBossComponentHit(target, shotBox)
-          : undefined;
+          : target.type === EntityType.MINI_BOSS ? getInteractiveMiniHit(target, shotBox) : undefined; // REVAMP(O)
         const padding = target.type === EntityType.BOSS || target.type === EntityType.MINI_BOSS ? 42 : 18;
         if (!bossComponent && (
           shotBox.x > target.x + target.width + padding

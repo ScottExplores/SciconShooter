@@ -1,0 +1,261 @@
+{
+  "schemaVersion": 1,
+  "artifactType": "boss-asset-usage-inventory",
+  "bossId": "gatekeeper-prime",
+  "scope": "Job O added surfaces plus the benchmark original art inputs. Other roster art is retained under existing manifests; this is not a replacement inventory of the entire repository.",
+  "canonicalReference": {
+    "path": "/workspace/scicon-revamp/qa/O-bosses/before/no-video-control/gatekeeper-prime-god/002-combat-9-2s.png",
+    "sha256": "2e3fe1de05db00f479ae1e363468044fc14b956de016b602a41ea93e32f51b00",
+    "width": 780,
+    "height": 1688,
+    "role": "Original campaign gameplay baseline, includes C warning geometry; not a clean neutral-pose matching result."
+  },
+  "originalArtPolicy": {
+    "deletedFiles": 0,
+    "replacedFiles": 0,
+    "newRasterFiles": 0,
+    "newAtlasFiles": 0,
+    "gitArtDiffAtReview": "git diff --name-only -- public/game-art returned no paths",
+    "allOriginalFilesRetained": true
+  },
+  "assets": [
+    {
+      "id": "gatekeeper-original-frame-1",
+      "path": "public/game-art/pixi/bosses/open-orbit/frame-1.png",
+      "sha256": "41280945a0d3147b39514d8c6df05aa84bf6411e9690666882e37045c8653f86",
+      "kind": "existing-structural-sprite",
+      "status": "used-neutral",
+      "owners": [
+        "PixiGameRenderer.getDefaultEntityTexture",
+        "entity.bossDecayStage"
+      ],
+      "decision": "Retained byte-for-byte; existing decay-frame selection remains authoritative.",
+      "dimensions": {
+        "width": 512,
+        "height": 640
+      },
+      "registrationGroup": "original-open-orbit-512x640"
+    },
+    {
+      "id": "gatekeeper-original-frame-2",
+      "path": "public/game-art/pixi/bosses/open-orbit/frame-2.png",
+      "sha256": "50367b63d1de38f4cb43040330da629d7cbfce62fdeebe27a6b232063a6be03b",
+      "kind": "existing-structural-sprite",
+      "status": "used-damage",
+      "owners": [
+        "PixiGameRenderer.getDefaultEntityTexture",
+        "entity.bossDecayStage"
+      ],
+      "decision": "Retained byte-for-byte; existing decay-frame selection remains authoritative.",
+      "dimensions": {
+        "width": 512,
+        "height": 640
+      },
+      "registrationGroup": "original-open-orbit-512x640"
+    },
+    {
+      "id": "gatekeeper-original-frame-3",
+      "path": "public/game-art/pixi/bosses/open-orbit/frame-3.png",
+      "sha256": "ae49c5014990a48bc42370b1a739e9bac911280ac9b3ffbe0efa77c7ec1e673e",
+      "kind": "existing-structural-sprite",
+      "status": "used-damage",
+      "owners": [
+        "PixiGameRenderer.getDefaultEntityTexture",
+        "entity.bossDecayStage"
+      ],
+      "decision": "Retained byte-for-byte; existing decay-frame selection remains authoritative.",
+      "dimensions": {
+        "width": 512,
+        "height": 640
+      },
+      "registrationGroup": "original-open-orbit-512x640"
+    },
+    {
+      "id": "gatekeeper-original-frame-4",
+      "path": "public/game-art/pixi/bosses/open-orbit/frame-4.png",
+      "sha256": "b84febd121f34d65888e739d4d007951cc2bc84ace62ce5375fd051356815b2b",
+      "kind": "existing-structural-sprite",
+      "status": "used-damage",
+      "owners": [
+        "PixiGameRenderer.getDefaultEntityTexture",
+        "entity.bossDecayStage"
+      ],
+      "decision": "Retained byte-for-byte; existing decay-frame selection remains authoritative.",
+      "dimensions": {
+        "width": 512,
+        "height": 640
+      },
+      "registrationGroup": "original-open-orbit-512x640"
+    },
+    {
+      "id": "gatekeeper-original-frame-5",
+      "path": "public/game-art/pixi/bosses/open-orbit/frame-5.png",
+      "sha256": "df83cf9f48df9449841b35f1f2f34c63e3be6d14d94a729f0468f214a708a3b0",
+      "kind": "existing-structural-sprite",
+      "status": "used-damage",
+      "owners": [
+        "PixiGameRenderer.getDefaultEntityTexture",
+        "entity.bossDecayStage"
+      ],
+      "decision": "Retained byte-for-byte; existing decay-frame selection remains authoritative.",
+      "dimensions": {
+        "width": 512,
+        "height": 640
+      },
+      "registrationGroup": "original-open-orbit-512x640"
+    },
+    {
+      "id": "gatekeeper-original-arm-left",
+      "path": "public/game-art/generated/boss-weapons/open-orbit-railgun-arm-left.png",
+      "sha256": "334c3372832e996275967bbd4777ecdcab280d93ef12de311bc41153b0c92dd9",
+      "kind": "existing-structural-sprite",
+      "status": "used-neutral",
+      "owners": [
+        "PixiGameRenderer.drawBossComponents"
+      ],
+      "decision": "Original handed arm source retained. New damage-state fittings are a separate procedural overlay.",
+      "dimensions": {
+        "width": 256,
+        "height": 320
+      },
+      "registrationGroup": "original-open-orbit-left-arm"
+    },
+    {
+      "id": "gatekeeper-original-arm-right",
+      "path": "public/game-art/generated/boss-weapons/open-orbit-railgun-arm-right.png",
+      "sha256": "b594fd965220d2e324350df19d847cd23c4db6e3b7cf32a29a5c7451026734b9",
+      "kind": "existing-structural-sprite",
+      "status": "used-neutral",
+      "owners": [
+        "PixiGameRenderer.drawBossComponents"
+      ],
+      "decision": "Original handed arm source retained. New damage-state fittings are a separate procedural overlay.",
+      "dimensions": {
+        "width": 256,
+        "height": 320
+      },
+      "registrationGroup": "original-open-orbit-right-arm"
+    },
+    {
+      "id": "procedural-armament-hardware",
+      "path": "services/revamp/bosses/InteractiveBossPresentation.ts",
+      "sha256": "a9760c0e9ad807a4fba55752416c0e88d3bec594cf6d97b060242b01024ea318",
+      "kind": "retained-pixi-graphics",
+      "status": "used-neutral",
+      "owners": [
+        "InteractiveBossPresentation.PartView"
+      ],
+      "stateUses": [
+        "neutral",
+        "warning",
+        "firing",
+        "cracked",
+        "smoking",
+        "destroyed"
+      ],
+      "decision": "Drawn once per anatomy/state change and retained; no raster export or generated texture. Transforms/alpha update continuously."
+    },
+    {
+      "id": "procedural-core-shutter",
+      "path": "services/revamp/bosses/InteractiveBossPresentation.ts",
+      "sha256": "a9760c0e9ad807a4fba55752416c0e88d3bec594cf6d97b060242b01024ea318",
+      "kind": "retained-pixi-graphics",
+      "status": "used-neutral",
+      "owners": [
+        "InteractiveBossPresentation.drawCore/syncCore"
+      ],
+      "stateUses": [
+        "closed",
+        "opening",
+        "open",
+        "closing"
+      ],
+      "decision": "Drawn once per anatomy/state change and retained; no raster export or generated texture. Transforms/alpha update continuously."
+    },
+    {
+      "id": "procedural-shell-leaves",
+      "path": "services/revamp/bosses/InteractiveBossPresentation.ts",
+      "sha256": "a9760c0e9ad807a4fba55752416c0e88d3bec594cf6d97b060242b01024ea318",
+      "kind": "retained-pixi-graphics",
+      "status": "used-neutral",
+      "owners": [
+        "InteractiveBossPresentation.drawCore/syncCore"
+      ],
+      "stateUses": [
+        "neutral",
+        "phase-two"
+      ],
+      "decision": "Drawn once per anatomy/state change and retained; no raster export or generated texture. Transforms/alpha update continuously."
+    },
+    {
+      "id": "procedural-hangar-shutter",
+      "path": "services/revamp/bosses/InteractiveBossPresentation.ts",
+      "sha256": "a9760c0e9ad807a4fba55752416c0e88d3bec594cf6d97b060242b01024ea318",
+      "kind": "retained-pixi-graphics",
+      "status": "used-neutral",
+      "owners": [
+        "InteractiveBossPresentation.drawCore/syncCore"
+      ],
+      "stateUses": [
+        "closed",
+        "deployment"
+      ],
+      "decision": "Drawn once per anatomy/state change and retained; no raster export or generated texture. Transforms/alpha update continuously."
+    },
+    {
+      "id": "procedural-arena-perimeter",
+      "path": "services/revamp/bosses/InteractiveBossPresentation.ts",
+      "sha256": "a9760c0e9ad807a4fba55752416c0e88d3bec594cf6d97b060242b01024ea318",
+      "kind": "retained-pixi-graphics",
+      "status": "used-neutral",
+      "owners": [
+        "InteractiveBossPresentation.syncArena"
+      ],
+      "stateUses": [
+        "phase-two",
+        "phase-three"
+      ],
+      "decision": "Drawn once per anatomy/state change and retained; no raster export or generated texture. Transforms/alpha update continuously."
+    },
+    {
+      "id": "procedural-mini-hardware",
+      "path": "services/revamp/bosses/MiniInteractivePresentation.ts",
+      "sha256": "728365e6a2e4f0a03ae8c9f5a2f4d0f8a907d436282bc8d2e1a78deeb05f4991",
+      "kind": "retained-pixi-graphics",
+      "status": "used-neutral",
+      "owners": [
+        "MiniInteractivePresentation.MiniPartView"
+      ],
+      "stateUses": [
+        "neutral",
+        "damage",
+        "destroyed"
+      ],
+      "decision": "Drawn once per anatomy/state change and retained; no raster export or generated texture. Transforms/alpha update continuously."
+    },
+    {
+      "id": "procedural-mini-core-and-warnings",
+      "path": "services/revamp/bosses/MiniInteractivePresentation.ts",
+      "sha256": "728365e6a2e4f0a03ae8c9f5a2f4d0f8a907d436282bc8d2e1a78deeb05f4991",
+      "kind": "retained-pixi-graphics",
+      "status": "used-neutral",
+      "owners": [
+        "MiniInteractivePresentation.MiniBossView"
+      ],
+      "stateUses": [
+        "closed",
+        "opening",
+        "warning"
+      ],
+      "decision": "Drawn once per anatomy/state change and retained; no raster export or generated texture. Transforms/alpha update continuously."
+    }
+  ],
+  "audit": {
+    "allAcceptedNewRasterExportsListed": true,
+    "acceptedNewRasterExports": 0,
+    "textureSmoothing": "Existing nearest-neighbor renderer policy retained",
+    "alpha": "Structural fills opaque; smoke/charge effects intentionally translucent. Original source alpha not reprocessed.",
+    "handedness": "Original left/right source files preserved; procedural shutters use fixed mirrored geometry, not opposite-hand raster substitutions.",
+    "silentUnusedGeneratedAssetCount": 0
+  }
+}

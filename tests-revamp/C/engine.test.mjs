@@ -24,6 +24,7 @@ const bundle = await build({
       export * from './services/revamp/bosses/bossLab.ts';
       export * from './services/revamp/bosses/runtime.ts';
       export * from './services/revamp/bosses/catalog.ts';
+      export * from './services/revamp/bosses/interactiveArena.ts';
       export * from './services/revamp/events.ts';
       export * from './services/bossCoinBurst.ts';
       export * from './types.ts';`,
@@ -36,7 +37,7 @@ const modulePath = join(temporary, 'engine.mjs');
 await writeFile(modulePath, bundle.outputFiles[0].text);
 const {
   GameEngine, createCombatLabStats, DEFAULT_GAME_CAMPAIGN, createBossLabEncounter,
-  REVAMP_BOSSES, getBossEncounter, revampEvents, EntityType, getBossCoinBurstCount
+  REVAMP_BOSSES, getBossEncounter, revampEvents, EntityType, getBossCoinBurstCount, sampleInteractiveSweep
 } = await import(pathToFileURL(modulePath).href);
 
 function createFight(profile) {
@@ -44,6 +45,8 @@ function createFight(profile) {
   const engine = new GameEngine(createCombatLabStats(), {
     campaign: encounter.campaign, previewMode: true, previewInvincible: true,
     initialLevelId: encounter.levelId, initialWaveId: encounter.waveId,
+    // REVAMP(O): BossLab supplies original compiled rig metadata; that must not select sandbox combat.
+    previewBossWeaponSocketEventId: encounter.eventId,
     randomSeed: `integration:${profile.id}`, audioEnabled: false, preloadCanvasAssets: false
   });
   engine.init(390, 844);
@@ -109,20 +112,57 @@ test('real engine projectiles and beams exactly match each committed warning pla
       if (event.entityId !== f.boss.id) return;
       attacks.push({
         kind: f.state.attack.kind,
+        mode: f.state.interactive.attackMode,
+        arenaPattern: f.state.interactive.arena.pattern,
+        coreX: f.state.interactive.coreX, coreY: f.state.interactive.coreY,
         plan: f.state.plan,
         entities: f.engine.entities.filter(entity => entity.bossOwnerId === f.boss.id && !entity.markedForDeletion)
           .map(entity => ({ x: entity.x, y: entity.y, vx: entity.vx, vy: entity.vy,
-            width: entity.width, height: entity.height, isBeam: entity.isBeam, life: entity.life }))
+            width: entity.width, height: entity.height, isBeam: entity.isBeam, life: entity.life,
+            beamAngleRadians: entity.beamAngleRadians, type: entity.type,
+            sourceItemId: entity.sourceItemId, hp: entity.hp, contactDamage: entity.contactDamage }))
       });
     });
     try {
-      f.until(() => attacks.some(attack => attack.kind === 'gap-ring'));
+      const firedWeapon = kind => attacks.some(attack => attack.mode === 'weapon' && attack.kind === kind);
+      f.until(() => firedWeapon('gap-ring'));
       f.engine.setPreviewBossHealthRatio(0.6, f.encounter.eventId);
-      f.until(() => attacks.some(attack => attack.kind === 'weave-wall'));
+      f.until(() => firedWeapon('weave-wall'));
       f.engine.setPreviewBossHealthRatio(0.3, f.encounter.eventId);
-      f.until(() => attacks.some(attack => attack.kind === 'lane-salvo'));
-      assert.deepEqual(new Set(attacks.map(attack => attack.kind)), new Set(['aimed-fan', 'gap-ring', 'weave-wall', 'lane-salvo']));
+      f.until(() => firedWeapon('lane-salvo'));
+      assert.deepEqual(new Set(attacks.filter(attack => attack.mode === 'weapon').map(attack => attack.kind)),
+        new Set(['aimed-fan', 'gap-ring', 'weave-wall', 'lane-salvo']));
+      assert.deepEqual(new Set(attacks.filter(attack => attack.mode === 'arena').map(attack => attack.arenaPattern)),
+        new Set(['walls', 'sweep']), 'the two phase openers are tested separately from the weapon plan');
+      assert.equal(attacks.filter(attack => attack.mode === 'summon').length, 2);
       for (const attack of attacks) {
+        // REVAMP(O): A hangar plan owns real craft; a sweep's zones reserve its
+        // complete envelope while the two live beam entities rotate inside it.
+        if (attack.mode === 'summon') {
+          assert.equal(attack.entities.length, 2);
+          assert.equal(attack.plan.projectiles.length + attack.plan.zones.length, 0);
+          for (const [index, escort] of attack.entities.entries()) {
+            assert.equal(escort.type, EntityType.ENEMY_DRONE);
+            assert.equal(escort.sourceItemId, `${profile.id}:escort`);
+            assert.equal(escort.width, 28); assert.equal(escort.height, 28);
+            assert.equal(escort.x + 14, attack.plan.sockets[0].x + (index === 0 ? -12 : 12));
+            assert.equal(escort.y + 14, attack.plan.sockets[0].y);
+            assert.ok(escort.hp > 0); assert.equal(escort.contactDamage, 0);
+          }
+          continue;
+        }
+        if (attack.mode === 'arena' && attack.arenaPattern === 'sweep') {
+          const samples = sampleInteractiveSweep(attack.coreX, attack.coreY, 0);
+          assert.equal(attack.entities.length, samples.length);
+          for (const [index, sample] of samples.entries()) {
+            const actual = attack.entities[index];
+            assert.equal(actual.isBeam, true); assert.equal(actual.life, 72);
+            assert.equal(actual.beamAngleRadians, sample.angle);
+            assert.deepEqual({ x: actual.x, y: actual.y, width: actual.width, height: actual.height },
+              { x: sample.x, y: sample.y, width: sample.width, height: sample.height });
+          }
+          continue;
+        }
         assert.equal(attack.entities.length, attack.plan.projectiles.length + attack.plan.zones.length, `${profile.id}/${attack.kind}`);
         for (const [index, projectile] of attack.plan.projectiles.entries()) {
           const actual = attack.entities[index];
@@ -154,6 +194,8 @@ test('the real defeat path awards its existing physical coin burst once and emit
   try {
     f.until(() => f.state.stage === 'warning');
     for (let phase = 1; phase <= 2; phase++) {
+      // O: both armaments protect each layer; centered hull hits redirect into them.
+      f.engine.damageBossHull(f.boss, 100_000);
       f.engine.damageBossHull(f.boss, 100_000);
       f.until(() => f.state.stage === 'warning');
     }
@@ -169,10 +211,11 @@ test('the real defeat path awards its existing physical coin burst once and emit
     assert.equal(f.boss.hp, 0);
     const coins = () => f.engine.entities.filter(entity => entity.type === EntityType.COIN);
     const expected = getBossCoinBurstCount('main-boss', f.engine.stats.wave);
-    assert.equal(coins().length, expected);
-    assert.ok(coins().every(coin => coin.bossRewardWave === f.engine.wave));
+    const partCoins = f.state.interactive.rewardCoins;
+    assert.equal(coins().length, expected + partCoins);
+    assert.equal(coins().filter(coin => coin.bossRewardWave === f.engine.wave).length, expected);
     f.engine.handleEnemyDestroyed(f.boss);
-    assert.equal(coins().length, expected);
+    assert.equal(coins().length, expected + partCoins);
     assert.equal(events.filter(event => event.type === 'boss:defeat').length, 1);
     const coinEvents = events.filter(event => event.type === 'boss:coin-burst');
     assert.equal(coinEvents.length, 1);

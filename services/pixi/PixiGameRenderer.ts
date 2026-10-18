@@ -66,6 +66,7 @@ import { CompactFormationIntro } from '../revamp/presentation/CompactFormationIn
 import { BossHealthPresentation } from './BossHealthPresentation';
 // REVAMP(C): State-driven boss cues keep warnings visible independently of optional VFX.
 import { BossPolishPresentation } from '../revamp/bosses/BossPolishPresentation';
+import { getBossEncounter } from '../revamp/bosses/runtime'; // REVAMP(O): Overlay anatomy owns its break effects.
 import { sampleBossLowHealthDamageCue } from './BossDamagePresentation';
 import {
   PIXI_ENVIRONMENT_TEXTURE_URLS,
@@ -3480,17 +3481,23 @@ export class PixiGameRenderer {
       } else {
         view.aura.roundRect(-width / 2, -height / 2, width, height, radius)
           .fill({ color, alpha: cornerAmbushBeam ? 0.44 : 0.28 });
-        const modularBeam = this.getPreviewBossModularProjectileTexture(
+        // REVAMP(O): Arena beams use exact procedural bounds; legacy impacts scale
+        // from beam length and would cover the safe lane with screen-sized flames.
+        const interactiveBeam = engine.entities.some((owner) => owner.id === entity.bossOwnerId
+          && Boolean(getBossEncounter(owner)?.interactive));
+        const previewBeam = !interactiveBeam && Boolean(entity.bossOwnerId
+          && this.previewBossRuntimeEntityIds.has(entity.bossOwnerId));
+        const modularBeam = interactiveBeam ? undefined : this.getPreviewBossModularProjectileTexture(
           entity,
           engineFrame,
           true
         );
         const beamTexture = modularBeam?.texture ?? (
-          Boolean(entity.bossOwnerId && this.previewBossRuntimeEntityIds.has(entity.bossOwnerId))
+          previewBeam
             ? this.getPreviewBossVfxTexture('beamLive')
             : undefined
         );
-        const impactTexture = entity.bossOwnerId && this.previewBossRuntimeEntityIds.has(entity.bossOwnerId)
+        const impactTexture = previewBeam
           ? this.getPreviewBossVfxTexture('beamImpact')
           : undefined;
         if (beamTexture) {
@@ -5810,6 +5817,14 @@ export class PixiGameRenderer {
     rig.componentHealth.y = bob;
     rig.componentHealth.clear();
     rig.crownClaw.root.visible = false;
+    // REVAMP(O): Layered fittings own HP and break effects for every hull family.
+    // Legacy left/right IDs repeat across layers and otherwise replay explosions.
+    if (getBossEncounter(entity)?.interactive) {
+      rig.parts.visible = rig.thrust.visible = false;
+      Object.values(rig.partSprites).forEach((sprite) => { sprite.visible = false; sprite.filters = null; });
+      this.seenBossComponents.delete(entity.id);
+      return;
+    }
     if (usesStandaloneBossArt(
       entity,
       Boolean(this.getPreviewBossArtwork(entity) || this.getPreviewBossAtlas(entity))

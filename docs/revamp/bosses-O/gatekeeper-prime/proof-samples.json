@@ -1,0 +1,271 @@
+{
+  "schemaVersion": 1,
+  "bossId": "gatekeeper-prime",
+  "recordedAt": "2026-10-18T03:18:42.755Z",
+  "fixedSeed": 12345,
+  "world": {
+    "width": 390,
+    "height": 844
+  },
+  "geometryUncertaintyPixels": 3,
+  "requiredClearancePixelsAfterUncertainty": 6,
+  "scope": "Seven representative exact-plan witnesses; full bounded coverage remains the named O test suite. Sweep proof covers conservative side envelopes; live beam containment is a separate named regression.",
+  "sourceSha256": {
+    "services/revamp/bosses/interactive.ts": "72960ce492e31366c730ff9c3a5a7b923e53074ce88746f63131cda1998d142a",
+    "services/revamp/bosses/runtime.ts": "4be4a430e74b94edb2317769ba339ef3b18a0de4b954387ce635bbd918070123",
+    "services/revamp/bosses/patterns.ts": "19e54b6bfa5797457373cb58e56598110a6b23feb0cf1061cc497f6b145a924f",
+    "services/revamp/bosses/safeRoute.ts": "be0581175dd96aed2ce9ddcd3bddfd67ac6adcda8dbe343c7eb996f12434b523",
+    "services/revamp/bosses/engineAdapter.ts": "cde7a8a60c2c9a9dda23df6277bb938f2e4a877b6fbe76a946793aaeea9db7d5",
+    "services/revamp/bosses/interactiveArena.ts": "51e63be0be94d67bf9357e6cceaa3534aa7c56d0aafe454059a024a6453d407a",
+    "services/revamp/bosses/interactiveEscorts.ts": "a023cff42de0e7f713c17f3c408d123a5d52034620c61a6dd6e27625b959dd9b",
+    "services/revamp/bosses/InteractiveBossPresentation.ts": "a9760c0e9ad807a4fba55752416c0e88d3bec594cf6d97b060242b01024ea318",
+    "services/revamp/bosses/MiniInteractivePresentation.ts": "728365e6a2e4f0a03ae8c9f5a2f4d0f8a907d436282bc8d2e1a78deeb05f4991"
+  },
+  "samples": [
+    {
+      "id": "O-GK-fan",
+      "input": {
+        "attack": {
+          "id": "gatekeeper-prime:aimed-fan",
+          "name": "Rejection Volley",
+          "kind": "aimed-fan",
+          "telegraphFrames": 48,
+          "recoveryFrames": 60,
+          "projectileCount": 3,
+          "speed": 3.1,
+          "big": false,
+          "color": "amber"
+        },
+        "phase": 1,
+        "sequence": 0,
+        "rage": false,
+        "origin": {
+          "x": 130.6,
+          "y": 378.3
+        },
+        "player": {
+          "x": 195,
+          "y": 590.8
+        },
+        "worldWidth": 390,
+        "worldHeight": 844
+      },
+      "planSha256": "ffb7f574bc44d7397bcdd4205060178ab3104d0a9248718a2a6eca9e8f1f7d56",
+      "status": "proven",
+      "witnessHash": "71f4c693",
+      "minimumClearancePixelsAfterUncertainty": 39.380000000000024,
+      "checkedFrames": 288,
+      "warningFrames": 108,
+      "liveFrames": 180,
+      "recoveryFrames": 60
+    },
+    {
+      "id": "O-GK-ring",
+      "input": {
+        "attack": {
+          "id": "gatekeeper-prime:gap-ring",
+          "name": "Access Ring",
+          "kind": "gap-ring",
+          "telegraphFrames": 108,
+          "recoveryFrames": 66,
+          "projectileCount": 16,
+          "speed": 3.1,
+          "big": false,
+          "color": "magenta"
+        },
+        "phase": 1,
+        "sequence": 0,
+        "rage": false,
+        "origin": {
+          "x": 259.4,
+          "y": 378.3
+        },
+        "player": {
+          "x": 195,
+          "y": 590.8
+        },
+        "worldWidth": 390,
+        "worldHeight": 844
+      },
+      "planSha256": "9a1cda6f0fb6df6efd6b55fc66bd09f90af2ffcfdf4e6b7e5645fe47e12b0b53",
+      "status": "proven",
+      "witnessHash": "71196ad0",
+      "minimumClearancePixelsAfterUncertainty": 52.380000000000024,
+      "checkedFrames": 288,
+      "warningFrames": 108,
+      "liveFrames": 180,
+      "recoveryFrames": 66
+    },
+    {
+      "id": "O-GK-weave",
+      "input": {
+        "attack": {
+          "id": "gatekeeper-prime:weave-wall",
+          "name": "Embargo Lattice",
+          "kind": "weave-wall",
+          "telegraphFrames": 108,
+          "recoveryFrames": 66,
+          "projectileCount": 10,
+          "speed": 3.1,
+          "big": false,
+          "color": "amber"
+        },
+        "phase": 2,
+        "sequence": 0,
+        "rage": false,
+        "origin": {
+          "x": 161.4,
+          "y": 388.1
+        },
+        "player": {
+          "x": 195,
+          "y": 590.8
+        },
+        "worldWidth": 390,
+        "worldHeight": 844
+      },
+      "planSha256": "5a0830f651955d05bc04072262ef9aadba6fc2cbaff04501f744457b9d59d374",
+      "status": "proven",
+      "witnessHash": "0d899c36",
+      "minimumClearancePixelsAfterUncertainty": 38.6657142857143,
+      "checkedFrames": 288,
+      "warningFrames": 108,
+      "liveFrames": 180,
+      "recoveryFrames": 66
+    },
+    {
+      "id": "O-GK-salvo",
+      "input": {
+        "attack": {
+          "id": "gatekeeper-prime:lane-salvo",
+          "name": "Final Notice",
+          "kind": "lane-salvo",
+          "telegraphFrames": 66,
+          "recoveryFrames": 84,
+          "projectileCount": 2,
+          "speed": 3.1,
+          "big": true,
+          "color": "magenta"
+        },
+        "phase": 2,
+        "sequence": 0,
+        "rage": false,
+        "origin": {
+          "x": 228.6,
+          "y": 388.1
+        },
+        "player": {
+          "x": 195,
+          "y": 590.8
+        },
+        "worldWidth": 390,
+        "worldHeight": 844
+      },
+      "planSha256": "c72fe4846fd1680b319bc80a957ff9b609cfa0b2c6868b1040e198697d1d1719",
+      "status": "proven",
+      "witnessHash": "71f4c693",
+      "minimumClearancePixelsAfterUncertainty": 39.380000000000024,
+      "checkedFrames": 288,
+      "warningFrames": 108,
+      "liveFrames": 180,
+      "recoveryFrames": 84
+    },
+    {
+      "id": "O-GK-arena-walls",
+      "input": {
+        "phase": 2,
+        "sequence": 2,
+        "origin": {
+          "x": 195,
+          "y": 299.9
+        },
+        "worldWidth": 390,
+        "worldHeight": 844,
+        "player": {
+          "x": 195,
+          "y": 590.8
+        }
+      },
+      "planSha256": "a33278047028926319baf731932ac2de54941f32378f0655b769e5696993d462",
+      "status": "proven",
+      "witnessHash": "85d4a2f4",
+      "minimumClearancePixelsAfterUncertainty": 74.37999986960669,
+      "checkedFrames": 264,
+      "warningFrames": 84,
+      "liveFrames": 180,
+      "recoveryFrames": 84
+    },
+    {
+      "id": "O-GK-arena-sweep-envelope",
+      "input": {
+        "phase": 3,
+        "sequence": 2,
+        "origin": {
+          "x": 195,
+          "y": 299.9
+        },
+        "worldWidth": 390,
+        "worldHeight": 844,
+        "player": {
+          "x": 195,
+          "y": 590.8
+        }
+      },
+      "planSha256": "a48b068a37f2742b5e85a61024e43f09f77bcad6c8491459f09e4a5064b73708",
+      "status": "proven",
+      "witnessHash": "5f2798e5",
+      "minimumClearancePixelsAfterUncertainty": 20.379999999999995,
+      "checkedFrames": 264,
+      "warningFrames": 84,
+      "liveFrames": 180,
+      "recoveryFrames": 84
+    },
+    {
+      "id": "O-GK-arena-chevron",
+      "input": {
+        "phase": 3,
+        "sequence": 6,
+        "origin": {
+          "x": 195,
+          "y": 299.9
+        },
+        "worldWidth": 390,
+        "worldHeight": 844,
+        "player": {
+          "x": 195,
+          "y": 590.8
+        }
+      },
+      "planSha256": "bcce3a53d2bb73bf7a46be9cda946ce28dd17d5ef9b5e1d662cbdfb57e93c4e5",
+      "status": "proven",
+      "witnessHash": "5f2798e5",
+      "minimumClearancePixelsAfterUncertainty": 52.379999999999995,
+      "checkedFrames": 264,
+      "warningFrames": 84,
+      "liveFrames": 180,
+      "recoveryFrames": 84
+    }
+  ],
+  "scheduleRevision": {
+    "recordedAt": "2026-10-18T03:51:22.267972+00:00",
+    "priorRuntimeSha256": "1be0ce1590fbf355b4b8f7422ade7d5942075b9100c33717c2a82090d2bc11cd",
+    "runtimeSha256": "4be4a430e74b94edb2317769ba339ef3b18a0de4b954387ce635bbd918070123",
+    "change": "Interactive phase>1 sequence offset +2: phase2 walls, phase3 sweep; then hangar before weapon/core sentences. Phase1 unchanged.",
+    "witnessDisposition": "Existing exact-plan witnesses retained without rerunning: interactive.ts, patterns.ts, safeRoute.ts, arena geometry and recorded witness inputs are byte-identical. This source-snapshot refresh is not a new proof execution.",
+    "orderingTest": "tests-revamp/O/interactive-bosses.test.mjs: later phases lead with a fully warned arena then hangar, and broken weapons never regain ownership"
+  },
+  "mountPaletteRevision": {
+    "recordedAt": "2026-10-18T04:36:57.446300+00:00",
+    "sourceChanges": {
+      "services/revamp/bosses/interactive.ts": {
+        "before": "9ade9ce99c4fe399e6cd37b8f81ca4bf2d20f2665f903d4fafdd570dbfd76313",
+        "after": "72960ce492e31366c730ff9c3a5a7b923e53074ce88746f63131cda1998d142a"
+      },
+      "services/revamp/bosses/InteractiveBossPresentation.ts": {
+        "before": "2cb64cb70fbc5d8498c6c736df809d86b04e75696a89984eab96a4fdb4316542",
+        "after": "a9760c0e9ad807a4fba55752416c0e88d3bec594cf6d97b060242b01024ea318"
+      }
+    },
+    "witnessDisposition": "Gatekeeper exact witness inputs and attack-plan functions unchanged. Source-specific Hammerhead mounts and exact presentation palettes changed; seven Gatekeeper witnesses retained without rerunning. Expanded exact-origin tests cover 42,000 major cases; rebuilt attachment/palette checks and corrected four-boss PNG/sampled-motion review are complete; see ../final-visual-review.md. Full-roster mobile FPS acceptance remains failed."
+  }
+}

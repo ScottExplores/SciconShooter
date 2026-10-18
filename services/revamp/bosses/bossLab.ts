@@ -31,7 +31,7 @@ export const readBossLabRequest = (
 };
 
 /** Preserve the source rig/art ID; the event ID selects the revamp story variant. */
-export const createBossLabEncounter = (source: GameCampaign, profile: BossProfile) => {
+export const createBossLabEncounter = (source: GameCampaign, profile: Pick<BossProfile, 'id' | 'sourceBossId' | 'name'>) => {
   const campaign: GameCampaign = structuredClone(source);
   for (const level of campaign.levels) {
     for (const wave of level.waves) {
