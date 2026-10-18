@@ -45,11 +45,19 @@ test('average windows recognize sustained alternating long and short frames', ()
 
 test('severe sustained visible jank still steps Auto down to Low', () => {
   const governor = new AdaptiveRenderQuality();
-  assert.equal(frames(governor, 7, 300).tier, 'high');
+  assert.equal(frames(governor, 3, 300).tier, 'high');
   assert.equal(frames(governor, 1, 300).tier, 'medium');
-  assert.equal(frames(governor, 8, 300).tier, 'low');
+  assert.equal(frames(governor, 4, 300).tier, 'low');
   frames(governor, 20, 300, 'auto', false, false);
   assert.equal(governor.budget.tier, 'low', 'inactive frames preserve the learned tier');
+});
+
+test('severe pressure cuts decorations in separate windows before native raster fallback', () => {
+  const governor = new AdaptiveRenderQuality();
+  assert.equal(frames(governor, 24, 40).tier, 'high');
+  assert.equal(frames(governor, 1, 40).tier, 'medium');
+  assert.equal(frames(governor, 24, 40).tier, 'medium');
+  assert.equal(frames(governor, 1, 40).tier, 'low');
 });
 
 test('isolated frame hitches and a 50–57 FPS neutral band do not reduce or oscillate detail', () => {

@@ -1,4 +1,5 @@
 import { BlurFilter, Color, ColorMatrixFilter, Container, Rectangle, Sprite, Texture, type Filter, type Renderer } from 'pixi.js';
+import { fullRenderResolution } from './RendererBudget';
 
 /** The same affine RGB operation as an authored solid color overlay. Pixi's
  * matrix filter unpremultiplies then premultiplies; this row preserves alpha. */
@@ -73,7 +74,8 @@ export class BackgroundTextureCache {
       root.filterArea = new Rectangle(0, 0, width, height);
     }
     try {
-      const texture = renderer.generateTexture({ target: root, frame: new Rectangle(0, 0, width, height), resolution: Math.min(2, renderer.resolution), textureSourceOptions: { scaleMode: 'nearest' } });
+      // REVAMP(L): A scene first visited in Low must still have sharp art on return to High.
+      const texture = renderer.generateTexture({ target: root, frame: new Rectangle(0, 0, width, height), resolution: fullRenderResolution(renderer), textureSourceOptions: { scaleMode: 'nearest' } });
       this.entries.set(key, texture);
       return texture;
     } finally {

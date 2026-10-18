@@ -15,6 +15,13 @@ const transpiled = ts.transpileModule(environmentSource, {
   }
 }).outputText;
 
+// REVAMP(L): Execute the real full-quality bake budget used by the cache.
+const rendererBudget = { exports: {} };
+vm.runInNewContext(ts.transpileModule(
+  fs.readFileSync(path.join(root, 'services/revamp/performance/RendererBudget.ts'), 'utf8'),
+  { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }
+).outputText, { module: rendererBudget, exports: rendererBudget.exports });
+
 const pixiStub = {
   BlurFilter: class BlurFilter {},
   Container: class Container {},
@@ -45,6 +52,7 @@ vm.runInNewContext(transpiled, {
       }).outputText;
       vm.runInNewContext(compiled, { module: dependency, exports: dependency.exports, require: name => {
         if (name === 'pixi.js') return pixiStub;
+        if (name === './RendererBudget') return rendererBudget.exports;
         throw new Error(`Unexpected cache dependency: ${name}`);
       } });
       return dependency.exports;

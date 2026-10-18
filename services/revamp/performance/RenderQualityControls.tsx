@@ -11,7 +11,7 @@ const RenderQualityControls: React.FC = () => {
       <span className="sci-pause-setting__label">Visual quality</span>
       <select
         aria-label="Visual quality"
-        title="Auto adjusts particles, trails, and scenery for smooth play."
+        title="Auto adjusts scenery, effects, and pixel resolution for smooth play."
         value={mode}
         onChange={(event) => setRenderQualityMode(event.currentTarget.value as RenderQualityMode)}
       >

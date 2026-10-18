@@ -12,6 +12,9 @@ export const RENDER_QUALITY_TUNING = Object.freeze({
   sampleWindowMs: 1000,
   slowFrameMs: 1000 / 50,
   downgradeAfterMs: 2000,
+  // REVAMP(L): A full second below 30 FPS merits the next decorative cut now.
+  severeFrameMs: 1000 / 30,
+  severeDowngradeAfterMs: 1000,
   recoverFrameMs: 1000 / 57,
   recoverAfterMs: 8000,
   // Paused/hidden frames are excluded explicitly; severe visible jank still
@@ -77,7 +80,9 @@ export class AdaptiveRenderQuality {
     if (averageFrameMs > RENDER_QUALITY_TUNING.slowFrameMs) {
       this.fastTime = 0;
       this.slowTime += this.windowTime;
-      if (this.slowTime >= RENDER_QUALITY_TUNING.downgradeAfterMs) {
+      const deadline = averageFrameMs > RENDER_QUALITY_TUNING.severeFrameMs
+        ? RENDER_QUALITY_TUNING.severeDowngradeAfterMs : RENDER_QUALITY_TUNING.downgradeAfterMs;
+      if (this.slowTime >= deadline) {
         this.autoLevel = Math.max(0, this.autoLevel - 1);
         this.slowTime = 0;
       }

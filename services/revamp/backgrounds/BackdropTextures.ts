@@ -10,7 +10,7 @@ export class BackdropTextures {
   constructor(private readonly renderer: Renderer) {
     this.atlas = new RuntimeTextureAtlas(renderer, { size: 1024, maxEntries: 32 });
   }
-  add(label: string, pixels: PixelSurface): Texture {
+  add(label: string, pixels: PixelSurface, { atlas = true }: { atlas?: boolean } = {}): Texture {
     const texture = new Texture({ label: `backdrop:${label}`, source: new BufferImageSource({
       resource: pixels.pixels, width: pixels.width, height: pixels.height,
       format: 'rgba8unorm', scaleMode: 'nearest', resolution: 1,
@@ -18,7 +18,8 @@ export class BackdropTextures {
       addressMode: 'clamp-to-edge',
     }) });
     this.originals.push(texture);
-    const view = this.atlas.get(texture);
+    // REVAMP(L): Unbatched full-plane meshes retain their small native source.
+    const view = atlas ? this.atlas.get(texture) : texture;
     this.views.push(view);
     return view;
   }
