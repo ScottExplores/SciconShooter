@@ -1,3 +1,4 @@
+// REVAMP(G): E/F admission refusals may use the home error surface (REVAMP_NOTES_E/F.md).
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -56,8 +57,10 @@ test('the Weekly Run is a home-screen mode and no longer clutters the Campaign M
   assert.ok(entryStart >= 0 && entryEnd > entryStart);
   const entryBody = appSource.slice(entryStart, entryEnd);
   const bareReturns = (entryBody.match(/^\s*return;$/gm) ?? []).length;
-  const explainedReturns = (entryBody.match(/setCampaignMapError\(/g) ?? []).length;
+  const explainedReturns = (entryBody.match(/set(?:CampaignMapError|WeeklyRunLaunchError)\(/g) ?? []).length;
   assert.ok(explainedReturns >= bareReturns - 1, 'home Weekly Run refusals are explained');
+  assert.match(entryBody, /QA_CONFIG\.enabled[\s\S]*setWeeklyRunLaunchError\('Weekly Run is unavailable in QA/);
+  assert.match(startScreen, /weeklyRunLaunchError[\s\S]*role="alert"[\s\S]*\{weeklyRunLaunchError\}/);
 });
 
 test('App runs weekly streaks through direct graph routing and the existing leaderboard flow without Campaign rewards', () => {

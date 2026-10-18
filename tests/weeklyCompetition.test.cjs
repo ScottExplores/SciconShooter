@@ -1,4 +1,7 @@
+const { createWeeklyDurableFixtures, weeklyFixtureId } = require('./helpers/weeklyDurableFixtures.cjs');
+const weeklyFixtures = createWeeklyDurableFixtures();
 const test = require('node:test');
+test.beforeEach(() => weeklyFixtures.reset());
 const assert = require('node:assert/strict');
 const {
   captureWeeklyProposalCutoffSnapshot,
@@ -138,10 +141,10 @@ test('a closed week waits for in-flight score submissions before finalization', 
   const { end } = getWeekRange(weekKey);
   const originalFetch = global.fetch;
   let fetchCalled = false;
-  global.fetch = async () => {
+  global.fetch = weeklyFixtures.withStorage(async () => {
     fetchCalled = true;
     return new Response('[]', { status: 200 });
-  };
+  });
 
   try {
     await assert.rejects(
@@ -164,7 +167,7 @@ test('finalization persists an expired terminal row when a closed week has no sc
   process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-key';
   const savedRows = [];
 
-  global.fetch = async (url, options = {}) => {
+  global.fetch = weeklyFixtures.withStorage(async (url, options = {}) => {
     const requestUrl = String(url);
     if (requestUrl.includes('scicon_weekly_competitions') && options.method === 'POST') {
       const row = JSON.parse(options.body);
@@ -175,7 +178,7 @@ test('finalization persists an expired terminal row when a closed week has no sc
       return new Response('[]', { status: 200 });
     }
     throw new Error(`Unexpected request: ${requestUrl}`);
-  };
+  });
 
   context.after(() => {
     global.fetch = originalFetch;
@@ -215,7 +218,7 @@ test('production finalization skips a verified leader backed only by legacy prov
     wallet_address: null,
     run_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
     verified: true,
-    receipt_hash: 'legacy-receipt-hash'
+    receipt_hash: 'a'.repeat(64)
   };
   global.fetch = async (url, options = {}) => {
     const requestUrl = String(url);
@@ -229,7 +232,8 @@ test('production finalization skips a verified leader backed only by legacy prov
         wave: legacyLeader.wave,
         receipt_hash: legacyLeader.receipt_hash,
         integrity_status: 'server-verified',
-        receipt_provenance_version: 0
+        receipt_provenance_version: 0,
+        run_mode: 'weekly-streak', test_run: false, finished_at: legacyLeader.date
       }]), { status: 200 });
     }
     if (requestUrl.includes('scicon_weekly_competitions') && options.method === 'POST') {
@@ -279,7 +283,7 @@ test('production leader lookup accepts an exact provenance-one receipt', async (
     wallet_address: null,
     run_id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
     verified: true,
-    receipt_hash: 'trusted-receipt-hash'
+    receipt_hash: 'b'.repeat(64)
   };
   global.fetch = async (url) => {
     if (String(url).includes('scicon_leaderboard')) {
@@ -292,7 +296,8 @@ test('production leader lookup accepts an exact provenance-one receipt', async (
         wave: leader.wave,
         receipt_hash: leader.receipt_hash,
         integrity_status: 'server-verified',
-        receipt_provenance_version: 1
+        receipt_provenance_version: 1,
+        run_mode: 'weekly-streak', test_run: false, finished_at: leader.date
       }]), { status: 200 });
     }
     throw new Error(`Unexpected request: ${String(url)}`);
@@ -324,7 +329,7 @@ test('recovery finalizes a stale open row and skips only terminal weeks', async 
   };
   const savedRows = [];
 
-  global.fetch = async (url, options = {}) => {
+  global.fetch = weeklyFixtures.withStorage(async (url, options = {}) => {
     const requestUrl = String(url);
     if (requestUrl.includes('scicon_weekly_competitions') && options.method === 'PATCH') {
       const row = JSON.parse(options.body);
@@ -338,7 +343,7 @@ test('recovery finalizes a stale open row and skips only terminal weeks', async 
       return new Response('[]', { status: 200 });
     }
     throw new Error(`Unexpected request: ${requestUrl}`);
-  };
+  });
 
   context.after(() => {
     global.fetch = originalFetch;
@@ -375,14 +380,14 @@ test('a closed week becomes finalizable exactly when the five-minute settlement 
   process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-key';
   const requests = [];
 
-  global.fetch = async (url, options = {}) => {
+  global.fetch = weeklyFixtures.withStorage(async (url, options = {}) => {
     requests.push({ url: String(url), options });
     if (options.method === 'POST') {
       const row = JSON.parse(options.body);
       return new Response(JSON.stringify([row]), { status: 200 });
     }
     return new Response('[]', { status: 200 });
-  };
+  });
 
   context.after(() => {
     global.fetch = originalFetch;
@@ -418,11 +423,11 @@ test('finalization locks the top eligible score for a closed week', async (conte
   const requests = [];
   const winner = {
     name: 'Pilot One', score: 4321, wave: 8, date: '2020-01-07T12:00:00.000Z',
-    wallet_address: null, run_id: 'verified-run', verified: true
+    wallet_address: null, run_id: weeklyFixtureId('verified-run'), verified: true
   };
   const reviewOnlyLeader = {
     name: 'Review Only', score: 999999, wave: 99, date: '2020-01-07T11:00:00.000Z',
-    wallet_address: null, run_id: 'review-run', verified: false
+    wallet_address: null, run_id: weeklyFixtureId('review-run'), verified: false
   };
   const proposalEntries = [{
     content_object: {
@@ -440,7 +445,7 @@ test('finalization locks the top eligible score for a closed week', async (conte
     },
     author: { first_name: 'Fallback', last_name: 'Researcher' }
   }];
-  global.fetch = async (url, options = {}) => {
+  global.fetch = weeklyFixtures.withStorage(async (url, options = {}) => {
     requests.push({ url: String(url), options });
     if (String(url).includes('scicon_weekly_competitions') && options.method !== 'POST') {
       return new Response('[]', { status: 200 });
@@ -453,7 +458,7 @@ test('finalization locks the top eligible score for a closed week', async (conte
     }
     const saved = JSON.parse(options.body);
     return new Response(JSON.stringify([saved]), { status: 200 });
-  };
+  });
 
   context.after(() => {
     global.fetch = originalFetch;
@@ -471,7 +476,7 @@ test('finalization locks the top eligible score for a closed week', async (conte
   assert.equal(result.finalized, true);
   assert.equal(result.proposalSelectionSource, 'automatic_fallback');
   assert.equal(result.competition.status, 'finalized');
-  assert.equal(result.competition.winner_run_id, 'verified-run');
+  assert.equal(result.competition.winner_run_id, weeklyFixtureId('verified-run'));
   assert.equal(result.competition.winning_score, 4321);
   assert.equal(result.competition.proposal_id, '654');
   assert.equal(result.competition.proposal_title, 'Most Funded Eligible Proposal');
@@ -480,7 +485,8 @@ test('finalization locks the top eligible score for a closed week', async (conte
   assert.equal(result.competition.ends_at, '2020-01-12T20:00:00.000Z');
   const leaderboardRequest = requests.find((request) => request.url.includes('scicon_leaderboard'));
   assert.ok(leaderboardRequest);
-  assert.doesNotMatch(leaderboardRequest.url, /verified=eq\.true/);
+  // REVAMP(G): E narrows database candidates before durable provenance checks.
+  assert.match(leaderboardRequest.url, /verified=eq\.true/);
   assert.match(leaderboardRequest.url, /order=score\.desc,date\.asc/);
   assert.match(leaderboardRequest.url, /limit=100/);
   assert.equal(
@@ -501,7 +507,7 @@ test('finalization re-resolves the proposal when the weekly leader changes durin
     wave: 5,
     date: '2020-01-07T12:00:00.000Z',
     wallet_address: null,
-    run_id: 'early-run',
+    run_id: weeklyFixtureId('early-run'),
     verified: true,
     proposal_id: '101'
   };
@@ -511,7 +517,7 @@ test('finalization re-resolves the proposal when the weekly leader changes durin
     wave: 6,
     date: '2020-01-08T12:00:00.000Z',
     wallet_address: null,
-    run_id: 'final-run',
+    run_id: weeklyFixtureId('final-run'),
     verified: true,
     proposal_id: '202'
   };
@@ -532,7 +538,7 @@ test('finalization re-resolves the proposal when the weekly leader changes durin
   }));
   let leaderboardReads = 0;
 
-  global.fetch = async (url, options = {}) => {
+  global.fetch = weeklyFixtures.withStorage(async (url, options = {}) => {
     if (String(url).includes('scicon_weekly_competitions') && options.method !== 'POST') {
       return new Response('[]', { status: 200 });
     }
@@ -547,7 +553,7 @@ test('finalization re-resolves the proposal when the weekly leader changes durin
     }
     const saved = JSON.parse(options.body);
     return new Response(JSON.stringify([saved]), { status: 200 });
-  };
+  });
 
   context.after(() => {
     global.fetch = originalFetch;
@@ -561,7 +567,7 @@ test('finalization re-resolves the proposal when the weekly leader changes durin
     observedAt: shortlyAfterCutoff('2020-01-05')
   });
   assert.equal(result.finalized, true);
-  assert.equal(result.competition.winner_run_id, 'final-run');
+  assert.equal(result.competition.winner_run_id, weeklyFixtureId('final-run'));
   assert.equal(result.competition.proposal_id, '202');
   assert.equal(leaderboardReads, 3);
 });
@@ -580,7 +586,7 @@ test('finalization preserves a wallet-associated guest proposal as claimable and
   const winner = {
     name: 'Proposal Pilot', score: 7654, wave: 6, date: '2020-02-04T12:00:00.000Z',
     wallet_address: '0x1111111111111111111111111111111111111111',
-    run_id: 'proposal-pilot-run', verified: true,
+    run_id: weeklyFixtureId('proposal-pilot-run'), verified: true,
     proposal_id: '321', proposal_title: 'Open Science Target',
     proposal_url: 'https://www.researchhub.com/post/321/open-science-target',
     proposal_author: 'Ada Researcher',
@@ -602,7 +608,7 @@ test('finalization preserves a wallet-associated guest proposal as claimable and
     },
     author: { first_name: 'Ada', last_name: 'Researcher' }
   }];
-  global.fetch = async (_url, options = {}) => {
+  global.fetch = weeklyFixtures.withStorage(async (_url, options = {}) => {
     if (String(_url).includes('scicon_weekly_competitions') && options.method !== 'POST') {
       return new Response('[]', { status: 200 });
     }
@@ -614,7 +620,7 @@ test('finalization preserves a wallet-associated guest proposal as claimable and
     }
     const saved = JSON.parse(options.body);
     return new Response(JSON.stringify([saved]), { status: 200 });
-  };
+  });
 
   context.after(() => {
     global.fetch = originalFetch;
@@ -630,7 +636,7 @@ test('finalization preserves a wallet-associated guest proposal as claimable and
   assert.equal(result.finalized, true);
   assert.equal(result.competition.status, 'finalized');
   assert.equal(result.competition.winner_name, 'Proposal Pilot');
-  assert.equal(result.competition.winner_run_id, 'proposal-pilot-run');
+  assert.equal(result.competition.winner_run_id, weeklyFixtureId('proposal-pilot-run'));
   assert.equal(result.competition.winner_wallet, '0x1111111111111111111111111111111111111111');
   assert.equal(result.competition.proposal_id, '321');
   assert.equal(result.competition.proposal_title, 'Open Science Target');
@@ -651,7 +657,7 @@ test('re-finalization repairs an unlocked archive and preserves its event alloca
     starts_at: '2020-02-02T20:00:00.000Z',
     ends_at: '2020-02-09T20:00:00.000Z',
     status: 'finalized',
-    winner_run_id: 'lower-verified-run',
+    winner_run_id: weeklyFixtureId('lower-verified-run'),
     winner_name: 'Lower Score',
     winning_score: 7000,
     winning_wave: 5,
@@ -663,7 +669,7 @@ test('re-finalization repairs an unlocked archive and preserves its event alloca
   };
   const actualWinner = {
     name: 'Actual Winner', score: 8000, wave: 6, date: '2020-02-05T12:00:00.000Z',
-    wallet_address: null, run_id: 'actual-winner-run', verified: true, receipt_hash: 'actual-winner-hash',
+    wallet_address: null, run_id: weeklyFixtureId('actual-winner-run'), verified: true, receipt_hash: 'actual-winner-hash',
     proposal_id: '321', proposal_title: 'Legacy Winning Proposal',
     proposal_url: 'https://www.researchhub.com/post/321/legacy-winning-proposal', proposal_author: 'Researcher One',
     proposal_image_url: 'https://images.researchhub.com/proposals/321.png'
@@ -685,11 +691,11 @@ test('re-finalization repairs an unlocked archive and preserves its event alloca
     author: { first_name: 'Researcher', last_name: 'One' }
   }];
   let currentCompetition = { ...existing };
-  global.fetch = async (_url, options = {}) => {
+  global.fetch = weeklyFixtures.withStorage(async (_url, options = {}) => {
     if (String(_url).includes('scicon_weekly_competitions')) {
       if (options.method === 'PATCH') {
         assert.match(String(_url), /status=eq\.finalized/);
-        assert.match(String(_url), /winner_run_id=eq\.lower-verified-run/);
+        assert.match(String(_url), new RegExp('winner_run_id=eq\\.' + weeklyFixtureId('lower-verified-run')));
         assert.match(String(_url), /updated_at=eq\./);
         currentCompetition = JSON.parse(options.body);
         return new Response(JSON.stringify([currentCompetition]), { status: 200 });
@@ -703,7 +709,7 @@ test('re-finalization repairs an unlocked archive and preserves its event alloca
       return new Response(JSON.stringify(cutoffSnapshotRows('2020-02-02', proposalEntries)), { status: 200 });
     }
     throw new Error(`Unexpected request: ${String(_url)}`);
-  };
+  });
 
   context.after(() => {
     global.fetch = originalFetch;
@@ -738,7 +744,7 @@ test('a claimed weekly competition is immutable during later reconciliation', as
   const claimed = {
     week_key: '2020-02-02',
     status: 'claimed',
-    winner_run_id: 'claimed-run',
+    winner_run_id: weeklyFixtureId('claimed-run'),
     winner_wallet: '0x1111111111111111111111111111111111111111',
     winner_name: 'Claimed Pilot',
     winning_score: 8000,
@@ -749,13 +755,13 @@ test('a claimed weekly competition is immutable during later reconciliation', as
     updated_at: '2020-02-09T21:05:00.000Z'
   };
   let requestCount = 0;
-  global.fetch = async (url, options = {}) => {
+  global.fetch = weeklyFixtures.withStorage(async (url, options = {}) => {
     requestCount += 1;
     assert.match(String(url), /scicon_weekly_competitions/);
     assert.notEqual(options.method, 'PATCH');
     assert.notEqual(options.method, 'POST');
     return new Response(JSON.stringify([claimed]), { status: 200 });
-  };
+  });
 
   context.after(() => {
     global.fetch = originalFetch;
@@ -787,7 +793,7 @@ test('a finalized-row enrichment cannot overwrite a champion claim that wins the
     starts_at: '2020-02-02T20:00:00.000Z',
     ends_at: '2020-02-09T20:00:00.000Z',
     status: 'finalized',
-    winner_run_id: 'claim-race-run',
+    winner_run_id: weeklyFixtureId('claim-race-run'),
     winner_wallet: null,
     winner_name: 'Race Pilot',
     winning_score: 8100,
@@ -802,7 +808,7 @@ test('a finalized-row enrichment cannot overwrite a champion claim that wins the
   };
   const leader = {
     name: 'Race Pilot', score: 8100, wave: 6, date: '2020-02-05T12:00:00.000Z',
-    wallet_address: null, run_id: 'claim-race-run', verified: true,
+    wallet_address: null, run_id: weeklyFixtureId('claim-race-run'), verified: true,
     proposal_id: '777', proposal_title: 'Signed Winner Choice',
     proposal_url: 'https://www.researchhub.com/post/777/signed-winner-choice',
     proposal_author: 'Researcher One', proposal_image_url: null
@@ -828,13 +834,13 @@ test('a finalized-row enrichment cannot overwrite a champion claim that wins the
   };
   let currentCompetition = { ...existing };
   let competitionPatchCount = 0;
-  global.fetch = async (url, options = {}) => {
+  global.fetch = weeklyFixtures.withStorage(async (url, options = {}) => {
     const requestUrl = String(url);
     if (requestUrl.includes('scicon_weekly_competitions')) {
       if (options.method === 'PATCH') {
         competitionPatchCount += 1;
         assert.match(requestUrl, /status=eq\.finalized/);
-        assert.match(requestUrl, /winner_run_id=eq\.claim-race-run/);
+        assert.match(requestUrl, new RegExp('winner_run_id=eq\\.' + weeklyFixtureId('claim-race-run')));
         assert.match(requestUrl, /updated_at=eq\./);
         currentCompetition = { ...claimed };
         return new Response('[]', { status: 200 });
@@ -848,7 +854,7 @@ test('a finalized-row enrichment cannot overwrite a champion claim that wins the
       return new Response(JSON.stringify(cutoffSnapshotRows('2020-02-02', proposalEntries)), { status: 200 });
     }
     throw new Error(`Unexpected request: ${requestUrl}`);
-  };
+  });
 
   context.after(() => {
     global.fetch = originalFetch;
@@ -877,7 +883,7 @@ test('an initial finalizer cannot upsert over a champion claim committed by anot
   process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-key';
   const leader = {
     name: 'Initial Race Pilot', score: 8200, wave: 7, date: '2020-02-05T12:00:00.000Z',
-    wallet_address: null, run_id: 'initial-race-run', verified: true,
+    wallet_address: null, run_id: weeklyFixtureId('initial-race-run'), verified: true,
     proposal_id: '888', proposal_title: 'Initial Race Choice',
     proposal_url: 'https://www.researchhub.com/post/888/initial-race-choice',
     proposal_author: 'Researcher Two', proposal_image_url: null
@@ -896,7 +902,7 @@ test('an initial finalizer cannot upsert over a champion claim committed by anot
     starts_at: '2020-02-02T20:00:00.000Z',
     ends_at: '2020-02-09T20:00:00.000Z',
     status: 'claimed',
-    winner_run_id: 'initial-race-run',
+    winner_run_id: weeklyFixtureId('initial-race-run'),
     winner_wallet: '0x1111111111111111111111111111111111111111',
     winner_name: 'Initial Race Pilot',
     winning_score: 8200,
@@ -910,7 +916,7 @@ test('an initial finalizer cannot upsert over a champion claim committed by anot
   };
   let currentCompetition = null;
   let insertCount = 0;
-  global.fetch = async (url, options = {}) => {
+  global.fetch = weeklyFixtures.withStorage(async (url, options = {}) => {
     const requestUrl = String(url);
     if (requestUrl.includes('scicon_weekly_competitions')) {
       if (options.method === 'POST') {
@@ -928,7 +934,7 @@ test('an initial finalizer cannot upsert over a champion claim committed by anot
       return new Response(JSON.stringify(cutoffSnapshotRows('2020-02-02', proposalEntries)), { status: 200 });
     }
     throw new Error(`Unexpected request: ${requestUrl}`);
-  };
+  });
 
   context.after(() => {
     global.fetch = originalFetch;
@@ -965,10 +971,10 @@ test('re-finalization never rewrites an archive with a confirmed allocation tran
     allocation_tx_hash: '0xfunded'
   };
   let requestCount = 0;
-  global.fetch = async () => {
+  global.fetch = weeklyFixtures.withStorage(async () => {
     requestCount += 1;
     return new Response(JSON.stringify([fundedCompetition]), { status: 200 });
-  };
+  });
 
   context.after(() => {
     global.fetch = originalFetch;
@@ -993,7 +999,7 @@ test('cutoff snapshot capture is DST-safe across the reliable Hobby cron window 
   process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-key';
   const writes = [];
 
-  global.fetch = async (url, options = {}) => {
+  global.fetch = weeklyFixtures.withStorage(async (url, options = {}) => {
     if (String(url).includes('backend.prod.researchhub.com')) {
       return new Response(JSON.stringify({
         next: null,
@@ -1014,7 +1020,7 @@ test('cutoff snapshot capture is DST-safe across the reliable Hobby cron window 
     }
     writes.push({ url: String(url), options });
     return new Response(null, { status: 204 });
-  };
+  });
 
   context.after(() => {
     global.fetch = originalFetch;
@@ -1079,7 +1085,7 @@ test('weekly finalization uses the last fresh pre-cutoff proposal snapshot', asy
   const { start, end } = getWeekRange(weekKey);
   let liveFeedCalled = false;
 
-  global.fetch = async (url) => {
+  global.fetch = weeklyFixtures.withStorage(async (url) => {
     if (String(url).includes('scicon_proposal_cache')) {
       return new Response(JSON.stringify([{
         fetched_at: new Date(end.getTime() - 60 * 1000).toISOString(),
@@ -1106,7 +1112,7 @@ test('weekly finalization uses the last fresh pre-cutoff proposal snapshot', asy
     }
     liveFeedCalled = true;
     throw new Error(`Unexpected live request: ${url}`);
-  };
+  });
 
   context.after(() => {
     global.fetch = originalFetch;
@@ -1139,13 +1145,13 @@ test('an old week without a cutoff snapshot is never reranked from today’s fee
   const { start, end } = getWeekRange(weekKey);
   let liveFeedCalled = false;
 
-  global.fetch = async (url) => {
+  global.fetch = weeklyFixtures.withStorage(async (url) => {
     if (String(url).includes('scicon_proposal_cache')) {
       return new Response('[]', { status: 200 });
     }
     liveFeedCalled = true;
     throw new Error(`Unexpected live request: ${url}`);
-  };
+  });
 
   context.after(() => {
     global.fetch = originalFetch;
@@ -1183,11 +1189,11 @@ test('finalization archives the winner even when proposal verification is pendin
     wave: 9,
     date: '2020-02-04T12:00:00.000Z',
     wallet_address: null,
-    run_id: 'offline-feed-run',
+    run_id: weeklyFixtureId('offline-feed-run'),
     verified: true,
     proposal_id: '321'
   };
-  global.fetch = async (url, options = {}) => {
+  global.fetch = weeklyFixtures.withStorage(async (url, options = {}) => {
     if (String(url).includes('scicon_weekly_competitions') && options.method !== 'POST') {
       return new Response('[]', { status: 200 });
     }
@@ -1207,7 +1213,7 @@ test('finalization archives the winner even when proposal verification is pendin
       return new Response(JSON.stringify([row]), { status: 200 });
     }
     return new Response('[]', { status: 200 });
-  };
+  });
 
   context.after(() => {
     global.fetch = originalFetch;
@@ -1252,7 +1258,7 @@ test('recovery backfills within the fixed three-week horizon even when a caller 
   ]);
   const savedRows = [];
 
-  global.fetch = async (url, options = {}) => {
+  global.fetch = weeklyFixtures.withStorage(async (url, options = {}) => {
     const requestUrl = String(url);
     if (requestUrl.includes('scicon_weekly_competitions') && options.method !== 'POST') {
       return new Response('[]', { status: 200 });
@@ -1273,7 +1279,7 @@ test('recovery backfills within the fixed three-week horizon even when a caller 
       return new Response(JSON.stringify([row]), { status: 200 });
     }
     return new Response('[]', { status: 200 });
-  };
+  });
 
   context.after(() => {
     global.fetch = originalFetch;

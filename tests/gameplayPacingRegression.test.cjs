@@ -8,8 +8,8 @@ const appSource = fs.readFileSync(path.join(root, 'App.tsx'), 'utf8');
 const engineSource = fs.readFileSync(path.join(root, 'services', 'gameLogic.ts'), 'utf8');
 const campaign = JSON.parse(fs.readFileSync(path.join(root, 'game-config', 'campaign.json'), 'utf8'));
 
-test('the ship completes its protected entrance before Brian pauses combat', () => {
-  assert.match(appSource, /isTransmissionOpen:\s*introMissionLocked\s*\|\|\s*Boolean\(activeStoryBeat\)/);
+test('protected entrance precedes modal comms while revamp inline comms keep combat moving', () => {
+  assert.match(appSource, /isTransmissionOpen:\s*introMissionLocked\s*\|\|\s*Boolean\(activeStoryBeat && activeStoryBeat\.presentation !== 'inline'\)/);
 
   const updateStart = engineSource.indexOf('update(cinematicPause: boolean = false)');
   const introGate = engineSource.indexOf('if (this.introFlightFrames > 0)', updateStart);
@@ -43,7 +43,11 @@ test('formations stay visual and ten sector bosses provide an intentional five-s
     return wave;
   });
   assert.equal(majorBossWaves.length, campaign.sectors.length);
-  majorBossWaves.forEach((wave) => assert.equal(wave.delayAfterSeconds, 5));
+  const { loadService } = require('./helpers/loadService.cjs');
+  const { getMissionRewardCollectionSeconds } = loadService(path.join(root, 'services/gameplay/missionRewardWindow.ts'));
+  majorBossWaves.forEach((wave) => assert.equal(getMissionRewardCollectionSeconds({
+    authoredSeconds: wave.delayAfterSeconds, liveCoins: true, majorBossFinale: true
+  }), 5));
   campaign.levels.forEach((level) => {
     const finalWave = level.waves.at(-1);
     assert.ok(finalWave.delayAfterSeconds >= 0 && finalWave.delayAfterSeconds <= 5);
@@ -113,7 +117,7 @@ test('player ship uses a five-percent smaller gameplay footprint', () => {
 
 test('Research keeps tight fire-rate tiers while BIO swaps to equal-damage straight twin rails', () => {
   assert.match(engineSource, /const fireInterval = getFireRateIntervalFrames\(level\)/);
-  assert.match(engineSource, /const volleySize = getFireRateVolleySize\(this\.stats\.upgrades\.fireRate \|\| 0\)/);
+  assert.match(engineSource, /const volleySize = Math\.min\(FIRE_RATE_MAX_VOLLEY_SIZE, getFireRateVolleySize\(this\.stats\.upgrades\.fireRate \|\| 0\) \+ \(this\.squadLoadout\?\.revamp\?\.extraProjectiles \?\? 0\)\)/);
   assert.match(engineSource, /getTightVolleyOffsets\(volleySize\)\.map/);
   assert.match(engineSource, /const weaponKind: PlayerWeaponKind = hullProfile\.primaryKind === 'btc-bolt' \? 'btc-bolt' : 'pulse'/);
   assert.match(engineSource, /this\.playerShipId === 'bio'[\s\S]*getBioPrimaryShotPlan/);

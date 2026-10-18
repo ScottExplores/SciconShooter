@@ -1,3 +1,4 @@
+// REVAMP(G): Reconcile intended contracts documented in REVAMP_NOTES_D.md (sector narrative and contextual radio headings).
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -76,12 +77,12 @@ test('top-level run progress is presented as Mission without renaming compatibil
   assert.doesNotMatch(victoryOverlay, /All 20 stages cleared|>Stage \{summary\.stage\}</);
   // Beats are keyed to Sectors now, one per Sector, so the header names the
   // Sector. Rendering "Mission 3" for Sector 3 would have been simply wrong.
-  assert.match(storyTransmission, /Sector \{beat\.phase\}: \{beat\.title\}/);
+  assert.match(storyTransmission, /\{beat\.kicker \?\? `Sector \$\{beat\.phase\}`\}: \{beat\.title\}/);
   assert.doesNotMatch(storyTransmission, /Stage \{beat\.phase\}: \{beat\.title\}/);
   assert.match(rewards, /description: 'Reach Mission \{target\}'/);
   assert.match(engine, /beginStageCompletion\('MISSION COMPLETE!'/);
   assert.match(pixiRenderer, /MISSION \$\{String\(state\.levelNumber\)\.padStart\(2, '0'\)\}/);
-  assert.match(storyBeats, /Last one, pilot\./);
+  assert.match(storyBeats, /chapter: 'Singularity Archive'[\s\S]*All ten stations are sharing the sky/);
   assert.doesNotMatch(storyBeats, /Final stage\./);
   assert.doesNotMatch(storyBeats, /Final wave\./);
   assert.match(recordRenderer, /wave: 'MISSION'/);

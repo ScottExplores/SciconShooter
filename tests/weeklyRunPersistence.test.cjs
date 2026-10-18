@@ -49,6 +49,8 @@ const loadBrowserServices = () => {
 };
 
 const browser = loadBrowserServices();
+const { getCampaignWeeklyBossPool, selectWeeklyBossRotation } = require('../services/revamp/weekly/bossRotation');
+const canonicalBossPool = getCampaignWeeklyBossPool(require('../game-config/campaign.json'));
 
 const createMemoryWindow = () => {
   const values = new Map();
@@ -322,10 +324,11 @@ test('a guest Wave 4 defeat after three generated elite bosses creates a verifie
   const graph = browser.graph.createCampaignGraphIndex(run);
   const nodes = graph.definition.nodes.slice(0, 4);
   assert.equal(nodes.length, 4);
-  assert.deepEqual(
-    nodes.slice(0, 3).map((node) => node.miniBossIds[0]),
-    ['bottleneck-drone', 'paywall-wall', 'aegis-brood-core']
-  );
+  // REVAMP(G): E rotates two playable elites plus one major each week.
+  const rotation = selectWeeklyBossRotation(boundary.weekKey, canonicalBossPool);
+  assert.equal(rotation.eliteBossIds.length, 2);
+  assert.deepEqual(new Set(nodes.slice(0, 3).map((node) => node.miniBossIds[0])),
+    new Set(rotation.eliteBossIds));
 
   let state = browser.streak.startWeeklyCampaignStreak(graph, {
     weeklyId: boundary.weekKey,
@@ -483,7 +486,10 @@ test('a generated major boss clear is canonical when runtime boss telemetry is o
   const run = browser.generator.buildWeeklyRunCampaign(boundary.weekKey, undefined, 5);
   const graph = browser.graph.createCampaignGraphIndex(run);
   const nodes = graph.definition.nodes.slice(0, 4);
-  assert.equal(nodes[3].bossId, 'paywall-decimator');
+  // REVAMP(G): The category is authoritative; E's weekly major identity rotates.
+  const rotation = selectWeeklyBossRotation(boundary.weekKey, canonicalBossPool);
+  assert.equal(rotation.majorBossIds.length, 1);
+  assert.equal(nodes[3].bossId, rotation.majorBossIds[0]);
 
   let state = browser.streak.startWeeklyCampaignStreak(graph, {
     weeklyId: boundary.weekKey,

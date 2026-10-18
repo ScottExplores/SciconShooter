@@ -22,27 +22,9 @@ const findCampaignWave = (campaign, waveId) => {
   return wave;
 };
 
-const loadTypeScriptModule = (...segments) => {
-  const filePath = path.join(root, ...segments);
-  const source = fs.readFileSync(filePath, 'utf8');
-  const output = ts.transpileModule(source, {
-    compilerOptions: {
-      module: ts.ModuleKind.CommonJS,
-      target: ts.ScriptTarget.ES2022,
-      esModuleInterop: true
-    },
-    fileName: filePath
-  }).outputText;
-  const loaded = { exports: {} };
-  Function('exports', 'module', 'require', '__filename', '__dirname', output)(
-    loaded.exports,
-    loaded,
-    require,
-    filePath,
-    path.dirname(filePath)
-  );
-  return loaded.exports;
-};
+// REVAMP(G): Load B's formation imports from their source directory.
+const { loadService } = require('./helpers/loadService.cjs');
+const loadTypeScriptModule = (...segments) => loadService(path.join(root, ...segments));
 
 test('custom formation templates stay normalized, unique, and reversible', () => {
   const workshop = loadTypeScriptModule('director', 'src', 'combat-lab', 'formationWorkshopModel.ts');

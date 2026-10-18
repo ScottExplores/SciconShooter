@@ -6,6 +6,17 @@ process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-key';
 process.env.PUBLIC_APP_URL = 'https://www.sciconshooter.xyz';
 
 const recordCardHandler = require('../api/record-card');
+const campaign = require('../game-config/campaign.json');
+const { loadService } = require('./helpers/loadService.cjs');
+const { ASSETS } = loadService(require('node:path').join(__dirname, '../constants.ts'));
+// REVAMP(G): B changes the early finale roster, not the record-card art contract.
+const finalEnemyArt = stage => {
+  const finale = campaign.levels.find(level => level.order === stage).waves.at(-1);
+  const enemy = finale.events.filter(event => event.kind === 'spawn').at(-1).enemies[0];
+  const asset = ASSETS[enemy.spriteKey];
+  assert.ok(asset, `registered encounter art for ${enemy.roleId}`);
+  return Array.isArray(asset) ? asset[0] : asset;
+};
 
 const jsonResponse = (data) => ({
   ok: true,
@@ -67,9 +78,7 @@ test('record card embeds encounter art and meaningful run values', async () => {
     assert.match(res.body, /preserveAspectRatio="none" style="image-rendering:pixelated"/);
     assert.doesNotMatch(res.body, /SERVER VERIFIED/);
     assert.ok(fetchedUrls.some((url) => url.includes('/game-art/branding/bio-ship.png')));
-    // Citation Crossing now opens on a Citation Wraith swarm, so AUTO card
-    // art must follow that authored encounter instead of the old interceptor.
-    assert.ok(fetchedUrls.some((url) => url.includes('/game-art/enemies/citation-wraith.png')));
+    assert.ok(fetchedUrls.some((url) => url.endsWith(finalEnemyArt(2))));
     assert.equal(fetchedUrls.some((url) => url.includes('/game-art/generated/boss-weapons/citation-storm-plasma-claw-left.png')), false);
     assert.equal(fetchedUrls.some((url) => url.includes('/game-art/generated/boss-weapons/citation-storm-plasma-claw-right.png')), false);
     assert.equal(fetchedUrls.some((url) => url.includes('/game-art/bosses/final-boss-sentinel.png')), false);
@@ -82,12 +91,12 @@ test('record card embeds encounter art and meaningful run values', async () => {
   }
 });
 
-test('revision-24 record cards embed their resolved mission encounter art without the legacy boss fallback', async () => {
+test('revamp record cards embed their resolved mission encounter art without the legacy boss fallback', async () => {
   const runId = '66666666-7777-4888-8999-000000000000';
   const expectedStages = new Map([
-    [7, '/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/dark-asteroid-sentinel.png'],
-    [8, '/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/crescent-minelayer.png'],
-    [9, '/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/ring-sentinel.png'],
+    [7, finalEnemyArt(7)],
+    [8, finalEnemyArt(8)],
+    [9, finalEnemyArt(9)],
     [20, '/game-art/generated/bosses/campaign-packages/frontier-crownclaw/assembled.png'],
     [25, '/game-art/generated/bosses/campaign-packages/helios-clawcarrier/assembled.png'],
     [50, '/game-art/generated/bosses/campaign-packages/umbra-needlewing/assembled.png']

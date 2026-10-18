@@ -1,4 +1,7 @@
+const { createWeeklyDurableFixtures, weeklyFixtureId } = require('./helpers/weeklyDurableFixtures.cjs');
+const weeklyFixtures = createWeeklyDurableFixtures();
 const test = require('node:test');
+test.beforeEach(() => weeklyFixtures.reset());
 const assert = require('node:assert/strict');
 
 process.env.RUN_RECEIPT_SECRET = 'leaderboard-test-secret';
@@ -9,7 +12,7 @@ const { signPayload } = require('../api/_lib/runReceipts');
 const leaderboardHandler = require('../api/leaderboard');
 const { getCurrentWeekRange, getWeekRange } = require('../shared/weeklyCompetitionBoundary.js');
 
-const makeReceipt = (runId = crypto.randomUUID(), overrides = {}) => signPayload({
+const makeReceipt = (runId = crypto.randomUUID(), overrides = {}) => weeklyFixtures.signReceipt({
   type: 'run-receipt',
   runId,
   gameVersion: 'test',
@@ -46,7 +49,7 @@ test('leaderboard derives score and wave from the signed receipt', async () => {
   };
   const originalFetch = global.fetch;
   let writeRequest;
-  global.fetch = async (url, options = {}) => {
+  global.fetch = weeklyFixtures.withStorage(async (url, options = {}) => {
     const value = String(url);
     if (value.includes('select=run_id&run_id=eq.')) return jsonResponse([]);
     if (options.method === 'POST') {
@@ -54,7 +57,7 @@ test('leaderboard derives score and wave from the signed receipt', async () => {
       return jsonResponse(null, 204);
     }
     return jsonResponse([row]);
-  };
+  });
 
   try {
     const res = makeResponse();
@@ -69,6 +72,9 @@ test('leaderboard derives score and wave from the signed receipt', async () => {
     assert.equal(res.body.scores[0].runId, runId);
     assert.equal(writeRequest.url.includes('on_conflict'), false);
     assert.equal(writeRequest.options.headers.Prefer, 'return=minimal');
+    const persisted = JSON.parse(writeRequest.options.body)[0];
+    assert.equal(persisted.score, 4321, 'client score tampering never reaches durable storage');
+    assert.equal(persisted.wave, 4, 'client wave tampering never reaches durable storage');
   } finally {
     global.fetch = originalFetch;
   }
@@ -83,7 +89,7 @@ test('leaderboard accepts a verified zero score without a rank threshold', async
   };
   const originalFetch = global.fetch;
   let insertedScore = null;
-  global.fetch = async (url, options = {}) => {
+  global.fetch = weeklyFixtures.withStorage(async (url, options = {}) => {
     const value = String(url);
     if (value.includes('select=run_id&run_id=eq.')) return jsonResponse([]);
     if (options.method === 'POST') {
@@ -92,7 +98,7 @@ test('leaderboard accepts a verified zero score without a rank threshold', async
       return jsonResponse(null, 204);
     }
     return jsonResponse([row]);
-  };
+  });
 
   try {
     const res = makeResponse();
@@ -121,6 +127,7 @@ test('leaderboard rejects an unexpired receipt after its weekly score cutoff wit
   const finishedAt = start.getTime() - 1;
   const originalFetch = global.fetch;
   let fetchCalled = false;
+  // Count every attempted storage read, including durable receipt lookups.
   global.fetch = async () => {
     fetchCalled = true;
     return jsonResponse([]);
@@ -154,6 +161,7 @@ test('leaderboard rejects an unexpired receipt after its weekly score cutoff wit
 test('leaderboard rejects signed Pilot Test receipts before touching storage', async () => {
   const originalFetch = global.fetch;
   let fetchCalled = false;
+  // Count every attempted storage read, including durable receipt lookups.
   global.fetch = async () => {
     fetchCalled = true;
     return jsonResponse([]);
@@ -177,6 +185,7 @@ test('leaderboard rejects signed Pilot Test receipts before touching storage', a
 test('leaderboard rejects a signed Campaign or standard receipt before touching storage', async () => {
   const originalFetch = global.fetch;
   let fetchCalled = false;
+  // Count every attempted storage read, including durable receipt lookups.
   global.fetch = async () => {
     fetchCalled = true;
     return jsonResponse([]);
@@ -206,6 +215,7 @@ test('leaderboard rejects a signed Campaign or standard receipt before touching 
 test('leaderboard rejects a Weekly Run receipt under integrity review before storage', async () => {
   const originalFetch = global.fetch;
   let fetchCalled = false;
+  // Count every attempted storage read, including durable receipt lookups.
   global.fetch = async () => {
     fetchCalled = true;
     return jsonResponse([]);
@@ -231,6 +241,7 @@ test('leaderboard rejects a Weekly Run receipt under integrity review before sto
 test('leaderboard rejects an authored weekly proof without generated attempt admission', async () => {
   const originalFetch = global.fetch;
   let fetchCalled = false;
+  // Count every attempted storage read, including durable receipt lookups.
   global.fetch = async () => {
     fetchCalled = true;
     return jsonResponse([]);
@@ -327,7 +338,7 @@ test('production proposal recovery rejects a legacy provenance-zero receipt', as
 test('leaderboard treats a replayed run ID as an idempotent save', async () => {
   const runId = crypto.randomUUID();
   const originalFetch = global.fetch;
-  global.fetch = async () => jsonResponse([{ run_id: runId }]);
+  global.fetch = weeklyFixtures.withStorage(async () => jsonResponse([{ run_id: runId }]));
   try {
     const res = makeResponse();
     await leaderboardHandler({
@@ -348,12 +359,12 @@ test('leaderboard treats a duplicate insert race as an idempotent save', async (
     donated: false, proposal_id: null, proposal_title: null, proposal_url: null, proposal_author: null,
     run_id: runId, verified: true, receipt_hash: 'hash'
   };
-  global.fetch = async (url, options = {}) => {
+  global.fetch = weeklyFixtures.withStorage(async (url, options = {}) => {
     const value = String(url);
     if (value.includes('select=run_id&run_id=eq.')) return jsonResponse([]);
     if (options.method === 'POST') return jsonResponse({ code: '23505', message: 'duplicate key value violates unique constraint' }, 409);
     return jsonResponse([row]);
-  };
+  });
 
   try {
     const res = makeResponse();
@@ -377,7 +388,7 @@ test('leaderboard keeps verified receipt identity when only proposal_image_url i
     proposal_id: null, proposal_title: null, proposal_url: null, proposal_author: null,
     run_id: runId, verified: true, receipt_hash: 'hash'
   };
-  global.fetch = async (url, options = {}) => {
+  global.fetch = weeklyFixtures.withStorage(async (url, options = {}) => {
     const value = String(url);
     if (value.includes('select=run_id&run_id=eq.')) return jsonResponse([]);
     if (options.method === 'POST') {
@@ -398,7 +409,7 @@ test('leaderboard keeps verified receipt identity when only proposal_image_url i
       }, 400);
     }
     return jsonResponse([verifiedRow]);
-  };
+  });
 
   try {
     const res = makeResponse();
@@ -421,7 +432,7 @@ test('leaderboard returns readiness failure instead of writing a legacy row when
   const runId = crypto.randomUUID();
   const originalFetch = global.fetch;
   const postBodies = [];
-  global.fetch = async (url, options = {}) => {
+  global.fetch = weeklyFixtures.withStorage(async (url, options = {}) => {
     const value = String(url);
     if (value.includes('select=run_id&run_id=eq.')) return jsonResponse([]);
     if (options.method === 'POST') {
@@ -433,7 +444,7 @@ test('leaderboard returns readiness failure instead of writing a legacy row when
       }, 400);
     }
     throw new Error(`Unexpected leaderboard request: ${value}`);
-  };
+  });
 
   try {
     const res = makeResponse();
@@ -457,7 +468,7 @@ test('leaderboard replay-check schema errors return readiness failure without at
   const runId = crypto.randomUUID();
   const originalFetch = global.fetch;
   let postCount = 0;
-  global.fetch = async (url, options = {}) => {
+  global.fetch = weeklyFixtures.withStorage(async (url, options = {}) => {
     const value = String(url);
     if (options.method === 'POST') postCount += 1;
     if (value.includes('select=run_id&run_id=eq.')) {
@@ -467,7 +478,7 @@ test('leaderboard replay-check schema errors return readiness failure without at
       }, 400);
     }
     throw new Error(`Unexpected leaderboard request: ${value}`);
-  };
+  });
 
   try {
     const res = makeResponse();
@@ -496,7 +507,7 @@ test('leaderboard returns the top 100 all-time and weekly scores', async () => {
     proposal_title: null,
     proposal_url: null,
     proposal_author: null,
-    run_id: `run-${index}`,
+    run_id: weeklyFixtureId(`run-${index}`),
     verified: true,
     receipt_hash: `hash-${index}`
   }));
@@ -507,13 +518,13 @@ test('leaderboard returns the top 100 all-time and weekly scores', async () => {
     // Keep every fixture inside the active week even when this test runs just
     // after the Sunday noon-Pacific rollover.
     date: new Date().toISOString(),
-    run_id: `weekly-run-${index}`,
+    run_id: weeklyFixtureId(`weekly-run-${index}`),
     receipt_hash: `weekly-hash-${index}`
   }));
   let allTimeRequest = '';
   let weeklyRequest = '';
 
-  global.fetch = async (url) => {
+  global.fetch = weeklyFixtures.withStorage(async (url) => {
     const value = String(url);
     if (value.includes('&date=gte.')) {
       weeklyRequest = value;
@@ -521,7 +532,7 @@ test('leaderboard returns the top 100 all-time and weekly scores', async () => {
     }
     allTimeRequest = value;
     return jsonResponse(historicRows.slice(0, 100));
-  };
+  });
 
   try {
     const res = makeResponse();
@@ -546,21 +557,21 @@ test('a current-schema review row cannot outrank a verified weekly score', async
   const date = new Date().toISOString();
   const review = {
     name: 'REVIEW', score: 999999, wave: 99, date, wallet_address: null,
-    donated: false, run_id: 'review-run', verified: false, receipt_hash: 'review-hash'
+    donated: false, run_id: weeklyFixtureId('review-run'), verified: false, receipt_hash: 'review-hash'
   };
   const verified = {
     name: 'VERIFIED', score: 100, wave: 1, date, wallet_address: null,
-    donated: false, run_id: 'verified-run', verified: true, receipt_hash: 'verified-hash'
+    donated: false, run_id: weeklyFixtureId('verified-run'), verified: true, receipt_hash: 'verified-hash'
   };
-  global.fetch = async () => jsonResponse([review, verified]);
+  global.fetch = weeklyFixtures.withStorage(async () => jsonResponse([review, verified]));
   try {
     const res = makeResponse();
     await leaderboardHandler({
       method: 'GET', query: {}, headers: {}, socket: { remoteAddress: '127.0.0.44' }
     }, res);
     assert.equal(res.statusCode, 200);
-    assert.equal(res.body.monthlyScores[0].runId, 'verified-run');
-    assert.equal(res.body.scores.some((entry) => entry.runId === 'review-run'), false);
+    assert.equal(res.body.monthlyScores[0].runId, weeklyFixtureId('verified-run'));
+    assert.equal(res.body.scores.some((entry) => entry.runId === weeklyFixtureId('review-run')), false);
   } finally {
     global.fetch = originalFetch;
   }
@@ -581,16 +592,16 @@ test('leaderboard can read one exact historical week without relying on the all-
     proposal_title: null,
     proposal_url: null,
     proposal_author: null,
-    run_id: 'past-week-run',
+    run_id: weeklyFixtureId('past-week-run'),
     verified: true,
     receipt_hash: 'past-week-hash'
   }];
   const requests = [];
 
-  global.fetch = async (url) => {
+  global.fetch = weeklyFixtures.withStorage(async (url) => {
     requests.push(String(url));
     return jsonResponse(historicalWeekRows);
-  };
+  });
 
   try {
     const res = makeResponse();
@@ -644,7 +655,7 @@ test('the current weekly leader can attach one eligible proposal to the verified
     run_id: runId, verified: true, receipt_hash: 'hash'
   });
 
-  global.fetch = async (url, options = {}) => {
+  global.fetch = weeklyFixtures.withStorage(async (url, options = {}) => {
     const value = String(url);
     if (value.includes('backend.prod.researchhub.com')) {
       return jsonResponse({
@@ -666,7 +677,7 @@ test('the current weekly leader can attach one eligible proposal to the verified
       return jsonResponse([leaderboardRow()]);
     }
     return jsonResponse([leaderboardRow()]);
-  };
+  });
 
   try {
     const res = makeResponse();
@@ -714,7 +725,7 @@ test('proposal selection keeps current metadata working before the image column 
     run_id: runId, verified: true, receipt_hash: 'hash'
   });
 
-  global.fetch = async (url, options = {}) => {
+  global.fetch = weeklyFixtures.withStorage(async (url, options = {}) => {
     const value = String(url);
     if (value.includes('backend.prod.researchhub.com')) {
       return jsonResponse({
@@ -743,7 +754,7 @@ test('proposal selection keeps current metadata working before the image column 
       return jsonResponse({ message: 'column proposal_image_url does not exist' }, 400);
     }
     return jsonResponse([leaderboardRow()]);
-  };
+  });
 
   try {
     const res = makeResponse();
@@ -775,7 +786,7 @@ test('the current weekly leader cannot select a proposal that closes before the 
     run_id: runId, verified: true, receipt_hash: 'hash'
   };
 
-  global.fetch = async (url, options = {}) => {
+  global.fetch = weeklyFixtures.withStorage(async (url, options = {}) => {
     const value = String(url);
     if (value.includes('backend.prod.researchhub.com')) {
       return jsonResponse({
@@ -790,7 +801,7 @@ test('the current weekly leader cannot select a proposal that closes before the 
     }
     if (options.method === 'PATCH') patchCalled = true;
     return jsonResponse([leader]);
-  };
+  });
 
   try {
     const res = makeResponse();
@@ -820,10 +831,10 @@ test('a run that is not the current weekly leader cannot attach a proposal', asy
     run_id: leadingRunId, verified: true, receipt_hash: 'leader-hash'
   };
 
-  global.fetch = async (_url, options = {}) => {
+  global.fetch = weeklyFixtures.withStorage(async (_url, options = {}) => {
     if (options.method === 'PATCH') patchCalled = true;
     return jsonResponse([leader]);
-  };
+  });
 
   try {
     const res = makeResponse();
@@ -858,7 +869,7 @@ test('the exact verified current leader can replace its saved proposal', async (
     run_id: runId, verified: true, receipt_hash: 'hash'
   });
 
-  global.fetch = async (url, options = {}) => {
+  global.fetch = weeklyFixtures.withStorage(async (url, options = {}) => {
     const value = String(url);
     if (value.includes('backend.prod.researchhub.com')) {
       return jsonResponse({
@@ -879,7 +890,7 @@ test('the exact verified current leader can replace its saved proposal', async (
       return jsonResponse([leaderboardRow()]);
     }
     return jsonResponse([leaderboardRow()]);
-  };
+  });
 
   try {
     const res = makeResponse();
@@ -910,7 +921,7 @@ test('an empty exact proposal update is a terminal lead change with a stable cod
     proposal_image_url: null, run_id: runId, verified: true, receipt_hash: 'hash'
   };
 
-  global.fetch = async (url, options = {}) => {
+  global.fetch = weeklyFixtures.withStorage(async (url, options = {}) => {
     const value = String(url);
     if (value.includes('backend.prod.researchhub.com')) {
       return jsonResponse({ results: [{
@@ -922,7 +933,7 @@ test('an empty exact proposal update is a terminal lead change with a stable cod
     }
     if (options.method === 'PATCH') return jsonResponse([]);
     return jsonResponse([leader]);
-  };
+  });
 
   try {
     const res = makeResponse();
@@ -948,10 +959,10 @@ test('proposal recovery rejects an unverified leaderboard row even with its sign
     donated: false, proposal_id: null, proposal_title: null, proposal_url: null, proposal_author: null,
     run_id: runId, verified: false, receipt_hash: 'hash'
   };
-  global.fetch = async (_url, options = {}) => {
+  global.fetch = weeklyFixtures.withStorage(async (_url, options = {}) => {
     if (options.method === 'PATCH') patchCalled = true;
     return jsonResponse([leader]);
-  };
+  });
 
   try {
     const res = makeResponse();
@@ -981,7 +992,7 @@ test('proposal recovery rechecks the weekly leader after proposal eligibility lo
     run_id: runId, verified: true, receipt_hash: 'hash'
   });
 
-  global.fetch = async (url, options = {}) => {
+  global.fetch = weeklyFixtures.withStorage(async (url, options = {}) => {
     const value = String(url);
     if (value.includes('backend.prod.researchhub.com')) {
       return jsonResponse({ results: [{
@@ -996,7 +1007,7 @@ test('proposal recovery rechecks the weekly leader after proposal eligibility lo
     return jsonResponse([leaderboardReads <= 2
       ? row(requestedRunId, 4321)
       : row(newLeaderRunId, 9999)]);
-  };
+  });
 
   try {
     const res = makeResponse();
@@ -1033,7 +1044,7 @@ test('proposal recovery rolls back its exact write if the lead changes during th
     proposal_id: null, proposal_title: null
   };
 
-  global.fetch = async (url, options = {}) => {
+  global.fetch = weeklyFixtures.withStorage(async (url, options = {}) => {
     const value = String(url);
     if (value.includes('backend.prod.researchhub.com')) {
       return jsonResponse({ results: [{
@@ -1053,7 +1064,7 @@ test('proposal recovery rolls back its exact write if the lead changes during th
     }
     leaderboardReads += 1;
     return jsonResponse([leaderboardReads <= 4 ? requestedRow() : newLeader]);
-  };
+  });
 
   try {
     const res = makeResponse();
@@ -1083,7 +1094,7 @@ test('a wallet-backed weekly leader cannot mutate its proposal without a wallet 
     proposal_image_url: null, run_id: runId, verified: true, receipt_hash: 'hash'
   };
 
-  global.fetch = async (url, options = {}) => {
+  global.fetch = weeklyFixtures.withStorage(async (url, options = {}) => {
     const value = String(url);
     if (value.includes('backend.prod.researchhub.com')) {
       return jsonResponse({ results: [{
@@ -1095,7 +1106,7 @@ test('a wallet-backed weekly leader cannot mutate its proposal without a wallet 
     }
     if (options.method === 'PATCH') patchCalled = true;
     return jsonResponse([leader]);
-  };
+  });
 
   try {
     const res = makeResponse();
@@ -1131,7 +1142,7 @@ test('a wallet-backed leader accepts PostgREST-normalized challenge timestamps o
     proposal_image_url: null, run_id: runId, verified: true, receipt_hash: 'hash'
   });
 
-  global.fetch = async (url, options = {}) => {
+  global.fetch = weeklyFixtures.withStorage(async (url, options = {}) => {
     const value = String(url);
     if (value.includes('mainnet.base.org')) throw new Error('RPC intentionally unavailable in this EOA test');
     if (value.includes('scicon_wallet_nonces')) {
@@ -1165,7 +1176,7 @@ test('a wallet-backed leader accepts PostgREST-normalized challenge timestamps o
       return jsonResponse([leaderboardRow()]);
     }
     return jsonResponse([leaderboardRow()]);
-  };
+  });
 
   try {
     const receiptToken = makeReceipt(runId);
@@ -1263,7 +1274,7 @@ test('proposal replacement clears a stale image and still retries without the op
     run_id: runId, verified: true, receipt_hash: 'hash'
   });
 
-  global.fetch = async (url, options = {}) => {
+  global.fetch = weeklyFixtures.withStorage(async (url, options = {}) => {
     const value = String(url);
     if (value.includes('backend.prod.researchhub.com')) {
       return jsonResponse({ results: [{
@@ -1284,7 +1295,7 @@ test('proposal replacement clears a stale image and still retries without the op
       return jsonResponse([leaderboardRow()]);
     }
     return jsonResponse([leaderboardRow()]);
-  };
+  });
 
   try {
     const res = makeResponse();

@@ -1,3 +1,4 @@
+// REVAMP(G): REVAMP_NOTES_B introduces deterministic single-role wings in sectors 1–3.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -51,7 +52,7 @@ const spawnEvents = (sourceCampaign) => sourceCampaign.levels.flatMap((level) =>
 
 const waveSignature = (wave) => wave.events
   .filter((event) => event.kind === 'spawn')
-  .map((event) => `${event.patternId}:${event.enemies.map((enemy) => enemy.spriteKey).sort().join(',')}`)
+  .map((event) => `${event.patternId}:${event.formationBehavior?.entryPathId ?? ''}:${event.formationBehavior?.attackId ?? ''}:${wave.rhythm}:${event.enemies.map((enemy) => enemy.spriteKey).sort().join(',')}`)
   .join('|');
 
 test('active Campaign roster contains only the Retraction Fleet replacements', () => {
@@ -73,7 +74,7 @@ test('active Campaign roster contains only the Retraction Fleet replacements', (
 });
 
 test('Campaign waves keep mixed cohorts and avoid repeated copy-paste signatures', () => {
-  const breakwaterMissionIds = new Set(campaign.sectors[0].missionIds);
+  const breakwaterMissionIds = new Set(campaign.levels.filter(level => level.waves.some(wave => wave.id.includes('-revamp-'))).map(level => level.id));
   const breakwater = campaign.levels.filter(level => breakwaterMissionIds.has(level.id));
   // Breakwater gives each entering wing a consistent silhouette and mixes
   // tactical roles between wings. Preserve the mixed-pool contract elsewhere.
@@ -86,7 +87,11 @@ test('Campaign waves keep mixed cohorts and avoid repeated copy-paste signatures
   const mixedWingWaves = breakwater.flatMap(level => level.waves).filter(wave => new Set(
     wave.events.filter(event => event.kind === 'spawn').flatMap(event => event.enemies.map(enemy => enemy.roleId))
   ).size >= 2);
-  assert.ok(mixedWingWaves.length >= 10, 'single-role wings combine into distinct tactical encounters');
+  assert.ok(mixedWingWaves.length >= 1, 'the timed opening combines learned wings');
+  for (const level of breakwater.filter(level => level.waves.length > 1)) {
+    const roles = new Set(spawnEvents({ levels: [level] }).flatMap(event => event.enemies.map(enemy => enemy.roleId)));
+    assert.ok(roles.size >= 2, `${level.id} practices multiple tactical roles`);
+  }
 
   const authoredCohorts = events.filter((event) => event.id.includes('-advanced-enemy-v1-'));
   assert.equal(authoredCohorts.length, 29);
@@ -100,7 +105,7 @@ test('Campaign waves keep mixed cohorts and avoid repeated copy-paste signatures
     .map((wave) => wave.id)));
   // Eight first-sector mix labels were replaced by the authored Breakwater
   // wings above; the remaining eighteen mixed-pool remixes stay intact.
-  assert.equal(diversifiedWaveIds.size, 18);
+  assert.equal(diversifiedWaveIds.size, 8);
 
   let repeatedAdjacentSignatures = 0;
   let repeatedRetractionSignatures = 0;
@@ -143,11 +148,12 @@ test('Weekly Run debuts late packs once per band and cools down recent formation
     });
 
     const events = spawnEvents(run);
-    const homogeneousEvents = events.filter((event) => (
+    const legacyEvents = events.filter(event => !event.enemies.some(enemy => enemy.roleId?.startsWith('role-revamp-')) && !event.id.includes('revamp'));
+    const homogeneousEvents = legacyEvents.filter((event) => (
       new Set(event.enemies.map((enemy) => enemy.spriteKey)).size === 1
     ));
     assert.ok(
-      homogeneousEvents.length / events.length <= 0.2,
+      homogeneousEvents.length / legacyEvents.length <= 0.2,
       `${weekKey} homogeneous event ratio regressed`
     );
     assert.equal(events.some((event) => event.enemies.some((enemy) => (

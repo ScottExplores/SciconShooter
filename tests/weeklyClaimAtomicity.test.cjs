@@ -153,7 +153,10 @@ const makeScenario = ({
       return jsonResponse([{
         run_id: runId,
         wallet_address: state.receiptWallet,
-        receipt_provenance_version: 1
+        receipt_provenance_version: 1,
+        receipt_hash: 'a'.repeat(64), score: 9000, wave: 7,
+        integrity_status: 'server-verified', run_mode: 'weekly-streak',
+        test_run: false, finished_at: '2026-08-20T00:00:00.000Z'
       }]);
     }
 
@@ -166,6 +169,7 @@ const makeScenario = ({
         wallet_address: wallet,
         run_id: state.currentLeaderRunId,
         verified: true,
+        receipt_hash: 'a'.repeat(64),
         proposal_id: null,
         proposal_title: null,
         proposal_url: null,

@@ -304,16 +304,21 @@ const ENEMY_ENTRY_BEHAVIORS = new Set(['formation', 'dive', 'flank', 'lane']);
 /** What a hull does once it holds a slot. See services/enemyCharacteristics.ts. */
 const ENEMY_CHARACTERISTICS = new Set(['holder', 'diver', 'kamikaze', 'flanker', 'artillery', 'commander']);
 const FORMATION_ENTRY_DIRECTIONS = new Set(['top', 'left', 'right', 'split']);
+// REVAMP(G): Keep server schema aligned with the revamp runtime/browser vocabulary.
 const FORMATION_ENTRY_PATHS = new Set([
+  'revamp-swoop', 'revamp-loop', 'revamp-s-curve', 'revamp-side-sweep',
+  'revamp-pincer', 'revamp-corkscrew', 'revamp-bottom-flank', 'revamp-train',
   'sweep-bank-reentry', 'formation-drop', 'spiral-entry', 'paired-flank', 'diamond-lock',
   'double-helix', 'side-wall-entry', 'lane-stagger', 'ring-assemble', 'armored-grid',
   'mirrored-swoop', 'pod-converge', 'convoy-column', 'loop-the-loop', 'serpentine-weave'
 ]);
 const FORMATION_MOVEMENTS = new Set([
+  'revamp-breathe',
   'gentle-drift', 'lateral-sweep', 'expand-collapse', 'rotating-wheel',
   'snake-weave', 'split-pods', 'lane-shift'
 ]);
 const FORMATION_ATTACK_BEHAVIORS = new Set([
+  'revamp-dive', 'revamp-escort',
   'single-dive', 'paired-dive', 'alternating-wings', 'leader-escorts', 'row-sequence',
   'diagonal-groups', 'sweep-strafe', 'pincer-pass', 'ring-collapse', 'aimed-volley',
   'spread-volley', 'lane-pass', 'split-hunt'
@@ -3052,11 +3057,11 @@ const validateCampaignManifestCrossReferences = (campaign, errors) => {
         // Mirrors game-config/validate.ts: combat Missions may run up to seven
         // waves (introduction 6, formation-remix 7); boss-ended Missions stay
         // at four so their climax remains the fourth beat.
-        introduction: [4, 7],
+        introduction: level.id === 'operation-open-galaxy' ? [1, 7] : [4, 7],
         'formation-remix': [4, 8],
         'elite-checkpoint': [4, 7],
         'boss-preparation': [4, 7],
-        'major-boss': usesCampaignGraph ? [2, 2] : [1, 1]
+        'major-boss': usesCampaignGraph ? [2, 8] : [1, 1]
       }[expectedRole];
       if (waveCount < range[0] || waveCount > range[1]) errors.push(`/levels/${levelIndex}/waves must contain ${range[0] === range[1] ? range[0] : `${range[0]}-${range[1]}`} waves for ${expectedRole}`);
       if (expectedRole === 'major-boss' && Array.isArray(level.waves) && level.waves.length > 0) {

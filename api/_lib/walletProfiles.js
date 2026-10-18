@@ -1,3 +1,5 @@
+// REVAMP(G): Browser/API use one bounded migration for renamed Campaign waves.
+const { resolveRevampWaveId, boundRevampCompletedWaves } = require('../../shared/campaignWaveMigration.js');
 // REVAMP(D): Same bounded versioned schema as local saves; no new endpoint or DB column.
 const { sanitizeRevampProgress } = require('../../services/revamp/progression/core.js');
 const { applyEarnedWingEntitlements } = require('../../services/revamp/progression/earnedWingEntitlements.js');
@@ -174,9 +176,10 @@ const campaignWaveId = (levelId, value, storedRevision) => {
   if (typeof value !== 'string') return null;
   const waveIds = CAMPAIGN_WAVE_IDS_BY_LEVEL.get(levelId) || [];
   if (waveIds.includes(value)) return value;
-  if (storedRevision >= campaignMigration.toRevision) return null;
-  const alias = CAMPAIGN_WAVE_ALIASES[levelId]?.[value];
-  return waveIds.includes(alias) ? alias : null;
+  const alias = storedRevision < campaignMigration.toRevision
+    ? CAMPAIGN_WAVE_ALIASES[levelId]?.[value] ?? value
+    : value;
+  return resolveRevampWaveId(levelId, alias, waveIds, storedRevision);
 };
 const prefixThrough = (ids, index) => index < 0 ? [] : ids.slice(0, Math.min(ids.length, index + 1));
 const orderedPrefix = (ids, included) => {
@@ -323,9 +326,13 @@ const campaignMissionRecord = (value, level, storedRevision = campaign.revision)
     const canonical = campaignWaveId(level.id, id, storedRevision);
     return canonical ? [canonical] : [];
   });
-  const completedWaveIds = storedRevision < campaignMigration.toRevision && mappedCompletedWaveIds.length > 0
-    ? prefixThrough(waveIds, Math.max(...mappedCompletedWaveIds.map((id) => waveIds.indexOf(id))))
-    : orderedPrefix(waveIds, new Set(mappedCompletedWaveIds));
+  const completedWaveIds = boundRevampCompletedWaves(
+    level.id, record.completedWaveIds,
+    storedRevision < campaignMigration.toRevision && mappedCompletedWaveIds.length > 0
+      ? prefixThrough(waveIds, Math.max(...mappedCompletedWaveIds.map((id) => waveIds.indexOf(id))))
+      : orderedPrefix(waveIds, new Set(mappedCompletedWaveIds)),
+    waveIds, storedRevision, Boolean(record.completed)
+  );
   const completed = Boolean(record.completed) || completedWaveIds.length === waveIds.length;
   let earnedStarIds = stringList(record.earnedStarIds, {
     maxItems: 3,

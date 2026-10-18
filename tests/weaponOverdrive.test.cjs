@@ -125,7 +125,12 @@ test('mission clear sweeps fallen coins to the player instead of losing them', (
 
   assert.match(engine, /const missionClearSweep = this\.stageRewardCollectionFrames > 0 \|\| this\.waveDepartureFrames > 0/);
   // The window holds the door when coins are still on the field.
-  assert.match(engine, /liveCoins \? Math\.max\(authoredSeconds, 2\.5\) : authoredSeconds/);
+  // REVAMP(G): The extracted policy also restores the five-second major-boss window.
+  assert.match(engine, /const collectionSeconds = getMissionRewardCollectionSeconds\(/);
+  const { loadService } = require('./helpers/loadService.cjs');
+  const { getMissionRewardCollectionSeconds } = loadService(path.join(root, 'services/gameplay/missionRewardWindow.ts'));
+  assert.equal(getMissionRewardCollectionSeconds({ authoredSeconds: 0, liveCoins: true, majorBossFinale: false }), 2.5);
+  assert.equal(getMissionRewardCollectionSeconds({ authoredSeconds: 4, liveCoins: true, majorBossFinale: false }), 4);
 });
 
 test('extra lives drop half as often as before', () => {

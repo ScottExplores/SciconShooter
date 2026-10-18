@@ -27,14 +27,16 @@ const loadArchetypes = () => {
   return module.exports;
 };
 
-test('the revision-24 Campaign roster resolves through generated or dedicated boss runtimes by slot', () => {
+test('the revamp Campaign roster resolves through generated or dedicated boss runtimes by slot', () => {
   const campaign = JSON.parse(fs.readFileSync(path.join(root, 'game-config', 'campaign.json'), 'utf8'));
   const { GENERATED_BOSS_ARCHETYPE_BY_ASSET_KEY, resolveGeneratedBossArchetype } = loadArchetypes();
   const sectorBosses = campaign.sectors.map((sector) => {
     const mission = campaign.levels.find((level) => level.id === sector.missionIds.at(-1));
     const event = mission.waves.flatMap((wave) => wave.events).find((candidate) => candidate.kind === 'boss');
     assert.equal(mission.campaignProgression.missionRole, 'major-boss');
-    assert.equal(mission.waves.length, 2, `${mission.name} runs one intercept directly into its boss`);
+    assert.ok(mission.waves.length >= 2 && mission.waves.length <= 8, `${mission.name} has a bounded boss lead-in`);
+    assert.equal(mission.waves.at(-1).events.filter(event => event.kind === 'boss').length, 1);
+    assert.equal(mission.waves.slice(0, -1).flatMap(wave => wave.events).some(event => event.kind === 'boss'), false);
     assert.equal(event.bossId, sector.majorBossId);
     return { missionId: mission.id, missionOrder: mission.order, event };
   });
@@ -46,7 +48,7 @@ test('the revision-24 Campaign roster resolves through generated or dedicated bo
       archetype: resolveGeneratedBossArchetype(event.spriteKey)
     }));
 
-  assert.equal(campaign.revision, 24);
+  assert.ok(campaign.revision >= 25);
   assert.equal(campaign.sectors.length, 10);
   assert.equal(sectorBosses.length, 10);
   assert.equal(Object.keys(GENERATED_BOSS_ARCHETYPE_BY_ASSET_KEY).length, 7);

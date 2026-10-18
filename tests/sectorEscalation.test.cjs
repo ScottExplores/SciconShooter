@@ -77,7 +77,7 @@ test('aggression ramps monotonically from sector 5 and respects the readable flo
 
 test('the engine applies sector aggression when a formation member is configured', () => {
   const engine = read('services', 'gameLogic.ts');
-  assert.match(engine, /applySectorAggression\(\n\s*resolveFormationChoreography\(event, formationPack\),\n\s*this\.getStageNumberForCampaignIndex\(\)\n\s*\)/);
+  assert.match(engine, /applySectorAggression\(\n\s*this\.resolveRuntimeFormationChoreography\(event, formationPack\),\n\s*this\.getStageNumberForCampaignIndex\(\)\n\s*\)/);
   const digest = read('tools', 'simulate-campaign-nonboss-balance.mjs');
   assert.match(digest, /'services\/sectorEscalation\.ts'/);
   assert.match(digest, /'services\/playerShipWeapons\.ts'/);

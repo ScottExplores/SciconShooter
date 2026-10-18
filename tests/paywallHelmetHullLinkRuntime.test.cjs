@@ -105,7 +105,7 @@ test('engine routes Paywall helmet hits into hull damage and renderer hides full
   );
   assert.match(
     hullDamage,
-    /boss\.hp -= damage;\s*this\.detachPaywallHelmetForHullHealth\(boss\);/
+    /const hullDamage = revampHullDamage\(boss, damage\) \?\? \(boss\.bossWeakPointOpen \? damage \* 1\.45 : damage\);\s*boss\.hp -= hullDamage;\s*afterRevampHullDamage\(this, boss\);\s*if \(!getBossEncounter\(boss\)\) this\.detachPaywallHelmetForHullHealth\(boss\);/
   );
   assert.match(
     renderer,

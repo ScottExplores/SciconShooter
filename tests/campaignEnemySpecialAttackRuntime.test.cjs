@@ -97,6 +97,17 @@ const createSpecialist = (engine, specialAttack) => {
   source.projectileSpeed = 3.6;
   source.configuredBurstCount = 3;
   engine.entities.push(source);
+  // REVAMP_NOTES_B: all regular sources must first be visible for 42 active
+  // frames. Prove the new grace boundary before exercising the old special.
+  engine.revampEnemies.tick(engine);
+  engine.updateEliteEnemyFire();
+  assert.equal(engine.pendingEnemyLasers.length, 0);
+  assert.equal(engine.entities.some(entity => entity.type === 'PROJECTILE'), false);
+  for (let frame = 0; frame < 42; frame++) {
+    engine.frameCount++;
+    engine.revampEnemies.tick(engine);
+  }
+  source.attackTimer = source.attackIntervalFrames - 1;
   return source;
 };
 

@@ -36,7 +36,9 @@ test('Mission 5 ends its authored runway with a dedicated Gatekeeper Prime encou
   ));
   assert.ok(mission, 'Mission 5 exists');
   assert.equal(mission.order, 5);
-  assert.equal(mission.waves.length, 2);
+  // REVAMP(G): B permits expanded early lead-ins, with one unchanged terminal commander.
+  assert.ok(mission.waves.length >= 2 && mission.waves.length <= 8);
+  assert.equal(mission.waves.flatMap(wave => wave.events).filter(event => event.kind === 'boss').length, 1);
   assert.ok(mission.waves.slice(0, -1).every((wave) => wave.completionRule === 'clear-after-duration'));
   const finalWave = mission.waves.at(-1);
   assert.equal(finalWave.completionRule, 'boss-defeat');

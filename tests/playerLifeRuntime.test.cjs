@@ -56,7 +56,8 @@ test('GameEngine routes ram and projectile damage through the clamped transition
   const damageCalls = engine.match(/this\.applyPlayerLifeDamage\(incomingDamage\)/g) || [];
 
   assert.equal(damageCalls.length, 2);
-  assert.match(engine, /const boundedDamage = this\.maxPlayerDamagePerHit === null[\s\S]*?Math\.min\(requestedDamage, this\.maxPlayerDamagePerHit\)/);
+  assert.match(engine, /const shieldedDamage = this\.revampFlight\?\.absorb\(requestedDamage\) \?\? requestedDamage/);
+  assert.match(engine, /const boundedDamage = this\.maxPlayerDamagePerHit === null[\s\S]*?Math\.min\(shieldedDamage, this\.maxPlayerDamagePerHit\)/);
   assert.match(engine, /this\.recordPlayerDamage\(transition\.damageApplied\)/);
   assert.doesNotMatch(engine, /this\.recordPlayerDamage\(incomingDamage\)/);
   assert.match(engine, /startDeathSequence\(\) \{\s*this\.syncPlayerLives\(\)/);

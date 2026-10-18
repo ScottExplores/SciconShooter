@@ -221,9 +221,8 @@ module.exports = async (req, res) => {
     referencedProposalIds = parseReferencedProposalIds(req);
     const deadline = Date.now() + 8_000;
     const payload = await fetchResearchHubFeed();
-    // A detail lookup outage must not hide an otherwise healthy public funding feed.
-    const referenced = await resolveReferencedProposals(payload.results, referencedProposalIds, { deadline })
-      .catch(() => ({ referencedProposals: [], missingReferencedProposalIds: [], referencedLookupUnavailable: true }));
+    // REVAMP(G): Explicit identity lookups must fail closed; ordinary feed reads retain cache fallback.
+    const referenced = await resolveReferencedProposals(payload.results, referencedProposalIds, { deadline });
     const fetchedAt = new Date().toISOString();
     memorySnapshot = { ...payload, cached: true, fetchedAt };
     // REVAMP(E): Pages previews may read live proposals without persisting to production.
@@ -252,7 +251,9 @@ module.exports = async (req, res) => {
     console.warn('ResearchHub live proposal feed unavailable.');
     if (referencedProposalIds?.length > 0) {
       return sendJson(res, 502, {
-        error: 'ResearchHub referenced proposal lookup is unavailable'
+        error: 'ResearchHub referenced proposal lookup is unavailable',
+        // Only expose a bounded upstream status, never arbitrary transport/credential text.
+        details: /returned \d{3}/.exec(String(error.message))?.[0] || 'Referenced lookup failed.'
       });
     }
     const persistedSnapshot = await readProposalCache().catch(() => null);

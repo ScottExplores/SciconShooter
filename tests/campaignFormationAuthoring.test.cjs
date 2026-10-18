@@ -40,7 +40,8 @@ test('formation normalization is idempotent and never changes Campaign route top
 
   // The authored first sector has 33 grouped entries. The remaining Missions
   // and route alternatives retain their 552 existing grouped entries.
-  assert.equal(first.groupedSpawnCount, 33 + 552);
+  // REVAMP_NOTES_B: early waves are regenerated; count actual grouped events.
+  assert.equal(first.groupedSpawnCount, campaign.levels.flatMap(level => level.waves).flatMap(wave => wave.events).filter(event => event.kind === 'spawn' && !/single|random/.test(event.patternId)).length);
   assert.equal(second.groupedSpawnCount, first.groupedSpawnCount);
   assert.deepEqual(first.declarationChanges, []);
   assert.deepEqual(first.cooldownChanges, []);
@@ -50,7 +51,7 @@ test('formation normalization is idempotent and never changes Campaign route top
   assert.deepEqual(campaign.sectors, sectorsBefore);
   assert.deepEqual(campaign.levels, levelsBefore, 'normalization must preserve authored sector choreography and timing');
   assert.equal(campaign.formationPacks.filter((pack) => pack.id.startsWith('pack-breakwater-')).length, 25);
-  assert.equal(campaign.formationPacks.filter((pack) => !pack.id.startsWith('pack-breakwater-')).length, 16);
+  assert.equal(campaign.formationPacks.filter((pack) => !pack.id.startsWith('pack-breakwater-') && !pack.id.startsWith('pack-revamp-')).length, 16);
 });
 
 test('adding a more specific catalog pack never overrides an existing Wave declaration', async () => {
@@ -118,4 +119,22 @@ test('browser validation rejects missing, unused, and cooldown-conflicting forma
   const cooldown = readCampaign();
   cooldown.enemyRoles.find((role) => role.id === 'role-research-drone').reuseCooldownWaves = 1;
   assert.equal(issueMatches(validateGameCampaign(cooldown), 'reuse_cooldown_violation'), true);
+});
+
+test('revamp choreography has the same bounded schema in browser and server validators', async () => {
+  // REVAMP(G), category (a): new gameplay vocabulary must survive server round trips.
+  const server = await import(pathToFileURL(path.join(root, 'director/server/gameCampaignValidation.mjs')).href);
+  const current = readCampaign();
+  assert.equal(validateGameCampaign(current).valid, true);
+  assert.equal(server.validateGameCampaign(current).valid, true);
+  for (const mutate of [
+    campaign => { campaign.formationPacks.find(pack => pack.id.startsWith('pack-revamp-')).entryPath = 'revamp-unknown'; },
+    campaign => { campaign.levels[1].waves = campaign.levels[1].waves.slice(0, 1); },
+    campaign => { campaign.levels[4].waves.push(...structuredClone(campaign.levels[4].waves)); }
+  ]) {
+    const invalid = structuredClone(current);
+    mutate(invalid);
+    assert.equal(validateGameCampaign(invalid).valid, false);
+    assert.equal(server.validateGameCampaign(invalid).valid, false);
+  }
 });

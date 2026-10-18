@@ -795,13 +795,6 @@ module.exports = async (req, res) => {
         });
       }
 
-      await requireDurableWeeklyReceipt(receipt, body.receiptToken, {
-        // Wallet history can reissue a fresh signed capability for the same
-        // canonical row. Proposal recovery accepts that token only after the
-        // immutable run metrics and hardened provenance row match.
-        allowReissuedToken: isProposalAction
-      });
-
       let proposalSession = null;
       if (isProposalAction) {
         try {
@@ -813,6 +806,13 @@ module.exports = async (req, res) => {
           // wallet leaders fall through to the existing signature challenge.
           clearWalletProfileSessionCookie(res);
         }
+      }
+
+      if (isProposalAction) {
+        await requireDurableWeeklyReceipt(receipt, body.receiptToken, {
+          // Wallet history can reissue a capability for the same canonical run.
+          allowReissuedToken: true
+        });
       }
 
       if (action === 'select-proposal-challenge') {
@@ -882,6 +882,10 @@ module.exports = async (req, res) => {
           code: 'RUN_IDENTITY_MISMATCH'
         });
       }
+
+      // REVAMP(G): Preserve cutoff/session/identity error precedence before any
+      // storage read, while still requiring durable proof before score writes.
+      await requireDurableWeeklyReceipt(receipt, body.receiptToken);
 
       const entry = sanitizeEntry({
         name,

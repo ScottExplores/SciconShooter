@@ -177,19 +177,14 @@ test('tracked Campaign resolves every grouped spawn to one declared compatible f
   assert.deepEqual(incompatibleEventIds, []);
   assert.deepEqual(unusedDeclarations, []);
 
-  const paywall = campaign.levels.find((level) => level.id === 'stage-paywall-siege');
-  assert.deepEqual(paywall.waves[1].formationPackIds, ['pack-breakwater-x-double-v', 'pack-breakwater-r-diamond']);
-  assert.deepEqual(paywall.waves.at(-1).formationPackIds, ['pack-breakwater-f-arc']);
-  assert.deepEqual(
-    paywall.waves[1].formationPackIds.map((packId) => packsById.get(packId).enemyRoleIds),
-    [['role-jet-interceptor'], ['role-research-drone']],
-    'the crossfire combines an early interceptor squad with its distinct drone escort'
-  );
-  assert.deepEqual(
-    packsById.get('pack-breakwater-f-arc').enemyRoleIds,
-    ['role-jet-scout'],
-    'the checkpoint approach keeps light escorts and introduces no late-game roles'
-  );
+  // REVAMP_NOTES_B: deterministic role-specific wings replace the old crossfire snapshot.
+  const paywall = campaign.levels.find(level => level.id === 'stage-paywall-siege');
+  for (const wave of paywall.waves) for (const event of wave.events.filter(event => event.kind === 'spawn')) {
+    const pack = resolveCampaignFormationPackForSpawn(event, wave.formationPackIds.map(id => packsById.get(id)));
+    assert.ok(pack);
+    assert.ok(event.enemies.every(enemy => pack.enemyRoleIds.includes(enemy.roleId)));
+    assert.ok(event.formationBehavior.telegraphSeconds >= .6);
+  }
   assert.deepEqual(
     packsById.get('pack-light-jet-pincer').enemyRoleIds,
     ['role-jet-scout', 'role-jet-interceptor', 'role-research-drone', 'role-citation-swarm'],

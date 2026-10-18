@@ -1,3 +1,4 @@
+// REVAMP(G): Reconcile intended contracts documented in REVAMP_NOTES_E.md (Signals owns shared funding presentation).
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -111,10 +112,12 @@ test('both proposal surfaces use the shared funding order and no synthetic RSC r
   const feed = fs.readFileSync(path.join(root, 'services', 'researchHubProposals.ts'), 'utf8');
   const app = fs.readFileSync(path.join(root, 'App.tsx'), 'utf8');
 
-  assert.match(startScreen, /sortProposalsByFunding\(proposals\)/);
+  const signals = fs.readFileSync(path.join(root, 'components', 'revamp', 'SignalsPanel.tsx'), 'utf8');
+  assert.match(startScreen, /<SignalsPanel[\s\S]*proposals=\{proposals\}/);
+  assert.match(signals, /sortProposalsByFunding\(proposals\)/);
   assert.match(picker, /sortProposalsByFunding\(proposals\)/);
-  assert.match(startScreen, /formatFundingAmount\(funding\.raisedAmount, funding\.currency\)/);
-  assert.doesNotMatch(startScreen, /getProposalSignalRsc|signalRsc|proposal\.votes \* 20/);
+  assert.match(signals, /formatFundingAmount\(funding\.raisedAmount, funding\.currency\)/);
+  assert.doesNotMatch(startScreen + signals, /getProposalSignalRsc|signalRsc|proposal\.votes \* 20/);
   assert.doesNotMatch(startScreen, /Math\.max\(8, Math\.min\(100/);
   assert.match(feed, /if \(!normalized\) return undefined/);
   assert.match(feed, /goalCurrency: asString\(fundraise\?\.goal_currency\)\?\.toUpperCase\(\)/);

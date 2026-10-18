@@ -45,6 +45,8 @@ import type {
   WaveDefinition
 } from '../game-config/types';
 import { isMajorBossId } from '../game-config/catalog';
+// REVAMP(G): Preserve the collectible boss reward window across campaign retuning.
+import { getMissionRewardCollectionSeconds } from './gameplay/missionRewardWindow';
 import {
   DEFAULT_GAME_CAMPAIGN,
   cloneGameCampaign,
@@ -6073,7 +6075,14 @@ export class GameEngine {
     const authoredSeconds = Number.isFinite(configuredDelaySeconds) && configuredDelaySeconds >= 0
       ? configuredDelaySeconds
       : 0;
-    const collectionSeconds = liveCoins ? Math.max(authoredSeconds, 2.5) : authoredSeconds;
+    // REVAMP(G): A zero authored delay cannot skip the established major-boss loot window.
+    const collectionSeconds = getMissionRewardCollectionSeconds({
+      authoredSeconds,
+      liveCoins,
+      majorBossFinale: this.getCurrentWaveDefinition()?.events.some(
+        (event) => event.kind === 'boss' && isMajorBossId(event.bossId)
+      ) ?? false
+    });
     this.stageRewardCollectionDuration = Math.max(0, Math.round(collectionSeconds * GAME_CONFIG.FPS));
     this.stageRewardCollectionFrames = this.stageRewardCollectionDuration;
     if (this.stageRewardCollectionFrames <= 0) this.beginStageTakeoff();
@@ -14423,7 +14432,8 @@ export class GameEngine {
     boss.bossRigId ??= 'open-orbit';
     boss.bossComponents ??= this.createBossComponents(boss, configured?.componentHealth);
     // REVAMP(C): Keep existing art/rewards, delegate registered encounter combat.
-    attachRevampBoss(this, boss);
+    // REVAMP(G): Explicit Boss Sandbox weapon previews retain their authored lifecycle.
+    if (!this.isSelectedPreviewBoss(boss)) attachRevampBoss(this, boss);
     this.bossRef = boss;
     this.entities.push(boss);
   }

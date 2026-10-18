@@ -106,18 +106,20 @@ test('stale references fail closed even when a cached feed is available', async 
   assert.equal(result.payload.referencedProposals, undefined);
 });
 
-test('detail lookup outage preserves the live feed without claiming a missing proposal is closed', async () => {
+test('explicit detail lookup outage fails closed while an ordinary live feed remains available', async () => {
   globalThis.fetch = async (url) => {
     if (url === transport.FEED_URL) return Response.json(fixture);
     throw new Error('detail lookup offline');
   };
   const result = await run({ query: { includeProposalIds: '9999' } });
-  assert.equal(result.status, 200);
-  assert.equal(result.payload.cached, false);
-  assert.deepEqual(result.payload.results, fixture.results);
-  assert.deepEqual(result.payload.referencedProposals, []);
-  assert.deepEqual(result.payload.missingReferencedProposalIds, []);
-  assert.equal(result.payload.referencedLookupUnavailable, true);
+  assert.equal(result.status, 502);
+  assert.match(result.payload.error, /referenced proposal lookup is unavailable/i);
+  assert.equal(result.payload.referencedProposals, undefined);
+  assert.equal(result.payload.missingReferencedProposalIds, undefined);
+  const feed = await run();
+  assert.equal(feed.status, 200);
+  assert.equal(feed.payload.cached, false);
+  assert.deepEqual(feed.payload.results, fixture.results);
 });
 
 test('detail lookup normalization preserves exact ResearchHub IDs', () => {

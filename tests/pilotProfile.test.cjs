@@ -1,3 +1,4 @@
+// REVAMP(G): Reconcile intended contracts documented in REVAMP_NOTES_D.md (versioned permanent progression; wallet ownership unchanged).
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -94,7 +95,7 @@ test('paid ship access remains scoped to the connected authenticated wallet', ()
   assert.match(squad, /Minted ownership always follows the currently connected wallet/);
   assert.match(squad, /mintedMiniShips: target\.mintedMiniShips/);
   assert.match(squad, /const bossArchive = mergeBossArchiveProgress\(\s*target\.bossArchive,\s*source\.bossArchive\s*\)/);
-  assert.match(squad, /bossArchive,\s*campaignProgress,\s*updatedAt: nowIso\(\)/);
+  assert.match(squad, /bossArchive,\s*campaignProgress,\s*revamp: mergeRevampProgress\(target\.revamp, source\.revamp\),\s*updatedAt: nowIso\(\)/);
   assert.doesNotMatch(
     squad.slice(squad.indexOf('const mergePermanentSquadProfiles'), squad.indexOf('export const migrateLegacySquadProfile')),
     /mintedMiniShips: source\.mintedMiniShips/

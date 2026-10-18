@@ -1,3 +1,4 @@
+const { loadService } = require('./helpers/loadService.cjs');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
@@ -11,7 +12,7 @@ const profile = (walletAddress, revision = 1) => ({
 });
 
 const importSessionResolver = async () => (
-  import('../services/walletProfileSession.ts')
+  loadService(require('node:path').resolve(__dirname, '../services/walletProfileSession.ts'))
 );
 
 test('routine disconnect and reconnect reuse the matching authenticated session', async () => {

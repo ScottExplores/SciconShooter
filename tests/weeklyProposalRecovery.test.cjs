@@ -1,3 +1,4 @@
+const { loadService } = require('./helpers/loadService.cjs');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -26,8 +27,8 @@ const loadTypeScriptService = (relativePath, dependencyMap) => {
   });
   return serviceModule.exports;
 };
-const proposalFunding = require('../services/proposalFunding.ts');
-const weeklyProposalReminder = require('../services/weeklyProposalReminder.ts');
+const proposalFunding = loadService(require('node:path').resolve(__dirname, '../services/proposalFunding.ts'));
+const weeklyProposalReminder = loadService(require('node:path').resolve(__dirname, '../services/weeklyProposalReminder.ts'));
 const { getWeeklyProposalLifecycle } = loadTypeScriptService(
   'services/weeklyProposalLifecycle.ts',
   { './proposalFunding': proposalFunding }

@@ -1,3 +1,4 @@
+const { createServiceLoader } = require('./helpers/loadService.cjs');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -8,22 +9,9 @@ const vm = require('node:vm');
 const root = path.resolve(__dirname, '..');
 const read = (...segments) => fs.readFileSync(path.join(root, ...segments), 'utf8');
 
-const compileService = (name, requires = {}, globals = {}) => {
-  const source = read('services', name);
-  const compiled = ts.transpileModule(source, {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
-  }).outputText;
-  const moduleBox = { exports: {} };
-  const localRequire = (request) => requires[request] ?? require(request);
-  Function(
-    'exports',
-    'require',
-    'module',
-    ...Object.keys(globals),
-    compiled
-  )(moduleBox.exports, localRequire, moduleBox, ...Object.values(globals));
-  return moduleBox.exports;
-};
+const compileService = (name, dependencies = {}, globals = {}) => (
+  createServiceLoader({ dependencies, globals })(path.join(root, 'services', name))
+);
 
 const loadCommonJsModule = (relativePath, dependencies) => {
   const filename = path.join(root, relativePath);

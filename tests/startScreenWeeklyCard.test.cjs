@@ -1,3 +1,4 @@
+// REVAMP(G): Reconcile intended contracts documented in REVAMP_NOTES_E.md (practice quota exemption and pending-funding archive).
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -58,14 +59,14 @@ test('the Weekly Run drawer omits the ship thumbnail and keeps its quota copy co
   assert.doesNotMatch(entry, /sci-weekly-run-entry__glyph|ASSETS\.PLAYER_SHIP/);
   assert.match(entryRule, /grid-template-columns: minmax\(0, 1fr\) auto/);
   assert.doesNotMatch(stylesSource, /sci-weekly-run-entry__glyph/);
-  assert.match(entry, /const attemptsExhausted = weeklyRunAttemptsRemaining <= 0/);
+  assert.match(entry, /const attemptsExhausted = !isPreviewMode\(\) && weeklyRunAttemptsRemaining <= 0\s*&& !needsServerVerification/);
   assert.doesNotMatch(entry, /weekly-run-attempt/);
   assert.doesNotMatch(entry, /onPurchaseWithRsc\(weeklyAttemptSkuId\)/);
   assert.doesNotMatch(entry, /Free\/Week/);
   assert.doesNotMatch(entry, /free attempts each week/);
   assert.doesNotMatch(entry, /WEEKLY_RUN_STARTING_LIVES|\bLives\b/i);
   assert.doesNotMatch(entry, /weeklyRunAttemptsRemaining\}\/\$\{WEEKLY_RUN_ATTEMPT_LIMIT/);
-  assert.match(entry, /const attemptLabel = `\$\{weeklyRunAttemptsRemaining\} Attempt/);
+  assert.match(entry, /const attemptLabel = isPreviewMode\(\) \? 'Unlimited practice' : `\$\{weeklyRunAttemptsRemaining\} Attempt/);
   assert.doesNotMatch(entry, /\+1 Attempt|3 RSC/);
 });
 
@@ -78,7 +79,7 @@ test('the Weekly Run drawer keeps its static quota-driven call to action compact
   assert.match(entry, /const weeklyRunEntryState = attemptsExhausted[\s\S]*'exhausted'[\s\S]*needsServerVerification[\s\S]*'checking'[\s\S]*'available'/);
   assert.match(entry, /data-state=\{weeklyRunEntryState\}/);
   assert.match(entry, /weeklyRunAttemptsRemaining > 0\s*\? attemptLabel/);
-  assert.match(entry, /\? 'Try Here'/);
+  assert.match(entry, /\? isPreviewMode\(\) \? 'Practice' : 'Fly Run'/);
   assert.match(entry, /sci-weekly-run-entry__action/);
   assert.match(stylesSource, /\.sci-weekly-run-entry\[data-state='checking'\]/);
   assert.match(stylesSource, /\.sci-weekly-run-entry\[data-state='exhausted'\][\s\S]*--sci-weekly-entry-accent: 248 113 113/);
@@ -371,7 +372,7 @@ test('Past Picks renders the complete framed winner archive without trophy thumb
   assert.match(archiveSource, /sci-past-pick-card/);
   assert.match(archiveSource, /Final allocation/);
   assert.match(archiveSource, /winner\.allocationRsc \?\? weeklyAllocation\.allocationRsc/);
-  assert.match(archiveSource, /proposalClaimed = winner\.status === 'claimed' \|\| winner\.status === 'funded'/);
+  assert.match(archiveSource, /proposalClaimed = winner\.status === 'claimed' \|\| winner\.status === 'pending-funding' \|\| winner\.status === 'funded'/);
   assert.match(archiveSource, /Proposal selected/);
   assert.match(archiveSource, /Proposal preselected/);
   assert.match(archiveSource, /Claim pending/);

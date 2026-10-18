@@ -1,3 +1,4 @@
+// REVAMP(G): Reconcile intended contracts documented in REVAMP_NOTES_E.md (unavailable feed and selection errors allow later recovery).
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -92,13 +93,13 @@ test('App prefers the initial leader but still loads proposals if the leaderboar
   assert.match(app, /\}, \[loadingLeaderboard, refreshFundingProposals\]\)/);
 });
 
-test('the mandatory post-score chooser cannot be dismissed while recovery openings can close', () => {
+test('post-score choice stays mandatory unless feed or save fails, and recovery can close', () => {
   const app = read('App.tsx');
   const picker = read('components', 'WeeklyProposalSelection.tsx');
 
   assert.match(app, /requiresWeeklyProposal[\s\S]*setWeeklyProposalSelectionMode\('required'\)/);
   assert.match(app, /openWeeklyLeaderProposal[\s\S]*setWeeklyProposalSelectionMode\('recovery'\)/);
-  assert.match(app, /dismissible=\{weeklyProposalSelectionMode === 'recovery'\}/);
+  assert.match(app, /dismissible=\{weeklyProposalSelectionMode === 'recovery' \|\| proposalStatus === 'error' \|\| proposalStatus === 'empty' \|\| weeklyProposalSelectionStatus === 'error'\}/);
   assert.match(picker, /\{dismissible && onClose \? \(/);
   assert.match(picker, /aria-label="Choose weekly proposal later"/);
   assert.match(picker, /role="dialog"/);

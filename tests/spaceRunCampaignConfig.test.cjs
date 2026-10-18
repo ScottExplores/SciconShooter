@@ -51,8 +51,8 @@ const spaceRuns = [
   }
 ];
 
-test('campaign revision 24 restores opening scenery while preserving later space runs', () => {
-  assert.equal(campaign.revision, 24);
+test('revamp campaign retains opening scenery while preserving later space runs', () => {
+  assert.ok(campaign.revision >= 25);
   assert.deepEqual(
     campaign.levels.slice(0, 5).map((level) => level.backgroundId),
     ['open-orbit', 'citation-storm', 'paywall-siege', 'open-galaxy', 'bastion-protocol']

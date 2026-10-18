@@ -47,7 +47,7 @@ test('Lab leaves boss health to the same canonical Pixi HUD instead of stacking 
   const renderer = read('services/pixi/PixiGameRenderer.ts');
   assert.match(renderer, /this\.syncBossHealthHud\(engine\)/);
   assert.match(renderer, /this\.bossHealthPresentation\.update\(boss\.id, boss\.hp, boss\.maxHp, engine\.frameCount, this\.reducedMotion\)/);
-  assert.match(renderer, /this\.bossHealthName\.text = name/);
+  assert.match(renderer, /this\.bossHealthName\.text = this\.bossPolishPresentation\.getName\(boss\) \?\? name/);
 });
 
 test('all five real Mission previews preserve in-flight state across internal boundaries and stop at their own finale', () => {

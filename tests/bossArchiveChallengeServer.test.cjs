@@ -59,6 +59,8 @@ test('a signed Boss Archive run settles once and an expired retry restores the l
   const rpcCalls = [];
 
   global.fetch = async (url, options = {}) => {
+    // REVAMP(G): D reads the authoritative paid reserve when hydrating a profile.
+    if (String(url).includes('scicon_wallet_entitlements?')) return jsonResponse([{ purchased_tokens_available: 0 }]);
     const parsed = new URL(String(url));
     const resource = parsed.pathname.split('/').pop();
     const body = options.body ? JSON.parse(options.body) : null;
@@ -205,6 +207,8 @@ test('Challenge tokens are wallet-bound and failed outcomes cannot reach settlem
   const profileRow = createProfileRow();
   let rpcCalls = 0;
   global.fetch = async (url) => {
+    // REVAMP(G): D reads the authoritative paid reserve when hydrating a profile.
+    if (String(url).includes('scicon_wallet_entitlements?')) return jsonResponse([{ purchased_tokens_available: 0 }]);
     const resource = new URL(String(url)).pathname.split('/').pop();
     if (resource === 'scicon_wallet_profiles') return jsonResponse([profileRow]);
     if (resource === 'scicon_boss_archive_challenge_results') return jsonResponse([]);
@@ -253,6 +257,8 @@ test('the database remains authoritative when another clear consumes the last da
   const originalFetch = global.fetch;
   const profileRow = createProfileRow();
   global.fetch = async (url) => {
+    // REVAMP(G): D reads the authoritative paid reserve when hydrating a profile.
+    if (String(url).includes('scicon_wallet_entitlements?')) return jsonResponse([{ purchased_tokens_available: 0 }]);
     const resource = new URL(String(url)).pathname.split('/').pop();
     if (resource === 'scicon_wallet_profiles') return jsonResponse([profileRow]);
     if (resource === 'scicon_boss_archive_challenge_results') return jsonResponse([]);
@@ -282,6 +288,8 @@ test('Challenge start rejects bosses not present in the canonical wallet profile
   const profileRow = createProfileRow();
   profileRow.snapshot.permanentState.bossArchive.unlockedEventIds = [];
   global.fetch = async (url) => {
+    // REVAMP(G): D reads the authoritative paid reserve when hydrating a profile.
+    if (String(url).includes('scicon_wallet_entitlements?')) return jsonResponse([{ purchased_tokens_available: 0 }]);
     const resource = new URL(String(url)).pathname.split('/').pop();
     if (resource === 'scicon_wallet_profiles') return jsonResponse([profileRow]);
     throw new Error(`Unexpected Supabase request: ${url}`);
@@ -298,6 +306,8 @@ test('three starts consume all daily charges even when no fight is settled', asy
   const originalFetch = global.fetch;
   let profileRow = createProfileRow();
   global.fetch = async (url, options = {}) => {
+    // REVAMP(G): D reads the authoritative paid reserve when hydrating a profile.
+    if (String(url).includes('scicon_wallet_entitlements?')) return jsonResponse([{ purchased_tokens_available: 0 }]);
     const parsed = new URL(String(url));
     const resource = parsed.pathname.split('/').pop();
     if (resource === 'scicon_wallet_profiles') {
@@ -358,6 +368,8 @@ test('settlement rows do not consume launch charges for the current UTC day', as
   profileRow.snapshot.permanentState.bossArchive.dailyChallenge.successfulClearsUsed = 0;
   let resultLedgerReads = 0;
   global.fetch = async (url, options = {}) => {
+    // REVAMP(G): D reads the authoritative paid reserve when hydrating a profile.
+    if (String(url).includes('scicon_wallet_entitlements?')) return jsonResponse([{ purchased_tokens_available: 0 }]);
     const parsed = new URL(String(url));
     const resource = parsed.pathname.split('/').pop();
     if (resource === 'scicon_wallet_profiles') {
@@ -504,6 +516,8 @@ test('a launch retry across UTC reset keeps its receipt and spends no fresh char
   let profileRow = createProfileRow();
   let patchCount = 0;
   global.fetch = async (url, options = {}) => {
+    // REVAMP(G): D reads the authoritative paid reserve when hydrating a profile.
+    if (String(url).includes('scicon_wallet_entitlements?')) return jsonResponse([{ purchased_tokens_available: 0 }]);
     const parsed = new URL(String(url));
     const resource = parsed.pathname.split('/').pop();
     if (resource !== 'scicon_wallet_profiles') {

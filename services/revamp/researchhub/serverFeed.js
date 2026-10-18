@@ -33,7 +33,7 @@ const fetchResearchHubJson = (url, { timeoutMs = REQUEST_TIMEOUT_MS, allowNotFou
     });
     if (allowNotFound && response.status === 404) return null;
     if (!response.ok) {
-      throw Object.assign(new Error(`ResearchHub returned ${response.status}.`), { statusCode: 502 });
+      throw Object.assign(new Error(`ResearchHub is unavailable: upstream returned ${response.status}.`), { statusCode: 502 });
     }
     // Keep the deadline active while consuming the body as well as receiving headers.
     return response.json();

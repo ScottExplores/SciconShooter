@@ -84,6 +84,6 @@ test('owner controls provide a separate frame freeze and put mission tools in th
   assert.doesNotMatch(appSource, /Select wave|Jump to W\{stats\.wave\} boss|aria-label=\{`Jump to wave/);
   assert.match(appSource, /Preview winner/);
   assert.match(appSource, /Finish test run/);
-  assert.match(startScreenSource, /testChampionWinner\s*\?\s*setTestSelectedProposal\(proposal\)/);
+  assert.match(startScreenSource, /testChampionWinner\s*\?\s*setTestSelectedProposal\s*:/);
   assert.match(startScreenSource, /This does not sign or submit a claim/);
 });

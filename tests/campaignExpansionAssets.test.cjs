@@ -1,3 +1,4 @@
+const { assertMissionCadence } = require('./helpers/campaignRevampAssertions.cjs');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -87,7 +88,7 @@ test('promoted Test Bosses expose their exact assembled art through every asset 
   }
 });
 
-test('every revision-24 sector ends in one authored major-boss Mission', () => {
+test('every campaign sector ends in one authored major-boss Mission', () => {
   const expectedByMissionOrder = new Map([
     [5, { bossId: 'gatekeeper-prime', spriteKey: 'PIXI_BOSS_OPEN_ORBIT_FRAMES' }],
     [10, { bossId: 'paywall-decimator', spriteKey: 'PIXI_BOSS_PAYWALL_FRAMES' }],
@@ -101,7 +102,8 @@ test('every revision-24 sector ends in one authored major-boss Mission', () => {
     [50, { bossId: 'umbra-needlewing', spriteKey: 'CAMPAIGN_BOSS_UMBRA_NEEDLEWING' }]
   ]);
 
-  assert.equal(campaign.revision, 24);
+  // REVAMP_NOTES_B: early sector lead-ins are reauthored; roster/art identity is preserved.
+  assert.ok(campaign.revision >= 25);
   assert.equal(campaign.sectors.length, 10);
   for (const sector of campaign.sectors) {
     assert.equal(sector.missionIds.length, 5, `${sector.name} has five Missions`);
@@ -114,7 +116,9 @@ test('every revision-24 sector ends in one authored major-boss Mission', () => {
     assert.equal(level.order, sector.order * 5, `${sector.name} boss occupies every fifth Mission`);
     assert.ok(expected, `${level.name} has an approved roster entry`);
     assert.equal(level.campaignProgression.missionRole, 'major-boss');
-    assert.equal(level.waves.length, 2, `${level.name} uses one active intercept before its boss`);
+    assertMissionCadence(level);
+    assert.equal(level.waves.at(-1).completionRule, 'boss-defeat');
+    assert.ok(level.waves.slice(0, -1).every(wave => wave.events.every(event => event.kind !== 'boss')));
     assert.equal(bossEvents.length, 1, `${level.name} has one major boss`);
     assert.equal(sector.majorBossId, expected.bossId, `${level.name} sector roster`);
     assert.equal(finale.bossId, expected.bossId, `${level.name} uses its canonical bossId`);
@@ -141,7 +145,7 @@ test('Stage 20 enemy art is active again with every specialist bound to a role',
   }
 });
 
-test('each sector checkpoint and boss-preparation Mission ends with an authored mini-boss', () => {
+test('each sector checkpoint and boss-preparation Mission includes its authored mini-boss', () => {
   const expectedSpriteByBossId = new Map([
     ['bottleneck-drone', 'MINI_BOSS'],
     ['paywall-wall', 'PAYWALL_BASTION_FRAMES'],
@@ -160,11 +164,11 @@ test('each sector checkpoint and boss-preparation Mission ends with an authored 
   for (const sector of campaign.sectors) {
     for (const [missionOffset, missionRole] of [[2, 'elite-checkpoint'], [3, 'boss-preparation']]) {
       const level = campaign.levels.find((candidate) => candidate.id === sector.missionIds[missionOffset]);
-      const finalWave = level.waves.at(-1);
-      const miniBosses = finalWave.events.filter((event) => event.kind === 'boss');
+      // REVAMP_NOTES_B: a recovery beat may follow the checkpoint encounter.
+      const miniBosses = level.waves.flatMap(wave => wave.events).filter((event) => event.kind === 'boss');
 
       assert.equal(level.campaignProgression.missionRole, missionRole, level.name);
-      assert.equal(miniBosses.length, 1, `${level.name} ends with one authored checkpoint`);
+      assert.equal(miniBosses.length, 1, `${level.name} includes one authored checkpoint`);
       assert.equal(miniBossIds.has(miniBosses[0].bossId), true, `${level.name} uses the mini-boss catalog`);
       assert.equal(
         miniBosses[0].spriteKey,

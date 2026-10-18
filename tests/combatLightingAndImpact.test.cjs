@@ -108,7 +108,8 @@ test('high-value effects emit bounded light while smoke and debris stay normally
   assert.match(blend, /kind !== 'sprite-debris'/);
   assert.match(poolSource, /effect\.graphic\.blendMode = this\.usesAdditiveBlend\(kind\) \? 'add' : 'normal'/);
 
-  for (const methodName of ['spawnExplosion', 'spawnBossExplosion', 'spawnEnemyExplosion', 'spawnImpact']) {
+  assert.match(poolSource, /spawnEnemyExplosion\([^\n]+\) \{\s*this\.spawnTieredExplosion\(x, y, size, 'small', color\)/);
+  for (const methodName of ['spawnExplosion', 'spawnBossExplosion', 'spawnTieredExplosion', 'spawnImpact']) {
     const start = poolSource.indexOf(`  ${methodName}(`);
     const next = poolSource.indexOf('\n  }', start);
     assert.ok(start >= 0 && next > start, `${methodName} exists`);

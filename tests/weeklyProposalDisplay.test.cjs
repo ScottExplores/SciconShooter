@@ -1,7 +1,8 @@
+const { loadService } = require('./helpers/loadService.cjs');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { resolveProposalSelection } = require('../services/weeklyProposalDisplay.ts');
+const { resolveProposalSelection } = loadService(require('node:path').resolve(__dirname, '../services/weeklyProposalDisplay.ts'));
 
 const proposals = [
   {

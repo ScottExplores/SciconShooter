@@ -129,13 +129,13 @@ test('collision-safe slot reassignment eases from the live position without a sn
 });
 
 test('the engine applies separation only to assembled holders before collision work', () => {
-  assert.match(engineSource, /separateAssembledFormationMembers\(\);\s*this\.checkCollisions\(\)/);
+  assert.match(engineSource, /separateAssembledFormationMembers\(\);[\s\S]{0,200}this\.revampEnemies\.enforceBulletCap\(this\);\s*this\.checkCollisions\(\)/);
   assert.match(engineSource, /members\.every\(\(member\) => member\.formationState === 'hold'\)/);
   assert.match(engineSource, /const cohortSpawned = spawnedCount >= targetCount/);
   assert.match(engineSource, /cohortSpawned && members\.some\(\(member\) => !member\.formationSlotLocked\)/);
   assert.match(engineSource, /resolveNonOverlappingFormationCohortPositions\([\s\S]*?reservedTargets/);
   assert.match(engineSource, /assembledHolders\.push\(\.\.\.members\)[\s\S]*?globallySeparated = resolveNonOverlappingFormationPositions/);
-  assert.match(engineSource, /maxCorrectionPerFrame = this\.mobileProfile \? 4 : 6/);
+  assert.match(engineSource, /maxCorrectionPerFrame = member\.formationEntryPath\?\.startsWith\('revamp-'\) \? 4 : this\.mobileProfile \? 4 : 6/);
   assert.match(engineSource, /member\.x = moveToward\(member\.x, point\.x, maxCorrectionPerFrame\)/);
   assert.match(engineSource, /member\.y = moveToward\(member\.y, point\.y, maxCorrectionPerFrame\)/);
   assert.doesNotMatch(engineSource, /member\.x = transition\.target\.x/);

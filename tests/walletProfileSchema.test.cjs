@@ -1,3 +1,4 @@
+// REVAMP(G): Preserve wallet guarantees under B/C mission content; migration is category (a).
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -305,6 +306,12 @@ test('a stale weekly snapshot resets competition totals while preserving Hangar 
 test('wallet snapshots preserve the current Weekly Campaign Streak and recompute its score', () => {
   const now = Date.UTC(2026, 6, 23, 19);
   const boundary = getWeeklyBoundaryMeta(new Date(now));
+  // REVAMP_NOTES_B/C: opening includes an authored mini-boss. A complete
+  // proof must include the actual boss categories, then recompute every point.
+  const mission = CAMPAIGN_LEVELS.find((level) => level.id === GRAPH_ENTRY.missionDefinitionId);
+  const bosses = mission.waves.flatMap((wave) => wave.events).filter((event) => event.kind === 'boss');
+  const majorBossKills = bosses.filter((event) => event.bossId === GRAPH_ENTRY.bossId).length;
+  const miniBossKills = bosses.length - majorBossKills;
   const event = {
     eventId: 'weekly-wallet-event',
     nodeId: GRAPH_ENTRY.nodeId,
@@ -313,8 +320,8 @@ test('wallet snapshots preserve the current Weekly Campaign Streak and recompute
       regularEnemyKills: 1,
       eliteKills: 0,
       wavesCleared: GRAPH_ENTRY.routeSummary.estimatedWaveCount,
-      miniBossKills: 0,
-      majorBossKills: 0,
+      miniBossKills,
+      majorBossKills,
       missionCompleted: true,
       damageTaken: 0,
       livesRemaining: 3,
@@ -350,10 +357,15 @@ test('wallet snapshots preserve the current Weekly Campaign Streak and recompute
   const streak = sanitized.weeklyState.weeklyCampaignStreak;
   assert.equal(streak.weeklyId, boundary.weekKey);
   assert.deepEqual(streak.visitedNodeIds, [GRAPH_ENTRY.nodeId]);
-  // 2322 after the surge waves: the server recompute scores waves cleared,
-  // and the entry Mission now runs six of them.
-  assert.equal(streak.score.totalPoints, 2322);
-  assert.equal(streak.scoreEvents[0].breakdown.totalPoints, 2322);
+  const stars = mission.campaignProgression.masteryObjectives.filter((objective) => (
+    objective.kind === 'complete' || (objective.kind === 'damage-at-most' && objective.target >= 0)
+  )).length;
+  const basePoints = 12 + mission.waves.length * 150 + 650 + miniBossKills * 500
+    + majorBossKills * 1600 + 300 + (stars === 3 ? 400 : 0) + 3 * 20;
+  const expectedPoints = Math.round(basePoints * Math.min(1.5, Math.max(1, GRAPH_ENTRY.weeklyScoreMultiplier || 1)));
+  assert.equal(streak.score.totalPoints, expectedPoints);
+  assert.equal(streak.scoreEvents[0].breakdown.totalPoints, expectedPoints);
+  assert.notEqual(streak.score.totalPoints, event.breakdown.totalPoints);
   assert.equal(streak.finalization.status, 'active');
 });
 
@@ -523,6 +535,8 @@ test('cloud branch sanitizer and revision merge preserve one-time receipts witho
 });
 
 test('Campaign progress and reward receipts survive wallet sanitization with strict Mission-Wave pairing', () => {
+  // A single-wave opening cannot represent a partially completed wave prefix.
+  const partialCompletedWaveIds = FIRST_MISSION.waves.length > 1 ? [FIRST_WAVE.id] : [];
   const now = Date.UTC(2026, 6, 23, 19);
   const weekKey = getWeeklyBoundaryMeta(new Date(now)).weekKey;
   const validRewardId = `campaign:${FIRST_MISSION.id}:first-clear`;
@@ -554,7 +568,7 @@ test('Campaign progress and reward receipts survive wallet sanitization with str
         },
         missionRecords: {
           [FIRST_MISSION.id]: {
-            completedWaveIds: [FIRST_WAVE.id, SECOND_MISSION_WAVE.id],
+            completedWaveIds: [...partialCompletedWaveIds, SECOND_MISSION_WAVE.id],
             earnedStarIds: [`${FIRST_MISSION.id}:complete`, 'unknown-star'],
             bestScore: 321
           },
@@ -611,10 +625,10 @@ test('Campaign progress and reward receipts survive wallet sanitization with str
   assert.deepEqual(progress.unlockedMissionIds, [FIRST_MISSION.id, SECOND_MISSION.id]);
   assert.deepEqual(
     progress.unlockedWaveIdsByMission[FIRST_MISSION.id],
-    FIRST_MISSION.waves.slice().sort((left, right) => left.order - right.order).slice(0, 2).map((wave) => wave.id)
+    FIRST_MISSION.waves.slice().sort((left, right) => left.order - right.order).slice(0, partialCompletedWaveIds.length + 1).map((wave) => wave.id)
   );
   assert.deepEqual(progress.unlockedWaveIdsByMission[SECOND_MISSION.id], [SECOND_MISSION_WAVE.id]);
-  assert.deepEqual(progress.missionRecords[FIRST_MISSION.id].completedWaveIds, [FIRST_WAVE.id]);
+  assert.deepEqual(progress.missionRecords[FIRST_MISSION.id].completedWaveIds, partialCompletedWaveIds);
   assert.deepEqual(progress.missionRecords[FIRST_MISSION.id].earnedStarIds, []);
   assert.equal(progress.missionRecords[FIRST_MISSION.id].bestScore, 321);
   assert.deepEqual(progress.claimedRewardIds, [validRewardId]);
@@ -990,10 +1004,12 @@ test('cloud Campaign migration preserves a rev21 partial checkpoint and replay r
 
   assert.equal(progress.version, 4);
   assert.equal(progress.campaignRevision, campaign.revision);
-  assert.deepEqual(progress.missionRecords[FIRST_MISSION.id].completedWaveIds, waveIds.slice(0, 3));
+  assert.deepEqual(progress.missionRecords[FIRST_MISSION.id].completedWaveIds, waveIds.slice(0, Math.min(3, Math.max(0, waveIds.length - 1))));
   assert.deepEqual(progress.unlockedWaveIdsByMission[FIRST_MISSION.id], waveIds.slice(0, 4));
   assert.equal(progress.recommendedMissionId, FIRST_MISSION.id);
-  assert.equal(progress.recommendedWaveId, waveIds[3]);
+  assert.equal(progress.recommendedWaveId, waveIds[Math.min(3, waveIds.length - 1)]);
+  assert.equal(progress.missionRecords[FIRST_MISSION.id].completed, false, 'shortening a mission cannot invent a clear');
+  assert.deepEqual(progress.claimedRewardIds, []);
   assert.deepEqual(progress.replayRewardEpochByMission, {
     [FIRST_MISSION.id]: '2026-07-26'
   });

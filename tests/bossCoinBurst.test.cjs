@@ -181,7 +181,8 @@ test('gameplay keeps boss coins collectible through rewards, then banks and clea
   assert.match(engine, /beginStageCompletion\(label: string, color: string\) \{[\s\S]*?this\.clearStageBoundaryDebris\(false, true, false\)/);
   assert.match(takeoffSource, /this\.clearStageBoundaryDebris\(true\)/);
   assert.match(engine, /if \(this\.waveDepartureFrames <= 0\) \{\s*this\.clearStageBoundaryDebris\(false\)/);
-  assert.match(engine, /creditCoinValue\(coin: Entity\)[\s\S]*?if \(coin\.coinValueCredited\) return false;[\s\S]*?this\.stats\.totalCoins\+\+/);
+  assert.match(engine, /creditCoinValue\(coin: Entity\)[\s\S]*?if \(coin\.coinValueCredited\) return false;[\s\S]*?this\.stats\.totalCoins \+= creditedValue/);
+  assert.match(engine, /coin\.coinValueCredited = true;[\s\S]*?const creditedValue = this\.revampFlight\?\.credit\(\) \?\? 1/);
   assert.match(engine, /collectCoinIfReachedPlayer\(coin: Entity\)[\s\S]*?const credited = this\.creditCoinValue\(coin\)/);
   assert.match(engine, /if \(credited && this\.waveTransitionPending\) this\.refreshWaveVictorySummaryMetrics\(\)/);
   assert.match(engine, /refreshWaveVictorySummaryMetrics\(\)[\s\S]{0,420}refreshWaveVictoryRewardMetrics\(/);

@@ -1,3 +1,4 @@
+const { isRevampMission, assertMissionCadence, assertRevampMission, bosses } = require('./helpers/campaignRevampAssertions.cjs');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -14,12 +15,12 @@ const migration = JSON.parse(
 const breakwaterMissionIds = new Set(campaign.sectors[0].missionIds);
 
 test('revision 24 uses compact continuous Missions with authored pressure through every climax', () => {
-  assert.equal(campaign.revision, 24);
+  assert.ok(campaign.revision >= 25);
   // 220 authored at revision 24, plus 91 surge waves. Counts vary by sector so
   // the campaign grows richer as it goes: introductions run six waves (seven
   // from sector 7), each sector's first formation-remix runs eight from sector
   // 4, and boss-ended Missions stay compact per the pre-boss taper.
-  assert.equal(campaign.levels.reduce((total, level) => total + level.waves.length, 0), 311);
+  campaign.levels.forEach(assertMissionCadence);
 
   const regularMissions = campaign.levels.filter(
     (level) => level.campaignProgression.missionRole !== 'major-boss'
@@ -35,6 +36,7 @@ test('revision 24 uses compact continuous Missions with authored pressure throug
   )).filter(Boolean));
 
   for (const mission of regularMissions) {
+    if (isRevampMission(mission)) { assertRevampMission(mission, campaign); continue; }
     // Cadence is role- and sector-aware: pure-combat Missions carry surge
     // waves that deepen through the campaign, and boss-ended Missions stay
     // compact so the climax remains the fourth beat.
@@ -104,6 +106,14 @@ test('major bosses follow one active intercept and a short direct alert', () => 
   assert.equal(bossMissions.length, 10);
 
   for (const mission of bossMissions) {
+    if (isRevampMission(mission)) {
+      assertRevampMission(mission, campaign);
+      assert.equal(bosses(mission).length, 1);
+      const finale = mission.waves.at(-1);
+      assert.equal(finale.events[0].startSeconds, 0);
+      assert.ok(finale.events[0].warningSeconds >= 1.2 && finale.events[0].warningSeconds <= 1.5);
+      continue;
+    }
     assert.equal(mission.waves.length, 2);
     const [intercept, finale] = mission.waves;
     assert.equal(intercept.durationSeconds, 12);
@@ -118,7 +128,7 @@ test('major bosses follow one active intercept and a short direct alert', () => 
 });
 
 test('formation concurrency and migration metadata match the faster Campaign', async () => {
-  const originalPacks = campaign.formationPacks.filter(pack => !pack.id.startsWith('pack-breakwater-'));
+  const originalPacks = campaign.formationPacks.filter(pack => !pack.id.startsWith('pack-breakwater-') && !pack.id.startsWith('pack-revamp-'));
   const breakwaterPacks = campaign.formationPacks.filter(pack => pack.id.startsWith('pack-breakwater-'));
   assert.ok(originalPacks.every((pack) => pack.maximumSimultaneousInstances === 3));
   assert.ok(originalPacks.every((pack) => pack.recoveryRequiredSeconds === 0.4));
@@ -135,7 +145,12 @@ test('formation concurrency and migration metadata match the faster Campaign', a
   assert.deepEqual(new Set(migration.preservedMissionIds), new Set(campaign.levels.map((level) => level.id)));
   assert.equal(Object.keys(migration.waveAliases).length, campaign.levels.length);
   for (const level of campaign.levels) {
+    // Historical v24 aliases remain historical; revamp IDs belong to the next migration.
     const currentWaveIds = new Set(level.waves.map((wave) => wave.id));
+    if (isRevampMission(level)) {
+      assert.ok(migration.waveAliases[level.id] && Object.keys(migration.waveAliases[level.id]).length > 0);
+      continue;
+    }
     const aliases = migration.waveAliases[level.id];
     assert.ok(aliases && Object.keys(aliases).length >= level.waves.length);
     assert.ok(Object.values(aliases).every((waveId) => currentWaveIds.has(waveId)));
@@ -210,6 +225,11 @@ test('arcade swarms grow by sector and later sectors do not recycle one formatio
   });
   assert.ok(groupedEvents.length >= 380);
   for (const { level, wave, event, minimumCount } of groupedEvents) {
+    if (isRevampMission(level)) {
+      assert.ok(event.count >= 2 && event.count <= wave.threatCap);
+      assert.ok(event.formationBehavior.telegraphSeconds >= .6);
+      continue;
+    }
     if (event.id === 'stage-bastion-protocol-wave-1-breakwater-2') {
       assert.equal(event.count, 3, 'the final gate lead-in uses three armored escorts before the boss');
       assert.deepEqual(event.enemies.map(enemy => enemy.roleId), ['role-protocol-vanguard']);

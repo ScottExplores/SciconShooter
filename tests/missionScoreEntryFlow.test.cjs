@@ -28,7 +28,7 @@ test('every weekly-eligible death can submit its score without a rank or persona
 
 test('Campaign deaths restart the active Mission from Wave 1 and never expose paid Continue', () => {
   assert.match(appSource, /const retryGame = \(\) => \{[\s\S]*?const mission = getCampaignMissionById\(activeCampaignLaunch\.missionId\)[\s\S]*?missionId: activeCampaignLaunch\.missionId,[\s\S]*?waveId: mission\?\.waveIds\[0\] \?\? activeCampaignLaunch\.waveId/);
-  assert.match(appSource, /const normalizedCampaignRequest[\s\S]*?waveId: requestedCampaignMission\.waveIds\[0\]/);
+  assert.match(appSource, /const normalizedCampaignRequest[\s\S]*?waveId: QA_CONFIG\.enabled \? campaignRequest\.waveId : requestedCampaignMission\.waveIds\[0\]/);
   assert.match(appSource, /if \(isCampaignRun && waveVictorySummary\.nextLevelId\) \{[\s\S]*?setActiveCampaignLaunch\(\{[\s\S]*?missionId: nextMission\.id,[\s\S]*?waveId: nextWaveId/);
   assert.match(appSource, /gameOverContinueControls = !campaignCompletedRun && !isCampaignRun && !isNonCompetitiveRun/);
   assert.match(appSource, /onClick=\{retryGame\}[\s\S]*?isWeeklyCampaignRun \? 'NEW WEEKLY RUN' : 'RETRY MISSION'/);

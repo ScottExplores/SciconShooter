@@ -1,3 +1,4 @@
+// REVAMP(G): Stable distinct story IDs replace title identity (REVAMP_NOTES_D.md).
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -29,7 +30,21 @@ test('story transmissions are remembered per beat, day, and active player profil
   const app = read('App.tsx');
 
   assert.match(schedule, /scicon:story-transmissions:daily:v1/);
-  assert.match(schedule, /getStoryBeatDailyId = \(beat: Pick<StoryBeat, 'phase' \| 'title'>\)/);
+  assert.match(schedule, /getStoryBeatDailyId = \(beat: StoryBeatIdentity\)/);
+  const { loadService } = require('./helpers/loadService.cjs');
+  const runtime = loadService(path.join(root, 'services', 'storyTransmissionSchedule.ts'));
+  const values = new Map();
+  const storage = { getItem: (key) => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) };
+  const today = new Date(2026, 9, 17, 12);
+  const tomorrow = new Date(2026, 9, 18, 12);
+  const intro = { phase: 2, title: 'Citation Storm', id: 'frontier:v1:sector-redline:intro' };
+  const midpoint = { ...intro, id: 'frontier:v1:sector-redline:midpoint' };
+  runtime.markStoryBeatSeenTodayForProfile(intro, 'pilot:alpha', storage, today);
+  assert.equal(runtime.hasSeenStoryBeatTodayForProfile({ ...intro, title: 'Edited copy' }, 'pilot:alpha', storage, today), true);
+  assert.equal(runtime.hasSeenStoryBeatTodayForProfile(midpoint, 'pilot:alpha', storage, today), false);
+  assert.equal(runtime.hasSeenStoryBeatTodayForProfile(intro, 'pilot:beta', storage, today), false);
+  assert.equal(runtime.hasSeenStoryBeatTodayForProfile(intro, 'pilot:alpha', storage, tomorrow), false);
+  assert.equal(runtime.getStoryBeatDailyId({ phase: 2, title: 'Legacy beat' }), '2:Legacy beat');
   assert.match(schedule, /parsed\.dayKey !== dayKey/);
   assert.match(schedule, /getScopedStoryStorageKey/);
   assert.match(app, /!hasSeenStoryBeatTodayForProfile\(introBeat, launchProfileId\)/);

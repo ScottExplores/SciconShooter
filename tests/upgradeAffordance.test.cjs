@@ -1,3 +1,4 @@
+// REVAMP(G): Reconcile intended contracts documented in REVAMP_NOTES_D.md (earned wings and direct first PLAY; legacy purchases retain affordability checks).
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -21,7 +22,7 @@ test('pixel action buttons retain live labels over transparent generated present
   assert.equal((component.match(/sci-pixel-action__fixture sci-pixel-action__fixture--/g) || []).length, 4);
   assert.match(component, /sci-pixel-action__content/);
   assert.match(component, /aria-hidden="true"/);
-  assert.match(startScreen, /<PixelActionButton[\s\S]*?tone="green"[\s\S]*?ready[\s\S]*?shine[\s\S]*?min-h-\[4\.25rem\][\s\S]*?<span>\{campaignCheckpoint\.action\}<\/span>/);
+  assert.match(startScreen, /<PixelActionButton[\s\S]*?tone="green"[\s\S]*?ready[\s\S]*?shine[\s\S]*?min-h-\[4\.25rem\][\s\S]*?<span>\{permanentSquadState\.campaignProgress\.completedMissionIds\.length === 0 \? 'PLAY' : campaignCheckpoint\.action\}<\/span>/);
 
   assets.forEach((name) => {
     const assetPath = path.join(root, 'public', 'game-art', 'generated', 'ui', 'scicon-pixel-action-buttons-v1', name);
@@ -39,8 +40,9 @@ test('Hangar readiness follows exact affordability, ownership, equip, and max-le
   assert.match(hangar, /activeMainUpgradeReady = MAIN_SHIP_UPGRADES\.some/);
   assert.match(hangar, /activeMiniOwned[\s\S]*?activeMiniLevel < MINI_SHIP_MAX_LEVEL[\s\S]*?state\.coins >= activeMiniUpgradeCost/);
   assert.match(hangar, /!activeMiniOwned[\s\S]*?state\.coins >= activeMini\.purchaseCost/);
-  assert.match(hangar, /const hasRightSupportRsc = Boolean\([\s\S]*rscBalance\.raw >= rightSupportCostRaw[\s\S]*\);/);
-  assert.match(hangar, /const slotUnlockReady = !unlocked && \([\s\S]*founderSandbox[\s\S]*slot === 'right' \? hasRightSupportRsc : state\.coins >= unlockCost[\s\S]*\);/);
+  assert.match(hangar, /const unlockLabel = slot === 'right' \? 'CLEAR MISSION 1' : 'FREE ON LAUNCH'/);
+  assert.match(hangar, /disabled=\{!unlocked && !founderSandbox\}/);
+  assert.match(hangar, /const slotUnlockReady = !unlocked && founderSandbox;/);
   assert.doesNotMatch(hangar, /ready=\{!activeMiniEquipped\}/);
   assert.match(hangar, /disabled=\{activeMiniEquipped\}/);
   assert.match(hangar, /ready=\{!atMax && state\.coins >= cost\}/);

@@ -1,3 +1,4 @@
+const { loadService } = require('./helpers/loadService.cjs');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -74,7 +75,7 @@ const compileCampaignProgression = () => {
             ? { getMiniBossEncounterDefinition: () => undefined }
           : request === '../game-config/campaign-migration-v22.json'
             ? require('../game-config/campaign-migration-v22.json')
-        : require(request),
+        : request.startsWith('.') ? loadService(path.resolve(root, 'services', request)) : require(request),
     module
   );
   return module.exports;

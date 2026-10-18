@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 test('wallet RSC balance presentation truncates fractions and groups whole units', async () => {
-  const { formatWholeRscBalance } = await import('../services/rscBalancePresentation.ts');
+  const { formatWholeRscBalance } = require('./helpers/loadService.cjs').loadService(require('node:path').join(__dirname, '../services/rscBalancePresentation.ts'));
 
   assert.equal(formatWholeRscBalance({
     raw: 54_432_000_000_000_000_000n,

@@ -42,7 +42,16 @@ const INTRODUCTION_SCHEDULE = Object.freeze({
   'role-null-bastion': [7, 1],
   'role-vector-reaver': [8, 1],
   'role-rift-weaver': [9, 1],
-  'role-pulse-herald': [10, 1]
+  'role-pulse-herald': [10, 1],
+  // REVAMP(G): REVAMP_NOTES_B adds eight behavior roles using existing art.
+  'role-revamp-diver': [1, 1],
+  'role-revamp-escort': [1, 2],
+  'role-revamp-shield-bearer': [1, 3],
+  'role-revamp-splitter': [1, 4],
+  'role-revamp-mine-layer': [2, 1],
+  'role-revamp-sniper': [2, 2],
+  'role-revamp-teleporter': [2, 3],
+  'role-revamp-carrier': [2, 4]
 });
 
 // Compact Retraction Fleet art replaces the obsolete pink terrain jets and
@@ -73,7 +82,15 @@ const ROLE_SPRITE_KEYS = Object.freeze({
   'role-null-bastion': 'SCICON_ENEMY_NULL_BASTION_FRAMES',
   'role-vector-reaver': 'SCICON_ENEMY_VECTOR_REAVER_V2_FRAMES',
   'role-rift-weaver': 'SCICON_ENEMY_RIFT_WEAVER_FRAMES',
-  'role-pulse-herald': 'SCICON_ENEMY_PULSE_HERALD_FRAMES'
+  'role-pulse-herald': 'SCICON_ENEMY_PULSE_HERALD_FRAMES',
+  'role-revamp-diver': 'SCICON_ENEMY_REDLINE_SKIRMISHER_FRAMES',
+  'role-revamp-escort': 'SCICON_ENEMY_CROSSCUT_RAIDER_FRAMES',
+  'role-revamp-shield-bearer': 'SCICON_ENEMY_AUDIT_BULWARK_FRAMES',
+  'role-revamp-splitter': 'ENEMY_SWARM_FRAMES',
+  'role-revamp-mine-layer': 'CAMPAIGN_ENEMY_CRESCENT_MINELAYER',
+  'role-revamp-sniper': 'CAMPAIGN_ENEMY_WALL_SNIPER_LEFT',
+  'role-revamp-teleporter': 'SCICON_ENEMY_RIFT_WEAVER_FRAMES',
+  'role-revamp-carrier': 'CAMPAIGN_ENEMY_DNA_CONDUCTOR'
 });
 
 const SCICON_FAMILY_KEYS = new Set(Object.values(ROLE_SPRITE_KEYS));

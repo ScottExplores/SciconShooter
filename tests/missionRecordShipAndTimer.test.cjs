@@ -1,3 +1,4 @@
+// REVAMP(G): Reconcile intended contracts documented in REVAMP_NOTES_D.md and REVAMP_NOTES_E.md.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -23,7 +24,7 @@ test('flight time begins when the first transmission deploys instead of when the
 });
 
 test('selected ship identity travels through the signed receipt and scorecard preview', () => {
-  assert.match(appSource, /const runShipId = requestedLabShipId \?\? usableShipId/);
+  assert.match(appSource, /const runShipId = runMode === 'weekly-streak' \? WEEKLY_RANKED_SHIP : requestedLabShipId \?\? usableShipId/);
   assert.match(appSource, /activeRunShipIdRef\.current = runShipId/);
   assert.match(receiptClientSource, /playerShipId: PlayerShipId/);
   assert.match(receiptClientSource, /action: 'start'[\s\S]*?playerShipId/);

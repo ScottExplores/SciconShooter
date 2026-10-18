@@ -1,3 +1,4 @@
+const { isRevampMission, assertMissionCadence, assertRevampMission, bosses } = require('./helpers/campaignRevampAssertions.cjs');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -37,11 +38,7 @@ test('ten five-Mission sectors own tactical Waves and reserve boss-defeat for ma
   campaign.sectors.forEach((sector) => {
     const levels = sector.missionIds.map((missionId) => campaign.levels.find((level) => level.id === missionId));
     assert.ok(levels.every(Boolean), `${sector.id} references five real Missions`);
-    assert.deepEqual(
-      levels.map((level) => level.waves.length),
-      [sector.order >= 7 ? 7 : 6, sector.order >= 4 ? 8 : 7, 4, 4, 2],
-      `${sector.id} follows the sector-aware surge cadence`
-    );
+    levels.forEach(assertMissionCadence);
     assert.deepEqual(levels.map((level) => level.campaignProgression.missionRole), expectedRoles);
   });
 
@@ -54,8 +51,8 @@ test('ten five-Mission sectors own tactical Waves and reserve boss-defeat for ma
       assert.equal(majorBosses.length, wave.completionRule === 'boss-defeat' ? 1 : 0, wave.id);
       assert.equal(wave.completionRule, isMajorBossFinale ? 'boss-defeat' : 'clear-after-duration');
       if (isMajorBossFinale) {
-        assert.equal(level.waves.length, 2);
-        assert.equal(index, 1);
+        assert.ok(level.waves.length >= 2 && level.waves.length <= 8);
+        assert.equal(index, level.waves.length - 1);
         assert.equal(wave.events.length, 1);
         assert.equal(wave.events[0].startSeconds, 0);
         assert.ok(wave.events[0].warningSeconds <= 1.5);
@@ -75,13 +72,14 @@ test('elite checkpoints and boss-preparation Missions finish with authored block
     const missions = campaign.levels.filter((level) => level.campaignProgression.missionRole === role);
     assert.equal(missions.length, campaign.sectors.length);
     missions.forEach((level) => {
-      const finalWave = level.waves.at(-1);
+      const finalWave = level.waves.find(wave => wave.events.some(event => event.kind === 'boss'));
       const climax = finalWave.events.find((event) => event.kind === 'boss');
       assert.ok(climax, `${level.id} authors a ${role} climax`);
       assert.equal(allowedBossIds.has(climax.bossId), true);
       assert.equal(climax.blocksWaveClock, true);
       assert.equal(finalWave.completionRule, 'clear-after-duration');
-      assert.equal(finalWave.delayAfterSeconds, 1);
+      assert.ok(finalWave.delayAfterSeconds >= 0 && finalWave.delayAfterSeconds <= 1);
+      if (isRevampMission(level)) assertRevampMission(level, campaign);
     });
   }
 });
@@ -205,8 +203,13 @@ test('internal waves advance seamlessly and only Mission boundaries create resul
 test('major-boss Missions expose a five-second movable reward window before the full takeoff cinematic', () => {
   const bossStages = campaign.levels.filter((level) => level.campaignProgression.missionRole === 'major-boss');
   assert.equal(bossStages.length, campaign.sectors.length);
-  bossStages.forEach((level) => assert.equal(level.waves.at(-1).delayAfterSeconds, 5));
+  const { loadService } = require('./helpers/loadService.cjs');
+  const { getMissionRewardCollectionSeconds } = loadService(path.join(root, 'services/gameplay/missionRewardWindow.ts'));
+  bossStages.forEach((level) => assert.equal(getMissionRewardCollectionSeconds({
+    authoredSeconds: level.waves.at(-1).delayAfterSeconds, liveCoins: true, majorBossFinale: true
+  }), 5));
   const engine = fs.readFileSync(path.join(root, 'services', 'gameLogic.ts'), 'utf8');
+  assert.match(engine, /const collectionSeconds = getMissionRewardCollectionSeconds\(/);
   assert.match(engine, /STAGE_TAKEOFF_FRAMES = 180/);
   assert.match(engine, /STAGE_TAKEOFF_HOLD_FRAMES = 24/);
   assert.match(engine, /STAGE_TAKEOFF_LIFT_FRAMES = 30/);

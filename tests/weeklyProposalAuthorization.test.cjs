@@ -1,10 +1,11 @@
+const { loadService } = require('./helpers/loadService.cjs');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
   WEEKLY_PROPOSAL_CHALLENGE_STALE_CODE,
   selectWeeklyProposalWithFreshChallenge
-} = require('../services/weeklyProposalAuthorization.ts');
+} = loadService(require('node:path').resolve(__dirname, '../services/weeklyProposalAuthorization.ts'));
 
 const wallet = '0x1111111111111111111111111111111111111111';
 

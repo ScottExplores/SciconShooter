@@ -1,3 +1,4 @@
+const { loadService } = require('./helpers/loadService.cjs');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -56,7 +57,7 @@ test('wallet transitions preserve dirty state and serialize cookie-changing acti
 });
 
 test('same-device sync churn stays recoverable with bounded retry backoff', async () => {
-  const { getWalletProfileSyncFailurePolicy } = await import('../services/walletProfileSyncPolicy.ts');
+  const { getWalletProfileSyncFailurePolicy } = loadService(require('node:path').resolve(__dirname, '../services/walletProfileSyncPolicy.ts'));
 
   const busy = { status: 409, code: 'profile_sync_busy' };
   assert.deepEqual(getWalletProfileSyncFailurePolicy(busy, 0), {

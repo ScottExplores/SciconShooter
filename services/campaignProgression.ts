@@ -1,3 +1,11 @@
+// REVAMP(G): Keep legacy checkpoints after revision 25 renames/shortens waves.
+import '../shared/campaignWaveMigration.js';
+const { resolveRevampWaveId, boundRevampCompletedWaves } = (globalThis as typeof globalThis & {
+  __SCICON_CAMPAIGN_WAVE_MIGRATION__: {
+    resolveRevampWaveId: (missionId: string, waveId: unknown, waveIds: readonly string[], revision: number) => string | null;
+    boundRevampCompletedWaves: (missionId: string, original: unknown, completed: string[], waveIds: readonly string[], revision: number, complete: boolean) => string[];
+  };
+}).__SCICON_CAMPAIGN_WAVE_MIGRATION__;
 import type {
   CampaignMasteryObjectiveDefinition,
   CampaignMasteryObjectiveKind,
@@ -337,9 +345,10 @@ const migratedWaveId = (
 ) => {
   if (typeof waveId !== 'string') return null;
   if (mission.waveIds.includes(waveId)) return waveId;
-  if (storedRevision >= MIGRATION_V22.toRevision) return null;
-  const alias = MIGRATION_V22.waveAliases[missionId]?.[waveId];
-  return alias && mission.waveIds.includes(alias) ? alias : null;
+  const alias = storedRevision < MIGRATION_V22.toRevision
+    ? MIGRATION_V22.waveAliases[missionId]?.[waveId] ?? waveId
+    : waveId;
+  return resolveRevampWaveId(missionId, alias, mission.waveIds, storedRevision);
 };
 
 /**
@@ -797,7 +806,11 @@ const sanitizeMissionRecord = (
     : {};
   const allowedStars = new Set(mission.starObjectives.map((objective) => objective.id));
   let earnedStarIds = uniqueStrings(record.earnedStarIds, allowedStars);
-  const completedWaveIds = migrateCompletedWaveIds(record.completedWaveIds, mission, storedRevision);
+  const completedWaveIds = boundRevampCompletedWaves(
+    mission.id, record.completedWaveIds,
+    migrateCompletedWaveIds(record.completedWaveIds, mission, storedRevision),
+    mission.waveIds, storedRevision, Boolean(record.completed)
+  );
   const completed = Boolean(record.completed) || completedWaveIds.length === mission.waveIds.length;
   if (completed) {
     const storedStars = integer(record.stars, 0, 3);

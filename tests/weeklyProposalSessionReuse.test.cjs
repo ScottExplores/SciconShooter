@@ -1,4 +1,7 @@
+const { createWeeklyDurableFixtures, weeklyFixtureId } = require('./helpers/weeklyDurableFixtures.cjs');
+const weeklyFixtures = createWeeklyDurableFixtures();
 const test = require('node:test');
+test.beforeEach(() => weeklyFixtures.reset());
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 
@@ -17,7 +20,7 @@ const leaderboardHandler = require('../api/leaderboard');
 
 const WALLET = '0x1111111111111111111111111111111111111111';
 
-const makeReceipt = (runId) => signPayload({
+const makeReceipt = (runId) => weeklyFixtures.signReceipt({
   type: 'run-receipt',
   runId,
   gameVersion: 'test',
@@ -85,7 +88,7 @@ test('an authenticated wallet-profile session selects the weekly proposal withou
     receipt_hash: 'hash'
   });
 
-  global.fetch = async (url, options = {}) => {
+  global.fetch = weeklyFixtures.withStorage(async (url, options = {}) => {
     const value = String(url);
     if (value.includes('scicon_wallet_nonces')) {
       nonceRequests += 1;
@@ -107,7 +110,7 @@ test('an authenticated wallet-profile session selects the weekly proposal withou
       return jsonResponse([leaderboardRow()]);
     }
     return jsonResponse([leaderboardRow()]);
-  };
+  });
 
   try {
     const challengeResponse = await request({
@@ -150,7 +153,7 @@ test('a different wallet session cannot authorize the weekly leader proposal', a
   const originalFetch = global.fetch;
   let nonceWrite = false;
 
-  global.fetch = async (url, options = {}) => {
+  global.fetch = weeklyFixtures.withStorage(async (url, options = {}) => {
     const value = String(url);
     if (value.includes('scicon_wallet_nonces') && options.method === 'POST') {
       nonceWrite = true;
@@ -162,7 +165,7 @@ test('a different wallet session cannot authorize the weekly leader proposal', a
       proposal_title: null, proposal_url: null, proposal_author: null,
       proposal_image_url: null, run_id: runId, verified: true, receipt_hash: 'hash'
     }]);
-  };
+  });
 
   try {
     const response = await request({

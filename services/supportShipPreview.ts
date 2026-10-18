@@ -1,6 +1,7 @@
 import { PowerupType, type Stats } from '../types';
 import type { SpawnEvent, WaveEvent } from '../game-config/types';
 import { cloneGameCampaign } from './levelConfig';
+import { resolveCampaignFormationPackForSpawn } from './campaignFormationBudget';
 import { buildRuntimeSquadLoadout, type MiniShipId, type WeeklySquadState } from './squadProgression';
 import type { PlayerShipId } from './playerShipService';
 
@@ -42,9 +43,13 @@ export const createSupportPreviewCampaign = () => {
     const role = campaign.enemyRoles.find(role => role.id === enemy.roleId);
     if (role) { role.fireBehavior = 'post-formation'; role.fireDelaySeconds = 0.5; }
   }
-  for (const pack of campaign.formationPacks) {
-    if (wave.formationPackIds.includes(pack.id)) pack.firingBehavior = 'post-formation';
-  }
+  // REVAMP(G): Preview repeats only its chosen target cohort; inherited packs
+  // for other opening encounters would leave invalid, unused declarations.
+  const templatePack = resolveCampaignFormationPackForSpawn(template,
+    campaign.formationPacks.filter(pack => wave.formationPackIds.includes(pack.id)));
+  if (!templatePack) throw new Error('Support preview requires a declared target formation pack.');
+  wave.formationPackIds = [templatePack.id];
+  templatePack.firingBehavior = 'post-formation';
   const events: WaveEvent[] = [];
   for (let index = 0; index < 5; index += 1) {
     events.push({

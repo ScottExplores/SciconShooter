@@ -69,6 +69,8 @@ const installProfileFetch = (t, profileRow) => {
   const originalFetch = global.fetch;
   let patchCount = 0;
   global.fetch = async (url, options = {}) => {
+    // REVAMP(G): D reads the authoritative paid reserve when hydrating a profile.
+    if (String(url).includes('scicon_wallet_entitlements?')) return jsonResponse([{ purchased_tokens_available: 0 }]);
     const parsed = new URL(String(url));
     const resource = parsed.pathname.split('/').pop();
     if (resource !== 'scicon_wallet_profiles') {

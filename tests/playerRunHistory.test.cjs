@@ -359,7 +359,10 @@ test('player run history pins the current verified weekly leader ahead of newer 
     wallet_address: wallet
   });
   const currentTime = new Date();
-  const leaderReceipt = storedRun(leaderRunId, currentTime.toISOString(), 99999);
+  // REVAMP(G): E's public weekly board requires the persisted ranked receipt.
+  const leaderReceipt = { ...storedRun(leaderRunId, currentTime.toISOString(), 99999),
+    run_mode: 'weekly-streak', test_run: false, receipt_hash: 'a'.repeat(64)
+  };
   const recentReceipts = Array.from({ length: 5 }, (_, index) => storedRun(
     `44444444-4444-4444-8444-44444444444${index}`,
     `2026-07-22T1${index}:00:00.000Z`,
@@ -437,10 +440,11 @@ test('player run history pins the current verified weekly leader ahead of newer 
       proposal_image_url: null,
       run_id: leaderRunId,
       verified: true,
-      receipt_hash: 'hash'
+      receipt_hash: leaderReceipt.receipt_hash
     });
     global.fetch = async (url, options = {}) => {
       const value = String(url);
+      if (value.includes('scicon_run_receipts')) return { ok: true, status: 200, async json() { return [leaderReceipt]; } };
       if (value.includes('backend.prod.researchhub.com')) {
         return {
           ok: true,

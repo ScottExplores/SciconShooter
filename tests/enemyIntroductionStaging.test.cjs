@@ -30,7 +30,7 @@ const firstAuthoredSectorByRole = () => {
   return firstSeen;
 };
 
-test('every sector introduces at least one enemy the player has not fought yet', () => {
+test('every sector teaches tactical roles and the late sectors retain new role debuts', () => {
   const firstSeen = firstAuthoredSectorByRole();
   const debutsBySector = new Map();
   for (const [roleId, sectorOrder] of firstSeen) {
@@ -42,7 +42,13 @@ test('every sector introduces at least one enemy the player has not fought yet',
   // debuts nothing has no new problem to teach.
   for (const sector of campaign.sectors) {
     const debuts = debutsBySector.get(sector.order) ?? [];
-    assert.ok(debuts.length >= 1, `${sector.name} must debut a new enemy role, got none`);
+    // REVAMP_NOTES_B teaches all eight new behaviors in sectors 1–2; sector 3
+    // combines those ideas before the unchanged later specialist introductions.
+    if (sector.order === 3) {
+      const used = new Set(campaign.levels.filter(level => sector.missionIds.includes(level.id)).flatMap(level => level.waves).flatMap(wave => wave.events).filter(event => event.kind === 'spawn').flatMap(event => event.enemies.map(enemy => enemy.roleId)));
+      assert.ok(used.size >= 6, 'sector 3 combines at least six learned roles');
+      assert.ok([...used].every(id => firstSeen.get(id) <= 3));
+    } else assert.ok(debuts.length >= 1, `${sector.name} must debut a new enemy role, got none`);
   }
 });
 

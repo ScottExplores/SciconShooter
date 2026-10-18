@@ -77,7 +77,8 @@ test('verified Weekly Run admission is server-authoritative and database-atomic'
     weeklyLaunch.indexOf('if (!retryPendingAdmission)') < weeklyLaunch.indexOf('startWeeklyCampaignStreak(weeklyRun.graph'),
     'a lost start response must reuse the pristine pending proof before creating another attempt'
   );
-  assert.match(weeklyLaunch, /if \(!retryPendingAdmission && attemptsRemaining <= 0/);
+  // REVAMP(G): E's preview is local practice; production still gates the same quota.
+  assert.match(weeklyLaunch, /if \(!isPreviewMode\(\) && !retryPendingAdmission && attemptsRemaining <= 0/);
   assert.match(weeklyLaunch, /const admissionMarkerStored = retryPendingAdmission \|\| writePendingWeeklyRunAdmission/);
   assert.match(weeklyLaunch, /if \(!admissionMarkerStored\)[\s\S]*No request has been sent yet/);
   assert.match(weeklyLaunch, /const preparedAdmission = \{[\s\S]*weeklyCampaignStreak: startedStreak/);

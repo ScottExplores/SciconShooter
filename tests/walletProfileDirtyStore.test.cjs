@@ -1,3 +1,4 @@
+const { loadService } = require('./helpers/loadService.cjs');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
@@ -76,7 +77,7 @@ const snapshot = (
 
 test('dirty wallet snapshots stay address scoped and reject cross-wallet data', async () => {
   global.window = { localStorage: createStorage() };
-  const dirtyStore = await import('../services/walletProfileDirtyStore.ts');
+  const dirtyStore = loadService(require('node:path').resolve(__dirname, '../services/walletProfileDirtyStore.ts'));
   const base = snapshot(WALLET_A);
   const dirty = dirtyStore.markWalletProfileDirty({
     address: WALLET_A,
@@ -102,7 +103,7 @@ test('dirty wallet snapshots stay address scoped and reject cross-wallet data', 
 
 test('acknowledging an older save rebases but never clears a newer dirty write', async () => {
   global.window = { localStorage: createStorage() };
-  const dirtyStore = await import('../services/walletProfileDirtyStore.ts');
+  const dirtyStore = loadService(require('node:path').resolve(__dirname, '../services/walletProfileDirtyStore.ts'));
   const base = snapshot(WALLET_A);
   const first = dirtyStore.markWalletProfileDirty({
     address: WALLET_A,
@@ -136,7 +137,7 @@ test('acknowledging an older save rebases but never clears a newer dirty write',
 
 test('semantic comparison ignores regenerated timestamps and minted ownership', async () => {
   global.window = { localStorage: createStorage() };
-  const dirtyStore = await import('../services/walletProfileDirtyStore.ts');
+  const dirtyStore = loadService(require('node:path').resolve(__dirname, '../services/walletProfileDirtyStore.ts'));
   const left = snapshot(WALLET_A);
   const right = snapshot(WALLET_A);
   right.weeklyState.updatedAt = '2026-07-24T00:00:00.000Z';
@@ -148,7 +149,7 @@ test('semantic comparison ignores regenerated timestamps and minted ownership', 
 
 test('semantic comparison ignores cloud-regenerated Campaign metadata timestamps', async () => {
   global.window = { localStorage: createStorage() };
-  const dirtyStore = await import('../services/walletProfileDirtyStore.ts');
+  const dirtyStore = loadService(require('node:path').resolve(__dirname, '../services/walletProfileDirtyStore.ts'));
   const left = snapshot(WALLET_A);
   left.permanentState.campaignProgress = {
     campaignCompleted: false,
@@ -178,7 +179,7 @@ test('semantic comparison ignores cloud-regenerated Campaign metadata timestamps
 
 test('semantic comparison ignores Boss Archive schema migration versions', async () => {
   global.window = { localStorage: createStorage() };
-  const dirtyStore = await import('../services/walletProfileDirtyStore.ts');
+  const dirtyStore = loadService(require('node:path').resolve(__dirname, '../services/walletProfileDirtyStore.ts'));
   const serverSnapshot = snapshot(WALLET_A);
   serverSnapshot.permanentState.bossArchive.version = 1;
   const migratedClientSnapshot = structuredClone(serverSnapshot);
@@ -192,7 +193,7 @@ test('semantic comparison ignores Boss Archive schema migration versions', async
 
 test('Boss Archive version migration rebases over a server-reserved attempt', async () => {
   global.window = { localStorage: createStorage() };
-  const dirtyStore = await import('../services/walletProfileDirtyStore.ts');
+  const dirtyStore = loadService(require('node:path').resolve(__dirname, '../services/walletProfileDirtyStore.ts'));
   const base = snapshot(WALLET_A);
   base.permanentState.bossArchive = {
     version: 1,
@@ -229,7 +230,7 @@ test('Boss Archive version migration rebases over a server-reserved attempt', as
 
 test('semantic comparison detects Boss Archive unlock and viewed-state changes', async () => {
   global.window = { localStorage: createStorage() };
-  const dirtyStore = await import('../services/walletProfileDirtyStore.ts');
+  const dirtyStore = loadService(require('node:path').resolve(__dirname, '../services/walletProfileDirtyStore.ts'));
   const left = snapshot(WALLET_A);
   const right = snapshot(WALLET_A);
   right.permanentState.bossArchive = {
@@ -242,7 +243,7 @@ test('semantic comparison detects Boss Archive unlock and viewed-state changes',
 
 test('same-wallet conflicts only merge non-overlapping sections', async () => {
   global.window = { localStorage: createStorage() };
-  const dirtyStore = await import('../services/walletProfileDirtyStore.ts');
+  const dirtyStore = loadService(require('node:path').resolve(__dirname, '../services/walletProfileDirtyStore.ts'));
   const base = snapshot(WALLET_A, { coins: 100 });
   const local = { ...base, selectedShipId: 'bio' };
   const remote = snapshot(WALLET_A, {
@@ -263,7 +264,7 @@ test('same-wallet conflicts only merge non-overlapping sections', async () => {
 
 test('same-wallet reconciliation max-merges achievement progress without replaying claimed tiers', async () => {
   global.window = { localStorage: createStorage() };
-  const dirtyStore = await import('../services/walletProfileDirtyStore.ts');
+  const dirtyStore = loadService(require('node:path').resolve(__dirname, '../services/walletProfileDirtyStore.ts'));
   const base = snapshot(WALLET_A);
   base.permanentState.achievementTiers = {
     'boss-breaker': 2,
@@ -300,7 +301,7 @@ test('same-wallet reconciliation max-merges achievement progress without replayi
 
 test('simultaneous weekly economy changes and null-base races remain conflicts', async () => {
   global.window = { localStorage: createStorage() };
-  const dirtyStore = await import('../services/walletProfileDirtyStore.ts');
+  const dirtyStore = loadService(require('node:path').resolve(__dirname, '../services/walletProfileDirtyStore.ts'));
   const base = snapshot(WALLET_A, { coins: 100 });
   const local = snapshot(WALLET_A, { coins: 50 });
   const remote = snapshot(WALLET_A, { coins: 80 });
@@ -328,7 +329,7 @@ test('simultaneous weekly economy changes and null-base races remain conflicts',
 
 test('purchase settlement preserves local writes while rebasing the server-owned right support unlock', async () => {
   global.window = { localStorage: createStorage() };
-  const dirtyStore = await import('../services/walletProfileDirtyStore.ts');
+  const dirtyStore = loadService(require('node:path').resolve(__dirname, '../services/walletProfileDirtyStore.ts'));
   const base = snapshot(WALLET_A);
   const local = structuredClone(base);
   local.weeklyState.coins = 145;
@@ -361,7 +362,7 @@ test('purchase settlement preserves local writes while rebasing the server-owned
 
 test('purchase-aware conflict rebase combines server and queued local balance deltas', async () => {
   global.window = { localStorage: createStorage() };
-  const dirtyStore = await import('../services/walletProfileDirtyStore.ts');
+  const dirtyStore = loadService(require('node:path').resolve(__dirname, '../services/walletProfileDirtyStore.ts'));
   const base = snapshot(WALLET_A, { coins: 100 });
   const local = snapshot(WALLET_A, {
     coins: 75,
@@ -408,7 +409,7 @@ test('purchase-aware conflict rebase combines server and queued local balance de
 
 test('paid Token credit survives local spending exactly once across duplicate settlement resumes', async () => {
   global.window = { localStorage: createStorage() };
-  const dirtyStore = await import('../services/walletProfileDirtyStore.ts');
+  const dirtyStore = loadService(require('node:path').resolve(__dirname, '../services/walletProfileDirtyStore.ts'));
   const base = snapshot(WALLET_A, { coins: 100 });
   const local = snapshot(WALLET_A, { coins: 75 });
   dirtyStore.markWalletProfileDirty({
@@ -446,7 +447,7 @@ test('paid Token credit survives local spending exactly once across duplicate se
 
 test('purchase rebase adopts the server economy when settlement crosses a weekly boundary', async () => {
   global.window = { localStorage: createStorage() };
-  const dirtyStore = await import('../services/walletProfileDirtyStore.ts');
+  const dirtyStore = loadService(require('node:path').resolve(__dirname, '../services/walletProfileDirtyStore.ts'));
   const base = snapshot(WALLET_A, { coins: 100 });
   const local = snapshot(WALLET_A, { coins: 75 });
   dirtyStore.markWalletProfileDirty({

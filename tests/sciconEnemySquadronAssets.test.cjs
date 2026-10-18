@@ -123,7 +123,8 @@ test('Squadron v1 registers exactly seven family keys across runtime, Director, 
 });
 
 test('all twenty baseline roles and their spawns keep their assigned family', () => {
-  assert.equal(campaign.enemyRoles.length, 25, 'five generated late roles extend the restored twenty');
+  // REVAMP_NOTES_B adds eight behavior aliases without replacing baseline art.
+  assert.equal(campaign.enemyRoles.filter(role => !role.id.startsWith('role-revamp-')).length, 25, 'five generated late roles extend the restored twenty');
   const legacyRoles = campaign.enemyRoles.filter((role) => EXPECTED_FAMILY_BY_ROLE.has(role.id));
   assert.deepEqual(new Set(legacyRoles.map((role) => role.id)), new Set(EXPECTED_FAMILY_BY_ROLE.keys()));
   for (const role of legacyRoles) {

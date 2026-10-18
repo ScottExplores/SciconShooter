@@ -3,18 +3,17 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const ts = require('typescript');
+const { buildSync } = require('esbuild');
+
+// REVAMP(G): Bundle A's real synthesis dependency into the isolated browser harness.
+const audioCode = buildSync({
+  entryPoints: [path.resolve(__dirname, '../services/audioService.ts')],
+  bundle: true, platform: 'node', format: 'cjs', write: false
+}).outputFiles[0].text;
 
 const root = path.resolve(__dirname, '..');
 
 const loadAudioService = (options = {}) => {
-  const source = fs.readFileSync(path.join(root, 'services', 'audioService.ts'), 'utf8');
-  const compiled = ts.transpileModule(source, {
-    compilerOptions: {
-      module: ts.ModuleKind.CommonJS,
-      target: ts.ScriptTarget.ES2020
-    }
-  }).outputText;
   const documentListeners = new Map();
   const windowListeners = new Map();
   const audioContexts = [];
@@ -48,7 +47,8 @@ const loadAudioService = (options = {}) => {
   }
 
   class FakeAudioNode {
-    connect() {}
+    connect(target) { this.output = target; }
+    disconnect() { this.disconnected = true; }
   }
 
   class FakeGainNode extends FakeAudioNode {
@@ -92,6 +92,7 @@ const loadAudioService = (options = {}) => {
     constructor() {
       this.state = options.initialContextState || 'suspended';
       this.currentTime = 0;
+      this.sampleRate = 48000;
       this.destination = {};
       this.suspendCalls = 0;
       this.resumeCalls = 0;
@@ -100,6 +101,11 @@ const loadAudioService = (options = {}) => {
     createGain() { return new FakeGainNode(); }
     createOscillator() { return new FakeOscillatorNode(); }
     createBufferSource() { return new FakeBufferSourceNode(); }
+    createBiquadFilter() { const node = new FakeAudioNode(); node.frequency = new FakeAudioParam(); return node; }
+    createBuffer(_channels, count, rate) {
+      const samples = new Float32Array(count);
+      return { duration: count / rate, getChannelData: () => samples };
+    }
     async decodeAudioData(data) {
       decodedSampleData.push(data);
       if (options.decodeAudioData === 'reject') throw new Error('decode failed');
@@ -140,6 +146,9 @@ const loadAudioService = (options = {}) => {
     },
     addEventListener(type, listener) {
       addListener(windowListeners, type, listener);
+    },
+    removeEventListener(type, listener) {
+      windowListeners.set(type, (windowListeners.get(type) || []).filter((entry) => entry !== listener));
     }
   };
   const context = {
@@ -158,16 +167,20 @@ const loadAudioService = (options = {}) => {
     } : {})
   };
   context.exports = context.module.exports;
-  vm.runInNewContext(compiled, context);
+  vm.runInNewContext(audioCode, context);
 
   const dispatchAll = (registry, type) => {
-    (registry.get(type) || []).forEach((listener) => listener({ type }));
+    (registry.get(type) || []).forEach((listener) => listener({ type, isTrusted: true }));
   };
   const flushPromises = async (rounds = 8) => {
     for (let round = 0; round < rounds; round++) await Promise.resolve();
   };
 
+  const activate = () => dispatchAll(windowListeners, 'pointerdown');
+  if (options.activated !== false) activate();
+
   return {
+    activate,
     audioService: context.module.exports.audioService,
     cycleMatchMusicTrackId: context.module.exports.cycleMatchMusicTrackId,
     getSectorMatchMusicTrackId: context.module.exports.getSectorMatchMusicTrackId,
@@ -210,24 +223,25 @@ test('match music arrows wrap and Campaign sectors advance from the selected tra
   assert.equal(getSectorMatchMusicTrackId(5, 'open-orbit-relay'), 'open-orbit-relay');
 });
 
-test('non-RSC primary voice identity uses one click-safe oscillator per existing event', () => {
+test('non-RSC primary voice retains its click-safe oscillator plus one bounded transient', () => {
   for (const family of ['bio', 'eth', 'btc']) {
     const harness = loadAudioService();
     const release = harness.audioService.bindPlayerWeaponFamily(family);
     harness.audioService.playSound('shoot', 1, { pitchJitter: 0, pitchOffset: 0 });
     const profile = harness.playerWeaponVoiceProfiles[family];
     assert.equal(harness.oscillators.length, 1);
-    assert.equal(harness.bufferSources.length, 0);
+    assert.equal(harness.bufferSources.length, 1);
     assert.equal(harness.oscillators[0].type, profile.waveform);
     assert.equal(harness.oscillators[0].frequency.setValues[0], profile.startHz);
-    const envelope = harness.gainNodes.at(-1).gain;
+    const envelope = harness.oscillators[0].output.gain;
     assert.equal(envelope.setValues[0], 0.0001, 'no abrupt full-volume attack');
     assert.equal(envelope.rampValues[0], profile.gain);
     assert.equal(envelope.rampValues.at(-1), 0.0001, 'release reaches silence before stop');
     assert.ok(profile.gain <= 0.13);
-    assert.ok(harness.oscillators[0].stopTimes[0] <= 0.096);
+    assert.equal(harness.oscillators[0].stopTimes[0], profile.duration + 0.008, 'bounded synth release tail');
     harness.oscillators[0].onended();
-    assert.equal(harness.audioService.activeProceduralNodes.size, 0);
+    harness.bufferSources[0].onended();
+    assert.equal(harness.audioService.feelSynth.activeVoiceCount, 0);
     release();
   }
 });
@@ -242,9 +256,11 @@ test('voice ownership restores RSC and older preview cleanup cannot clobber a ne
   releaseEth();
   harness.advanceTime(100);
   harness.audioService.playSound('shoot', 1, { pitchJitter: 0, pitchOffset: 0 });
-  assert.equal(harness.oscillators.at(-1).frequency.setValues[0], 520);
+  assert.equal(harness.oscillators.at(-1).frequency.setValues[0], 620);
   assert.equal(harness.oscillators.at(-1).type, 'triangle');
-  assert.equal(harness.gainNodes.at(-1).gain.setValues[0], 0.12, 'original RSC attack remains unchanged');
+  const researchEnvelope = harness.oscillators.at(-1).output.gain;
+  assert.equal(researchEnvelope.setValues[0], 0.0001, 'research voice also starts click-free');
+  assert.equal(researchEnvelope.rampValues[0], 0.10, 'revamp A research voice preserves a bounded attack');
 });
 
 test('primary voice polish preserves rapid-fire throttling, mute, and hidden-page silence', () => {
@@ -277,10 +293,13 @@ test('only audio-enabled canvases bind a voice and React cleanup releases the ow
 });
 
 test('UI interaction initializes only WebAudio and never creates or plays background media', async () => {
-  const harness = loadAudioService();
+  const harness = loadAudioService({ activated: false });
 
   assert.equal(harness.audioContexts.length, 0);
   assert.equal(harness.mediaElements.length, 0);
+  harness.audioService.playUiSound('click');
+  assert.equal(harness.audioContexts.length, 0, 'synthetic UI calls cannot bypass trusted activation');
+  harness.activate();
   harness.audioService.playUiSound('click');
   await harness.flushPromises();
 
@@ -289,7 +308,7 @@ test('UI interaction initializes only WebAudio and never creates or plays backgr
   assert.equal(harness.mediaElements.length, 0);
 });
 
-test('only interface samples fetch eagerly and full SFX preparation contains no music request', async () => {
+test('synthesized UI needs no eager fetch and preparation loads only retained combat samples', async () => {
   const harness = loadAudioService({
     fetch: async () => ({
       ok: true,
@@ -298,19 +317,18 @@ test('only interface samples fetch eagerly and full SFX preparation contains no 
   });
   await harness.flushPromises(12);
 
-  assert.equal(harness.fetchCalls.length, 6);
-  assert.ok(harness.fetchCalls.every((url) => url.startsWith('/audio/ui/')));
+  assert.equal(harness.fetchCalls.length, 0);
 
   await harness.audioService.prepare();
   await harness.flushPromises(12);
   assert.ok(harness.fetchCalls.some((url) => url === '/audio/sfx/boss-rotary-burst.wav'));
   assert.ok(harness.fetchCalls.some((url) => url.includes('victory-signet')));
   assert.ok(harness.fetchCalls.every((url) => !url.startsWith('/audio/music/')));
-  assert.ok(harness.decodedSampleData.length >= 14);
+  assert.equal(harness.decodedSampleData.length, 4);
   assert.deepEqual(Object.keys(harness.audioService.preparedSampleData), []);
 });
 
-test('decoded UI samples still produce immediate interface feedback', async () => {
+test('synthesized UI produces immediate click-free feedback without decoded samples', async () => {
   const harness = loadAudioService({
     fetch: async () => ({
       ok: true,
@@ -321,8 +339,9 @@ test('decoded UI samples still produce immediate interface feedback', async () =
   await harness.audioService.prepare();
 
   harness.audioService.playUiSound('confirm');
-  assert.equal(harness.bufferSources.length, 1);
-  assert.equal(harness.bufferSources[0].startCalls, 1);
+  assert.equal(harness.bufferSources.length, 0);
+  assert.equal(harness.oscillators.length, 2);
+  assert.ok(harness.oscillators.every((node) => node.output.gain.setValues[0] === 0.0001));
   assert.equal(harness.mediaElements.length, 0);
 });
 

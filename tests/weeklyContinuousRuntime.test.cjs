@@ -59,13 +59,18 @@ const createStats = () => ({
 });
 
 test('Weekly Paywall Wall awards one mini-boss credit when its final mobile segment is destroyed', () => {
-  const weekly = weeklyGenerator.buildWeeklyRunCampaign('2026-08-16', authoredCampaign, 4);
-  const wallLevel = weekly.levels[1];
+  // REVAMP(G): E rotates three bosses weekly, so select a real week with Wall.
+  const weekKey = Array.from({ length: 32 }, (_, index) => `2026-W${String(index + 20).padStart(2, '0')}`)
+    .find((week) => weeklyGenerator.planWeeklyRunStages(week, authoredCampaign, 4)[1]?.bossId === 'paywall-wall');
+  assert.ok(weekKey, 'Paywall Wall remains in the playable rotation');
+  const weekly = weeklyGenerator.buildWeeklyRunCampaign(weekKey, authoredCampaign, 4);
+  const wallLevel = weekly.levels.find((level) => level.waves.some((wave) =>
+    wave.events.some((event) => event.kind === 'boss' && event.bossId === 'paywall-wall')));
   const wallWave = wallLevel.waves.at(-1);
   const wallEvent = wallWave.events.find((event) => (
     event.kind === 'boss' && event.bossId === 'paywall-wall'
   ));
-  assert.ok(wallEvent, 'the fixed-week second depth must contain Paywall Wall');
+  assert.ok(wallEvent, 'the selected rotation must author Paywall Wall');
 
   const engine = new GameEngine(createStats(), {
     campaign: weekly,

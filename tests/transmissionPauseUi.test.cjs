@@ -1,3 +1,4 @@
+// REVAMP(G): Reconcile intended contracts documented in REVAMP_NOTES_D.md (40 sector beats + cold open; legacy vault retained).
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -15,7 +16,7 @@ test('story transmissions open a simple fitted shutter before typewriter playbac
   assert.match(story, /<FundingVaultUnseal open=\{vaultUnsealed\}>/);
   assert.match(story, /sci-funding-vault__transmission/);
   // Beats key to Sectors now, one per Sector, so the header names the Sector.
-  assert.match(story, /Sector \{beat\.phase\}: \{beat\.title\}/);
+  assert.match(story, /\{beat\.kicker \?\? `Sector \$\{beat\.phase\}`\}: \{beat\.title\}/);
   assert.doesNotMatch(story, /Stage \{beat\.phase\}: \{beat\.title\}/);
   assert.doesNotMatch(story, /Wave \{beat\.phase\}: \{beat\.title\}/);
   assert.match(vault, /sci-funding-vault--portrait/);
@@ -36,8 +37,19 @@ test('story transmissions open a simple fitted shutter before typewriter playbac
   // One transmission per Sector now, ten in all, so the story runs the whole
   // Campaign instead of stopping at Mission 5. Pinned loosely: the copy is
   // meant to be editable, the structure is not.
-  assert.match(beats, /predatory journals/i);
-  assert.equal((beats.match(/phase: \d+/g) || []).length, 10);
+  const { loadService } = require('./helpers/loadService.cjs');
+  const { STORY_BEATS, FRONTIER_STORY_BEATS } = loadService(path.join(root, 'services', 'storyBeats.ts'));
+  assert.equal(STORY_BEATS.length, 10);
+  assert.equal(FRONTIER_STORY_BEATS.length, 41);
+  assert.equal(new Set(FRONTIER_STORY_BEATS.map((beat) => beat.id)).size, 41);
+  for (const sector of STORY_BEATS) {
+    assert.deepEqual(FRONTIER_STORY_BEATS.filter((beat) => beat.phase === sector.phase && beat.kind !== 'cold-open').map((beat) => beat.kind), ['intro', 'midpoint', 'boss', 'victory']);
+  }
+  assert.ok(FRONTIER_STORY_BEATS.every((beat) => beat.presentation === 'inline' && beat.text.length > 0));
+  assert.match(story, /props\.beat\.presentation === 'inline'[\s\S]*<InlineStoryTransmission/);
+  assert.match(story, /window\.setTimeout\(\(\) => completionRef\.current\(\), duration\)/);
+  assert.match(story, /return \(\) => window\.clearTimeout\(timer\)/);
+  assert.match(story, /onClick=\{onComplete\} aria-label="Skip transmission"/);
   assert.doesNotMatch(beats, /Top pilots can help point the weekly RSC allocation toward ResearchHub proposals/);
 });
 

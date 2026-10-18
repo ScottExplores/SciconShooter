@@ -1,3 +1,4 @@
+const { isRevampMission, assertMissionCadence, assertRevampMission, bosses } = require('./helpers/campaignRevampAssertions.cjs');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -49,43 +50,36 @@ const requiredPackKeys = [
 
 test('current Campaign retains its newer topology and complete pack choreography defaults', () => {
   const campaign = readCampaign();
-  assert.equal(campaign.revision, 24);
+  assert.ok(campaign.revision >= 25);
   assert.equal(campaign.levels.length, 60);
-  // Mission count and route topology are unchanged; only the first five
-  // Missions are reauthored. The other 55 keep all 611 existing spawn events.
-  assert.equal(campaign.levels.reduce((sum, level) => sum + level.waves.length, 0), 311);
-  assert.deepEqual(firstSectorLevels(campaign).map((level) => spawnEvents({ levels: [level] }).length), [11, 15, 6, 7, 3]);
-  assert.equal(spawnEvents({ levels: preservedLevels(campaign) }).length, 611);
-  assert.equal(spawnEvents(campaign).length, 653);
-  assert.equal(campaign.formationPacks.filter((pack) => pack.id.startsWith('pack-breakwater-')).length, 25);
-  assert.equal(campaign.formationPacks.filter((pack) => !pack.id.startsWith('pack-breakwater-')).length, 16);
-  campaign.formationPacks.forEach((pack) => {
-    requiredPackKeys.forEach((key) => assert.notEqual(pack[key], undefined, `${pack.id}/${key}`));
-    assert.ok(pack.holdSeconds >= 0.35, pack.id);
-    assert.ok(pack.telegraphSeconds >= 0.2, pack.id);
-    assert.ok(pack.attackGroupSize >= 1 && pack.attackGroupSize <= pack.enemyCount, pack.id);
+  assert.equal(new Set(campaign.campaignGraph.nodes.map(node => node.missionDefinitionId)).size, 60);
+  campaign.levels.forEach(assertMissionCadence);
+  assert.ok(spawnEvents(campaign).length >= 500);
+  assert.equal(campaign.formationPacks.filter(pack => pack.id.startsWith('pack-breakwater-')).length, 25);
+  assert.ok(campaign.formationPacks.filter(pack => pack.id.startsWith('pack-revamp-')).length >= 9);
+  campaign.formationPacks.forEach(pack => {
+    requiredPackKeys.forEach(key => assert.notEqual(pack[key], undefined, `${pack.id}/${key}`));
+    assert.ok(pack.holdSeconds >= .35);
+    assert.ok(pack.telegraphSeconds >= .2);
+    assert.ok(pack.attackGroupSize >= 1 && pack.attackGroupSize <= pack.enemyCount);
   });
+
 });
 
 test('the first sector authors every grouped flight while later Mission overrides remain surgical', () => {
   const campaign = readCampaign();
-  const overrides = spawnEvents(campaign).filter((event) => event.formationBehavior);
-  assert.equal(overrides.length, 35);
-  overrides.forEach((event) => {
-    assert.ok(event.formationBehavior.telegraphSeconds >= 0.2, event.id);
+  const overrides = spawnEvents(campaign).filter(event => event.formationBehavior);
+  assert.ok(overrides.length >= 90);
+  overrides.forEach(event => {
+    assert.ok(event.formationBehavior.telegraphSeconds >= .2, event.id);
     assert.ok(event.formationBehavior.attackGroupSize <= event.count, event.id);
   });
-  const firstSectorSpawns = spawnEvents({ levels: firstSectorLevels(campaign) });
-  const grouped = firstSectorSpawns.filter((event) => !/single|random/.test(event.patternId));
-  assert.equal(grouped.length, 33);
-  assert.ok(grouped.every((event) => event.formationBehavior && event.id.includes('-breakwater-')));
-  assert.deepEqual(
-    spawnEvents({ levels: preservedLevels(campaign) }).filter((event) => event.formationBehavior).map((event) => event.id).sort(),
-    [
-      'stage-open-orbit-route-b-wave-2-event-1',
-      'stage-open-orbit-route-b-wave-6-event-1'
-    ]
-  );
+  const generated = campaign.levels.filter(isRevampMission);
+  assert.equal(generated.length, 18, 'three sectors and their alternate routes');
+  generated.forEach(level => assertRevampMission(level, campaign));
+  const preserved = campaign.levels.filter(level => !isRevampMission(level));
+  assert.ok(spawnEvents({ levels: preserved }).every(event => !event.id.includes('-revamp-')));
+
 });
 
 test('legacy choreography authoring repairs its original signatures idempotently without rewriting topology', async () => {
@@ -122,6 +116,6 @@ test('the legacy one-shot recipe refuses changed first-sector authoring instead 
   const { authorCampaignFormationChoreography } = await import(authoringUrl);
   const campaign = readCampaign();
   const levelsBefore = structuredClone(campaign.levels);
-  assert.throws(() => authorCampaignFormationChoreography(campaign), /Missing spawn event|Refusing to author changed spawn event/);
+  assert.throws(() => authorCampaignFormationChoreography(campaign), /Missing Wave|Missing spawn event|Refusing to author changed spawn event/);
   assert.deepEqual(campaign.levels, levelsBefore);
 });

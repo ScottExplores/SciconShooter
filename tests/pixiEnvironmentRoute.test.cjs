@@ -121,10 +121,13 @@ test('ground sectors keep their authored roster and never turn the river route i
 
   const riverEvents = riverStage.waves.flatMap((wave) => wave.events);
   assert.equal(riverEvents.some((event) => event.kind === 'asteroid-belt'), false);
-  assert.ok(riverEvents.some((event) => (
-    event.kind === 'spawn'
-    && event.enemies?.some((enemy) => enemy.spriteKey === 'SCICON_ENEMY_AUDIT_BULWARK_FRAMES')
-  )));
+  // REVAMP(G): B reauthors early roles; every live threat must retain its registered Scott sprite.
+  const roles = new Map(campaign.enemyRoles.map(role => [role.id, role]));
+  for (const enemy of riverEvents.flatMap(event => event.enemies ?? [])) {
+    assert.ok(roles.has(enemy.roleId), enemy.roleId);
+    assert.equal(enemy.spriteKey, roles.get(enemy.roleId).spriteKey);
+  }
+  assert.ok(riverEvents.some(event => event.enemies?.some(enemy => enemy.roleId.startsWith('role-revamp-'))));
   assert.equal(riverEvents.some((event) => (
     event.kind === 'spawn'
     && event.enemies?.some((enemy) => enemy.spriteKey === 'ENEMY_JOURNAL_FRAMES')

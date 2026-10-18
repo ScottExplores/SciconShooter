@@ -141,21 +141,12 @@ test('Pixi presents formation assembly pulses and a charged pre-dive frame witho
 });
 
 test('escort pods place a leader at the centre of a ring of guards', () => {
-  const ts = require('typescript');
-  const vm = require('node:vm');
-  const compiled = ts.transpileModule(formationSource, {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
-  }).outputText;
-  const moduleShim = { exports: {} };
-  vm.runInNewContext(
-    `(function(exports, require, module) { ${compiled} })(module.exports, require, module);`,
-    { module: moduleShim, require, Math, Number, String, Object, Array }
-  );
+  const { loadService } = require('./helpers/loadService.cjs');
   const {
     ESCORT_POD_SIZE,
     resolveConfiguredFormationMode,
     resolveConfiguredFormationTarget
-  } = moduleShim.exports;
+  } = loadService(path.join(root, 'services/gameplay/formations/FormationRuntime.ts'));
 
   // 'escort' must win over the bare 'v' substring check.
   assert.equal(resolveConfiguredFormationMode('escort-pod'), 'escort');

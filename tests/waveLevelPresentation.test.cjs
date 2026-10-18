@@ -1,3 +1,4 @@
+// REVAMP(G): Reconcile intended contracts documented in REVAMP_NOTES_D.md (mission identity routes to sector chapter cues).
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -93,5 +94,14 @@ test('production and Director previews share the same wave presentation renderer
 
 test('story transmission uses the same enclosing level identity', () => {
   const story = read('services', 'storyBeats.ts');
-  assert.match(story, /title: 'Open Orbit'/);
+  const { loadService } = require('./helpers/loadService.cjs');
+  const narrative = loadService(path.join(root, 'services', 'storyBeats.ts'));
+  const campaign = require('../game-config/campaign.json');
+  const missions = [...campaign.levels].sort((a, b) => a.order - b.order);
+  missions.forEach((mission, index) => {
+    assert.deepEqual(narrative.getStoryBeatForPhase(index + 1), narrative.getStoryBeatForMission(mission.id));
+  });
+  assert.equal(narrative.getStoryBeatForPhase(1).kind, 'cold-open');
+  assert.equal(narrative.getStoryBeatForPhase(missions.length + 1), null);
+  assert.match(story, /title: sector\.chapter/);
 });

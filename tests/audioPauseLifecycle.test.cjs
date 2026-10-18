@@ -22,8 +22,11 @@ test('pausing a mission silences only music and resumes the selected loop', () =
   assert.match(audio, /this\.muted \|\| this\.musicPaused/);
   assert.match(
     audio,
-    /applyAudioLevels\(\)[\s\S]{0,420}setGainVolume\(this\.musicGain, this\.pageActive \? this\.musicTargetGain : 0\)/
+    /private applyAudioLevels\(\)[\s\S]*?this\.applyMusicDuckLevel\(\)/
   );
+  // REVAMP(G): A's ducking must still preserve page silence and restore the selected gain.
+  assert.match(audio, /const target = this\.pageActive \? this\.musicTargetGain : 0/);
+  assert.match(audio, /setTargetAtTime\(target, this\.musicDuckUntil, 0\.24\)/);
   assert.doesNotMatch(app, /gameState !== GameState\.PLAYING\) \{\s*void audioService\.playMusic\('menu'\)/);
 });
 

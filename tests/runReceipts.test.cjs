@@ -308,18 +308,33 @@ test('weekly proof recomputes signed leaderboard metrics and ignores client scor
   }, requestStub);
 
   assert.equal(receipt.integrity, 'server-verified');
-  // 2322 after the surge waves: the recompute scores waves cleared, and the
-  // entry Mission now runs six of them.
-  assert.equal(receipt.metrics.score, 2322);
+  // REVAMP(G): B/C retuned the opening. Independently sum the documented
+  // score weights from authored outcomes; keep all tamper/signature assertions.
+  const outcome = proof.scoreEvents[0].outcome;
+  const node = graphNodeById.get(proof.scoreEvents[0].nodeId);
+  const objectives = levelById.get(node.missionDefinitionId).campaignProgression.masteryObjectives;
+  const parTimeMs = (objectives.find((objective) => objective.kind === 'time-at-most')?.target || 0) * 1000;
+  const timeBonus = !parTimeMs ? 0 : outcome.elapsedMs <= parTimeMs ? 150
+    : outcome.elapsedMs <= parTimeMs * 1.2 ? 75 : 0;
+  const earnedStars = objectives.filter((objective) => objective.kind === 'complete'
+    || (objective.kind === 'damage-at-most' && outcome.damageTaken <= objective.target)
+    || (objective.kind === 'time-at-most' && outcome.elapsedMs <= objective.target * 1000)).length;
+  const qualityBonus = earnedStars >= 3 ? 400 : 0;
+  const expectedScore = Math.round((outcome.regularEnemyKills * 12 + outcome.eliteKills * 45
+    + outcome.wavesCleared * 150 + 650 + outcome.miniBossKills * 500
+    + outcome.majorBossKills * 1600 + 300 + outcome.livesRemaining * 20 + timeBonus + qualityBonus)
+    * Math.min(1.5, Math.max(1, node.weeklyScoreMultiplier || 1)));
+  assert.equal(receipt.metrics.score, expectedScore);
   assert.equal(receipt.metrics.wave, 1);
-  assert.equal(receipt.metrics.enemiesDefeated, 1);
+  assert.equal(receipt.metrics.enemiesDefeated, outcome.regularEnemyKills + outcome.eliteKills
+    + outcome.miniBossKills + outcome.majorBossKills);
   assert.equal(receipt.metrics.coinsCollected, 0);
   assert.equal(receipt.metrics.playerShipId, 'btc');
   assert.equal(receipt.weeklyCampaign.weeklyId, getWeeklyBoundaryMeta(new Date(now)).weekKey);
   assert.equal(receipt.weeklyCampaign.completedNodeCount, 1);
   assert.match(receipt.weeklyCampaign.proofHash, /^[a-f0-9]{64}$/);
   const signed = verifyRunReceipt(receipt.receiptToken);
-  assert.equal(signed.metrics.score, 2322);
+  assert.equal(signed.metrics.score, expectedScore);
   assert.equal(signed.metrics.coinsCollected, 0);
   assert.equal(signed.weeklyCampaign.proofHash, receipt.weeklyCampaign.proofHash);
   assert.equal(Object.hasOwn(receipt.weeklyCampaign, 'walletAddress'), false);

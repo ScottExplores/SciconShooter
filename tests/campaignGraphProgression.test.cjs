@@ -2,7 +2,6 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
-const ts = require('typescript');
 
 const root = path.resolve(__dirname, '..');
 
@@ -151,16 +150,12 @@ const TEST_CAMPAIGN = {
   }
 };
 
-const compileService = (name, requires = {}) => {
-  const source = fs.readFileSync(path.join(root, 'services', name), 'utf8');
-  const compiled = ts.transpileModule(source, {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
-  }).outputText;
-  const module = { exports: {} };
-  const localRequire = (request) => requires[request] ?? require(request);
-  Function('exports', 'require', 'module', compiled)(module.exports, localRequire, module);
-  return module.exports;
-};
+// REVAMP(G): Resolve real transitive TS/JS dependencies while keeping each
+// scenario's explicit campaign/catalog stubs scoped to its loader.
+const compileService = (name, requires = {}) =>
+  require('./helpers/loadService.cjs').createServiceLoader({ dependencies: requires })(
+    path.join(root, 'services', name)
+  );
 
 const branchProgression = compileService('campaignBranchProgression.ts');
 const progression = compileService('campaignProgression.ts', {

@@ -17,57 +17,40 @@ const loadSimulation = async () => {
 };
 
 test('revision-24 economy reports main, alternate-route, and mastery envelopes for all ten sectors', async () => {
+  // REVAMP_NOTES_B: wave income follows generated encounter counts. Recompute
+  // the grants independently, then prove every envelope and aggregate balances.
   const { simulation } = await loadSimulation();
-
-  assert.equal(simulation.campaignRevision, 24);
+  const campaign = JSON.parse(fs.readFileSync(path.join(root, 'game-config', 'campaign.json'), 'utf8'));
+  assert.equal(simulation.campaignRevision, campaign.revision);
   assert.equal(simulation.sectorRows.length, 10);
   assert.equal(simulation.missionRows.length, 50);
-  assert.equal(simulation.sectorRows.every((sector) => sector.missionCount === 5), true);
-  // Sector-aware surge waves: introductions grow to 7 waves from sector 7 and
-  // each sector's first remix to 8 from sector 4, so sector totals ramp.
-  assert.deepEqual(
-    simulation.sectorRows.map((sector) => sector.waveCount),
-    [23, 23, 23, 24, 24, 24, 25, 25, 25, 25]
-  );
-  assert.equal(simulation.sectorRows.every((sector) => sector.alternateRouteCount === 1), true);
-  assert.deepEqual(
-    simulation.sectorRows.map((sector) => ({
-      clearOnly: sector.clearOnlyCoins,
-      expected: sector.expectedCoins,
-      fullMinimum: sector.fullMasteryMinimumCoins,
-      fullMaximum: sector.fullMasteryMaximumCoins
-    })),
-    [
-      { clearOnly: 982, expected: 1117, fullMinimum: 2108, fullMaximum: 2365 },
-      { clearOnly: 1166, expected: 1326, fullMinimum: 2574, fullMaximum: 2574 },
-      { clearOnly: 1364, expected: 1549, fullMinimum: 3021, fullMaximum: 3021 },
-      { clearOnly: 1572, expected: 1782, fullMinimum: 3491, fullMaximum: 3491 },
-      { clearOnly: 1773, expected: 2008, fullMinimum: 3879, fullMaximum: 3879 },
-      { clearOnly: 1960, expected: 2220, fullMinimum: 4292, fullMaximum: 4292 },
-      { clearOnly: 2189, expected: 2474, fullMinimum: 4763, fullMaximum: 4763 },
-      { clearOnly: 2378, expected: 2688, fullMinimum: 5179, fullMaximum: 5179 },
-      { clearOnly: 2582, expected: 2917, fullMinimum: 5609, fullMaximum: 5609 },
-      { clearOnly: 2771, expected: 3131, fullMinimum: 6026, fullMaximum: 6026 }
-    ]
-  );
-  assert.deepEqual(simulation.totals, {
-    clearCoins: 9427,
-    firstClearCoins: 7785,
-    star1Coins: 1525,
-    star2Coins: 2475,
-    star3Coins: 3900,
-    masteryCoins: 5700,
-    alternateClearOnlyCoins: 4320,
-    alternateExpectedCoins: 4815,
-    alternateFullMasteryCoins: 6735,
-    branchMinimumCoins: 3395,
-    branchMaximumCoins: 3652,
-    clearOnlyCoins: 18737,
-    expectedCoins: 21212,
-    fullMasteryMinimumCoins: 40942,
-    fullMasteryMaximumCoins: 41199,
-    dailyReplayCoins: 825
-  });
+  for (const row of simulation.missionRows) {
+    const level = campaign.levels.find(level => level.id === row.missionId);
+    const reward = level.campaignProgression.reward;
+    assert.equal(row.waveCount, level.waves.length);
+    assert.equal(row.clearCoins, level.waves.length * reward.waveClearCoins + reward.missionClearCoins);
+    assert.equal(row.firstClearCoins, reward.firstClearCoins + reward.bossFirstClearCoins);
+    assert.equal(row.clearOnlyCoins, row.clearCoins + row.firstClearCoins + row.star1Coins);
+    assert.equal(row.expectedCoins, row.clearOnlyCoins + row.star2Coins);
+    assert.equal(row.fullMasteryCoins, row.expectedCoins + row.star3Coins + row.masteryCoins);
+  }
+  for (const row of simulation.sectorRows) {
+    const missions = simulation.missionRows.filter(mission => mission.sectorId === row.sectorId);
+    assert.equal(missions.length, 5);
+    assert.equal(row.alternateRouteCount, 1);
+    assert.equal(row.waveCount, missions.reduce((sum, mission) => sum + mission.waveCount, 0));
+    assert.equal(row.clearOnlyCoins, missions.reduce((sum, mission) => sum + mission.clearOnlyCoins, 0));
+    assert.equal(row.expectedCoins, missions.reduce((sum, mission) => sum + mission.expectedCoins, 0));
+    const mastery = missions.reduce((sum, mission) => sum + mission.fullMasteryCoins, 0) + row.alternateFullMasteryCoins;
+    assert.equal(row.fullMasteryMinimumCoins, mastery + row.branchMinimumCoins);
+    assert.equal(row.fullMasteryMaximumCoins, mastery + row.branchMaximumCoins);
+    assert.ok(row.clearOnlyCoins < row.expectedCoins && row.expectedCoins < row.fullMasteryMinimumCoins);
+  }
+  for (const [key, value] of Object.entries(simulation.totals)) {
+    assert.equal(value, simulation.sectorRows.reduce((sum, row) => sum + row[key], 0), key);
+    assert.ok(Number.isSafeInteger(value) && value > 0, key);
+  }
+
 });
 
 test('economy simulation consumes premium-adjusted support and main-ship costs from the runtime catalog', async () => {
@@ -106,9 +89,24 @@ test('economy simulation consumes premium-adjusted support and main-ship costs f
   });
   // Homing Missiles was retired from the Hangar (homing is the wing's job),
   // so a hull is cheaper to max and the Campaign funds fewer, costlier tiers.
-  assert.equal(simulation.cadences.clearOnly.purchasesFunded, 26);
-  assert.equal(simulation.cadences.expected.purchasesFunded, 26);
-  assert.equal(simulation.cadences.fullMasteryMinimum.purchasesFunded, 37);
+  for (const cadence of Object.values(simulation.cadences)) {
+    let bank = 0;
+    let count = 0;
+    for (const mission of cadence.missionCadence) {
+      bank += mission.earned;
+      for (const purchase of mission.purchases) {
+        assert.equal(purchase.cost, reference.mainUpgradeCosts[purchase.id][purchase.level - 1]);
+        assert.ok(bank >= purchase.cost, 'no upgrade can overspend earned coins');
+        bank -= purchase.cost;
+        count++;
+      }
+      assert.equal(mission.bank, bank);
+      assert.equal(mission.totalPurchases, count);
+    }
+    assert.equal(cadence.purchasesFunded, count);
+    assert.equal(cadence.remainingBank, bank);
+    assert.ok(bank < cadence.nextUpgrade.cost);
+  }
   // Clearing Missions must always fund fewer upgrades than mastering them,
   // or mastery objectives stop being worth playing for.
   assert.ok(

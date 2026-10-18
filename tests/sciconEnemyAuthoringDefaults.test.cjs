@@ -50,9 +50,9 @@ test('retired introduction migration audits the complete legacy roster', async (
   const current = auditEnemyIntroductionSchedule(campaign);
   assert.deepEqual(current, {
     issues: [],
-    roleCount: 25,
+    roleCount: 33,
     familyCount: 25,
-    authoredRoleCount: 25
+    authoredRoleCount: 33
   });
 
   const invalid = structuredClone(campaign);
@@ -73,7 +73,7 @@ test('retired introduction command is repeatable, non-mutating, and rejects writ
   assert.equal(first.status, 0, first.stderr);
   assert.equal(second.status, 0, second.stderr);
   assert.equal(first.stdout, second.stdout);
-  assert.match(first.stdout, /Roles 25\/25; Squadron families 25\/25\./);
+  assert.match(first.stdout, /Roles 33\/33; Squadron families 25\/25\./);
   assert.match(first.stdout, /No files written\./);
   assert.equal(digest(campaignPath), before);
 

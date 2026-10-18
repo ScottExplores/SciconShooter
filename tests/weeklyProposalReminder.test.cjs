@@ -1,3 +1,4 @@
+const { loadService } = require('./helpers/loadService.cjs');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
@@ -7,7 +8,7 @@ const {
   parseWeeklyProposalReminderTimestamp,
   serializeWeeklyProposalReminderTimestamp,
   WEEKLY_PROPOSAL_REMINDER_INTERVAL_MS
-} = require('../services/weeklyProposalReminder.ts');
+} = loadService(require('node:path').resolve(__dirname, '../services/weeklyProposalReminder.ts'));
 
 test('reminder keys distinguish missing and exact completed selections for one leading run', () => {
   assert.equal(

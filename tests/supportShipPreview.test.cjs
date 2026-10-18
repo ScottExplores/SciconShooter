@@ -45,6 +45,11 @@ test('preview campaign remains valid and supplies both hostile targets and real 
   const wave = campaign.levels[0].waves[0];
   assert.equal(wave.events.filter(event => event.kind === 'spawn').length, 5);
   assert.equal(wave.events.filter(event => event.kind === 'recovery').length, 5);
+  // REVAMP(G): removing other opening encounters must also remove their pack declarations.
+  const declaredPacks = campaign.formationPacks.filter(pack => wave.formationPackIds.includes(pack.id));
+  assert.equal(declaredPacks.length, 1);
+  assert.ok(wave.events.filter(event => event.kind === 'spawn').every(event =>
+    event.enemies.every(enemy => declaredPacks[0].enemyRoleIds.includes(enemy.roleId))));
   assert.ok(wave.events.every(event => event.startSeconds + event.durationSeconds <= wave.durationSeconds));
 });
 

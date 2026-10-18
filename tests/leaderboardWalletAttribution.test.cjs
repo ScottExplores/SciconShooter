@@ -1,4 +1,7 @@
+const { createWeeklyDurableFixtures, weeklyFixtureId } = require('./helpers/weeklyDurableFixtures.cjs');
+const weeklyFixtures = createWeeklyDurableFixtures();
 const test = require('node:test');
+test.beforeEach(() => weeklyFixtures.reset());
 const assert = require('node:assert/strict');
 const crypto = require('crypto');
 const fs = require('fs');
@@ -20,7 +23,7 @@ const leaderboardHandler = require('../api/leaderboard');
 const AUTHENTICATED_WALLET = '0x1111111111111111111111111111111111111111';
 const SPOOFED_WALLET = '0x2222222222222222222222222222222222222222';
 
-const makeReceipt = (runId = crypto.randomUUID(), overrides = {}) => signPayload({
+const makeReceipt = (runId = crypto.randomUUID(), overrides = {}) => weeklyFixtures.signReceipt({
   type: 'run-receipt',
   runId,
   gameVersion: 'test',
@@ -59,8 +62,7 @@ const installLeaderboardStorageMock = () => {
   let insertedRow = null;
   let calls = 0;
   const originalFetch = global.fetch;
-  global.fetch = async (url, options = {}) => {
-    calls += 1;
+  const storageFetch = weeklyFixtures.withStorage(async (url, options = {}) => {
     const value = String(url);
     if (value.includes('select=run_id&run_id=eq.')) return jsonResponse([]);
     if (options.method === 'POST') {
@@ -69,6 +71,12 @@ const installLeaderboardStorageMock = () => {
       return jsonResponse(null, 204);
     }
     return jsonResponse(insertedRow ? [insertedRow] : []);
+  });
+  // Count outside fixture routing so an early durable read cannot evade the
+  // cross-wallet/session tests' explicit zero-storage assertion.
+  global.fetch = async (...args) => {
+    calls += 1;
+    return storageFetch(...args);
   };
   return {
     get insertedRow() { return insertedRow; },

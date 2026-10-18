@@ -1,3 +1,4 @@
+const { createServiceLoader } = require('./helpers/loadService.cjs');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -60,19 +61,9 @@ const TEST_CAMPAIGN = {
   }]
 };
 
-const compileService = (name, requires = {}) => {
-  const source = fs.readFileSync(path.join(root, 'services', name), 'utf8');
-  const compiled = ts.transpileModule(source, {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
-  }).outputText;
-  const module = { exports: {} };
-  Function('exports', 'require', 'module', compiled)(
-    module.exports,
-    (request) => requires[request] ?? require(request),
-    module
-  );
-  return module.exports;
-};
+const compileService = (name, dependencies = {}, globals = {}) => (
+  createServiceLoader({ dependencies, globals })(path.join(root, 'services', name))
+);
 
 const branchProgression = compileService('campaignBranchProgression.ts');
 const campaignGraph = compileService('campaignGraph.ts');

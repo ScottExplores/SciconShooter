@@ -74,6 +74,8 @@ test('challenge authentication creates a secure session and profile saves use re
   const profiles = new Map();
 
   global.fetch = async (url, options = {}) => {
+    // REVAMP(G): D reads the authoritative paid reserve when hydrating a profile.
+    if (String(url).includes('scicon_wallet_entitlements?')) return jsonResponse([{ purchased_tokens_available: 0 }]);
     const parsed = new URL(String(url));
     const table = parsed.pathname.split('/').pop();
     const body = options.body ? JSON.parse(options.body) : null;

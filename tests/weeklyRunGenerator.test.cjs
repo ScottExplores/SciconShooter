@@ -24,6 +24,7 @@ const loadBundledModule = (entryPoint) => {
 const generator = loadBundledModule(path.join('services', 'weeklyRunGenerator.ts'));
 const browserPlan = loadBundledModule(path.join('shared', 'weeklyRunPlan.browser.ts'));
 const serverPlan = require(path.join(root, 'shared', 'weeklyRunPlan.js'));
+const { getCampaignWeeklyBossPool, selectWeeklyBossRotation } = require('../services/revamp/weekly/bossRotation');
 const validator = loadBundledModule(path.join('game-config', 'validate.ts'));
 
 test('Weekly runway grows only in full generation chunks', () => {
@@ -254,7 +255,7 @@ test('each week draws a different boss order, and every player gets the same one
   assert.ok(orders.size >= 3, 'boss order must vary week to week');
 });
 
-test('weekly boss randomization stays inside Campaign strength bands', () => {
+test('weekly boss rotation covers playable Campaign bosses and preserves selected strength bands', () => {
   const stages = generator.planWeeklyRunStages('2026-W31', campaign, 48);
   const eliteOrder = stages
     .filter((stage) => stage.kind === 'elite')
@@ -263,10 +264,18 @@ test('weekly boss randomization stays inside Campaign strength bands', () => {
     .filter((stage) => stage.kind === 'major')
     .map((stage) => stage.bossId);
 
-  assertBossSequenceStaysInStrengthBands(eliteOrder, orderedEliteBossIds, 'elite');
-  assertBossSequenceStaysInStrengthBands(majorOrder, orderedMajorBossIds, 'major');
+  // REVAMP(G): REVAMP_NOTES_E.md replaces the whole-catalog weekly cycle
+  // with two elites + one major; depth still normalizes their effective health.
+  const pool = getCampaignWeeklyBossPool(campaign);
+  const rotation = selectWeeklyBossRotation('2026-W31', pool);
+  assert.equal(rotation.eliteBossIds.length, 2);
+  assert.equal(rotation.majorBossIds.length, 1);
+  assertBossSequenceStaysInStrengthBands(eliteOrder, rotation.eliteBossIds, 'elite');
+  assertBossSequenceStaysInStrengthBands(majorOrder, rotation.majorBossIds, 'major');
+  assert.ok(eliteOrder.every((id) => rotation.eliteBossIds.includes(id)));
+  assert.ok(majorOrder.every((id) => rotation.majorBossIds.includes(id)));
 
-  const weeks = Array.from({ length: 16 }, (_, index) => `2026-W${String(index + 20).padStart(2, '0')}`);
+  const weeks = Array.from({ length: 32 }, (_, index) => `2026-W${String(index + 20).padStart(2, '0')}`);
   const firstEliteBands = new Set(weeks.map((weekKey) => (
     generator.planWeeklyRunStages(weekKey, campaign, 8)
       .filter((stage) => stage.kind === 'elite')
@@ -283,6 +292,11 @@ test('weekly boss randomization stays inside Campaign strength bands', () => {
   )));
   assert.ok(firstEliteBands.size > 1, 'weeks remix bosses inside the opening elite band');
   assert.ok(firstMajorBands.size > 1, 'weeks remix bosses inside the opening major band');
+  const observed = weeks.flatMap((week) => generator.planWeeklyRunStages(week, campaign, 8));
+  assert.deepEqual(new Set(observed.filter((stage) => stage.kind === 'elite').map((stage) => stage.bossId)),
+    new Set(pool.eliteBossIds), 'the rotation eventually covers every playable elite');
+  assert.deepEqual(new Set(observed.filter((stage) => stage.kind === 'major').map((stage) => stage.bossId)),
+    new Set(pool.majorBossIds), 'the rotation eventually covers every playable major');
 });
 
 test('generated waves are fully formed and reference real enemy roles', () => {
@@ -470,7 +484,12 @@ test('the first elite and major use complete authored spawn-safe boss schemas', 
 });
 
 test('boss health follows Weekly depth while modular component ratios stay authored', () => {
-  const run = generator.buildWeeklyRunCampaign('2026-W31', campaign, 40);
+  // REVAMP(G): Pick a seeded week containing a modular boss from E's rotation.
+  const weekKey = Array.from({ length: 32 }, (_, index) => `2026-W${String(index + 20).padStart(2, '0')}`)
+    .find((week) => generator.planWeeklyRunStages(week, campaign, 4)
+      .some((stage) => findAuthoredBossEvent(stage.bossId)?.componentHealth));
+  assert.ok(weekKey, 'the rotating catalog must include a modular boss');
+  const run = generator.buildWeeklyRunCampaign(weekKey, campaign, 40);
   const effectiveByKind = { elite: [], major: [] };
   let componentBossCount = 0;
 

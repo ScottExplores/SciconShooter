@@ -119,7 +119,7 @@ test('later visible rounds use a balanced volley budget instead of raw seven-tim
 test('the engine emits one collision bundle per center or triple-shot lane', () => {
   const engine = fs.readFileSync(path.join(root, 'services', 'gameLogic.ts'), 'utf8');
 
-  assert.match(engine, /const volleySize = getFireRateVolleySize\(this\.stats\.upgrades\.fireRate \|\| 0\)/);
+  assert.match(engine, /const volleySize = Math\.min\(FIRE_RATE_MAX_VOLLEY_SIZE, getFireRateVolleySize\(this\.stats\.upgrades\.fireRate \|\| 0\) \+ \(this\.squadLoadout\?\.revamp\?\.extraProjectiles \?\? 0\)\)/);
   assert.match(engine, /const tightVolleyVisualPattern = getTightVolleyVisualPattern\(volleySize\)/);
   assert.match(engine, /const maxShotVisualPattern = maxShotActive[\s\S]*getMaxShotBundleVisualPattern\(volleySize\)/);
   assert.match(engine, /getPrimaryVolleySimulationEntityCount\(spreadLanes\)/);

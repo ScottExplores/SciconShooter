@@ -2,7 +2,6 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
-const ts = require('typescript');
 
 const root = path.resolve(__dirname, '..');
 
@@ -104,16 +103,12 @@ const levelConfigStub = {
   getPrimaryAssetPath: (assetKey) => `/test-art/${String(assetKey).toLowerCase()}.png`
 };
 
-const compileService = (name, requires = {}) => {
-  const source = fs.readFileSync(path.join(root, 'services', name), 'utf8');
-  const compiled = ts.transpileModule(source, {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
-  }).outputText;
-  const module = { exports: {} };
-  const localRequire = (request) => requires[request] ?? require(request);
-  Function('exports', 'require', 'module', compiled)(module.exports, localRequire, module);
-  return module.exports;
-};
+// REVAMP(G): Resolve real transitive TS/JS dependencies while keeping each
+// scenario's explicit campaign/catalog stubs scoped to its loader.
+const compileService = (name, requires = {}) =>
+  require('./helpers/loadService.cjs').createServiceLoader({ dependencies: requires })(
+    path.join(root, 'services', name)
+  );
 
 const branchProgression = compileService('campaignBranchProgression.ts');
 const campaignGraph = compileService('campaignGraph.ts');
@@ -348,23 +343,20 @@ test('Mission definitions prefer authored Campaign metadata and preserve compati
   assert.notStrictEqual(authoredMission.starObjectives[0], authoredCampaign.levels[0].campaignProgression.masteryObjectives[0]);
 });
 
-test('the revision-24 graph exposes fifty main depths, ten alternates, power, support, budget, and dynamic Wave metadata', () => {
+test('the Campaign graph exposes fifty main depths, ten alternates, power, support, budget, and authored Wave metadata', () => {
   const trackedCampaign = JSON.parse(fs.readFileSync(path.join(root, 'game-config', 'campaign.json'), 'utf8'));
   const authoredDefinitions = progression.buildCampaignMissionDefinitions(trackedCampaign);
   assert.equal(authoredDefinitions.length, 60);
   assert.equal(trackedCampaign.sectors.length, 10);
   assert.equal(trackedCampaign.campaignGraph.nodes.length, 60);
-  assert.deepEqual(
-    trackedCampaign.sectors.map((sector) => (
-      sector.missionIds.map((missionId) => authoredDefinitions.find((mission) => mission.id === missionId).waveIds.length)
-    )),
-    // Sector-aware surge cadence: introductions run 7 from sector 7, the
-    // main-path remix runs 8 from sector 4, boss-ended Missions stay compact.
-    Array.from({ length: 10 }, (_, index) => {
-      const sectorOrder = index + 1;
-      return [sectorOrder >= 7 ? 7 : 6, sectorOrder >= 4 ? 8 : 7, 4, 4, 2];
-    })
-  );
+  // REVAMP(G): B/C retuned wave counts. Preserve metadata fidelity and bounded
+  // mission authoring instead of the obsolete revision-24 surge-count table.
+  for (const level of trackedCampaign.levels) {
+    const mission = authoredDefinitions.find((candidate) => candidate.id === level.id);
+    assert.deepEqual(mission.waveIds, [...level.waves].sort((a, b) => a.order - b.order).map((wave) => wave.id));
+    assert.equal(new Set(mission.waveIds).size, mission.waveIds.length);
+    require('./helpers/campaignRevampAssertions.cjs').assertMissionCadence(level);
+  }
   authoredDefinitions.forEach((mission) => {
     assert.ok(mission.sectorId);
     assert.ok(mission.missionRole);
@@ -1057,9 +1049,14 @@ test('rev21 partial and completed records migrate through the tracked v22 Wave a
     }
   }, { campaign: tracked });
 
-  assert.deepEqual(partial.missionRecords[first.id].completedWaveIds, first.waves.slice(0, 3).map((wave) => wave.id));
+  // REVAMP(G): A collapsed mission retains its final unfinished wave; a saved
+  // partial checkpoint must never become a clear or generate a reward.
+  assert.deepEqual(partial.missionRecords[first.id].completedWaveIds,
+    first.waves.slice(0, Math.min(3, Math.max(0, first.waves.length - 1))).map((wave) => wave.id));
+  assert.equal(partial.missionRecords[first.id].completed, false);
+  assert.deepEqual(partial.claimedRewardIds, []);
   assert.equal(partial.recommendedMissionId, first.id);
-  assert.equal(partial.recommendedWaveId, first.waves[3].id);
+  assert.equal(partial.recommendedWaveId, first.waves[Math.min(3, first.waves.length - 1)].id);
 
   const completed = progression.sanitizeCampaignProgress({
     ...partial,

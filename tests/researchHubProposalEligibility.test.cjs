@@ -49,10 +49,25 @@ test('the client feed requests and returns exact referenced proposals without ch
   );
 });
 
-test('a stalled proposal request times out so gameplay preloading can continue', () => {
-  assert.match(proposalServiceSource, /const PROPOSAL_REQUEST_TIMEOUT_MS = 12_000/);
-  assert.match(proposalServiceSource, /const controller = new AbortController\(\)/);
-  assert.match(proposalServiceSource, /globalThis\.setTimeout\(\(\) => controller\.abort\(\), PROPOSAL_REQUEST_TIMEOUT_MS\)/);
-  assert.match(proposalServiceSource, /signal: controller\.signal/);
-  assert.match(proposalServiceSource, /Proposal feed timed out\./);
+// REVAMP(G): E moved the deadline into the shared transport; exercise headers and body stalls.
+test('a stalled proposal request times out so gameplay preloading can continue', async () => {
+  const { loadService } = require('./helpers/loadService.cjs');
+  const { fetchProposalJson, PROPOSAL_REQUEST_TIMEOUT_MS } = loadService(
+    path.join(root, 'services/revamp/researchhub/feedSnapshot.ts')
+  );
+  assert.equal(PROPOSAL_REQUEST_TIMEOUT_MS, 12_000);
+  assert.match(proposalServiceSource, /await fetchProposalJson\(proposalFeedUrl\)/);
+  const originalFetch = global.fetch;
+  try {
+    for (const bodyStalls of [false, true]) {
+      let signal;
+      global.fetch = async (_url, options) => {
+        signal = options.signal;
+        if (!bodyStalls) return new Promise(() => {});
+        return { ok: true, json: () => new Promise(() => {}) };
+      };
+      await assert.rejects(fetchProposalJson('/api/researchhub-proposals', 10), /timed out/i);
+      assert.equal(signal.aborted, true);
+    }
+  } finally { global.fetch = originalFetch; }
 });

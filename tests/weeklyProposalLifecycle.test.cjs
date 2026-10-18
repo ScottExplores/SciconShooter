@@ -1,3 +1,4 @@
+const { loadService } = require('./helpers/loadService.cjs');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -19,7 +20,7 @@ vm.runInNewContext(compiled, {
   exports: lifecycleModule.exports,
   require: (specifier) => {
     if (specifier === './proposalFunding') {
-      return require('../services/proposalFunding.ts');
+      return loadService(require('node:path').resolve(__dirname, '../services/proposalFunding.ts'));
     }
     throw new Error(`Unexpected weekly proposal lifecycle dependency: ${specifier}`);
   }

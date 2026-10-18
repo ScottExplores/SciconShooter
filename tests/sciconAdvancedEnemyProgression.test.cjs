@@ -1,3 +1,4 @@
+// REVAMP_NOTES_B: eight role extensions and early authoring coexist with the five late hulls.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -59,7 +60,7 @@ test('advanced roster authoring is idempotent and keeps a valid Campaign contrac
     roleCount: 5,
     packCount: 5,
     authoredEventCount: 29,
-    diversifiedWaveCount: 18
+    diversifiedWaveCount: 8
   });
   assert.deepEqual(second, first);
   assert.equal(JSON.stringify(authored), once);
@@ -76,7 +77,7 @@ test('legacy roster reauthoring preserves sector choreography and each late esco
   const firstSectorIds = new Set(authored.sectors.find((sector) => sector.order === 1).missionIds);
   const opening = structuredClone(authored.levels.filter((level) => firstSectorIds.has(level.id)));
   assert.ok(opening.some((level) => level.waves.some((wave) => (
-    wave.formationPackIds.some((id) => id.startsWith('pack-breakwater-'))
+    wave.formationPackIds.some((id) => id.startsWith('pack-revamp-'))
   ))));
   const late = authoredAdvancedEvents(authored).find(({ enemy }) => enemy.roleId === 'role-quasar-lancer');
   const escort = late.event.enemies.find((enemy) => enemy.roleId === 'role-jet-scout');
@@ -94,8 +95,8 @@ test('legacy roster reauthoring preserves sector choreography and each late esco
 test('five generated hulls have unique sector-gated roles and formation packs', () => {
   const roleById = new Map(campaign.enemyRoles.map((role) => [role.id, role]));
   const packById = new Map(campaign.formationPacks.map((pack) => [pack.id, pack]));
-  assert.equal(campaign.enemyRoles.length, 25);
-  assert.equal(campaign.formationPacks.length, 41);
+  assert.equal(campaign.enemyRoles.filter(role => !role.id.startsWith('role-revamp-')).length, 25);
+  assert.equal(campaign.formationPacks.filter(pack => !pack.id.startsWith('pack-revamp-')).length, 41);
   assert.equal(campaign.formationPacks.filter((pack) => pack.id.startsWith('pack-breakwater-')).length, 25);
 
   for (const expected of EXPECTED) {

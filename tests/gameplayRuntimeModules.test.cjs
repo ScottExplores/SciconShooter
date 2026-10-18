@@ -7,23 +7,9 @@ const ts = require('typescript');
 
 const root = path.resolve(__dirname, '..');
 
-const loadTypeScriptModule = (...segments) => {
-  const filePath = path.join(root, ...segments);
-  const source = fs.readFileSync(filePath, 'utf8');
-  const compiled = ts.transpileModule(source, {
-    compilerOptions: {
-      module: ts.ModuleKind.CommonJS,
-      target: ts.ScriptTarget.ES2022
-    },
-    fileName: filePath
-  }).outputText;
-  const module = { exports: {} };
-  vm.runInNewContext(
-    `(function(exports, require, module) { ${compiled} })(module.exports, require, module);`,
-    { module, require, Math, Number, Object, String }
-  );
-  return module.exports;
-};
+// REVAMP(G): Execute real formation dependencies introduced by B.
+const { loadService } = require('./helpers/loadService.cjs');
+const loadTypeScriptModule = (...segments) => loadService(path.join(root, ...segments));
 
 test('formation geometry is deterministic across custom, built-in, and entry plans', () => {
   const formations = loadTypeScriptModule(

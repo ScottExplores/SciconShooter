@@ -1,3 +1,5 @@
+// REVAMP(G): Reconcile intended contracts documented in REVAMP_NOTES_D.md and REVAMP_NOTES_E.md.
+// REVAMP(G): Reconcile intended contracts documented in REVAMP_NOTES_D.md and REVAMP_NOTES_E.md.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -101,7 +103,7 @@ test('the Hangar is available to device Pilots while minted ship locks remain vi
   assert.doesNotMatch(startScreen, /Connect your wallet for ship upgrades/);
   assert.match(startScreen, /if \(dashboardTab === 'hangar'\) \{/);
   assert.match(startScreen, /<SquadHangar/);
-  assert.match(startScreen, /<DashboardNav docked \/>/);
+  assert.match(startScreen, /\{renderDashboardNav\(\{ docked: true \}\)\}/);
   assert.match(startScreen, /getShipUnlockMessage/);
   assert.match(startScreen, /isPlayerShipUnlocked\(shipId, shipUnlocks\)/);
   assert.match(app, /url\.searchParams\.set\('view', 'hangar'\)/);
@@ -160,15 +162,15 @@ test('the Hangar uses one position-driven squad bay and four-column fleet catalo
   assert.match(hangar, /const activeMainShipUpgrades = state\.shipUpgrades\[mainShipId\]/);
   assert.match(hangar, /const shipUpgrades = state\.shipUpgrades\[shipId\]/);
   assert.match(hangar, /const unlockCost = SQUAD_SLOT_UNLOCK_COST\[slot\]/);
-  assert.match(hangar, /slot === 'right' && !founderSandbox \? '10 RSC' : `\$\{unlockCost\} Tokens`/);
+  assert.match(hangar, /slot === 'right' \? 'CLEAR MISSION 1' : 'FREE ON LAUNCH'/);
   assert.match(hangar, /onPurchaseWithRsc\('right-support'\)/);
-  assert.match(hangar, /rightPurchaseStatus === 'connecting'[\s\S]*?'CONNECTING'/);
-  assert.match(hangar, /rightPurchaseStatus === 'error'[\s\S]*?'TRY AGAIN'/);
+  assert.match(hangar, /walletPurchaseStatus\.status === 'connecting'[\s\S]*?'Connecting your Base wallet for the right support purchase/);
+  assert.match(hangar, /walletPurchaseStatus\.status === 'error'[\s\S]*?'The right support purchase could not be completed\. Try again\.'/);
   assert.match(hangar, /label="Research Coin"/);
   assert.match(hangar, /onOptions=\{onOpenRscSwap\}/);
   assert.match(startScreen, /onOpenRscSwap=\{\(\) => setShowRscAcquire\(true\)\}/);
   assert.match(hangar, /formatWholeRscBalance\(rscBalance\)/);
-  assert.match(hangar, /rscBalance\.raw >= rightSupportCostRaw/);
+  assert.match(hangar, /disabled=\{!unlocked && !founderSandbox\}/);
   assert.match(startScreen, /role="dialog"[\s\S]*?Get Research Coin/);
   assert.match(startScreen, /View RSC in Base/);
   assert.match(startScreen, /Swap USDC for RSC/);
@@ -345,7 +347,7 @@ test('main ship upgrades remain isolated to the selected ship through the Hangar
   assert.match(squad, /\[shipId\]: \{ \.\.\.currentUpgrades, \[id\]: level \+ 1 \}/);
   assert.match(squad, /upgrades: \{ \.\.\.\(state\.shipUpgrades\[mainShipId\]/);
   assert.match(app, /applyLocalHangarChange\(\{ kind: 'upgrade-main-ship', shipId: usableShipId, upgradeId: id \}\)/);
-  assert.match(app, /const runShipId = requestedLabShipId \?\? usableShipId/);
+  assert.match(app, /const runShipId = runMode === 'weekly-streak' \? WEEKLY_RANKED_SHIP : requestedLabShipId \?\? usableShipId/);
   assert.match(app, /buildRuntimeSquadLoadout\(campaignLabState, runShipId\)/);
 });
 

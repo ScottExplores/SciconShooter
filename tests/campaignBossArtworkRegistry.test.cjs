@@ -149,19 +149,20 @@ test('Weekly Run clones the canonical promoted boss events with only run-specifi
 
   try {
     const weekly = await vite.ssrLoadModule('/services/weeklyRunGenerator.ts');
-    const run = weekly.buildWeeklyRunCampaign('2026-W21', campaign, 48);
-    const aurora = run.levels
-      .flatMap((level) => level.waves)
-      .flatMap((wave) => wave.events)
-      .find((event) => event.kind === 'boss' && event.bossId === 'orbit-gyroscope');
-    const gloamforge = run.levels
-      .flatMap((level) => level.waves)
-      .flatMap((wave) => wave.events)
-      .find((event) => event.kind === 'boss' && event.bossId === 'hammerhead-siege');
-    const umbra = run.levels
-      .flatMap((level) => level.waves)
-      .flatMap((wave) => wave.events)
-      .find((event) => event.kind === 'boss' && event.bossId === 'umbra-needlewing');
+    // REVAMP(G): E rotates three bosses weekly; each promoted commander must still
+    // materialize with its exact authored artwork/timeline when its week arrives.
+    const encounters = new Map();
+    for (let week = 0; week < 54; week++) {
+      const key = new Date(Date.UTC(2026, 0, 4 + week * 7)).toISOString().slice(0, 10);
+      const run = weekly.buildWeeklyRunCampaign(key, campaign, 6);
+      const bosses = run.levels.flatMap(level => level.waves).flatMap(wave => wave.events)
+        .filter(event => event.kind === 'boss');
+      assert.equal(new Set(bosses.map(event => event.bossId)).size, 3);
+      for (const event of bosses) if (!encounters.has(event.bossId)) encounters.set(event.bossId, event);
+    }
+    const aurora = encounters.get('orbit-gyroscope');
+    const gloamforge = encounters.get('hammerhead-siege');
+    const umbra = encounters.get('umbra-needlewing');
 
     assert.ok(aurora, 'Weekly Run must include the M40 boss identity');
     assert.equal(aurora.label, 'Aurora Oculus');

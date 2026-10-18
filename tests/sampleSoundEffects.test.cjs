@@ -41,10 +41,15 @@ test('combat samples include distinct authored boss warning, rotary burst, and m
   assert.match(audioSource, /boss_cannon:\s*160/);
   assert.match(audioSource, /boss_machinegun:\s*620/);
   assert.match(audioSource, /boss_alert:\s*2_600/);
-  assert.match(audioSource, /const PLAYER_SHOT_GAIN = 0\.12/);
-  assert.match(audioSource, /case 'shoot':\s*osc\.type = 'triangle'/);
-  assert.match(audioSource, /osc\.frequency\.setValueAtTime\(520 \* pitch, t\)/);
-  assert.match(audioSource, /gain\.gain\.setValueAtTime\(PLAYER_SHOT_GAIN, t\)/);
+  // REVAMP(G): A retains authored assets but routes primary fire through the layered synth.
+  const { loadService } = require('./helpers/loadService.cjs');
+  const { createCueLayers } = loadService(path.join(root, 'services/revamp/feel/audioSynthesis.ts'));
+  assert.deepEqual(createCueLayers('shoot').map(({ wave, startHz, endHz, gain }) =>
+    ({ wave, startHz, endHz, gain })), [
+    { wave: 'triangle', startHz: 620, endHz: 180, gain: 0.10 },
+    { wave: 'noise', startHz: 0, endHz: 0, gain: 0.022 }
+  ]);
+  assert.match(audioSource, /this\.feelSynth\?\.play\(feelCue,/);
 });
 
 test('combat events distinguish player fire, boss fire, impacts, and destruction', () => {
@@ -53,7 +58,7 @@ test('combat events distinguish player fire, boss fire, impacts, and destruction
   assert.match(engineSource, /this\.playSound\(type === 'gatekeeper' \? 'boss_alert' : 'siren'\)/);
   assert.match(engineSource, /this\.playSound\('launch'\)/);
   assert.match(engineSource, /this\.playSound\('impact'/);
-  assert.match(engineSource, /if \(intensity >= 1\.2\) \{\s*this\.playSound\('explode'/);
+  assert.match(engineSource, /this\.playSound\(intensity >= 2 \? 'explosion_boss_part'\s*: intensity >= 1\.2 \? 'explosion_elite' : 'explosion_small', intensity/);
   assert.match(engineSource, /spawnExplosion\(target\.x, target\.y, target\.color, destructionIntensity\)/);
 });
 

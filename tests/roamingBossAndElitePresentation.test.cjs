@@ -29,9 +29,13 @@ test('Citation Storm is a bossless formation-remix Mission with compact authored
 
   assert.equal(stage.campaignProgression.missionRole, 'formation-remix');
   assert.ok(packedSpawns.length >= 4);
-  assert.ok(packedSpawns.some((event) => event.patternId === 'ring' && event.formationBehavior?.movementId === 'rotating-wheel'));
-  assert.ok(packedSpawns.some((event) => event.patternId === 'double-v' && event.formationBehavior?.attackId === 'pincer-pass'));
-  assert.ok(packedSpawns.some((event) => event.patternId === 'diamond'));
+  // REVAMP(G): B replaces fixed ring/pincer scripts with varied splines and returning dives.
+  assert.ok(new Set(packedSpawns.map(event => event.formationBehavior?.entryPathId)).size >= 3);
+  assert.ok(new Set(packedSpawns.map(event => event.patternId)).size >= 2);
+  assert.ok(packedSpawns.every(event => event.formationBehavior?.movementId === 'revamp-breathe'));
+  assert.ok(packedSpawns.every(event => ['revamp-dive', 'revamp-escort'].includes(event.formationBehavior?.attackId)));
+  assert.ok(packedSpawns.every(event => event.formationBehavior?.telegraphSeconds >= 0.6
+    && event.formationBehavior?.returnId === 'reform'));
   assert.ok(packedSpawns.every((event) => event.count >= 3));
   assert.ok(packedSpawns.every((event) => event.formationPackIds === undefined));
 
