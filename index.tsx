@@ -19,7 +19,9 @@ const feelLabRequested = import.meta.env.DEV && new URLSearchParams(window.locat
 const FeelLab = import.meta.env.DEV ? React.lazy(() => import('./components/FeelLab')) : null;
 const combatLabRequested = import.meta.env.DEV && new URLSearchParams(window.location.search).get('lab') === 'combat';
 // REVAMP(C): Practice entry bypasses account services and the desktop launch gate.
-const bossLabRequested = new URLSearchParams(window.location.search).has('bosslab');
+// QA (?qa=1&bosslab=...) runs the real campaign boss wave; the standalone lab owns ?bosslab without qa.
+const bossLabParams = new URLSearchParams(window.location.search);
+const bossLabRequested = bossLabParams.has('bosslab') && bossLabParams.get('qa') !== '1';
 if (!combatLabRequested && !feelLabRequested && !bossLabRequested) installPlayerReportMonitoring();
 
 window.addEventListener('vite:preloadError', (event) => {
