@@ -1,5 +1,5 @@
 // REVAMP(E): Weekly presentation and read-only preview hooks live in isolated modules.
-import { PreviewBuildBadge } from './services/revamp/preview/PreviewBuildBadge';
+import { PreviewBuildFrame } from './services/revamp/preview/PreviewBuildBadge';
 import { isPreviewMode, PREVIEW_READ_ONLY_MESSAGE } from './services/revamp/preview/previewMode';
 import { weeklyResultNudge } from './services/revamp/weekly/presentation';
 import { buildWeeklyRankedLoadout, WEEKLY_RANKED_SHIP } from './services/revamp/weekly/rankedLoadout';
@@ -7909,8 +7909,9 @@ const App: React.FC = () => {
   ), !startupLoading && !walletIdentityHydrating && !activeWalletAddress);
 
   return (
+    // REVAMP(T): Preview-only rail reserves badge space outside every app/HUD layer.
+    <PreviewBuildFrame>
     <div className="relative h-full w-full select-none bg-[#0b1020]" data-world-theme={worldTheme.id} style={worldThemeStyle(worldTheme)}>
-      <PreviewBuildBadge />
       {localHangarSaveError ? (
         <div role="alert" className="absolute inset-x-3 top-3 z-[100] rounded-lg border border-red-300/50 bg-slate-950 p-4 text-sm text-red-100">
           <p>{localHangarSaveError}</p>
@@ -8803,6 +8804,7 @@ const App: React.FC = () => {
       />
 
     </div>
+    </PreviewBuildFrame>
   );
 };
 

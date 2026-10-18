@@ -1,3 +1,4 @@
+import { registerBossDeath } from './BossCompletionGate';
 /** REVAMP(S): Public, renderer-independent death API. No rewards, timers or RNG. */
 export interface BossDeathRequest {
   readonly id: string;
@@ -50,9 +51,11 @@ export function playBossDeathSequence(engine: DeathEngine, hull: DeathHull, mini
     .map(part => ({ x: Math.max(-0.42, Math.min(0.42, part.centerXRatio - 0.5)),
       y: Math.max(-0.42, Math.min(0.42, part.centerYRatio - 0.5)) }));
   if (queue.pending.length >= MAX_BOSS_DEATHS) queue.pending.shift();
-  queue.pending.push(Object.freeze({ id: hull.id, frame: engine.frameCount,
+  const request = Object.freeze({ id: hull.id, frame: engine.frameCount,
     x: hull.x + hull.width / 2, y: hull.y + hull.height / 2,
-    width: hull.width, height: hull.height, mini, parts }));
+    width: hull.width, height: hull.height, mini, parts });
+  queue.pending.push(request);
+  registerBossDeath(engine, request); // REVAMP(T): Ownership lasts through the final particle tail.
   return true;
 }
 

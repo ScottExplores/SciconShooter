@@ -255,7 +255,7 @@ export class ArcadeEffectPool {
 
   /** REVAMP(S): Reusable API for authored boss chains and ordinary kill receipts. */
   spawnPixelExplosion(x: number, y: number, size: number, tier: PixelExplosionTier, seed?: number) {
-    this.pixelExplosions.spawn(x, y, size, tier, seed);
+    return this.pixelExplosions.spawn(x, y, size, tier, seed); // REVAMP(T): Tail duration for completion.
   }
 
   setReducedMotion(reduced: boolean) { this.reducedMotion = reduced; this.pixelExplosions.setReducedMotion(reduced); }

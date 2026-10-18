@@ -5,6 +5,7 @@ import { getFeelSettings } from '../feel/FeelSettings';
 import type { RenderQualityBudget } from '../performance/AdaptiveRenderQuality';
 import { getRenderQualityMode } from '../performance/RenderQualitySettings';
 import { BossShockwave, BOSS_SHOCKWAVE_DURATION_MS } from './BossShockwave';
+import { finishBossDeath } from './BossCompletionGate';
 import { BOSS_DEATH_FINALE_MS, MINI_DEATH_FINALE_MS, MAX_BOSS_DEATHS,
   bossDeathPose, bossDeathTimeline, consumeBossDeathSequences, deathBurstDue,
   type BossDeathRequest, type DeathBurst } from './BossDeathSequence';
@@ -12,7 +13,7 @@ import { BOSS_DEATH_FINALE_MS, MINI_DEATH_FINALE_MS, MAX_BOSS_DEATHS,
 type HullView = { root: Container; aura: Container; trail: Container; flash: Container;
   health: Container; label: Container; hitFlash?: Container; bossRig?: { componentHealth: Container } };
 type Fragment = { sprite: Sprite; x: number; y: number; vx: number; vy: number; spin: number };
-type Death = { request: BossDeathRequest; age: number; timeline: readonly DeathBurst[];
+type Death = { request: BossDeathRequest; age: number; tailMs: number; timeline: readonly DeathBurst[];
   root: Container; hull: Sprite | null; texture: Texture | null; pieces: Fragment[] };
 
 /** One retained art snapshot per death, max four; all fire/smoke uses ArcadeEffectPool. */
@@ -72,11 +73,14 @@ export class BossDeathPresentation {
       const death = this.deaths[index];
       const previous = death.age;
       death.age += delta;
+      // REVAMP(T): Match ArcadeEffectPool's capped clock, including slow frames.
+      death.tailMs = Math.max(0, death.tailMs - Math.min(50, delta));
       const { request } = death;
       const pose = bossDeathPose(death.age, request.mini, settings.reducedMotion, settings.reduceScreenShake);
       for (const burst of death.timeline) {
         if (deathBurstDue(burst, previous, death.age, quality.particleScale)) {
-          this.pool.spawnPixelExplosion(burst.x, burst.y, burst.size, burst.tier, burst.seed);
+          const tail = this.pool.spawnPixelExplosion(burst.x, burst.y, burst.size, burst.tier, burst.seed);
+          death.tailMs = Math.max(death.tailMs, tail || 0);
         }
       }
       if (death.hull) death.hull.visible = pose.hullVisible;
@@ -109,7 +113,8 @@ export class BossDeathPresentation {
           shockAge, engine.width, engine.height, getRenderQualityMode() === 'high'
           && quality.tier === 'high' && !settings.reducedMotion && !settings.reduceScreenShake);
       }
-      if (pose.complete) {
+      if (pose.complete && death.tailMs <= 0) {
+        finishBossDeath(engine, request); // REVAMP(T): Hull AND final explosion have finished.
         this.release(death);
         this.deaths.splice(index, 1);
       }
@@ -122,7 +127,7 @@ export class BossDeathPresentation {
   private capture(request: BossDeathRequest, view: HullView | undefined, density: number): Death {
     const root = new Container({ eventMode: 'none' });
     this.root.addChild(root);
-    const death: Death = { request, root, age: -0.001, timeline: bossDeathTimeline(request), hull: null, texture: null, pieces: [] };
+    const death: Death = { request, root, age: -0.001, tailMs: 0, timeline: bossDeathTimeline(request), hull: null, texture: null, pieces: [] };
     if (!view) return death; // An unseen/culled death still has a bounded explosion sequence.
     const decorations = [view.aura, view.trail, view.flash, view.health, view.label, view.hitFlash, view.bossRig?.componentHealth]
       .filter((item): item is Container => Boolean(item));

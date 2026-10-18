@@ -23,6 +23,8 @@ import { getFeelSettings } from './revamp/feel/FeelSettings';
 import { cancelPhaseBullets, recordFeelKill, recordPerfectWave, kickCredit, markAimedShot } from './revamp/feel/FeelGameplay';
 // REVAMP(S): Bespoke terminal deaths start the same presentation before delayed rewards.
 import { hasBossDeathSequence, playBossDeathSequence } from './revamp/vfx/BossDeathSequence';
+// REVAMP(T): Delay only completion presentation; keep reward and Weekly rules intact.
+import { deferBossCompletion, deferBossRewardText, hasDeferredBossCompletion, takeBossCompletion } from './revamp/vfx/BossCompletionGate';
 import { ASSETS, GAME_CONFIG, COLORS } from '../constants';
 import type {
   AssetKey,
@@ -5895,6 +5897,8 @@ export class GameEngine {
   }
 
   updateStageRewardCollection() {
+    // REVAMP(T): Publish the banner after S's final tail + beat, or the bounded fallback.
+    const banner = takeBossCompletion(this);
     if (this.stageRewardCollectionFrames <= 0) return;
     this.updatePlayerMovement(this.getPlayerMovementSpeed());
     this.updateSquadCompanions();
@@ -5902,6 +5906,13 @@ export class GameEngine {
     this.spawnThrusterParticles(0.65);
     this.stageRewardCollectionFrames--;
     if (this.stageRewardCollectionFrames <= 0) this.beginStageTakeoff();
+    // REVAMP(T): Takeoff cleanup must run before newly released mini-boss result text.
+    if (banner) {
+      recordPerfectWave(this);
+      this.spawnFloatingText(this.width / 2, this.height / 2, banner.label, banner.color);
+      const reward = banner.rewardText;
+      if (reward) this.spawnFloatingText(reward.x, reward.y, reward.text, reward.color, reward.fontSize);
+    }
   }
 
   continueToNextWave() {
@@ -6057,9 +6068,8 @@ export class GameEngine {
   }
 
   beginStageCompletion(label: string, color: string) {
-    // REVAMP(A): Uses accepted damage, including continuous mission runs.
-    recordPerfectWave(this);
     if (this.continuousStageBoundaries) {
+      recordPerfectWave(this); // REVAMP(T): Weekly continuous boundaries never wait for presentation.
       this.beginContinuousStageCompletion();
       return;
     }
@@ -6077,7 +6087,17 @@ export class GameEngine {
     this.recordWaveCompletion();
     this.recordCompletion('mission');
     if (this.waveVictorySummary.campaignComplete) this.recordCompletion('campaign');
-    this.spawnFloatingText(this.width / 2, this.height / 2, label, color);
+    // REVAMP(T): Non-boss completions keep their immediate banner.
+    if (!deferBossCompletion(this, label, color)) {
+      recordPerfectWave(this);
+      this.spawnFloatingText(this.width / 2, this.height / 2, label, color);
+    } else {
+      // REVAMP(T): No hostile rounds or damage during the presentation-only hold.
+      this.invincibleTimer = Math.max(this.invincibleTimer, 1);
+      for (const entity of this.entities) {
+        if (!entity.isPlayerShot && (entity.type === EntityType.PROJECTILE || entity.type === EntityType.MISSILE)) entity.markedForDeletion = true;
+      }
+    }
     const configuredDelaySeconds = Number(this.getCurrentWaveDefinition()?.delayAfterSeconds);
     // Regular Mission finals author only a 1-second window. When coins are
     // still on the field, hold the door long enough for the clear-sweep magnet
@@ -6162,6 +6182,8 @@ export class GameEngine {
   }
 
   beginStageTakeoff() {
+    // REVAMP(T): Stay in the existing protected, bullet-cleared collection branch.
+    if (hasDeferredBossCompletion(this)) { this.stageRewardCollectionFrames = 1; return; }
     this.stageRewardCollectionFrames = 0;
     this.clearStageBoundaryDebris(true);
     // Capture the final post-collection totals even when every reward coin was
@@ -23762,6 +23784,8 @@ export class GameEngine {
   }
 
   spawnFloatingText(x: number, y: number, text: string, color: string, fontSize: number = 32) {
+    // REVAMP(T): Credit flask rewards immediately; show their notification after the death chain.
+    if (deferBossRewardText(this, x, y, text, color, fontSize)) return;
     // REVAMP(A): Hide optional score labels while preserving gameplay messages.
     if (!getFeelSettings().showScoreNumbers && /^\+\d+(?:[.,]\d+)*(?:\s+x\d+)?$/.test(text)) return;
     if (this.liveEffectCount >= this.getEffectCap()) return;

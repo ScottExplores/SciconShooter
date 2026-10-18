@@ -91,13 +91,16 @@ export class PixelExplosionRenderer {
   setQuality(quality: number) { this.quality = clamp(Number.isFinite(quality) ? quality : 1, 0.25, 1); }
   setReducedMotion(reduced: boolean) { this.reducedMotion = reduced; }
   spawn(x: number, y: number, size: number, tier: PixelExplosionTier, seed = ++this.serial) {
-    if (!Number.isFinite(x + y)) return;
+    if (!Number.isFinite(x + y)) return 0;
     const recipes = pixelExplosionRecipes(x, y, size, tier, seed, this.quality, this.reducedMotion);
+    let duration = 0; // REVAMP(T): Report the actual quality/accessibility particle tail.
     for (const recipe of recipes) {
+      duration = Math.max(duration, recipe.delay + recipe.duration);
       const slot = this.allocate(recipe.x, recipe.y, size, recipe.delay + recipe.duration);
       slot.pixel = recipe;
       this.draw(slot);
     }
+    return duration;
   }
   draw(slot: PixelExplosionSlot) {
     const particle = slot.pixel;

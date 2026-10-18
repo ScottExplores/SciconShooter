@@ -78,7 +78,7 @@ async function inspectScreen(page, game, directory, name, result) {
     captures.push(filename);
     result.checkedTextNodes += geometry.checkedTextNodes;
     result.checkedControls += geometry.checkedControls;
-    for (const key of ['checkedCenters', 'checkedFrameTexts', 'checkedSafeControls']) result[key] = (result[key] || 0) + geometry[key];
+    for (const key of ['checkedCenters', 'checkedFrameTexts', 'checkedSafeControls', 'checkedPreviewHudRects']) result[key] = (result[key] || 0) + geometry[key];
     result.visualViewport = geometry.viewport; result.safeInsets = geometry.safeInsets; result.frameScale = geometry.frameScale;
     for (const violation of geometry.violations) {
       const key = `${violation.type}|${violation.selector}|${violation.text}|${violation.related}`;
@@ -151,6 +151,17 @@ async function runDevice(browser, server, config, report, device) {
     await writeReport(report);
   };
   try {
+    // REVAMP(T): Opt-in live HUD checks keep focused preview QA out of the
+    // existing full menu matrix. --screens gameplay-hud,boss-hud selects them.
+    for (const name of ['gameplay-hud', 'boss-hud']) if (config.screens?.includes(name)) {
+      await screen(name, async () => {
+        const encounter = name === 'boss-hud' ? 'bosslab=first' : 'mission=operation-open-galaxy';
+        await page.goto(`${server.origin}/?qa=1&${encounter}&autoplay=1&skipIntro=1&god=1&seed=12345`, { waitUntil: 'domcontentloaded', timeout: 60000 });
+        game = await appFrame(page, device === 'desktop' ? 'desktop' : 'mobile');
+        await game.locator('.scicon-combat-toprow').waitFor({ state: 'visible', timeout: 60000 });
+        await game.waitForTimeout(1200);
+      });
+    }
     await screen('home', async () => {});
     await screen('weekly-pilot', async g => { await g.locator('.sci-weekly-winner-card:visible').scrollIntoViewIfNeeded(); await g.locator('.sci-weekly-winner-card:visible button').first().focus(); });
     await screen('weekly-proposal', async g => { await g.locator('.sci-weekly-winner-card:visible').scrollIntoViewIfNeeded(); await click(g,'Show selected proposal'); });

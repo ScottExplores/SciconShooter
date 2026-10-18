@@ -84,6 +84,25 @@ export function auditTextGeometry({ tolerance = 2, centerTolerance = 3 } = {}) {
     const key = `${type}|${item.selector}|${item.text}|${item.related || ''}`;
     if (!seen.has(key)) { seen.add(key); violations.push(item); }
   };
+  // REVAMP(T): Preview labeling must never paint over a HUD or menu. The
+  // canvas check also covers Pixi-only timers / boss bars absent from the DOM.
+  // Inspect outside the modal scope because the badge remains visible there.
+  let checkedPreviewHudRects = 0;
+  const previewBadge = document.querySelector('[data-preview-build-badge]');
+  if (previewBadge && rendered(previewBadge)) {
+    const badgeBox = previewBadge.getBoundingClientRect();
+    if (outsideX(badgeBox, safeViewport) || outsideY(badgeBox, safeViewport)) add('preview-badge-outside-safe-area', previewBadge, previewBadge.textContent || '', badgeBox);
+    const hudTargets = document.querySelectorAll('.scicon-combat-toprow, .scicon-hud-shell button, .scicon-hud-shell [role="progressbar"], .scicon-wave-progress, .scicon-game-stage canvas, [data-preview-hud]');
+    for (const target of hudTargets) {
+      if (!rendered(target)) continue;
+      checkedPreviewHudRects++;
+      const targetBox = target.getBoundingClientRect();
+      if (Math.min(badgeBox.right, targetBox.right) > Math.max(badgeBox.left, targetBox.left)
+        && Math.min(badgeBox.bottom, targetBox.bottom) > Math.max(badgeBox.top, targetBox.top)) add('preview-badge-overlaps-hud', previewBadge, previewBadge.textContent || '', badgeBox, target);
+    }
+    const content = document.querySelector('.scicon-preview-content');
+    if (content && intersects(badgeBox, content.getBoundingClientRect())) add('preview-badge-overlaps-content', previewBadge, previewBadge.textContent || '', badgeBox, content);
+  }
   const union = boxes => boxes.reduce((result, box) => ({ left: Math.min(result.left, box.left), top: Math.min(result.top, box.top), right: Math.max(result.right, box.right), bottom: Math.max(result.bottom, box.bottom) }), { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity });
   const boxRect = bounds => ({ ...bounds, x: bounds.left, y: bounds.top, width: bounds.right - bounds.left, height: bounds.bottom - bounds.top });
   const inFlowOf = (element, container) => {
@@ -269,5 +288,5 @@ export function auditTextGeometry({ tolerance = 2, centerTolerance = 3 } = {}) {
     if (a.element.contains(b.element) || b.element.contains(a.element) || separateCoachmarkLayers(a.element,b.element)) continue;
     if (intersects(visibleRect(a.box, a.element), visibleRect(b.box, b.element))) add('controls-overlap', a.element, a.element.textContent || a.element.getAttribute('aria-label') || '', a.box, b.element);
   }
-  return { checkedTextNodes, checkedControls: controls.length, checkedCenters, checkedFrameTexts, checkedSafeControls, viewport, safeInsets, frameScale, violations };
+  return { checkedTextNodes, checkedControls: controls.length, checkedCenters, checkedFrameTexts, checkedSafeControls, checkedPreviewHudRects, viewport, safeInsets, frameScale, violations };
 }
