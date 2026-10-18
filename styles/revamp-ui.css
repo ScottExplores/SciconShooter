@@ -70,7 +70,8 @@
   line-height: 1.35;
   min-height: 2.7em;
 }
-@media (max-width: 390px) { #root .sci-daily-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+/* REVAMP(Q): Keep phone reward amounts on one centered line through the widest phone. */
+@media (max-width: 430px) { #root .sci-daily-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 #root .sci-reward-claim-celebration {
   position: relative;
   inset: auto;

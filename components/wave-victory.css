@@ -114,7 +114,8 @@
 .wave-victory-secondary span { color: #a9d3e1; font-size: 8px; line-height: 1.2; }
 .wave-victory-secondary strong { font-family: var(--sci-pixel-font, 'Rajdhani', sans-serif); font-size: 16px; line-height: 1.1; }
 .wave-victory-actions button:hover { filter: brightness(1.2); }
-.wave-victory-actions button:active { scale: .97; }
+/* REVAMP(Q): Press feedback must preserve the visible 44px target after iframe scaling. */
+.wave-victory-actions button:active { scale: 1; transform: none; filter: brightness(.94); }
 .wave-victory-actions button:focus-visible { outline: 2px solid #ffe55f; outline-offset: 3px; }
 .wave-victory-actions button:disabled { opacity: .5; cursor: default; }
 .wave-victory-secondary.is-home[data-guide-required='true'] { border-color: #fff4b6; box-shadow: 0 0 16px #ffe55f66; }
@@ -165,3 +166,60 @@
   .wave-victory-overlay *, .wave-victory-overlay *::before, .wave-victory-overlay *::after { animation-duration: 1ms !important; animation-delay: 0ms !important; animation-iteration-count: 1 !important; transition: none !important; }
   .result-coin-burst { display: none; }
 }
+
+/* REVAMP(Q): Source record-card-body is 343×583. Its uninterrupted dark interior
+   is x=64..279, y=94..489 (18.5,16,81.5,84%). Percent insets follow stretched art;
+   viewport height never scales the 44px controls. The original PNG is untouched. */
+.wave-victory-overlay {
+  height: 100%; max-height: 100svh; max-height: 100dvh; overflow: hidden;
+  padding: max(8px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));
+}
+.wave-victory-stage { height: 100%; max-height: 900px; min-height: 0; padding: 0; gap: 4px; }
+.wave-victory-plaque { height: clamp(110px,16svh,146px); }
+/* plaque-body is 581×282; after the 10%/19%/80% image placement its text
+   rectangle maps to x=20.5..79.5%, y=47..77.4% of the complete winged header. */
+.wave-victory-copy { inset: 47% 20.5% 22.6%; gap: 2px; }
+.wave-victory-copy h1, .wave-victory-copy h1.wave-victory-title-complete { font-size: clamp(17px,4.8vw,21px); line-height: 1.15; letter-spacing: 0; }
+.wave-victory-copy p { font-size: 8px; line-height: 1.2; letter-spacing: .035em; }
+.wave-record-shell { flex: 1 1 0; min-height: 0; margin: 0; padding: 0; }
+.wave-record-scroll { position: absolute; inset: 16% 18.5% 16%; z-index: 5; display: flex; flex-direction: column; overflow: hidden; }
+.result-scroll__viewport { min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #437e91 #081a2b; scroll-padding: 6px; }
+.result-scroll__viewport:focus-visible { outline: 1px solid #8aeaff; outline-offset: -1px; }
+.result-scroll__hint { display: none; flex: none; text-align: center; color: #b7dce8; background: #071727; border-top: 1px solid #5ab6c93a; padding: 3px 0 1px; font-size: 9px; line-height: 12px; }
+.wave-record-scroll[data-scrollable='true'] .result-scroll__hint { display: block; }
+.wave-record-content { gap: 8px; padding: 2px 3px 8px; }
+.wave-record-sector span { font-size: 17px; line-height: 1.15; }
+.wave-record-sector small { font-size: 9px; line-height: 1.3; }
+.wave-record-score > strong { font-size: 36px; line-height: 1.15; }
+.wave-record-stats { padding: 5px 0; }
+.wave-record-stats > div { padding: 0 1px; gap: 3px; }
+.wave-record-stats strong { font-size: 18px; }
+.wave-record-stats > div > span { font-size: 9px; }
+.wave-record-result-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 6px; padding: 5px 0 0; }
+.wave-record-result-grid > div { display: grid; justify-items: center; gap: 3px; min-width: 0; }
+.wave-record-result-grid > div:only-child { grid-column: 1 / -1; }
+.wave-record-result-grid strong { font-size: 13px; line-height: 1.2; overflow-wrap: anywhere; }
+.result-medal { padding: 5px 2px; }
+.result-medal__star { font-size: 24px; }
+.result-reward { display: grid; justify-items: center; gap: 3px; min-height: 68px; padding: 6px 3px; }
+.result-reward > div:not(.result-coin-burst) { width: 100%; text-align: center; }
+.result-reward__coin, .result-reward__data { position: absolute; top: 4px; right: 4px; opacity: .35; transform: scale(.6); transform-origin: top right; }
+.result-reward span { font-size: 9px; line-height: 1.35; }
+.result-reward strong { font-size: 24px; line-height: 1.2; }
+.result-unlock { padding: 6px; gap: 5px; }
+.result-unlock strong { line-height: 1.35; }
+.wave-victory-actions { flex: none; width: 94%; margin: 0; gap: 6px; }
+.wave-victory-continue, .wave-victory-secondary { animation-name: waveRecordContentIn; min-height: 46px; padding: 6px 4px; }
+.wave-victory-continue { min-height: 48px; }
+.wave-victory-continue strong { padding: 0; border: 0; }
+.wave-victory-secondary span { font-size: 9px; }
+@media (max-height: 700px) {
+  .wave-record-content { gap: 6px; }
+  .wave-record-sector span { font-size: 16px; }
+  .wave-record-score > strong { font-size: 30px; }
+  .result-medal__star { font-size: 22px; }
+  .result-reward { min-height: 57px; }
+}
+/* Desktop embeds retain the same physical tap targets after shell scaling. */
+.wave-victory-actions button { min-height: max(46px,var(--result-target-size,44px)); animation: none; }
+.wave-victory-actions .wave-victory-continue { min-height: max(48px,var(--result-target-size,44px)); }

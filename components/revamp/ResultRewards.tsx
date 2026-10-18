@@ -19,7 +19,7 @@ export const ResultMedals: React.FC<{
       const isNew = settlement?.newMedals.includes(medal.id);
       return (
         <div className={`result-medal${earned ? ' is-earned' : ''}${isNew ? ' is-new' : ''}`}
-          key={medal.id} style={{ '--reveal-delay': `${650 + index * 160}ms` } as React.CSSProperties}
+          data-ui-center="x" key={medal.id} style={{ '--reveal-delay': `${650 + index * 160}ms` } as React.CSSProperties}
           aria-label={`${medal.label}: ${medal.hint}. ${earned ? isNew ? 'New medal' : 'Earned' : 'Not earned'}`}>
           <span className="result-medal__star" aria-hidden="true">★</span>
           <strong>{medal.label}</strong>
@@ -32,26 +32,27 @@ export const ResultMedals: React.FC<{
 
 export const ResultRewards: React.FC<{
   credits: number;
+  campaignReward?: boolean;
   settlement?: RevampMissionSettlement | null;
-}> = ({ credits, settlement }) => (
+}> = ({ credits, settlement, campaignReward = false }) => (
   <section className="result-rewards" aria-label="Rewards earned">
     <div className="result-rewards__cards">
       <div className="result-reward result-reward--credits" aria-label={`${credits} Tokens earned`}>
         <i className="result-reward__coin" aria-hidden="true" />
-        <div><span>Tokens</span><strong>+<AnimatedNumber value={credits} delay={1050} duration={650} /></strong></div>
+        <div data-ui-center="x"><span>{campaignReward ? 'Campaign reward' : 'Tokens'}</span><strong>+<AnimatedNumber value={credits} delay={1050} duration={650} /></strong></div>
         <div className="result-coin-burst" aria-hidden="true">
           {Array.from({ length: 7 }, (_, index) => <i key={index} style={{ '--coin-x': `${(index - 3) * 11}px`, '--coin-delay': `${1150 + index * 55}ms` } as React.CSSProperties} />)}
         </div>
       </div>
       <div className="result-reward result-reward--data" aria-label={`${settlement?.researchAwarded ?? 0} Research Data earned`}>
         <i className="result-reward__data" aria-hidden="true">◆</i>
-        <div><span>Research Data</span><strong>+<AnimatedNumber value={settlement?.researchAwarded ?? 0} delay={1200} duration={650} /></strong></div>
+        <div data-ui-center="x"><span>Research Data</span><strong>+<AnimatedNumber value={settlement?.researchAwarded ?? 0} delay={1200} duration={650} /></strong></div>
       </div>
     </div>
     {settlement && settlement.unlocks.length > 0 ? (
       <div className="result-unlock" role="status">
         <span aria-hidden="true">✦</span>
-        <div><small>NEW DISCOVERY</small><strong>{settlement.unlocks.map(unlock => unlock.label).join(' · ')}</strong></div>
+        <div><small>NEW FRONTIER UNLOCK</small><strong>{settlement.unlocks.map(unlock => unlock.label).join(' · ')}</strong></div>
       </div>
     ) : null}
   </section>

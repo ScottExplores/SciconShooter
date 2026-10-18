@@ -7865,15 +7865,17 @@ const App: React.FC = () => {
     setUIAuditPresenting(true);
     setCampaignMapOpen(false); setMissionLoading(null); setActiveStoryBeat(null);
     setShowNameInput(false); setShowMissionRecordPreview(false); setShowWeeklyProposalSelection(false);
-    setActiveRunMode(scene === 'weekly-result' || scene === 'weekly-score-entry' ? 'weekly-streak' : 'campaign');
-    if (scene === 'victory') {
-      const fixture = createUIAuditVictory();
+    // REVAMP(Q): Stress the same result components with authored long names and boss variants.
+    setActiveRunMode(scene.startsWith('boss-') ? 'boss-archive' : scene === 'weekly-result' || scene === 'weekly-score-entry' ? 'weekly-streak' : 'campaign');
+    if (scene.startsWith('boss-')) setActiveBossEncounterId(BOSS_ARCHIVE_CATALOG[0].eventId);
+    if (['victory', 'victory-long', 'boss-result', 'campaign-complete'].includes(scene)) {
+      const fixture = createUIAuditVictory(scene);
       setWaveVictorySummary(fixture.summary); setRevampResult(fixture.revamp);
       setCampaignResultPresentation({ summaryId: fixture.summary.id, settlement: fixture.settlement, collectedCoins: fixture.summary.coinsCollected, newlyAffordableUpgrade: null });
       setGameState(GameState.WAVE_COMPLETE);
-    } else if (scene === 'defeat' || scene === 'weekly-result' || scene === 'weekly-score-entry') {
+    } else if (scene === 'defeat' || scene === 'boss-defeat' || scene === 'weekly-result' || scene === 'weekly-score-entry') {
       if (scene === 'weekly-score-entry') { setShowNameInput(true); setPlayerNameInput('MMMMMMMMMMMMMMM'); }
-      if (scene !== 'defeat') setWeeklySquadState(current => ({ ...current, weeklyCampaignStreak: createUIAuditWeekly(weeklyRun.graph) }));
+      if (scene === 'weekly-result' || scene === 'weekly-score-entry') setWeeklySquadState(current => ({ ...current, weeklyCampaignStreak: createUIAuditWeekly(weeklyRun.graph) }));
       setStats(current => ({ ...current, score: 12850, wave: 3, enemiesDefeated: 96, coins: 240, lives: 0 }));
       setGameState(GameState.GAMEOVER);
     } else if (scene === 'record-preview' || scene === 'proposal-selection') {
@@ -8468,6 +8470,8 @@ const App: React.FC = () => {
         <GameOverPresentation footer={gameOverContinueControls} campaignComplete={campaignCompletedRun}>
           {isBossArchiveRun ? (
             <div className="sci-gameover-result-content relative z-10 grid gap-3 p-2 text-center">
+              {/* REVAMP(Q): Only the summary scrolls; result actions remain in reach. */}
+              <div className="sci-gameover-result-scroll">
               <p className="font-mono text-[10px] font-black uppercase tracking-[0.18em] text-red-200">
                 Boss Archive / {activeBossArchiveRun?.difficultyId ?? 'easy'}
               </p>
@@ -8492,7 +8496,8 @@ const App: React.FC = () => {
               <p className="text-xs font-semibold text-slate-300">
                 This fight used one daily charge and does not affect the weekly leaderboard.
               </p>
-              <div className="grid gap-2">
+              </div>
+              <div className="sci-gameover-result-dock grid gap-2" data-ui-min-target="44">
                 <button
                   type="button"
                   onClick={() => activeBossReplay && startBossArchiveFight(activeBossReplay, {
@@ -8515,6 +8520,8 @@ const App: React.FC = () => {
             </div>
           ) : isCampaignBranchRun ? (
             <div className="sci-gameover-result-content relative z-10 grid gap-3 p-2 text-center">
+              {/* REVAMP(Q): Only the summary scrolls; result actions remain in reach. */}
+              <div className="sci-gameover-result-scroll">
               <p className="font-mono text-[10px] font-black uppercase tracking-[0.18em] text-cyan-200">
                 Optional Mastery Route
               </p>
@@ -8529,7 +8536,8 @@ const App: React.FC = () => {
                   Provisional Tokens were discarded. This optional route remains available and your main Mission checkpoint was not changed.
                 </p>
               </div>
-              <div className="grid gap-2">
+              </div>
+              <div className="sci-gameover-result-dock grid gap-2" data-ui-min-target="44">
                 <PixelActionButton tone="green" ready shine onClick={retryGame} className="min-h-11 w-full">
                   Retry Supply Drop
                 </PixelActionButton>
@@ -8540,6 +8548,8 @@ const App: React.FC = () => {
             </div>
           ) : (
             <div className="sci-gameover-result-content relative z-10 grid gap-2 p-1 text-center">
+              {/* REVAMP(Q): Keep the submission form and navigation visible on short phones. */}
+              <div className="sci-gameover-result-scroll">
               {weeklyRunResultSummary ? (
                 <div className="sci-weekly-run-result">
                   <p className="sci-weekly-run-result__eyebrow">Weekly Run</p>
@@ -8566,6 +8576,8 @@ const App: React.FC = () => {
               ) : null}
               {weeklyRunResultSummary ? null : missionResultBanner}
 
+              </div>
+              <div className="sci-gameover-result-dock" data-ui-min-target="44">
               {showNameInput && !isPreviewMode() ? (
                 <>
                   <form onSubmit={submitScore} className="grid gap-2">
@@ -8640,6 +8652,7 @@ const App: React.FC = () => {
                   </div>
                 </>
               )}
+              </div>
             </div>
           )}
         </GameOverPresentation>

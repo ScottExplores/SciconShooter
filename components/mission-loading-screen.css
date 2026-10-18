@@ -231,7 +231,8 @@
   border: 0;
   border-left: 1px solid rgba(140, 219, 237, 0.25);
   background: transparent;
-  padding: 0 0 0 0.65rem;
+  /* REVAMP(Q): Keep the divider gap while centering the label in its tap box. */
+  padding: 0 0.325rem;
   color: rgba(199, 230, 239, 0.58);
   font: 800 0.5rem/1.4 "Rajdhani", ui-sans-serif, sans-serif;
   flex-shrink: 0;

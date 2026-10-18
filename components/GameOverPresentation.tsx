@@ -1,4 +1,6 @@
 import React from 'react';
+import { FrameEffects } from './revamp/FrameEffects';
+import { useResultViewport } from './revamp/useResultViewport';
 import './game-over-presentation.css';
 
 interface GameOverPresentationProps {
@@ -10,12 +12,14 @@ interface GameOverPresentationProps {
 const DEFEATED_ROOT = '/game-art/generated/ui/animations/defeated-banner/parts';
 const RESULT_FRAME = '/game-art/generated/ui/scicon-game-over-panel-v1/scicon-game-over-panel-tall.png';
 
-const GameOverPresentation: React.FC<GameOverPresentationProps> = ({ children, footer, campaignComplete = false }) => (
-  <div className={`sci-gameover-overlay${campaignComplete ? ' sci-gameover-overlay--complete' : ''}`}>
+const GameOverPresentation: React.FC<GameOverPresentationProps> = ({ children, footer, campaignComplete = false }) => {
+  const viewportStyle = useResultViewport();
+  return (
+  <div className={`sci-gameover-overlay${campaignComplete ? ' sci-gameover-overlay--complete' : ''}`} style={viewportStyle}>
     <div className="sci-gameover-backdrop" aria-hidden="true"></div>
 
     <main className="sci-gameover-stage" aria-label={campaignComplete ? 'Campaign complete' : 'Mission defeated'}>
-      <div className="sci-defeated-banner" role="status" aria-live="assertive" aria-label={campaignComplete ? 'Campaign complete' : 'Mission defeated'}>
+      <div className="sci-defeated-banner" data-frame-inner-rect="27 18 73 66" role="status" aria-live="assertive" aria-label={campaignComplete ? 'Campaign complete' : 'Mission defeated'}>
         <img className="sci-defeated-banner__plaque" src={`${DEFEATED_ROOT}/scicon-defeated-plaque.png`} alt="" />
         <img className="sci-defeated-banner__wing sci-defeated-banner__wing--left" src={`${DEFEATED_ROOT}/scicon-defeated-wing-left.png`} alt="" />
         <img className="sci-defeated-banner__wing sci-defeated-banner__wing--right" src={`${DEFEATED_ROOT}/scicon-defeated-wing-right.png`} alt="" />
@@ -28,17 +32,20 @@ const GameOverPresentation: React.FC<GameOverPresentationProps> = ({ children, f
 
       <section className="sci-gameover-window-deploy" aria-label="Mission result">
         <div className="sci-gameover-window-hover">
-          <div className="sci-gameover-window">
+          {/* REVAMP(Q): Measured 768×1024 art interior, clear of the inset side rotors. */}
+          <div className="sci-gameover-window" data-frame-inner-rect="19 13 81 87">
             <img className="sci-gameover-window__frame" src={RESULT_FRAME} alt="" aria-hidden="true" />
+            <FrameEffects variant="defeat" art={RESULT_FRAME} />
             <div className="sci-gameover-window__rail" aria-hidden="true"></div>
             <div className="sci-gameover-window__content">{children}</div>
           </div>
         </div>
       </section>
 
-      {footer ? <div className="sci-gameover-footer">{footer}</div> : null}
+      {footer ? <div className="sci-gameover-footer" data-ui-min-target="44">{footer}</div> : null}
     </main>
   </div>
-);
+  );
+};
 
 export default GameOverPresentation;
