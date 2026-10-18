@@ -6,7 +6,7 @@ const XML_ENTITIES = Object.freeze({
   '"': '&quot;'
 });
 
-export const RECORD_CARD_RENDER_VERSION = '2026-08-02-token-1';
+export const RECORD_CARD_RENDER_VERSION = '2026-10-17-text-fit-2';
 
 const buildShipQuery = (playerShipId) => (
   playerShipId ? `&ship=${encodeURIComponent(String(playerShipId))}` : ''
@@ -262,6 +262,44 @@ const imageTransform = (region) => {
   return ` transform="rotate(${region.rotation} ${centerX} ${centerY})"`;
 };
 
+// REVAMP(H): SVGs render in images as well as the browser, so use an explicit
+// text length instead of depending on a DOM measurement or a particular font.
+// The advance estimate keeps normal copy close to Arial Bold's natural width;
+// textLength is the final, renderer-independent boundary for long user content.
+export const fitRecordCardText = (value, maxWidth, maxFontSize, letterSpacing = 0) => {
+  const characters = Array.from(String(value));
+  const advances = characters.reduce((total, character) => total + (
+    /[MW@%]/.test(character) ? 0.9
+      : /[mw]/.test(character) ? 0.8
+        : /[ilI1|.,:;'! ]/.test(character) ? 0.3
+          : /[A-Z]/.test(character) ? 0.7
+            : /[a-z0-9]/.test(character) ? 0.56 : 1
+  ), 0);
+  const naturalWidth = advances * maxFontSize + Math.max(0, characters.length - 1) * letterSpacing;
+  const scale = Math.min(1, maxWidth / Math.max(1, naturalWidth));
+  return {
+    fontSize: Number((maxFontSize * scale).toFixed(2)),
+    textLength: Number(Math.min(maxWidth, naturalWidth).toFixed(2))
+  };
+};
+
+const RECORD_TEXT_BOUNDS = Object.freeze({
+  title: [190, 218, 820, 72], subtitle: [190, 286, 820, 42],
+  'encounter-label': [650, 548, 350, 40], encounter: [650, 588, 350, 52], integrity: [650, 642, 350, 46],
+  'callsign-label': [190, 736, 390, 42], callsign: [190, 778, 390, 70],
+  'score-label': [620, 736, 390, 42], score: [620, 768, 390, 80],
+  'wave-label': [206, 872, 158, 36], wave: [206, 906, 158, 54],
+  'targets-label': [416, 872, 158, 36], targets: [416, 906, 158, 54],
+  'coins-label': [626, 872, 158, 36], coins: [626, 906, 158, 54],
+  'flight-label': [836, 872, 158, 36], flight: [836, 906, 158, 54],
+  footer: [190, 978, 820, 34]
+});
+
+const fittedTextAttributes = (key, value, maxWidth, maxFontSize, letterSpacing = 0) => {
+  const fit = fitRecordCardText(value, maxWidth, maxFontSize, letterSpacing);
+  return `data-record-text="${key}" data-ui-text-bounds="${RECORD_TEXT_BOUNDS[key].join(',')}" textLength="${fit.textLength}" lengthAdjust="spacingAndGlyphs" font-size="${fit.fontSize}"`;
+};
+
 /**
  * Produces the canonical Scicon mission-record SVG with no I/O or runtime state.
  * Callers resolve/embed image URLs before invoking this function.
@@ -281,12 +319,14 @@ export const renderRecordCardSvg = ({
   const targetsDefeated = nonNegativeInteger(record.targetsDefeated);
   const coinsCollected = nonNegativeInteger(record.coinsCollected);
   const pilotName = String(record.pilotName || 'PILOT').slice(0, 15);
-  const encounterLabel = String(record.encounter || 'UNKNOWN SECTOR').slice(0, 24);
+  const encounterLabel = String(record.encounter || 'UNKNOWN SECTOR');
   const pilotFontSize = pilotName.length > 12 ? 42 : pilotName.length > 9 ? 48 : 54;
   const encounterFontSize = encounterLabel.length > 20 ? 30 : encounterLabel.length > 16 ? 34 : 38;
   const durationLabel = String(record.durationLabel || '0:00').slice(0, 8);
   const completedLabel = String(record.completedLabel || 'VERIFIED RUN').slice(0, 34);
   const gameVersion = String(record.gameVersion || 'UNKNOWN').slice(0, 12);
+  const scoreLabel = score.toLocaleString('en-US');
+  const footerLabel = `${completedLabel}  //  SCICON V${gameVersion}`;
   const integrityLabel = record.integrity === 'server-verified'
     ? copy.verifiedLabel
     : copy.reviewLabel;
@@ -331,30 +371,30 @@ export const renderRecordCardSvg = ({
       <path d="M150 190H1050L1070 210V1000L1050 1020H150L130 1000V210Z" fill="url(#panel)" stroke="${colors.primary}" stroke-opacity=".48" stroke-width="4"/>
       <path d="M168 218H1032" stroke="${colors.warning}" stroke-opacity=".55" stroke-width="4"/>
 
-      <text x="600" y="274" text-anchor="middle" fill="${colors.text}" font-family="Arial, sans-serif" font-size="58" font-weight="900" letter-spacing="7">${escapeRecordCardXml(copy.title)}</text>
-      <text x="600" y="312" text-anchor="middle" fill="${colors.primary}" font-family="Arial, sans-serif" font-size="22" font-weight="700" letter-spacing="6">${escapeRecordCardXml(copy.subtitle)}</text>
+      <text x="600" y="274" text-anchor="middle" fill="${colors.text}" font-family="Arial, sans-serif" ${fittedTextAttributes('title', copy.title, 820, 58, 7)} font-weight="900" letter-spacing="7">${escapeRecordCardXml(copy.title)}</text>
+      <text x="600" y="312" text-anchor="middle" fill="${colors.primary}" font-family="Arial, sans-serif" ${fittedTextAttributes('subtitle', copy.subtitle, 820, 22, 6)} font-weight="700" letter-spacing="6">${escapeRecordCardXml(copy.subtitle)}</text>
 
       <rect x="170" y="338" width="860" height="368" rx="10" fill="#020817" fill-opacity=".88" stroke="${colors.primary}" stroke-opacity=".55" stroke-width="3"/>
       <path d="M170 408L240 338H170ZM1030 408L960 338H1030Z" fill="${colors.warning}" opacity=".72"/>
       ${encounterArt}
       ${shipArt}
-      <text x="650" y="578" fill="${colors.muted}" font-family="Arial, sans-serif" font-size="24" font-weight="700" letter-spacing="4">ENCOUNTER</text>
-      <text x="650" y="628" fill="${colors.text}" font-family="Arial, sans-serif" font-size="${encounterFontSize}" font-weight="900">${escapeRecordCardXml(encounterLabel)}</text>
-      ${integrityLabel ? `<text x="650" y="674" fill="${colors.success}" font-family="Arial, sans-serif" font-size="22" font-weight="700" letter-spacing="3">${escapeRecordCardXml(integrityLabel)}</text>` : ''}
+      <text x="650" y="578" fill="${colors.muted}" font-family="Arial, sans-serif" ${fittedTextAttributes('encounter-label', 'ENCOUNTER', 350, 24, 4)} font-weight="700" letter-spacing="4">ENCOUNTER</text>
+      <text x="650" y="628" fill="${colors.text}" font-family="Arial, sans-serif" ${fittedTextAttributes('encounter', encounterLabel, 350, encounterFontSize)} font-weight="900">${escapeRecordCardXml(encounterLabel)}</text>
+      ${integrityLabel ? `<text x="650" y="674" fill="${colors.success}" font-family="Arial, sans-serif" ${fittedTextAttributes('integrity', integrityLabel, 350, 22, 3)} font-weight="700" letter-spacing="3">${escapeRecordCardXml(integrityLabel)}</text>` : ''}
 
       <path d="M170 734H1030" stroke="${colors.primary}" stroke-opacity=".25" stroke-width="2"/>
-      <text x="190" y="775" fill="${colors.muted}" font-family="Arial, sans-serif" font-size="22" font-weight="700" letter-spacing="4">${escapeRecordCardXml(copy.callsignLabel)}</text>
-      <text x="190" y="832" fill="${colors.text}" font-family="Arial, sans-serif" font-size="${pilotFontSize}" font-weight="900">${escapeRecordCardXml(pilotName)}</text>
-      <text x="1010" y="775" text-anchor="end" fill="${colors.muted}" font-family="Arial, sans-serif" font-size="22" font-weight="700" letter-spacing="4">${escapeRecordCardXml(copy.scoreLabel)}</text>
-      <text x="1010" y="836" text-anchor="end" fill="#fef08a" font-family="Arial, sans-serif" font-size="66" font-weight="900">${escapeRecordCardXml(score.toLocaleString('en-US'))}</text>
+      <text x="190" y="765" fill="${colors.muted}" font-family="Arial, sans-serif" ${fittedTextAttributes('callsign-label', copy.callsignLabel, 390, 22, 4)} font-weight="700" letter-spacing="4">${escapeRecordCardXml(copy.callsignLabel)}</text>
+      <text x="190" y="832" fill="${colors.text}" font-family="Arial, sans-serif" ${fittedTextAttributes('callsign', pilotName, 390, pilotFontSize)} font-weight="900">${escapeRecordCardXml(pilotName)}</text>
+      <text x="1010" y="765" text-anchor="end" fill="${colors.muted}" font-family="Arial, sans-serif" ${fittedTextAttributes('score-label', copy.scoreLabel, 390, 22, 4)} font-weight="700" letter-spacing="4">${escapeRecordCardXml(copy.scoreLabel)}</text>
+      <text x="1010" y="836" text-anchor="end" fill="#fef08a" font-family="Arial, sans-serif" ${fittedTextAttributes('score', scoreLabel, 390, 66)} font-weight="900">${escapeRecordCardXml(scoreLabel)}</text>
 
       <g font-family="Arial, sans-serif">
-        <rect x="190" y="856" width="190" height="112" rx="8" fill="${colors.background}" fill-opacity=".7" stroke="${colors.primary}" stroke-opacity=".4"/><text x="285" y="899" text-anchor="middle" fill="${colors.muted}" font-size="20" font-weight="700" letter-spacing="3">${escapeRecordCardXml(copy.metricLabels.wave)}</text><text x="285" y="949" text-anchor="middle" fill="${colors.primary}" font-size="40" font-weight="900">${wave}</text>
-        <rect x="400" y="856" width="190" height="112" rx="8" fill="${colors.background}" fill-opacity=".7" stroke="${colors.success}" stroke-opacity=".4"/><text x="495" y="899" text-anchor="middle" fill="${colors.muted}" font-size="20" font-weight="700" letter-spacing="3">${escapeRecordCardXml(copy.metricLabels.targets)}</text><text x="495" y="949" text-anchor="middle" fill="${colors.success}" font-size="40" font-weight="900">${targetsDefeated}</text>
-        <rect x="610" y="856" width="190" height="112" rx="8" fill="${colors.background}" fill-opacity=".7" stroke="${colors.warning}" stroke-opacity=".4"/><text x="705" y="899" text-anchor="middle" fill="${colors.muted}" font-size="20" font-weight="700" letter-spacing="3">${escapeRecordCardXml(copy.metricLabels.coins)}</text><text x="705" y="949" text-anchor="middle" fill="#fef08a" font-size="40" font-weight="900">${coinsCollected}</text>
-        <rect x="820" y="856" width="190" height="112" rx="8" fill="${colors.background}" fill-opacity=".7" stroke="${colors.text}" stroke-opacity=".28"/><text x="915" y="899" text-anchor="middle" fill="${colors.muted}" font-size="20" font-weight="700" letter-spacing="3">${escapeRecordCardXml(copy.metricLabels.flight)}</text><text x="915" y="949" text-anchor="middle" fill="${colors.text}" font-size="40" font-weight="900">${escapeRecordCardXml(durationLabel)}</text>
+        <rect x="190" y="856" width="190" height="112" rx="8" fill="${colors.background}" fill-opacity=".7" stroke="${colors.primary}" stroke-opacity=".4"/><text x="285" y="899" text-anchor="middle" fill="${colors.muted}" ${fittedTextAttributes('wave-label', copy.metricLabels.wave, 158, 20, 3)} font-weight="700" letter-spacing="3">${escapeRecordCardXml(copy.metricLabels.wave)}</text><text x="285" y="949" text-anchor="middle" fill="${colors.primary}" ${fittedTextAttributes('wave', wave, 158, 40)} font-weight="900">${wave}</text>
+        <rect x="400" y="856" width="190" height="112" rx="8" fill="${colors.background}" fill-opacity=".7" stroke="${colors.success}" stroke-opacity=".4"/><text x="495" y="899" text-anchor="middle" fill="${colors.muted}" ${fittedTextAttributes('targets-label', copy.metricLabels.targets, 158, 20, 3)} font-weight="700" letter-spacing="3">${escapeRecordCardXml(copy.metricLabels.targets)}</text><text x="495" y="949" text-anchor="middle" fill="${colors.success}" ${fittedTextAttributes('targets', targetsDefeated, 158, 40)} font-weight="900">${targetsDefeated}</text>
+        <rect x="610" y="856" width="190" height="112" rx="8" fill="${colors.background}" fill-opacity=".7" stroke="${colors.warning}" stroke-opacity=".4"/><text x="705" y="899" text-anchor="middle" fill="${colors.muted}" ${fittedTextAttributes('coins-label', copy.metricLabels.coins, 158, 20, 3)} font-weight="700" letter-spacing="3">${escapeRecordCardXml(copy.metricLabels.coins)}</text><text x="705" y="949" text-anchor="middle" fill="#fef08a" ${fittedTextAttributes('coins', coinsCollected, 158, 40)} font-weight="900">${coinsCollected}</text>
+        <rect x="820" y="856" width="190" height="112" rx="8" fill="${colors.background}" fill-opacity=".7" stroke="${colors.text}" stroke-opacity=".28"/><text x="915" y="899" text-anchor="middle" fill="${colors.muted}" ${fittedTextAttributes('flight-label', copy.metricLabels.flight, 158, 20, 3)} font-weight="700" letter-spacing="3">${escapeRecordCardXml(copy.metricLabels.flight)}</text><text x="915" y="949" text-anchor="middle" fill="${colors.text}" ${fittedTextAttributes('flight', durationLabel, 158, 40)} font-weight="900">${escapeRecordCardXml(durationLabel)}</text>
       </g>
-      <text x="600" y="1005" text-anchor="middle" fill="${colors.muted}" font-family="Arial, sans-serif" font-size="17" font-weight="700" letter-spacing="1.5">${escapeRecordCardXml(completedLabel)}  //  SCICON V${escapeRecordCardXml(gameVersion)}</text>
+      <text x="600" y="1005" text-anchor="middle" fill="${colors.muted}" font-family="Arial, sans-serif" ${fittedTextAttributes('footer', footerLabel, 820, 17, 1.5)} font-weight="700" letter-spacing="1.5">${escapeRecordCardXml(footerLabel)}</text>
       ${frameArt}
     </svg>`;
 };

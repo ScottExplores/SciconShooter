@@ -149,7 +149,7 @@
   font-size: clamp(1.02rem, 5vw, 1.34rem);
   font-weight: 900;
   letter-spacing: 0;
-  line-height: 1;
+  line-height: 1.25;
   text-transform: uppercase;
   text-shadow: 0 0 14px rgba(34, 211, 238, 0.45);
 }
@@ -502,7 +502,7 @@
 
 .sci-pause-track {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(9rem, 1.45fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: center;
   gap: 0.55rem;
   min-height: 2.75rem;
@@ -514,7 +514,7 @@
   color: #bae6fd;
   clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
   font-family: 'Orbitron', ui-sans-serif, system-ui, sans-serif;
-  font-size: 0.48rem;
+  font-size: 0.65rem;
   font-weight: 850;
   letter-spacing: 0.055em;
   text-transform: uppercase;
@@ -522,10 +522,10 @@
 
 .sci-pause-track__stepper {
   display: grid;
-  grid-template-columns: 2rem minmax(0, 1fr) 2rem;
+  grid-template-columns: 2.75rem minmax(0, 1fr) 2.75rem;
   align-items: stretch;
   min-width: 0;
-  height: 2rem;
+  min-height: 2.75rem;
 }
 
 .sci-pause-track__stepper output {
@@ -536,15 +536,18 @@
   border-block: 1px solid rgba(103, 232, 249, 0.46);
   border-radius: 0;
   padding: 0 0.3rem;
-  overflow: hidden;
+  overflow: visible;
   background:
     linear-gradient(180deg, rgba(14, 116, 144, 0.38), rgba(3, 19, 38, 0.96));
   color: #ecfeff;
   font: inherit;
-  font-size: 0.47rem;
+  font-size: 0.65rem;
   text-overflow: ellipsis;
   text-transform: uppercase;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: center;
+  line-height: 1.4;
 }
 
 .sci-pause-track__stepper button {
@@ -649,7 +652,7 @@
   }
 
   .sci-pause-track {
-    grid-template-columns: minmax(0, 0.72fr) minmax(8.2rem, 1.28fr);
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

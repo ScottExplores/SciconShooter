@@ -68,7 +68,9 @@ const DesktopMobileLaunchShell: React.FC<DesktopMobileLaunchShellProps> = ({ chi
   const [playHereSelected, setPlayHereSelected] = useState(readPlayHereSession);
   const [frameScale, setFrameScale] = useState(() => resolveMobileFrameScale(
     window.innerWidth,
-    window.visualViewport?.height ?? window.innerHeight
+    window.visualViewport?.height ?? window.innerHeight,
+    48,
+    64 // REVAMP(H): reserve visible space for the caption above the phone frame.
   ));
   const frameUrl = useMemo(() => buildMobileFrameUrl(window.location.href), []);
   const useDesktopShell = shouldUseDesktopLaunchShell({
@@ -92,7 +94,9 @@ const DesktopMobileLaunchShell: React.FC<DesktopMobileLaunchShellProps> = ({ chi
 
     const updateScale = () => setFrameScale(resolveMobileFrameScale(
       window.innerWidth,
-      window.visualViewport?.height ?? window.innerHeight
+      window.visualViewport?.height ?? window.innerHeight,
+      48,
+      64 // REVAMP(H): keep the caption inside the desktop viewport after resizing.
     ));
     updateScale();
     window.addEventListener('resize', updateScale, { passive: true });
@@ -121,11 +125,12 @@ const DesktopMobileLaunchShell: React.FC<DesktopMobileLaunchShellProps> = ({ chi
       <div className="scicon-desktop-mobile-launch__shade" aria-hidden="true" />
 
       {playHereSelected ? (
-        <section className="scicon-desktop-mobile-launch__play-area" aria-label="Scicon Shooter mobile game frame">
-          <div className="scicon-desktop-mobile-launch__frame" style={frameStyle}>
-            <span className="scicon-desktop-mobile-launch__frame-label" aria-hidden="true">
-              Mobile flight deck / 390 x 844
-            </span>
+        <section className="scicon-desktop-mobile-launch__play-area" style={frameStyle} aria-label="Scicon Shooter mobile game frame">
+          {/* REVAMP(H): The caption has its own space outside the bordered game surface. */}
+          <span className="scicon-desktop-mobile-launch__frame-label" aria-hidden="true">
+            Mobile flight deck / 390 x 844
+          </span>
+          <div className="scicon-desktop-mobile-launch__frame">
             <iframe
               className="scicon-desktop-mobile-launch__iframe"
               src={frameUrl}

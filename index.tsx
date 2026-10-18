@@ -3,6 +3,8 @@ import './services/revamp/qa/storage';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './styles/tailwind.generated.css';
+// REVAMP(H): Shared pixel typography and reduced-motion-aware menu animation.
+import './styles/revamp-ui.css';
 import App from './App';
 import DesktopMobileLaunchShell from './components/DesktopMobileLaunchShell';
 import AppErrorBoundary from './components/AppErrorBoundary';

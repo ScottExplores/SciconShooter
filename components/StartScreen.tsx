@@ -1,3 +1,6 @@
+// REVAMP(H): Compact branding and rewards stay in the hero's normal flow.
+import HomeFlightDeckBrand from './revamp/HomeFlightDeckBrand';
+import '../styles/revamp-layout.css';
 import WeeklyCompetitionCard from './revamp/WeeklyCompetitionCard';
 import SignalsPanel from './revamp/SignalsPanel';
 import { isPreviewMode } from '../services/revamp/preview/previewMode';
@@ -420,6 +423,9 @@ const FirstPlaceLivingRow = ({
       disabled={!recordAvailable}
       aria-label={entry ? `${entry.name}, first place with ${formatNumber(entry.score)} points` : 'First place is open'}
     >
+      {/* REVAMP(H): Keep the short score inside the painted plaque; long research copy gets its own row. */}
+      <span className="sci-first-place-row__rank"><strong>1</strong><small>Champion</small></span>
+      <span className="sci-first-place-row__plaque">
       <img className="sci-first-place-row__base" src={podiumRowAssets.first} alt="" aria-hidden="true" />
       <span className="sci-first-place-row__machinery" aria-hidden="true">
         <img className="sci-first-place-turbine sci-first-place-turbine--left" src={`${FIRST_PLACE_ANIMATION_ROOT}/first-place-turbine-housing.png`} alt="" />
@@ -449,14 +455,14 @@ const FirstPlaceLivingRow = ({
         <img className="sci-first-place-spark" src={`${FIRST_PLACE_ANIMATION_ROOT}/first-place-pixel-spark.png`} alt="" />
         <img className="sci-first-place-gold-pixels" src={`${FIRST_PLACE_ANIMATION_ROOT}/first-place-gold-pixels.png`} alt="" />
       </span>
-      <span className="sci-first-place-row__content">
-        <span className="sci-first-place-row__rank"><strong>1</strong><small>Champion</small></span>
+      <span className="sci-first-place-row__content" data-ui-panel>
         <span className="sci-first-place-row__identity">
           <strong>{entry?.name ?? 'First place open'}</strong>
-          <small>{entry ? (entry.proposalTitle ?? `Mission ${entry.wave ?? '-'}`) : 'Be the first pilot on the board'}</small>
         </span>
         <span className="sci-first-place-row__score"><strong>{formatNumber(entry?.score)}</strong><small>Points</small></span>
       </span>
+      </span>
+      <span className="sci-first-place-row__proposal">{entry ? (entry.proposalTitle ?? `Mission ${entry.wave ?? '-'}`) : 'Be the first pilot on the board'}</span>
     </button>
   );
 };
@@ -1282,26 +1288,9 @@ const StartScreen: React.FC<StartScreenProps> = ({
       </div>
 
       <div className={`sci-hero-content relative z-10 flex h-full min-h-[inherit] flex-col items-center justify-between px-4 text-center ${compact ? 'sci-hero-content--compact gap-1 py-2' : 'gap-6 py-7 md:px-8 md:py-10'}`}>
-        {/* The wordmark and tagline are pure branding. On a phone that is the
-            most valuable real estate on the screen, so the flight deck gives it
-            to the ship, the Weekly Run, and Start Mission instead. The document
-            title still names the game for assistive tech. */}
-        {compact ? null : (
-          <div className="sci-hero-brand flex flex-col items-center space-y-3 text-center">
-            <div className="mx-auto flex w-fit items-center gap-3 text-yellow-200/90">
-              <span className="h-px w-14 bg-gradient-to-r from-transparent to-yellow-200/80" />
-              <span className="h-2 w-16 skew-x-[-28deg] bg-gradient-to-r from-yellow-500 via-yellow-200 to-yellow-500 shadow-[0_0_18px_rgba(250,204,21,0.45)]" />
-              <span className="h-px w-14 bg-gradient-to-l from-transparent to-yellow-200/80" />
-            </div>
-            <div className="scicon-hero-title text-[3.2rem] md:text-[5rem] xl:text-[6.1rem]">
-              <span>Scicon</span>
-              <span>Shooter</span>
-            </div>
-            <p className="mx-auto max-w-xl text-xs font-bold uppercase text-cyan-50/85 md:text-sm">
-              Fund research. Upgrade science. Win together.
-            </p>
-          </div>
-        )}
+        <HomeFlightDeckBrand compact={compact} giftAvailable={dailyGiftStatus.isAvailable}
+          achievementCount={claimableAchievementCount} rewardsOpen={showRewardCenter}
+          onOpenRewards={() => openRewardCenter(!dailyGiftStatus.isAvailable && claimableAchievementCount > 0 ? 'achievements' : 'daily')} />
 
         <div
           data-onboarding-target="home-flight-deck"
@@ -1584,7 +1573,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
                     <span className="sci-weekly-live-dot" />
                     <span className="text-[0.62rem] font-black uppercase text-emerald-200">Weekly high score</span>
                   </span>
-                  <span className="mt-2 grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+                  <span className="sci-weekly-leader-summary mt-2 grid grid-cols-[minmax(0,1fr)_auto] gap-2">
                     <span className="min-w-0">
                       <span className="block truncate text-base font-black text-white">{weeklyLeaderName}</span>
                       <span className="block text-[0.66rem] font-bold uppercase text-slate-400">Current #1 pilot</span>
@@ -1671,13 +1660,13 @@ const StartScreen: React.FC<StartScreenProps> = ({
                 aria-label="Show weekly leader"
                 aria-pressed={weeklyWinnerSlide === 'pilot'}
                 onClick={() => setWeeklyWinnerSlide('pilot')}
-              />
+              >Leader</button>
               <button
                 type="button"
                 aria-label="Show selected proposal"
                 aria-pressed={weeklyWinnerSlide === 'proposal'}
                 onClick={() => setWeeklyWinnerSlide('proposal')}
-              />
+              >Research</button>
             </div>
           ) : null}
         </div>
@@ -2274,8 +2263,9 @@ const StartScreen: React.FC<StartScreenProps> = ({
       );
     }
     if (dashboardTab === 'proposals') return renderProposalsDashboard();
-    if (dashboardTab === 'trophies') return <TrophiesDashboard />;
-    if (dashboardTab === 'more') return <AboutDashboard />;
+    // REVAMP(H): Keep scroll/focus stable across the minute clock refresh.
+    if (dashboardTab === 'trophies') return TrophiesDashboard();
+    if (dashboardTab === 'more') return AboutDashboard();
 
     return (
       <div className="scicon-mobile-home flex min-h-full flex-col gap-2">
@@ -2321,8 +2311,9 @@ const StartScreen: React.FC<StartScreenProps> = ({
       );
     }
     if (dashboardTab === 'proposals') return renderProposalsDashboard();
-    if (dashboardTab === 'trophies') return <TrophiesDashboard />;
-    if (dashboardTab === 'more') return <AboutDashboard />;
+    // REVAMP(H): Keep scroll/focus stable across the minute clock refresh.
+    if (dashboardTab === 'trophies') return TrophiesDashboard();
+    if (dashboardTab === 'more') return AboutDashboard();
     return null;
   };
 
@@ -2350,42 +2341,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
         <div className="scicon-home-backdrop__pixel-fade" />
       </div>
 
-      {dashboardTab === 'home' ? (
-        <button
-          type="button"
-          className={[
-            'sci-reward-edge-trigger',
-            dailyGiftStatus.isAvailable ? 'sci-reward-edge-trigger--claimable' : 'sci-reward-edge-trigger--collapsed',
-            !dailyGiftStatus.isAvailable && claimableAchievementCount > 0
-              ? 'sci-reward-edge-trigger--achievement-ready'
-              : ''
-          ].filter(Boolean).join(' ')}
-          data-onboarding-target="rewards-open"
-          onClick={() => openRewardCenter(
-            !dailyGiftStatus.isAvailable && claimableAchievementCount > 0 ? 'achievements' : 'daily'
-          )}
-          aria-label={dailyGiftStatus.isAvailable
-            ? 'Claim daily gift'
-            : claimableAchievementCount > 0
-              ? `${claimableAchievementCount} achievement ${claimableAchievementCount === 1 ? 'reward' : 'rewards'} ready`
-              : 'Open reward center'}
-          aria-controls="reward-center"
-          aria-expanded={showRewardCenter}
-        >
-          <img
-            src={dailyGiftStatus.isAvailable
-              ? `${DASHBOARD_ICON_ROOT}/selected/weekly-calendar-selected.png`
-              : REWARD_EDGE_ARROW}
-            alt=""
-          />
-          {dailyGiftStatus.isAvailable ? <span>Daily gift</span> : null}
-          {!dailyGiftStatus.isAvailable && claimableAchievementCount > 0 ? (
-            <span className="sci-reward-edge-trigger__count" aria-hidden="true">
-              {claimableAchievementCount > 9 ? '9+' : claimableAchievementCount}
-            </span>
-          ) : null}
-        </button>
-      ) : null}
+
 
       {showWeeklyProposalReminder && weeklyProposalRecovery ? (
         <div className="sci-weekly-proposal-reminder-backdrop" role="presentation">
@@ -2495,7 +2451,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
         <main
           className="scicon-mobile-main flex min-h-0 flex-1 flex-col overflow-hidden lg:hidden"
         >
-          <div className="scicon-mobile-scroll min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-px custom-scrollbar">
+          {/* REVAMP(H): Remount only the selected menu to replay its entrance. */}
+          <div key={dashboardTab} data-ui-screen={dashboardTab} className="scicon-mobile-scroll min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-px custom-scrollbar">
             {renderMobileDashboardContent()}
           </div>
           {renderDashboardNav({ docked: true })}
@@ -2519,7 +2476,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
             <div className="flex items-center justify-between gap-3 border-b border-cyan-200/15 px-4 py-3">
               <div className="min-w-0">
                 <p className="font-mono text-[0.62rem] font-black uppercase tracking-[0.18em] text-cyan-200">Leaderboard Record</p>
-                <h2 id="leaderboard-record-title" className="truncate text-lg font-black text-white">
+                <h2 id="leaderboard-record-title" className="break-words text-lg font-black text-white">
                   {selectedLeaderboardRecord.name} / {formatNumber(selectedLeaderboardRecord.score)}
                 </h2>
               </div>
@@ -2563,10 +2520,11 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
       {showTreasury && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-[8px] border border-cyan-300/25 bg-slate-950 p-5 shadow-[0_0_40px_rgba(34,211,238,0.22)]">
+          {/* REVAMP(H): name the modal so assistive technology and UI audits use its active panel. */}
+          <div role="dialog" aria-modal="true" aria-labelledby="treasury-dialog-title" className="max-h-[calc(100svh-2rem)] w-full max-w-lg overflow-y-auto rounded-[8px] border border-cyan-300/25 bg-slate-950 p-5 shadow-[0_0_40px_rgba(34,211,238,0.22)]">
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-black text-white">Research Treasury</h2>
+                <h2 id="treasury-dialog-title" className="text-xl font-black text-white">Research Treasury</h2>
                 <p className="text-sm text-slate-300">Base address for funding flow tests.</p>
               </div>
               <button type="button" onClick={() => setShowTreasury(false)} className="sci-icon-button" aria-label="Close treasury">

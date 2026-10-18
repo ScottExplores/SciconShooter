@@ -15,6 +15,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 // REVAMP(F): Query-only launch helpers keep QA in the real campaign runtime.
 import { readQAConfig } from './services/revamp/qa/config';
 import { useQAMissionLaunch } from './services/revamp/qa/launch';
+// REVAMP(H): Presentation-only QA bridge; requires both qa=1 and uiAudit=1.
+import { AnimatedNumber } from './components/revamp/UiMotion';
+import { useUIAuditBridge, createUIAuditVictory, createUIAuditWeekly, createUIAuditReceipt, uiAuditStory, uiAuditVaultStory } from './services/revamp/qa/ui';
 import type { Address } from 'viem';
 import StartScreen from './components/StartScreen';
 import SciconOnboarding, { type OnboardingSurface } from './components/SciconOnboarding';
@@ -748,6 +751,7 @@ const RESUME_COUNTDOWN_STEP_MS = 1_000;
 const App: React.FC = () => {
   const [initialWalletAddress] = useState<Address | null>(readCachedBaseAccount);
   const [gameState, setGameState] = useState<GameState>(GameState.MENU);
+  const [uiAuditPresenting, setUIAuditPresenting] = useState(false); // REVAMP(H): Freeze presentation fixtures outside the combat lifecycle.
   const [gameId, setGameId] = useState<number>(0);
   const [activeRunLifeCapacity, setActiveRunLifeCapacity] = useState(GAME_CONFIG.PLAYER_LIVES);
   const [gameRuntimeReady, setGameRuntimeReady] = useState(false);
@@ -1720,10 +1724,10 @@ const App: React.FC = () => {
     setWeeklySquadState((current) => {
       const next = update(current);
       if (next !== current) weeklySquadStateRef.current = next;
-      if (persist && next !== current) saveWeeklySquadState(next);
+      if (persist && !uiAuditPresenting && next !== current) saveWeeklySquadState(next); // REVAMP(H): keep fixture interactions in memory.
       return next;
     });
-  }, []);
+  }, [uiAuditPresenting]);
 
   const updatePermanentSquadState = useCallback((
     update: (current: PermanentSquadState) => PermanentSquadState
@@ -1732,11 +1736,11 @@ const App: React.FC = () => {
       const next = update(current);
       if (next !== current) {
         permanentSquadStateRef.current = next;
-        savePermanentSquadState(next);
+        if (!uiAuditPresenting) savePermanentSquadState(next); // REVAMP(H): archive fixture navigation must not save unlocks.
       }
       return next;
     });
-  }, []);
+  }, [uiAuditPresenting]);
 
   useEffect(() => {
     if (permanentSquadState.unlockedPlayerShips.includes('btc')) return;
@@ -1778,9 +1782,9 @@ const App: React.FC = () => {
       updatedAt: new Date().toISOString()
     };
     weeklySquadStateRef.current = next;
-    saveWeeklySquadState(next);
+    if (!uiAuditPresenting) saveWeeklySquadState(next); // REVAMP(H): synthetic streaks are never persisted.
     setWeeklySquadState(next);
-  }, []);
+  }, [uiAuditPresenting]);
 
   const presentWeeklyCampaignFinalScore = useCallback((streak: WeeklyCampaignStreakState) => {
     const enemiesDefeated = streak.scoreEvents.reduce((total, event) => (
@@ -2178,12 +2182,13 @@ const App: React.FC = () => {
   useEffect(() => () => setAnalyticsGameplayActive(false), []);
 
   useEffect(() => {
+    if (uiAuditPresenting) return; // REVAMP(H): Fixture names and scores are presentation-only.
     savePilotStats(activeProfileId, {
       highScore: stats.highScore,
       totalCoins: stats.totalCoins,
       playerName: playerNameInput
     });
-  }, [activeProfileId, playerNameInput, stats.highScore, stats.totalCoins]);
+  }, [uiAuditPresenting, activeProfileId, playerNameInput, stats.highScore, stats.totalCoins]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.POLISH_SETTINGS, JSON.stringify(polishSettings));
@@ -2896,7 +2901,8 @@ const App: React.FC = () => {
   useEffect(() => {
     let retryTimer: number | null = null;
     if (
-      !activeWalletAddress
+      uiAuditPresenting // REVAMP(H): Never sync a synthetic presentation snapshot.
+      || !activeWalletAddress
       || walletProfileHydratingRef.current
       || isOwnerWallet
     ) return undefined;
@@ -3030,6 +3036,7 @@ const App: React.FC = () => {
     selectedShipId,
     stats.highScore,
     stats.totalCoins,
+    uiAuditPresenting,
     walletProfileRetryNonce,
     walletProfileStatus,
     weeklySquadState
@@ -7133,6 +7140,7 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
+    if (uiAuditPresenting) return; // REVAMP(H): Fixture receipts never settle a run or open a submission.
     if (gameState === GameState.GAMEOVER) {
       if (isBossArchiveRun) {
         setShowNameInput(false);
@@ -7182,7 +7190,7 @@ const App: React.FC = () => {
       setScoreSubmitError('');
       setShowNameInput(isWeeklyLeaderboardRun);
     }
-  }, [gameId, gameState, isBossArchiveRun, isCampaignRun, isNonCompetitiveRun, isWeeklyLeaderboardRun, stats.coins, stats.enemiesDefeated, stats.score, stats.wave, stats.highScore, updatePermanentSquadState, updateWeeklySquadState]);
+  }, [uiAuditPresenting, gameId, gameState, isBossArchiveRun, isCampaignRun, isNonCompetitiveRun, isWeeklyLeaderboardRun, stats.coins, stats.enemiesDefeated, stats.score, stats.wave, stats.highScore, updatePermanentSquadState, updateWeeklySquadState]);
 
   const updateWeeklyCampaignSubmission = useCallback((
     status: 'pending' | 'submitted' | 'failed',
@@ -7816,7 +7824,7 @@ const App: React.FC = () => {
       <div className="relative">
         <p className="font-mono text-[9px] font-black uppercase tracking-[0.2em] text-cyan-200">Mission {stats.wave} - {resultEncounter}</p>
         <h2 className="arcade-font mt-1 text-xl font-black uppercase tracking-widest text-cyan-100">{campaignCompletedRun ? 'Campaign Record' : 'Mission Record'}</h2>
-        <p className="mt-1 text-3xl font-black text-white">{stats.score.toLocaleString()}</p>
+        <p className="mt-1 text-3xl font-black text-white">{/* REVAMP(H): Result numbers enter with the shared motion system. */}<AnimatedNumber value={stats.score} delay={350} duration={950} /></p>
       </div>
 
       <div className="relative mt-2 grid grid-cols-3 divide-x divide-white/10 border-t border-cyan-100/15 pt-2 text-center">
@@ -7850,6 +7858,35 @@ const App: React.FC = () => {
     || showMissionRecordPreview
     || (campaignMapOpen && campaignMapStatus !== 'ready')
   );
+  // REVAMP(H): Exercise real result/story/loading components without wallet calls or reward persistence.
+  useUIAuditBridge(!startupLoading && !walletIdentityHydrating && !activeWalletAddress, (scene) => {
+    setUIAuditPresenting(true);
+    setCampaignMapOpen(false); setMissionLoading(null); setActiveStoryBeat(null);
+    setShowNameInput(false); setShowMissionRecordPreview(false); setShowWeeklyProposalSelection(false);
+    setActiveRunMode(scene === 'weekly-result' || scene === 'weekly-score-entry' ? 'weekly-streak' : 'campaign');
+    if (scene === 'victory') {
+      const fixture = createUIAuditVictory();
+      setWaveVictorySummary(fixture.summary); setRevampResult(fixture.revamp);
+      setCampaignResultPresentation({ summaryId: fixture.summary.id, settlement: fixture.settlement, collectedCoins: fixture.summary.coinsCollected, newlyAffordableUpgrade: null });
+      setGameState(GameState.WAVE_COMPLETE);
+    } else if (scene === 'defeat' || scene === 'weekly-result' || scene === 'weekly-score-entry') {
+      if (scene === 'weekly-score-entry') { setShowNameInput(true); setPlayerNameInput('MMMMMMMMMMMMMMM'); }
+      if (scene !== 'defeat') setWeeklySquadState(current => ({ ...current, weeklyCampaignStreak: createUIAuditWeekly(weeklyRun.graph) }));
+      setStats(current => ({ ...current, score: 12850, wave: 3, enemiesDefeated: 96, coins: 240, lives: 0 }));
+      setGameState(GameState.GAMEOVER);
+    } else if (scene === 'record-preview' || scene === 'proposal-selection') {
+      setRunReceipt(createUIAuditReceipt()); setMissionRecordPilotName('MMMMMMMMMMMMMMM'); setGameState(GameState.GAMEOVER);
+      if (scene === 'record-preview') setShowMissionRecordPreview(true);
+      else { setWeeklyProposalSelectionMode('recovery'); setWeeklyProposalSelectionStatus('idle'); setShowWeeklyProposalSelection(true); }
+    } else if (scene === 'pause') setGameState(GameState.PAUSED);
+    else if (scene === 'mission-help') setGameState(GameState.ABOUT);
+    else if (scene === 'unlock-archive') {
+      setPermanentSquadState(current => recordBossVictory(current, BOSS_ARCHIVE_CATALOG[0].eventId));
+      setGameState(GameState.MENU);
+    }
+    else if (scene === 'loading') { setGameState(GameState.PLAYING); setMissionLoading({ progress: 64, phase: 'runtime-sync', tip: 'Follow the signal. Bring the research home.' }); }
+    else { setGameState(scene === 'story' || scene === 'story-vault' ? GameState.PLAYING : GameState.MENU); if (scene === 'story' || scene === 'story-vault') setActiveStoryBeat({ ...(scene === 'story-vault' ? uiAuditVaultStory : uiAuditStory), presentation: scene === 'story-vault' ? 'vault' : 'inline' }); }
+  });
   const onboardingDailyGiftStatus = getDailyGiftStatus(permanentSquadState);
   const onboardingBombLocked = onboardingStepId === 'flight-steer';
   const onboardingAbilityLocked = onboardingStepId === 'flight-steer'
@@ -7921,7 +7958,7 @@ const App: React.FC = () => {
         />
       ) : null}
 
-      {!campaignMapOpen && (gameState === GameState.PLAYING || gameState === GameState.WAVE_COMPLETE || gameState === GameState.PAUSED || gameState === GameState.GAMEOVER) && (
+      {!uiAuditPresenting && !campaignMapOpen && (gameState === GameState.PLAYING || gameState === GameState.WAVE_COMPLETE || gameState === GameState.PAUSED || gameState === GameState.GAMEOVER) && (
         <React.Suspense fallback={null}>
           <GameStage
             key={gameId}
@@ -8514,7 +8551,7 @@ const App: React.FC = () => {
                       <span>Bosses</span>
                     </div>
                     <div>
-                      <strong>{weeklyRunResultSummary.points.toLocaleString()}</strong>
+                      <strong><AnimatedNumber value={weeklyRunResultSummary.points} delay={350} duration={950} /></strong>
                       <span>Score</span>
                     </div>
                   </div>

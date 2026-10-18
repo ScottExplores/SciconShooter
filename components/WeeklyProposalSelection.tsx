@@ -113,7 +113,7 @@ const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
           <p className="relative animate-pulse font-mono text-[10px] font-black uppercase tracking-[0.28em] text-yellow-200 drop-shadow-[0_0_12px_currentColor]">
             New weekly high score
           </p>
-          <h2 id="weekly-proposal-selection-title" className="arcade-font relative mt-2 text-2xl font-black uppercase tracking-wider text-white sm:text-3xl">
+          <h2 id="weekly-proposal-selection-title" className="revamp-ui-pixel relative mt-2 break-words text-2xl font-black uppercase leading-snug text-white sm:text-3xl">
             You&apos;re #1, {pilotName || 'Pilot'}
           </h2>
           <p className="relative mt-1 font-mono text-lg font-black text-cyan-100">
@@ -206,10 +206,10 @@ const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-start justify-between gap-2">
-                          <h3 className="line-clamp-2 text-xs font-black leading-snug text-white">{proposal.title}</h3>
+                          <h3 className="min-w-0 break-words text-xs font-black leading-snug text-white">{proposal.title}</h3>
                           <span className={`mt-0.5 h-4 w-4 shrink-0 rounded-full border ${selected ? 'border-yellow-100 bg-yellow-300 shadow-[0_0_12px_rgba(250,204,21,0.55)]' : 'border-slate-500'}`} />
                         </div>
-                        <p className="mt-1 truncate text-[10px] font-semibold text-cyan-100/75">{proposal.author}</p>
+                        <p className="mt-1 break-words text-[10px] font-semibold text-cyan-100/75">{proposal.author}</p>
                         <p className="mt-1 font-mono text-[8px] font-black uppercase tracking-[0.1em] text-slate-400">
                           {proposal.votes.toLocaleString()} votes · {proposal.backers.toLocaleString()} backers
                         </p>

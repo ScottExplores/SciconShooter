@@ -87,7 +87,8 @@
   font-family: "Orbitron", "Rajdhani", ui-sans-serif, sans-serif;
   font-size: clamp(2.45rem, 11vw, 4rem);
   font-weight: 1000;
-  line-height: 0.82;
+  /* REVAMP(H): Reserve the pixel font's complete glyph cell on both title lines. */
+  line-height: 1.25;
   letter-spacing: -0.025em;
   text-shadow:
     0 3px 0 #155385,
@@ -146,7 +147,12 @@
   font-weight: 900;
   letter-spacing: 0.14em;
   text-transform: uppercase;
+  gap: 0.75rem;
 }
+
+/* REVAMP(H): Long phase labels wrap while the progress counter keeps its space. */
+.sci-mission-loader__status-line > span { min-width: 0; overflow-wrap: anywhere; line-height: 1.5; }
+.sci-mission-loader__status-line > strong { flex-shrink: 0; }
 
 .sci-mission-loader__status-line strong {
   color: #6aeaff;
@@ -227,7 +233,9 @@
   background: transparent;
   padding: 0 0 0 0.65rem;
   color: rgba(199, 230, 239, 0.58);
-  font: 800 0.5rem/1 "Rajdhani", ui-sans-serif, sans-serif;
+  font: 800 0.5rem/1.4 "Rajdhani", ui-sans-serif, sans-serif;
+  flex-shrink: 0;
+  max-width: 32%;
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }

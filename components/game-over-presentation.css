@@ -440,3 +440,67 @@
     animation-iteration-count: 1 !important;
   }
 }
+
+/* REVAMP(H): Content-sized result frame keeps long records and guest controls readable. */
+.sci-gameover-overlay { overflow-y: auto; align-items: safe center; }
+.sci-gameover-overlay *, .sci-gameover-overlay *::before, .sci-gameover-overlay *::after { box-sizing: border-box; }
+.sci-gameover-stage { max-height: none; min-width: 0; padding-block: 8px; margin: auto; }
+.sci-defeated-banner img, .sci-gameover-window__frame { image-rendering: pixelated; }
+.sci-defeated-banner { margin-bottom: -5px; }
+.sci-defeated-banner strong { overflow: visible; white-space: normal; text-align: center; font-family: var(--sci-pixel-font, 'Rajdhani', sans-serif); font-size: clamp(26px,8vw,36px); line-height: 1.2; }
+.sci-gameover-window-deploy { width: min(100%,400px); aspect-ratio: auto; min-width: 0; }
+.sci-gameover-window-hover { position: relative; inset: auto; animation: none; }
+.sci-gameover-window { position: relative; inset: auto; padding: 48px 13% 48px; min-width: 0; }
+.sci-gameover-window__content { position: relative; inset: auto; padding: 0; min-width: 0; overflow: visible; }
+.sci-gameover-result-content { min-height: 0; min-width: 0; padding: 0; gap: 12px; }
+.sci-gameover-result-content > * { min-width: 0; }
+.sci-gameover-result-content p, .sci-gameover-result-content h2, .sci-gameover-result-content strong { overflow-wrap: anywhere; text-wrap: pretty; }
+.sci-gameover-result-content h2 { font-family: var(--sci-pixel-font, 'Rajdhani', sans-serif); font-size: 22px; letter-spacing: .02em; line-height: 1.15; }
+.sci-gameover-result-content .truncate { white-space: normal; overflow: visible; text-overflow: clip; }
+.sci-gameover-result-content input { min-width: 0; }
+.sci-gameover-result-content form button { white-space: normal; letter-spacing: .04em; overflow-wrap: anywhere; }
+.sci-gameover-result-content .sci-weekly-run-result { width: 100%; padding: 10px 5px; border-color: #57cbe155; background: radial-gradient(ellipse at top,#123f55,#08182e); animation: sciResultCardReveal 500ms ease-out 800ms both; }
+.sci-gameover-result-content .sci-weekly-run-result__eyebrow { font-family: var(--sci-pixel-font, 'Rajdhani', sans-serif); font-size: 21px; line-height: 1.1; letter-spacing: .04em; color: #ffe6a3; }
+.sci-gameover-result-content .sci-weekly-run-result__grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 9px 0; }
+.sci-gameover-result-content .sci-weekly-run-result__grid > div { min-width: 0; }
+.sci-gameover-result-content .sci-weekly-run-result__grid > div:last-child { grid-column: 1 / -1; border-left: 0; border-top: 1px solid #67f5ff2b; padding-top: 8px; }
+.sci-gameover-result-content .sci-weekly-run-result__grid strong { font-family: var(--sci-pixel-font, 'Rajdhani', sans-serif); font-size: 25px; line-height: 1.2; white-space: normal; }
+.sci-gameover-result-content .sci-weekly-run-result__grid > div:last-child strong { color: #fff1ad; font-size: clamp(32px,10vw,42px); }
+.sci-gameover-result-content .sci-weekly-run-result__grid span { font-size: 10px; line-height: 1.2; letter-spacing: .08em; }
+.sci-gameover-result-content .sci-weekly-run-result__grid strong span { font-size: inherit; line-height: inherit; letter-spacing: inherit; }
+.sci-gameover-result-content .revamp-weekly-nudge { padding: 9px; border: 1px solid #4e99896b; color: #b7ddd6; font-size: 11px; line-height: 1.4; background: #082b2eaa; animation: sciResultCardReveal 500ms ease-out 1000ms both; }
+.sci-gameover-actions { gap: 9px; }
+.sci-gameover-action { min-height: 46px; white-space: normal; overflow: visible; overflow-wrap: anywhere; text-overflow: clip; padding: 10px 12px; font-family: var(--sci-pixel-font, 'Rajdhani', sans-serif); font-size: 18px; line-height: 1.15; letter-spacing: .01em; animation: sciGameOverContentIn 400ms ease-out 1200ms both; transition: filter 140ms, scale 120ms; }
+.sci-gameover-action:nth-child(2) { animation-delay: 1320ms; }
+.sci-gameover-action:nth-child(3) { animation-delay: 1440ms; }
+.sci-gameover-action:hover { filter: brightness(1.18); }
+.sci-gameover-action:active { scale: .97; }
+.sci-gameover-action:focus-visible { outline: 2px solid #ffe490; outline-offset: 3px; }
+.sci-gameover-action::after { inset: 1px; transform: none; opacity: 0; background: linear-gradient(110deg,transparent 30%,#ffffff24 50%,transparent 70%); animation: sciResultShine 4s ease-in-out 1800ms infinite; }
+.sci-gameover-footer { margin-top: 9px; width: 88%; }
+.sci-gameover-window__rail { left: 16%; right: 16%; }
+@keyframes sciResultCardReveal { from { opacity: 0; transform: perspective(500px) rotateX(-25deg) translateY(8px); } to { opacity: 1; transform: perspective(500px) rotateX(0) translateY(0); } }
+@keyframes sciResultShine { 0%,40%,100% { opacity: 0; } 20% { opacity: 1; } }
+@media (max-height: 740px) {
+  .sci-gameover-window { padding-block: 38px; }
+  .sci-gameover-result-content { gap: 9px; }
+  .sci-gameover-result-content .sci-weekly-run-result { padding-block: 8px; }
+  .sci-gameover-actions { gap: 7px; }
+  .sci-defeated-banner { width: 92%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sci-gameover-overlay *, .sci-gameover-overlay *::before, .sci-gameover-overlay *::after { animation-duration: 1ms !important; animation-delay: 0ms !important; animation-iteration-count: 1 !important; transition: none !important; }
+}
+
+/* REVAMP(H): A full-width guest name fits all 15 characters above the submit action. */
+.sci-gameover-result-content form > div:has(#pilot-score-name) {
+  grid-template-columns: minmax(0, 1fr);
+}
+.sci-gameover-result-content #pilot-score-name {
+  width: 100%;
+  font-size: 16px;
+  line-height: 1.4;
+  letter-spacing: 0;
+}
+.sci-gameover-window:has(#pilot-score-name) { padding-bottom: 60px; }
+.sci-gameover-skip-score { min-height: 44px; line-height: 1.35; }

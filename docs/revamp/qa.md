@@ -1,5 +1,60 @@
 # Deterministic local QA
 
+## UI overflow and motion audit
+
+Build with `npm run build`, then run `npm run qa:ui -- --run-id H-ui-review`.
+The audit serves the built files through the same offline server/browser helpers
+as gameplay QA. It checks 360×640/DPR 2, 390×844/DPR 2, 430×932/DPR 3, and the
+real 1280×800 desktop launcher and game iframe. JSON, Markdown, and screenshots
+are written under `/workspace/scicon-revamp/qa/<runId>/`.
+
+The screen matrix covers menu tabs, campaign selection, research, wings and
+previews, populated/empty Signals and leaderboards, rewards, More panels,
+settings, pause, story, loading, and result/guest-record panels. Synthetic
+offline content includes long accepted pilot/proposal/author names and large
+scores. Every scrollable panel is sampled through its contents. Text ranges,
+scroll dimensions, border bounds, clipping, and overlapping controls are checked;
+any overflow, navigation failure, or browser error fails the command. Closed
+details, screen-reader-only labels, ordinary scrolling, and the background behind
+a modal are distinguished from visible clipped text. Visible `aria-hidden`
+counters are still checked. `tests-revamp/H/` plants actual faults to verify the
+checker.
+
+SVG mission-record images are fetched from the offline fixture server and their
+text is measured with SVG `getBBox()`. Explicit text-column bounds detect collisions
+inside the image, which ordinary DOM text ranges cannot see. The Flight Guide case
+uses a normal disposable guest session because `qa=1` intentionally disables
+onboarding; its real mission is launched and the steering lesson must be visible.
+
+If the execution environment limits the lifetime of a long process, run selected
+screen/device batches and compose their reports:
+
+```sh
+node tools-revamp/qa/ui-report.mjs H-ui-verified /path/to/batch-a/report.json /path/to/batch-b/report.json
+```
+
+The composer requires every screen/device pair, retains failures, and fails on
+missing coverage. A later capture of the same pair replaces the earlier one;
+each case records its build and source report, and the original reports remain
+untouched. This supports explicit rechecks after a localized fix.
+
+The opt-in `?qa=1&uiAudit=1` bridge supplies presentation fixtures using production
+components and disposable QA storage; it freezes combat/settlement while a fixture
+is active. The bridge is unavailable with an active wallet, and fixture interactions suppress profile/streak persistence and wallet syncing. The existing QA storage shim also isolates native browser saves. It grants no server verification and performs no wallet operation.
+Reload to resume normal gameplay. Reports explicitly label fixture scenes; a
+separate `victory-gameplay` case uses the real mission/autoplay/god flags and waits
+for a naturally completed mission.
+
+For iteration, `--devices 360x640`, `--screens home,hangar,victory`, and
+`--no-natural-victory` produce clearly marked partial reports. `--baseline` audits
+a pre-hook build supplied by `--dist`. Use a stable copy of `dist` when another
+build is running so lazy-loaded assets cannot disappear between captures.
+
+Motion respects the live OS reduced-motion preference, including menu sprite
+timers. Pixelify Sans and its OFL license are bundled locally in `public/fonts`.
+Visual review remains necessary for text intersecting decorative image frames,
+which have no DOM border geometry.
+
 Build once with `npx vite build`, then run `npm run qa:playthrough`. The harness never builds, deploys, connects a wallet, or writes to a remote API. It serves the existing `dist` directory on an ephemeral loopback port. All `/api/*` GETs use JSON fixtures in `tools-revamp/qa/fixtures/`; POSTs receive `{ "ok": true }`. Browser requests outside the local origin are fulfilled offline, and WebSockets are closed. Request bodies, headers, and query values are not recorded.
 
 The full run opens the start screen, plays mission 1 for 60 seconds, a campaign midpoint mission for 45 seconds, and a boss for 45 seconds, first on mobile (390×844, DPR 2, touch), then desktop (1280×800). Desktop uses the real **Start Browser Run** shell and its game iframe. Both use the same authored mission and RNG seed. The boss query jumps directly to the first authored boss wave; the first boss mission is also provided as a fallback. Contexts are fresh for each scenario to avoid cross-run saves or cache interference. God mode is off by default so death counts remain useful.

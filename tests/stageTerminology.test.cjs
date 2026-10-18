@@ -86,7 +86,7 @@ test('top-level run progress is presented as Mission without renaming compatibil
   assert.doesNotMatch(storyBeats, /Final stage\./);
   assert.doesNotMatch(storyBeats, /Final wave\./);
   assert.match(recordRenderer, /wave: 'MISSION'/);
-  assert.match(recordRenderer, /RECORD_CARD_RENDER_VERSION = '2026-08-02-token-1'/);
+  assert.match(recordRenderer, /RECORD_CARD_RENDER_VERSION = '2026-10-17-text-fit-2'/);
   assert.match(recordDefaults, /wave: 'MISSION'/);
   assert.equal(campaign.recordCard.copy.metricLabels.wave, 'MISSION');
 

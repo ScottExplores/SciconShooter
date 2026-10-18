@@ -138,7 +138,8 @@ test('all action anchors remain mounted on the surfaces that own them', () => {
     ['components/GameCanvas.tsx', ['flight-stage']],
     ['components/UIOverlay.tsx', ['flight-bomb', 'flight-special']],
     ['components/WaveVictoryOverlay.tsx', ['mission-home']],
-    ['components/StartScreen.tsx', ['rewards-open', 'hangar-nav']],
+    ['components/StartScreen.tsx', ['hangar-nav']],
+    ['components/revamp/HomeFlightDeckBrand.tsx', ['rewards-open']],
     ['components/RewardCenter.tsx', ['rewards-achievements', 'rewards-daily', 'rewards-daily-claim', 'rewards-close']],
     ['components/SquadHangar.tsx', ['hangar-wings']],
   ];
