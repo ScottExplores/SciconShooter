@@ -3,7 +3,6 @@ import './services/revamp/qa/storage';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './styles/tailwind.generated.css';
-import App from './App';
 import DesktopMobileLaunchShell from './components/DesktopMobileLaunchShell';
 import AppErrorBoundary from './components/AppErrorBoundary';
 import { AppProviders } from './providers';
@@ -43,6 +42,8 @@ const CombatLab = import.meta.env.DEV
 const showCombatLab = Boolean(CombatLab && combatLabRequested);
 // REVAMP(C): Lazy load the gallery only for explicit bosslab links.
 const BossLab = React.lazy(() => import('./components/revamp/BossLab'));
+// REVAMP(J): Explicit lab routes do not download or initialize the lobby and wallet shell.
+const App = React.lazy(() => import('./App'));
 root.render(
   <React.StrictMode>
     <AppErrorBoundary>
@@ -51,7 +52,9 @@ root.render(
       <DesktopMobileLaunchShell>
         {showCombatLab && CombatLab ? <React.Suspense fallback={<div>Loading Combat Lab…</div>}><CombatLab /></React.Suspense> :
         <AppProviders>
-          <App />
+          <React.Suspense fallback={<div className="min-h-screen bg-slate-950 text-cyan-100 grid place-items-center" role="status">Loading SciCon…</div>}>
+            <App />
+          </React.Suspense>
         </AppProviders>
         }
       </DesktopMobileLaunchShell>

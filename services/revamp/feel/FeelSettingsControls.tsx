@@ -1,5 +1,7 @@
 import React, { useSyncExternalStore } from 'react';
 import { getFeelSettings, getServerFeelSettings, setFeelSetting, subscribeFeelSettings } from './FeelSettings';
+// REVAMP(J): Persist the player's presentation budget independently of the HUD.
+import RenderQualityControls from '../performance/RenderQualityControls';
 
 const FeelSettingRow: React.FC<{ label: string; enabled: boolean; onToggle: () => void }> = ({ label, enabled, onToggle }) => (
   <button
@@ -23,6 +25,7 @@ const FeelSettingsControls: React.FC = () => {
   const settings = useSyncExternalStore(subscribeFeelSettings, getFeelSettings, getServerFeelSettings);
   return (
     <>
+      <RenderQualityControls />
       <FeelSettingRow
         label="Reduce screen shake"
         enabled={settings.reduceScreenShake}

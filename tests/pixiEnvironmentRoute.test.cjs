@@ -155,7 +155,12 @@ test('ground props remain registered to terrain while space landmarks use slow d
   assert.match(environment, /runtime\.stageDepartureSpeedBoost/);
   assert.match(environment, /runtime\.stageHyperspeedStrength/);
   assert.match(environment, /hyperspeedStreaks/);
-  assert.match(environment, /engine\.performanceMode \? 0 : layer\.softness/);
+  // REVAMP(J): Authored softness is baked once; only uncached fallback layers
+  // retain the original performance-mode-controlled live blur pass.
+  assert.match(environment, /engine\.performanceMode \|\| this\.bakedBackgrounds \? 0 : layer\.softness/);
+  assert.match(environment, /this\.bakedBackgrounds\?\.get\(texture, scaledWidth, layer\.tileHeight, layer\.softness,/);
+  assert.match(environment, /canBakeBackgroundGrade\(profile\.layers\[0\]\)/);
+  assert.match(environment, /this\.sectorTint\.visible = !this\.bakeSectorGrade/);
   assert.match(environment, /GROUND_PROP_CONTACT_ANCHOR_Y/);
   assert.match(environment, /prop\.root\.zIndex = Math\.round\(groundY \* 10\)/);
   assert.match(environment, /atlasFrameCache/);

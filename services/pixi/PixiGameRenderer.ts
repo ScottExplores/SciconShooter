@@ -52,7 +52,13 @@ import { ArcadeEffectPool } from './ArcadeEffectPool';
 import { CombatImpactPresentation } from './CombatImpactPresentation';
 // REVAMP(A): Pooled feel presentation; shared renderer only delegates hooks.
 import { FeelPresentation, drawReadableProjectile } from '../revamp/feel/FeelPresentation';
-import { AdaptiveFeelQuality } from '../revamp/feel/AdaptiveFeelQuality';
+// REVAMP(J): Presentation budgets and sampler limits never change gameplay.
+import { AdaptiveRenderQuality } from '../revamp/performance/AdaptiveRenderQuality';
+import { getRenderQualityMode } from '../revamp/performance/RenderQualitySettings';
+import { configureRenderBudget, renderResolution } from '../revamp/performance/RendererBudget';
+import { installSelectedSpriteBatcher, tagLargeSprite } from '../revamp/performance/SelectedSpriteBatcher';
+import { isTransientOutsideViewport, syncPixelParticle } from '../revamp/performance/EntityPresentationBudget';
+import { HitFlashTextureCache } from '../revamp/performance/HitFlashTextureCache';
 import { getFeelSettings } from '../revamp/feel/FeelSettings';
 import { BossHealthPresentation } from './BossHealthPresentation';
 // REVAMP(C): State-driven boss cues keep warnings visible independently of optional VFX.
@@ -1403,7 +1409,9 @@ export class PixiGameRenderer {
   private readonly previewDebugOverlay = new Graphics();
   private readonly views = new Map<string, EntityView>();
   private readonly recycledViews = new Map<EntityType, EntityView[]>();
-  private readonly environment = new PixiEnvironment(this.layers.background, this.layers.environment, this.textureBank);
+  // REVAMP(J): Renderer-owned derived textures leave original artwork untouched.
+  private readonly environment = new PixiEnvironment(this.layers.background, this.layers.environment, this.textureBank, () => this.app.renderer, tagLargeSprite);
+  private releaseSelectedBatcher?: () => void;
   private readonly warningShade = new Graphics();
   private readonly warningFrame = new Graphics();
   private readonly warningRoot = new Container();
@@ -1433,8 +1441,10 @@ export class PixiGameRenderer {
   );
   private readonly effectPool = new ArcadeEffectPool(this.layers.effects);
   // REVAMP(A): All transient effects share the existing bounded pool.
-  private readonly feelPresentation = new FeelPresentation(this.effectPool, this.layers.overlay);
-  private readonly feelQuality = new AdaptiveFeelQuality();
+  // REVAMP(J): Derived alpha masks are cached per renderer and disposed with it.
+  private readonly hitFlashTextures = new HitFlashTextureCache(() => this.app.renderer);
+  private readonly feelPresentation = new FeelPresentation(this.effectPool, this.layers.overlay, (texture) => this.hitFlashTextures.get(texture));
+  private readonly feelQuality = new AdaptiveRenderQuality();
   private readonly maxShotAura = new Sprite(Texture.WHITE);
   private readonly stageLaunchStreak = new Graphics();
   private readonly playerThrusterRoot = new Container();
@@ -1794,7 +1804,8 @@ export class PixiGameRenderer {
     this.height = Math.max(1, height);
     this.reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
     const mobile = this.width < 620 || this.height > this.width * 1.25;
-    const resolution = Math.min(window.devicePixelRatio || 1, mobile ? 1.35 : 1.75);
+    // REVAMP(J): Crisp DPR2 output, capped equally for phones and desktop.
+    const resolution = renderResolution(window.devicePixelRatio || 1);
 
     await this.app.init({
       width: this.width,
@@ -1811,10 +1822,15 @@ export class PixiGameRenderer {
       preference: 'webgl'
     });
     this.appReady = true;
+    // REVAMP(J): Set before Pixi creates its first batch shader.
+    configureRenderBudget(this.app.renderer);
     if (this.destroyed) {
       this.destroyApplication();
       return;
     }
+    // REVAMP(J): Large sprites avoid sampler switches; small solids stay batched.
+    this.releaseSelectedBatcher = installSelectedSpriteBatcher(this.app.renderer, { routeWhiteGeometry: false });
+    this.textureBank.enableAtlas(this.app.renderer);
     this.app.stop();
     if (this.previewBossArtwork) {
       void this.textureBank.load(this.previewBossArtwork.url)
@@ -2069,6 +2085,12 @@ export class PixiGameRenderer {
     this.bindStartupTextures();
     if (this.destroyed) return;
     this.initialized = true;
+    // REVAMP(J): Opt-in phase/Graphics/filter profiling; normal play loads no profiler.
+    if (new URLSearchParams(location.search).get('perf') === '1') {
+      const { installRendererProfiler } = await import('../revamp/performance/RendererProfiler');
+      if (this.destroyed) return;
+      installRendererProfiler(this);
+    }
   }
 
   get canvas() {
@@ -2773,6 +2795,8 @@ export class PixiGameRenderer {
     const trail = new Graphics();
     const aura = new Graphics();
     const sprite = new Sprite(Texture.WHITE);
+    // REVAMP(J): Keep the Sprite API/UVs; only its batch shader changes.
+    if (entity.type === EntityType.BOSS) tagLargeSprite(sprite);
     const body = new Graphics();
     const flash = new Graphics();
     const health = new Graphics();
@@ -6517,12 +6541,8 @@ export class PixiGameRenderer {
         view.body.circle(0, 0, 10 + progress * 80).stroke({ color: effect.color, width: Math.max(1, 3 * (1 - progress)), alpha: 1 - progress });
       }
     } else if (entity.type === EntityType.PARTICLE) {
-      view.sprite.visible = false;
-      view.body.clear();
-      view.body.rect(-entity.width / 2, -entity.height / 2, entity.width, entity.height).fill({
-        color: entity.color,
-        alpha: clamp(entity.life / Math.max(1, entity.maxLife), 0, 1)
-      });
+      // REVAMP(J): Shared quad preserves pixel debris without rebuilding geometry.
+      syncPixelParticle(view, entity);
     } else {
       const textureKey = this.getPreviewBossArtwork(entity)?.url
         ?? (entity.type === EntityType.PLAYER
@@ -6779,12 +6799,16 @@ export class PixiGameRenderer {
 
     // REVAMP(A): Render-clock flash and local wobble never alter hitboxes.
     this.feelPresentation.entity(view, entity);
+    // REVAMP(J): The boss-sized cached flash uses the same cheap shader as its hull.
+    if (entity.type === EntityType.BOSS && view.hitFlash) tagLargeSprite(view.hitFlash);
     view.lastFlashFrames = entity.flashFrames;
     view.lastHp = entity.hp;
   }
 
   private syncEntities(engine: GameEngine) {
     const entities = engine.entities;
+    // REVAMP(J): Cull only cosmetic/transient views using the actual camera bounds.
+    const viewportCamera = engine.getEncounterCameraTransform();
     const tracksPreviewBosses = (
       this.previewBossArtworkReady
       || this.previewBossAtlasReady
@@ -6803,6 +6827,10 @@ export class PixiGameRenderer {
     for (const entity of entities) {
       if (entity.markedForDeletion) continue;
       let view = this.views.get(entity.id);
+      if (isTransientOutsideViewport(entity, this.width, this.height, viewportCamera, engine.shakeX, engine.shakeY)) {
+        if (view) { view.root.visible = false; view.seenFrame = this.renderFrame; }
+        continue;
+      }
       if (!view) {
         view = this.createEntityView(entity);
         this.views.set(entity.id, view);
@@ -7079,8 +7107,9 @@ export class PixiGameRenderer {
     this.bossHealthRoot.visible = Boolean(boss);
     this.bossHealthBar.clear();
     this.abyssalOctarchLimbHud.clear();
-    this.bossHealthName.text = '';
     if (!boss) {
+      // REVAMP(J): Keep unchanged boss text valid across frames.
+      this.bossHealthName.text = '';
       this.bossHealthPresentation.reset();
       return;
     }
@@ -7204,7 +7233,8 @@ export class PixiGameRenderer {
       this.layers.player.addChildAt(root, 0);
     }
     const texture = this.textureBank.get(this.playerSteeringTextureKey ?? engine.playerShipUrl);
-    const desired = engine.performanceMode ? Math.min(2, engine.playerAfterimages.length) : engine.playerAfterimages.length;
+    // REVAMP(J): Retire allocated overflow as well as limiting future allocation.
+    const desired = Math.ceil((engine.performanceMode ? Math.min(2, engine.playerAfterimages.length) : engine.playerAfterimages.length) * this.feelQuality.budget.trailScale);
     while (root.children.length < desired) {
       const sprite = new Sprite(Texture.WHITE);
       sprite.anchor.set(0.5);
@@ -7213,8 +7243,8 @@ export class PixiGameRenderer {
     for (let index = 0; index < root.children.length; index++) {
       const sprite = root.children[index] as Sprite;
       const afterimage = engine.playerAfterimages[index];
-      sprite.visible = Boolean(afterimage && texture);
-      if (!afterimage || !texture) continue;
+      sprite.visible = index < desired && Boolean(afterimage && texture);
+      if (!sprite.visible || !afterimage || !texture) continue;
       sprite.texture = texture;
       sprite.position.set(afterimage.x + afterimage.width / 2, afterimage.y + afterimage.height / 2);
       sprite.width = afterimage.width;
@@ -8014,12 +8044,13 @@ export class PixiGameRenderer {
     this.warningSubtext.alpha = 0.82 + pulseWave * 0.18;
   }
 
-  sync(engine: GameEngine, timestamp = performance.now()) {
+  sync(engine: GameEngine, timestamp = performance.now(), presentationActive = engine.gameActive) {
     if (!this.initialized || this.destroyed) return;
     this.renderFrame++;
     // REVAMP(A): Raw render duration drives quality only, never simulation speed.
     const elapsedMs = this.lastTimestamp ? timestamp - this.lastTimestamp : 16.667;
-    this.feelQuality.observe(elapsedMs);
+    // REVAMP(J): Auto/High/Low is a renderer-only choice, including recovery.
+    const quality = this.feelQuality.observe(elapsedMs, getRenderQualityMode(), getFeelSettings().reducedMotion, !document.hidden && presentationActive);
     const deltaMs = clamp(elapsedMs, 0, 50);
     this.lastTimestamp = timestamp;
     this.updatePlayerSteeringPresentation(engine, deltaMs);
@@ -8029,8 +8060,9 @@ export class PixiGameRenderer {
       encounterCamera.offsetX + engine.shakeX,
       encounterCamera.offsetY + engine.shakeY
     );
+    this.environment.setDetailScale(quality.backgroundLayerScale);
     this.environment.update(engine);
-    this.effectPool.setQuality(engine.performanceMode, engine.mobileProfile, this.feelQuality.scale);
+    this.effectPool.setQuality(engine.performanceMode, engine.mobileProfile, quality.particleScale);
     // REVAMP(A): Advance VFX during simulation hit-stop and consume receipts once.
     this.feelPresentation.beginFrame(engine, elapsedMs);
     this.syncCornerAmbushPresentation(engine);
@@ -8084,8 +8116,10 @@ export class PixiGameRenderer {
     this.setCornerAmbushPlayerLayerRaised(false);
     this.destroyed = true;
     this.initialized = false;
+    this.releaseSelectedBatcher?.();
     // REVAMP(A): Release owned text/filter state before the stage is destroyed.
     this.feelPresentation.destroy();
+    this.hitFlashTextures.destroy();
     this.effectPool.destroy();
     this.environment.destroy();
     this.destroyPreviewBossAtlasTextures();

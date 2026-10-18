@@ -5,10 +5,6 @@ import {
   type RscPurchaseSkuId
 } from '../constants';
 import {
-  sendRscPurchaseTransfer,
-  waitForBaseCallsTransaction
-} from './baseAccountWallet';
-import {
   loadAuthenticatedWalletProfile,
   type WalletProfileRecord
 } from './walletProfileService';
@@ -289,6 +285,8 @@ export const executeWalletPurchase = async ({
   }
   let transactionHash: Hex;
   try {
+    // REVAMP(J): Quota reads do not need the wallet SDK; load it only for a payment.
+    const { sendRscPurchaseTransfer } = await import('./baseAccountWallet');
     transactionHash = await sendRscPurchaseTransfer({
       from: walletAddress,
       recipient: quote.recipientAddress,
@@ -319,6 +317,7 @@ export const resumePendingWalletPurchase = async (
   if (!pending) return null;
   let transactionHash = pending.transactionHash;
   if (!transactionHash && pending.callsId) {
+    const { waitForBaseCallsTransaction } = await import('./baseAccountWallet');
     transactionHash = await waitForBaseCallsTransaction(pending.callsId);
     recordPendingWalletPurchaseHash(walletAddress, pending.orderId, transactionHash);
   }

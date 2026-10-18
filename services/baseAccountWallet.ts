@@ -13,11 +13,16 @@ import {
   type Hex
 } from 'viem';
 import { base } from 'viem/chains';
+// REVAMP(J): Share pure validation with startup without importing this SDK module there.
+import {
+  parseBaseAccountAddress as parseCachedBaseAccountAddress,
+  parseBaseAccountAccounts as parseCachedBaseAccountAccounts,
+  readCachedBaseAccount as readBaseAccountCache
+} from './baseAccountCache';
 import {
   BIO_SHIP_HOLDING_REQUIREMENT,
   DONATION_CONFIG,
-  PLAYER_SHIP_PURCHASE_SKUS,
-  STORAGE_KEYS
+  PLAYER_SHIP_PURCHASE_SKUS
 } from '../constants';
 
 type CallsStatusResponse = {
@@ -44,25 +49,17 @@ const sdk = createBaseAccountSDK({
 
 export const baseAccountProvider = sdk.getProvider();
 
-const BASE_ACCOUNT_ADDRESS_PATTERN = /^0x[a-fA-F0-9]{40}$/;
-
 /**
  * Treat provider responses as untrusted input. Base Account normally returns
  * EVM addresses, but wallet switches can briefly surface malformed payloads
  * while the host app is changing identities.
  */
 export const parseBaseAccountAddress = (value: unknown): Address | null => {
-  if (typeof value !== 'string') return null;
-  const address = value.trim();
-  return BASE_ACCOUNT_ADDRESS_PATTERN.test(address) ? address as Address : null;
+  return parseCachedBaseAccountAddress(value);
 };
 
 export const parseBaseAccountAccounts = (value: unknown): Address[] | null => {
-  if (!Array.isArray(value)) return null;
-  const accounts = value.map(parseBaseAccountAddress);
-  return accounts.every((address): address is Address => Boolean(address))
-    ? accounts
-    : null;
+  return parseCachedBaseAccountAccounts(value);
 };
 
 /**
@@ -71,15 +68,9 @@ export const parseBaseAccountAccounts = (value: unknown): Address[] | null => {
  * authenticate their HttpOnly session and never trust this value as proof.
  */
 export const readCachedBaseAccount = (
-  storage: Pick<Storage, 'getItem'> | null = typeof window === 'undefined'
-    ? null
-    : window.localStorage
+  storage?: Pick<Storage, 'getItem'> | null
 ): Address | null => {
-  try {
-    return parseBaseAccountAddress(storage?.getItem(STORAGE_KEYS.WALLET_ADDRESS));
-  } catch {
-    return null;
-  }
+  return readBaseAccountCache(storage);
 };
 
 const requireBaseAccountAddress = (value: unknown, message: string): Address => {

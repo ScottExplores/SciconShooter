@@ -26,6 +26,7 @@ const label = (size: number, color = '#e0f2fe') => {
 export class FeelPresentation {
   private readonly hits = new Map<string, Hit>();
   private readonly white = new ColorMatrixFilter();
+  private readonly silhouetteTextures = new WeakSet<Texture>();
   private readonly root = new Container();
   private readonly chainText = label(15, '#67e8f9');
   private readonly chainBar = new Graphics();
@@ -40,7 +41,8 @@ export class FeelPresentation {
   private powerMs = 0;
   private muzzleBudget = 0;
 
-  constructor(private readonly pool: ArcadeEffectPool, overlay: Container) {
+  // REVAMP(J): Main renderer bakes reusable silhouettes; labs retain the fallback.
+  constructor(private readonly pool: ArcadeEffectPool, overlay: Container, private readonly silhouette?: (texture: Texture) => Texture | null) {
     // Preserve texture alpha, turn only the existing art silhouette white.
     this.white.matrix = [0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0];
     this.effects = new FeelEffects(pool);
@@ -123,7 +125,7 @@ export class FeelPresentation {
     const hit = this.hits.get(entity.id);
     if (!hit) {
       // A receipt can be evicted during a dense volley or cleared on restart.
-      if (view.hitFlash?.filters?.[0] === this.white) view.hitFlash.visible = false;
+      if (view.hitFlash && (view.hitFlash.filters?.[0] === this.white || this.silhouetteTextures.has(view.hitFlash.texture))) view.hitFlash.visible = false;
       return;
     }
     if (view.hitFlash) view.hitFlash.visible = false;
@@ -143,12 +145,16 @@ export class FeelPresentation {
         view.hitFlash.eventMode = 'none';
         view.root.addChild(view.hitFlash);
       }
-      view.hitFlash.texture = view.sprite.texture;
+      // REVAMP(J): Same white/alpha mask with no per-object filter pass on cache hits.
+      const baked = this.silhouette?.(view.sprite.texture);
+      if (baked) this.silhouetteTextures.add(baked);
+      view.hitFlash.texture = baked ?? view.sprite.texture;
       view.hitFlash.anchor.copyFrom(view.sprite.anchor);
       view.hitFlash.position.copyFrom(view.sprite.position);
       view.hitFlash.scale.copyFrom(view.sprite.scale);
       view.hitFlash.rotation = view.sprite.rotation;
-      if (view.hitFlash.filters?.[0] !== this.white) view.hitFlash.filters = [this.white];
+      if (baked) view.hitFlash.filters = null;
+      else if (view.hitFlash.filters?.[0] !== this.white) view.hitFlash.filters = [this.white];
       view.hitFlash.blendMode = 'normal';
       view.hitFlash.alpha = settings.reducedMotion ? 0.26 : 0.88;
       view.hitFlash.visible = true;

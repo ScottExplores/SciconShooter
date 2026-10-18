@@ -1,4 +1,5 @@
-import { Assets, Texture } from 'pixi.js';
+import { Assets, Texture, type Renderer } from 'pixi.js';
+import { RuntimeTextureAtlas } from '../revamp/performance/RuntimeTextureAtlas';
 import {
   runRequiredGameplayAssetPreloadQueue,
   runGameplayAssetPreloadQueue,
@@ -9,6 +10,11 @@ import {
 export class PixiTextureBank {
   private readonly textures = new Map<string, Texture>();
   private readonly pending = new Map<string, Promise<Texture>>();
+  private atlas?: RuntimeTextureAtlas;
+
+  // REVAMP(J): Optional per-renderer page; preload still keeps source ownership.
+  enableAtlas(renderer: Renderer) { this.atlas ??= new RuntimeTextureAtlas(renderer); }
+  getAtlasStats() { return this.atlas?.getStats() ?? null; }
 
   async load(url: string) {
     const cached = this.textures.get(url);
@@ -52,10 +58,13 @@ export class PixiTextureBank {
   }
 
   get(url: string) {
-    return this.textures.get(url) ?? null;
+    const source = this.textures.get(url);
+    return source ? this.atlas?.get(source) ?? source : null;
   }
 
   destroy() {
+    this.atlas?.destroy();
+    this.atlas = undefined;
     // Pixi Assets owns the texture lifetime. Clearing references here lets a
     // restarted mission release this renderer without invalidating shared UI art.
     this.pending.clear();

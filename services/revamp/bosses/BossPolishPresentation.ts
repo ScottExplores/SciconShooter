@@ -2,6 +2,7 @@ import { Container, Graphics, Text } from 'pixi.js';
 import { EntityType } from '../../../types';
 import type { Entity, GameEngine } from '../../gameLogic';
 import { BOSS_INTRO_FRAMES, bossDamageMultiplier, getBossEncounter, type BossEncounterState } from './runtime';
+import { BossCueGeometry } from '../performance/BossCueGeometry';
 
 const AMBER = 0xffcc66;
 const MAGENTA = 0xf799e5;
@@ -45,7 +46,9 @@ export class BossPolishPresentation {
   private readonly phase = label(10, AMBER, true);
   private readonly status = label(11, WHITE);
   private readonly statusBackground = new Graphics();
-  private readonly transitionHalo = new Graphics();
+  private readonly transitionHalo = new Container({ eventMode: 'none' });
+  // REVAMP(J): Static cue geometry survives movement, pulses and HUD text changes.
+  private readonly cueGeometry = new BossCueGeometry(this.part, this.transitionHalo, this.statusBackground, this.cardBackground);
 
   constructor() {
     this.worldRoot.addChild(this.hazards, this.transitionHalo, this.part, this.partLabel);
@@ -153,57 +156,16 @@ export class BossPolishPresentation {
   }
 
   private drawPart(state: BossEncounterState, boss: Entity, reducedMotion: boolean): void {
-    const graphics = this.part.clear();
-    const halo = this.transitionHalo.clear();
+    this.cueGeometry.syncPart(state, boss);
+    this.cueGeometry.syncHalo(state, boss, reducedMotion);
     const part = state.part;
     const exposed = state.stage === 'recovery' || state.stage === 'stagger';
     this.partLabel.visible = !part.broken && state.stage !== 'intro';
-    if (state.stage === 'transition') {
-      const alpha = reducedMotion ? 0.42 : 0.25 + Math.sin(state.ageFrames * 0.16) * 0.12;
-      halo.ellipse(boss.x + boss.width / 2, boss.y + boss.height / 2, boss.width * 0.52, boss.height * 0.48)
-        .fill({ color: CYAN, alpha: 0.045 })
-        .stroke({ color: CYAN, width: 2, alpha });
-    }
-    if (exposed) {
-      halo.ellipse(boss.x + boss.width / 2, boss.y + boss.height / 2, boss.width * 0.48, boss.height * 0.44)
-        .stroke({ color: CYAN, width: 2, alpha: 0.4 });
-    }
+    if (!this.partLabel.visible) return;
     const x = part.x;
     const y = part.y;
-    // A small exposed emitter makes the below-hull collision target physical, including
-    // pointed moth rigs. This adds procedural hardware without changing source artwork.
-    graphics.moveTo(x, boss.y + boss.height * 0.78).lineTo(x, y)
-      .stroke({ color: INK, width: 6, alpha: 0.95 });
-    graphics.moveTo(x, boss.y + boss.height * 0.78).lineTo(x, y)
-      .stroke({ color: 0x758d9c, width: 2, alpha: part.broken ? 0.35 : 0.8 });
-    graphics.poly([x - 7, y - 11, x + 7, y - 11, x + 11, y - 7,
-      x + 11, y + 7, x + 7, y + 11, x - 7, y + 11, x - 11, y + 7, x - 11, y - 7])
-      .fill({ color: 0x182635, alpha: 0.98 })
-      .stroke({ color: part.broken ? 0x475569 : 0xc9a35d, width: 2, alpha: 0.95 });
-    graphics.circle(x, y, 5).fill({ color: INK, alpha: 1 })
-      .stroke({ color: part.broken ? 0x475569 : AMBER, width: 1, alpha: 0.8 });
-    if (!part.broken) graphics.circle(x, y, 2.5).fill({ color: exposed ? CYAN : AMBER, alpha: 0.9 });
-    if (part.broken || state.stage === 'intro') return;
-
-    const color = exposed ? CYAN : AMBER;
     const r = Math.max(12, part.radius);
-    const corner = Math.min(7, r * 0.4);
-    // Brackets mark the actual collision circle without painting over Scott's artwork.
-    for (const sx of [-1, 1]) {
-      for (const sy of [-1, 1]) {
-        graphics.moveTo(x + sx * r, y + sy * (r - corner))
-          .lineTo(x + sx * r, y + sy * r)
-          .lineTo(x + sx * (r - corner), y + sy * r)
-          .stroke({ color: INK, width: 4, alpha: 0.9 });
-        graphics.moveTo(x + sx * r, y + sy * (r - corner))
-          .lineTo(x + sx * r, y + sy * r)
-          .lineTo(x + sx * (r - corner), y + sy * r)
-          .stroke({ color, width: 1.5, alpha: 0.95 });
-      }
-    }
-    graphics.roundRect(x - r, y + r + 5, r * 2, 4, 1).fill({ color: INK, alpha: 0.95 });
-    graphics.rect(x - r + 1, y + r + 6, Math.max(0, (r * 2 - 2) * clamp01(part.hp / part.maxHp)), 2)
-      .fill({ color, alpha: 0.95 });
+    const color = exposed ? CYAN : AMBER;
     this.partLabel.text = 'BREAK';
     this.partLabel.position.set(x, y - r - 10);
     this.partLabel.style.fill = color;
@@ -231,32 +193,16 @@ export class BossPolishPresentation {
     this.status.style.fill = exposed ? CYAN : warning ? (state.attack?.color === 'magenta' ? MAGENTA : AMBER) : WHITE;
     this.status.position.set(center, width < 520 ? 132 : 136);
     this.status.scale.set(Math.min(1, Math.max(180, width - 30) / Math.max(1, this.status.width / this.status.scale.x)));
-    const backWidth = Math.min(width - 22, 330);
-    this.statusBackground.clear().roundRect(center - backWidth / 2, width < 520 ? 103 : 107, backWidth, 39, 5)
-      .fill({ color: INK, alpha: 0.79 });
-    if (warning || exposed || state.stage === 'transition') {
-      this.statusBackground.moveTo(center - backWidth / 2 + 10, width < 520 ? 143 : 147)
-        .lineTo(center + backWidth / 2 - 10, width < 520 ? 143 : 147)
-        .stroke({ color: exposed ? CYAN : color, width: 1, alpha: 0.65 });
-    }
+    this.cueGeometry.syncStatus(width, warning || exposed || state.stage === 'transition' ? exposed ? CYAN : color : null);
     if (!intro) return;
 
     const remaining = state.remainingFrames;
     const elapsed = BOSS_INTRO_FRAMES - remaining;
     const opacity = Math.min(clamp01(elapsed / 6), clamp01(remaining / 10));
     const cardWidth = Math.min(width - 28, 420);
-    const cardHeight = 106;
     this.card.alpha = reducedMotion ? 1 : opacity;
     this.card.position.set(center, Math.min(height * 0.32, 300) + (reducedMotion ? 0 : (1 - clamp01(elapsed / 10)) * 8));
-    this.cardBackground.clear()
-      .roundRect(-cardWidth / 2, -cardHeight / 2, cardWidth, cardHeight, 6)
-      .fill({ color: INK, alpha: 0.93 })
-      .stroke({ color: AMBER, width: 1, alpha: 0.64 });
-    this.cardBackground.moveTo(-cardWidth / 2 + 14, -cardHeight / 2)
-      .lineTo(-cardWidth / 2 + 66, -cardHeight / 2)
-      .moveTo(cardWidth / 2 - 66, cardHeight / 2)
-      .lineTo(cardWidth / 2 - 14, cardHeight / 2)
-      .stroke({ color: AMBER, width: 3, alpha: 0.95 });
+    this.cueGeometry.syncCard(cardWidth);
     this.cardEyebrow.text = 'PAYWALL SYNDICATE';
     this.cardEyebrow.position.set(0, -31);
     this.title.text = state.definition.name.toUpperCase();

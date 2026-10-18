@@ -5,12 +5,6 @@ import {
   PLAYER_SHIP_PURCHASE_SKUS,
   type PlayerShipPurchaseSkuId
 } from '../constants';
-import {
-  sendCbBtcShipPurchaseTransfer,
-  sendEthShipPurchaseTransfer,
-  waitForBaseCallsTransaction,
-  waitForBaseTransactionReceipt
-} from './baseAccountWallet';
 import type { PlayerShipId } from './playerShipService';
 import {
   loadAuthenticatedWalletProfile,
@@ -364,6 +358,8 @@ export const executePlayerShipPurchase = async ({
 
   let transactionHash: Hex;
   try {
+    // REVAMP(J): Reading ship access stays independent of the payment SDK.
+    const { sendEthShipPurchaseTransfer, sendCbBtcShipPurchaseTransfer } = await import('./baseAccountWallet');
     if (quote.paymentKind === 'native') {
       transactionHash = await sendEthShipPurchaseTransfer({
         from: walletAddress,
@@ -415,6 +411,7 @@ export const resumePendingPlayerShipPurchase = async (
   if (!pending) return null;
   let transactionHash = pending.transactionHash;
   if (!transactionHash && pending.callsId) {
+    const { waitForBaseCallsTransaction } = await import('./baseAccountWallet');
     transactionHash = await waitForBaseCallsTransaction(pending.callsId);
     recordPendingPlayerShipPurchaseHash(walletAddress, pending.orderId, transactionHash);
   }
@@ -425,6 +422,7 @@ export const resumePendingPlayerShipPurchase = async (
     return null;
   }
   if (pending.paymentKind === 'native') {
+    const { waitForBaseTransactionReceipt } = await import('./baseAccountWallet');
     await waitForBaseTransactionReceipt(transactionHash);
   }
   const settlement = await settlePlayerShipPurchase({

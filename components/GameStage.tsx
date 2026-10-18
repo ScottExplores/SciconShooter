@@ -2,6 +2,8 @@ import React from 'react';
 import GameCanvas, { type GameCanvasProps } from './GameCanvas';
 import UIOverlay, { type UIOverlayProps } from './UIOverlay';
 import './game-stage.css';
+// REVAMP(J): HUD glass is static; it need not resample the moving game canvas.
+import '../services/revamp/performance/hud-compositing.css';
 
 export { preloadGameplayAssets } from './GameCanvas';
 
