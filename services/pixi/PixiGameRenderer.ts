@@ -79,6 +79,9 @@ import {
 } from './PixiEnvironment';
 // REVAMP(N): Presentation-only sector worlds; simulation and original art stay owned by their existing systems.
 import { SectorBackdrop } from '../revamp/backgrounds/SectorBackdrop';
+// REVAMP(R): Baked idle frames and optional sector effects leave gameplay/rigs intact.
+import { SectorSpritePresentation } from '../revamp/theme/SectorSpritePresentation';
+import { BackgroundShockwave } from '../revamp/theme/BackgroundShockwave';
 import { PixiTextureBank } from './PixiTextureBank';
 import { sampleFormationEnemyPresentation } from './FormationEnemyPresentation';
 import { resolveKamikazeSpinnerFrameIndex } from '../gameplay/enemies/KamikazeSpinnerRuntime';
@@ -1423,6 +1426,9 @@ export class PixiGameRenderer {
   private readonly environment = new PixiEnvironment(this.layers.background, this.layers.environment, this.textureBank, () => this.app.renderer, tagLargeSprite);
   // REVAMP(N): Seeded six-plane background, using the existing quality governor.
   private readonly sectorBackdrop = new SectorBackdrop(this.layers.background, () => this.app.renderer);
+  // REVAMP(R): Renderer-owned textures and background-only High-quality displacement.
+  private readonly sectorSprites = new SectorSpritePresentation(() => this.app.renderer);
+  private readonly sectorShockwave = new BackgroundShockwave(this.layers.background);
   private releaseSelectedBatcher?: () => void;
   private readonly warningShade = new Graphics();
   private readonly warningFrame = new Graphics();
@@ -6717,6 +6723,8 @@ export class PixiGameRenderer {
     // REVAMP(I): Existing sprite strips plus stepped engine/pickup animation.
     // REVAMP(P): Optional glow/trails follow J's governor; actor silhouettes remain.
     animateCombatSprite(view, entity, engine, this.reducedMotion, this.feelQuality.budget.trailScale);
+    // REVAMP(R): Preserve authored poses/P motion; I's contact flash is applied later.
+    this.sectorSprites.entity(view, entity);
 
     if (!entity.bossEscapeState) {
       this.syncDamageRecoil(view, entity, engine);
@@ -6900,6 +6908,8 @@ export class PixiGameRenderer {
       pod.texture = texture;
       // REVAMP(I): 76% of the player's footprint, idle bob and existing spring banking.
       animateWingBody(pod, companion, engine, index, this.reducedMotion);
+      // REVAMP(R): Support hull energy frames share the bounded actor atlas.
+      this.sectorSprites.wing(pod, textureKey, index);
       if (companion.evolved && !takeoffActive) {
         this.gunPodUtility.circle(companion.x, companion.y, companion.width * 0.54)
           .stroke({ color: '#a7f3d0', width: 1.3, alpha: companion.alpha * 0.42 });
@@ -7969,6 +7979,8 @@ export class PixiGameRenderer {
 
   sync(engine: GameEngine, timestamp = performance.now(), presentationActive = engine.gameActive) {
     if (!this.initialized || this.destroyed) return;
+    // REVAMP(R): Live OS accessibility changes apply to every retained presenter.
+    this.reducedMotion = getFeelSettings().reducedMotion;
     this.renderFrame++;
     // REVAMP(A): Raw render duration drives quality only, never simulation speed.
     const elapsedMs = this.lastTimestamp ? timestamp - this.lastTimestamp : 16.667;
@@ -7988,6 +8000,9 @@ export class PixiGameRenderer {
     const sectorBackdropActive = this.sectorBackdrop.update(engine, quality.backgroundLayerScale);
     this.environment.setBackdropVisible(!sectorBackdropActive);
     if (!sectorBackdropActive) this.environment.update(engine);
+    // REVAMP(R): Simulation-frame clocks pause naturally; quality never changes rules.
+    this.sectorSprites.beginFrame(engine, quality, this.reducedMotion);
+    this.sectorShockwave.update(engine, quality, this.reducedMotion);
     this.effectPool.setQuality(engine.performanceMode, engine.mobileProfile, quality.particleScale);
     // REVAMP(A): Advance VFX during simulation hit-stop and consume receipts once.
     // REVAMP(P): Pickup spawn/collect accents share the pooled quality budget.
@@ -8018,6 +8033,9 @@ export class PixiGameRenderer {
       this.phaseText.visible = false;
       this.waveIntroRoot.visible = false;
     }
+    // REVAMP(R): Generic HUD accents include assembled boss name cards, never hazards.
+    this.sectorSprites.headers([this.waveNameText, this.waveLevelText, this.bossHealthName, this.bossDeathText],
+      [this.waveTitle, this.warningCrystal], this.layers.overlay);
     this.effectPool.update(deltaMs);
 
     if (engine.lastShotFrame !== this.lastShotFrame) this.lastShotFrame = engine.lastShotFrame;
@@ -8050,6 +8068,9 @@ export class PixiGameRenderer {
     this.combatHeaderInsets.destroy();
     this.hitFlashTextures.destroy();
     this.effectPool.destroy();
+    // REVAMP(R): Restore source art before disposing derived frames and overlays.
+    this.sectorSprites.destroy();
+    this.sectorShockwave.destroy();
     // REVAMP(N): Release the mission atlas before the renderer/context is destroyed.
     this.sectorBackdrop.destroy();
     this.environment.destroy();

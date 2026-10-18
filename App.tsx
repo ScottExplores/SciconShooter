@@ -12,6 +12,9 @@ import WingSupportHud from './components/revamp/WingSupportHud';
 import type { WingHudSnapshot } from './services/revamp/wings/wingRuntime';
 import FirstFlightHint from './components/revamp/FirstFlightHint';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+// REVAMP(R): One inherited theme follows the live mission into its result panel.
+import { getWorldTheme } from './services/revamp/theme/WorldTheme';
+import { usePresentationTheme, worldThemeStyle } from './services/revamp/theme/themeUi';
 // REVAMP(F): Query-only launch helpers keep QA in the real campaign runtime.
 import { readQAConfig } from './services/revamp/qa/config';
 import { useQAMissionLaunch } from './services/revamp/qa/launch';
@@ -7894,8 +7897,17 @@ const App: React.FC = () => {
   const onboardingAbilityLocked = onboardingStepId === 'flight-steer'
     || onboardingStepId === 'flight-bomb';
 
+  // REVAMP(R): Presentation only; weekly remains distinct and result components need no edits.
+  const worldTheme = usePresentationTheme(getWorldTheme(
+    activeBossReplayCampaign ?? activeCampaignBranchCampaign ?? (isWeeklyCampaignRun ? weeklyRun.campaign : DEFAULT_GAME_CAMPAIGN),
+    (gameState === GameState.WAVE_COMPLETE ? waveVictorySummary?.levelId : undefined)
+      ?? pauseMissionPosition?.levelId ?? activeBossReplay?.missionId
+      ?? activeCampaignBranch?.missionDefinition.id ?? activeCampaignLaunch?.missionId,
+    isWeeklyCampaignRun,
+  ), !startupLoading && !walletIdentityHydrating && !activeWalletAddress);
+
   return (
-    <div className="relative h-full w-full select-none bg-[#0b1020]">
+    <div className="relative h-full w-full select-none bg-[#0b1020]" data-world-theme={worldTheme.id} style={worldThemeStyle(worldTheme)}>
       <PreviewBuildBadge />
       {localHangarSaveError ? (
         <div role="alert" className="absolute inset-x-3 top-3 z-[100] rounded-lg border border-red-300/50 bg-slate-950 p-4 text-sm text-red-100">

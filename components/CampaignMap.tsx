@@ -20,6 +20,9 @@ import { formatTokenAmount, toTokenTerminology } from '../services/tokenTerminol
 import CampaignMapCelestial from './campaign-map/CampaignMapCelestial';
 import PixelActionButton from './PixelActionButton';
 import './campaign-map.css';
+// REVAMP(R): The map and its briefing share the live sector's palette.
+import { getSectorTheme, getWorldTheme, worldColorHex } from '../services/revamp/theme/WorldTheme';
+import { worldThemeStyle } from '../services/revamp/theme/themeUi';
 
 type CampaignMapMissionRole =
   | 'introduction'
@@ -52,11 +55,11 @@ type CampaignMapSector = {
 
 const CAMPAIGN_SECTOR_PRESETS = DEFAULT_GAME_CAMPAIGN.sectors
   .map((sector) => {
-    const theme = DEFAULT_GAME_CAMPAIGN.visualThemes.find((entry) => entry.id === sector.themeId);
+    const theme = getSectorTheme(sector.id);
     return {
       id: sector.id,
       name: sector.name,
-      accent: theme?.accent ?? '#67e8f9',
+      accent: worldColorHex(theme.accent),
       order: sector.order
     };
   })
@@ -833,6 +836,7 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
   const selectedMissionRole = selectedMission ? getCampaignMissionRole(selectedMission) : null;
   const selectedEncounter = selectedMission?.encounter ?? null;
   const selectedSector = selectedMission ? getCampaignSectorPreset(selectedMission) : null;
+  const selectedWorldTheme = getSectorTheme(selectedSector?.id);
   const selectedPowerGuide = selectedMission ? getCampaignPowerGuide(selectedMission) : null;
   const developerShipOptions = developerControls?.shipOptions?.length
     ? developerControls.shipOptions
@@ -1189,10 +1193,10 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
   };
 
   return (
-    <main className="campaign-map-screen">
+    <main className="campaign-map-screen" data-world-theme={selectedWorldTheme.id} style={worldThemeStyle(selectedWorldTheme)}>
       <div
         ref={dialogRef}
-        className="campaign-map-dialog"
+        className="campaign-map-dialog frame-anim"
         role="region"
         aria-labelledby="campaign-map-title"
         aria-describedby="campaign-map-instructions"
@@ -1318,6 +1322,7 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
                 </svg>
                 {orderedMissions.map((mission) => {
                   const nodeState = getDisplayedMissionState(mission);
+                  const worldTheme = getWorldTheme(DEFAULT_GAME_CAMPAIGN, mission.id);
                   const missionRole = getCampaignMissionRole(mission);
                   const missionDisplayLabel = getCampaignMissionDisplayLabel(mission);
                   const encounter = mission.encounter;
@@ -1359,10 +1364,12 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
                       data-mission-role={missionRole}
                       data-encounter-class={encounter?.encounterClass}
                       data-map-current={mapCurrent ? 'true' : undefined}
+                      data-world-theme={worldTheme.id}
                       style={{
+                        ...worldThemeStyle(worldTheme),
                         '--campaign-node-x': `${mission.mapPosition.x * 100}%`,
                         '--campaign-node-y': `${getNodeTop(mission, routeDepthCount)}px`,
-                        '--campaign-node-tint': mission.tint
+                        '--campaign-node-tint': worldColorHex(worldTheme.accent)
                       } as React.CSSProperties}
                       onClick={() => {
                         setSelectedBranchId(null);
@@ -1617,7 +1624,7 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
                 <div className={`campaign-map-selection-grid campaign-map-selection-grid--${selectedMissionRole}`}>
                   <div
                     className={`campaign-map-selection-art ${!selectedEncounter ? 'campaign-map-selection-art--celestial' : ''} ${selectedLockedBossSilhouette ? 'is-locked-boss-silhouette' : ''}`}
-                    style={{ '--campaign-node-tint': selectedMission.tint } as React.CSSProperties}
+                    style={{ '--campaign-node-tint': worldColorHex(selectedWorldTheme.accent) } as React.CSSProperties}
                   >
                     {selectedEncounter?.previewUrl ? (
                       <img src={selectedEncounter.previewUrl} alt="" />
