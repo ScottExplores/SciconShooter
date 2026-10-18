@@ -646,6 +646,19 @@ export class PixiEnvironment {
 
   setDetailScale(scale: number) { this.detailScale = Math.max(0.5, Math.min(1, scale)); }
 
+  // REVAMP(N): Hide only owned legacy art when a campaign sector backdrop is active.
+  // Keep visibility/culling state intact so special authored scenes can resume.
+  private backdropVisible = true;
+  setBackdropVisible(visible: boolean) {
+    if (this.backdropVisible === visible) return;
+    this.backdropVisible = visible;
+    for (const object of [this.backgroundFill, this.sectorTint, this.horizon,
+      this.terrainPropLayer, this.hyperspeedStreaks, this.hyperspeedFrame]) object.renderable = visible;
+    for (const layer of this.parallaxLayers) layer.root.renderable = visible;
+    for (const star of this.stars) star.sprite.renderable = visible;
+    for (const glyph of this.glyphs) glyph.graphic.renderable = visible;
+  }
+
   async init(
     width: number,
     height: number,

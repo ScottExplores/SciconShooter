@@ -72,6 +72,8 @@ import {
   PixiEnvironment,
   type PixiEnvironmentWindow
 } from './PixiEnvironment';
+// REVAMP(N): Presentation-only sector worlds; simulation and original art stay owned by their existing systems.
+import { SectorBackdrop } from '../revamp/backgrounds/SectorBackdrop';
 import { PixiTextureBank } from './PixiTextureBank';
 import { sampleFormationEnemyPresentation } from './FormationEnemyPresentation';
 import { resolveKamikazeSpinnerFrameIndex } from '../gameplay/enemies/KamikazeSpinnerRuntime';
@@ -1414,6 +1416,8 @@ export class PixiGameRenderer {
   private readonly recycledViews = new Map<EntityType, EntityView[]>();
   // REVAMP(J): Renderer-owned derived textures leave original artwork untouched.
   private readonly environment = new PixiEnvironment(this.layers.background, this.layers.environment, this.textureBank, () => this.app.renderer, tagLargeSprite);
+  // REVAMP(N): Seeded six-plane background, using the existing quality governor.
+  private readonly sectorBackdrop = new SectorBackdrop(this.layers.background, () => this.app.renderer);
   private releaseSelectedBatcher?: () => void;
   private readonly warningShade = new Graphics();
   private readonly warningFrame = new Graphics();
@@ -8027,7 +8031,10 @@ export class PixiGameRenderer {
       encounterCamera.offsetY + engine.shakeY
     );
     this.environment.setDetailScale(quality.backgroundLayerScale);
-    this.environment.update(engine);
+    // REVAMP(N): Unmapped/special scenes retain their authored environment.
+    const sectorBackdropActive = this.sectorBackdrop.update(engine, quality.backgroundLayerScale);
+    this.environment.setBackdropVisible(!sectorBackdropActive);
+    if (!sectorBackdropActive) this.environment.update(engine);
     this.effectPool.setQuality(engine.performanceMode, engine.mobileProfile, quality.particleScale);
     // REVAMP(A): Advance VFX during simulation hit-stop and consume receipts once.
     this.feelPresentation.beginFrame(engine, elapsedMs);
@@ -8087,6 +8094,8 @@ export class PixiGameRenderer {
     this.feelPresentation.destroy();
     this.hitFlashTextures.destroy();
     this.effectPool.destroy();
+    // REVAMP(N): Release the mission atlas before the renderer/context is destroyed.
+    this.sectorBackdrop.destroy();
     this.environment.destroy();
     this.destroyPreviewBossAtlasTextures();
     this.destroyModularPreviewBossTextures();
