@@ -5,7 +5,12 @@ import { getWeaponOverdriveTier } from '../../weaponOverdrive';
 
 export type WingSlot = 'left' | 'right';
 export type WingSpecial = 'laser-lance' | 'homing-swarm' | 'flak-burst' | 'shield-pulse' | 'bullet-eraser' | 'magnet-field';
-export const WING_OFFSET = 38;
+// REVAMP(I): Enlarged support art needs space around the player's visible hull.
+export const WING_OFFSET = 76;
+export const WING_MUZZLE_OFFSET = 36;
+export const WING_EDGE_MARGIN = 40;
+export const WING_CENTER_CLEARANCE = 58;
+export const WING_EDGE_STAGGER = 62;
 export const clampWingLevel = (level: number) => Math.max(1, Math.min(5, Math.floor(Number(level) || 1)));
 
 /** Sustained first-target damage, independent of device, FPS and screen size. */

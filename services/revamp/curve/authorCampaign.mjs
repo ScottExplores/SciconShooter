@@ -1,3 +1,4 @@
+import { CAMPAIGN_BOSS_ECONOMY_BY_MISSION } from '../../campaignBossEconomy.ts';
 import { CURVE, missionCurve, regularHealth, roundCurve, waveThreat } from './difficultyCurve.ts';
 
 /** Explicit authoring source; curve-report --write applies it idempotently. */
@@ -43,18 +44,27 @@ export function authorRevampCampaign(source) {
   // Keep the catalog's exact art key; never duplicate or recolor Scott's files.
   const rift = campaign.enemyRoles.find((role) => role.id === 'role-rift-weaver');
   newRoles.find((role) => role.id === roleId('teleporter')).spriteKey = rift.spriteKey;
-  campaign.enemyRoles.push(...newRoles);
+  // REVAMP(I): Ordinary formation hulls keep density separate from special-mechanic count.
+  const linefighter = {
+    id: roleId('linefighter'), label: 'Orbit Wing', enemyId: 'drone', spriteKey: 'LEGACY_ENEMY_DRONE_FRAMES',
+    role: 'formation-unit', threatCost: 1, introductionSector: 1, introductionMission: 1,
+    durabilityClass: 'light', fireBehavior: 'post-formation', fireDelaySeconds: 1.2,
+    entryBehavior: 'formation', compatibleFormationPackIds: [packId('linefighter')],
+    synergyTags: ['formation-pressure'], reuseCooldownWaves: 0, maximumSimultaneousCount: 40,
+    performanceCost: 1, characteristic: 'diver',
+  };
+  campaign.enemyRoles.push(...newRoles, linefighter);
   const scout = campaign.enemyRoles.find((role) => role.id === 'role-orbit-scout');
   campaign.formationPacks = campaign.formationPacks.filter((pack) => !pack.id.startsWith('pack-revamp-'));
-  const packRoles = [scout, ...newRoles];
+  const packRoles = [scout, ...newRoles, linefighter];
   for (const [index, role] of packRoles.entries()) {
-    const slug = index === 0 ? 'swoop' : REVAMP_ROSTER[index - 1][0];
+    const slug = role === linefighter ? 'linefighter' : index === 0 ? 'swoop' : REVAMP_ROSTER[index - 1][0];
     const [entry, shape, direction] = ENTRY_LIBRARY[index % ENTRY_LIBRARY.length];
     const escort = slug === 'escort';
-    const count = escort ? 6 : Math.min(role.maximumSimultaneousCount, 6);
+    const count = role === linefighter ? 36 : escort ? 6 : Math.min(role.maximumSimultaneousCount, 6);
     campaign.formationPacks.push({
       id: packId(slug), label: `Revamp ${role.label}`, enemyRoleIds: [role.id], enemyCount: count,
-      totalThreatCost: roundCurve(count * role.threatCost), entryDirection: direction,
+      totalThreatCost: roundCurve(count * role.threatCost), entryDirection: role === linefighter ? 'split' : direction,
       entryPath: `revamp-${entry}`, formationShape: escort ? 'v' : shape,
       movementBehavior: 'revamp-breathe', attackBehavior: escort ? 'revamp-escort' : 'revamp-dive',
       firingBehavior: role.fireBehavior === 'none' ? 'none' : role.characteristic === 'diver' ? 'staggered' : 'post-formation', returnBehavior: 'reform',
@@ -67,7 +77,6 @@ export function authorRevampCampaign(source) {
     if (!role.compatibleFormationPackIds.includes(packId(slug))) role.compatibleFormationPackIds.push(packId(slug));
   }
 
-  const rolesById = new Map(campaign.enemyRoles.map((role) => [role.id, role]));
   const packsByRole = new Map(campaign.formationPacks.filter((pack) => pack.id.startsWith('pack-revamp-'))
     .map((pack) => [pack.enemyRoleIds[0], pack]));
   const miniTemplate = source.levels.flatMap((level) => level.waves).flatMap((wave) => wave.events)
@@ -111,7 +120,8 @@ export function authorRevampCampaign(source) {
       order: index + 1, accent: level.waves[0]?.accent ?? '#67e8f9', backgroundId: level.backgroundId,
       completionRule: 'clear-after-duration', difficultyMultiplier: 1, durationSeconds: duration,
       introSeconds: 0.25, delayAfterSeconds: 0, scoreMultiplier: level.waves[0]?.scoreMultiplier ?? 1,
-      threatCap: Math.max(12, Math.ceil(waveThreat(events, campaign.enemyRoles) + 3)),
+      threatCap: Math.max(12, events.filter(event => event.kind === 'spawn').reduce((sum, event) => sum + event.count, 0) + 2,
+        Math.ceil(waveThreat(events, campaign.enemyRoles) + 3)),
       combatBudget: Math.ceil(Math.max(declaredCost, waveThreat(events, campaign.enemyRoles)) + 2),
       rhythm, formationPackIds, events,
     };
@@ -128,57 +138,84 @@ export function authorRevampCampaign(source) {
     const newest = available.at(-1);
     const own = (suffix) => `${level.id}-revamp-${suffix}`;
     let waves;
-    if (depth === 1) {
-      const swoop = spawn(level, own('onboarding'), scout, 6, 0, 0, 6);
-      swoop.formationBehavior.attackId = 'aimed-volley';
-      const dive = spawn(level, own('divers'), rolesById.get(roleId('diver')), 10, 1, 10, 6);
-      dive.formationBehavior.entryPathId = 'revamp-loop';
-      dive.formationBehavior.holdSeconds = 0.9;
-      const train = spawn(level, own('reinforcement-train'), rolesById.get(roleId('diver')), 8, 2, 20, 4);
-      train.formationBehavior.entryPathId = 'revamp-train';
-      train.formationBehavior.holdSeconds = 0.9;
-      train.spawnIntervalSeconds = 0.26;
-      const peer = { ...clone(miniTemplate), id: own('peer-reviewer'), label: 'PEER REVIEWER',
-        startSeconds: 28.8, durationSeconds: 20, warningSeconds: 1.2, blocksWaveClock: false,
-        health: 120, speed: 1.2, shieldCount: 1, damage: 1, scoreReward: 450,
-        weapons: [{ id: 'peer-reviewer-shot', weaponId: 'aimed-shot', attackIntervalSeconds: 3.8, damage: 1, projectileSpeed: 2.7, burstCount: 1 }],
-        phases: [{ id: 'peer-reviewer-standard', label: 'Read the telegraph', triggerHealthRatio: 1,
-          movementPatternId: 'track-player', speedMultiplier: 1, weaponSettingIds: ['peer-reviewer-shot'] }],
+    // REVAMP(I): A squadron is a full breathing grid plus two named specials. Four
+    // short combat beats replace six tiny packs; boss lead-ins reserve time for the fight.
+    const major = level.campaignProgression.missionRole === 'major-boss';
+    const hasMini = Boolean(originalBoss) && !major;
+    const formationCount = major || depth === 1 || hasMini ? 2 : 3;
+    const factors = formationCount === 2 ? [0.9, 1.1]
+      : formationCount === 3 ? [0.9, 1.1, 1] : [0.9, 1.05, 0.85, 1.2];
+    waves = factors.map((factor, index) => {
+      const total = Math.min(40, 30 + (curve.slot >= 3 || !node.mainPath ? 2 : 0) + (index === 3 ? 2 : 0));
+      const special = index % 2 === 0 ? newest : available[Math.max(0, (index + curve.slot - 1) % available.length)];
+      const specialCount = 2;
+      const regularCount = total - specialCount;
+      const targetThreat = curve.threat * factor;
+      const cadence = roundCurve(CURVE.referenceFireIntervalSeconds * (regularCount + specialCount * special.threatCost) / targetThreat, 5);
+      const entry = ['swoop', 'loop', 's-curve', 'pincer'][(index + curve.slot - 1) % 4];
+      const regular = spawn(level, own(`wave-${index + 1}-grid`), linefighter, targetThreat, index, 0, regularCount);
+      regular.count = regularCount;
+      regular.patternId = 'grid';
+      regular.durationSeconds = 9;
+      regular.spawnIntervalSeconds = 0.1333333333;
+      regular.formationSlots = Array.from({ length: regularCount }, (_, slot) => ({
+        x: 0.16 + (slot % 6) * 0.136,
+        y: 0.145 + Math.floor(slot / 6) * 0.054,
+      }));
+      regular.enemies[0].sizeMultiplier = 0.68;
+      regular.enemies[0].health = roundCurve(curve.expectedDps * 0.4);
+      regular.enemies[0].attackIntervalSeconds = cadence;
+      regular.enemies[0].projectileSpeed = roundCurve(1.75 + (depth - 1) * 0.065);
+      regular.enemies[0].powerupDropChance = 0.012;
+      regular.formationBehavior = { ...regular.formationBehavior,
+        entryPathId: `revamp-${entry}`, firingBehavior: 'post-formation',
+        holdSeconds: 0.9, attackGroupSize: 2, recoverySeconds: 1.2, attackCycles: 0,
       };
-      waves = [wave(level, 0, 'introduce', [swoop, powerup(own('power-six-seconds'), 6, 'projectile-upgrade'), dive,
-        powerup(own('magnet-eighteen-seconds'), 18, 'magnet'), train, peer], 50)];
-      waves[0].name = 'FIRST FLIGHT';
-      waves[0].introSeconds = 0;
-      level.description = 'Swoop into action, collect power at six seconds, read the diving formation, then face the Peer Reviewer at thirty seconds.';
-    } else {
-      const major = level.campaignProgression.missionRole === 'major-boss';
-      const factors = major ? [0.85, 1, 1.1, 0.8, 1.25] : [0.85, 1, 1.1, 1.25, 0.7, 1.1];
-      waves = factors.map((factor, index) => {
-        // One newly introduced idea, practiced twice; other waves remix already learned roles.
-        const role = index === 1 || index === 3 ? newest : available[Math.max(0, (index + curve.slot - 1) % available.length)];
-        const event = spawn(level, own(`wave-${index + 1}`), role, curve.threat * factor, index);
-        const events = [event];
-        if (index === 0 || index === 4) events.push(powerup(own(`power-${index + 1}`), 6, index === 4 ? 'magnet' : 'projectile-upgrade'));
-        if (index === 4) events.push({ id: own('recovery'), kind: 'recovery', label: 'Breath and salvage', startSeconds: 8,
-          durationSeconds: 3, delayAfterSeconds: 0, blocksWaveClock: false, positionId: 'center-top', coinCount: 8, powerupIds: ['shield'] });
-        return wave(level, index, ['warm-up', 'introduce', 'variation', 'peak', 'recovery', 'clear'][index], events, depth <= 3 ? 19 : 24);
-      });
-      if (originalBoss) {
-        const boss = clone(originalBoss);
-        boss.startSeconds = 0;
-        const index = major ? waves.length : 4;
-        const bossWave = wave(level, index, 'boss', [boss], major ? 90 : 24);
-        bossWave.id = `${level.id}-revamp-boss-wave`;
-        bossWave.name = boss.label;
-        bossWave.completionRule = major ? 'boss-defeat' : 'clear-after-duration';
-        bossWave.combatBudget = Math.max(24, Math.ceil(curve.threat * 3));
-        if (!major) {
-          boss.health = Math.round(curve.expectedDps * 12);
-          boss.warningSeconds = Math.max(1.2, boss.warningSeconds);
-        }
-        waves.splice(index, 0, bossWave);
+      const support = spawn(level, own(`wave-${index + 1}-divers`), special, targetThreat, index, 0.4, specialCount);
+      support.count = specialCount;
+      support.patternId = 'grid';
+      support.spawnIntervalSeconds = 0.24;
+      support.formationSlots = [{ x: 0.37, y: 0.105 }, { x: 0.63, y: 0.105 }];
+      support.enemies[0].sizeMultiplier = 0.72;
+      support.enemies[0].attackIntervalSeconds = cadence;
+      support.enemies[0].projectileSpeed = regular.enemies[0].projectileSpeed;
+      support.formationBehavior.holdSeconds = 1.0;
+      support.formationBehavior.attackGroupSize = specialCount;
+      support.formationBehavior.entryPathId = `revamp-${entry}`;
+      const events = [regular, support];
+      events.push(powerup(own(index === 0 ? 'power-six-seconds' : `power-wave-${index + 1}`), index === 0 ? 6 : 1, 'projectile-upgrade'));
+      if (index === 1) events.push(powerup(own('magnet-eighteen-seconds'), 3, 'magnet'));
+      const entryWave = wave(level, index, ['introduce', 'variation', 'recovery', 'peak'][index], events, 18);
+      entryWave.introSeconds = index === 0 ? 0 : 0.65;
+      return entryWave;
+    });
+    if (originalBoss || depth === 1) {
+      const boss = clone(originalBoss ?? miniTemplate);
+      boss.id = major ? `${level.id}-major-boss` : own(depth === 1 ? 'peer-reviewer' : 'checkpoint');
+      boss.startSeconds = 0;
+      if (depth === 1) {
+        Object.assign(boss, { label: 'PEER REVIEWER', durationSeconds: 20, warningSeconds: 1.2,
+          blocksWaveClock: false, health: 110, speed: 1.2, shieldCount: 1, damage: 1, scoreReward: 450,
+          weapons: [{ id: 'peer-reviewer-shot', weaponId: 'aimed-shot', attackIntervalSeconds: 3.8, damage: 1, projectileSpeed: 2.7, burstCount: 1 }],
+          phases: [{ id: 'peer-reviewer-standard', label: 'Read the telegraph', triggerHealthRatio: 1,
+            movementPatternId: 'track-player', speedMultiplier: 1, weaponSettingIds: ['peer-reviewer-shot'] }],
+        });
+      } else if (major && curve.sector === 1) {
+        boss.health = CAMPAIGN_BOSS_ECONOMY_BY_MISSION[5].hullHealth;
+        boss.componentHealth = clone(CAMPAIGN_BOSS_ECONOMY_BY_MISSION[5].componentHealth);
+      } else if (!major) {
+        boss.health = Math.round(curve.expectedDps * 15);
+        boss.warningSeconds = Math.max(1.2, boss.warningSeconds);
       }
+      const bossWave = wave(level, waves.length, 'boss', [boss], major ? 45 : 22);
+      bossWave.id = `${level.id}-revamp-boss-wave`;
+      bossWave.name = boss.label;
+      bossWave.completionRule = major ? 'boss-defeat' : 'clear-after-duration';
+      bossWave.combatBudget = Math.max(24, Math.ceil(curve.threat * 3));
+      bossWave.introSeconds = 0.7;
+      waves.push(bossWave);
     }
+    level.description = 'Mirrored squadrons sweep into a breathing grid, trade slow readable fire, and peel into announced dives before the command encounter.';
     waves.forEach((entry, index) => { entry.order = index + 1; });
     level.waves = waves;
     level.loopWaves = false;
@@ -188,7 +225,7 @@ export function authorRevampCampaign(source) {
     level.campaignProgression.recommendedPower = curve.recommendedPower;
     level.campaignProgression.testedLoadouts = {
       lowPower: 'Curve estimate: 80% expected DPS; no paid upgrades assumed',
-      expectedPower: 'Curve estimate: base gun plus earned projectile pickups; 0.48–1.10 s regular TTK',
+      expectedPower: 'Curve estimate: base gun plus earned projectile pickups; 0.48–1.10 s regular TTK; 30–34 hull formations',
       upgraded: 'Curve estimate: 125% expected DPS; convenience upgrades optional',
     };
     node.recommendedPower = clone(curve.recommendedPower);

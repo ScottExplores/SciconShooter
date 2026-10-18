@@ -243,7 +243,12 @@ test('fifty main depths form a non-recycling campaign with ten authored sector c
 
   assert.ok(finalStage.startingDifficulty > stageSix.startingDifficulty);
   assert.ok(finalStage.waves.at(-1).difficultyMultiplier > stageSix.waves.at(-1).difficultyMultiplier);
-  assert.ok(finalStage.waves.at(-1).threatCap >= stageSix.waves.at(-1).threatCap);
+  // REVAMP(I): Dense early grids need admission room even while their slow fire has low pressure.
+  // Encounter danger still escalates through the independent difficulty/hull checks above.
+  for (const wave of stageSix.waves) {
+    const hulls = wave.events.filter(event => event.kind === 'spawn').reduce((sum, event) => sum + event.count, 0);
+    assert.ok(wave.threatCap >= hulls, 'the complete early formation can assemble');
+  }
 
   const mainLevels = campaign.sectors.flatMap((sector) => (
     sector.missionIds.map((missionId) => campaign.levels.find((level) => level.id === missionId))
@@ -283,7 +288,7 @@ test('ten sector bosses follow a readable durability, bounded score, and project
   });
   const bursts = finalBosses.map((boss) => boss.weapons.find((weapon) => weapon.projectileSpeed > 0));
 
-  assert.deepEqual(finalBosses.map((boss) => boss.health), [500, 800, 1300, 1600, 2350, 2500, 2700, 2900, 3150, 3400]);
+  assert.deepEqual(finalBosses.map((boss) => boss.health), [160, 800, 1300, 1600, 2350, 2500, 2700, 2900, 3150, 3400]);
   assert.deepEqual(finalBosses.map((boss) => boss.scoreReward), [1010, 5010, 9010, 13010, 17010, 21010, 25010, 29010, 33010, 37010]);
   assert.deepEqual(bursts.map((weapon) => weapon.burstCount), [3, 7, 4, 4, 4, 4, 1, 4, 4, 4]);
   finalBosses.slice(1).forEach((boss, index) => {

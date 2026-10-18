@@ -11,7 +11,7 @@ const file = join(scratch, 'engine.cjs');
 const previousImage = globalThis.Image;
 globalThis.Image = class Image { set src(value) { this.complete = true; this.width = 128; this.height = 128; } };
 after(async () => { globalThis.Image = previousImage; await rm(scratch, { recursive: true, force: true }); });
-await build({ stdin: { contents: `export * from './services/gameLogic'; export * from './services/levelConfig'; export * from './services/squadProgression'; export * from './services/revamp/progression'; export * from './types';`, resolveDir: process.cwd(), loader: 'ts' },
+await build({ stdin: { contents: `export * from './services/gameLogic'; export { WING_MUZZLE_OFFSET } from './services/revamp/wings/wingTuning'; export * from './services/levelConfig'; export * from './services/squadProgression'; export * from './services/revamp/progression'; export * from './types';`, resolveDir: process.cwd(), loader: 'ts' },
   bundle: true, platform: 'node', format: 'cjs', outfile: file, logLevel: 'silent' });
 const m = await import(pathToFileURL(file).href);
 
@@ -162,4 +162,26 @@ test('earned-loadout adoption rejects weekly, preview and unsettled Mission boun
   const runtime = engine({ wings: true });
   runtime.waveTransitionPending = true; runtime.waveVictoryReady = false;
   assert.equal(runtime.adoptRevampCampaignLoadout(runtime.squadLoadout), false);
+});
+
+
+test('enlarged wing muzzle and projectile center agree on mobile and desktop without changing damage or cadence', () => {
+  const results = [];
+  for (const mobile of [true, false]) {
+    const runtime = engine({ wings: true });
+    runtime.mobileProfile = mobile;
+    const wing = runtime.squadCompanions[0];
+    wing.x = 100; wing.y = 600;
+    const cadence = wing.fireIntervalFrames;
+    const damage = wing.projectileDamage;
+    assert.equal(runtime.spawnSquadProjectile(wing), true);
+    const shot = runtime.entities.find(entity => entity.isPlayerShot && entity.squadAbilityKind);
+    assert.ok(shot);
+    assert.equal(shot.x + shot.width / 2, wing.x);
+    assert.equal(shot.y + shot.height / 2, wing.y - m.WING_MUZZLE_OFFSET);
+    assert.equal(shot.damage, damage);
+    assert.equal(wing.fireIntervalFrames, cadence);
+    results.push({ x: shot.x, y: shot.y, width: shot.width, height: shot.height, vx: shot.vx, vy: shot.vy, damage: shot.damage });
+  }
+  assert.deepEqual(results[0], results[1]);
 });

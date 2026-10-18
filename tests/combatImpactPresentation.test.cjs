@@ -69,7 +69,8 @@ test('new engines, preview resets, and disposal cannot replay old receipts', () 
 test('renderer uses local pixel hits and actual sprite silhouettes, never regular hit rings', () => {
   const renderer = fs.readFileSync(path.join(root, 'services/pixi/PixiGameRenderer.ts'), 'utf8');
   const pool = fs.readFileSync(path.join(root, 'services/pixi/ArcadeEffectPool.ts'), 'utf8');
-  const flash = renderer.slice(renderer.indexOf('  private drawFlash('), renderer.indexOf('  private updateEntityView('));
+  // REVAMP(I): Damage presentation is delegated to the receipt-owned module.
+  const flash = fs.readFileSync(path.join(root, 'services/revamp/feel/FeelPresentation.ts'), 'utf8');
   assert.match(flash, /view\.hitFlash\.texture = view\.sprite\.texture/);
   assert.match(flash, /view\.hitFlash\.scale\.copyFrom\(view\.sprite\.scale\)/);
   assert.match(flash, /view\.hitFlash\.anchor\.copyFrom\(view\.sprite\.anchor\)/);

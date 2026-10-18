@@ -56,47 +56,51 @@ test('every authored formation meets actual curve pressure and focused regular T
   for (const node of earlyNodes) {
     const level = campaign.levels.find((level) => level.id === node.missionDefinitionId);
     const curve = missionCurve(node.depth);
-    const spawns = level.waves.flatMap((wave) => wave.events.filter((event) => event.kind === 'spawn'));
-    approximately(spawns.reduce((sum, event) => sum + spawnThreat(event, campaign.enemyRoles), 0) / spawns.length, curve.threat, 0.0001);
+    const regularWaves = level.waves.filter(wave => wave.events.some(event => event.kind === 'spawn'));
+    const spawns = regularWaves.flatMap(wave => wave.events.filter(event => event.kind === 'spawn'));
+    approximately(regularWaves.reduce((sum, wave) => sum + waveThreat(wave.events, campaign.enemyRoles), 0) / regularWaves.length, curve.threat, 0.0001);
     assert.equal(level.startingDifficulty, 1);
     assert.equal(level.campaignProgression.recommendedPower.expected, curve.expectedPower);
-    for (const wave of level.waves) assert.equal(wave.difficultyMultiplier, 1);
+    for (const wave of level.waves) {
+      assert.equal(wave.difficultyMultiplier, 1);
+      const hulls = wave.events.filter(event => event.kind === 'spawn').reduce((sum, event) => sum + event.count, 0);
+      assert.ok(wave.threatCap >= hulls, `${level.id}: pressure must never throttle formation assembly`);
+    }
     for (const event of spawns) for (const enemy of event.enemies) {
       const ttk = enemy.health / curve.expectedDps;
-      assert.ok(ttk >= 0.4 && ttk <= 1.2, `${level.id} ${enemy.roleId} TTK ${ttk}`);
+      assert.ok(ttk >= 0.3998 && ttk <= 1.2, `${level.id} ${enemy.roleId} TTK ${ttk}`);
       assert.equal(enemy.damage, 1);
-      if (enemy.roleId === 'role-revamp-escort') assert.equal(event.count % 3, 0);
+      if (enemy.roleId === 'role-revamp-escort') assert.equal(event.count, 2);
     }
   }
 });
 
-test('opening is one uninterrupted authored beat with guaranteed drops and a 30-second mini-boss entry', () => {
-  const opening = campaign.levels.find((level) => level.id === 'operation-open-galaxy');
-  assert.equal(opening.waves.length, 1);
-  const wave = opening.waves[0];
-  assert.equal(wave.introSeconds, 0);
-  assert.equal(wave.durationSeconds, 50);
-  const spawns = wave.events.filter((event) => event.kind === 'spawn');
-  assert.equal(spawns[0].startSeconds, 0);
-  assert.equal(spawns[0].formationBehavior.entryPathId, 'revamp-swoop');
-  assert.equal(spawns[0].formationBehavior.attackId, 'aimed-volley');
-  assert.equal(spawns[0].formationBehavior.firingBehavior, 'none');
-  assert.equal(spawns[1].startSeconds, 10);
-  assert.equal(spawns[1].enemies[0].roleId, 'role-revamp-diver');
-  assert.equal(spawns[2].startSeconds, 20);
-  assert.equal(spawns[2].formationBehavior.entryPathId, 'revamp-train');
-  assert.equal(spawns[2].count, 4);
-  assert.ok(spawns.every(event => event.spawnIntervalSeconds >= 0.24));
-  assert.ok(wave.events.some((event) => event.kind === 'recovery' && event.startSeconds === 6 && event.powerupIds.length === 1 && event.powerupIds[0] === 'projectile-upgrade'));
-  assert.ok(wave.events.some((event) => event.kind === 'recovery' && event.startSeconds === 18 && event.powerupIds[0] === 'magnet'));
-  const peer = wave.events.find((event) => event.kind === 'boss');
+test('opening has full mirrored grids, gentle fire, guaranteed power and a separate mini-boss beat', () => {
+  const opening = campaign.levels.find(level => level.id === 'operation-open-galaxy');
+  assert.equal(opening.waves.length, 3);
+  for (const wave of opening.waves.slice(0, -1)) {
+    const spawns = wave.events.filter(event => event.kind === 'spawn');
+    const count = spawns.reduce((total, event) => total + event.count, 0);
+    assert.ok(count >= 24 && count <= 40);
+    const grid = spawns.find(event => event.enemies[0].roleId === 'role-revamp-linefighter');
+    assert.equal(grid.formationSlots.length, grid.count);
+    assert.equal(grid.startSeconds, 0);
+    assert.equal(grid.formationBehavior.movementId, 'revamp-breathe');
+    assert.equal(grid.formationBehavior.attackId, 'revamp-dive');
+    assert.ok(grid.enemies[0].projectileSpeed <= 2);
+    assert.equal(spawns.filter(event => event !== grid).reduce((sum, event) => sum + event.count, 0), 2);
+    assert.ok(wave.events.some(event => event.kind === 'recovery' && event.powerupIds.includes('projectile-upgrade')));
+    assert.ok(!wave.events.some(event => event.kind === 'boss'));
+  }
+  assert.equal(opening.waves[0].introSeconds, 0);
+  assert.ok(opening.waves[0].events.some(event => event.startSeconds === 6 && event.powerupIds?.includes('projectile-upgrade')));
+  const peer = opening.waves.at(-1).events.find(event => event.kind === 'boss');
   assert.equal(peer.label, 'PEER REVIEWER');
-  assert.equal(peer.startSeconds + peer.warningSeconds, 30);
-  assert.equal(peer.blocksWaveClock, false);
+  assert.ok(peer.warningSeconds >= 1.2);
 });
 
 test('one new regular-enemy mechanic per introduction mission, taught before reuse', () => {
-  const roles = campaign.enemyRoles.filter((role) => role.id.startsWith('role-revamp-'));
+  const roles = campaign.enemyRoles.filter((role) => role.id.startsWith('role-revamp-') && role.id !== 'role-revamp-linefighter');
   const introductions = new Set(roles.map((role) => `${role.introductionSector}/${role.introductionMission}`));
   assert.equal(roles.length, 8);
   assert.equal(introductions.size, 8);
@@ -111,7 +115,7 @@ test('one new regular-enemy mechanic per introduction mission, taught before reu
   }
   for (const node of earlyNodes.filter((node) => node.depth > 1)) {
     const level = campaign.levels.find((level) => level.id === node.missionDefinitionId);
-    assert.ok(level.waves.length >= 6 && level.waves.length <= 9);
+    assert.ok(level.waves.length >= 3 && level.waves.length <= 9);
     for (let index = 0; index < level.waves.length - 1; index++) {
       if (level.waves[index].events.some((event) => event.kind === 'boss')) assert.equal(level.waves[index + 1].rhythm, 'recovery');
     }

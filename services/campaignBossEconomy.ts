@@ -34,10 +34,11 @@ export const CAMPAIGN_BOSS_ECONOMY_BY_MISSION = Object.freeze({
   5: economyDefinition({
     missionOrder: 5,
     bossId: 'gatekeeper-prime',
-    hullHealth: 500,
+    // REVAMP(I): Dense two-squadron lead-in leaves roughly 35 seconds for this first boss.
+    hullHealth: 160,
     componentHealth: {
-      'left-cannon': 165,
-      'right-cannon': 165
+      'left-cannon': 52.8,
+      'right-cannon': 52.8
     },
     fullHullBars: 1
   }),

@@ -1,4 +1,6 @@
-.revamp-first-flight{position:absolute;z-index:24;left:18%;right:18%;top:27%;margin:0;padding:9px 12px;border:1px solid #67e8f955;border-radius:8px;background:#071426dd;color:#cffafe;text-align:center;font:600 12px/1.5 system-ui;pointer-events:none;animation:revamp-hint-in .4s ease-out}
+.revamp-first-flight{position:absolute;z-index:24;left:50%;bottom:calc(154px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);width:max-content;max-width:calc(100% - 28px);box-sizing:border-box;margin:0;padding:6px 10px;border:1px solid #67e8f944;border-radius:3px;background:#061322e8;color:#c9e9ef;text-align:center;font:600 11px/1.2 ui-monospace,monospace;white-space:nowrap;pointer-events:none;animation:revamp-hint-in .18s ease-out}
+.revamp-first-flight span{margin:0 4px;color:#67e8f9}
 .revamp-save-notice{margin:8px 12px;color:#a5f3fc;font:500 12px/1.5 system-ui}
-@keyframes revamp-hint-in{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+@keyframes revamp-hint-in{from{opacity:0}to{opacity:1}}
+@media(max-height:640px){.revamp-first-flight{bottom:calc(116px + env(safe-area-inset-bottom,0px));font-size:10px}}
 @media(prefers-reduced-motion:reduce){.revamp-first-flight{animation:none}}

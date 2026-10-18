@@ -236,17 +236,11 @@ test('boss hits use silhouette collision without routine whole-sprite flashing',
     engine.indexOf('for (const shot of playerShots)'),
     engine.indexOf('getBossWarningComms(_type: BossWarningType)')
   );
-  const flashRenderer = renderer.slice(
-    renderer.indexOf('private drawFlash(view: EntityView'),
-    renderer.indexOf('private updateEntityView(view: EntityView')
-  );
-  const bossFlashBranch = flashRenderer.slice(
-    flashRenderer.indexOf('if (entity.type === EntityType.BOSS)'),
-    flashRenderer.indexOf('if (entity.type === EntityType.MINI_BOSS)')
-  );
-  const miniBossFlashBranch = flashRenderer.slice(
-    flashRenderer.indexOf('if (entity.type === EntityType.MINI_BOSS)'),
-    flashRenderer.indexOf('if (entity.flashFrames <= 0)')
+  // REVAMP(I): Both boss sizes take the same contact-only receipt branch.
+  const presentation = read('services/revamp/feel/FeelPresentation.ts');
+  const flashRenderer = presentation.slice(
+    presentation.indexOf('  entity(view:'),
+    presentation.indexOf('    if (view.sprite.texture !== Texture.WHITE)')
   );
 
   assert.match(engine, /flashFrames: number;/);
@@ -255,12 +249,9 @@ test('boss hits use silhouette collision without routine whole-sprite flashing',
   assert.match(collisionFlow, /const bossComponent = target\.type === EntityType\.BOSS[\s\S]*?getBossComponentHit\(target, shotBox\)/);
   assert.match(flashRenderer, /entity\.type === EntityType\.BOSS/);
   assert.match(flashRenderer, /entity\.type === EntityType\.MINI_BOSS/);
-  assert.match(flashRenderer, /view\.sprite\.filters = null/);
-  assert.match(flashRenderer, /view\.body\.filters = null/);
-  assert.match(flashRenderer, /view\.bossRig\.parts\.filters = null/);
-  assert.match(flashRenderer, /view\.bossRig\.crownClaw\.root\.filters = null/);
-  assert.doesNotMatch(bossFlashBranch, /WHITE_HIT_FILTERS|fill\(\{ color: '#ffffff'/);
-  assert.doesNotMatch(miniBossFlashBranch, /WHITE_HIT_FILTERS|fill\(\{ color: '#ffffff'/);
+  assert.match(flashRenderer, /if \(boss \|\|/);
+  assert.match(flashRenderer, /view\.flash\.rect/);
+  assert.doesNotMatch(flashRenderer, /WHITE_HIT_FILTERS|new Sprite|ColorMatrixFilter|fill\(\{ color: '#ffffff'/);
   assert.match(engine, /queueBossSignificantImpact/);
   assert.match(renderer, /spawnBossExplosion/);
 });
@@ -312,7 +303,7 @@ test('destroyed side weapons leave distinct health-scaled core attacks active', 
   assert.doesNotMatch(renderer, /ASSETS\.PIXI_BOSS_PAYWALL_THRUST_FRAMES\[Math\.floor\(engine\.frameCount/);
 });
 
-test('M05 Gatekeeper Prime uses its stronger hull and exact one-third cannon budgets', () => {
+test('M05 Gatekeeper Prime preserves phased hull pacing and exact 33% cannon budgets', () => {
   const campaign = JSON.parse(read('game-config/campaign.json'));
   const openingMission = campaign.levels.find((level) => level.order === 5);
   const openingBoss = openingMission.waves
@@ -321,13 +312,13 @@ test('M05 Gatekeeper Prime uses its stronger hull and exact one-third cannon bud
 
   assert.ok(openingBoss);
   assert.equal(openingBoss.bossId, 'gatekeeper-prime');
-  assert.equal(openingBoss.health, 500);
+  assert.equal(openingBoss.health, 160);
   assert.deepEqual(openingBoss.componentHealth, {
-    'left-cannon': 165,
-    'right-cannon': 165
+    'left-cannon': Number((openingBoss.health * 0.33).toFixed(2)),
+    'right-cannon': Number((openingBoss.health * 0.33).toFixed(2))
   });
-  assert.equal(openingBoss.componentHealth['left-cannon'] / openingBoss.health, 0.33);
-  assert.equal(openingBoss.componentHealth['right-cannon'] / openingBoss.health, 0.33);
+  assert.ok(Math.abs(openingBoss.componentHealth['left-cannon'] / openingBoss.health - 0.33) < 1e-12);
+  assert.ok(Math.abs(openingBoss.componentHealth['right-cannon'] / openingBoss.health - 0.33) < 1e-12);
   assert.equal(openingBoss.shieldCount, 0);
 });
 

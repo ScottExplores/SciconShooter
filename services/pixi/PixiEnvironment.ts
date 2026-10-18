@@ -116,6 +116,9 @@ export const MOBILE_HYPERSPEED_STREAK_CAP = 24;
 export const DESKTOP_HYPERSPEED_STREAK_CAP = 38;
 export const TAKEOFF_WORLD_SPEED_MULTIPLIER = 48;
 export const SPACE_PROP_MOTION_BLUR_CAP = 5.4;
+// REVAMP(I): Environment exposure stays below combat; art and simulation are unchanged.
+export const FAR_BACKGROUND_EXPOSURE = 0.42;
+export const BACKGROUND_STAR_EXPOSURE = 0.54;
 
 const positiveModulo = (value: number, divisor: number) => (
   divisor > 0 ? ((value % divisor) + divisor) % divisor : 0
@@ -746,7 +749,7 @@ export class PixiEnvironment {
     const cacheKey = `${url}:${columns}x${rows}`;
     const cached = this.atlasFrameCache.get(cacheKey);
     if (cached) return cached;
-    const sheet = this.textures.get(url);
+    const sheet = this.textures.getMutedBackground(url);
     if (!sheet) return [];
     const frames: Texture[] = [];
     for (let row = 0; row < rows; row++) {
@@ -922,7 +925,7 @@ export class PixiEnvironment {
         layer.root.visible = false;
         continue;
       }
-      const texture = this.textures.get(definition.url);
+      const texture = this.textures.getMutedBackground(definition.url);
       layer.speed = definition.speed;
       layer.alpha = definition.alpha;
       layer.textureKey = definition.url;
@@ -942,6 +945,9 @@ export class PixiEnvironment {
         definition.tilePoolSize ?? PARALLAX_TILE_POOL_SIZE
       );
       layer.root.visible = true;
+      layer.root.alpha = profile.terrain === 'space'
+        ? (index <= 2 ? FAR_BACKGROUND_EXPOSURE : 0.68)
+        : (index === 0 ? 0.55 : FAR_BACKGROUND_EXPOSURE);
       for (let tileIndex = 0; tileIndex < layer.sprites.length; tileIndex++) {
         const sprite = layer.sprites[tileIndex];
         if (texture) sprite.texture = texture;
@@ -951,12 +957,18 @@ export class PixiEnvironment {
       this.layoutParallaxLayer(layer);
     }
 
-    const horizon = this.textures.get(ASSETS.GAME_BG_PLANET);
+    const horizon = this.textures.getMutedBackground(ASSETS.GAME_BG_PLANET);
     if (horizon) this.horizon.texture = horizon;
     this.horizon.visible = profile.horizonAlpha > 0;
     this.horizon.tint = profile.planetTint;
     this.terrainPropLayer.visible = profile.propAlpha > 0;
-    this.terrainPropLayer.alpha = profile.propAlpha;
+    this.terrainPropLayer.alpha = profile.propAlpha * (profile.terrain === 'space' ? FAR_BACKGROUND_EXPOSURE : 0.6);
+    if (profile.propCount === 0) {
+      // REVAMP(I): Drop subtextures before their muted source, including no-prop detours.
+      this.pruneAtlasFrameCache([]);
+      this.activePropSet = null;
+    }
+    this.textures.retainMutedBackgrounds(getEnvironmentProfileTextureUrls(resolvedId));
     return profile;
   }
 
@@ -1109,7 +1121,7 @@ export class PixiEnvironment {
       star.sprite.visible = true;
       star.sprite.x = star.baseX * this.width;
       star.sprite.y = ((star.baseY * this.height) + motionFrame * star.speed * profile.starSpeedMultiplier) % this.height;
-      star.sprite.alpha = Math.max(0.12, Math.min(0.82, star.baseAlpha + Math.sin(motionFrame * 0.012 + star.phase) * 0.08));
+      star.sprite.alpha = Math.max(0.12, Math.min(0.82, star.baseAlpha + Math.sin(motionFrame * 0.012 + star.phase) * 0.08)) * BACKGROUND_STAR_EXPOSURE;
     }
 
     const terrainLayer = this.parallaxLayers[0];
@@ -1122,7 +1134,9 @@ export class PixiEnvironment {
       if (!visible) continue;
       if (prop.terrain === 'space') {
         const propCycle = this.height + Math.max(360, prop.sprite.height * 2);
-        prop.root.x = prop.baseX * this.width + Math.sin(motionFrame * 0.0016 + prop.phase) * prop.sway;
+        // Park slow landmarks at the margins; leave the formation and dodge lane open.
+        const edgeOffset = prop.baseX < 0.5 ? -0.1 : 0.1;
+        prop.root.x = (prop.baseX + edgeOffset) * this.width + Math.sin(motionFrame * 0.0016 + prop.phase) * prop.sway;
         prop.root.y = ((prop.baseY * propCycle) + motionFrame * prop.speed) % propCycle - prop.sprite.height;
         prop.root.rotation = motionFrame * prop.rotationSpeed;
         prop.root.scale.set(1);
@@ -1154,8 +1168,8 @@ export class PixiEnvironment {
     }
 
     this.sectorTint.tint = profile.tint;
-    this.sectorTint.alpha = profile.colorGradeAlpha;
-    this.horizon.alpha = profile.horizonAlpha;
+    this.sectorTint.alpha = profile.colorGradeAlpha * 0.6;
+    this.horizon.alpha = profile.horizonAlpha * FAR_BACKGROUND_EXPOSURE;
     this.horizon.y = this.height + this.horizon.height * 0.72
       + hyperspeedStrength * this.height * 0.08
       + Math.sin(motionFrame * 0.0014) * 2;

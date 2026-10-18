@@ -3636,8 +3636,19 @@ const validateCampaignManifestCrossReferences = (
         'major-boss': graph ? [2, 8] : [1, 1]
       };
       // REVAMP(B): The authored first-minute onboarding is one timed beat sheet.
+      // REVAMP(I): Dense 24–40 hull squadrons need fewer beats to keep a phone Mission at 60–90s.
+      const regularSquadrons = Array.isArray(level.waves) ? level.waves.filter(wave => isRecord(wave)
+        && Array.isArray(wave.events) && wave.events.some(event => isRecord(event) && event.kind === 'spawn')) : [];
+      const denseSquadrons = regularSquadrons.length > 0 && regularSquadrons.every(wave => {
+        if (!isRecord(wave) || !Array.isArray(wave.events)) return false;
+        const spawns = wave.events.filter(event => isRecord(event) && event.kind === 'spawn');
+        const hulls = spawns.reduce((sum, event) => sum + (isRecord(event) && typeof event.count === 'number' ? event.count : 0), 0);
+        return hulls >= 24 && hulls <= 40 && spawns.some(event => isRecord(event)
+          && typeof event.count === 'number' && event.count >= 22
+          && Array.isArray(event.enemies) && event.enemies.some(enemy => isRecord(enemy) && enemy.roleId === 'role-revamp-linefighter'));
+      });
       const range = level.id === 'operation-open-galaxy' && expectedRole === 'introduction'
-        ? [1, 7] : waveRange[expectedRole];
+        ? [1, 7] : denseSquadrons && expectedRole !== 'major-boss' ? [3, waveRange[expectedRole][1]] : waveRange[expectedRole];
       if (waveCount < range[0] || waveCount > range[1]) {
         pushIssue(issues, `/levels/${levels.indexOf(level)}/waves`, 'invalid_wave_count', `${expectedRole} Missions require ${range[0] === range[1] ? range[0] : `${range[0]}-${range[1]}`} waves`);
       }

@@ -234,3 +234,18 @@ test('wave boundaries retire armed mines without repeating enemy introductions',
   assert.equal(h.callouts.length, callouts);
   assert.equal(h.director.canFire(hull, 141), false);
 });
+
+
+test('shield recovery uses visible combat time after long menu/mission pauses', () => {
+  const hull = enemy('shield-bearer', { campaignSpawnFrame: 50000 });
+  const h = setup([hull]);
+  assert.equal(h.director.blocksShieldHit(hull, 96, 180), true);
+  h.tick(149);
+  assert.equal(h.director.blocksShieldHit(hull, 96, 180), true);
+  assert.ok(h.director.getTelegraphs().some(visual => visual.kind === 'shield'));
+  h.tick(150);
+  assert.equal(h.director.blocksShieldHit(hull, 96, 180), false);
+  assert.ok(!h.director.getTelegraphs().some(visual => visual.kind === 'shield'));
+  h.tick(240);
+  assert.equal(h.director.blocksShieldHit(hull, 96, 180), true);
+});

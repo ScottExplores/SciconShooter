@@ -54,6 +54,9 @@ import { CombatImpactPresentation } from './CombatImpactPresentation';
 import { FeelPresentation, drawReadableProjectile } from '../revamp/feel/FeelPresentation';
 import { AdaptiveFeelQuality } from '../revamp/feel/AdaptiveFeelQuality';
 import { getFeelSettings } from '../revamp/feel/FeelSettings';
+// REVAMP(I): Sprite motion and support scale stay outside fixed-step gameplay.
+import { animateCombatSprite, animateWingBody, playerIdleBob } from '../revamp/feel/CombatSpriteMotion';
+import { CompactFormationIntro } from '../revamp/presentation/CompactFormationIntro';
 import { BossHealthPresentation } from './BossHealthPresentation';
 // REVAMP(C): State-driven boss cues keep warnings visible independently of optional VFX.
 import { BossPolishPresentation } from '../revamp/bosses/BossPolishPresentation';
@@ -1423,6 +1426,9 @@ export class PixiGameRenderer {
   private readonly waveTitle = new Sprite(Texture.WHITE);
   private readonly waveCounterGlyphs = Array.from({ length: 8 }, () => new Sprite(Texture.WHITE));
   private readonly waveNameText = createText(17, '#e0f2fe');
+  // REVAMP(I): Dense entries use existing lettering in a slim header strip.
+  private readonly compactFormationIntro = new CompactFormationIntro(this.waveIntroRoot, this.waveCounterRoot,
+    this.waveLevelText, this.waveNameText, this.waveIntroAura, this.waveIntroPixels, this.waveIntroSweep);
   private readonly flashOverlay = new Graphics();
   private readonly scanlines = new Graphics();
   private readonly maxShotScreenGlow = new Graphics();
@@ -2506,6 +2512,9 @@ export class PixiGameRenderer {
       this.waveIntroSweep.clear();
       return;
     }
+
+    // REVAMP(I): Preserve boss introductions while leaving formation entry paths clear.
+    if (this.compactFormationIntro.sync(engine, age, this.width)) return;
 
     const enterDuration = this.internalWavePresentation
       ? this.reducedMotion ? 120 : INTERNAL_WAVE_INTRO_ENTER_MS
@@ -6423,55 +6432,11 @@ export class PixiGameRenderer {
     view.root.position.y += view.damageRecoilStrength * 0.24 * damping * Math.sin(recoilAge * 1.34);
   }
 
-  private drawFlash(view: EntityView, entity: Entity) {
+  private drawFlash(view: EntityView, _entity: Entity) {
+    // REVAMP(I): Receipt-owned 50 ms tint replaces the sustained flashFrames wash.
+    // This only retires older pooled visuals; FeelPresentation supplies contact light.
     view.flash.clear();
     if (view.hitFlash) view.hitFlash.visible = false;
-    if (entity.type === EntityType.BOSS) {
-      view.sprite.filters = null;
-      view.body.filters = null;
-      if (view.bossRig) {
-        view.bossRig.parts.filters = null;
-        view.bossRig.crownClaw.root.filters = null;
-        view.bossRig.crownClaw.body.filters = null;
-        Object.values(view.bossRig.crownClaw.legs).forEach((leg) => {
-          leg.filters = null;
-        });
-      }
-      return;
-    }
-    if (entity.type === EntityType.MINI_BOSS) {
-      view.sprite.filters = null;
-      view.body.filters = null;
-      return;
-    }
-    if (entity.flashFrames <= 0) return;
-    if (view.sprite.visible && view.sprite.texture !== Texture.WHITE && !view.hasFallbackBody) {
-      // Reuse the real silhouette/animation, including its transparent pixels.
-      // One additive sprite avoids white hull bubbles and per-hit filters.
-      if (!view.hitFlash) {
-        view.hitFlash = new Sprite(view.sprite.texture);
-        view.hitFlash.blendMode = 'add';
-        view.hitFlash.roundPixels = true;
-        view.hitFlash.eventMode = 'none';
-        view.root.addChildAt(view.hitFlash, view.root.getChildIndex(view.sprite) + 1);
-      }
-      view.hitFlash.texture = view.sprite.texture;
-      view.hitFlash.anchor.copyFrom(view.sprite.anchor);
-      view.hitFlash.position.copyFrom(view.sprite.position);
-      view.hitFlash.scale.copyFrom(view.sprite.scale);
-      view.hitFlash.rotation = view.sprite.rotation;
-      view.hitFlash.alpha = clamp(entity.flashFrames / 12, 0, 0.52);
-      view.hitFlash.visible = true;
-      return;
-    }
-    const alpha = clamp(entity.flashFrames / 10, 0.15, 0.74);
-    if (entity.type === EntityType.ENEMY_BRICK || entity.type === EntityType.SUPPLY_DROP) {
-      view.flash.roundRect(-entity.width * 0.34, -entity.height * 0.34, entity.width * 0.68, entity.height * 0.68, 7)
-        .fill({ color: '#ffffff', alpha });
-    } else {
-      view.flash.ellipse(0, 0, entity.width * 0.42, entity.height * 0.38)
-        .fill({ color: '#ffffff', alpha });
-    }
   }
 
   private updateEntityView(view: EntityView, entity: Entity, engine: GameEngine) {
@@ -6710,6 +6675,9 @@ export class PixiGameRenderer {
       view.aura.clear();
     }
 
+    // REVAMP(I): Existing sprite strips plus stepped engine/pickup animation.
+    animateCombatSprite(view, entity, engine, this.reducedMotion);
+
     if (!entity.bossEscapeState) {
       this.syncDamageRecoil(view, entity, engine);
     }
@@ -6859,11 +6827,10 @@ export class PixiGameRenderer {
     const takeoffActive = takeoff.phase !== 'idle';
     const thrusterFrameCount = ASSETS.PIXI_THRUSTER_FRAMES.length;
     const thrusterFrameDelay = Math.max(2, Math.round(6 - takeoff.thrustStrength * 4));
-    const thrusterTexture = takeoffActive
-      ? this.textureBank.get(
-        ASSETS.PIXI_THRUSTER_FRAMES[Math.floor(engine.frameCount / thrusterFrameDelay) % thrusterFrameCount]
-      )
-      : null;
+    // REVAMP(I): Support engines animate during normal combat as well as takeoff.
+    const thrusterTexture = this.textureBank.get(
+      ASSETS.PIXI_THRUSTER_FRAMES[Math.floor(engine.frameCount / thrusterFrameDelay) % thrusterFrameCount]
+    );
     const speedLevel = clamp(
       Math.floor(engine.stats.upgrades.speed || 0),
       0,
@@ -6877,18 +6844,14 @@ export class PixiGameRenderer {
       const textureKey = companion?.frames[companion.frameIndex] ?? '';
       const texture = textureKey ? this.textureBank.get(textureKey) : null;
       pod.visible = Boolean(companion && texture);
-      thruster.visible = Boolean(takeoffActive && companion && texture && thrusterTexture);
+      thruster.visible = Boolean(companion && texture && thrusterTexture);
       if (!pod.visible || !texture || !companion) {
         thruster.visible = false;
         continue;
       }
       pod.texture = texture;
-      pod.width = companion.width * companion.scale;
-      pod.height = companion.height * companion.scale;
-      pod.alpha = companion.alpha;
-      pod.position.set(companion.x, companion.y);
-      // REVAMP(D): Follow lag drives the existing art's tilt; L5 adds a procedural halo.
-      pod.rotation = companion.tilt ?? Math.sin(engine.frameCount * 0.04 + index * Math.PI) * 0.028;
+      // REVAMP(I): 76% of the player's footprint, idle bob and existing spring banking.
+      animateWingBody(pod, companion, engine, index, this.reducedMotion);
       if (companion.evolved && !takeoffActive) {
         this.gunPodUtility.circle(companion.x, companion.y, companion.width * 0.54)
           .stroke({ color: '#a7f3d0', width: 1.3, alpha: companion.alpha * 0.42 });
@@ -6909,17 +6872,19 @@ export class PixiGameRenderer {
       }
 
       if (thruster.visible && thrusterTexture) {
-        const thrustScale = Math.min(3.4, 0.8 + takeoff.thrustStrength * 0.8 + takeoff.travel * 1.8);
+        const thrustScale = takeoffActive
+          ? Math.min(3.4, 0.8 + takeoff.thrustStrength * 0.8 + takeoff.travel * 1.8)
+          : 0.9 + (this.reducedMotion ? 0 : ((engine.frameCount + index * 2) % 6) * 0.045);
         thruster.texture = thrusterTexture;
         thruster.tint = thrusterTint;
         thruster.alpha = companion.alpha * 0.9;
         thruster.rotation = -Math.PI / 2;
         thruster.position.set(
-          companion.x,
-          companion.y + companion.height * companion.scale * 0.28
+          pod.x,
+          pod.y + pod.height * 0.28
         );
-        thruster.width = companion.height * companion.scale * 0.28 * thrustScale;
-        thruster.height = companion.width * companion.scale * 0.1;
+        thruster.width = pod.height * 0.31 * thrustScale;
+        thruster.height = pod.width * 0.13;
       }
     }
   }
@@ -6983,7 +6948,8 @@ export class PixiGameRenderer {
       : rawSizeBoost;
     const centerX = engine.player.x + engine.player.width / 2;
     const centerY = engine.player.y + engine.player.height / 2;
-    this.playerThrusterRoot.position.set(centerX, centerY);
+    // REVAMP(I): Keep the existing animated engines attached to the tiny idle bob.
+    this.playerThrusterRoot.position.set(centerX, centerY + playerIdleBob(engine.frameCount, this.reducedMotion));
     this.playerThrusterRoot.rotation = 0;
     this.playerThrusterRoot.scale.set(engine.playerDrawScale * 0.95);
     this.playerThrusterRoot.alpha = engine.playerDrawAlpha;

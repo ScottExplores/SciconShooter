@@ -1,6 +1,8 @@
 import type { Entity, GameEngine } from '../../gameLogic';
 import { EntityType } from '../../../types';
 import { crossedDiveShot, resolveDiveCadenceSeconds } from '../formations/galagaDive';
+import { DenseFormationFire } from '../formations/DenseFormationFire';
+import { markProjectileFamily } from '../feel/ProjectileReadability';
 import { OpeningPeerReviewer } from '../enemies/OpeningPeerReviewer';
 import {
   RevampEnemyDirector, getEnemyBulletCap,
@@ -16,6 +18,7 @@ export interface EntryWarning { id: string; x: number; y: number; edge: 'top' | 
 /** The engine owns entities; this adapter owns only combat-time choreography state. */
 export class RevampCombatBridge {
   readonly director = new RevampEnemyDirector();
+  readonly denseFire = new DenseFormationFire();
   readonly openingBoss = new OpeningPeerReviewer();
   readonly warnings = new Map<string, EntryWarning>();
   frame = 0;
@@ -30,6 +33,7 @@ export class RevampCombatBridge {
 
   clear() {
     this.director.clear();
+    this.denseFire.clear();
     this.openingBoss.clear();
     this.warnings.clear();
     this.transientShots.clear();
@@ -71,7 +75,7 @@ export class RevampCombatBridge {
       enemy.formationFlightAge - 1, enemy.formationFlightAge, flight.revampShotAtAge
     )) this.fire(engine, enemy, {
       x: engine.player.x + engine.player.width / 2, y: engine.player.y + engine.player.height / 2
-    });
+    }, enemy.projectileSpeed ?? 2.7);
     if (enemy.formationFlightAge >= flight.duration) {
       enemy.x = enemy.formationTargetX ?? enemy.x; enemy.y = enemy.formationTargetY ?? enemy.y;
       enemy.formationState = 'hold'; enemy.formationStateFrame = engine.frameCount;
@@ -172,6 +176,7 @@ export class RevampCombatBridge {
     }
     const context = this.context(engine);
     this.director.tick(context, this.callbacks(engine));
+    this.denseFire.tick(engine, (source, target, speed) => this.fire(engine, source, target, speed));
     if (context.enemies.length) this.waveHadEnemies = true;
     // A short first clear acknowledgement uses the existing floating-text pool.
     if (isOpeningMission(engine) && this.waveHadEnemies && !context.enemies.length
@@ -185,7 +190,7 @@ export class RevampCombatBridge {
   }
 
   canLegacyFire(enemy: Entity) {
-    return !this.director.ownsFiring(enemy) && this.director.canFire(enemy, this.frame);
+    return enemy.campaignRoleId !== 'role-revamp-linefighter' && !this.director.ownsFiring(enemy) && this.director.canFire(enemy, this.frame);
   }
 
   updateOpeningBoss(engine: GameEngine, boss: Entity) {
@@ -204,6 +209,7 @@ export class RevampCombatBridge {
     shot.color = '#fb7185'; shot.damage = Math.max(1, source.projectileDamage || 1);
     shot.sourceEventId = source.sourceEventId;
     shot.isPlayerShot = false;
+    markProjectileFamily(shot, source);
     source.campaignLastFireFrame = engine.frameCount;
     engine.entities.push(shot);
     return true;
