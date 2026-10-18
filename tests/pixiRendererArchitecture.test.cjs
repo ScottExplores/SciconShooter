@@ -88,16 +88,16 @@ test('the local Director can decode Pixi textures without enabling remote script
 test('boss warnings use the registered Scicon alert art with live reusable labels', () => {
   const constants = read('constants.ts');
   const renderer = read('services/pixi/PixiGameRenderer.ts');
+  const warning = read('services/revamp/presentation/CompactBossWarning.ts');
 
   assert.match(constants, /PIXI_BOSS_ALERT_FRAME/);
   assert.match(constants, /boss-incoming-alert-frame\.png/);
   assert.match(constants, /warning-ring-red\.png/);
   assert.match(constants, /warning-crystal\.png/);
   assert.match(renderer, /this\.warningRoot\.addChild/);
-  assert.match(renderer, /this\.warningText\.text = title/);
-  assert.match(renderer, /BOSS INCOMING/);
-  assert.match(renderer, /this\.warningCrystal\.position\.set/);
-  assert.match(renderer, /const sirenWave = \(Math\.cos\(\(elapsed % 36\) \/ 36 \* Math\.PI \* 2\) \+ 1\) \* 0\.5/);
-  assert.match(renderer, /const redFlashAlpha = 0\.07 \+ sirenWave \* 0\.2/);
-  assert.match(renderer, /fill\(\{ color: '#dc2626', alpha: redFlashAlpha \}\)/);
+  // REVAMP(P): Same registered art, with delegated motion and no full-screen strobe.
+  assert.match(renderer, /this\.compactBossWarning\.sync\(engine, this\.width, this\.reducedMotion, this\.combatHeaderInsets\.offset\)/);
+  assert.match(renderer, /ASSETS\.PIXI_BOSS_ALERT_FRAME : ASSETS\.PIXI_MINI_BOSS_ALERT_FRAME/);
+  assert.match(warning, /WARNING: BOSS/);
+  assert.match(warning, /this\.shade\.visible = false/);
 });

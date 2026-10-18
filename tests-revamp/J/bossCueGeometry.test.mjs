@@ -127,9 +127,9 @@ test('HUD/card backgrounds survive text, opacity and capped-width movement; styl
       f.cues.syncStatus(390 + i, null); f.cues.syncCard(362);
     }
     assert.equal(clears(), 0);
-    assert.equal(f.status.x, 509 / 2); assert.equal(f.status.y, 103);
+    assert.equal(f.status.x, 509 / 2); assert.equal(f.status.y, 111);
     f.cues.syncStatus(600, 0xffcc66);
-    assert.equal(f.status.y, 107); assert.equal(f.status.context.instructions.length, 2);
+    assert.equal(f.status.y, 111); assert.equal(f.status.context.instructions.length, 2);
     assert.equal(f.status.context.instructions[1].data.style.color, 0xffcc66);
     f.cues.syncStatus(600, 0xf799e5);
     assert.equal(f.status.context.instructions[1].data.style.color, 0xf799e5);

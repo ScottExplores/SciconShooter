@@ -13,11 +13,16 @@ export class CompactFormationIntro {
     private sweep: Graphics
   ) {}
 
-  sync(engine: GameEngine, age: number, width: number) {
+  sync(engine: GameEngine, age: number, width: number, reducedMotion = false, headerOffset = 0) {
     const wave = engine.getCurrentWaveDefinition();
-    const compact = wave && !wave.events.some(event => event.kind === 'boss')
-      && wave.events.some(event => event.kind === 'spawn'
-        && event.enemies.some(enemy => enemy.roleId === 'role-revamp-linefighter'));
+    // REVAMP(P): Every ordinary wave gets the same unobtrusive header entrance.
+    // Boss waves already own a named warning/entrance card; avoid a second title.
+    if (wave?.events.some(event => event.kind === 'boss')) {
+      this.root.visible = false;
+      this.counter.scale.set(1);
+      return true;
+    }
+    const compact = Boolean(wave);
     if (!compact) {
       this.counter.scale.set(1);
       return false;
@@ -27,8 +32,9 @@ export class CompactFormationIntro {
     this.root.visible = age < 1_350;
     if (!this.root.visible) return true;
     this.root.scale.set(1);
-    this.root.position.set(14, 46);
-    this.root.alpha = Math.min(1, age / 100, (1_350 - age) / 200);
+    const enter = Math.min(1, Math.max(0, age / 220));
+    this.root.position.set(14 + (reducedMotion ? 0 : Math.round((1 - enter) ** 3 * -18)), 74 + headerOffset);
+    this.root.alpha = reducedMotion ? 1 : Math.max(0, Math.min(1, age / 100, (1_350 - age) / 200));
     this.level.visible = false;
     this.counter.position.set(38, 0);
     this.counter.scale.set(0.30);

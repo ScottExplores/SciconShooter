@@ -8108,18 +8108,18 @@ const App: React.FC = () => {
               },
               lifeCapacity: activeRunLifeCapacity,
               fieldUpgradesEnabled: false,
-              onUpgrade: handleFieldUpgrade
+              onUpgrade: handleFieldUpgrade,
+              // REVAMP(P): Wing controls share the top HUD row, leaving the combat lane clear.
+              wingControls: isCampaignRun && gameState === GameState.PLAYING && !campaignMapOpen && !missionLoading && wingSnapshot ? <WingSupportHud
+                snapshot={wingSnapshot} disabled={ownerFrameFrozen || onboardingGameplayFreeze}
+                onCast={slot => setWingCommand({ nonce: performance.now(), slot })}
+                onAutoCastChange={autoCast => { setWingCommand({ nonce: performance.now(), autoCast }); revamp.preference({ wingAutoCast: autoCast }); }}
+              /> : null
             } : false}
           />
         </React.Suspense>
       )}
 
-      {/* REVAMP(D): Thumb controls and first-flight hints do not capture steering input. */}
-      {isCampaignRun && gameState === GameState.PLAYING && !campaignMapOpen && !missionLoading && wingSnapshot ? <WingSupportHud
-        snapshot={wingSnapshot} disabled={ownerFrameFrozen || onboardingGameplayFreeze}
-        onCast={slot => setWingCommand({ nonce: performance.now(), slot })}
-        onAutoCastChange={autoCast => { setWingCommand({ nonce: performance.now(), autoCast }); revamp.preference({ wingAutoCast: autoCast }); }}
-      /> : null}
       {/* REVAMP(I): Live wave gating keeps the slim first-flight strip away from every boss beat. */}
       {isCampaignRun && gameRuntimeReady && !hasCampaignClear ? <FirstFlightHint key={gameId}
         missionId={pauseMissionPosition?.levelId} waveId={pauseMissionPosition?.waveId} bossActive={stats.isBossActive}

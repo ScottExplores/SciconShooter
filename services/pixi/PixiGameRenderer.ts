@@ -63,6 +63,11 @@ import { getFeelSettings } from '../revamp/feel/FeelSettings';
 // REVAMP(I): Sprite motion and support scale stay outside fixed-step gameplay.
 import { animateCombatSprite, animateWingBody, playerIdleBob } from '../revamp/feel/CombatSpriteMotion';
 import { CompactFormationIntro } from '../revamp/presentation/CompactFormationIntro';
+// REVAMP(P): Compact animated warning keeps the central flight lanes visible.
+import { CompactBossWarning } from '../revamp/presentation/CompactBossWarning';
+import { compactBossHealthLayout } from '../revamp/presentation/BossHudLayout';
+import { CombatHeaderInsets } from '../revamp/presentation/CombatHeaderInsets';
+import { animateCombatLabel } from '../revamp/feel/AliveFeedback';
 import { BossHealthPresentation } from './BossHealthPresentation';
 // REVAMP(C): State-driven boss cues keep warnings visible independently of optional VFX.
 import { BossPolishPresentation } from '../revamp/bosses/BossPolishPresentation';
@@ -1428,6 +1433,10 @@ export class PixiGameRenderer {
   private readonly warningCrystal = new Sprite(Texture.WHITE);
   private readonly warningText = createText(34, '#fffbeb');
   private readonly warningSubtext = createText(15, '#fda4af');
+  private readonly compactBossWarning = new CompactBossWarning(this.warningRoot, this.warningShade,
+    this.warningFrame, this.warningBanner, this.warningRing, this.warningScan,
+    this.warningCrystal, this.warningText, this.warningSubtext);
+  private readonly combatHeaderInsets = new CombatHeaderInsets();
   private readonly phaseText = createText(18, '#fef08a');
   private readonly waveIntroRoot = new Container();
   private readonly waveIntroAura = new Graphics();
@@ -2540,7 +2549,10 @@ export class PixiGameRenderer {
     }
 
     // REVAMP(I): Preserve boss introductions while leaving formation entry paths clear.
-    if (this.compactFormationIntro.sync(engine, age, this.width)) return;
+    // REVAMP(P): Reward and wave labels share the header without stacking.
+    if (this.feelPresentation.headerOccupied) { this.waveIntroRoot.visible = false; return; }
+    // REVAMP(P): The live reduced-motion setting also covers wave entrances.
+    if (this.compactFormationIntro.sync(engine, age, this.width, this.reducedMotion, this.combatHeaderInsets.offset)) return;
 
     const enterDuration = this.internalWavePresentation
       ? this.reducedMotion ? 120 : INTERNAL_WAVE_INTRO_ENTER_MS
@@ -6496,8 +6508,11 @@ export class PixiGameRenderer {
         view.label.style.fontSize = effect.fontSize;
         view.label.style.fill = effect.color;
         view.label.alpha = clamp(effect.life / Math.max(1, effect.maxLife), 0, 1);
+        // REVAMP(P): Receipt-backed reward text pops before its bounds are fitted.
+        animateCombatLabel(view.root, view.label, effect, this.reducedMotion);
         // REVAMP(B): Long pickup/teaching messages must fit the phone playfield.
-        fitCombatCallout(view.root, view.label, engine.width);
+        // REVAMP(P): First-sighting labels clear the same phone safe area as waves.
+        fitCombatCallout(view.root, view.label, engine.width, this.combatHeaderInsets.offset);
       } else if (effect.effectType === 'sprite' && effect.spriteFrames?.length) {
         const age = Math.max(0, effect.maxLife - effect.life);
         const frameIndex = Math.min(effect.spriteFrames.length - 1, Math.floor(age / 6));
@@ -6700,7 +6715,8 @@ export class PixiGameRenderer {
     }
 
     // REVAMP(I): Existing sprite strips plus stepped engine/pickup animation.
-    animateCombatSprite(view, entity, engine, this.reducedMotion);
+    // REVAMP(P): Optional glow/trails follow J's governor; actor silhouettes remain.
+    animateCombatSprite(view, entity, engine, this.reducedMotion, this.feelQuality.budget.trailScale);
 
     if (!entity.bossEscapeState) {
       this.syncDamageRecoil(view, entity, engine);
@@ -7084,8 +7100,9 @@ export class PixiGameRenderer {
       return;
     }
 
-    const frameWidth = Math.min(clamp(this.width * 0.76, 210, 342), Math.max(180, this.width - 20));
-    const frameHeight = frameWidth * (143 / 737);
+    // REVAMP(P): The thin boss frame clears the physical 44px HUD on short phones.
+    const { frameWidth, frameHeight, y: bossHudY } = compactBossHealthLayout(this.width);
+    if (this.bossPolishPresentation.isIntroducing(boss)) { this.bossHealthRoot.visible = false; return; }
     const progress = clamp(boss.hp / Math.max(1, boss.maxHp), 0, 1);
     this.bossHealthPresentation.update(boss.id, boss.hp, boss.maxHp, engine.frameCount, this.reducedMotion);
     const eventId = boss.sourceEventId ?? '';
@@ -7104,7 +7121,7 @@ export class PixiGameRenderer {
     const barY = -frameHeight * 0.17;
     const barRadius = Math.max(2, barHeight * 0.22);
 
-    this.bossHealthRoot.position.set(this.width / 2, this.width < 520 ? 78 : 82);
+    this.bossHealthRoot.position.set(this.width / 2, bossHudY + this.combatHeaderInsets.offset);
     this.bossHealthFrame.width = frameWidth;
     this.bossHealthFrame.height = frameHeight;
     this.bossHealthFrame.alpha = 0.96;
@@ -7944,74 +7961,10 @@ export class PixiGameRenderer {
   }
 
   private updateWarnings(engine: GameEngine) {
-    const active = engine.inBossWarningSequence;
-    this.warningShade.visible = active;
-    this.warningFrame.visible = active;
-    this.warningRoot.visible = active;
-    if (!active) return;
-
-    const elapsed = engine.bossWarningDuration - engine.bossWarningFrame;
-    const pulseWave = (Math.sin(elapsed * 0.24) + 1) * 0.5;
-    const pulse = 0.58 + pulseWave * 0.42;
-    const sirenWave = (Math.cos((elapsed % 36) / 36 * Math.PI * 2) + 1) * 0.5;
-    const redFlashAlpha = 0.07 + sirenWave * 0.2;
-    const mainBoss = engine.pendingBossType === 'gatekeeper';
-    const title = mainBoss ? 'BOSS INCOMING' : 'THREAT INCOMING';
-    const configuredBossLabel = engine.pendingConfiguredEncounter?.kind === 'boss'
-      ? engine.pendingConfiguredEncounter.label.toUpperCase()
-      : null;
-    const subtitle = mainBoss
-      ? configuredBossLabel ?? 'GATEKEEPER SENTINEL'
-      : engine.pendingBossType === 'wall'
-        ? 'PAYWALL BASTION'
-        : 'BOTTLENECK HARVESTER';
-    const entryProgress = clamp(elapsed / 24, 0, 1);
-    const exitProgress = clamp(engine.bossWarningFrame / 16, 0, 1);
-    const deployProgress = Math.min(entryProgress, exitProgress);
-    const easedDeploy = 1 - Math.pow(1 - deployProgress, 3);
-    const bannerBaseScale = Math.min((this.width * 0.98) / 1024, 0.78);
-    const bannerScale = bannerBaseScale * (0.86 + easedDeploy * 0.14);
-    const centerY = this.height * (this.height > this.width * 1.3 ? 0.39 : 0.43);
-
-    this.warningShade.clear().rect(0, 0, this.width, this.height).fill({ color: '#dc2626', alpha: redFlashAlpha });
-    this.warningFrame.clear();
-    this.warningFrame.rect(0, 0, this.width, 5).fill({ color: '#fb3847', alpha: pulse * 0.9 });
-    this.warningFrame.rect(0, this.height - 5, this.width, 5).fill({ color: '#fb3847', alpha: pulse * 0.9 });
-    for (let x = -20; x < this.width + 20; x += 42) {
-      this.warningFrame.poly([x, 0, x + 16, 0, x + 7, 12]).fill({ color: '#fef08a', alpha: pulse * 0.72 });
-      this.warningFrame.poly([x, this.height, x + 16, this.height, x + 7, this.height - 12]).fill({ color: '#fef08a', alpha: pulse * 0.72 });
-    }
-
-    this.warningBanner.texture = this.textureBank.get(
-      mainBoss ? ASSETS.PIXI_BOSS_ALERT_FRAME : ASSETS.PIXI_MINI_BOSS_ALERT_FRAME
-    ) ?? Texture.WHITE;
-    this.warningRoot.position.set(this.width / 2, centerY - (1 - easedDeploy) * 46);
-    this.warningRoot.scale.set(bannerScale);
-    this.warningRoot.alpha = clamp(deployProgress * 1.35, 0, 1);
-    this.warningBanner.alpha = 0.96;
-
-    this.warningScan.position.set(-280 + ((elapsed * 18) % 560), -2);
-    this.warningScan.width = 420;
-    this.warningScan.height = 24;
-    this.warningScan.alpha = 0.25 + pulseWave * 0.35;
-
-    this.warningRing.position.set(0, 100);
-    this.warningRing.scale.set(1.18 + pulseWave * 0.14);
-    this.warningRing.rotation = elapsed * 0.025;
-    this.warningRing.alpha = 0.62 + pulseWave * 0.28;
-
-    this.warningCrystal.position.set(0, 100);
-    this.warningCrystal.scale.set(0.52 + pulseWave * 0.035);
-    this.warningCrystal.alpha = 0.9;
-
-    this.warningText.text = title;
-    this.warningText.style.fontSize = this.width < 520 ? 70 : 58;
-    this.warningText.position.set(0, -38);
-    this.warningText.alpha = 0.9 + pulseWave * 0.1;
-    this.warningSubtext.text = subtitle;
-    this.warningSubtext.style.fontSize = this.width < 520 ? 30 : 25;
-    this.warningSubtext.position.set(0, 34);
-    this.warningSubtext.alpha = 0.82 + pulseWave * 0.18;
+    // REVAMP(P): Reuse Scott's warning frame in a compact animated header.
+    this.warningBanner.texture = this.textureBank.get(engine.pendingBossType === 'gatekeeper'
+      ? ASSETS.PIXI_BOSS_ALERT_FRAME : ASSETS.PIXI_MINI_BOSS_ALERT_FRAME) ?? Texture.WHITE;
+    this.compactBossWarning.sync(engine, this.width, this.reducedMotion, this.combatHeaderInsets.offset);
   }
 
   sync(engine: GameEngine, timestamp = performance.now(), presentationActive = engine.gameActive) {
@@ -8037,7 +7990,9 @@ export class PixiGameRenderer {
     if (!sectorBackdropActive) this.environment.update(engine);
     this.effectPool.setQuality(engine.performanceMode, engine.mobileProfile, quality.particleScale);
     // REVAMP(A): Advance VFX during simulation hit-stop and consume receipts once.
-    this.feelPresentation.beginFrame(engine, elapsedMs);
+    // REVAMP(P): Pickup spawn/collect accents share the pooled quality budget.
+    this.feelPresentation.beginFrame(engine, elapsedMs, quality.particleScale,
+      this.combatHeaderInsets.read(this.app.canvas, this.height));
     this.syncCornerAmbushPresentation(engine);
     this.modularBossDebugSnapshot = null;
     this.syncCombatImpacts(engine);
@@ -8059,7 +8014,7 @@ export class PixiGameRenderer {
     this.updateWarnings(engine);
     this.updateBossPresentation(engine, deltaMs);
     // REVAMP(C): Mandatory telegraphs and encounter status use the locked simulation plan.
-    if (this.bossPolishPresentation.sync(engine, this.width, this.height, this.reducedMotion)) {
+    if (this.bossPolishPresentation.sync(engine, this.width, this.height, this.reducedMotion, this.combatHeaderInsets.offset)) {
       this.phaseText.visible = false;
       this.waveIntroRoot.visible = false;
     }
@@ -8092,6 +8047,7 @@ export class PixiGameRenderer {
     this.releaseSelectedBatcher?.();
     // REVAMP(A): Release owned text/filter state before the stage is destroyed.
     this.feelPresentation.destroy();
+    this.combatHeaderInsets.destroy();
     this.hitFlashTextures.destroy();
     this.effectPool.destroy();
     // REVAMP(N): Release the mission atlas before the renderer/context is destroyed.

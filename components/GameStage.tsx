@@ -4,6 +4,8 @@ import UIOverlay, { type UIOverlayProps } from './UIOverlay';
 import './game-stage.css';
 // REVAMP(J): HUD glass is static; it need not resample the moving game canvas.
 import '../services/revamp/performance/hud-compositing.css';
+// REVAMP(P): Thumb corners and a single compact row reserve the combat lane for game objects.
+import './revamp/combat-hud.css';
 
 export { preloadGameplayAssets } from './GameCanvas';
 

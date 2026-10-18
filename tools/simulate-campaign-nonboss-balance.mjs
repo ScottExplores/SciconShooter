@@ -38,6 +38,8 @@ export const CAMPAIGN_NONBOSS_SOURCE_PATHS = Object.freeze([
   'services/revamp/formations/galagaDive.ts',
   'services/revamp/formations/spline.ts',
   'services/revamp/enemies/EnemyBehaviorRuntime.ts',
+  // REVAMP(P): Shared hull/collision sizing changes clear times and formation clearance.
+  'services/revamp/enemies/EnemyReadability.ts',
   'services/revamp/enemies/OpeningPeerReviewer.ts',
   'services/revamp/runtime/flight.ts',
   'services/revamp/progression/core.js',

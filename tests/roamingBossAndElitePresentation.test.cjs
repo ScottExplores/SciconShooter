@@ -69,7 +69,8 @@ test('Pixi presents a fixed boss meter and compact elite health bars', () => {
   assert.match(constants, /scicon-ui-system-v2\/base\/hud-primary\/boss-integrity-bar\.png/);
   assert.ok(fs.existsSync(framePath));
   assert.match(renderer, /private syncBossHealthHud\(engine: GameEngine\)/);
-  assert.match(renderer, /frameWidth \* \(143 \/ 737\)/);
+  assert.match(renderer, /compactBossHealthLayout\(this\.width\)/);
+  assert.match(read('services/revamp/presentation/BossHudLayout.ts'), /frameWidth \* \(143 \/ 737\) \* 0\.58/);
   assert.match(renderer, /const barWidth = frameWidth \* 0\.75/);
   assert.match(renderer, /const barHeight = frameHeight \* 0\.29/);
   assert.match(renderer, /const barY = -frameHeight \* 0\.17/);
