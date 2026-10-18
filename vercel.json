@@ -133,6 +133,10 @@
       "destination": "/api/events?route=social-agent"
     },
     {
+      "source": "/api/weekly-funding-approval",
+      "destination": "/api/events?route=weekly-funding-approval"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const { fetchSupabaseJson, hasSupabaseConfig, supabaseHeaders } = require('./_lib/supabase');
+const weeklyFundingApprovalHandler = require('./_lib/weeklyFundingApprovalRoute');
 const playerReportsHandler = require('./_lib/playerReportsRoute');
 const { socialAgentHandler } = require('./_lib/socialAgent');
 const { checkRateLimit } = require('./_lib/rateLimit');
@@ -75,6 +76,7 @@ const anonymousPlayerHash = (anonymousPlayerId) => {
 module.exports = async (req, res) => {
   if (req.query?.route === 'player-reports') return playerReportsHandler(req, res);
   if (req.query?.route === 'social-agent') return socialAgentHandler(req, res);
+  if (req.query?.route === 'weekly-funding-approval') return weeklyFundingApprovalHandler(req, res);
   if (req.method !== 'POST') return sendJson(res, 405, { error: 'Method not allowed' });
   try {
     assertSameOrigin(req, { required: false, matchProtocol: true });

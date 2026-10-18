@@ -1,8 +1,8 @@
-const { fetchSupabaseJson, supabaseHeaders } = require('./_lib/supabase');
+const { fetchSupabaseJson, supabaseHeaders } = require('./supabase');
 const {
   approveClaimedSelection,
   recordManualFundingTransfer
-} = require('../shared/weeklyFundingApproval');
+} = require('../../shared/weeklyFundingApproval');
 
 const sendJson = (res, status, payload) => {
   res.statusCode = status;
