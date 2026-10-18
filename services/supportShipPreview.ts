@@ -37,8 +37,10 @@ export const createSupportPreviewCampaign = () => {
   const wave = level.waves[0];
   const template = wave.events.find((event): event is SpawnEvent => event.kind === 'spawn');
   if (!template) throw new Error('Support preview requires an opening formation.');
-  // The real first-mission scouts are intentionally harmless. This private
-  // copy needs slow incoming fire so defensive support can demonstrate catches.
+  // Only retain packs used by the copied squadron; campaign specials are separate events.
+  wave.formationPackIds = wave.formationPackIds.filter(id => campaign.formationPacks.some(pack =>
+    pack.id === id && template.enemies.some(enemy => enemy.roleId && pack.enemyRoleIds.includes(enemy.roleId))));
+  // This private copy needs slow incoming fire so defensive support can demonstrate catches.
   for (const enemy of template.enemies) {
     const role = campaign.enemyRoles.find(role => role.id === enemy.roleId);
     if (role) { role.fireBehavior = 'post-formation'; role.fireDelaySeconds = 0.5; }
@@ -54,6 +56,9 @@ export const createSupportPreviewCampaign = () => {
   for (let index = 0; index < 5; index += 1) {
     events.push({
       ...structuredClone(template), id: `support-targets-${index}`, startSeconds: index * 5,
+      // REVAMP(I): A compact preview must finish assembling within its four-second
+      // release window, independently of the campaign's much larger squadrons.
+      count: 6, formationSlots: template.formationSlots?.slice(0, 6),
       durationSeconds: 4, spawnIntervalSeconds: 0.35,
       formationBehavior: { ...template.formationBehavior, firingBehavior: 'post-formation' },
       enemies: template.enemies.map(enemy => ({ ...enemy, health: 12, powerupDropChance: 0,

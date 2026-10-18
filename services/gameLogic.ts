@@ -8,6 +8,8 @@ import { RevampFlight, addResearchRounds, type RevampFlightMetrics } from './rev
 import { EntityType, GamePolishSettings, PowerupType, Stats } from '../types';
 // REVAMP(B): Isolated regular-enemy runtime and deterministic formation cadence.
 import { RevampCombatBridge, isRevampRole, isOpeningMission } from './revamp/integration/RevampCombatBridge';
+// REVAMP(I): Projectile family styling follows its emitter without changing collision geometry.
+import { markProjectileFamily } from './revamp/feel/ProjectileReadability';
 import { CombatImpactBuffer, getProjectileCombatContact } from './gameplay/CombatImpactBuffer';
 // REVAMP(A): Isolated presentation receipts and fixed-step game-feel hooks.
 import { FeelRuntime } from './revamp/feel/FeelRuntime';
@@ -89,7 +91,7 @@ import { getPlayerPrimaryBurst, getPlayerPrimaryMuzzle, getPlayerPrimaryPulseLay
 import { findSalvageTarget, findInterceptTarget, getInterceptorCooldown } from './supportUtility';
 // REVAMP(D): Campaign wings use a bounded, device-independent support runtime.
 import { WingSupportRuntime } from './revamp/wings/wingRuntime';
-import { getMainWeaponDps } from './revamp/wings/wingTuning';
+import { getMainWeaponDps, WING_MUZZLE_OFFSET } from './revamp/wings/wingTuning';
 import {
   FIRE_RATE_LEVELS_PER_TIER,
   FIRE_RATE_MAX_LEVEL,
@@ -6578,7 +6580,7 @@ export class GameEngine {
     const progressionCap = Number.isFinite(configuredCap) && configuredCap > 0
       ? Math.min(DESKTOP_THREAT_CAP, Math.floor(configuredCap))
       : Math.min(DESKTOP_THREAT_CAP, MOBILE_THREAT_CAP + ((Math.max(1, this.wave) - 1) * 3));
-    if (this.performanceMode && this.mobileProfile) return Math.max(MOBILE_THREAT_CAP - 4, Math.floor(progressionCap * 0.9));
+    // REVAMP(I): Render quality never changes admission or authored combat density.
     return progressionCap;
   }
 
@@ -7946,7 +7948,8 @@ export class GameEngine {
     const projectile = this.createEntity(
       options.missile ? EntityType.MISSILE : EntityType.PROJECTILE,
       companion.x - width / 2 + (options.offsetX ?? 0),
-      companion.y - 22
+      // REVAMP(I): Fire from the enlarged wing's nose on the same fixed world.
+      companion.y - WING_MUZZLE_OFFSET - height / 2
     );
     projectile.width = width;
     projectile.height = height;
@@ -9900,6 +9903,8 @@ export class GameEngine {
       shot.sourceEventId = source.sourceEventId;
       // REVAMP(A): Larger halo for rounds aimed at the player.
       markAimedShot(shot);
+      // REVAMP(I): Preserve source family through pooled projectile presentation.
+      markProjectileFamily(shot, source);
       this.entities.push(shot);
     }
   }
@@ -11687,7 +11692,9 @@ export class GameEngine {
       const entryPath = this.resolveRuntimeFormationChoreography(event, pack).entryPathId;
       // REVAMP(B): Batched releases made adjacent spline members overlap exactly.
       const singleFile = isTrainEntryPath(entryPath);
-      const spawnPressure = this.getCombatScales(event.id).pressure;
+      // REVAMP(I): Dense authored cohorts use the same unscaled release clock as their HP/fire cadence.
+      const spawnPressure = event.enemies.some(setting => setting.roleId === 'role-revamp-linefighter')
+        ? 1 : this.getCombatScales(event.id).pressure;
       const intervalFrames = Math.max(singleFile ? 8 : 1, Math.round(
         ((Number(event.spawnIntervalSeconds) || 0.8) * GAME_CONFIG.FPS) / spawnPressure
       ));

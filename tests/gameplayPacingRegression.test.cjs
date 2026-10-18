@@ -64,7 +64,7 @@ test('sector major bosses ramp durability and projectile pressure without exceed
   });
   const projectileWeapons = bosses.map((boss) => boss.weapons.find((weapon) => weapon.projectileSpeed > 0));
 
-  assert.deepEqual(bosses.map((boss) => boss.health), [500, 800, 1300, 1600, 2350, 2500, 2700, 2900, 3150, 3400]);
+  assert.deepEqual(bosses.map((boss) => boss.health), [160, 800, 1300, 1600, 2350, 2500, 2700, 2900, 3150, 3400]);
   assert.deepEqual(projectileWeapons.map((weapon) => weapon.burstCount), [3, 7, 4, 4, 4, 4, 1, 4, 4, 4]);
   assert.deepEqual(projectileWeapons.map((weapon) => weapon.projectileSpeed), [6.55, 7.65, 5.8, 5.8, 5.8, 5.8, 4.8, 5.8, 5.8, 5.8]);
   bosses.slice(1).forEach((boss, index) => assert.ok(boss.health > bosses[index].health));

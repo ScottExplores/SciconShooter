@@ -26,7 +26,7 @@ test('real engine staggers all nonpincer ribbon members instead of stacking pair
     engine.init(390, 844);
     const authored = engine.getConfiguredSpawnEvents().find(event => event.id.includes('divers'));
     assert.ok(authored);
-    const event = { ...authored, startSeconds: 0, durationSeconds: 10,
+    const event = { ...authored, count: 6, startSeconds: 0, durationSeconds: 10,
       formationBehavior: { ...authored.formationBehavior, entryPathId: path } };
     engine.getConfiguredSpawnEvents = () => [event];
     let sampledVisiblePairs = 0;

@@ -183,10 +183,9 @@ test('boss recoil remains significant-impact feedback without white silhouette f
     'private drawPrismMothRig',
     'private drawArticulatedGeneratedBoss'
   );
-  const bossFlash = sliceMethod(
-    'private drawFlash',
-    'private updateEntityView'
-  );
+  // REVAMP(I): Boss hits use the local contact branch before any sprite overlay.
+  const presentation = fs.readFileSync(path.join(root, 'services/revamp/feel/FeelPresentation.ts'), 'utf8');
+  const bossFlash = presentation.slice(presentation.indexOf('  entity(view:'), presentation.indexOf('    if (view.sprite.texture !== Texture.WHITE)'));
 
   assert.doesNotMatch(rail, /WHITE_HIT_FILTERS/);
   assert.doesNotMatch(moth, /WHITE_HIT_FILTERS/);
@@ -199,6 +198,7 @@ test('boss recoil remains significant-impact feedback without white silhouette f
   assert.doesNotMatch(bossFlash, /WHITE_HIT_FILTERS/);
   assert.match(bossFlash, /entity\.type === EntityType\.BOSS/);
   assert.match(bossFlash, /entity\.type === EntityType\.MINI_BOSS/);
-  assert.match(bossFlash, /view\.sprite\.filters = null/);
-  assert.match(bossFlash, /view\.body\.filters = null/);
+  assert.match(bossFlash, /if \(boss \|\|/);
+  assert.match(bossFlash, /view\.flash\.rect/);
+  assert.doesNotMatch(bossFlash, /new Sprite|ColorMatrixFilter/);
 });

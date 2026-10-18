@@ -3677,9 +3677,10 @@ const App: React.FC = () => {
         }
       : weeklySquadState;
     // REVAMP(E)+(D): Weekly uses the fixed ranked loadout; Campaign research never enters Weekly Run, paid challenges or the lab.
+    // REVAMP(I): QA keeps lab settlement exclusions while exercising the real Campaign combat loadout.
     const squadLoadout = runMode === 'weekly-streak'
       ? buildWeeklyRankedLoadout(campaignLabState)
-      : (runMode === 'campaign' || runMode === 'campaign-replay') && !authorizedCampaignLabRequest
+      : (runMode === 'campaign' || runMode === 'campaign-replay' || (QA_CONFIG.enabled && runMode === 'campaign-lab')) && !authorizedCampaignLabRequest
         ? buildRevampCampaignLoadout(campaignLabState, permanentSquadStateRef.current, runShipId)
         : buildRuntimeSquadLoadout(campaignLabState, runShipId);
     setRevampResult(null);
@@ -8080,7 +8081,11 @@ const App: React.FC = () => {
         onCast={slot => setWingCommand({ nonce: performance.now(), slot })}
         onAutoCastChange={autoCast => { setWingCommand({ nonce: performance.now(), autoCast }); revamp.preference({ wingAutoCast: autoCast }); }}
       /> : null}
-      {isCampaignRun && gameState === GameState.PLAYING && gameRuntimeReady && !hasCampaignClear ? <FirstFlightHint key={gameId} /> : null}
+      {/* REVAMP(I): Live wave gating keeps the slim first-flight strip away from every boss beat. */}
+      {isCampaignRun && gameRuntimeReady && !hasCampaignClear ? <FirstFlightHint key={gameId}
+        missionId={pauseMissionPosition?.levelId} waveId={pauseMissionPosition?.waveId} bossActive={stats.isBossActive}
+        active={gameState === GameState.PLAYING && !campaignMapOpen && !missionLoading && !ownerFrameFrozen}
+      /> : null}
 
       {!campaignMapOpen && gameState === GameState.WAVE_COMPLETE && waveVictorySummary && isCampaignBranchRun && campaignBranchResult ? (
         <React.Suspense fallback={null}>

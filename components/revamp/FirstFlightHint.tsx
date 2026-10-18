@@ -1,16 +1,42 @@
 import React, { useEffect, useState } from 'react';
+import { DEFAULT_GAME_CAMPAIGN } from '../../services/levelConfig';
+import { FIRST_FLIGHT_HINT_MS, canShowFirstFlightHint, isSteeringKey } from '../../services/revamp/presentation/firstFlightHint';
 import './FirstFlightHint.css';
 
-export default function FirstFlightHint() {
-  const [step, setStep] = useState(0);
+type Props = { missionId?: string; waveId?: string; bossActive: boolean; active: boolean };
+
+export default function FirstFlightHint({ missionId, waveId, bossActive, active }: Props) {
+  const [dismissed, setDismissed] = useState(false);
+  const allowed = canShowFirstFlightHint(DEFAULT_GAME_CAMPAIGN, missionId, waveId, bossActive);
+
+  // REVAMP(I): One hint per flight. The timer survives pause/boss visibility changes.
   useEffect(() => {
-    const timers = [window.setTimeout(() => setStep(1), 10000), window.setTimeout(() => setStep(2), 22000), window.setTimeout(() => setStep(3), 34000)];
-    return () => timers.forEach(window.clearTimeout);
+    const timer = window.setTimeout(() => setDismissed(true), FIRST_FLIGHT_HINT_MS);
+    return () => window.clearTimeout(timer);
   }, []);
-  if (step >= 3) return null;
-  return <p className="revamp-first-flight" role="status">{[
-    'Drag anywhere to steer · Your ship fires automatically',
-    'Your left wing brings fire support · Keep your hull clear',
-    'Clear this Mission to unlock your utility wing'
-  ][step]}</p>;
+
+  useEffect(() => {
+    if (dismissed || !allowed || !active) return;
+    const onSteer = (event: Event) => {
+      // HUD taps and incidental mouse movement never dismiss a steering lesson.
+      if (event.target instanceof Element
+        && event.target.closest('[data-onboarding-target="flight-stage"] canvas')) setDismissed(true);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target;
+      if (target instanceof Element && target.closest('input, textarea, select, [contenteditable="true"]')) return;
+      if (isSteeringKey(event.key)) setDismissed(true);
+    };
+    window.addEventListener('pointerdown', onSteer, { passive: true });
+    window.addEventListener('touchstart', onSteer, { passive: true });
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('pointerdown', onSteer);
+      window.removeEventListener('touchstart', onSteer);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [active, allowed, dismissed]);
+
+  if (dismissed || !allowed || !active) return null;
+  return <p className="revamp-first-flight" role="status">Drag to steer <span aria-hidden="true">·</span> Auto-fire is on</p>;
 }

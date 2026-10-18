@@ -24,6 +24,7 @@ export interface RevampEnemy extends EnemyPoint {
   revampCarrierId?: string;
   contactDamage?: number;
   projectileDamage?: number;
+  projectileSpeed?: number;
   attackIntervalFrames?: number;
 }
 export interface EnemyBehaviorContext {
@@ -60,7 +61,7 @@ export type EnemyTelegraph =
 const BULLET_CAPS: Readonly<Record<EnemyDifficultyTier, number>> = Object.freeze({ easy: 18, normal: 28, hard: 40, expert: 52 });
 export const getEnemyBulletCap = (tier: EnemyDifficultyTier) => BULLET_CAPS[tier] ?? BULLET_CAPS.normal;
 const KIND_LABELS: Readonly<Record<RevampEnemyKind, string>> = {
-  diver: 'DIVER', escort: 'ESCORT TRIO', 'shield-bearer': 'SHIELD BEARER', splitter: 'SPLITTER',
+  diver: 'DIVER', escort: 'ESCORT PAIR', 'shield-bearer': 'SHIELD BEARER', splitter: 'SPLITTER',
   'mine-layer': 'MINE LAYER', sniper: 'SNIPER', teleporter: 'TELEPORTER', carrier: 'CARRIER'
 };
 export function getRevampEnemyKind(enemy: Pick<RevampEnemy, 'campaignRoleId'>): RevampEnemyKind | undefined {
@@ -155,9 +156,16 @@ export class RevampEnemyDirector {
     return getRevampEnemyKind(enemy) !== undefined;
   }
 
+  private shieldActive(enemy: RevampEnemy) {
+    const enteredAt = this.states.get(enemy.id)?.visibleSince ?? this.lastFrame;
+    return Math.max(0, this.lastFrame - enteredAt) % 240 < 150;
+  }
+
   /** Down-facing 126-degree shield: side/rear shots hit the hull immediately. */
   blocksShieldHit(enemy: RevampEnemy, sourceX: number, sourceY: number) {
     if (getRevampEnemyKind(enemy) !== 'shield-bearer' || enemy.hp <= 0) return false;
+    // REVAMP(I): A visible 1.5-second plate recovery prevents permanent frontal stalemates.
+    if (!this.shieldActive(enemy)) return false;
     const dx = (sourceX - enemy.x - enemy.width / 2) / Math.max(1, enemy.width / 2);
     const dy = (sourceY - enemy.y - enemy.height / 2) / Math.max(1, enemy.height / 2);
     return dy > 0 && dy / Math.max(0.001, Math.hypot(dx, dy)) >= 0.45;
@@ -205,7 +213,7 @@ export class RevampEnemyDirector {
         this.announced.add(kind);
         callbacks.callout(`NEW ENEMY: ${KIND_LABELS[kind]}`);
       }
-      if (kind === 'shield-bearer') {
+      if (kind === 'shield-bearer' && this.shieldActive(enemy)) {
         this.visuals.push({ kind: 'shield', ...position, radius: Math.max(enemy.width, enemy.height) * 0.64 });
       }
       const settled = enemy.formationState === undefined || enemy.formationState === 'hold';
@@ -215,7 +223,7 @@ export class RevampEnemyDirector {
         continue;
       }
       if ((kind === 'shield-bearer' || kind === 'splitter') && frame >= state.nextActionFrame) {
-        emitShot(enemy, context.player, 4.2);
+        emitShot(enemy, context.player, enemy.projectileSpeed ?? 4.2);
         state.nextActionFrame = frame + actionPeriod(enemy, 180, 1, 72);
       } else if (kind === 'sniper') {
         if (!state.charge && frame >= state.nextActionFrame && this.canFire(enemy, frame)) {

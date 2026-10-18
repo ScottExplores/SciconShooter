@@ -237,7 +237,9 @@ export class ArcadeEffectPool {
     const radius = clamp(size, 14, tier === 'boss-part' ? 170 : 110);
     const density = this.maxEffects <= 84 ? 0.55 : 1;
     this.spawnLightPulse(x, y, Math.min(230, radius * 1.4), color, tuning.glow, tuning.duration);
-    this.spawnBossSpriteExplosion(x, y, radius, tuning.duration);
+    // REVAMP(I): Small kills use the clean burst strip; elites use the heavier plume.
+    if (tier === 'small') this.spawnSpriteExplosion(x, y, radius, tuning.duration);
+    else this.spawnBossSpriteExplosion(x, y, radius, tuning.duration);
     this.spawn('shockwave', x, y, radius * tuning.ring, color, tuning.duration + 100);
     this.spawn('burst', x, y, radius * 0.42, color, Math.min(260, tuning.duration));
     const sparkCount = Math.max(2, Math.round(tuning.sparks * density));
@@ -270,8 +272,8 @@ export class ArcadeEffectPool {
     spark.spin = 0.08;
   }
 
-  spawnMuzzle(x: number, y: number, size = 12, vx = 0, vy = -1) {
-    const muzzle = this.spawn('muzzle', x, y, size, '#67e8f9', 65);
+  spawnMuzzle(x: number, y: number, size = 12, vx = 0, vy = -1, color = '#67e8f9') {
+    const muzzle = this.spawn('muzzle', x, y, size, color, 65);
     muzzle.root.rotation = Math.atan2(vy, vx) + Math.PI / 2;
     muzzle.spin = 0;
   }
@@ -410,11 +412,12 @@ export class ArcadeEffectPool {
       if (textures.length === 0) return;
       const frameIndex = Math.min(
         textures.length - 1,
-        Math.floor(progress * textures.length)
+        // REVAMP(I): Fast ignition, full middle-frame punch, then lingering embers.
+        Math.floor(Math.pow(progress, 0.78) * textures.length)
       );
       effect.sprite.texture = textures[frameIndex];
       effect.sprite.visible = true;
-      const scale = 0.82 + Math.sin(progress * Math.PI) * 0.34;
+      const scale = progress < 0.14 ? 0.78 : progress < 0.5 ? 1.12 : 1;
       effect.sprite.width = effect.size * scale;
       effect.sprite.height = effect.size * scale;
       return;

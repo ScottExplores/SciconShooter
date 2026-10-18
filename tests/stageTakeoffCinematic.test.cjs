@@ -422,14 +422,19 @@ test('Pixi forces neutral flight, extended blue thrusters, and a pooled launch s
   assert.match(renderer, /private syncStageLaunchStreak\(engine: GameEngine, takeoff: StageTakeoffPresentation\)/);
   assert.match(renderer, /const edge = takeoff\.phase === 'launch' \? '#38bdf8' : configuredEdge/);
   assert.match(renderer, /takeoff\.travel \* 4\.2/);
-  assert.match(renderer, /pod\.width = companion\.width \* companion\.scale/);
-  assert.match(renderer, /pod\.height = companion\.height \* companion\.scale/);
+  // REVAMP(I): The wing module owns uniform player-relative scale, retaining takeoff scaling.
+  const wingMotion = read('services', 'revamp', 'feel', 'CombatSpriteMotion.ts');
+  assert.match(renderer, /animateWingBody\(pod, companion, engine/);
+  assert.match(wingMotion, /WING_VISUAL_RATIO \* companion\.scale/);
+  assert.match(wingMotion, /pod\.width = companion\.width \* scale/);
+  assert.match(wingMotion, /pod\.height = companion\.height \* scale/);
   assert.match(renderer, /gunPodThrusterSprites = \[new Sprite\(Texture\.WHITE\), new Sprite\(Texture\.WHITE\)\]/);
   const syncGunPods = renderer.slice(
     renderer.indexOf('private syncGunPods(engine: GameEngine)'),
     renderer.indexOf('private syncPlayerThrusters(engine: GameEngine)')
   );
-  assert.match(syncGunPods, /thruster\.visible = Boolean\(takeoffActive/);
+  assert.match(syncGunPods, /thruster\.visible = Boolean\(companion && texture && thrusterTexture/);
+  assert.match(syncGunPods, /const thrustScale = takeoffActive/);
   assert.doesNotMatch(syncGunPods, /new Sprite|new Container/);
   const syncLaunchStreak = renderer.slice(
     renderer.indexOf('private syncStageLaunchStreak(engine: GameEngine, takeoff: StageTakeoffPresentation)'),

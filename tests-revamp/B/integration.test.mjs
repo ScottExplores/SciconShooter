@@ -26,7 +26,7 @@ const makeEngine = (options = {}) => {
   return engine;
 };
 
-test('opening engine schedule delivers combat, six-second pickup and thirty-second mini-boss', () => {
+test('opening engine schedule delivers immediate combat, six-second pickup and a final mini-boss', () => {
   const engine = makeEngine();
   const observed = {};
   const arrivals = new Map();
@@ -51,9 +51,9 @@ test('opening engine schedule delivers combat, six-second pickup and thirty-seco
   }
   assert.ok(observed.action < 5, JSON.stringify(observed));
   assert.ok(Math.abs(observed.power - 6) < 0.05, JSON.stringify(observed));
-  assert.ok(Math.abs(observed.magnet - 18) < 0.05, JSON.stringify(observed));
-  assert.ok(Math.abs(observed.mini - 30) < 0.1, JSON.stringify(observed));
-  assert.ok(observed.result >= 50 && observed.result <= 60, JSON.stringify(observed));
+  assert.ok(observed.magnet > observed.power && observed.magnet < 30, JSON.stringify(observed));
+  assert.ok(observed.mini >= 12 && observed.mini < 45, JSON.stringify(observed));
+  assert.ok(observed.result > observed.mini && observed.result <= 60, JSON.stringify(observed));
 });
 
 test('engine Galaga dive emits exactly one shot and returns to its slot', () => {

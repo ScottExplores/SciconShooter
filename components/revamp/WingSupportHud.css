@@ -8,8 +8,9 @@
 .revamp-wing-button.is-ready{border-color:#67e8f9;box-shadow:0 0 13px #67e8f925,inset 0 0 12px #67e8f91c}
 .revamp-wing-button--right.is-ready{border-color:#a7f3d0}.revamp-wing-button.is-evolved .revamp-wing-button__role{color:#a7f3d0}
 .revamp-wing-button:disabled{cursor:default;color:#9cb2be}.revamp-wing-button:active:not(:disabled){transform:scale(.96)}
-.revamp-wing-auto{position:absolute;left:50%;bottom:calc(106px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);min-height:44px;min-width:110px;padding:8px 12px;border:1px solid #67e8f933;border-radius:22px;color:#b4d2df;background:#081622df;font-size:9px;letter-spacing:1px;pointer-events:auto;touch-action:manipulation;cursor:pointer}
+/* REVAMP(I): Keep the central flight and muzzle lanes clear of the auto-cast touch target. */
+.revamp-wing-auto{position:absolute;left:12px;bottom:calc(24px + env(safe-area-inset-bottom,0px));min-height:44px;min-width:110px;padding:8px 12px;border:1px solid #67e8f933;border-radius:22px;color:#b4d2df;background:#081622df;font-size:9px;letter-spacing:1px;pointer-events:auto;touch-action:manipulation;cursor:pointer}
 .revamp-wing-auto strong{color:#a7f3d0}.revamp-wing-auto[aria-pressed=false] strong{color:#cbd5e1}
 .revamp-wing-auto:disabled{opacity:.55}.revamp-wing-button:focus-visible,.revamp-wing-auto:focus-visible{outline:2px solid #fff;outline-offset:3px}
-@media(max-height:640px){.revamp-wing-button{bottom:120px;min-height:76px}.revamp-wing-button img{width:28px;height:28px}.revamp-wing-auto{bottom:72px}}
+@media(max-height:640px){.revamp-wing-button{bottom:120px;min-height:76px}.revamp-wing-button img{width:28px;height:28px}}
 @media(prefers-reduced-motion:reduce){.revamp-wing-button:active:not(:disabled){transform:none}}

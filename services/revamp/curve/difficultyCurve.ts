@@ -1,13 +1,13 @@
 /** Shared, deterministic authoring/report model. No viewport, wallet or platform inputs. */
 export const CURVE = Object.freeze({
   missionsPerSector: 5,
-  firstMissionThreat: 8,
+  firstMissionThreat: 24,
   missionGrowth: 1.07,
   sectorReset: 0.9,
   referenceFireIntervalSeconds: 3,
   expectedPowerGrowth: 1.045,
   expectedBasePower: 1000,
-  expectedBaseDps: 4.8,
+  expectedBaseDps: 4,
   regularTtkSeconds: { light: 0.48, standard: 0.65, armored: 0.95, elite: 1.1 },
 });
 
@@ -43,7 +43,7 @@ export interface CurveSpawn { kind: string; count?: number; enemies?: readonly C
 /** Threat is physical presence × cadence. A never-fire hull still has contact pressure. */
 export function fireRateMultiplier(enemy: CurveEnemy, role?: CurveRole) {
   if (!role || role.fireBehavior === 'none') return 1;
-  return Math.max(1, CURVE.referenceFireIntervalSeconds
+  return Math.max(0.25, CURVE.referenceFireIntervalSeconds
     / finitePositive(enemy.attackIntervalSeconds ?? 3, 3)) * Math.max(1, enemy.burstCount ?? 1);
 }
 

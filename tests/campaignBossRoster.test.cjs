@@ -12,7 +12,7 @@ const expectedBossSlots = [
   {
     order: 5,
     bossId: 'gatekeeper-prime',
-    health: 500,
+    health: 160,
     eventId: 'stage-bastion-protocol-major-boss',
     encounterAssetKey: 'PIXI_BOSS_OPEN_ORBIT_FRAMES'
   },
@@ -161,7 +161,7 @@ test('promoted Test Bosses keep their exact authored timelines and Mission-scale
 
 test('authored Campaign hull health remains monotonic after the Revenant promotion', () => {
   const expectedHullByOrder = new Map([
-    [5, 500],
+    [5, 160],
     [10, 800],
     [15, 1300],
     [20, 1600],
@@ -181,15 +181,15 @@ test('authored Campaign hull health remains monotonic after the Revenant promoti
   }
 });
 
-test('M05 Gatekeeper Prime starts at 500 hull health with two 33-percent cannons', () => {
+test('M05 Gatekeeper Prime starts at 160 hull health with two 33-percent cannons', () => {
   const { event } = getBossSlot(5);
 
   assert.equal(event.bossId, 'gatekeeper-prime');
-  assert.equal(event.health, 500);
+  assert.equal(event.health, 160);
   assert.deepEqual(event.componentHealth, {
-    'left-cannon': 165,
-    'right-cannon': 165
+    'left-cannon': 52.8,
+    'right-cannon': 52.8
   });
-  assert.equal(event.componentHealth['left-cannon'] / event.health, 0.33);
-  assert.equal(event.componentHealth['right-cannon'] / event.health, 0.33);
+  assert.ok(Math.abs(event.componentHealth['left-cannon'] / event.health - 0.33) < 1e-12);
+  assert.ok(Math.abs(event.componentHealth['right-cannon'] / event.health - 0.33) < 1e-12);
 });

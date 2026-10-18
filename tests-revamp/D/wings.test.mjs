@@ -119,17 +119,21 @@ test('L5 evolution changes specials: twin lance and a longer gravity well', () =
   utility.update([right], two.frame); utility.activate('right', [right], true); assert.deepEqual(two.magnets, [360]);
 });
 
-test('spring settles at ±38 and tilts during lateral movement without crossing the hitbox', () => {
+test('spring settles at ±76 and enlarged wings stay clear of the hitbox, including arena edges', () => {
   const spring = { x: 0, y: 0, vx: 0, vy: 0, tilt: 0 };
   stepWingSpring(spring, 100, 100); assert.ok(spring.x > 0 && spring.x < 100 && spring.tilt > 0);
   for (let i = 0; i < 400; i++) stepWingSpring(spring, 100, 100);
   assert.ok(Math.abs(spring.x - 100) < 0.001 && Math.abs(spring.tilt) < 0.001);
   const runtime = new WingSupportRuntime(true, false, false), wings = [companion(), companion('right')], { frame } = fixture();
   for (let i = 0; i < 400; i++) runtime.update(wings, frame);
-  assert.ok(Math.abs(wings[0].x - 162) < 0.001 && Math.abs(wings[1].x - 238) < 0.001);
-  for (const x of [250, 100, 300, 60]) {
-    runtime.update(wings, { ...frame, centerX: x });
-    assert.ok(wings[0].x <= x - 24 && wings[1].x >= x + 24);
+  assert.ok(Math.abs(wings[0].x - 124) < 0.001 && Math.abs(wings[1].x - 276) < 0.001);
+  for (const x of [250, 100, 300, 60, 340]) for (const y of [500, 650]) {
+    runtime.update(wings, { ...frame, centerX: x, centerY: y });
+    for (const wing of wings) {
+      assert.ok(wing.x >= 40 && wing.x <= frame.width - 40);
+      assert.ok(wing.y >= 40 && wing.y <= frame.height - 40);
+      assert.ok(Math.hypot(wing.x - x, wing.y - y) >= 58, 'larger art never covers player center');
+    }
   }
 });
 

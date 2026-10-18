@@ -1,6 +1,7 @@
 import {
   clampWingLevel, getWingCooldownFrames, getWingPassiveDamage, getWingSpecial,
   stepWingSpring, WING_EVOLUTION_LABELS, WING_OFFSET, WING_SPECIAL_LABELS,
+  WING_EDGE_MARGIN, WING_CENTER_CLEARANCE, WING_EDGE_STAGGER,
   type WingSlot, type WingSpecial, type WingSpring
 } from './wingTuning';
 
@@ -101,8 +102,13 @@ export class WingSupportRuntime {
       const state = this.state(companion);
       const side = companion.slot === 'left' ? -1 : 1;
       // Ship centers remain clear of the player's central hitbox, including near edges.
-      const targetX = Math.max(18, Math.min(frame.width - 18, frame.centerX + side * WING_OFFSET));
-      const targetY = Math.max(18, Math.min(frame.height - 18, frame.centerY + 14));
+      const targetX = Math.max(WING_EDGE_MARGIN, Math.min(frame.width - WING_EDGE_MARGIN, frame.centerX + side * WING_OFFSET));
+      // REVAMP(I): At an arena edge, stagger the inner wing vertically so its
+      // larger hull cannot obscure the player's center. Shot origins follow it.
+      const edgeOffsetY = frame.centerY + WING_EDGE_STAGGER <= frame.height - WING_EDGE_MARGIN
+        ? WING_EDGE_STAGGER : -WING_EDGE_STAGGER;
+      const targetY = Math.max(WING_EDGE_MARGIN, Math.min(frame.height - WING_EDGE_MARGIN,
+        frame.centerY + (Math.abs(targetX - frame.centerX) < WING_CENTER_CLEARANCE ? edgeOffsetY : 14)));
       if (this.firstFlight && this.flightFrames === 600) {
         companion.x = targetX; companion.y = frame.height + 50;
         state.spring.x = companion.x; state.spring.y = companion.y;
@@ -113,10 +119,15 @@ export class WingSupportRuntime {
       }
       stepWingSpring(state.spring, targetX, targetY);
       // Constrain the lag to its own side; hard reversals cannot obscure the hitbox.
-      state.spring.x = companion.slot === 'left' ? Math.min(frame.centerX - 30, state.spring.x)
-        : Math.max(frame.centerX + 30, state.spring.x);
-      companion.x = Math.max(18, Math.min(frame.width - 18, state.spring.x));
-      companion.y = Math.max(18, Math.min(frame.height - 18, state.spring.y));
+      state.spring.x = companion.slot === 'left' ? Math.min(frame.centerX - WING_CENTER_CLEARANCE, state.spring.x)
+        : Math.max(frame.centerX + WING_CENTER_CLEARANCE, state.spring.x);
+      companion.x = Math.max(WING_EDGE_MARGIN, Math.min(frame.width - WING_EDGE_MARGIN, state.spring.x));
+      companion.y = Math.max(WING_EDGE_MARGIN, Math.min(frame.height - WING_EDGE_MARGIN, state.spring.y));
+      if (Math.abs(companion.x - frame.centerX) < WING_CENTER_CLEARANCE
+        && Math.abs(companion.y - frame.centerY) < WING_EDGE_STAGGER) {
+        companion.y = frame.centerY + edgeOffsetY;
+        state.spring.y = companion.y;
+      }
       companion.entryProgress = Math.min(1, companion.entryProgress + 0.04);
       companion.frameIndex = Math.floor(frame.frame / 10) % companion.frames.length;
       state.cooldownMax = getWingCooldownFrames(getWingSpecial(companion.slot, companion.ability), companion.level, frame.supportCooldownMultiplier);
