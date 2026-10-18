@@ -1041,7 +1041,10 @@ const validateFormationPackManifest = (packs, errors) => {
     requireNumber(pack.attackDurationSeconds, `${location}/attackDurationSeconds`, errors, { minimum: 0.3, maximum: 8 });
     requireNumber(pack.attackRecoverySeconds, `${location}/attackRecoverySeconds`, errors, { minimum: 0.35, maximum: 12 });
     requireNumber(pack.attackGroupSize, `${location}/attackGroupSize`, errors, { minimum: 1, maximum: 48, integer: true });
-    requireNumber(pack.attackCycles, `${location}/attackCycles`, errors, { minimum: 0, maximum: 100, integer: true });
+    requireNumber(pack.attackCycles, `${location}/attackCycles`, errors, { minimum: 0, maximum: 20, integer: true });
+    if (isFiniteNumber(pack.attackGroupSize) && isFiniteNumber(pack.enemyCount) && pack.attackGroupSize > pack.enemyCount) {
+      errors.push(`${location}/attackGroupSize cannot exceed the pack enemy count`);
+    }
     requireNumber(pack.synergyAdjustment, `${location}/synergyAdjustment`, errors, { minimum: -1000000, maximum: 1000000 });
     requireNumber(pack.minimumSector, `${location}/minimumSector`, errors, { minimum: 1, maximum: 1000, integer: true });
     requireNumber(pack.maximumSimultaneousInstances, `${location}/maximumSimultaneousInstances`, errors, { minimum: 1, maximum: 100, integer: true });
@@ -1932,7 +1935,7 @@ const validateFormationBehavior = (behavior, location, errors) => {
   if (behavior.attackDurationSeconds !== undefined) requireNumber(behavior.attackDurationSeconds, `${location}/attackDurationSeconds`, errors, { minimum: 0.3, maximum: 8 });
   if (behavior.recoverySeconds !== undefined) requireNumber(behavior.recoverySeconds, `${location}/recoverySeconds`, errors, { minimum: 0.35, maximum: 12 });
   if (behavior.attackGroupSize !== undefined) requireNumber(behavior.attackGroupSize, `${location}/attackGroupSize`, errors, { minimum: 1, maximum: 48, integer: true });
-  if (behavior.attackCycles !== undefined) requireNumber(behavior.attackCycles, `${location}/attackCycles`, errors, { minimum: 0, maximum: 100, integer: true });
+  if (behavior.attackCycles !== undefined) requireNumber(behavior.attackCycles, `${location}/attackCycles`, errors, { minimum: 0, maximum: 20, integer: true });
 };
 
 const validateSpawnEvent = (event, location, errors) => {
@@ -1943,6 +1946,10 @@ const validateSpawnEvent = (event, location, errors) => {
   requireNumber(event.spawnIntervalSeconds, `${location}/spawnIntervalSeconds`, errors, { minimum: 0.01, maximum: 3600 });
   validateFormationSlots(event.formationSlots, `${location}/formationSlots`, event.count, event.patternId, errors);
   validateFormationBehavior(event.formationBehavior, `${location}/formationBehavior`, errors);
+  if (isFiniteNumber(event.formationBehavior?.attackGroupSize) && isFiniteNumber(event.count)
+    && event.formationBehavior.attackGroupSize > event.count) {
+    errors.push(`${location}/formationBehavior/attackGroupSize cannot exceed this spawn event count`);
+  }
   if (!Array.isArray(event.enemies) || event.enemies.length === 0) {
     errors.push(`${location}/enemies must be a non-empty array`);
     return;
@@ -3053,16 +3060,25 @@ const validateCampaignManifestCrossReferences = (campaign, errors) => {
       const expectedRole = CAMPAIGN_MISSION_ROLE_ORDER[missionIndex];
       if (progression.missionRole !== expectedRole) errors.push(`/levels/${levelIndex}/campaignProgression/missionRole must be ${expectedRole} for sector position ${missionIndex + 1}`);
       const waveCount = Array.isArray(level.waves) ? level.waves.length : 0;
-      const range = {
-        // Mirrors game-config/validate.ts: combat Missions may run up to seven
-        // waves (introduction 6, formation-remix 7); boss-ended Missions stay
-        // at four so their climax remains the fourth beat.
-        introduction: level.id === 'operation-open-galaxy' ? [1, 7] : [4, 7],
+      const waveRange = {
+        introduction: [4, 7],
         'formation-remix': [4, 8],
         'elite-checkpoint': [4, 7],
         'boss-preparation': [4, 7],
         'major-boss': usesCampaignGraph ? [2, 8] : [1, 1]
-      }[expectedRole];
+      };
+      // REVAMP(G): Match the browser's bounded dense-squadron exception. A
+      // sparse or unbound Mission cannot acquire the shorter three-wave shape.
+      const regularSquadrons = Array.isArray(level.waves) ? level.waves.filter(wave => isPlainObject(wave)
+        && Array.isArray(wave.events) && wave.events.some(event => isPlainObject(event) && event.kind === 'spawn')) : [];
+      const denseSquadrons = regularSquadrons.length > 0 && regularSquadrons.every(wave => {
+        const spawns = wave.events.filter(event => isPlainObject(event) && event.kind === 'spawn');
+        const hulls = spawns.reduce((sum, event) => sum + (typeof event.count === 'number' ? event.count : 0), 0);
+        return hulls >= 24 && hulls <= 40 && spawns.some(event => typeof event.count === 'number' && event.count >= 22
+          && Array.isArray(event.enemies) && event.enemies.some(enemy => isPlainObject(enemy) && enemy.roleId === 'role-revamp-linefighter'));
+      });
+      const range = level.id === 'operation-open-galaxy' && expectedRole === 'introduction'
+        ? [1, 7] : denseSquadrons && expectedRole !== 'major-boss' ? [3, waveRange[expectedRole][1]] : waveRange[expectedRole];
       if (waveCount < range[0] || waveCount > range[1]) errors.push(`/levels/${levelIndex}/waves must contain ${range[0] === range[1] ? range[0] : `${range[0]}-${range[1]}`} waves for ${expectedRole}`);
       if (expectedRole === 'major-boss' && Array.isArray(level.waves) && level.waves.length > 0) {
         if (!usesCampaignGraph && isPlainObject(level.waves[0])) {

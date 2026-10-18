@@ -40,7 +40,7 @@ export function measureOpeningMission(runtime, level, { seed = 12345, seconds = 
   engine.mobileProfile = mobile;
   engine.setPerformanceMode(performance);
   const report = { mission: level.id, seed, god, world: '390x844', player: 'researchhub, no research or paid upgrades',
-    elapsedSeconds: 0, complete: false, lives: 3, kills: 0, firstEnemySeconds: null, maxEnemies: 0,
+    elapsedSeconds: 0, rewardCollectionSeconds: 0, complete: false, lives: 3, kills: 0, firstEnemySeconds: null, maxEnemies: 0,
     maxHolding: 0, maxEnemyBullets: 0, denseSeconds: 0, waves: [], damage: [], samples: [] };
   // Observe accepted damage through existing methods; all arguments/returns stay intact.
   let currentTick = 0;
@@ -75,6 +75,9 @@ export function measureOpeningMission(runtime, level, { seed = 12345, seconds = 
     if (god) engine.invincibleTimer = Math.max(engine.invincibleTimer, 3600);
     engine.handleInput(runtime.getAutoplayInput(engine, seed), null);
     engine.update();
+    // REVAMP(G): Keep the post-defeat coin sweep visible in timing evidence;
+    // it is playable reward collection, separate from the encounter budget.
+    report.rewardCollectionSeconds = Math.max(report.rewardCollectionSeconds, engine.stageRewardCollectionDuration / 60);
     let enemies = 0, bullets = 0, holding = 0, diving = 0;
     for (const entity of engine.entities) {
       if (!runtime.isQAOnScreen(entity, engine.width, engine.height)) continue;

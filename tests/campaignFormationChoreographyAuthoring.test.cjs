@@ -69,12 +69,16 @@ test('current Campaign retains its newer topology and complete pack choreography
 test('the first sector authors every grouped flight while later Mission overrides remain surgical', () => {
   const campaign = readCampaign();
   const overrides = spawnEvents(campaign).filter(event => event.formationBehavior);
-  assert.ok(overrides.length >= 90);
+  // REVAMP(I): dense squadrons consolidate the early sectors into fewer,
+  // larger cohorts. Require full authored coverage instead of a stale count.
+  const generated = campaign.levels.filter(isRevampMission);
+  const generatedSpawns = spawnEvents({ levels: generated });
+  assert.ok(generatedSpawns.length >= 72 && generatedSpawns.length <= 144);
+  assert.ok(generatedSpawns.every(event => event.formationBehavior), 'every generated cohort authors its choreography');
   overrides.forEach(event => {
     assert.ok(event.formationBehavior.telegraphSeconds >= .2, event.id);
     assert.ok(event.formationBehavior.attackGroupSize <= event.count, event.id);
   });
-  const generated = campaign.levels.filter(isRevampMission);
   assert.equal(generated.length, 18, 'three sectors and their alternate routes');
   generated.forEach(level => assertRevampMission(level, campaign));
   const preserved = campaign.levels.filter(level => !isRevampMission(level));

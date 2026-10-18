@@ -144,7 +144,7 @@ test('all twenty baseline roles and their spawns keep their assigned family', ()
   }
 });
 
-test('family debuts stay readable (thematic pairs at most) and Journal Raider waits for Mission 5', () => {
+test('family debuts stay readable and Journal Raider arrives in the first preserved sector', () => {
   const seen = new Set();
   const debuts = [];
   for (const level of [...campaign.levels].sort((left, right) => left.order - right.order)) {
@@ -164,17 +164,14 @@ test('family debuts stay readable (thematic pairs at most) and Journal Raider wa
     }
   }
   assert.equal(seen.size, 25);
-  assert.deepEqual(
-    debuts.find((debut) => debut.key === 'ENEMY_JOURNAL_FRAMES'),
-    { key: 'ENEMY_JOURNAL_FRAMES', levelId: 'stage-bastion-protocol', wave: 1 }
-  );
-  assert.equal(
-    campaign.levels.find((level) => level.id === 'stage-open-galaxy').waves
-      .some((wave) => wave.events.some((event) => (
-        event.kind === 'spawn' && event.enemies?.some((enemy) => enemy.spriteKey === 'ENEMY_JOURNAL_FRAMES')
-      ))),
-    false
-  );
+  // I authors the first three sectors around Orbit Wings and named pairs. The
+  // Journal family now debuts in the next authored sector, not the old M5 slot.
+  const journal = debuts.find((debut) => debut.key === 'ENEMY_JOURNAL_FRAMES');
+  assert.ok(journal, 'the Journal family remains active');
+  assert.ok(campaign.sectors[3].missionIds.includes(journal.levelId),
+    'Journal Raider must debut by the first preserved sector, not disappear into the late campaign');
+  const earlyIds = new Set(campaign.sectors.slice(0, 3).flatMap(sector => sector.missionIds));
+  assert.ok(!earlyIds.has(journal.levelId), 'the opening retains its limited teaching roster');
 });
 
 test('every production frame is hashed, 128px RGBA, transparent, and safely bounded', () => {

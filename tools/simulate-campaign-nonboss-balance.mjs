@@ -7,7 +7,7 @@ import { createServer } from 'vite';
 const toolDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = path.resolve(toolDirectory, '..');
 
-const SOURCE_DIGEST_PATHS = Object.freeze([
+export const CAMPAIGN_NONBOSS_SOURCE_PATHS = Object.freeze([
   'game-config/campaign.json',
   'services/gameLogic.ts',
   'services/campaignEnemyFiring.ts',
@@ -27,6 +27,26 @@ const SOURCE_DIGEST_PATHS = Object.freeze([
   'services/waveCompletion.ts',
   'services/gameplay/formations/FormationRuntime.ts',
   'services/gameplay/formations/FormationFlight.ts',
+  // REVAMP(G): Current Campaign uses a fixed world, research flight bonuses,
+  // and extracted formation/wing controllers. Their edits invalidate evidence
+  // even when the small GameEngine integration hooks stay unchanged.
+  'services/gameplay/fairArena.ts',
+  'services/gameplay/missionRewardWindow.ts',
+  'services/revamp/integration/RevampCombatBridge.ts',
+  'services/revamp/formations/DenseFormationFire.ts',
+  'services/revamp/formations/entryLibrary.ts',
+  'services/revamp/formations/galagaDive.ts',
+  'services/revamp/formations/spline.ts',
+  'services/revamp/enemies/EnemyBehaviorRuntime.ts',
+  'services/revamp/enemies/OpeningPeerReviewer.ts',
+  'services/revamp/runtime/flight.ts',
+  'services/revamp/progression/core.js',
+  'services/revamp/progression/index.ts',
+  'services/revamp/wings/wingRuntime.ts',
+  'services/revamp/wings/wingTuning.ts',
+  'services/revamp/feel/FeelRuntime.ts',
+  'services/revamp/feel/FeelGameplay.ts',
+  'services/squadProgression.ts',
   'services/gameplay/mini-bosses/MiniBossEncounterRegistry.ts',
   'services/gameplay/mini-bosses/MiniBossEncounterRuntime.ts',
   'services/gameplay/mini-bosses/types.ts',
@@ -101,7 +121,7 @@ const readSetArgument = (argv, name) => {
 
 export const computeCampaignNonBossSourceDigest = (root = repositoryRoot) => {
   const hash = crypto.createHash('sha256');
-  for (const relativePath of SOURCE_DIGEST_PATHS) {
+  for (const relativePath of CAMPAIGN_NONBOSS_SOURCE_PATHS) {
     hash.update(relativePath.replaceAll('\\', '/'));
     hash.update('\0');
     // Git may materialize text with CRLF on Windows. Hash normalized source so
@@ -207,9 +227,9 @@ export const renderCampaignNonBossBalanceMarkdown = (artifact) => {
     '```',
     '',
     '- Runtime: production `GameEngine`, normal Campaign mode, real collisions, non-invincible player, passive primary fire, and authored internal-Wave transitions.',
-    '- Viewports: mobile `390x844` and desktop `1280x720`.',
-    '- Loadouts: low/minimum, expected, and upgraded/comfortable recommended power converted with the same deterministic allocation used by the boss matrix.',
-    '- Supports: no companions or level-5 Prism Skimmer + Beacon Kite.',
+    '- Display hosts: mobile `390x844` and desktop `1280x720`; both resolve through the production fair-arena layout into the same `390x844` simulation world. These axes prove simulation parity, not renderer performance.',
+    '- Loadouts: controlled low/minimum, expected, and upgraded/comfortable recommended-power fixtures use the same deterministic Hangar allocation as the boss matrix. Current Campaign flight and wing controllers are enabled. This is a balance stress matrix, not an earned-unlock or affordability simulation.',
+    '- Supports: no companions and no research, or level-5 Prism Skimmer + Beacon Kite with the corresponding rank-4 Support research bonuses. Other research branches remain at zero. First-flight wing arrival applies in Mission 1; auto-cast is enabled.',
     '- Controller: deterministic eight-frame lane planner that prioritizes shooters/elites, projects hostile travel lanes, balances projectile/body risk against capped vertical-shot alignment cost, collects nearby coins, uses Research Charge when aligned, and reserves bombs for dense or imminent-danger states.',
     '- Acceleration boundary: presentation-only background, particle-burst, floating-text, ring, explosion-art, and afterimage pools are disabled; scheduling, movement, collision, damage, drops, companions, and fixed-step gameplay remain the production engine paths.',
     `- Maximum simulated Mission time: ${metadata.maximumSeconds} seconds.`,
@@ -363,13 +383,14 @@ const createArtifact = ({
     : `The non-boss curve is **not balance-approved** by this harness because ${zeroClearMissionLabels.join(', ')} produced no clears in the requested matrix. Human reproduction and targeted tuning are required before approval.`;
   return {
     metadata: {
-      schemaVersion: 2,
+      schemaVersion: 3,
       campaignId: campaign.id,
       campaignRevision: campaign.revision,
       campaignUpdatedAt: campaign.updatedAt,
       sourceDigest,
       runtime: 'GameEngine',
       controllerRevision: 'nonboss-lane-planner-v3',
+      loadoutRevision: 'campaign-research-wings-v1',
       maximumSeconds,
       firstVisibleThreatDelayCeilingSeconds: FIRST_VISIBLE_THREAT_DELAY_CEILING_SECONDS,
       visibleCombatDeadAirCeilingSeconds: VISIBLE_COMBAT_DEAD_AIR_CEILING_SECONDS
@@ -442,7 +463,9 @@ const runSimulation = async (argv = process.argv.slice(2), root = repositoryRoot
       combatLab,
       weaponProgression,
       weeklyScoring,
-      weeklyRuntimeAdapter
+      weeklyRuntimeAdapter,
+      fairArena,
+      revampProgression
     ] = await Promise.all([
       vite.ssrLoadModule('/services/levelConfig.ts'),
       vite.ssrLoadModule('/services/gameLogic.ts'),
@@ -450,7 +473,9 @@ const runSimulation = async (argv = process.argv.slice(2), root = repositoryRoot
       vite.ssrLoadModule('/director/src/combat-lab/experimentModel.ts'),
       vite.ssrLoadModule('/services/weaponTierProgression.ts'),
       vite.ssrLoadModule('/services/weeklyCampaignStreak.ts'),
-      vite.ssrLoadModule('/services/weeklyCampaignRuntimeAdapter.ts')
+      vite.ssrLoadModule('/services/weeklyCampaignRuntimeAdapter.ts'),
+      vite.ssrLoadModule('/services/gameplay/fairArena.ts'),
+      vite.ssrLoadModule('/services/revamp/progression/index.ts')
     ]);
     const { DEFAULT_GAME_CAMPAIGN } = levelConfig;
     const { GameEngine } = gameLogic;
@@ -459,6 +484,8 @@ const runSimulation = async (argv = process.argv.slice(2), root = repositoryRoot
     const { FIRE_RATE_MAX_LEVEL } = weaponProgression;
     const { calculateWeeklyCampaignNodeScore } = weeklyScoring;
     const { buildWeeklyCampaignRuntimeOutcome } = weeklyRuntimeAdapter;
+    const { resolveFairArenaFrame } = fairArena;
+    const { getRevampBonuses, sanitizeRevampProgress } = revampProgression;
 
     const viewports = [
       Object.freeze({ id: 'mobile', width: 390, height: 844 }),
@@ -788,11 +815,20 @@ const runSimulation = async (argv = process.argv.slice(2), root = repositoryRoot
     };
     const runTrial = ({ descriptor, tier, supportSet, viewport }) => {
       const stats = createStats(tier.upgrades);
-      const squadLoadout = buildCombatLabRuntimeSquadLoadout({
-        mainShipId: 'researchhub',
-        upgrades: tier.upgrades,
-        companions: supportSet.companions
-      });
+      const squadLoadout = {
+        ...buildCombatLabRuntimeSquadLoadout({
+          mainShipId: 'researchhub',
+          upgrades: tier.upgrades,
+          companions: supportSet.companions
+        }),
+        revamp: {
+          ...getRevampBonuses(sanitizeRevampProgress({
+            upgrades: { support: supportSet.id === 'paired' ? 4 : 0 }
+          })),
+          firstFlight: descriptor.level.id === 'operation-open-galaxy',
+          wingAutoCast: true
+        }
+      };
       const seed = `campaign-nonboss:${descriptor.level.id}:shared-v1`;
       const engine = new GameEngine(stats, {
         campaign: DEFAULT_GAME_CAMPAIGN,
@@ -805,7 +841,18 @@ const runSimulation = async (argv = process.argv.slice(2), root = repositoryRoot
         squadLoadout,
         randomSeed: seed
       });
-      engine.init(viewport.width, viewport.height);
+      const frame = resolveFairArenaFrame(viewport.width, viewport.height);
+      const world = { width: frame.worldWidth, height: frame.worldHeight };
+      engine.init(world.width, world.height);
+      const wingSnapshot = engine.getWingSupportSnapshot();
+      const dimensions = {
+        displayWidth: viewport.width,
+        displayHeight: viewport.height,
+        worldWidth: engine.width,
+        worldHeight: engine.height,
+        campaignWingsEnabled: wingSnapshot.enabled,
+        companionCount: wingSnapshot.wings.length
+      };
       // The balance runner owns no renderer. Disable presentation-only pools
       // while preserving scheduling, movement, collision, damage, drops,
       // companions, and every fixed-step gameplay rule in GameEngine.
@@ -847,9 +894,9 @@ const runSimulation = async (argv = process.argv.slice(2), root = repositoryRoot
       let deathWave = null;
       let pacingWaveId = latestRuntime.waveId;
       const isVisibleInViewport = (entity) => (
-        entity.x < viewport.width
+        entity.x < world.width
         && entity.x + Math.max(0, Number(entity.width) || 0) > 0
-        && entity.y < viewport.height
+        && entity.y < world.height
         && entity.y + Math.max(0, Number(entity.height) || 0) > 0
       );
       const recordFirstVisibleThreatDelay = (frames) => {
@@ -993,7 +1040,7 @@ const runSimulation = async (argv = process.argv.slice(2), root = repositoryRoot
       const frameLimit = Math.round(maximumSeconds * 60);
       for (let frame = 0; frame < frameLimit; frame += 1) {
         if (frame % 8 === 0) {
-          engine.handleInput({}, chooseTouchTarget(engine, viewport.width, viewport.height));
+          engine.handleInput({}, chooseTouchTarget(engine, world.width, world.height));
         }
         if (frame % 6 === 0 && engine.introFlightFrames <= 0 && engine.waveDepartureFrames <= 0) {
           const activeHostiles = engine.entities.filter((entity) => (
@@ -1006,7 +1053,7 @@ const runSimulation = async (argv = process.argv.slice(2), root = repositoryRoot
           const playerCenterY = engine.player.y + engine.player.height / 2;
           const priorityTarget = activeHostiles
             .slice()
-            .sort((left, right) => targetPriority(right, viewport.height) - targetPriority(left, viewport.height))[0];
+            .sort((left, right) => targetPriority(right, world.height) - targetPriority(left, world.height))[0];
           const abilityAligned = priorityTarget
             && Math.abs((priorityTarget.x + priorityTarget.width / 2) - playerCenterX)
               <= Math.max(88, priorityTarget.width * 0.6)
@@ -1082,6 +1129,7 @@ const runSimulation = async (argv = process.argv.slice(2), root = repositoryRoot
             tier: tier.id,
             support: supportSet.id,
             viewport: viewport.id,
+            ...dimensions,
             seed,
             outcome: 'clear',
             deathWave: null,
@@ -1120,6 +1168,7 @@ const runSimulation = async (argv = process.argv.slice(2), root = repositoryRoot
             tier: tier.id,
             support: supportSet.id,
             viewport: viewport.id,
+            ...dimensions,
             seed,
             outcome: 'death',
             deathWave,
@@ -1157,6 +1206,7 @@ const runSimulation = async (argv = process.argv.slice(2), root = repositoryRoot
         tier: tier.id,
         support: supportSet.id,
         viewport: viewport.id,
+        ...dimensions,
         seed,
         outcome: 'timeout',
         deathWave,

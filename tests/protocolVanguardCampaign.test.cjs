@@ -57,6 +57,14 @@ test('Mission 2 keeps early formations standard-size and reserves the Vanguard f
   assert.ok(vanguards.every((enemy) => enemy.spriteKey === activeVanguardKey));
   assert.ok(vanguards.every((enemy) => enemy.enemyId === 'drone'));
   assert.ok(vanguards.every((enemy) => enemy.rank !== 'elite'));
+  const debutWave = firstVanguardMission.waves.find(wave => wave.events.some(event =>
+    event.kind === 'spawn' && event.enemies.some(enemy => enemy.roleId === 'role-protocol-vanguard')));
+  const debutSpawns = debutWave.events.filter(event => event.kind === 'spawn');
+  assert.ok(debutWave.order > 1, 'the first wave teaches Splitter before the Vanguard pair');
+  assert.equal(debutSpawns.filter(event => event.enemies.some(enemy => enemy.roleId === 'role-protocol-vanguard'))
+    .reduce((sum, event) => sum + event.count, 0), 2, 'Vanguard stays a readable specialist pair');
+  const hulls = debutSpawns.reduce((sum, event) => sum + event.count, 0);
+  assert.ok(hulls >= 30 && hulls <= 34, 'restoring Vanguard preserves the dense formation count');
 });
 
 test('later side-mounted threats are named Rift Leeches and share the wall-crossfire pack', () => {

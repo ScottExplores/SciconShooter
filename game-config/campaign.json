@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": 25,
+  "revision": 26,
   "id": "scicon-shooter-campaign",
   "name": "Scicon Shooter Campaign",
   "updatedAt": "2026-10-17T00:00:00.000Z",
@@ -4895,11 +4895,11 @@
           "delayAfterSeconds": 0,
           "scoreMultiplier": 4,
           "threatCap": 36,
-          "combatBudget": 47,
+          "combatBudget": 48,
           "rhythm": "variation",
           "formationPackIds": [
             "pack-revamp-linefighter",
-            "pack-revamp-diver"
+            "pack-revamp-protocol-vanguard"
           ],
           "events": [
             {
@@ -5070,7 +5070,7 @@
             {
               "id": "stage-open-galaxy-revamp-wave-2-divers-formation",
               "kind": "spawn",
-              "label": "Diver pincer formation",
+              "label": "Protocol Vanguard pincer formation",
               "startSeconds": 0.4,
               "durationSeconds": 4,
               "delayAfterSeconds": 0,
@@ -5082,15 +5082,15 @@
               "enemies": [
                 {
                   "enemyId": "drone",
-                  "roleId": "role-revamp-diver",
-                  "spriteKey": "SCICON_ENEMY_REDLINE_SKIRMISHER_FRAMES",
+                  "roleId": "role-protocol-vanguard",
+                  "spriteKey": "CAMPAIGN_ENEMY_PROTOCOL_VANGUARD_FRAMES",
                   "weight": 1,
-                  "health": 2.191,
+                  "health": 4.336,
                   "speed": 2.25,
                   "damage": 1,
-                  "scoreValue": 25,
+                  "scoreValue": 90,
                   "powerupDropChance": 0.025,
-                  "attackIntervalSeconds": 3.04256,
+                  "attackIntervalSeconds": 10.86629,
                   "projectileSpeed": 1.945,
                   "burstCount": 1,
                   "sizeMultiplier": 0.72
@@ -5100,14 +5100,14 @@
                 "entryPathId": "revamp-swoop",
                 "movementId": "revamp-breathe",
                 "attackId": "revamp-dive",
-                "firingBehavior": "staggered",
+                "firingBehavior": "post-formation",
                 "returnId": "reform",
                 "holdSeconds": 1,
                 "telegraphSeconds": 0.8,
                 "attackDurationSeconds": 3.4,
                 "recoverySeconds": 2.2,
                 "attackGroupSize": 2,
-                "attackCycles": 3
+                "attackCycles": 0
               },
               "formationSlots": [
                 {
@@ -14980,13 +14980,13 @@
           "combatBudget": 150,
           "rhythm": "warm-up",
           "formationPackIds": [
-            "pack-orbit-v"
+            "pack-orbit-grid"
           ],
           "events": [
             {
               "id": "stage-eclipse-swarm-wave-1-primary",
               "kind": "spawn",
-              "label": "UMBRA WINGS opening formation",
+              "label": "Research Drone arrival formation",
               "startSeconds": 0,
               "durationSeconds": 9,
               "delayAfterSeconds": 0,
@@ -14998,7 +14998,7 @@
               "enemies": [
                 {
                   "enemyId": "drone",
-                  "spriteKey": "LEGACY_ENEMY_DRONE_FRAMES",
+                  "spriteKey": "ENEMY_DRONE_FRAMES",
                   "weight": 1,
                   "health": 5,
                   "speed": 3.45,
@@ -15007,7 +15007,11 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-orbit-scout"
+                  "roleId": "role-research-drone",
+                  "attackPatternId": "aimed-burst",
+                  "attackIntervalSeconds": 6,
+                  "projectileSpeed": 4.865,
+                  "burstCount": 1
                 }
               ]
             },
@@ -60456,7 +60460,8 @@
       "fireDelaySeconds": 2.1,
       "entryBehavior": "formation",
       "compatibleFormationPackIds": [
-        "pack-priority-diamond"
+        "pack-priority-diamond",
+        "pack-revamp-protocol-vanguard"
       ],
       "synergyTags": [
         "armor",
@@ -63027,6 +63032,45 @@
         "sector-gravity"
       ],
       "mobilePerformanceCost": 36
+    },
+    {
+      "id": "pack-revamp-protocol-vanguard",
+      "label": "Revamp Protocol Vanguard",
+      "enemyRoleIds": [
+        "role-protocol-vanguard"
+      ],
+      "enemyCount": 2,
+      "totalThreatCost": 10,
+      "entryDirection": "top",
+      "entryPath": "revamp-s-curve",
+      "formationShape": "snake",
+      "movementBehavior": "revamp-breathe",
+      "attackBehavior": "revamp-dive",
+      "firingBehavior": "post-formation",
+      "returnBehavior": "reform",
+      "holdSeconds": 2.8,
+      "telegraphSeconds": 0.8,
+      "attackDurationSeconds": 3.4,
+      "attackRecoverySeconds": 2.2,
+      "attackGroupSize": 1,
+      "attackCycles": 0,
+      "synergyAdjustment": 0,
+      "minimumSector": 1,
+      "maximumSimultaneousInstances": 1,
+      "recoveryRequiredSeconds": 0.7,
+      "compatibleMissionRoles": [
+        "introduction",
+        "formation-remix",
+        "elite-checkpoint",
+        "boss-preparation",
+        "major-boss"
+      ],
+      "compatibleSectorIds": [
+        "sector-open-orbit",
+        "sector-redline",
+        "sector-gravity"
+      ],
+      "mobilePerformanceCost": 6
     }
   ],
   "miniBosses": [

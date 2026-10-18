@@ -1,6 +1,8 @@
 # Job G — Legacy test reconciliation
 
-Final legacy result: **1,766 passed, 14 failed, 12 skipped (1,792 entries)**. Starting round-1 result: **1,481 passed, 240 failed, 12 skipped (1,733 entries)**. Supplied remaster baseline: **44 failures**. No tests were deleted, disabled, newly skipped, or converted to unconditional passes. Repaired loaders discover previously aborted suites, increasing the executed case count.
+Latest round-3 result: **1,782 pass / 7 fail / 12 existing skips** (44 starting failures → 7). See [Round 3](#round-3--reconciliation-after-job-i) for current changes, measured gaps, and evidence. The following sections preserve the round-2 history.
+
+Round-2 legacy result: **1,766 passed, 14 failed, 12 skipped (1,792 entries)**. Starting round-1 result: **1,481 passed, 240 failed, 12 skipped (1,733 entries)**. Supplied remaster baseline: **44 failures**. No tests were deleted, disabled, newly skipped, or converted to unconditional passes. Repaired loaders discover previously aborted suites, increasing the executed case count.
 
 Of the 200 failures introduced after remaster, **193 are resolved and seven remain visible**. Seven of the final failures also existed in the baseline; 37 of the original 44 baseline failures are now absent. The target of at most 44 failures is met. Remaining new failures concern authored content or stale measured evidence; no wallet/receipt/leaderboard/weekly-claim/settlement security test remains failing.
 
@@ -423,3 +425,102 @@ Visual self-review: Scott's pixel-art silhouettes/palette, readable top HUD and 
 
 Final security review also tightened five raw rejection mocks and the wallet-attribution outer request counter so an early durable-receipt read cannot evade a zero-storage assertion. All 38 focused leaderboard cases pass. Endpoint/RPC behavior is tested with local fixtures; no live database or external write was used.
 
+## Round 3 — reconciliation after job I
+
+The starting merged checkout was `b9ffad9` on the supplied `r3/G` worktree. A fresh full legacy run reproduced **1,736 pass / 44 fail / 12 skip**, matching `/tmp/gi-fail-names.txt`. The six missing-PNG dependency failures remain visible. No original artwork, mission reward table, route graph, API route count, or protected shared gameplay/UI file was changed.
+
+### Correctness fixes and authored content
+
+- **Checkpoint migration (category a):** I reused revision 25 while reducing early Missions to three waves. A partial old save whose retained IDs covered those three waves could acquire completion, mastery, and subsequent reward eligibility. The generated campaign now advances to revision 26. The shared browser/API migration keeps immutable exact per-Mission revision-25 histories, rejects foreign/unknown/current-revision retired IDs, caps unfinished progress below completion, and preserves genuine historical clears, settled reward IDs, result receipts, and replay epochs. Explicit unfinished records remain unfinished after re-sanitization at revision 26. This is covered across all 17 shortened Missions, old one-wave onboarding, checkpoint/boss ordering, and historical revision-21/24 aliases.
+- **Schema parity (category a):** Director server now uses the browser's bounded dense-squadron exception (three waves only with 24–40 hulls and a 22+ linefighter cohort), not an unconditional minimum reduction. Both validators reject attack cycles over 20 and groups larger than the cohort; negative cases check errors at the affected field. Director editor exposes every typed revamp path, movement, attack, firing, and return choice, with lossless edits. Compile/decompile and Supply Drop/background contracts pass without test relaxation.
+- **Actual roster defects (category a):** `authorCampaign.mjs` restores two Protocol Vanguards in Mission 4's second grid. Thirty ordinary hulls keep their existing cadence, and the higher-cost pair fires more slowly to preserve the pressure budget. Mission 17 teaches Research Drone in its existing eight-hull opening cohort, retaining HP, size, count, reward, and pressure, so Wave 3 no longer debuts three art families together. Mission 1 and Mission 2 are byte-identical to the merged starting campaign. All 34 roles and 25 art families are used; there are 52 packs. The introduction auditor now recognizes I's linefighter role.
+- **Bounded content expectations (category b):** tests now assert 28–38 regular grid hulls plus two specialists, 2–3 combat beats, varied curved entries, increased second-wave pressure and a recovery dip where present, slot count/uniqueness/bounds, projectile/size/telegraph limits, timed power pickups, and a separate terminal commander. Later sectors retain existing cadence/identity/budget assertions. The real arrival test counts enemy hulls, excluding projectiles that inherit the same source event ID. Record cards verify current dedicated checkpoint art; immutable-loadout coverage permits only I's explicitly QA-gated Campaign lab branch.
+- **Reward timing reconciliation (a/b):** the merged baseline already takes 92.25 seconds for Mission 5 because G restored the five-second collection window. `measure-opening.mjs` reports that window separately. The I test requires all five seconds, a 60–90-second encounter, and total time no greater than 92.5 seconds—only the restored 2.5-second increment above its original total ceiling. Ordinary Missions retain their original 90-second total ceiling. The real-engine 300-tick collection and exactly-once banking tests still pass.
+
+### Regenerated evidence
+
+The economy report is produced by `node tools/simulate-campaign-economy.mjs`. The non-boss artifact is produced by `node tools/simulate-campaign-nonboss-balance.mjs --write`; no measured result or digest is hand-relabeled. The matrix now uses the production fair-arena resolver for a **390×844 world on both display hosts**, and current Campaign flight/wing controllers. Its low/expected/upgraded power and no-support/paired-support fixtures are explicitly controlled balance probes, not earned-unlock or affordability evidence. Paired support uses level-5 ships and rank-4 Support research; other research stays at zero. The digest includes extracted formation, enemy, wing, progression, reward-window, and fair-arena sources. Tests mutate representative dependency copies to prove invalidation, and compare all 300 matching mobile/desktop cells. Existing balance, timing, projectile, inversion, and performance-mode thresholds remain intact.
+
+### Starting failure classification
+
+Each row accounts for all starting failures in that file; tests that pass through the shared helper or corrected production validator need no direct edit. Category a preserves correctness/evidence, b follows documented I content, and environment failures are retained.
+
+| File under `tests/` | Starting failures | Reconciliation |
+| --- | ---: | --- |
+| `arcadeMissionPacing.test.cjs` | 3 | b: dense-grid helper; a: server schema parity |
+| `breakwaterSector.test.cjs` | 5 | b: current cadence, paths, canonical boss tuning; a: actual hostile-hull births |
+| `campaignBranchesConfig.test.cjs` | 2 | a: validator parity; branch assertions unchanged |
+| `campaignCheckpointMigration.test.cjs` | 1 | a: incomplete checkpoints remain incomplete; new revision-25 regressions |
+| `campaignEconomySimulation.test.cjs` | 1 | a: regenerate deterministic report; conservation assertions unchanged |
+| `campaignFormationAuthoring.test.cjs` | 1 | a: bounded browser/server/editor parity and rejection coverage |
+| `campaignFormationChoreographyAuthoring.test.cjs` | 2 | b: bounded dense cohorts and exhaustive authored choreography |
+| `campaignNonBossBalanceMatrix.test.cjs` | 2 | a: rerun actual measurements, fix world/loadout/digest provenance |
+| `campaignProgression.test.cjs` | 1 | b: shared cadence helper; graph/progression assertions unchanged |
+| `contentPackageCompiler.test.cjs` | 1 | a: validator parity; lossless compile assertions unchanged |
+| `enemyIntroductionStaging.test.cjs` | 1 | a: Vanguard is genuinely used; assertion unchanged |
+| `gameCampaignConfig.test.cjs` | 6 | b: bounded grid/pressure/cadence invariants; topology/rewards retained |
+| `gameplayNetworkResilience.test.cjs` | 1 | b: QA-gated launch branch; hydration cannot overwrite mounted loadout |
+| `protocolVanguardCampaign.test.cjs` | 1 | a: real M4 pair; stronger timing/density assertion |
+| `recordCard.test.cjs` | 1 | b: current finale enemy or boss art; unrelated fallback still forbidden |
+| `roamingBossAndElitePresentation.test.cjs` | 1 | b: curved entries into dense grids with two specialists |
+| `sciconEnemyAuthoringDefaults.test.cjs` | 2 | a/b: current role audit plus repaired real coverage/debut defects |
+| `sciconEnemySquadronAssets.test.cjs` | 2 | a: real role/family coverage and at-most-two-family debut; b: Journal now debuts in first preserved sector |
+| `spaceRunCampaignConfig.test.cjs` | 1 | a: validator parity; background assertions unchanged |
+| `supplyDropValidation.test.cjs` | 1 | a: validator parity; dedicated-event assertions unchanged |
+| `waveCompletion.test.cjs` | 2 | b: shared cadence helper; completion/warning/hostile/reward contracts unchanged |
+| Six PNG-dependent files listed below | 6 | environment: unchanged inherited loader failures |
+
+Additional changed test coverage: `director/tests/campaignGraphValidation.test.mjs` follows the existing browser 2–8 major-boss wave bound and rejects overflow; `tests-revamp/I/opening-pacing.test.mjs` distinguishes only the restored reward time. No tests are removed, disabled, or newly skipped.
+
+### Reproduction and evidence locations
+
+```sh
+node tools-revamp/curve-report.mjs --check
+node tools-revamp/validate-campaign.mjs
+node tools/restage-enemy-introductions.mjs --check
+node tools/simulate-campaign-economy.mjs
+node tools/simulate-campaign-nonboss-balance.mjs --write
+npx tsc --noEmit
+npm run build
+node --test tests/*.test.cjs
+node --test tests-revamp/*/*.test.mjs
+npm run qa:playthrough -- --devices mobile --stages mission-1,boss --run-id G-r3-after
+```
+
+Use a fresh QA run ID. Logs and before/after failure details are in `/workspace/scicon-revamp/qa/G-r3-verification/`. The offline dependency evidence confirms `director/node_modules` is absent and the npm cache has no `pngjs`; no network installation was attempted. No dependency manifest or lockfile changed. Git staging was denied creating `/workspace/scicon-revamp/gh/.git/worktrees/w3-G/index.lock` (read-only filesystem); changes are left uncommitted for the integrator. No push, deploy, or external write API was used.
+
+### Mobile screenshots and visual review
+
+| Stage | Before (merged I presentation) | After |
+| --- | --- | --- |
+| Mission 1 | `/workspace/scicon-revamp/qa/I-hud-final/mobile/mission-1/001-time-5s.png` | `/workspace/scicon-revamp/qa/G-r3-after/mobile/mission-1/001-time-5s.png` |
+| Boss | `/workspace/scicon-revamp/qa/I-hud-final/mobile/boss/002-time-10s.png` | `/workspace/scicon-revamp/qa/G-r3-after/mobile/boss/002-time-10s.png` |
+
+All four PNGs were opened and reviewed. Dense separated rows, crisp hull silhouettes, cyan player bolts, outlined hostile rounds, and boss surface detail remain legible; no whole-boss whitewash or combat tutorial overlay returns. The left controls and phase banner still occupy substantial screen area, and score popups can overlap targets. This reconciliation does not claim a visual redesign or performance improvement. Wall-clock screenshots represent different simulation instants and are not pixel-identical frame comparisons.
+
+`G-r3-after/report.md` records normal-damage targeted coverage: Mission 1 observes 28 enemies / eight hostile bullets, three lives and zero damage; boss observes 20 hostile bullets, two life losses and no death. Both use 390×844, have zero console/page errors, and fail only the unchanged 30 FPS gate (medians **7 / 8 FPS**). The 60/45-second observations are not whole-Mission completion proofs; fixed-step tests separately establish opening completion. Shared host load and software rendering limit performance interpretation. Videos and complete PNG sequences are retained beside the report.
+
+### Final round-3 verification and remaining gaps
+
+**Legacy: 1,782 pass / 7 fail / 12 unchanged skips (1,801 entries)**, versus **1,736 / 44 / 12** at the start. Thirty-seven starting failures are resolved; nine additional cases execute. The seven remaining entries are:
+
+| Remaining test/file | Status and cause |
+| --- | --- |
+| `tests/bottleneckDroneVisualRemake.test.cjs` | Inherited loader failure: missing offline-unavailable `director/node_modules/pngjs`. |
+| `tests/breakwaterAssets.test.cjs` | Same inherited dependency failure. |
+| `tests/combatEvolution.test.cjs` | Same inherited dependency failure. |
+| `tests/eliteEnemyPixelStandard.test.cjs` | Same inherited dependency failure. |
+| `tests/paywallWallVisualRemake.test.cjs` | Same inherited dependency failure. |
+| `tests/playerPrimaryBurst.test.cjs` | Same inherited dependency failure. |
+| `tests/campaignNonBossBalanceMatrix.test.cjs` — checked-in matrix coverage/quality assertion | Current measured evidence fails unchanged timing limits: 48 cells exceed 1.25-second first visibility; 216 exceed one-second in-wave dead air. Coverage and digest checks pass. |
+
+The regenerated matrix completes **600 trials: 592 clears / 6 deaths / 2 timeouts**, with a clear in every Mission, no power/support inversions, no projectile-cap breach, and no performance-mode cells. This is **not timing or overall balance approval**. M14 Wave 1 reaches 2.22 seconds before visibility; M12B Wave 3 reaches 5.83 seconds of dead air with one offscreen entry survivor. Later authored waves account for 212 of 216 dead-air breaches. Detailed responsible-wave/context data remain in the artifact and `matrix-findings.json`.
+
+All authoritative fields in the 300 device pairs match exactly. The matrix's broad “generated deterministically” label refers to seeded gameplay: its mixed total-entity peak also includes direct cosmetic particles with unseeded 40–60-tick lifetimes. That single field differs by at most two in 120 pairs; tests preserve the raw counts and independently bound them below the existing 132-entity threshold. No gameplay field is excluded from equality. `matrix-parity-differences.json` records the complete audit.
+
+- `npm run build`: pass, Director excluded; existing bundle-size warnings remain.
+- `npx tsc --noEmit`: pass, **zero diagnostics**, including final generated content.
+- Full revamp suite: **267 pass / 2 fail**; failures are the unchanged headless active-FPS assertion (13.2 FPS versus 30) and its parent. A subsequent stricter pacing/reward rerun passes all six cases; total-time allowance is only the restored 2.5 seconds.
+- Focused schema/migration/Director suites: **101/101 pass**, plus the final **8/8 parity recheck**. Focused economy/artifact tests: **10 pass / 1 retained timing failure**; standalone economy **5/5** passes.
+- Campaign validator, generator/idempotence check, introduction audit, and `git diff --check` pass. No security, money, progression-migration, or reward-window failure remains.
+- `verification-summary.json`, complete TAP files, and `before-failures.json` / `final-failures.json` record these results. The earlier pre-parity-review run is retained to show the corrected overbroad cosmetic-total assertion.

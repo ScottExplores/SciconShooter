@@ -38,8 +38,6 @@ test('formation normalization is idempotent and never changes Campaign route top
   const first = normalizeCampaignFormationAuthoring(campaign);
   const second = normalizeCampaignFormationAuthoring(campaign);
 
-  // The authored first sector has 33 grouped entries. The remaining Missions
-  // and route alternatives retain their 552 existing grouped entries.
   // REVAMP_NOTES_B: early waves are regenerated; count actual grouped events.
   assert.equal(first.groupedSpawnCount, campaign.levels.flatMap(level => level.waves).flatMap(wave => wave.events).filter(event => event.kind === 'spawn' && !/single|random/.test(event.patternId)).length);
   assert.equal(second.groupedSpawnCount, first.groupedSpawnCount);
@@ -130,11 +128,122 @@ test('revamp choreography has the same bounded schema in browser and server vali
   for (const mutate of [
     campaign => { campaign.formationPacks.find(pack => pack.id.startsWith('pack-revamp-')).entryPath = 'revamp-unknown'; },
     campaign => { campaign.levels[1].waves = campaign.levels[1].waves.slice(0, 1); },
-    campaign => { campaign.levels[4].waves.push(...structuredClone(campaign.levels[4].waves)); }
+    campaign => { campaign.levels[4].waves.push(...structuredClone(campaign.levels[4].waves), ...structuredClone(campaign.levels[4].waves)); }
   ]) {
     const invalid = structuredClone(current);
     mutate(invalid);
     assert.equal(validateGameCampaign(invalid).valid, false);
     assert.equal(server.validateGameCampaign(invalid).valid, false);
   }
+});
+
+test('short Missions require dense squadrons and retain lower and upper cadence bounds in both validators', async () => {
+  const server = await import(pathToFileURL(path.join(root, 'director/server/gameCampaignValidation.mjs')).href);
+  const current = readCampaign();
+  const levelIndex = current.levels.findIndex(level => level.id === 'stage-citation-storm');
+  assert.equal(current.levels[levelIndex].waves.length, 3);
+  for (const [label, mutate] of [
+    ['sparse three-wave Mission', level => {
+      for (const wave of level.waves) for (const event of wave.events) {
+        if (event.kind === 'spawn' && event.count >= 22) event.count = 21;
+      }
+    }],
+    ['two-wave dense Mission', level => { level.waves.pop(); }],
+    ['nine-wave dense Mission', level => { level.waves.push(...structuredClone(level.waves), ...structuredClone(level.waves)); }]
+  ]) {
+    const invalid = structuredClone(current);
+    mutate(invalid.levels[levelIndex]);
+    assert.ok(validateGameCampaign(invalid).issues.some(issue => issue.code === 'invalid_wave_count'
+      && issue.path === `/levels/${levelIndex}/waves`), label);
+    assert.ok(server.validateGameCampaign(invalid).errors.some(error => error.startsWith(`/levels/${levelIndex}/waves must contain`)), label);
+  }
+});
+
+test('browser and server reject the same invalid choreography values at the affected field', async () => {
+  const server = await import(pathToFileURL(path.join(root, 'director/server/gameCampaignValidation.mjs')).href);
+  const current = readCampaign();
+  const fields = [
+    ['holdSeconds', .35, 12], ['telegraphSeconds', .2, 4], ['attackDurationSeconds', .3, 8],
+    ['attackRecoverySeconds', .35, 12, 'recoverySeconds'], ['attackGroupSize', 1, 48], ['attackCycles', 0, 20]
+  ];
+  const spawnIndex = current.levels[0].waves[0].events.findIndex(event => event.kind === 'spawn');
+  const packIndex = current.formationPacks.findIndex(pack => pack.id === 'pack-revamp-linefighter');
+  assert.ok(packIndex >= 0);
+  for (const boundaryIndex of [1, 2]) {
+    const candidate = structuredClone(current);
+    const pack = candidate.formationPacks[packIndex];
+    const event = candidate.levels[0].waves[0].events[spawnIndex];
+    for (const [packKey, minimum, maximum, eventKey = packKey] of fields) {
+      const value = boundaryIndex === 1 ? minimum : maximum;
+      pack[packKey] = packKey === 'attackGroupSize' ? Math.min(value, pack.enemyCount) : value;
+      event.formationBehavior[eventKey] = packKey === 'attackGroupSize' ? Math.min(value, event.count) : value;
+    }
+    assert.equal(validateGameCampaign(candidate).valid, true, `accept numeric boundary ${boundaryIndex}`);
+    assert.equal(server.validateGameCampaign(candidate).valid, true, `accept numeric boundary ${boundaryIndex}`);
+  }
+  for (const [packKey, minimum, maximum, eventKey = packKey] of fields) {
+    for (const side of ['pack', 'event']) {
+      for (const value of [minimum - .01, maximum + 1, '1', null, ...(packKey.startsWith('attackG') || packKey === 'attackCycles' ? [1.5] : [])]) {
+        const invalid = structuredClone(current);
+        const key = side === 'pack' ? packKey : eventKey;
+        const target = side === 'pack' ? invalid.formationPacks[packIndex] : invalid.levels[0].waves[0].events[spawnIndex].formationBehavior;
+        target[key] = value;
+        const fieldPath = side === 'pack' ? `/formationPacks/${packIndex}/${key}`
+          : `/levels/0/waves/0/events/${spawnIndex}/formationBehavior/${key}`;
+        assert.ok(validateGameCampaign(invalid).issues.some(issue => issue.path === fieldPath), `${fieldPath}: ${value}`);
+        assert.ok(server.validateGameCampaign(invalid).errors.some(error => error.startsWith(fieldPath)), `${fieldPath}: ${value}`);
+      }
+    }
+  }
+  for (const side of ['pack', 'event']) {
+    const invalid = structuredClone(current);
+    const target = side === 'pack' ? invalid.formationPacks[packIndex] : invalid.levels[0].waves[0].events[spawnIndex].formationBehavior;
+    target.attackGroupSize = side === 'pack' ? invalid.formationPacks[packIndex].enemyCount + 1
+      : invalid.levels[0].waves[0].events[spawnIndex].count + 1;
+    assert.ok(validateGameCampaign(invalid).issues.some(issue => issue.path.endsWith('/attackGroupSize')));
+    assert.ok(server.validateGameCampaign(invalid).errors.some(error => error.includes('/attackGroupSize cannot exceed')));
+  }
+});
+
+test('Director editor exposes every typed choreography choice and round trips authored dense flights losslessly', async () => {
+  const result = esbuild.buildSync({ entryPoints: [path.join(root, 'director/src/combat-lab/formationBehaviorModel.ts')],
+    bundle: true, platform: 'node', format: 'cjs', write: false, logLevel: 'silent' });
+  const module = { exports: {} };
+  Function('require', 'module', 'exports', result.outputFiles[0].text)(require, module, module.exports);
+  const editor = module.exports;
+  const typeSource = fs.readFileSync(path.join(root, 'game-config/types.ts'), 'utf8');
+  const server = await import(pathToFileURL(path.join(root, 'director/server/gameCampaignValidation.mjs')).href);
+  const current = readCampaign();
+  for (const [type, options, packField, eventField] of [
+    ['FormationEntryPathId', 'FORMATION_ENTRY_OPTIONS', 'entryPath', 'entryPathId'],
+    ['FormationMovementId', 'FORMATION_MOVEMENT_OPTIONS', 'movementBehavior', 'movementId'],
+    ['FormationAttackBehaviorId', 'FORMATION_ATTACK_OPTIONS', 'attackBehavior', 'attackId'],
+    ['FormationFiringBehaviorId', 'FORMATION_FIRING_OPTIONS', 'firingBehavior', 'firingBehavior'],
+    ['FormationReturnBehaviorId', 'FORMATION_RETURN_OPTIONS', 'returnBehavior', 'returnId']
+  ]) {
+    const typedIds = [...typeSource.match(new RegExp(`export type ${type} =([^;]+);`))[1].matchAll(/'([^']+)'/g)].map(match => match[1]);
+    assert.deepEqual(editor[options].map(option => option.id).sort(), typedIds.sort(), type);
+    for (const { id } of editor[options]) {
+      const candidate = structuredClone(current);
+      candidate.formationPacks[0][packField] = id;
+      const event = candidate.levels[0].waves[0].events.find(event => event.kind === 'spawn');
+      const before = structuredClone(event);
+      const edited = editor.updateFormationBehavior(event, { [eventField]: id });
+      assert.deepEqual(event, before, 'editor must not mutate the authored event');
+      assert.deepEqual(edited, { ...before, formationBehavior: { ...before.formationBehavior, [eventField]: id } });
+      Object.assign(event, edited);
+      assert.equal(validateGameCampaign(candidate).valid, true, `${type}/${id}`);
+      assert.equal(server.validateGameCampaign(candidate).valid, true, `${type}/${id}`);
+    }
+    const invalid = structuredClone(current);
+    invalid.formationPacks[0][packField] = 'unknown-choreography';
+    const eventIndex = invalid.levels[0].waves[0].events.findIndex(event => event.kind === 'spawn');
+    invalid.levels[0].waves[0].events[eventIndex].formationBehavior[eventField] = 'unknown-choreography';
+    for (const fieldPath of [`/formationPacks/0/${packField}`, `/levels/0/waves/0/events/${eventIndex}/formationBehavior/${eventField}`]) {
+      assert.ok(validateGameCampaign(invalid).issues.some(issue => issue.path === fieldPath));
+      assert.ok(server.validateGameCampaign(invalid).errors.some(error => error.startsWith(fieldPath)));
+    }
+  }
+  const editorFields = fs.readFileSync(path.join(root, 'director/src/combat-lab/FormationBehaviorFields.tsx'), 'utf8');
+  assert.match(editorFields, /label="Attack cycles \(0 repeats\)"[^\n]+minimum=\{0\} maximum=\{20\}/);
 });

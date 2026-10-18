@@ -109,7 +109,7 @@ export function FormationBehaviorFields({
         <BehaviorNumber label="Attack duration" value={behavior.attackDurationSeconds} minimum={0.3} maximum={8} step={0.05} suffix="s" onChange={(attackDurationSeconds) => patch({ attackDurationSeconds })} />
         <BehaviorNumber label="Reform recovery" value={behavior.recoverySeconds} minimum={0.35} maximum={12} step={0.05} suffix="s" onChange={(recoverySeconds) => patch({ recoverySeconds })} />
         <BehaviorNumber label="Attack group size" value={behavior.attackGroupSize} minimum={1} maximum={Math.min(48, event.count)} step={1} onChange={(attackGroupSize) => patch({ attackGroupSize: Math.round(attackGroupSize) })} />
-        <BehaviorNumber label="Attack cycles (0 repeats)" value={behavior.attackCycles} minimum={0} maximum={100} step={1} onChange={(attackCycles) => patch({ attackCycles: Math.round(attackCycles) })} />
+        <BehaviorNumber label="Attack cycles (0 repeats)" value={behavior.attackCycles} minimum={0} maximum={20} step={1} onChange={(attackCycles) => patch({ attackCycles: Math.round(attackCycles) })} />
       </div>
       {event.formationBehavior ? <button className="cl-button" type="button" onClick={() => onChange(clearFormationBehavior(event))}>Use pack / pattern defaults</button> : null}
     </section>

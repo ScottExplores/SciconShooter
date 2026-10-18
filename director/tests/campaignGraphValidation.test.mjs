@@ -132,13 +132,18 @@ test('each sector has one matching major-boss node in its fifth main slot', () =
   assert.match(errorsFor(campaign), /must contain exactly one major boss Campaign graph node/);
 });
 
-test('graph boss Missions require one active intercept and one matching final boss Wave', () => {
+test('graph boss Missions require bounded active lead-ins and one matching final boss Wave', () => {
   const tooShort = makeValidGraphCampaign();
   const bossMission = tooShort.levels.find((level) => level.id === tooShort.sectors[0].missionIds[4]);
   bossMission.waves = [bossMission.waves.at(-1)];
   bossMission.waves[0].order = 1;
   const shortErrors = errorsFor(tooShort);
-  assert.match(shortErrors, /must contain 2 waves for major-boss/);
+  assert.match(shortErrors, /must contain 2-8 waves for major-boss/);
+
+  const tooLong = makeValidGraphCampaign();
+  const longBossMission = tooLong.levels.find((level) => level.id === tooLong.sectors[0].missionIds[4]);
+  while (longBossMission.waves.length < 9) longBossMission.waves.unshift(structuredClone(longBossMission.waves[0]));
+  assert.match(errorsFor(tooLong), /must contain 2-8 waves for major-boss/);
 
   const earlyBoss = makeValidGraphCampaign();
   const earlyBossMission = earlyBoss.levels.find((level) => level.id === earlyBoss.sectors[0].missionIds[4]);

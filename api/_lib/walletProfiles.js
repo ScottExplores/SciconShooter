@@ -331,7 +331,7 @@ const campaignMissionRecord = (value, level, storedRevision = campaign.revision)
     storedRevision < campaignMigration.toRevision && mappedCompletedWaveIds.length > 0
       ? prefixThrough(waveIds, Math.max(...mappedCompletedWaveIds.map((id) => waveIds.indexOf(id))))
       : orderedPrefix(waveIds, new Set(mappedCompletedWaveIds)),
-    waveIds, storedRevision, Boolean(record.completed)
+    waveIds, storedRevision, record.completed
   );
   const completed = Boolean(record.completed) || completedWaveIds.length === waveIds.length;
   let earnedStarIds = stringList(record.earnedStarIds, {

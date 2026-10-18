@@ -35,8 +35,16 @@ test('opening sector and optional route all complete with no paid power in the t
     // God mode isolates encounter pacing from bot mastery; the separate M1 test takes damage.
     const result = measureOpeningMission(runtime, level, { god: true, seconds: 120 });
     assert.ok(result.complete, `${level.id} did not finish at ${result.elapsedSeconds}s`);
-    assert.ok(result.elapsedSeconds >= 60 && result.elapsedSeconds <= 90,
-      `${level.id} took ${result.elapsedSeconds}s`);
+    // REVAMP(G): The merged reward fix restores five movable collection
+    // seconds after a major boss, replacing the old 2.5-second sweep. Allow
+    // exactly that extra collection time, while also bounding the encounter.
+    const major = level.campaignProgression.missionRole === 'major-boss';
+    if (major) assert.equal(result.rewardCollectionSeconds, 5, 'the full boss reward window survives pacing checks');
+    const encounterSeconds = result.elapsedSeconds - (major ? result.rewardCollectionSeconds : 0);
+    assert.ok(encounterSeconds >= 60 && encounterSeconds <= 90,
+      `${level.id} took ${encounterSeconds}s plus ${major ? result.rewardCollectionSeconds : 0}s boss collection`);
+    assert.ok(result.elapsedSeconds <= 90 + (major ? 2.5 : 0),
+      `${level.id} exceeds the original total-time ceiling plus restored reward time`);
     assert.ok(result.maxEnemies >= 24, `${level.id} only presented ${result.maxEnemies} enemies`);
   }
 });

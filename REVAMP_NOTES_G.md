@@ -1,65 +1,63 @@
-# Round 2 — G: legacy test reconciliation
+# Round 3 — G: reconcile the dense campaign
 
-Legacy suite: **240 failures → 14**, below remaster's **44**. Final run: **1,766 pass / 14 fail / 12 existing skips**, 1,792 entries. The larger count reflects previously aborted suites now loading, plus explicit regression coverage. No deleted tests, new skips, unconditional passes, weakened FPS thresholds, or fabricated measurement evidence.
-
-The complete [reconciliation report](docs/revamp/test-reconciliation.md) classifies all 240 starting failures, lists all 90 touched test files, and compares every remaining failure with remaster.
+Legacy failures: **44 → 7**, below the requested **≤14**. Final: **1,782 pass / 7 fail / 12 unchanged skips** (1,801 entries). The starting baseline was **1,736 / 44 / 12**. This work uses the supplied `r3/G` checkout. The detailed [reconciliation report](docs/revamp/test-reconciliation.md#round-3--reconciliation-after-job-i) accounts for all 44 starting failures and preserves the round-2 history.
 
 ## Changes and files
 
-- **Receipt/leaderboard correctness:** `api/leaderboard.js` preserves cutoff, session and wallet error precedence before storage reads. E's durable-receipt verification still runs before any score write/replay; explicit proposal recovery still checks canonical metrics and provenance. `tests/helpers/weeklyDurableFixtures.cjs` supplies faithful paired storage rows; negative tests retain independent mocks and strict no-storage counters.
-- **ResearchHub identity failures:** `api/researchhub-proposals.js` and `services/revamp/researchhub/serverFeed.js` return 502 when an explicitly requested identity cannot be resolved. Ordinary feed caching remains. Responses expose only a bounded upstream status, never arbitrary transport details.
-- **Historical campaign saves:** new `shared/campaignWaveMigration.js`, called from `services/campaignProgression.ts` and `api/_lib/walletProfiles.js`, maps only exact historical per-mission wave IDs. Foreign/current-revision aliases are rejected. Shortened unfinished missions do not become automatic clears/stars/payouts; receipt claims and replay epochs survive. New `tests/campaignCheckpointMigration.test.cjs` exercises browser/server behavior together.
-- **Reward collection / preview lifecycle:** new `services/gameplay/missionRewardWindow.ts` restores the five-second major-boss collection window even with zero authored delay, while keeping ordinary sweeps and longer authored windows. Exact Boss Sandbox weapon previews retain their existing lifecycle. New `tests-revamp/G/runtime-contracts.test.mjs` checks 300 movable collection ticks and exactly-once coin banking in the real engine.
-- **Authoring/preview correctness:** Director validation accepts the same bounded revamp vocabulary as the browser; support preview declares only the formation pack its chosen cohort uses. The enemy-introduction auditor understands B's additional roles but still reports genuine coverage/readability defects.
-- **Test reconciliation:** real recursive TS loading in `tests/helpers/loadService.cjs`; shared bounded authoring checks in `tests/helpers/campaignRevampAssertions.cjs`; faithful audio activation/WebAudio fixtures; current A–F UI, choreography, wave, weekly and narrative assertions. Original security, purchase, session, settlement and lifecycle guarantees remain tested. `docs/CAMPAIGN_ECONOMY_SIMULATION.md` regenerated from current authored data.
+- **Safe historical saves:** `shared/campaignWaveMigration.js`, `services/campaignProgression.ts`, and `api/_lib/walletProfiles.js` prevent old revision-25 partial checkpoints from becoming clears after I shortened Missions. Generated content advances to revision 26. Exact historical IDs, genuine clears, claimed rewards, result receipts, and replay epochs survive; unknown/foreign/current-revision retired aliases remain rejected.
+- **Authoring parity:** Director server validation and its formation editor match browser density/cadence, vocabulary, cycle and group bounds. Positive/negative parity, editor preservation, and compile/decompile tests cover the real schema.
+- **Real content defects:** `services/revamp/curve/authorCampaign.mjs` restores the Vanguard pair in Mission 4 and introduces Research Drone in Mission 17 before its crowded third-wave debut. Existing M4 grid cadence, M17 cohort size/health/rewards, pressure budgets, and all mission reward/graph/branch identities survive. Missions 1 and 2 are byte-identical to the starting campaign. Generated campaign and curve report, introduction audit, and focused roster tests now cover all 34 roles, 25 art families, and 52 packs.
+- **Honest invariant tests:** shared `tests/helpers/campaignRevampAssertions.cjs` verifies dense grids, exactly two specialists, limited beats, varied curved entries, pressure/recovery, slot geometry, spawn timing, projectiles, telegraphs, pickups, and terminal encounters. Remaining updates cover current record art, enemy-only arrival counts, and I's explicitly QA-gated loadout branch.
+- **Reward pacing:** `tools-revamp/measure-opening.mjs` records actual configured collection duration. The opening test retains ordinary total time ≤90 seconds, requires the major-boss five-second collection, bounds its encounter to 60–90 seconds, and allows total time ≤92.5 seconds only for the restored 2.5-second increment. Real-engine collection and exactly-once coin banking regressions remain passing.
+- **Generated evidence:** refreshed `docs/CAMPAIGN_ECONOMY_SIMULATION.md` and `artifacts/campaign-balance/nonboss-runtime-matrix.json` with its Markdown report. The matrix uses the same 390×844 world on both hosts and current Campaign flight/wing controllers, includes extracted runtime modules in its digest, and checks all 300 mobile/desktop pairs. Controlled power/support fixtures are documented; balance thresholds remain strict.
 
-## Shared-file hooks
+## Shared-file hooks and boundaries
 
-`services/gameLogic.ts` has only the annotated `// REVAMP(G):` helper import, reward-window delegation and explicit preview guard (14 changed lines). `App.tsx`, `components/StartScreen.tsx` and `services/pixi/PixiGameRenderer.ts` are untouched. Integration should preserve all three engine hooks.
+No new edits to `services/gameLogic.ts`, `services/pixi/PixiGameRenderer.ts`, `App.tsx`, or `components/StartScreen.tsx`. Preserve G's existing reward-window/preview hooks and I's existing dense-formation/QA loadout hooks when integrating. No art files, dependency manifests, lockfiles, or prohibited City Mechanical/scooter files changed. Top-level `api/*.js` remains **12**. No push, deploy, or external write API was used.
 
-No campaign JSON, original artwork, dependency manifests or lockfiles changed. No new API function: top-level `api/*.js` remains **12**. No push, deployment or external write API was used.
-
-## Validation
+## How to test
 
 ```sh
-npm run build
+node tools-revamp/curve-report.mjs --check
+node tools-revamp/validate-campaign.mjs
+node tools/restage-enemy-introductions.mjs --check
+node tools/simulate-campaign-economy.mjs
+node tools/simulate-campaign-nonboss-balance.mjs --write
 npx tsc --noEmit
+npm run build
 node --test tests/*.test.cjs
 node --test tests-revamp/*/*.test.mjs
-npm run qa:playthrough -- --devices mobile --stages mission-1,boss --run-id G-after
+npm run qa:playthrough -- --devices mobile --stages mission-1,boss --run-id G-r3-after
 ```
 
-- Production build **passes** (including Director exclusion); TypeScript **zero diagnostics**.
-- Legacy: **1,766 pass / 14 fail / 12 unchanged skips**.
-- Revamp: **247 pass / 2 fail**. Both failure entries are F's existing active-game FPS assertion and its parent suite; G's three new tests pass. The FPS gate remains at 30.
-- Full logs, supplied baseline lists and machine-readable failure details: `/workspace/scicon-revamp/qa/G-reconciliation/`.
-- Browser checks use local offline API fixtures, seeded normal play (`god=false`), mobile 390×844, Chromium/SwiftShader. Browser evidence is diagnostic and does not establish physical-device performance or full-campaign completion.
+Use a new run ID on repeat. Final logs, before/final failure detail, offline dependency evidence, targeted 101-test schema/migration run, and pacing comparison live in `/workspace/scicon-revamp/qa/G-r3-verification/`.
 
-## Remaining failures and integration follow-up
+## Final validation and remaining gaps
 
-Seven remaining entries also fail in remaster: six asset suites cannot import the missing `director/node_modules/pngjs`, and the runtime-matrix digest is stale. Seven additional entries remain visible: one matrix revision check and six assertions exposing missing Protocol Vanguard coverage / a three-family debut in Mission 17 Wave 3. Job I owns campaign-content changes. Rerun the actual 600-cell matrix after runtime/content tuning; never relabel old results with a new digest.
+- Production build passes; TypeScript has **zero errors**. Full legacy: **1,782 pass / 7 fail / 12 unchanged skips**.
+- Full revamp: **267 pass / 2 fail**, both the existing headless FPS assertion and its parent. The final stricter pacing/reward check passes **6/6**; focused schema/migration coverage passes **101/101**, plus **8/8** parity checks.
+- Six legacy failures are inherited missing `director/node_modules/pngjs` imports. The dependency is unavailable offline; no install was attempted.
+- The seventh is the unchanged strict runtime-matrix timing gate: **48 first-visible delay breaches / 216 dead-air breaches**. All 600 measured cells and current digest are checked in: **592 clears / 6 deaths / 2 timeouts**. This supports clear-route coverage for all 50 Missions, not timing/balance approval. Worst examples: M14 Wave 1 visibility **2.22s**, M12B Wave 3 dead air **5.83s**; 212 dead-air cases belong to later authored waves.
+- All authoritative device-pair fields match. Mixed entity totals include cosmetic particles with random lifetimes and differ by at most two in 120 pairs; only that field is excluded from equality and is independently bounded below 132. Raw counts and comparison details are preserved. Seeded gameplay is deterministic; cosmetic totals are not.
+- Economy report/check passes unchanged conservation guarantees (**5/5**); authored expected income is 20,820 and clear-only income 18,345 after I's shorter wave lists. Campaign validator, introduction audit, generator check and diff check pass.
 
-The mobile QA/F smoke FPS requirement remains failing in this shared headless environment; no performance improvement is claimed. All captured browser console/page errors are reported in the linked QA evidence.
+## Knobs and limits
 
-## Knobs
+Revision-25 historical IDs in `shared/campaignWaveMigration.js` are immutable history, never regenerated from current content. Tune authored formations in `authorCampaign.mjs`, then regenerate/check through `curve-report.mjs`. Vanguard pressure belongs to its own cooldown; the ordinary grid's cadence is unchanged. Mission 17's Research Drone fires at six-second intervals. Reward collection stays five seconds for a major boss and 2.5 seconds for an ordinary live-coin sweep.
 
-- Major-boss minimum collection: `5` seconds in `services/gameplay/missionRewardWindow.ts`; regular live-coin sweep: `2.5` seconds. Longer authored durations win. Continuous Weekly bypass remains in the engine.
-- Checkpoint migration: revision boundary `25`; immutable historical wave suffixes in `shared/campaignWaveMigration.js`. Do not regenerate historical aliases from job I's current content.
-- Authoring bounds: shared test helper plus Director/browser schema. Update bounds only with documented design changes; retain every coverage, reward-conservation and negative-validation check.
+Matrix fixtures are balance stress probes, not evidence that a first-time player has earned those upgrades. No renderer FPS is measured by that tool. Headless QA uses normal damage, fixed seed, local fixtures, and software rendering; its 30 FPS threshold is unchanged.
 
-## Screenshots and visual review
-
-Inspected before/after PNGs (initial G capture, not clean remaster):
+## Screenshots and review
 
 | Stage | Before | After |
 | --- | --- | --- |
-| Mission 1 | `/workspace/scicon-revamp/qa/G-before/mobile/mission-1/008-time-40s.png` | `/workspace/scicon-revamp/qa/G-after/mobile/mission-1/009-time-40s.png` |
-| Boss | `/workspace/scicon-revamp/qa/G-before/mobile/boss/004-time-20s.png` | `/workspace/scicon-revamp/qa/G-after/mobile/boss/004-time-20s.png` |
+| Mission 1 | `/workspace/scicon-revamp/qa/I-hud-final/mobile/mission-1/001-time-5s.png` | `/workspace/scicon-revamp/qa/G-r3-after/mobile/mission-1/001-time-5s.png` |
+| Boss | `/workspace/scicon-revamp/qa/I-hud-final/mobile/boss/002-time-10s.png` | `/workspace/scicon-revamp/qa/G-r3-after/mobile/boss/002-time-10s.png` |
 
-Before median FPS: Mission 1 **5.1**, boss **11**. After: Mission 1 **9.7**, boss **6.7**. All four have zero console/page errors. Both runs fail the unchanged 30 FPS gate. Shared host load and overlapping final legacy verification prevent a performance comparison; differing wall-clock captures are not identical simulation frames.
+Viewed all four PNGs. The dense rows, crisp hulls, distinct projectiles, and intact boss surface detail remain coherent. Large left controls/phase banners and occasional score-popup overlap remain polish limitations. These are different simulation instants, not frame-identical comparisons. Full images/videos: `/workspace/scicon-revamp/qa/G-r3-after/`.
 
-Visual critique: art palette, silhouettes, HUD and touch buttons remain coherent. The utility-wing notice covers the active boss; bright scenery competes with projectiles; opening density still feels sparse; impact flashes can obscure boss detail. These existing polish issues remain for the content/rendering jobs. The full QA reports, videos and PNG sequences are in `/workspace/scicon-revamp/qa/G-before/` and `/workspace/scicon-revamp/qa/G-after/`.
+Mobile QA has zero console/page errors and the same 390×844 world in both scenarios. Mission 1 observes 28 enemies, eight hostile bullets and no damage; boss observes 20 hostile bullets, two lost lives and no death. Both fail only the existing FPS gate (7/8 median); no device-performance or full-Mission browser-completion claim is made. Fixed-step pacing tests separately establish completion.
 
 ## Commit handoff
 
-Git staging failed creating `/workspace/scicon-revamp/gh/.git/worktrees/w2-G/index.lock` because Git metadata is read-only. Changes remain uncommitted for the integrator, following the requested fallback. Suggested logical commits: security/save migration + fixtures; authoring/runtime corrections + assertions; final reconciliation/evidence notes.
+Staging was rejected with `Unable to create '/workspace/scicon-revamp/gh/.git/worktrees/w3-G/index.lock': Read-only file system`. Changes remain uncommitted for the integrator as requested. Suggested commits: migration/schema correctness; authored coverage and dense-content assertions; regenerated evidence and reconciliation notes. No alternate Git metadata workaround was used.

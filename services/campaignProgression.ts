@@ -3,7 +3,7 @@ import '../shared/campaignWaveMigration.js';
 const { resolveRevampWaveId, boundRevampCompletedWaves } = (globalThis as typeof globalThis & {
   __SCICON_CAMPAIGN_WAVE_MIGRATION__: {
     resolveRevampWaveId: (missionId: string, waveId: unknown, waveIds: readonly string[], revision: number) => string | null;
-    boundRevampCompletedWaves: (missionId: string, original: unknown, completed: string[], waveIds: readonly string[], revision: number, complete: boolean) => string[];
+    boundRevampCompletedWaves: (missionId: string, original: unknown, completed: string[], waveIds: readonly string[], revision: number, complete: boolean | undefined) => string[];
   };
 }).__SCICON_CAMPAIGN_WAVE_MIGRATION__;
 import type {
@@ -809,7 +809,7 @@ const sanitizeMissionRecord = (
   const completedWaveIds = boundRevampCompletedWaves(
     mission.id, record.completedWaveIds,
     migrateCompletedWaveIds(record.completedWaveIds, mission, storedRevision),
-    mission.waveIds, storedRevision, Boolean(record.completed)
+    mission.waveIds, storedRevision, record.completed
   );
   const completed = Boolean(record.completed) || completedWaveIds.length === mission.waveIds.length;
   if (completed) {
