@@ -36,6 +36,20 @@ vm.runInNewContext(transpiled, {
       return { ASSETS: new Proxy({}, { get: (_target, key) => String(key) }) };
     }
     if (request === './PixiTextureBank') return { PixiTextureBank: class PixiTextureBank {} };
+    // REVAMP(J): Load the real presentation helper while preserving the pure
+    // parallax geometry tests and their existing GPU-free Pixi facade.
+    if (request === '../revamp/performance/BackgroundTextureCache' || request === '../revamp/performance/BackgroundQuad') {
+      const dependency = { exports: {} };
+      const source = fs.readFileSync(path.join(root, 'services/pixi', `${request}.ts`), 'utf8');
+      const compiled = ts.transpileModule(source, {
+        compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 }
+      }).outputText;
+      vm.runInNewContext(compiled, { module: dependency, exports: dependency.exports, require: name => {
+        if (name === 'pixi.js') return pixiStub;
+        throw new Error(`Unexpected cache dependency: ${name}`);
+      } });
+      return dependency.exports;
+    }
     throw new Error(`Unexpected test dependency: ${request}`);
   }
 });

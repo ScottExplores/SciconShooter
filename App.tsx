@@ -70,7 +70,8 @@ import {
   type WeeklyRunAttemptQuota
 } from './services/walletPurchaseService';
 import type { ContinuePaymentSettlement } from './services/continuePaymentService';
-import { readCachedBaseAccount } from './services/baseAccountWallet';
+// REVAMP(J): Cached identity is lightweight; the wallet SDK stays in its lazy runtime.
+import { readCachedBaseAccount } from './services/baseAccountCache';
 import {
   loadPlayerShipAccess,
   type PlayerShipPurchaseSettlement
@@ -1283,7 +1284,8 @@ const App: React.FC = () => {
 
   // Warm the wallet chunk during idle so the first Connect click can open its
   // popup while the browser still honours the user activation.
-  useEffect(() => { warmWalletRuntime(); }, []);
+  // REVAMP(J): Let startup art and the first usable menu finish before SDK warming.
+  useEffect(() => { if (!startupLoading) warmWalletRuntime(); }, [startupLoading]);
 
   useEffect(() => {
     weeklySquadStateRef.current = weeklySquadState;

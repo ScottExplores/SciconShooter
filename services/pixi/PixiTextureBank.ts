@@ -1,5 +1,6 @@
-import { Assets, Texture } from 'pixi.js';
+import { Assets, Texture, type Renderer } from 'pixi.js';
 import { desaturateBackgroundPixels } from '../revamp/presentation/backgroundGrade';
+import { RuntimeTextureAtlas } from '../revamp/performance/RuntimeTextureAtlas';
 import {
   runRequiredGameplayAssetPreloadQueue,
   runGameplayAssetPreloadQueue,
@@ -12,6 +13,11 @@ export class PixiTextureBank {
   private readonly pending = new Map<string, Promise<Texture>>();
   // REVAMP(I): Derived presentation textures never change the shared original artwork.
   private readonly mutedBackgrounds = new Map<string, Texture>();
+  private atlas?: RuntimeTextureAtlas;
+
+  // REVAMP(J): Optional per-renderer page; preload still keeps source ownership.
+  enableAtlas(renderer: Renderer) { this.atlas ??= new RuntimeTextureAtlas(renderer); }
+  getAtlasStats() { return this.atlas?.getStats() ?? null; }
 
   async load(url: string) {
     const cached = this.textures.get(url);
@@ -55,11 +61,13 @@ export class PixiTextureBank {
   }
 
   get(url: string) {
-    return this.textures.get(url) ?? null;
+    const source = this.textures.get(url);
+    return source ? this.atlas?.get(source) ?? source : null;
   }
 
   getMutedBackground(url: string) {
-    const original = this.get(url);
+    // Read the unpacked source (not an atlas sub-texture) for pixel grading.
+    const original = this.textures.get(url) ?? null;
     if (!original || typeof document === 'undefined') return original;
     const cached = this.mutedBackgrounds.get(url);
     if (cached) return cached;
@@ -95,6 +103,8 @@ export class PixiTextureBank {
   }
 
   destroy() {
+    this.atlas?.destroy();
+    this.atlas = undefined;
     // Pixi Assets owns the texture lifetime. Clearing references here lets a
     // restarted mission release this renderer without invalidating shared UI art.
     this.retainMutedBackgrounds([]);

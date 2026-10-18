@@ -42,7 +42,8 @@ export class FeelPresentation {
   private powerMs = 0;
   private muzzleBudget = 0;
 
-  constructor(private readonly pool: ArcadeEffectPool, overlay: Container) {
+  // REVAMP(J) signature kept; REVAMP(I) additive tint needs no baked white silhouette.
+  constructor(private readonly pool: ArcadeEffectPool, overlay: Container, private readonly silhouette?: (texture: Texture) => Texture | null) {
     this.effects = new FeelEffects(pool);
     this.root.eventMode = 'none';
     this.root.addChild(this.chainBar, this.chainText, this.banner, this.power, this.flash);

@@ -15,7 +15,8 @@ test('canonical gameplay renders through one manually-driven Pixi scene', () => 
   assert.match(renderer, /import 'pixi\.js\/unsafe-eval'/);
   assert.match(canvas, /new PixiGameRenderer\(\{\s*previewBossArtwork:/);
   assert.equal((canvas.match(/new PixiGameRenderer\(/g) || []).length, 1);
-  assert.match(canvas, /renderer\.sync\(engine, timestamp\)/);
+  // REVAMP(J): Paused frames still render, but cannot teach the quality governor.
+  assert.match(canvas, /renderer\.sync\(engine, timestamp, runningRef\.current && engine\.gameActive\)/);
   assert.doesNotMatch(canvas, /getContext\(['"]2d['"]\)/);
   assert.doesNotMatch(canvas, /engine\.draw\(/);
   assert.equal((canvas.match(/const animate =/g) || []).length, 1);
@@ -60,7 +61,11 @@ test('Pixi presentation keeps ordered gameplay layers and pooled effects', () =>
   assert.match(environment, /PIXI_SPACE_PARALLAX_DEBRIS_BASALT/);
   assert.match(environment, /DEBRIS_OVERLAY_TILE_POOL_SIZE/);
   assert.match(environment, /private applyProfile/);
-  assert.match(environment, /const baseBlurStrength = engine\.performanceMode \? 0 : layer\.softness/);
+  // REVAMP(J): Authored softness is baked once; live blur is only for takeoff.
+  assert.match(environment, /const baseBlurStrength = engine\.performanceMode \|\| this\.bakedBackgrounds \? 0 : layer\.softness/);
+  // REVAMP(J): Keep authored softness and grade inputs, including the opaque
+  // base-plane clear color, explicit in the retained-texture contract.
+  assert.match(environment, /this\.bakedBackgrounds\?\.get\(texture, scaledWidth, layer\.tileHeight, layer\.softness,\s*profile\?\.tint, this\.bakeSectorGrade \? profile\.colorGradeAlpha : 0,\s*this\.bakeSectorGrade && layer === this\.parallaxLayers\[0\] \? 0x020617 : undefined\)/);
   assert.match(environment, /layer\.blurFilter\.strengthY = baseBlurStrength \+ takeoffBlurY/);
   assert.match(environment, /this\.terrainPropLayer\.filters = shouldBlurSpaceProps \? \[this\.spacePropMotionBlur\] : null/);
   assert.doesNotMatch(environment, /layer\.root\.visible = !\(lowQuality/);

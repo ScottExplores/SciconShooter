@@ -2,6 +2,8 @@ import { Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { createSoftRadialLight, hideSoftRadialLight, showSoftRadialLight, type SoftRadialLight } from './SoftRadialLight';
 // REVAMP(A): Shared tuning keeps the game and FX lab on the same bounded pool.
 import { EXPLOSION_TIERS, impactSparkVelocity, scoreSparkPosition, type ExplosionTier } from '../revamp/feel/FeelEffects';
+// REVAMP(J): Animated rings and puffs share retained geometry instead of rebuilding every frame.
+import { EffectGeometryCache, effectGeometryFrame, EFFECT_GEOMETRY_FRAME_COUNT } from '../revamp/performance/EffectGeometryCache';
 
 export type ArcadeEffectKind =
   | 'burst'
@@ -20,6 +22,8 @@ export type ArcadeEffectKind =
 type PooledEffect = {
   root: Container;
   graphic: Graphics;
+  scratchContext: Graphics['context'] | null;
+  geometryKey: string | null;
   sprite: Sprite;
   kind: ArcadeEffectKind;
   age: number;
@@ -59,6 +63,7 @@ export class ArcadeEffectPool {
   private maxEffects = 150;
   private maxLights = MAX_POOLED_LIGHTS;
   private readonly sparkPosition = { x: 0, y: 0 };
+  private readonly geometry = new EffectGeometryCache<Graphics['context']>();
 
   constructor(private readonly layer: Container) {
     for (let index = 0; index < MAX_POOLED_LIGHTS; index++) {
@@ -91,7 +96,8 @@ export class ArcadeEffectPool {
       allocated: this.effects.length,
       cap: this.maxEffects,
       lights: this.lights.filter((light) => light.active).length,
-      lightCap: this.maxLights
+      lightCap: this.maxLights,
+      geometry: this.geometry.getStats()
     };
   }
 
@@ -113,6 +119,7 @@ export class ArcadeEffectPool {
     for (let index = this.maxEffects; index < this.effects.length; index++) {
       this.effects[index].active = false;
       this.effects[index].root.visible = false;
+      this.releaseGeometry(this.effects[index]);
     }
     for (let index = this.maxLights; index < this.lights.length; index++) {
       this.lights[index].active = false;
@@ -150,6 +157,8 @@ export class ArcadeEffectPool {
       effect = {
         root,
         graphic,
+        scratchContext: graphic.context ?? null,
+        geometryKey: null,
         sprite,
         kind,
         age: 0,
@@ -174,6 +183,7 @@ export class ArcadeEffectPool {
     effect.root.alpha = 1;
     effect.root.scale.set(1);
     effect.root.rotation = 0;
+    this.releaseGeometry(effect);
     effect.graphic.clear();
     effect.graphic.blendMode = this.usesAdditiveBlend(kind) ? 'add' : 'normal';
     effect.sprite.visible = false;
@@ -401,8 +411,10 @@ export class ArcadeEffectPool {
   private drawEffect(effect: PooledEffect, progress: number) {
     // Fixed particle geometry is uploaded once; animation only changes transforms.
     if (progress > 0 && (effect.kind === 'spark' || effect.kind === 'debris' || effect.kind === 'score-spark' || effect.kind === 'armor-ting')) return;
+    // REVAMP(J): The sprite branches only change textures/transforms. Their empty
+    // scratch geometry was cleared on acquisition and needs no per-frame upload.
+    if (this.drawCachedGeometry(effect, progress)) return;
     const graphic = effect.graphic;
-    graphic.clear();
     effect.sprite.visible = false;
 
     if (effect.kind === 'sprite-explosion' || effect.kind === 'boss-sprite-explosion') {
@@ -427,6 +439,8 @@ export class ArcadeEffectPool {
       effect.sprite.visible = true;
       return;
     }
+
+    graphic.clear();
 
     if (effect.kind === 'ring' || effect.kind === 'shockwave') {
       const radius = effect.size * (0.16 + progress * 0.84);
@@ -494,6 +508,53 @@ export class ArcadeEffectPool {
     graphic.circle(0, 0, effect.size * 0.12).fill({ color: '#ffffff', alpha: 0.98 });
   }
 
+  private releaseGeometry(effect: PooledEffect) {
+    if (effect.geometryKey === null) return;
+    // Detach before releasing: an evicted context must never still be displayed.
+    if (effect.scratchContext) effect.graphic.context = effect.scratchContext;
+    this.geometry.release(effect.geometryKey);
+    effect.geometryKey = null;
+  }
+
+  private drawCachedGeometry(effect: PooledEffect, progress: number) {
+    const kind = effect.kind;
+    if (kind !== 'ring' && kind !== 'shockwave' && kind !== 'muzzle' && kind !== 'smoke') return false;
+    // Minimal non-GPU consumers can supply a Graphics facade without a context.
+    const scratch = effect.scratchContext;
+    if (!scratch) return false;
+    const frame = effectGeometryFrame(progress);
+    const key = `${kind}:${effect.size}:${effect.color}:${frame}`;
+    if (effect.geometryKey === key) return true;
+    const sampledProgress = frame / EFFECT_GEOMETRY_FRAME_COUNT;
+    const context = this.geometry.acquire(key, () => {
+      // Clone the empty owned context directly, avoiding a temporary display
+      // object and its context event listeners for every cached shape.
+      const shape = scratch.clone();
+      const size = effect.size;
+      if (kind === 'ring' || kind === 'shockwave') {
+        const radius = size * (0.16 + sampledProgress * 0.84);
+        shape.circle(0, 0, radius).stroke({ color: effect.color,
+          width: Math.max(1, size * 0.045 * (1 - sampledProgress)), alpha: 0.95 });
+        if (kind === 'shockwave') shape.circle(0, 0, radius * 0.7)
+          .stroke({ color: '#ffffff', width: 1.5, alpha: 0.55 });
+      } else if (kind === 'muzzle') {
+        const length = size * (1 - sampledProgress * 0.65);
+        shape.moveTo(0, -length).lineTo(size * 0.28, 0).lineTo(0, length * 0.28)
+          .lineTo(-size * 0.28, 0).closePath().fill({ color: '#ffffff', alpha: 0.95 });
+        shape.circle(0, 0, size * 0.22).fill({ color: effect.color, alpha: 0.85 });
+      } else {
+        shape.circle(0, 0, size * (0.56 + sampledProgress * 0.44)).fill({ color: effect.color, alpha: 0.24 });
+        shape.circle(-size * 0.22, -size * 0.08, size * 0.34).fill({ color: effect.color, alpha: 0.18 });
+      }
+      return shape;
+    });
+    this.releaseGeometry(effect);
+    effect.graphic.context = context;
+    effect.geometryKey = key;
+    effect.sprite.visible = false;
+    return true;
+  }
+
   update(deltaMs: number) {
     deltaMs = Number.isFinite(deltaMs) ? clamp(deltaMs, 0, 100) : 0;
     for (const effect of this.effects) {
@@ -520,6 +581,7 @@ export class ArcadeEffectPool {
       if (progress >= 1) {
         effect.active = false;
         effect.root.visible = false;
+        this.releaseGeometry(effect);
       }
     }
 
@@ -537,8 +599,14 @@ export class ArcadeEffectPool {
   }
 
   destroy() {
-    for (const effect of this.effects) effect.root.destroy({ children: true });
+    for (const effect of this.effects) {
+      this.releaseGeometry(effect);
+      // Release the owned scratch context explicitly before the container tree.
+      effect.graphic.destroy();
+      effect.root.destroy({ children: true });
+    }
     this.effects.length = 0;
+    this.geometry.destroy();
     for (let index = 0; index < this.lights.length; index++) {
       this.lights[index].active = false;
       hideSoftRadialLight(this.lights[index]);

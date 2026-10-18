@@ -20,6 +20,9 @@ import { DEFAULT_GAME_CAMPAIGN } from '../services/levelConfig';
 import type { RuntimeSquadLoadout } from '../services/squadProgression';
 // REVAMP(D): Typed wing commands are scoped to the mounted engine.
 import type { WingHudSnapshot } from '../services/revamp/wings/wingRuntime';
+// REVAMP(J): Share a 60Hz presentation clock and skip unchanged React wing data.
+import { RENDER_FRAME_INTERVAL_MS, nextRenderTimestamp } from '../services/revamp/performance/RenderCadence';
+import { wingHudSnapshotsEqual } from '../services/revamp/performance/wingHudEquality';
 import type { PlayerShipId } from '../services/playerShipService';
 import {
   clampPreviewTimeScale,
@@ -345,6 +348,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   // REVAMP(D): Idempotent commands and throttled HUD snapshots.
   const handledWingNonceRef = useRef<number | null>(null);
   const onWingSupportStateRef = useRef(onWingSupportState);
+  // REVAMP(J): Runtime snapshots are detached values; unchanged data stays in refs.
+  const lastWingSnapshotRef = useRef<WingHudSnapshot | null>(null);
   onWingSupportStateRef.current = onWingSupportState;
   const handledContinueNonceRef = useRef<number | null>(null);
   const handledWaveContinueNonceRef = useRef<number | null>(null);
@@ -785,7 +790,12 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     handledWingNonceRef.current = wingCommand.nonce;
     if (typeof wingCommand.autoCast === 'boolean') engine.setWingAutoCast(wingCommand.autoCast);
     if (wingCommand.slot && runningRef.current && !isTransmissionOpenRef.current) engine.activateWingSpecial(wingCommand.slot);
-    onWingSupportStateRef.current?.(engine.getWingSupportSnapshot());
+    // REVAMP(J): Commands still publish changes immediately, outside the 8Hz poll.
+    const wingSnapshot = engine.getWingSupportSnapshot();
+    if (!wingHudSnapshotsEqual(lastWingSnapshotRef.current, wingSnapshot)) {
+      lastWingSnapshotRef.current = wingSnapshot;
+      onWingSupportStateRef.current?.(wingSnapshot);
+    }
   }, [wingCommand]);
 
   useEffect(() => {
@@ -1076,8 +1086,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       });
       engine.polishSettings = setup.polishSettings;
       engineRef.current = engine;
-      let targetFPS = 60;
-      let frameInterval = 1000 / targetFPS;
+      // REVAMP(J): 50Hz cannot recover the automatic detail tier above 57 FPS.
+      const frameInterval = RENDER_FRAME_INTERVAL_MS;
       let mobileFrameBudget = false;
       let slowFrameScore = 0;
       let recoveryFrameScore = 0;
@@ -1108,13 +1118,13 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       const coarsePointer = window.matchMedia?.('(pointer: coarse)').matches ?? false;
       const mobileViewport = engine.width < 560 || (coarsePointer && engine.height > engine.width);
       mobileFrameBudget = mobileViewport;
-      targetFPS = mobileViewport ? 50 : 60;
-      frameInterval = 1000 / targetFPS;
     };
 
     const updateAdaptivePerformanceMode = (deltaTime: number) => {
-      const slowThreshold = frameInterval * (mobileFrameBudget ? 1.55 : 1.42);
-      const recoveryThreshold = frameInterval * (mobileFrameBudget ? 1.18 : 1.12);
+      // REVAMP(J): Preserve the original engine-mode thresholds in milliseconds.
+      const performanceBudgetMs = mobileFrameBudget ? 20 : 1000 / 60;
+      const slowThreshold = performanceBudgetMs * (mobileFrameBudget ? 1.55 : 1.42);
+      const recoveryThreshold = performanceBudgetMs * (mobileFrameBudget ? 1.18 : 1.12);
       const heavyScene = engine.heavySceneLoad;
 
       if (deltaTime > slowThreshold || heavyScene) {
@@ -1186,6 +1196,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     if (autoFire) keysRef.current[' '] = true;
     engine.handleInput(runningRef.current ? keysRef.current : {}, null);
     lastPublishedStatsRef.current = null;
+    // REVAMP(J): Every new engine publishes its initial wing HUD once.
+    lastWingSnapshotRef.current = null;
     lastCampaignCompletionIdRef.current = null;
     lastWaveVictoryIdRef.current = null;
     lastStatsPublishTimeRef.current = 0;
@@ -1212,7 +1224,12 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     const publishHudStats = (force = false, timestamp = performance.now()) => {
       if (onWingSupportStateRef.current && (force || timestamp - lastWingPublishTime >= 125)) {
         lastWingPublishTime = timestamp;
-        onWingSupportStateRef.current(engine.getWingSupportSnapshot());
+        // REVAMP(J): Empty/ready/paused wings otherwise rerendered App eight times/s.
+        const wingSnapshot = engine.getWingSupportSnapshot();
+        if (!wingHudSnapshotsEqual(lastWingSnapshotRef.current, wingSnapshot)) {
+          lastWingSnapshotRef.current = wingSnapshot;
+          onWingSupportStateRef.current(wingSnapshot);
+        }
       }
       const elapsedMs = timestamp - lastStatsPublishTimeRef.current;
       const nextStats = engine.stats;
@@ -1494,11 +1511,14 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       }
 
       const renderElapsed = timestamp - lastRenderTime;
-      if (renderElapsed >= frameInterval) {
-        lastRenderTime = timestamp - (renderElapsed % frameInterval);
+      // REVAMP(J): Account for rounded rAF timestamps without dropping 60Hz frames.
+      const nextRenderTime = nextRenderTimestamp(timestamp, lastRenderTime);
+      if (nextRenderTime !== null) {
+        lastRenderTime = nextRenderTime;
         updateAdaptivePerformanceMode(renderElapsed);
         publishHudStats(false, timestamp);
-        renderer.sync(engine, timestamp);
+        // REVAMP(J): Paused rendering must not train the automatic quality tier.
+        renderer.sync(engine, timestamp, runningRef.current && engine.gameActive);
         // REVAMP(F): Count completed renderer syncs, never rAF callbacks or simulation steps.
         qaRuntime?.rendered(timestamp);
         if (!readinessReported) {

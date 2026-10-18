@@ -1,0 +1,8 @@
+/* Retain the navy glass, colored glows and pixel icons without a live blur of
+ * the WebGL canvas beneath each control. Applies equally on every device. */
+.scicon-game-stage .scicon-hud-shell .backdrop-blur-md {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background-color: #081222;
+  background-image: linear-gradient(145deg, rgb(148 163 184 / 7%), rgb(2 6 23 / 20%));
+}

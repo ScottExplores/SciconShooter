@@ -3,10 +3,14 @@ import { ASSETS } from '../../constants';
 import type { GameCampaign } from '../../game-config/types';
 import type { GameEngine } from '../gameLogic';
 import { PixiTextureBank } from './PixiTextureBank';
+// REVAMP(J): Cache immutable softness and budget only optional far-plane detail.
+import { BackgroundTextureCache, canBakeBackgroundGrade, visibleBackgroundDetail } from '../revamp/performance/BackgroundTextureCache';
+import type { Renderer } from 'pixi.js';
+import { createBackgroundQuad } from '../revamp/performance/BackgroundQuad';
 
 type ParallaxLayer = {
   root: Container;
-  sprites: Sprite[];
+  sprites: Array<Sprite | ReturnType<typeof createBackgroundQuad>>;
   speed: number;
   alpha: number;
   textureKey: string;
@@ -602,7 +606,8 @@ export class PixiEnvironment {
   private readonly terrainProps: TerrainProp[] = [];
   private readonly atlasFrameCache = new Map<string, readonly Texture[]>();
   private readonly backgroundFill = new Graphics();
-  private readonly sectorTint = new Graphics();
+  // REVAMP(J): A solid grade uses the single-sampler quad, with retained geometry.
+  private readonly sectorTint: Graphics | ReturnType<typeof createBackgroundQuad>;
   private readonly hyperspeedStreaks = new Graphics();
   private readonly hyperspeedFrame = new Graphics();
   private readonly terrainPropLayer = new Container();
@@ -623,12 +628,23 @@ export class PixiEnvironment {
   private lastEngineFrame = -1;
   private spacePropBlurActive = false;
   private destroyed = false;
+  private detailScale = 1;
+  private readonly bakedBackgrounds: BackgroundTextureCache | null;
+  private bakeSectorGrade = false;
 
   constructor(
     private readonly backgroundLayer: Container,
     private readonly environmentLayer: Container,
-    private readonly textures: PixiTextureBank
-  ) {}
+    private readonly textures: PixiTextureBank,
+    renderer?: () => Renderer,
+    private readonly tagLargeSprite?: (sprite: Sprite) => Sprite
+  ) {
+    this.bakedBackgrounds = renderer ? new BackgroundTextureCache(renderer) : null;
+    this.sectorTint = renderer ? createBackgroundQuad() : new Graphics();
+    this.tagLargeSprite?.(this.horizon);
+  }
+
+  setDetailScale(scale: number) { this.detailScale = Math.max(0.5, Math.min(1, scale)); }
 
   async init(
     width: number,
@@ -659,14 +675,15 @@ export class PixiEnvironment {
       const blurFilter = new BlurFilter({ strength: definition.softness ?? 0, quality: 1, kernelSize: 5 });
       root.eventMode = 'none';
       root.filters = definition.softness ? [blurFilter] : null;
-      const sprites: Sprite[] = [];
+      const sprites: ParallaxLayer['sprites'] = [];
       const allocatedTileCount = Math.max(
         ...ALL_BACKGROUND_PROFILES.map((profile) => (
           profile.layers[layerIndex]?.tilePoolSize ?? PARALLAX_TILE_POOL_SIZE
         ))
       );
       for (let tileIndex = 0; tileIndex < allocatedTileCount; tileIndex++) {
-        const sprite = new Sprite(Texture.WHITE);
+        // REVAMP(J): Large planes use a single-sampler shader; actors stay batched.
+        const sprite = this.bakedBackgrounds ? createBackgroundQuad() : new Sprite(Texture.WHITE);
         sprite.alpha = definition.alpha;
         sprite.eventMode = 'none';
         sprites.push(sprite);
@@ -778,6 +795,8 @@ export class PixiEnvironment {
       const root = new Container();
       const shadow = new Graphics();
       const sprite = new Sprite(Texture.WHITE);
+      // REVAMP(J): Reuse stock Sprite placement with a single-texture batch.
+      this.tagLargeSprite?.(sprite);
       root.eventMode = 'none';
       shadow.eventMode = 'none';
       sprite.eventMode = 'none';
@@ -918,6 +937,9 @@ export class PixiEnvironment {
     }
 
     this.activeBackgroundId = resolvedId;
+    this.bakedBackgrounds?.clear();
+    // REVAMP(J): Fold the grade into each cached plane only over a covered base.
+    this.bakeSectorGrade = Boolean(this.bakedBackgrounds && profile.colorGradeAlpha > 0 && canBakeBackgroundGrade(profile.layers[0]));
     for (let index = 0; index < this.parallaxLayers.length; index++) {
       const layer = this.parallaxLayers[index];
       const definition: ParallaxDefinition | undefined = profile.layers[index];
@@ -936,7 +958,7 @@ export class PixiEnvironment {
       layer.startOffsetRatio = definition.startOffsetRatio ?? 0;
       layer.softness = definition.softness ?? 0;
       layer.blurFilter.strength = layer.softness;
-      layer.filterActive = layer.softness > 0;
+      layer.filterActive = layer.softness > 0 && !this.bakedBackgrounds;
       layer.root.filters = layer.filterActive ? [layer.blurFilter] : null;
       layer.scrollDirection = definition.scrollDirection ?? 'down';
       layer.coverViewport = definition.coverViewport ?? false;
@@ -973,10 +995,13 @@ export class PixiEnvironment {
   }
 
   resize(width: number, height: number) {
+    // REVAMP(J): Initial profile binding already baked at this size; reuse it.
+    if (this.width !== Math.max(1, Math.round(width)) || this.height !== Math.max(1, Math.round(height))) this.bakedBackgrounds?.clear();
     this.width = Math.max(1, Math.round(width));
     this.height = Math.max(1, Math.round(height));
     this.backgroundFill.clear().rect(0, 0, this.width, this.height).fill('#020617');
-    this.sectorTint.clear().rect(0, 0, this.width, this.height).fill('#ffffff');
+    if (this.sectorTint instanceof Graphics) this.sectorTint.clear().rect(0, 0, this.width, this.height).fill('#ffffff');
+    else { this.sectorTint.width = this.width; this.sectorTint.height = this.height; }
     this.sectorTint.alpha = 0;
 
     this.horizon.anchor.set(0.5, 1);
@@ -1007,7 +1032,12 @@ export class PixiEnvironment {
       ? Math.max(this.width * layer.widthScale, this.height / sourceAspect) * 1.04
       : this.width * layer.widthScale;
     layer.tileHeight = scaledWidth * sourceAspect;
+    const profile = BACKGROUND_PROFILES[this.activeBackgroundId as keyof typeof BACKGROUND_PROFILES];
+    const baked = texture && this.bakedBackgrounds?.get(texture, scaledWidth, layer.tileHeight, layer.softness,
+      profile?.tint, this.bakeSectorGrade ? profile.colorGradeAlpha : 0,
+      this.bakeSectorGrade && layer === this.parallaxLayers[0] ? 0x020617 : undefined);
     for (const sprite of layer.sprites) {
+      if (baked) sprite.texture = baked;
       sprite.width = scaledWidth;
       sprite.height = layer.tileHeight;
       sprite.alpha = layer.alpha;
@@ -1045,6 +1075,12 @@ export class PixiEnvironment {
     }
     const previousBackgroundId = this.activeBackgroundId;
     const profile = this.applyProfile(this.campaignProfileWindow.currentBackgroundId);
+    // REVAMP(J): Restored GL has empty render targets; rebind all planes before drawing.
+    if (this.bakedBackgrounds?.refreshAfterContextRestore()) {
+      for (const layer of this.parallaxLayers) this.layoutParallaxLayer(layer);
+    }
+    // REVAMP(J): The renderer's identical opaque clear already supplies this fill.
+    this.backgroundFill.visible = !this.bakedBackgrounds;
     const profileChanged = previousBackgroundId !== this.activeBackgroundId;
     if (profileChanged) {
       this.profileStartedAtFrame = engine.frameCount;
@@ -1071,9 +1107,10 @@ export class PixiEnvironment {
     const motionFrame = this.environmentMotionFrame || localFrame;
     for (let index = 0; index < this.parallaxLayers.length; index++) {
       const layer = this.parallaxLayers[index];
+      layer.root.visible = index < profile.layers.length && visibleBackgroundDetail(index, this.detailScale, profile.layers.length);
       if (!layer.root.visible) continue;
       const depthRatio = index / Math.max(1, this.parallaxLayers.length - 1);
-      const baseBlurStrength = engine.performanceMode ? 0 : layer.softness;
+      const baseBlurStrength = engine.performanceMode || this.bakedBackgrounds ? 0 : layer.softness;
       const takeoffBlurX = engine.performanceMode ? 0 : spaceHyperspeedStrength * 0.14;
       const takeoffBlurY = engine.performanceMode
         ? 0
@@ -1118,7 +1155,8 @@ export class PixiEnvironment {
 
     for (let index = 0; index < this.stars.length; index++) {
       const star = this.stars[index];
-      star.sprite.visible = true;
+      star.sprite.visible = index < Math.ceil(this.stars.length * this.detailScale);
+      if (!star.sprite.visible) continue;
       star.sprite.x = star.baseX * this.width;
       star.sprite.y = ((star.baseY * this.height) + motionFrame * star.speed * profile.starSpeedMultiplier) % this.height;
       star.sprite.alpha = Math.max(0.12, Math.min(0.82, star.baseAlpha + Math.sin(motionFrame * 0.012 + star.phase) * 0.08)) * BACKGROUND_STAR_EXPOSURE;
@@ -1169,6 +1207,7 @@ export class PixiEnvironment {
 
     this.sectorTint.tint = profile.tint;
     this.sectorTint.alpha = profile.colorGradeAlpha * 0.6;
+    this.sectorTint.visible = !this.bakeSectorGrade;
     this.horizon.alpha = profile.horizonAlpha * FAR_BACKGROUND_EXPOSURE;
     this.horizon.y = this.height + this.horizon.height * 0.72
       + hyperspeedStrength * this.height * 0.08
@@ -1232,6 +1271,7 @@ export class PixiEnvironment {
   destroy() {
     if (this.destroyed) return;
     this.destroyed = true;
+    this.bakedBackgrounds?.destroy();
     for (const frames of this.atlasFrameCache.values()) {
       frames.forEach((frame) => frame.destroy(false));
     }

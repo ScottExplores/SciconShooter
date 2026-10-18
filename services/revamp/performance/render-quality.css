@@ -1,0 +1,18 @@
+.sci-render-quality select {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid #67e8f9;
+  border-radius: 0;
+  padding: 0 0.3rem;
+  background: #0f172a;
+  color: #e0f2fe;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.sci-render-quality select:focus-visible {
+  outline: 2px solid #cffafe;
+  outline-offset: 2px;
+}

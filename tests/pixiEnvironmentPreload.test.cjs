@@ -35,6 +35,20 @@ vm.runInNewContext(transpiled, {
       return { ASSETS: new Proxy({}, { get: (_target, key) => String(key) }) };
     }
     if (request === './PixiTextureBank') return { PixiTextureBank: class PixiTextureBank {} };
+    // REVAMP(J): Execute the real cache helper; these tests still exercise the
+    // original preload/window behavior without constructing a GPU renderer.
+    if (request === '../revamp/performance/BackgroundTextureCache' || request === '../revamp/performance/BackgroundQuad') {
+      const dependency = { exports: {} };
+      const source = fs.readFileSync(path.join(root, 'services/pixi', `${request}.ts`), 'utf8');
+      const compiled = ts.transpileModule(source, {
+        compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 }
+      }).outputText;
+      vm.runInNewContext(compiled, { module: dependency, exports: dependency.exports, require: name => {
+        if (name === 'pixi.js') return pixiStub;
+        throw new Error(`Unexpected cache dependency: ${name}`);
+      } });
+      return dependency.exports;
+    }
     throw new Error(`Unexpected test dependency: ${request}`);
   }
 });
