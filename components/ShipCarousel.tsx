@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
+// REVAMP(H): Idle sprite playback follows the live reduced-motion preference.
+import { useReducedMotion } from './revamp/UiMotion';
 import {
   PLAYER_SHIP_MOTION,
   PLAYER_SHIP_SELECTION_FPS,
@@ -80,6 +82,7 @@ const PlayerShipSelectionImage = ({
   className: string;
   steeringState?: PlayerSteeringState | null;
 }) => {
+  const reducedMotion = useReducedMotion();
   const [activeFrame, setActiveFrame] = useState<{ shipId: PlayerShipId; index: number }>(() => ({
     shipId,
     index: 0
@@ -91,7 +94,7 @@ const PlayerShipSelectionImage = ({
     const frames = PLAYER_SHIP_MOTION[shipId].selectionIdleFrames;
 
     setActiveFrame({ shipId, index: 0 });
-    if (steeringState) {
+    if (steeringState || reducedMotion) {
       return () => { disposed = true; };
     }
 
@@ -100,6 +103,7 @@ const PlayerShipSelectionImage = ({
       let frameIndex = 0;
       setActiveFrame({ shipId, index: frameIndex });
       timer = window.setInterval(() => {
+        if (document.hidden) return;
         frameIndex = (frameIndex + 1) % frames.length;
         setActiveFrame({ shipId, index: frameIndex });
       }, 1000 / PLAYER_SHIP_SELECTION_FPS);
@@ -109,13 +113,14 @@ const PlayerShipSelectionImage = ({
       disposed = true;
       if (timer !== undefined) window.clearInterval(timer);
     };
-  }, [shipId, steeringState]);
+  }, [shipId, steeringState, reducedMotion]);
 
   const frameReady = activeFrame.shipId === shipId && activeFrame.index >= 0;
+  const selectionFrame = reducedMotion ? 0 : activeFrame.index;
   const src = steeringState
     ? PLAYER_SHIP_MOTION[shipId].steeringFrames[steeringState]
     : frameReady
-      ? PLAYER_SHIP_MOTION[shipId].selectionIdleFrames[activeFrame.index]
+      ? PLAYER_SHIP_MOTION[shipId].selectionIdleFrames[selectionFrame]
       : PLAYER_SHIP_MOTION[shipId].selectionIdleFrames[0];
 
   return (
@@ -126,7 +131,7 @@ const PlayerShipSelectionImage = ({
       draggable={false}
       data-player-ship={shipId}
       data-steering-state={steeringState ?? 'idle'}
-      data-selection-frame={frameReady ? activeFrame.index : 'preloading'}
+      data-selection-frame={frameReady ? selectionFrame : 'preloading'}
     />
   );
 };

@@ -13,6 +13,8 @@ import {
 import type { PermanentSquadState } from '../services/squadProgression';
 import { formatTokenAmount } from '../services/tokenTerminology';
 import PixelActionButton from './PixelActionButton';
+// REVAMP(H): Retain the inert backdrop for its closing animation.
+import { UiPresence } from './revamp/UiMotion';
 
 const CALENDAR_ICON = '/game-art/generated/ui/scicon-dashboard-icons-v1/selected/weekly-calendar-selected.png';
 const ACHIEVEMENT_ICON = '/game-art/generated/ui/scicon-ui-system-v2/base/achievements-more/achievement-unlocked-card.png';
@@ -76,8 +78,12 @@ const RewardCenter: React.FC<RewardCenterProps> = ({
       return;
     }
     setTab(initialTab);
+    const previousFocus = document.activeElement;
     const frame = window.requestAnimationFrame(() => closeButtonRef.current?.focus({ preventScroll: true }));
-    return () => window.cancelAnimationFrame(frame);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus({ preventScroll: true });
+    };
   }, [initialTab, open]);
 
   useEffect(() => {
@@ -148,10 +154,8 @@ const RewardCenter: React.FC<RewardCenterProps> = ({
     });
   };
 
-  if (!open) return null;
-
   return (
-    <div className="sci-reward-backdrop" role="presentation" onPointerDown={onClose}>
+    <UiPresence show={open} className="sci-reward-backdrop" role="presentation" onPointerDown={onClose}>
       <section
         id="reward-center"
         className="sci-reward-center sci-neon-frame-window"
@@ -374,7 +378,7 @@ const RewardCenter: React.FC<RewardCenterProps> = ({
           )}
         </div>
       </section>
-    </div>
+    </UiPresence>
   );
 };
 

@@ -80,20 +80,35 @@ test('record-card URLs and completion timestamps stay canonical across preview a
 
 test('record-card layout keeps long callsigns, encounter names, and scores inside the pixel frame', async () => {
   const { renderRecordCardSvg } = await renderer;
-  const svg = renderRecordCardSvg({
-    record: {
-      ...record,
-      pilotName: 'LONGPILOTNAME15',
-      encounter: 'Deep Review Space',
-      score: 9_999_999,
-      completedLabel: 'JUL 10, 2026 - 10:09 PM UTC'
+  for (const pilotName of ['LONGPILOTNAME15', 'MMMMMMMMMMMMMMM', 'WWWWWWWWWWWWWWW']) {
+    const encounter = 'SINGULARITY ARCHIVE: FINAL EXPEDITION';
+    const svg = renderRecordCardSvg({
+      record: { ...record, pilotName, encounter, score: Number.MAX_SAFE_INTEGER, targetsDefeated: Number.MAX_SAFE_INTEGER },
+      presentation: { copy: { title: 'MISSION RECORD — THE LONGEST EXPEDITION ACROSS THE FRONTIER' } }
+    });
+    const texts = [...svg.matchAll(/<text\b([^>]*)>([^<]*)<\/text>/g)].map((match) => ({
+      ...Object.fromEntries([...match[1].matchAll(/([\w-]+)="([^"]*)"/g)].map((attribute) => [attribute[1], attribute[2]])),
+      content: match[2]
+    }));
+    const byKey = Object.fromEntries(texts.map((text) => [text['data-record-text'], text]));
+    assert.equal(byKey.callsign.content, pilotName);
+    assert.equal(byKey.encounter.content, encounter, 'the encounter stays complete instead of being truncated');
+    assert.equal(byKey.score.content, '9,007,199,254,740,991');
+    const horizontalBounds = (text) => {
+      const width = Number(text.textLength);
+      const anchor = text['text-anchor'];
+      const left = Number(text.x) - (anchor === 'end' ? width : anchor === 'middle' ? width / 2 : 0);
+      return [left, left + width];
+    };
+    for (const text of texts) {
+      const [left, right] = horizontalBounds(text);
+      const [boxLeft, , boxWidth] = text['data-ui-text-bounds'].split(',').map(Number);
+      assert.equal(text.lengthAdjust, 'spacingAndGlyphs', 'the image renderer must honor the measured text width');
+      assert.ok(left >= boxLeft - 0.01 && right <= boxLeft + boxWidth + 0.01, `${text['data-record-text']} stays inside its column`);
+      assert.ok(Number(text['font-size']) > 0);
     }
-  });
-
-  assert.match(svg, /font-size="42" font-weight="900">LONGPILOTNAME15/);
-  assert.match(svg, /font-size="34" font-weight="900">Deep Review Space/);
-  assert.match(svg, /x="1010" y="836" text-anchor="end"/);
-  assert.match(svg, /JUL 10, 2026 - 10:09 PM UTC/);
+    assert.ok(horizontalBounds(byKey.callsign)[1] + 40 <= horizontalBounds(byKey.score)[0], 'callsign and score retain a visible gutter');
+  }
 });
 
 test('record-card content stays on one inset plate inside the pixel border', async () => {

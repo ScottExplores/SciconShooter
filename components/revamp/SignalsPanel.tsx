@@ -66,8 +66,8 @@ const SignalsPanel: React.FC<SignalsPanelProps> = ({
 
         {!compact && proposals.length > 0 ? (
           <label className="mt-4 block">
-            <span className="sr-only">Search research proposals</span>
-            <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search research, author, or organization"
+            <span className="sr-only">Search research proposals by title, author, or organization</span>
+            <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search research or author"
               className="min-h-11 w-full rounded-[6px] border border-cyan-200/20 bg-slate-950/80 px-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-cyan-200/70" />
           </label>
         ) : null}
@@ -90,8 +90,8 @@ const SignalsPanel: React.FC<SignalsPanelProps> = ({
                     <img onError={() => setFailedImages((current) => new Set([...current, proposal.imageUrl!]))} src={proposal.imageUrl} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer" className="h-12 w-12 shrink-0 rounded-[5px] border border-cyan-200/15 bg-slate-900 object-cover" />
                   ) : null}
                   <div className="min-w-0 flex-1">
-                    <h3 className="line-clamp-3 break-words text-sm font-bold leading-snug text-white">{proposal.title}</h3>
-                    <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-cyan-100/75">{proposal.author}</p>
+                    <h3 className="break-words text-sm font-bold leading-snug text-white">{proposal.title}</h3>
+                    <p className="mt-1 break-words text-[11px] leading-relaxed text-cyan-100/75">{proposal.author}</p>
                   </div>
                 </div>
                 <div className="mt-3 flex items-baseline justify-between gap-3">

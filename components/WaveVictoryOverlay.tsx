@@ -1,7 +1,7 @@
-// REVAMP(D): Animated research medals augment the existing Mission result.
-import MissionMedals from './revamp/MissionMedals';
-import { useCountUp } from './revamp/useCountUp';
-import type { RevampMissionSettlement } from '../services/revamp/progression/types';
+// REVAMP(H): The original frame now presents an ordered medal and reward reveal.
+import { ResultMedals, ResultRewards } from './revamp/ResultRewards';
+import { AnimatedNumber } from './revamp/UiMotion';
+import type { RevampMedal, RevampMissionSettlement } from '../services/revamp/progression/types';
 import React from 'react';
 import type { CampaignCompletionSettlement } from '../services/campaignProgression';
 import type { WaveVictorySummary } from '../services/gameLogic';
@@ -43,8 +43,11 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
   onOpenCampaignMap,
   onReturnHome
 }) => {
-  const animatedScore = useCountUp(summary.scoreEarned);
-  const animatedCoins = useCountUp(summary.coinsCollected);
+  const observedMedals: RevampMedal[] = ['clear'];
+  if (summary.revampMetrics && summary.revampMetrics.spawned > 0 && summary.revampMetrics.kills / summary.revampMetrics.spawned >= 0.9) observedMedals.push('kills');
+  if (summary.damageTaken === 0) observedMedals.push('noHit');
+  // Final Campaign settlement already includes collected Tokens; never add the pickup total twice.
+  const rewardCredits = campaignSettlement?.coinsAwarded ?? summary.coinsCollected;
   const campaignResult = Boolean(campaignSettlement);
   const campaignComplete = summary.campaignComplete || !summary.hasNextStage;
   const missionMastered = Boolean(
@@ -108,6 +111,27 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
     >
       <div className="wave-victory-backdrop" aria-hidden="true" />
       <div className="wave-victory-stage">
+        <header className="wave-victory-plaque">
+          <div className="wave-victory-plaque-art" aria-hidden="true">
+            <LayerImage className="wave-victory-glow" src={`${CHAMPION_PARTS}/energy-glow.png`} />
+            <LayerImage className="wave-victory-wing wave-victory-wing-left" src={`${CHAMPION_PARTS}/wing-left.png`} />
+            <LayerImage className="wave-victory-wing wave-victory-wing-right" src={`${CHAMPION_PARTS}/wing-right.png`} />
+            <LayerImage className="wave-victory-body" src={`${CHAMPION_PARTS}/plaque-body.png`} />
+            <LayerImage className="wave-victory-crown" src={`${CHAMPION_PARTS}/crown-cap.png`} />
+            <LayerImage className="wave-victory-flare" src={`${CHAMPION_PARTS}/energy-flare.png`} />
+            <LayerImage className="wave-victory-scan" src={`${CHAMPION_PARTS}/scan-bar.png`} />
+          </div>
+          <div className="wave-victory-copy">
+            <h1
+              id="wave-victory-title"
+              className={campaignComplete ? 'wave-victory-title-complete' : undefined}
+            >
+              {resultTitle}
+            </h1>
+            <p>{resultSubtitle}</p>
+          </div>
+        </header>
+
         <section
           className={`wave-record-shell wave-record-shell-mission ${missionMastered ? 'is-mastered' : ''}`}
           data-onboarding-target="mission-rewards"
@@ -137,7 +161,7 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
 
             <div className="wave-record-score">
               <span>Mission Score</span>
-              <strong>{animatedScore.toLocaleString()}</strong>
+              <strong><AnimatedNumber value={summary.scoreEarned} delay={350} duration={950} /></strong>
             </div>
 
             <div className="wave-record-stats">
@@ -147,7 +171,7 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
               </div>
               <div>
                 <span>Tokens</span>
-                <strong>{animatedCoins.toLocaleString()}</strong>
+                <strong><AnimatedNumber value={summary.coinsCollected} delay={600} /></strong>
               </div>
               <div>
                 <span>Lives</span>
@@ -159,71 +183,23 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
               </div>
             </div>
 
-            <div className={`wave-record-result-grid ${campaignSettlement ? 'has-campaign-reward' : ''}`}>
-              <div>
-                <span>Total Score</span>
-                <strong>{summary.totalScore.toLocaleString()}</strong>
-              </div>
+            <ResultMedals settlement={revampSettlement} observedMedals={observedMedals} />
+            <ResultRewards credits={rewardCredits} settlement={revampSettlement} />
+            <div className="wave-record-result-grid">
+              <div><span>Total Score</span><strong>{summary.totalScore.toLocaleString()}</strong></div>
               {campaignSettlement ? (
-                <div className="wave-record-coins-awarded">
-                  <span>Campaign Reward</span>
-                  <strong>{campaignSettlement.duplicate ? 'Saved' : `+${campaignSettlement.coinsAwarded.toLocaleString()}`}</strong>
+                <div className="wave-record-stars" aria-label={`${earnedStars} mastery stars, ${newStarCount} new`}>
+                  <span>Route mastery</span><strong>{'★'.repeat(earnedStars)}{'☆'.repeat(3 - earnedStars)}</strong>
                 </div>
               ) : null}
             </div>
 
-            {campaignSettlement && !revampSettlement ? (
-              <div className="wave-record-campaign-details">
-                <div
-                  className="wave-record-stars"
-                  aria-label={`${earnedStars} of 3 mastery stars earned${newStarCount > 0 ? `, ${newStarCount} new` : ''}`}
-                >
-                  <span>Mastery</span>
-                  <div aria-hidden="true">
-                    {[0, 1, 2].map((starIndex) => {
-                      const earned = starIndex < earnedStars;
-                      const newlyEarned = earned && starIndex >= Math.max(0, earnedStars - newStarCount);
-                      return (
-                        <i
-                          className={`wave-record-star ${earned ? 'is-earned' : ''} ${newlyEarned ? 'is-new' : ''}`}
-                          key={starIndex}
-                        >★</i>
-                      );
-                    })}
-                  </div>
-                  {newStarCount > 0 ? <strong>+{newStarCount} new</strong> : null}
-                </div>
-              </div>
-            ) : null}
-
-            {revampSettlement ? <MissionMedals settlement={revampSettlement} /> : null}
             <div className="wave-record-status">
               <span className="wave-record-status-light" aria-hidden="true" />
               {recordStatus}
             </div>
           </div>
         </section>
-
-        <header className="wave-victory-plaque">
-          <div className="wave-victory-plaque-art" aria-hidden="true">
-            <LayerImage className="wave-victory-glow" src={`${CHAMPION_PARTS}/energy-glow.png`} />
-            <LayerImage className="wave-victory-wing wave-victory-wing-left" src={`${CHAMPION_PARTS}/wing-left.png`} />
-            <LayerImage className="wave-victory-wing wave-victory-wing-right" src={`${CHAMPION_PARTS}/wing-right.png`} />
-            <LayerImage className="wave-victory-body" src={`${CHAMPION_PARTS}/plaque-body.png`} />
-            <LayerImage className="wave-victory-crown" src={`${CHAMPION_PARTS}/crown-cap.png`} />
-            <LayerImage className="wave-victory-flare" src={`${CHAMPION_PARTS}/energy-flare.png`} />
-            <LayerImage className="wave-victory-scan" src={`${CHAMPION_PARTS}/scan-bar.png`} />
-          </div>
-          <div className="wave-victory-copy">
-            <h1
-              id="wave-victory-title"
-              className={campaignComplete ? 'wave-victory-title-complete' : undefined}
-            >
-              {resultTitle}
-            </h1>
-            <p>{resultSubtitle}</p>
-          </div>
-        </header>
 
         <div className="wave-victory-actions">
           <button

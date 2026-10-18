@@ -709,14 +709,16 @@
   left: 50%;
   width: max-content;
   max-width: 7.5rem;
-  overflow: hidden;
+  overflow: visible;
   transform: translateX(-50%);
   color: #a7f3d0;
   font: 900 0.48rem/1.2 ui-monospace, monospace;
   letter-spacing: 0.04em;
   text-overflow: ellipsis;
   text-transform: uppercase;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: center;
   text-shadow: 0 0 5px rgba(52, 211, 153, 0.6);
 }
 
@@ -854,7 +856,8 @@
 .campaign-map-selection {
   position: relative;
   z-index: 10;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 0.55rem;
   max-height: min(46vh, 28rem);
   max-height: min(46dvh, 28rem);
@@ -1079,7 +1082,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(6.3rem, 1fr));
   gap: 1px;
-  overflow: hidden;
+  overflow: visible;
   border: 1px solid rgba(34, 211, 238, 0.22);
 }
 
@@ -1092,11 +1095,12 @@
 }
 
 .campaign-map-records strong {
-  overflow: hidden;
+  overflow: visible;
   color: #f8fafc;
-  font: 800 0.68rem/1.1 ui-monospace, monospace;
+  font: 800 0.68rem/1.35 ui-monospace, monospace;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .campaign-map-objectives {
@@ -2228,3 +2232,20 @@
     scroll-behavior: auto;
   }
 }
+
+/* REVAMP(H): Scroll the briefing as a whole; never compress its record cells. */
+.campaign-map-selection > * { flex-shrink: 0; }
+
+/* REVAMP(H): Map labels retain their whole names at phone widths. */
+.campaign-map-node-role,
+.campaign-map-sector > strong,
+.campaign-map-sector > span,
+.campaign-map-selection--mission .campaign-map-selection-topline > :first-child {
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  line-height: 1.35;
+}
+.campaign-map-selection-copy p { display: block; overflow: visible; -webkit-line-clamp: unset; }
+.campaign-map-sector > small { top: 2.8rem; }

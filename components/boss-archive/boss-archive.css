@@ -160,7 +160,8 @@
 .boss-archive-header__back {
   width: 2.35rem;
   height: 2.35rem;
-  font: 900 1.75rem/1 monospace;
+  /* REVAMP(H): The chevron glyph needs its full ascent/descent inside the button. */
+  font: 900 1.75rem/1.25 monospace;
 }
 
 .boss-archive-header__emblem {

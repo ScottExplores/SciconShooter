@@ -1,5 +1,7 @@
 import React from 'react';
 import './mission-loading-screen.css';
+// REVAMP(H): Shared accessible ticker honors the live reduced-motion preference.
+import { AnimatedNumber } from './revamp/UiMotion';
 
 export type MissionLoadingPhase =
   | 'flight-systems'
@@ -79,8 +81,8 @@ const MissionLoadingScreen: React.FC<MissionLoadingScreenProps> = ({
 
         <div className="sci-mission-loader__status">
           <div className="sci-mission-loader__status-line">
-            <span>{phaseLabel}</span>
-            <strong>{hasError ? '—' : `${safeProgress}%`}</strong>
+            <span>{phaseLabel}{!hasError && safeProgress < 100 ? <span className="revamp-ui-loading-dots" aria-hidden="true"><i /><i /><i /></span> : null}</span>
+            <strong>{hasError ? '—' : <AnimatedNumber value={safeProgress} duration={180} format={(amount) => `${amount}%`} />}</strong>
           </div>
 
           <div

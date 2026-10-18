@@ -132,12 +132,21 @@ test('the Reward Center routes pending rewards and celebrates only confirmed cla
   const startScreen = read('components', 'StartScreen.tsx');
   const center = read('components', 'RewardCenter.tsx');
   const styles = read('styles', 'tailwind.input.css');
+  const brand = read('components', 'revamp', 'HomeFlightDeckBrand.tsx');
+  const layout = read('styles', 'revamp-layout.css');
+  const motion = read('components', 'revamp', 'UiMotion.tsx');
+  const motionStyles = read('styles', 'revamp-ui.css');
 
   assert.match(startScreen, /\? 'Daily Gift'[\s\S]*\? 'Achievements'[\s\S]*: 'Reward Center'/);
   assert.match(startScreen, /openRewardCenter\([\s\S]*\? 'achievements' : 'daily'/);
-  assert.match(startScreen, /sci-reward-edge-trigger--collapsed/);
-  assert.match(startScreen, /sci-reward-edge-trigger--achievement-ready/);
-  assert.match(startScreen, /scicon-reward-edge-v1\/reward-arrow\.png/);
+  // REVAMP(H): The gift now occupies the header flow instead of covering cards.
+  assert.match(startScreen, /<HomeFlightDeckBrand[\s\S]*giftAvailable=\{dailyGiftStatus\.isAvailable\}[\s\S]*achievementCount=\{claimableAchievementCount\}[\s\S]*rewardsOpen=\{showRewardCenter\}/);
+  assert.match(brand, /data-onboarding-target="rewards-open" onClick=\{onOpenRewards\}/);
+  assert.match(brand, /data-ready=\{giftAvailable \|\| achievementCount > 0\}/);
+  assert.match(brand, /aria-label=\{giftAvailable \? 'Claim daily gift' : achievementCount \? `\$\{achievementCount\} achievement rewards ready` : 'Open reward center'\}/);
+  assert.match(brand, /aria-controls="reward-center" aria-expanded=\{rewardsOpen\}/);
+  assert.match(layout, /\.revamp-home-brand \{[^}]*display: flex/);
+  assert.match(layout, /\.revamp-home-gift \{[^}]*position: relative;[^}]*flex:/);
   assert.match(startScreen, /data-reward-ready=\{rewardAttention \? 'true' : 'false'\}/);
   assert.match(startScreen, /getDailyGiftStatus\(permanentSquadState, new Date\(weeklyClock\)\)/);
   assert.match(startScreen, /document\.addEventListener\('visibilitychange', handleVisibilityChange\)/);
@@ -163,12 +172,16 @@ test('the Reward Center routes pending rewards and celebrates only confirmed cla
   assert.match(center, /pendingClaim !== null/);
   assert.match(center, /Day \{reward\.day\}/);
   assert.match(center, /Unlock \$\{ship\.name\}/);
-  assert.match(styles, /\.sci-reward-edge-trigger/);
-  assert.match(styles, /bottom: calc\(max\(0\.5rem, env\(safe-area-inset-bottom\)\) \+ 20rem\)/);
-  assert.match(styles, /animation: sci-reward-edge-hover 4\.2s ease-in-out infinite/);
-  assert.match(styles, /@keyframes sci-reward-edge-hover/);
-  assert.match(styles, /@keyframes sci-reward-edge-claimable/);
-  assert.match(styles, /@keyframes sci-reward-edge-achievement-nudge/);
+  // Closing content is briefly visible but cannot receive input or focus.
+  assert.match(center, /<UiPresence show=\{open\} className="sci-reward-backdrop"/);
+  assert.match(center, /previousFocus instanceof HTMLElement && previousFocus\.isConnected\) previousFocus\.focus\(\{ preventScroll: true \}\)/);
+  assert.match(motion, /exitMs = 150/);
+  assert.match(motion, /setTimeout\(\(\) => setMounted\(false\), reducedMotion \? 0 : exitMs\)/);
+  assert.match(motion, /window\.clearTimeout\(timeout\)/);
+  assert.match(motion, /if \(!show && \(!mounted \|\| reducedMotion\)\) return null/);
+  assert.match(motion, /!show \? \{ inert: '' \} : \{\}/);
+  assert.match(motionStyles, /\.revamp-ui-presence\[data-state='closed'\] \{[^}]*pointer-events: none/);
+  assert.match(motionStyles, /#root \.sci-reward-claim-celebration \{[^}]*position: relative/);
   assert.match(styles, /@keyframes sci-reward-panel-enter/);
   assert.match(styles, /animation: sci-reward-backdrop-enter 540ms cubic-bezier\(0\.2, 0\.68, 0\.22, 1\) both/);
   assert.match(styles, /animation: sci-reward-panel-enter 680ms cubic-bezier\(0\.2, 0\.72, 0\.18, 1\) both/);

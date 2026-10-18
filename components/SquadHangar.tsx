@@ -1,4 +1,6 @@
 import React, { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+// REVAMP(H): Menu sprite loops share the live accessibility preference.
+import { useReducedMotion } from './revamp/UiMotion';
 import {
   ASSETS,
   RSC_PURCHASE_SKUS,
@@ -149,15 +151,17 @@ const traceFrames = Array.from({ length: TRACE_LABEL_FRAME_COUNT }, (_, index) =
 
 const useAnimationFrame = (frameCount: number, delay = 120) => {
   const [frame, setFrame] = useState(0);
+  const reducedMotion = useReducedMotion();
 
   useEffect(() => {
+    if (reducedMotion || frameCount <= 1) return;
     const timer = window.setInterval(() => {
-      setFrame((current) => (current + 1) % frameCount);
+      if (!document.hidden) setFrame((current) => (current + 1) % frameCount);
     }, delay);
     return () => window.clearInterval(timer);
-  }, [delay, frameCount]);
+  }, [delay, frameCount, reducedMotion]);
 
-  return frame;
+  return reducedMotion ? 0 : frame;
 };
 
 const AnimatedSelector = ({
@@ -193,16 +197,8 @@ const AnimatedMiniShip = ({
   entry: MiniShipCatalogEntry;
   className?: string;
 }) => {
-  const [frame, setFrame] = useState(0);
-
-  useEffect(() => {
-    let sequenceIndex = 0;
-    const timer = window.setInterval(() => {
-      sequenceIndex = (sequenceIndex + 1) % MINI_ANIMATION_SEQUENCE.length;
-      setFrame(MINI_ANIMATION_SEQUENCE[sequenceIndex]);
-    }, 210);
-    return () => window.clearInterval(timer);
-  }, [entry.id]);
+  const sequenceIndex = useAnimationFrame(MINI_ANIMATION_SEQUENCE.length, 210);
+  const frame = MINI_ANIMATION_SEQUENCE[sequenceIndex];
 
   return <img src={entry.frames[frame]} alt="" draggable={false} className={`pointer-events-none object-contain ${className}`} />;
 };
@@ -255,13 +251,13 @@ const CurrencyRail = ({
   onOptions: () => void;
   optionsLabel: string;
 }) => (
-  <div className={`grid min-w-0 grid-cols-[2.25rem_minmax(0,1fr)_2rem] items-center border px-1.5 py-1 ${tone === 'gold' ? 'border-yellow-200/35 bg-yellow-300/10' : 'border-cyan-200/35 bg-cyan-300/10'}`}>
+  <div className={`sci-hangar-currency grid min-w-0 grid-cols-[2.25rem_minmax(0,1fr)_2rem] items-center border px-1.5 py-1 ${tone === 'gold' ? 'border-yellow-200/35 bg-yellow-300/10' : 'border-cyan-200/35 bg-cyan-300/10'}`}>
     <img src={icon} alt="" className="h-8 w-8 object-contain" />
     <div className="min-w-0 px-1 text-center">
-      <p className="truncate text-base font-black leading-none text-white">
+      <p className="sci-hangar-currency__value text-base font-black leading-none text-white">
         {typeof value === 'number' ? value.toLocaleString() : value}
       </p>
-      <p className="truncate text-[0.5rem] font-bold uppercase tracking-[0.08em] text-slate-400">{label}</p>
+      <p className="sci-hangar-currency__label text-[0.5rem] font-bold uppercase tracking-[0.08em] text-slate-400">{label}</p>
     </div>
     <button type="button" onClick={onOptions} aria-label={optionsLabel} className={`flex h-7 w-7 items-center justify-center border text-xl font-black ${tone === 'gold' ? 'border-yellow-200/45 bg-yellow-300 text-slate-950' : 'border-cyan-200/45 bg-cyan-300 text-slate-950'}`}>
       <span aria-hidden="true">+</span>
@@ -493,7 +489,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
               </span>
             ) : null}
             <AnimatedPlayerShip shipId={shipId} frame={playerSelectionFrame} className="relative z-10 mx-auto mt-4 h-[52%] w-[86%] drop-shadow-[0_0_10px_rgba(34,211,238,0.4)]" />
-            <span className={`relative z-10 mt-1 block truncate text-[0.52rem] font-black uppercase ${selected ? 'text-yellow-200' : 'text-slate-300'}`}>{ship.name.replace(/ ship$/i, '')}</span>
+            <span className={`sci-hangar-catalog-name relative z-10 mt-1 block text-[0.52rem] font-black uppercase ${selected ? 'text-yellow-200' : 'text-slate-300'}`}>{ship.name.replace(/ ship$/i, '')}</span>
             <div className="relative z-10 mt-1"><LevelPips level={shipTier} max={FIRE_RATE_TIER_COUNT} /></div>
           </button>
         );
@@ -528,7 +524,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
                 setSelectedMiniId(entry.id);
               }}
               aria-label={actionLabel}
-              className={`relative aspect-[0.78] min-w-0 overflow-hidden border bg-slate-950/72 p-1.5 transition hover:border-cyan-200/70 ${equippedHere ? 'border-yellow-200/75' : selectedHere ? 'border-lime-300/75' : 'border-cyan-200/22'}`}
+              className={`sci-hangar-mini-card relative aspect-[0.78] min-w-0 overflow-hidden border bg-slate-950/72 p-1.5 transition hover:border-cyan-200/70 ${equippedHere ? 'border-yellow-200/75' : selectedHere ? 'border-lime-300/75' : 'border-cyan-200/22'}`}
             >
               {selectedHere ? <AnimatedSelector size="mini" color={equippedHere ? 'gold' : 'lime'} className="absolute inset-0 h-full w-full scale-[1.17]" /> : null}
               <span className="absolute left-1.5 top-1 text-[0.52rem] font-black uppercase text-white/85">{owned ? `${level}/${MINI_SHIP_MAX_LEVEL}` : '0/5'}</span>
@@ -537,7 +533,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
                 <span>{costLabel}</span>
               </span>
               <AnimatedMiniShip entry={entry} className={`relative z-10 mx-auto mt-4 h-[50%] w-[86%] ${owned ? '' : 'opacity-45 grayscale'}`} />
-              <span className={`relative z-10 mt-1 block truncate text-[0.48rem] font-black uppercase sm:text-[0.52rem] ${equippedHere ? 'text-yellow-200' : selectedHere ? 'text-lime-200' : 'text-slate-300'}`}>{entry.name}</span>
+              <span className={`sci-hangar-catalog-name relative z-10 mt-1 block text-[0.48rem] font-black uppercase sm:text-[0.52rem] ${equippedHere ? 'text-yellow-200' : selectedHere ? 'text-lime-200' : 'text-slate-300'}`}>{entry.name}</span>
               <div className="relative z-10 mt-1"><LevelPips level={level} max={MINI_SHIP_MAX_LEVEL} /></div>
             </button>
           );
@@ -607,7 +603,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
                     tone="cyan"
                     disabled={busy || !sku.enabled}
                     onClick={() => onPurchaseWithRsc(skuId)}
-                    className="min-h-12 px-1 text-[0.55rem] font-black uppercase"
+                    className="sci-token-exchange-action min-h-12 px-1 text-[0.55rem] font-black uppercase"
                   >
                     <span className="flex flex-col items-center leading-tight">
                       <span>{sku.tokenReward.toLocaleString()} Tokens</span>
@@ -659,8 +655,9 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_46%,rgba(14,165,233,0.1),transparent_38%),linear-gradient(180deg,rgba(3,8,28,0.18),rgba(3,8,28,0.58))]" />
           <AnimatedTraceLabel>{activeName}</AnimatedTraceLabel>
 
-          <p className="text-center text-xs text-cyan-200">Left · Offense / Right · Utility · Level 5 evolves your special</p>
-          <div className="relative mx-auto mt-1 h-[12.75rem] w-full max-w-[26rem] sm:h-[16rem]">
+          <p className="relative z-10 text-center text-xs text-cyan-200">Left · Offense / Right · Utility · Level 5 evolves your special</p>
+          {/* REVAMP(H): Space the three independent ship controls without overlapping hitboxes. */}
+          <div className="sci-hangar-squad-stage relative mx-auto mt-1 w-full max-w-[26rem]">
             <div
               className={`pointer-events-none absolute top-[-0.25rem] border-cyan-300/65 drop-shadow-[0_0_7px_rgba(34,211,238,0.55)] transition-all duration-300 ${SQUAD_CONNECTOR_POSITION[activePosition]}`}
               data-connector-target={activePosition}
@@ -911,7 +908,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
               ) : null}
               <AnimatedMiniShip entry={activeMini} className="h-24 w-24" />
               <div className="min-w-0">
-                <h3 className="truncate text-sm font-black uppercase text-white">{activeMini.name}</h3>
+                <h3 className="text-sm font-black uppercase text-white">{activeMini.name}</h3>
                 <p className="mt-1 text-[0.65rem] text-slate-400">{activeMini.description}</p>
                 {campaignWingLevel !== undefined && !founderSandbox ? <p className="mt-2 text-[0.65rem] text-cyan-200">Campaign wing level {campaignWingLevel}/5 · Raise Support research in Home → Frontier log. Token upgrades below apply to legacy modes.</p> : null}
                 <div className="mt-2"><LevelPips level={activeMiniLevel} max={MINI_SHIP_MAX_LEVEL} /></div>

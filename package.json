@@ -24,7 +24,8 @@
     "lint": "eslint .",
     "test": "node --test tests/*.test.cjs",
     "qa:playthrough": "node tools-revamp/qa/playthrough.mjs",
-    "qa:test": "node --test tests-revamp/F/*.test.mjs"
+    "qa:test": "node --test tests-revamp/F/*.test.mjs",
+    "qa:ui": "node tools-revamp/qa/ui-audit.mjs"
   },
   "dependencies": {
     "@base-org/account": "^2.5.6",

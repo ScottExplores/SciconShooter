@@ -149,14 +149,14 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-slate-950/92 p-4 backdrop-blur-xl sm:items-center">
+    <div role="dialog" aria-modal="true" aria-labelledby="mission-record-preview-title" className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-slate-950/92 p-4 backdrop-blur-xl sm:items-center">
       <div className="relative w-full max-w-md overflow-hidden rounded-[8px] border border-cyan-200/35 bg-[#020817] shadow-[0_28px_100px_rgba(0,0,0,0.72),0_0_70px_rgba(34,211,238,0.12)]">
         <div className="pointer-events-none absolute inset-0 opacity-70 [background-image:linear-gradient(rgba(34,211,238,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(34,211,238,0.035)_1px,transparent_1px)] [background-size:18px_18px]" />
         <div className="relative border-b border-cyan-200/15 px-5 py-4">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="font-mono text-[9px] font-black uppercase tracking-[0.24em] text-cyan-300">Scicon Shooter</p>
-              <h2 className="arcade-font mt-1 text-xl font-black uppercase tracking-widest text-white">Mission Record</h2>
+              <h2 id="mission-record-preview-title" className="arcade-font mt-1 text-xl font-black uppercase tracking-widest text-white">Mission Record</h2>
             </div>
             <button type="button" onClick={onClose} aria-label="Close mission record" className="h-9 w-9 rounded-[6px] border border-white/12 bg-white/5 text-lg text-slate-300 transition hover:border-cyan-200/40 hover:text-white">x</button>
           </div>
@@ -207,7 +207,7 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
                       : 'You hold the weekly high score. Choose the proposal that follows this score into the weekly cutoff.'}
               </p>
               {weeklyFunding.status === 'selected' && weeklyFunding.proposalAuthor ? (
-                <p className="mt-1 truncate font-mono text-[8px] font-black uppercase tracking-[0.12em] text-cyan-100/75">
+                <p className="mt-1 break-words font-mono text-[8px] font-black uppercase tracking-[0.12em] text-cyan-100/75">
                   {weeklyFunding.proposalAuthor}
                 </p>
               ) : null}

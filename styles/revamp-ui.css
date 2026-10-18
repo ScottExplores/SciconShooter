@@ -1,0 +1,262 @@
+/* REVAMP(H): A shared, low-cost motion vocabulary. Existing art stays untouched. */
+@font-face {
+  font-family: 'Pixelify Sans';
+  src: url('/fonts/pixelify-sans.ttf') format('truetype');
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --sci-pixel-font: 'Pixelify Sans', 'Orbitron', ui-monospace, monospace;
+  --sci-ui-ease: cubic-bezier(0.18, 0.8, 0.24, 1);
+  --sci-ui-enter-ms: 260ms;
+}
+
+#root img[src*='/game-art/'] { image-rendering: pixelated; }
+
+#root .revamp-ui-pixel,
+#root .scicon-start-screen :where(h1, h2, h3),
+#root .sci-dashboard-nav-label,
+#root .sci-mission-loader__brand h1,
+#root .sci-mission-loader__eyebrow {
+  font-family: var(--sci-pixel-font);
+  font-synthesis: none;
+}
+
+.revamp-ui-number { font-variant-numeric: tabular-nums; }
+
+/* REVAMP(H): The guide exposed cramped HUD glyph cells and short-phone target overlap. */
+#root .sci-compact-status-hud .arcade-font { line-height: 1.25; }
+@media (max-height: 740px) {
+  #root .revamp-wing-button { bottom: max(80px, calc(43svh - 182px)); }
+}
+
+/* The pixel font's full glyph cell must fit, including its upper accents. */
+#root .scicon-start-screen :where(h2, h3) { line-height: 1.35; }
+
+/* REVAMP(H): Header labels stay readable at 360px; squad targets never overlap. */
+#root .sci-hangar-currency__value {
+  font-size: clamp(0.72rem, 3.25vw, 1rem);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+#root .sci-hangar-currency__label {
+  line-height: 1.4;
+  letter-spacing: 0.025em;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+#root .sci-hangar-squad-stage { height: 15.25rem; }
+@media (min-width: 640px) { #root .sci-hangar-squad-stage { height: 19rem; } }
+#root .sci-hangar-catalog-name { white-space: normal; overflow-wrap: anywhere; line-height: 1.35; }
+#root .sci-hangar-mini-card { aspect-ratio: auto; min-height: 7.8rem; }
+#root .sci-hangar-mini-card > img { height: 46px; }
+#root .sci-hangar-mini-card .sci-hangar-catalog-name { font-size: 0.6rem; min-height: 2.7em; }
+
+/* REVAMP(H): Reserve the painted lower rail beneath both exchange label lines. */
+#root .sci-token-exchange-action {
+  min-height: 4.25rem;
+  padding: 0.625rem 0.25rem 1.125rem;
+}
+
+/* Reward amounts remain complete; the earned banner takes its own row. */
+#root .sci-daily-card strong {
+  white-space: normal;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  font-size: 0.6rem;
+  line-height: 1.35;
+  min-height: 2.7em;
+}
+@media (max-width: 390px) { #root .sci-daily-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+#root .sci-reward-claim-celebration {
+  position: relative;
+  inset: auto;
+  order: 1;
+  flex: 0 0 auto;
+  width: calc(100% - 1.5rem);
+  margin: 0 0.75rem 0.5rem;
+  min-height: 4rem;
+  padding: 0.5rem 0.75rem;
+  transform: none;
+  animation: revamp-ui-panel-in 260ms var(--sci-ui-ease) both;
+}
+#root .sci-reward-scroll { order: 2; }
+#root .sci-reward-claim-celebration > img { width: 2.5rem; height: 2.5rem; }
+
+/* Transform only the entering surface; never animate the position of controls. */
+.revamp-ui-enter,
+.revamp-ui-presence[data-state='open'],
+.scicon-mobile-scroll > *,
+.scicon-start-screen [role='dialog'],
+.sci-reward-center,
+.campaign-map-dialog,
+.frontier-transmission,
+.revamp-progression[open] .revamp-progression__contents {
+  animation: revamp-ui-panel-in var(--sci-ui-enter-ms) var(--sci-ui-ease) both;
+}
+
+.revamp-ui-presence[data-state='closed'] {
+  animation: revamp-ui-panel-out 150ms ease-in both;
+  pointer-events: none;
+}
+
+.sci-reward-backdrop.revamp-ui-presence[data-state='open'] { animation-name: revamp-ui-fade-in; }
+.sci-reward-backdrop.revamp-ui-presence[data-state='closed'] { animation-name: revamp-ui-fade-out; }
+
+/* A stable target with a short tactile response works for touch and keyboard. */
+#root :where(.sci-mini-cta, .sci-icon-button, .sci-dashboard-nav-button, .revamp-progression button, .sci-mission-loader button) {
+  transition: translate 100ms ease-out, scale 100ms ease-out, filter 150ms ease-out, background-color 150ms ease-out;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#root :where(.sci-mini-cta, .sci-icon-button, .sci-dashboard-nav-button, .revamp-progression button, .sci-mission-loader button):active:not(:disabled) {
+  translate: 0 1px;
+  scale: 0.97;
+}
+
+#root .sci-pixel-action {
+  touch-action: manipulation;
+  transition: transform 110ms ease-out, filter 160ms ease-out;
+}
+
+#root .sci-pixel-action:active:not(:disabled) { transform: translateY(2px) scale(0.975, 0.95); }
+
+#root :where(.sci-pixel-action, .sci-mini-cta, .sci-icon-button, .sci-dashboard-nav-button):focus-visible {
+  outline: 2px solid #e5fbff;
+  outline-offset: 3px;
+}
+
+.sci-pixel-action__ripple {
+  position: absolute;
+  z-index: 4;
+  left: var(--ripple-x, 50%);
+  top: var(--ripple-y, 50%);
+  width: 24px;
+  height: 24px;
+  border: 2px solid #f2ffff;
+  background: #c9fcff33;
+  pointer-events: none;
+  animation: revamp-ui-ripple 420ms steps(8, end) both;
+}
+
+@media (hover: hover) {
+  #root :where(.sci-mini-cta, .sci-icon-button, .sci-dashboard-nav-button, .revamp-progression button):hover:not(:disabled) { filter: brightness(1.16); }
+  #root .sci-pixel-action:hover:not(:disabled) { filter: brightness(1.12); }
+}
+
+/* Selected tabs lift their icon by whole pixels; the label never bounces. */
+#root .sci-dashboard-nav-icon,
+#root .sci-dashboard-nav-marker { pointer-events: none; }
+
+#root .sci-dashboard-nav-button[data-active='true'] .sci-dashboard-nav-icon-sprite {
+  animation: revamp-ui-tab-awake 3.8s steps(1, end) infinite;
+}
+
+#root .sci-dashboard-nav-marker.is-active {
+  animation: revamp-ui-beacon 2.6s ease-in-out infinite;
+}
+
+.scicon-start-screen .sci-dashboard-nav-button[data-active='true'] {
+  background-image: linear-gradient(180deg, #16436d55, #18c9df16);
+}
+
+/* Hero motion is deliberately independent of dimensions and placement. */
+#root .revamp-ui-logo,
+#root .sci-home-hero-surface .scicon-hero-title {
+  animation: revamp-ui-logo-light 5.2s ease-in-out infinite;
+}
+
+#root .sci-home-hero-surface .sci-rh-ship-core,
+#root .revamp-ui-ship {
+  animation: revamp-ui-ship-idle 3.2s steps(4, end) infinite;
+}
+
+#root .sci-home-hero-surface .sci-rh-ship-core::before,
+#root .revamp-ui-thruster {
+  animation: revamp-ui-thruster 420ms steps(3, end) infinite;
+}
+
+#root .sci-home-hero-surface .sci-hero-backdrop__starwash,
+#root .revamp-ui-starfield {
+  animation: revamp-ui-star-drift 30s linear infinite alternate;
+}
+
+/* Always-alive menus share an understated starfield rather than moving text. */
+#root .scicon-home-backdrop__stars { animation: revamp-ui-star-drift 36s linear infinite alternate; }
+
+.revamp-ui-loading-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-inline-start: 8px;
+  vertical-align: middle;
+}
+
+.revamp-ui-loading-dots i {
+  width: 3px;
+  height: 3px;
+  background: #80f4ff;
+  animation: revamp-ui-beacon 900ms steps(2, end) infinite;
+}
+
+.revamp-ui-loading-dots i:nth-child(2) { animation-delay: 150ms; }
+.revamp-ui-loading-dots i:nth-child(3) { animation-delay: 300ms; }
+
+@keyframes revamp-ui-panel-in {
+  from { opacity: 0; translate: 0 8px; }
+  to { opacity: 1; translate: 0 0; }
+}
+@keyframes revamp-ui-panel-out {
+  from { opacity: 1; translate: 0 0; }
+  to { opacity: 0; translate: 0 6px; }
+}
+@keyframes revamp-ui-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes revamp-ui-fade-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes revamp-ui-ripple {
+  from { opacity: 0.65; transform: translate(-50%, -50%) scale(0.2) rotate(45deg); }
+  to { opacity: 0; transform: translate(-50%, -50%) scale(12) rotate(45deg); }
+}
+@keyframes revamp-ui-tab-awake {
+  0%, 72%, 100% { translate: 0 0; }
+  84% { translate: 0 -2px; }
+  92% { translate: 0 -1px; }
+}
+@keyframes revamp-ui-beacon {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+@keyframes revamp-ui-logo-light {
+  0%, 70%, 100% { filter: brightness(1); }
+  80% { filter: brightness(1.35) drop-shadow(0 0 3px #74e5ff88); }
+  88% { filter: brightness(1.08); }
+}
+@keyframes revamp-ui-ship-idle {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -4px; }
+}
+@keyframes revamp-ui-thruster {
+  0%, 100% { opacity: 0.7; scale: 1 0.92; }
+  35% { opacity: 1; scale: 1.04 1.12; }
+  68% { opacity: 0.82; scale: 0.98 1.02; }
+}
+@keyframes revamp-ui-star-drift {
+  from { translate: 0 0; }
+  to { translate: -4px 8px; }
+}
+
+/* Cover inherited art animations too; disabled motion must remain truly still. */
+@media (prefers-reduced-motion: reduce) {
+  #root *, #root *::before, #root *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  #root .sci-pixel-action__ripple { display: none; }
+  #root .revamp-ui-presence[data-state='closed'] { display: none; }
+}
