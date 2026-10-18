@@ -52,6 +52,18 @@ export const CAMPAIGN_NONBOSS_SOURCE_PATHS = Object.freeze([
   'services/gameplay/mini-bosses/MiniBossEncounterRegistry.ts',
   'services/gameplay/mini-bosses/MiniBossEncounterRuntime.ts',
   'services/gameplay/mini-bosses/types.ts',
+  // REVAMP(O): Mini armament gates, owned escorts and their shared attack plans
+  // live outside GameEngine; their damage/cleanup clocks must invalidate evidence.
+  'services/revamp/bosses/catalog.ts',
+  'services/revamp/bosses/patterns.ts',
+  'services/revamp/bosses/runtime.ts',
+  'services/revamp/bosses/engineAdapter.ts',
+  'services/revamp/bosses/interactive.ts',
+  'services/revamp/bosses/interactiveArena.ts',
+  'services/revamp/bosses/interactiveEscorts.ts',
+  'services/revamp/bosses/miniInteractive.ts',
+  'services/revamp/bosses/miniWall.ts',
+  'services/revamp/bosses/labRoster.ts',
   'services/weeklyCampaignRuntimeAdapter.ts',
   'services/weeklyCampaignStreak.ts',
   'services/weaponTierProgression.ts',

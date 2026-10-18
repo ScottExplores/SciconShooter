@@ -43,7 +43,7 @@ function fixture(profile = REVAMP_BOSSES[0]) {
       return beam;
     }
   };
-  attachRevampBoss(engine, boss);
+  attachRevampBoss(engine, boss, { interactive: false }); // C isolated timeline contract; O tests the live anatomy.
   const state = getBossEncounter(boss);
   const tick = (frames = 1) => {
     for (let i = 0; i < frames; i++) { engine.frameCount++; updateRevampBoss(engine, boss); }

@@ -1,0 +1,317 @@
+{
+  "schemaVersion": 1,
+  "artifactType": "boss-rig-pivot-manifest",
+  "bossId": "gatekeeper-prime",
+  "canonicalReference": {
+    "path": "/workspace/scicon-revamp/qa/O-bosses/before/no-video-control/gatekeeper-prime-god/002-combat-9-2s.png",
+    "sha256": "2e3fe1de05db00f479ae1e363468044fc14b956de016b602a41ea93e32f51b00",
+    "width": 780,
+    "height": 1688,
+    "role": "Original campaign gameplay baseline, includes C warning geometry; not a clean neutral-pose matching result."
+  },
+  "originalNeutralArt": {
+    "id": "gatekeeper-original-frame-1",
+    "path": "public/game-art/pixi/bosses/open-orbit/frame-1.png",
+    "sha256": "41280945a0d3147b39514d8c6df05aa84bf6411e9690666882e37045c8653f86",
+    "kind": "existing-structural-sprite",
+    "status": "used-neutral",
+    "owners": [
+      "PixiGameRenderer.getDefaultEntityTexture",
+      "entity.bossDecayStage"
+    ],
+    "decision": "Retained byte-for-byte; existing decay-frame selection remains authoritative.",
+    "dimensions": {
+      "width": 512,
+      "height": 640
+    },
+    "registrationGroup": "original-open-orbit-512x640"
+  },
+  "coordinateSystem": {
+    "world": {
+      "width": 390,
+      "height": 844
+    },
+    "xAxis": "right",
+    "yAxis": "down",
+    "rotationUnit": "radians",
+    "normalizedAnchorOrigin": "entity top-left",
+    "screenScaling": "Same fixed world in phone/wide shells; renderer camera owns host scaling."
+  },
+  "hierarchyNote": "Added retained world-layer containers sample simulation-owned hull coordinates every frame; they are not a replacement of the original Pixi boss-rig hierarchy. Existing hull and handed arm art remain renderer-owned.",
+  "parts": [
+    {
+      "id": "gatekeeper-prime:emitter",
+      "kind": "cannon",
+      "parentId": "existing-hull",
+      "simulationOwner": "BossEncounterState.interactive.parts[0]",
+      "normalizedAnchor": {
+        "x": 0.27,
+        "y": 0.94
+      },
+      "rotationRadians": 0,
+      "scale": {
+        "x": 1,
+        "y": 1
+      },
+      "layer": 1,
+      "neutralVisible": true,
+      "hitRadiusPixels": 19,
+      "hpRatioOfHull": 0.14,
+      "damageStates": [
+        "intact",
+        "cracked",
+        "smoking",
+        "destroyed"
+      ],
+      "displayOwner": "InteractiveBossPresentation.PartView"
+    },
+    {
+      "id": "gatekeeper-prime:armament-1",
+      "kind": "generator",
+      "parentId": "existing-hull",
+      "simulationOwner": "BossEncounterState.interactive.parts[1]",
+      "normalizedAnchor": {
+        "x": 0.73,
+        "y": 0.94
+      },
+      "rotationRadians": 0,
+      "scale": {
+        "x": 1,
+        "y": 1
+      },
+      "layer": 1,
+      "neutralVisible": true,
+      "hitRadiusPixels": 19,
+      "hpRatioOfHull": 0.14,
+      "damageStates": [
+        "intact",
+        "cracked",
+        "smoking",
+        "destroyed"
+      ],
+      "displayOwner": "InteractiveBossPresentation.PartView"
+    },
+    {
+      "id": "gatekeeper-prime:armament-2",
+      "kind": "cannon",
+      "parentId": "existing-hull",
+      "simulationOwner": "BossEncounterState.interactive.parts[2]",
+      "normalizedAnchor": {
+        "x": 0.38,
+        "y": 0.98
+      },
+      "rotationRadians": 0,
+      "scale": {
+        "x": 1,
+        "y": 1
+      },
+      "layer": 2,
+      "neutralVisible": false,
+      "hitRadiusPixels": 19,
+      "hpRatioOfHull": 0.12,
+      "damageStates": [
+        "intact",
+        "cracked",
+        "smoking",
+        "destroyed"
+      ],
+      "displayOwner": "InteractiveBossPresentation.PartView"
+    },
+    {
+      "id": "gatekeeper-prime:armament-3",
+      "kind": "armor",
+      "parentId": "existing-hull",
+      "simulationOwner": "BossEncounterState.interactive.parts[3]",
+      "normalizedAnchor": {
+        "x": 0.62,
+        "y": 0.98
+      },
+      "rotationRadians": 0,
+      "scale": {
+        "x": 1,
+        "y": 1
+      },
+      "layer": 2,
+      "neutralVisible": false,
+      "hitRadiusPixels": 19,
+      "hpRatioOfHull": 0.12,
+      "damageStates": [
+        "intact",
+        "cracked",
+        "smoking",
+        "destroyed"
+      ],
+      "displayOwner": "InteractiveBossPresentation.PartView"
+    },
+    {
+      "id": "core",
+      "parentId": "existing-hull",
+      "simulationOwner": "interactive.coreX/coreY/coreOpen",
+      "normalizedAnchor": {
+        "x": 0.5,
+        "y": 0.62
+      },
+      "visibleShutterRadiusPixels": 15,
+      "children": [
+        "core-back",
+        "core-glow",
+        "left-door",
+        "right-door",
+        "left-shell-leaf",
+        "right-shell-leaf"
+      ],
+      "neutralVisible": true,
+      "unusedRadiusMetadataPixels": 22,
+      "damageTarget": "Existing unshielded hull collision. Shutter opening marks a timed global hull-damage multiplier; no separate core-circle hit test.",
+      "damageOwner": "engineAdapter.revampHullDamage"
+    },
+    {
+      "id": "hangar",
+      "parentId": "existing-hull",
+      "simulationOwner": "interactive.hangarX/hangarY/hatchOpen",
+      "normalizedAnchor": {
+        "x": 0.5,
+        "y": 0.35
+      },
+      "visibleClosedSizePixels": {
+        "width": 30,
+        "height": 14
+      },
+      "children": [
+        "hangar-back",
+        "left-hangar-door",
+        "right-hangar-door"
+      ],
+      "neutralVisible": true
+    }
+  ],
+  "sourceSpecificMounts": [
+    {
+      "sourceBossId": "frontier-crownclaw",
+      "alsoAppliesTo": "all profiles using this sourceBossId, including citation-hydra",
+      "outerYRatio": 0.66,
+      "innerYRatio": 0.7,
+      "coreYRatio": 0.5,
+      "hangarYRatio": 0.35,
+      "xRatiosUnchanged": true
+    },
+    {
+      "sourceBossId": "orbit-gyroscope",
+      "alsoAppliesTo": "all profiles using this sourceBossId, including impact-factor",
+      "outerYRatio": 0.68,
+      "innerYRatio": 0.72,
+      "coreYRatio": 0.52,
+      "hangarYRatio": 0.35,
+      "xRatiosUnchanged": true
+    },
+    {
+      "sourceBossId": "hammerhead-siege",
+      "outerYRatio": 0.68,
+      "innerYRatio": 0.72,
+      "coreYRatio": 0.62,
+      "hangarYRatio": 0.35,
+      "xRatiosUnchanged": true,
+      "reviewStatus": "Opening attachment rechecked at native resolution in mounted-visual-preflight-hammerhead-siege/hammerhead-siege-god/002-fire-phase-1.png; lower fittings meet painted leg hardware. Full motion remains separate."
+    }
+  ],
+  "animations": [
+    {
+      "id": "core-open",
+      "state": "coreOpen",
+      "durationFrames": 18,
+      "leftDoorX": "-round(coreOpen*15)",
+      "rightDoorX": "round(coreOpen*15)",
+      "condition": "Only unshielded phase-three recovery/stagger"
+    },
+    {
+      "id": "hangar-open",
+      "state": "hatchOpen",
+      "durationFrames": 18,
+      "leftDoorX": "-round(hatchOpen*14)",
+      "rightDoorX": "round(hatchOpen*14)",
+      "condition": "summon warning/fire"
+    },
+    {
+      "id": "shell-transform",
+      "state": "transform",
+      "durationFrames": 60,
+      "leftLeaf": {
+        "x": "-round(transform*10)",
+        "y": "-round(transform*7)",
+        "rotation": "-transform*.12"
+      },
+      "rightLeaf": {
+        "x": "round(transform*10)",
+        "y": "-round(transform*7)",
+        "rotation": "transform*.12"
+      },
+      "reducedMotion": "Leaf rotation disabled; phase change and opening remain legible."
+    },
+    {
+      "id": "part-recoil",
+      "condition": "owning attack fire age<5",
+      "localY": -2,
+      "neutralY": 0,
+      "reducedMotion": "recoil disabled"
+    },
+    {
+      "id": "part-damage",
+      "thresholds": {
+        "cracked": 0.65,
+        "smoking": 0.3,
+        "destroyed": 0
+      },
+      "effect": "Retained casing rebuild plus three bounded smoke squares; destroyed socket remains attached."
+    }
+  ],
+  "miniSockets": {
+    "source": "miniInteractive.interactiveMiniSocket",
+    "localPoint": "((xRatio-.5)*width*mirror,(yRatio-.5)*height)",
+    "worldPoint": "hull-center + rotation(bankRadians)*localPoint",
+    "rightWallMirror": -1,
+    "defaultMirror": 1,
+    "partAnchors": [
+      [
+        0.27,
+        0.9
+      ],
+      [
+        0.73,
+        0.9
+      ]
+    ],
+    "coreAnchor": [
+      0.5,
+      0.68
+    ],
+    "rendererRotation": "same bossPresentationBankRadians as original structural sprite",
+    "sourceSpecificSupportY": {
+      "bottleneck-drone": 0.68,
+      "railspine-wallcrawler": 0.68,
+      "gridline-sentries": 0.68,
+      "aegis-convoy-captain": 0.74
+    },
+    "otherSourceSupportY": 0.9,
+    "sourceOverridesPreserveCoreAndX": true,
+    "reviewStatus": "All ten mini identities opened in paced preflight; all nine changed mini identities rechecked in mounted preflight, including both paired members. Opening attachment/palette scope only."
+  },
+  "layerOrderBackToFront": [
+    "existing hull/rig artwork",
+    "arena perimeter and mandatory hazard cues",
+    "transition halo",
+    "shell leaves",
+    "core back/glow/doors",
+    "hangar back/doors",
+    "part connector/casing/lamp/HP/smoke"
+  ],
+  "assemblyMotionLimitation": "No new raster frame animation was generated. New hardware uses retained pixel geometry, local transforms, state-dependent casing redraws and opacity; original raster frame selection remains intact.",
+  "referenceComparison": {
+    "sameWorldGeometry": true,
+    "neutralOpacityMatchPerformed": false,
+    "finalCorrectedScreenshotReview": "Reviewed Prism/Crownclaw/Oculus production diagnostics, then all 25 roster identities in paced natural/preflight images. All 11 changed source identities rechecked in mounted preflight (build d69e0a189d50c249f045ffdaede710df30ca8a1411449fec2ccff93c88534c13). See ../final-visual-review.md for exact paths and limits; full motion and final performance remain separate."
+  },
+  "destruction": {
+    "part": "Real two-coin reward per major part, bounded break explosion/debris, cancelled owned hazards and a permanent dark socket. Lifecycle event metadata is not counted as duplicate rewards.",
+    "boss": "Existing A common major-defeat presenter supplies production chain explosions, debris, flash and slow motion; the established reward path supplies final coin rain. O adds 120 simulation frames of invulnerability. C explosion/slow-motion payloads remain QA receipts and are not production visual settings."
+  }
+}

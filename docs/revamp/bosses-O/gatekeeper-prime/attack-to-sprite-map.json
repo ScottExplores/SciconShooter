@@ -1,0 +1,275 @@
+{
+  "schemaVersion": 1,
+  "artifactType": "boss-attack-to-sprite-map",
+  "bossId": "gatekeeper-prime",
+  "fixedSeed": 12345,
+  "scope": "Roster enhancement of existing C attack families. This does not claim the skill template's new-boss-only exactly-three-original-attacks/unique-raster-signature requirement.",
+  "requiredCaptureStages": [
+    "preparation",
+    "telegraph",
+    "first-beat",
+    "peak-danger",
+    "recovery"
+  ],
+  "normalGameplayPresentation": {
+    "attackNamesVisible": false,
+    "internalDebugStateTextVisible": false,
+    "aimingOrPredictionLinesVisible": true,
+    "whyLinesAreVisible": "User Job O explicitly requires charge glow + warning lines >=0.6s; this overrides the skill default prohibition.",
+    "debugGuidesVisible": false,
+    "debugTogglesDefaultOn": false,
+    "statusText": "Brief phase, shield/armament count, hangar/arena charge and vulnerability information."
+  },
+  "routeProof": {
+    "requiredViewports": [
+      "mobile-390x844",
+      "wide-host-same-390x844-world"
+    ],
+    "geometryUncertaintyPx": 3,
+    "minimumReplayedClearancePxAfterUncertainty": 6,
+    "representativeProofFile": "proof-samples.json",
+    "fullCoverageTests": "tests-revamp/O/interactive-bosses.test.mjs",
+    "proofIds": {
+      "O-MATRIX-42000": "side-mounted weapon proof covers every bounded sequence, both rage speeds and maximum live socket height",
+      "O-ARENA-120": "arena wall/grid warning and exact live geometry retain replayed routes from all conservative lower starts",
+      "O-SWEEP-CONTAINMENT": "rotating beam collision and rendering share each sampled pose; all live sweeps stay within proven edge envelopes",
+      "O-ESCORT-LIFECYCLE": "hangar escorts are capped, deployed safely, destructible, bounded above the player arena, and cleaned on owner loss",
+      "O-ESCORT-RAM": "tests-revamp/O/escort-collision.test.mjs: actual ram collision admits escorts only while active, with deployment and exit immunity"
+    },
+    "proofLimits": "Bounded conservative lower-arena starts and explicit hazard cancellation. Representative witness hashes are not complete roster coverage and do not establish human fairness, GPU performance or visual approval."
+  },
+  "attacks": [
+    {
+      "id": "gatekeeper-prime:aimed-fan",
+      "kind": "core-attack",
+      "stateOwner": "interactive.parts[0]; ownerPartId; state.attack/plan",
+      "presentationOwner": "PartView cannon lamp and barrel; plan.sockets/lines",
+      "playerSkill": "Read the committed aim and step laterally after lock.",
+      "beats": {
+        "preparation": "Previous recovery/transition settles; next sentence locks immutable plan before firing.",
+        "warning": "Owning hardware charge lamp/socket glow plus exact plan warning lines for at least 36 frames.",
+        "cancel": "Part break, phase change, defeat and recovery cancel owner hazards."
+      },
+      "minimumWarningFrames": 48,
+      "proofIds": [
+        "O-GK-fan",
+        "O-MATRIX-42000"
+      ],
+      "details": "Projectiles originate at the attached outer cannon socket. Cannon destruction cancels its committed volley and removes this owning attack.",
+      "capturePaths": {
+        "preparation": null,
+        "telegraph": null,
+        "firstBeat": null,
+        "peakDanger": null,
+        "recovery": null
+      },
+      "captureStatus": "Awaiting corrected production GameCanvas review; null paths are incomplete evidence, not passed captures."
+    },
+    {
+      "id": "gatekeeper-prime:gap-ring",
+      "kind": "core-attack",
+      "stateOwner": "interactive.parts[1]; ownerPartId; state.attack/plan",
+      "presentationOwner": "PartView generator; plan.sockets/lines",
+      "playerSkill": "Move into the large advertised ring aperture.",
+      "beats": {
+        "preparation": "Previous recovery/transition settles; next sentence locks immutable plan before firing.",
+        "warning": "Owning hardware charge lamp/socket glow plus exact plan warning lines for at least 36 frames.",
+        "cancel": "Part break, phase change, defeat and recovery cancel owner hazards."
+      },
+      "minimumWarningFrames": 108,
+      "proofIds": [
+        "O-GK-ring",
+        "O-MATRIX-42000"
+      ],
+      "details": "Ring projectiles originate at generator socket; side-mounted ring aperture is widened to 1.05 radians each side of the safe bearing.",
+      "capturePaths": {
+        "preparation": null,
+        "telegraph": null,
+        "firstBeat": null,
+        "peakDanger": null,
+        "recovery": null
+      },
+      "captureStatus": "Awaiting corrected production GameCanvas review; null paths are incomplete evidence, not passed captures."
+    },
+    {
+      "id": "gatekeeper-prime:weave-wall",
+      "kind": "core-attack",
+      "stateOwner": "interactive.parts[2]; ownerPartId; state.attack/plan",
+      "presentationOwner": "PartView inner battery and projected lattice lines",
+      "playerSkill": "Read the two-column opening and move through the falling lattice.",
+      "beats": {
+        "preparation": "Previous recovery/transition settles; next sentence locks immutable plan before firing.",
+        "warning": "Owning hardware charge lamp/socket glow plus exact plan warning lines for at least 36 frames.",
+        "cancel": "Part break, phase change, defeat and recovery cancel owner hazards."
+      },
+      "minimumWarningFrames": 108,
+      "proofIds": [
+        "O-GK-weave",
+        "O-MATRIX-42000"
+      ],
+      "details": "Projection mechanism: bullets appear at the warned field columns at the battery height; they are not rendered as individually travelling from the metal muzzle to each column.",
+      "capturePaths": {
+        "preparation": null,
+        "telegraph": null,
+        "firstBeat": null,
+        "peakDanger": null,
+        "recovery": null
+      },
+      "captureStatus": "Awaiting corrected production GameCanvas review; null paths are incomplete evidence, not passed captures."
+    },
+    {
+      "id": "gatekeeper-prime:lane-salvo",
+      "kind": "core-attack",
+      "stateOwner": "interactive.parts[3]; ownerPartId; state.attack/plan",
+      "presentationOwner": "PartView armor projector and exact warning columns",
+      "playerSkill": "Leave the locked pair of laser columns.",
+      "beats": {
+        "preparation": "Previous recovery/transition settles; next sentence locks immutable plan before firing.",
+        "warning": "Owning hardware charge lamp/socket glow plus exact plan warning lines for at least 36 frames.",
+        "cancel": "Part break, phase change, defeat and recovery cancel owner hazards."
+      },
+      "minimumWarningFrames": 66,
+      "proofIds": [
+        "O-GK-salvo",
+        "O-MATRIX-42000"
+      ],
+      "details": "Projection mechanism: visible locked columns become damaging beams; two columns persist 24\u201330 frames and never track the player after lock.",
+      "capturePaths": {
+        "preparation": null,
+        "telegraph": null,
+        "firstBeat": null,
+        "peakDanger": null,
+        "recovery": null
+      },
+      "captureStatus": "Awaiting corrected production GameCanvas review; null paths are incomplete evidence, not passed captures.",
+      "warningCondition": "At least 66 frames for Gatekeeper; a socket below y=330 increases warning to 108 frames. Ring and weave always use at least 108."
+    },
+    {
+      "id": "gatekeeper-prime:arena / phase-two walls",
+      "kind": "arena-remix",
+      "stateOwner": "interactive.attackMode=arena; arena.pattern=walls; state.plan",
+      "presentationOwner": "BossPolishPresentation exact plan.zones; perimeter machinery",
+      "playerSkill": "Enter the 206-pixel central gap before side walls activate.",
+      "beats": {
+        "preparation": "Previous recovery/transition settles; next sentence locks immutable plan before firing.",
+        "warning": "Owning hardware charge lamp/socket glow plus exact plan warning lines for at least 36 frames.",
+        "cancel": "Part break, phase change, defeat and recovery cancel owner hazards."
+      },
+      "minimumWarningFrames": 84,
+      "proofIds": [
+        "O-GK-arena-walls",
+        "O-ARENA-120"
+      ],
+      "details": "Separate arena sentence; no ordinary weapon volley overlaps. Side-zone live time is 72 frames.",
+      "capturePaths": {
+        "preparation": null,
+        "telegraph": null,
+        "firstBeat": null,
+        "peakDanger": null,
+        "recovery": null
+      },
+      "captureStatus": "Awaiting corrected production GameCanvas review; null paths are incomplete evidence, not passed captures."
+    },
+    {
+      "id": "gatekeeper-prime:arena / phase-three sweep",
+      "kind": "signature-remix",
+      "stateOwner": "interactive.attackMode=arena; arena.pattern=sweep; interactiveArena WeakMap(owner)",
+      "presentationOwner": "Exposed core charge; exact initial diagonal warning lines; live Entity.beamAngleRadians",
+      "playerSkill": "Keep a continuous route in the central lane while both beams sweep outward.",
+      "beats": {
+        "preparation": "Previous recovery/transition settles; next sentence locks immutable plan before firing.",
+        "warning": "Owning hardware charge lamp/socket glow plus exact plan warning lines for at least 36 frames.",
+        "cancel": "Part break, phase change, defeat and recovery cancel owner hazards."
+      },
+      "minimumWarningFrames": 84,
+      "proofIds": [
+        "O-GK-arena-sweep-envelope",
+        "O-SWEEP-CONTAINMENT",
+        "O-ARENA-120"
+      ],
+      "details": "Two 14-pixel beams rotate from 30 to 52 degrees outward and back over 72 frames. Conservative side envelopes preserve a 98-pixel central lane. During live fire only actual beam entities render, not the warning envelopes.",
+      "capturePaths": {
+        "preparation": null,
+        "telegraph": null,
+        "firstBeat": null,
+        "peakDanger": null,
+        "recovery": null
+      },
+      "captureStatus": "Awaiting corrected production GameCanvas review; null paths are incomplete evidence, not passed captures."
+    },
+    {
+      "id": "gatekeeper-prime:arena / phase-three chevron",
+      "kind": "signature-variation",
+      "stateOwner": "interactive.attackMode=arena; arena.pattern=chevron; state.plan",
+      "presentationOwner": "Core charge and projected chevron field lines",
+      "playerSkill": "Read the central opening between two staggered chevron rows.",
+      "beats": {
+        "preparation": "Previous recovery/transition settles; next sentence locks immutable plan before firing.",
+        "warning": "Owning hardware charge lamp/socket glow plus exact plan warning lines for at least 36 frames.",
+        "cancel": "Part break, phase change, defeat and recovery cancel owner hazards."
+      },
+      "minimumWarningFrames": 84,
+      "proofIds": [
+        "O-GK-arena-chevron",
+        "O-ARENA-120"
+      ],
+      "details": "Projected field: 12 downward shots in two V-shaped rows; warning lines reveal the full field before activation.",
+      "capturePaths": {
+        "preparation": null,
+        "telegraph": null,
+        "firstBeat": null,
+        "peakDanger": null,
+        "recovery": null
+      },
+      "captureStatus": "Awaiting corrected production GameCanvas review; null paths are incomplete evidence, not passed captures."
+    },
+    {
+      "id": "gatekeeper-prime:hangar",
+      "kind": "summon",
+      "stateOwner": "interactive.attackMode=summon; hatchOpen; escorts[]; interactiveEscorts flights WeakMap",
+      "presentationOwner": "Sliding hangar shutters and existing ENEMY_DRONE sprite frames",
+      "playerSkill": "Recognize deployment and keep the lower arena clear.",
+      "beats": {
+        "preparation": "Previous recovery/transition settles; next sentence locks immutable plan before firing.",
+        "warning": "Owning hardware charge lamp/socket glow plus exact plan warning lines for at least 36 frames.",
+        "cancel": "Part break, phase change, defeat and recovery cancel owner hazards."
+      },
+      "minimumWarningFrames": 60,
+      "proofIds": [
+        "O-ESCORT-LIFECYCLE",
+        "O-ESCORT-RAM"
+      ],
+      "details": "Exactly two shootable escorts; 42-frame deploy before contact, active through frame144, harmless exit through frame179, 180-frame lifetime. Owner/action loss cleans up. No escort-generated bullets.",
+      "capturePaths": {
+        "preparation": null,
+        "telegraph": null,
+        "firstBeat": null,
+        "peakDanger": null,
+        "recovery": null
+      },
+      "captureStatus": "Awaiting corrected production GameCanvas review; null paths are incomplete evidence, not passed captures."
+    }
+  ],
+  "phaseTwo": {
+    "visibleTransformation": "Outer fittings become dark wrecks, shell leaves open, inner battery and armor projector emerge; arena perimeter appears.",
+    "spriteFrames": [],
+    "animationType": "retained geometry and assembly motion; original art remains unchanged",
+    "behaviorChange": "A new destructible layer, independently warned arena sentences and capped escorts.",
+    "numericOnlyChange": false
+  },
+  "phaseThree": {
+    "visibleTransformation": "All armaments destroyed; shield drops and sliding core hatch exposes a glowing core during quiet windows.",
+    "damageBonus": "Unshielded hull damage is multiplied by 1.85 while coreOpen>=.8, otherwise .8. The shutter marks a timed hull-exposure window, not a separate aim-specific core target.",
+    "openingFrames": 18,
+    "collisionOwner": "engineAdapter.revampHullDamage; getRevampPartHit tests only armaments; coreRadius=22 is unused metadata."
+  },
+  "phaseOrdering": {
+    "stateOwner": "runtime.beginInteractiveWarning",
+    "sequenceRule": "state.sequence++ + (state.phase > 1 ? 2 : 0)",
+    "phaseOne": "Original weapon opener.",
+    "phaseTwo": "84-frame wall warning -> live walls -> recovery -> 60-frame hangar warning/deployment -> surviving inner weapon pair.",
+    "phaseThree": "84-frame sweep warning -> live sweep -> recovery -> 60-frame hangar warning/deployment -> core sentences; next arena variation is chevron.",
+    "geometryChange": false,
+    "test": "later phases lead with a fully warned arena then hangar, and broken weapons never regain ownership"
+  }
+}

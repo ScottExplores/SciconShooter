@@ -6,14 +6,18 @@ import { createCombatLabLoadout, createCombatLabStats } from '../../services/com
 import { PLAYER_SHIPS } from '../../services/playerShipService';
 import { resolveCampaignBossArtwork } from '../../services/pixi/boss-rigs/CampaignBossArtworkRegistry';
 import type { PreviewCommand, PreviewSnapshot } from '../../services/gameplay/previewSession';
-import { REVAMP_BOSSES } from '../../services/revamp/bosses/catalog';
+import { BOSS_LAB_ROSTER as REVAMP_BOSSES } from '../../services/revamp/bosses/labRoster';
+import { readQAConfig } from '../../services/revamp/qa/config';
 import { BOSS_LAB_UPGRADES, BOSS_LAB_VIEWPORT, bossLabHealthCommandRatio, createBossLabEncounter, readBossLabRequest } from '../../services/revamp/bosses/bossLab';
 import './boss-lab.css';
 
-const fullPowerStats = (): Stats => ({ ...createCombatLabStats(), upgrades: { ...BOSS_LAB_UPGRADES } });
+const QA_UPGRADES = Object.freeze({ fireRate: 3, ability: 1, speed: 2 });
+const labUpgrades = () => readQAConfig().enabled ? QA_UPGRADES : BOSS_LAB_UPGRADES;
+const fullPowerStats = (): Stats => ({ ...createCombatLabStats(), upgrades: { ...labUpgrades() } });
 
 /** Isolated practice entry: no providers, account, rewards, or leaderboard callbacks. */
 const BossLab: React.FC = () => {
+  const qa = useMemo(() => readQAConfig(), []);
   const request = useMemo(() => readBossLabRequest(window.location.search, REVAMP_BOSSES), []);
   const [bossId, setBossId] = useState(request?.bossId ?? REVAMP_BOSSES[0].id);
   const [run, setRun] = useState(0);
@@ -21,7 +25,8 @@ const BossLab: React.FC = () => {
   const [snapshot, setSnapshot] = useState<PreviewSnapshot | null>(null);
   const [paused, setPaused] = useState(false);
   const [watch, setWatch] = useState(request?.watch ?? false);
-  const [shield, setShield] = useState(true);
+  // REVAMP(O): A normal-damage QA run must never inherit practice invincibility.
+  const [shield, setShield] = useState(() => { const qa = readQAConfig(); return qa.enabled ? qa.god : true; });
   const [ready, setReady] = useState(false);
   const [error, setError] = useState('');
   const [command, setCommand] = useState<PreviewCommand | null>(null);
@@ -38,8 +43,8 @@ const BossLab: React.FC = () => {
     return source ? { ...source, encounterCamera: undefined } : undefined;
   }, [encounter]);
   const loadout = useMemo(() => createCombatLabLoadout('researchhub',
-    BOSS_LAB_UPGRADES.fireRate, BOSS_LAB_UPGRADES.ability, BOSS_LAB_UPGRADES.speed,
-    watch ? [] : ['archive-beetle', 'axiom-orbiter'], 5), [watch]);
+    labUpgrades().fireRate, labUpgrades().ability, labUpgrades().speed,
+    watch || qa.enabled ? [] : ['archive-beetle', 'axiom-orbiter'], 5), [watch, qa.enabled]);
 
   useEffect(() => {
     const host = stageRef.current;
@@ -96,7 +101,7 @@ const BossLab: React.FC = () => {
         transform: `translate(-50%, -50%) scale(${scale})` }}>
         <GameCanvas key={`${profile.id}:${run}`} stats={stats} onStatsChange={setStats} running={!paused}
           previewMode previewViewport={BOSS_LAB_VIEWPORT} previewContinuousWaves={false}
-          previewInvincible={shield} previewStartingLives={10} previewUnlimitedBombs
+          previewInvincible={shield} previewStartingLives={qa.enabled ? 3 : 10} previewUnlimitedBombs
           autoFire={!watch} audioEnabled previewSeed={`revamp-boss:${profile.id}`}
           previewCommand={command} onPreviewSnapshot={receiveSnapshot}
           campaign={encounter.campaign} levelId={encounter.levelId} waveId={encounter.waveId}
@@ -118,7 +123,7 @@ const BossLab: React.FC = () => {
       <div className="revamp-boss-lab__buttons revamp-boss-lab__phases" aria-label="Boss health controls">
         <span>HP</span>{[1, 0.6, 0.3, 0.15].map(ratio => <button key={ratio} disabled={!ready}
           title="Restart with fresh parts at this health" onClick={() => restart(bossId, watch, ratio)}>{Math.round(ratio * 100)}%</button>)}
-        <span className="revamp-boss-lab__power">MAX POWER</span>
+        <span className="revamp-boss-lab__power">{qa.enabled ? 'POWER 4' : 'MAX POWER'}</span>
       </div>
       <p>{request?.unknownId && bossId === request.bossId ? 'Unknown boss ID; showing the first encounter. ' : ''}
         Practice · 390 × 844 · Drag to steer · No rewards</p>

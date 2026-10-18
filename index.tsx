@@ -13,6 +13,7 @@ import { AppProviders } from './providers';
 import { recoverFromModulePreloadFailure } from './services/deploymentUpdateService';
 import { installPlayerReportMonitoring } from './services/playerReportService';
 import { installPreviewRequestGuard } from './services/revamp/preview/previewMode';
+import { BOSS_LAB_ROSTER } from './services/revamp/bosses/labRoster'; // REVAMP(O)
 
 // REVAMP(E): Block preview API writes before any React effects can start.
 installPreviewRequestGuard();
@@ -22,9 +23,10 @@ const feelLabRequested = import.meta.env.DEV && new URLSearchParams(window.locat
 const FeelLab = import.meta.env.DEV ? React.lazy(() => import('./components/FeelLab')) : null;
 const combatLabRequested = import.meta.env.DEV && new URLSearchParams(window.location.search).get('lab') === 'combat';
 // REVAMP(C): Practice entry bypasses account services and the desktop launch gate.
-// QA (?qa=1&bosslab=...) runs the real campaign boss wave; the standalone lab owns ?bosslab without qa.
+// REVAMP(O): Explicit roster IDs use the canonical lab canvas; "first" retains campaign smoke coverage.
 const bossLabParams = new URLSearchParams(window.location.search);
-const bossLabRequested = bossLabParams.has('bosslab') && bossLabParams.get('qa') !== '1';
+const bossLabRequested = bossLabParams.has('bosslab') && (bossLabParams.get('qa') !== '1'
+  || BOSS_LAB_ROSTER.some(boss => boss.id === bossLabParams.get('bosslab')));
 if (!combatLabRequested && !feelLabRequested && !bossLabRequested) installPlayerReportMonitoring();
 
 window.addEventListener('vite:preloadError', (event) => {

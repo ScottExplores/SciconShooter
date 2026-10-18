@@ -101,7 +101,9 @@ const attack = (
   name: string,
   description: string,
   values: Omit<MiniBossAttackDefinition, 'id' | 'name' | 'description'>
-): MiniBossAttackDefinition => Object.freeze({ id, name, description, ...values });
+): MiniBossAttackDefinition => Object.freeze({ id, name, description, ...values,
+  // REVAMP(O): Every mini warning retains at least 0.6 simulation seconds.
+  telegraphSeconds: Math.max(0.6, values.telegraphSeconds) });
 
 const routeVariant = (
   id: string,

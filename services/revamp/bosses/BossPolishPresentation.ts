@@ -4,6 +4,8 @@ import type { Entity, GameEngine } from '../../gameLogic';
 import { BOSS_INTRO_FRAMES, bossDamageMultiplier, getBossEncounter, type BossEncounterState } from './runtime';
 import { BossCueGeometry } from '../performance/BossCueGeometry';
 import { BOSS_STATUS_Y, BOSS_INTRO_CARD_Y } from '../presentation/BossHudLayout';
+import { InteractiveBossPresentation } from './InteractiveBossPresentation';
+import { MiniInteractivePresentation } from './MiniInteractivePresentation';
 
 const AMBER = 0xffcc66;
 const MAGENTA = 0xf799e5;
@@ -48,11 +50,14 @@ export class BossPolishPresentation {
   private readonly status = label(10, WHITE);
   private readonly statusBackground = new Graphics();
   private readonly transitionHalo = new Container({ eventMode: 'none' });
+  // REVAMP(O): Runtime-owned anatomy; retained pixel geometry over the original hull.
+  private readonly interactive = new InteractiveBossPresentation();
+  private readonly minis = new MiniInteractivePresentation();
   // REVAMP(J): Static cue geometry survives movement, pulses and HUD text changes.
   private readonly cueGeometry = new BossCueGeometry(this.part, this.transitionHalo, this.statusBackground, this.cardBackground);
 
   constructor() {
-    this.worldRoot.addChild(this.hazards, this.transitionHalo, this.part, this.partLabel);
+    this.worldRoot.addChild(this.interactive.arenaRoot, this.hazards, this.transitionHalo, this.part, this.partLabel, this.interactive.root, this.minis.root);
     this.card.addChild(this.cardBackground, this.cardEyebrow, this.title, this.epithet);
     this.hud.addChild(this.statusBackground, this.phase, this.status, this.card);
     this.worldRoot.visible = false;
@@ -92,11 +97,14 @@ export class BossPolishPresentation {
     const boss = engine.entities.find((entity) => entity.type === EntityType.BOSS && !entity.markedForDeletion);
     const state = boss && getBossEncounter(boss);
     const visible = Boolean(state && state.stage !== 'defeated');
-    this.worldRoot.visible = visible;
+    const minisVisible = this.minis.sync(engine, reducedMotion);
+    this.worldRoot.visible = visible || minisVisible;
     this.hud.visible = visible;
-    if (!boss || !state || !visible) return false;
+    this.hazards.visible = this.transitionHalo.visible = this.part.visible = this.partLabel.visible = visible;
+    if (!boss || !state || !visible) { this.interactive.hide(); return minisVisible; }
 
     this.drawHazards(state, reducedMotion);
+    this.interactive.sync(state, boss, engine.width, engine.height, reducedMotion);
     this.drawPart(state, boss, reducedMotion);
     this.drawHud(state, width, height, reducedMotion);
     return true;
@@ -114,7 +122,11 @@ export class BossPolishPresentation {
     const pulse = reducedMotion ? 1 : 0.92 + Math.sin(state.ageFrames * 0.15) * 0.08;
 
     // These shapes are the locked runtime geometry, never extrapolated from player motion.
-    for (const zone of plan.zones) {
+    // REVAMP(O): Sweep warning envelopes reserve a continuous safe corridor;
+    // active rotating beams are drawn by their actual damaging entities.
+    const zones = firing && state.interactive?.arena.pattern === 'sweep'
+      && state.interactive.attackMode === 'arena' ? [] : plan.zones;
+    for (const zone of zones) {
       if (firing && fireFrames >= zone.durationFrames) continue;
       const left = zone.x;
       const top = zone.y;
@@ -161,6 +173,12 @@ export class BossPolishPresentation {
   }
 
   private drawPart(state: BossEncounterState, boss: Entity, reducedMotion: boolean): void {
+    this.part.visible = !state.interactive;
+    if (state.interactive) {
+      this.partLabel.visible = false;
+      this.cueGeometry.syncHalo(state, boss, reducedMotion);
+      return;
+    }
     this.cueGeometry.syncPart(state, boss);
     this.cueGeometry.syncHalo(state, boss, reducedMotion);
     const part = state.part;
@@ -182,7 +200,7 @@ export class BossPolishPresentation {
     this.phase.visible = this.status.visible = this.statusBackground.visible = !intro;
     const center = width / 2;
     const color = state.rage ? MAGENTA : AMBER;
-    this.phase.text = state.rage ? `P${state.phase}/3 · RAGE` : `PHASE ${state.phase}/3`;
+    this.phase.text = state.rage ? `P${state.phase}/${state.interactive?.scale === 'mini' ? 2 : 3} · RAGE` : `PHASE ${state.phase}/${state.interactive?.scale === 'mini' ? 2 : 3}`;
     // REVAMP(P): Phase and mandatory attack text fit one slim status row.
     this.phase.position.set(50, BOSS_STATUS_Y);
     this.phase.scale.set(1);
@@ -192,7 +210,15 @@ export class BossPolishPresentation {
     const warning = state.stage === 'warning';
     const exposed = state.stage === 'recovery' || state.stage === 'stagger';
     const damageBonus = Math.round((bossDamageMultiplier(state) - 1) * 100);
-    const status = intro ? 'HOSTILE SIGNATURE DETECTED'
+    const anatomy = state.interactive;
+    const aliveParts = anatomy?.parts.filter((part) => part.active && !part.broken).length ?? 0;
+    const status = anatomy ? intro ? 'WARNING • HOSTILE APPROACHING'
+      : state.stage === 'transition' ? state.phase === 2 ? 'ARMOR SHEDDING' : 'CORE UNSEALED'
+        : anatomy.coreOpen >= 0.8 ? `CORE OPEN • +${Math.max(0, damageBonus)}% DAMAGE`
+          : anatomy.attackMode === 'summon' && warning ? 'HANGAR OPENING'
+            : anatomy.attackMode === 'arena' && warning ? 'ARENA CHARGING'
+              : anatomy.shielded ? `BREAK ARMAMENTS • ${aliveParts} REMAINING` : 'CORE HATCH CLOSED'
+      : intro ? 'HOSTILE SIGNATURE DETECTED'
       : state.stage === 'transition' ? 'PHASE SHIFT • SHIELD ACTIVE'
         : state.stage === 'stagger' ? `PART BROKEN • +${damageBonus}% DAMAGE`
           : state.stage === 'recovery' ? `CORE EXPOSED • +${damageBonus}% DAMAGE`
