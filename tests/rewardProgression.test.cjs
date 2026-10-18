@@ -132,21 +132,25 @@ test('the Reward Center routes pending rewards and celebrates only confirmed cla
   const startScreen = read('components', 'StartScreen.tsx');
   const center = read('components', 'RewardCenter.tsx');
   const styles = read('styles', 'tailwind.input.css');
-  const brand = read('components', 'revamp', 'HomeFlightDeckBrand.tsx');
-  const layout = read('styles', 'revamp-layout.css');
+  const gift = read('components', 'revamp', 'HomeDailyGift.tsx');
+  const homeStyles = read('styles', 'revamp-home.css');
   const motion = read('components', 'revamp', 'UiMotion.tsx');
   const motionStyles = read('styles', 'revamp-ui.css');
 
   assert.match(startScreen, /\? 'Daily Gift'[\s\S]*\? 'Achievements'[\s\S]*: 'Reward Center'/);
   assert.match(startScreen, /openRewardCenter\([\s\S]*\? 'achievements' : 'daily'/);
-  // REVAMP(H): The gift now occupies the header flow instead of covering cards.
-  assert.match(startScreen, /<HomeFlightDeckBrand[\s\S]*giftAvailable=\{dailyGiftStatus\.isAvailable\}[\s\S]*achievementCount=\{claimableAchievementCount\}[\s\S]*rewardsOpen=\{showRewardCenter\}/);
-  assert.match(brand, /data-onboarding-target="rewards-open" onClick=\{onOpenRewards\}/);
-  assert.match(brand, /data-ready=\{giftAvailable \|\| achievementCount > 0\}/);
-  assert.match(brand, /aria-label=\{giftAvailable \? 'Claim daily gift' : achievementCount \? `\$\{achievementCount\} achievement rewards ready` : 'Open reward center'\}/);
-  assert.match(brand, /aria-controls="reward-center" aria-expanded=\{rewardsOpen\}/);
-  assert.match(layout, /\.revamp-home-brand \{[^}]*display: flex/);
-  assert.match(layout, /\.revamp-home-gift \{[^}]*position: relative;[^}]*flex:/);
+  // REVAMP(K): Restore the remaster side tab while retaining reward routing,
+  // pending-achievement feedback, and a ship-stage anchor clear of funding.
+  assert.match(startScreen, /sci-hero-ship-stage[\s\S]*<HomeDailyGift[\s\S]*giftAvailable=\{dailyGiftStatus\.isAvailable\}[\s\S]*achievementCount=\{claimableAchievementCount\}[\s\S]*rewardsOpen=\{showRewardCenter\}/);
+  assert.doesNotMatch(startScreen, /<HomeFlightDeckBrand/);
+  assert.match(gift, /data-onboarding-target="rewards-open"/);
+  assert.match(gift, /onClick=\{onOpenRewards\}/);
+  assert.match(gift, /giftAvailable\s*\? 'sci-reward-edge-trigger--claimable' : 'sci-reward-edge-trigger--collapsed'/);
+  assert.match(gift, /!giftAvailable && achievementCount > 0[\s\S]*'sci-reward-edge-trigger--achievement-ready'/);
+  assert.match(gift, /aria-label=\{giftAvailable\s*\? 'Claim daily gift'[\s\S]*achievementCount > 0[\s\S]*achievement[\s\S]*'Open reward center'/);
+  assert.match(gift, /aria-controls="reward-center"/);
+  assert.match(gift, /aria-expanded=\{rewardsOpen\}/);
+  assert.match(homeStyles, /sci-hero-ship-stage--compact[\s\S]*\.sci-reward-edge-trigger[\s\S]*?position:\s*absolute/);
   assert.match(startScreen, /data-reward-ready=\{rewardAttention \? 'true' : 'false'\}/);
   assert.match(startScreen, /getDailyGiftStatus\(permanentSquadState, new Date\(weeklyClock\)\)/);
   assert.match(startScreen, /document\.addEventListener\('visibilitychange', handleVisibilityChange\)/);

@@ -1,6 +1,7 @@
-// REVAMP(H): Compact branding and rewards stay in the hero's normal flow.
-import HomeFlightDeckBrand from './revamp/HomeFlightDeckBrand';
+// REVAMP(K): Original home geometry; reward tab stays beside the ship.
+import HomeDailyGift from './revamp/HomeDailyGift';
 import '../styles/revamp-layout.css';
+import '../styles/revamp-home.css';
 import WeeklyCompetitionCard from './revamp/WeeklyCompetitionCard';
 import SignalsPanel from './revamp/SignalsPanel';
 import { isPreviewMode } from '../services/revamp/preview/previewMode';
@@ -339,7 +340,6 @@ const trapDialogFocus = (
 // Weekly Run headline facts, sourced from the gauntlet route so the card can
 // never drift from what the mode actually does.
 
-const REWARD_EDGE_ARROW = '/game-art/generated/ui/scicon-reward-edge-v1/reward-arrow.png';
 const REWARD_ACHIEVEMENT_ICON = '/game-art/generated/ui/scicon-ui-system-v2/base/achievements-more/achievement-unlocked-card.png';
 
 const dashboardTabs: Array<{
@@ -1288,14 +1288,32 @@ const StartScreen: React.FC<StartScreenProps> = ({
       </div>
 
       <div className={`sci-hero-content relative z-10 flex h-full min-h-[inherit] flex-col items-center justify-between px-4 text-center ${compact ? 'sci-hero-content--compact gap-1 py-2' : 'gap-6 py-7 md:px-8 md:py-10'}`}>
-        <HomeFlightDeckBrand compact={compact} giftAvailable={dailyGiftStatus.isAvailable}
-          achievementCount={claimableAchievementCount} rewardsOpen={showRewardCenter}
-          onOpenRewards={() => openRewardCenter(!dailyGiftStatus.isAvailable && claimableAchievementCount > 0 ? 'achievements' : 'daily')} />
+        {/* REVAMP(K): Restore the remaster desktop brand and two-row phone deck. */}
+        {compact ? null : (
+          <div className="sci-hero-brand flex flex-col items-center space-y-3 text-center">
+            <div className="mx-auto flex w-fit items-center gap-3 text-yellow-200/90">
+              <span className="h-px w-14 bg-gradient-to-r from-transparent to-yellow-200/80" />
+              <span className="h-2 w-16 skew-x-[-28deg] bg-gradient-to-r from-yellow-500 via-yellow-200 to-yellow-500 shadow-[0_0_18px_rgba(250,204,21,0.45)]" />
+              <span className="h-px w-14 bg-gradient-to-l from-transparent to-yellow-200/80" />
+            </div>
+            <div className="scicon-hero-title text-[3.2rem] md:text-[5rem] xl:text-[6.1rem]">
+              <span>Scicon</span>
+              <span>Shooter</span>
+            </div>
+            <p className="mx-auto max-w-xl text-xs font-bold uppercase text-cyan-50/85 md:text-sm">
+              Fund research. Upgrade science. Win together.
+            </p>
+          </div>
+        )}
 
         <div
           data-onboarding-target="home-flight-deck"
           className={`sci-hero-ship-stage relative flex w-full items-center justify-center ${compact ? 'sci-hero-ship-stage--compact' : 'min-h-[14rem]'}`}
         >
+          {/* REVAMP(K): Anchor the side tab below the weekly stack, including short phones. */}
+          {compact ? <HomeDailyGift giftAvailable={dailyGiftStatus.isAvailable}
+            achievementCount={claimableAchievementCount} rewardsOpen={showRewardCenter}
+            onOpenRewards={() => openRewardCenter(!dailyGiftStatus.isAvailable && claimableAchievementCount > 0 ? 'achievements' : 'daily')} /> : null}
           <div className="sci-ship-orbit" />
           <div className="absolute bottom-2 h-12 w-64 rounded-[50%] border border-cyan-300/24 bg-cyan-300/7 blur-sm" />
           <div className="absolute bottom-7 h-7 w-56 rounded-[50%] border border-emerald-300/28 bg-emerald-300/8" />
@@ -1406,7 +1424,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
               <span className={`sci-start-button__play flex items-center justify-center text-emerald-950 transition group-hover:scale-105 ${compact ? 'h-8 w-8' : 'h-9 w-9'}`}>
                 <Icon name="play" className="h-5 w-5 translate-x-0.5" />
               </span>
-              <span>{permanentSquadState.campaignProgress.completedMissionIds.length === 0 ? 'PLAY' : campaignCheckpoint.action}</span>
+              <span>{campaignCheckpoint.action}</span>
             </span>
           </PixelActionButton>
           {!compact ? <p className="text-sm font-bold text-emerald-200">Complete. Earn. Fund.</p> : null}
@@ -1660,13 +1678,13 @@ const StartScreen: React.FC<StartScreenProps> = ({
                 aria-label="Show weekly leader"
                 aria-pressed={weeklyWinnerSlide === 'pilot'}
                 onClick={() => setWeeklyWinnerSlide('pilot')}
-              >Leader</button>
+              />
               <button
                 type="button"
                 aria-label="Show selected proposal"
                 aria-pressed={weeklyWinnerSlide === 'proposal'}
                 onClick={() => setWeeklyWinnerSlide('proposal')}
-              >Research</button>
+              />
             </div>
           ) : null}
         </div>
@@ -1683,14 +1701,6 @@ const StartScreen: React.FC<StartScreenProps> = ({
     <div className="sci-weekly-competition-stack">
       {renderWeeklyFundingCard({ compact })}
       {renderWeeklyRunEntry()}
-      <WeeklyCompetitionCard
-        entries={weeklyLiveLeaderboard ?? monthlyLeaderboard}
-        walletAddress={walletAddress}
-        runIds={weeklyPilotRunIds}
-        loading={isLoading}
-        bossNames={weeklyBossNames}
-        onViewLeaderboard={() => { setTrophyCategory('weeklyFunding'); setLeaderboardView('weekly'); setDashboardTab('trophies'); }}
-      />
     </div>
   );
 
@@ -2117,6 +2127,19 @@ const StartScreen: React.FC<StartScreenProps> = ({
   };
 
   const AboutDashboard = () => (
+    <>
+      {/* REVAMP(K): Existing More entry owns the added progression and weekly panels. */}
+      <div className="sci-more-revamp-panels">
+        {renderRevampPanel()}
+        <WeeklyCompetitionCard
+          entries={weeklyLiveLeaderboard ?? monthlyLeaderboard}
+          walletAddress={walletAddress}
+          runIds={weeklyPilotRunIds}
+          loading={isLoading}
+          bossNames={weeklyBossNames}
+          onViewLeaderboard={() => { setTrophyCategory('weeklyFunding'); setLeaderboardView('weekly'); setDashboardTab('trophies'); }}
+        />
+      </div>
     <HudPanel className="sci-more-menu-shell">
       <div className="sci-more-menu">
         <header className="sci-more-menu__header">
@@ -2226,6 +2249,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
         </p>
       </div>
     </HudPanel>
+    </>
   );
 
   const renderMobileDashboardContent = () => {
@@ -2269,9 +2293,9 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
     return (
       <div className="scicon-mobile-home flex min-h-full flex-col gap-2">
-        {renderHeroPanel({ compact: true, fill: true })}
-        {renderRevampPanel()}
+        {/* REVAMP(K): Preserve the original funding / run / ship / launch order. */}
         {renderWeeklyCompetitionStack({ compact: true })}
+        {renderHeroPanel({ compact: true, fill: true })}
       </div>
     );
   };
@@ -2342,6 +2366,12 @@ const StartScreen: React.FC<StartScreenProps> = ({
       </div>
 
 
+      {/* REVAMP(K): Desktop keeps the original viewport edge anchor, outside the blurred hero. */}
+      {dashboardTab === 'home' ? <div className="hidden lg:block">
+        <HomeDailyGift giftAvailable={dailyGiftStatus.isAvailable}
+          achievementCount={claimableAchievementCount} rewardsOpen={showRewardCenter}
+          onOpenRewards={() => openRewardCenter(!dailyGiftStatus.isAvailable && claimableAchievementCount > 0 ? 'achievements' : 'daily')} />
+      </div> : null}
 
       {showWeeklyProposalReminder && weeklyProposalRecovery ? (
         <div className="sci-weekly-proposal-reminder-backdrop" role="presentation">
@@ -2434,7 +2464,6 @@ const StartScreen: React.FC<StartScreenProps> = ({
             <div className="grid gap-5 lg:grid-cols-[minmax(0,1.14fr)_minmax(25rem,0.86fr)]">
               <div className="space-y-5">
                 {renderHeroPanel()}
-                {renderRevampPanel()}
                 {renderDashboardNav()}
               </div>
 

@@ -1,39 +1,5 @@
-/* REVAMP(H): Flow-based menu layout. Original art and frame sources stay intact. */
-.revamp-home-brand { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; max-width: 600px; padding: 8px 4px; }
-.revamp-home-wordmark { min-width: 0; text-align: left; }
-.revamp-home-eyebrow { font-size: 9px; line-height: 1.4; letter-spacing: .12em; text-transform: uppercase; color: #9fbace; }
-.revamp-home-title { margin: 2px 0; font-family: 'Pixelify Sans', monospace; font-size: clamp(25px, 7.6vw, 36px); font-weight: 700; line-height: 1.1; letter-spacing: -.03em; color: #e1fbff; text-shadow: 0 2px #126286, 0 4px #031529; }
-.revamp-home-title span:last-child { color: #6ce6dc; }
-.revamp-home-tagline { font-size: 10px; line-height: 1.5; letter-spacing: .04em; color: #b8dbe8; }
-.revamp-home-gift { position: relative; flex: 0 0 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 60px; padding: 4px; color: #ffeba5; border: 1px solid #567580; background: linear-gradient(#12304b, #081525); font-size: 10px; line-height: 1.3; font-weight: 700; box-shadow: inset 0 0 0 2px #060f20; }
-.revamp-home-gift img { width: 32px; height: 32px; object-fit: contain; image-rendering: pixelated; }
-.revamp-home-gift i { position: absolute; top: 4px; right: 4px; width: 5px; height: 5px; background: #ffe570; box-shadow: 0 0 7px #ffde70; }
-.revamp-home-gift[data-ready=true] { border-color: #ac9651; }
-.revamp-home-gift:focus-visible { outline: 2px solid #f9e289; outline-offset: 3px; }
-
-/* Undo the old two-row phone grid: the restored brand gets its own row. */
-#root .scicon-start-screen .scicon-mobile-home { display: flex; flex-direction: column; gap: 10px; overflow: visible; }
-#root .scicon-start-screen .sci-mobile-hero { flex: 0 0 auto; min-height: 0; }
-#root .scicon-start-screen .sci-hero-content--compact { display: flex; flex-direction: column; min-height: 0; gap: 8px; padding: 8px 12px 12px; }
-#root .scicon-start-screen .sci-hero-ship-stage--compact { flex: 0 0 auto; height: 140px; min-height: 140px; margin-top: 0; }
-#root .scicon-start-screen .sci-rh-ship--compact { top: 0; height: 132px; width: min(70vw, 280px); }
-#root .scicon-start-screen .sci-ship-carousel-core .sci-ship-carousel-image--researchhub { transform: none; }
+/* REVAMP(H): Trophy and More readability fixes. Home is restored in revamp-home.css. */
 #root .scicon-start-screen .scicon-mobile-scroll { scrollbar-width: thin; }
-#root .scicon-start-screen .sci-weekly-funding-summary { grid-template-columns: minmax(0, 1fr) minmax(90px, .72fr); gap: 8px; }
-#root .scicon-start-screen .sci-weekly-funding-summary > * { min-width: 0; overflow-wrap: anywhere; }
-#root .scicon-start-screen .sci-weekly-funding-summary h2 { font-size: clamp(15px, 4.6vw, 20px); line-height: 1.2; }
-#root .scicon-start-screen .sci-weekly-funding-summary > :last-child > :nth-child(2) { font-size: clamp(20px, 6vw, 27px); line-height: 1.2; }
-#root .scicon-start-screen .sci-weekly-funding-content { padding-inline: 2px; }
-#root .scicon-start-screen .revamp-progression { margin: 0; }
-#root .scicon-start-screen .sci-weekly-competition-stack { min-width: 0; }
-#root .sci-weekly-leader-summary { grid-template-columns: minmax(0, 1fr); }
-#root .sci-weekly-leader-summary > :last-child { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; text-align: left; }
-#root .sci-weekly-winner-card__slide .truncate { overflow: visible; white-space: normal; overflow-wrap: anywhere; }
-#root .sci-weekly-winner-card__slide .text-base { font-size: 14px; line-height: 1.4; }
-#root .sci-weekly-proposal-title { display: block; overflow: visible; -webkit-line-clamp: unset; line-height: 1.4; overflow-wrap: anywhere; }
-#root .sci-weekly-winner-card__pager { position: relative; inset: auto; justify-content: center; gap: 8px; transform: none; border-radius: 0; border-width: 1px 0 0; padding: 4px; }
-#root .sci-weekly-winner-card__pager button { width: auto; height: auto; min-width: 76px; min-height: 44px; padding: 4px 8px; border-radius: 2px; font-size: 10px; color: #ccecf1; background: #12304a; transform: none; }
-#root .sci-weekly-winner-card__pager button[aria-pressed=true] { background: #1f5c61; color: #e1fff5; box-shadow: inset 0 -2px #6ee7b7; }
 #root .sci-first-place-row__rank strong { line-height: 1.3; }
 /* Keep the fixed painted window for a short identity; full research copy flows below. */
 #root .sci-first-place-row { aspect-ratio: auto; min-height: 140px; padding: 0; }
@@ -56,10 +22,3 @@
 #root .sci-past-pick-card :is(.truncate, .line-clamp-2) { display: block; overflow: visible; white-space: normal; overflow-wrap: anywhere; -webkit-line-clamp: unset; }
 #root .revamp-weekly-pilot { overflow: visible; white-space: normal; overflow-wrap: anywhere; }
 #root .sci-more-audio-settings__chevron { height: auto; line-height: 1.4; }
-
-@media (max-height: 700px) {
-  #root .scicon-start-screen .sci-hero-ship-stage--compact { height: 108px; min-height: 108px; }
-  #root .scicon-start-screen .sci-rh-ship--compact { height: 104px; }
-  #root .scicon-start-screen .sci-hero-content--compact { gap: 5px; }
-  .revamp-home-brand { padding-block: 2px; }
-}
