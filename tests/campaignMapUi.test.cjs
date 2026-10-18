@@ -88,7 +88,9 @@ test('Campaign Map derives all ten five-depth sectors and themes from authored d
     assert.equal(sector.routeNodeIds.length, 1);
   });
   assert.match(mapSource, /DEFAULT_GAME_CAMPAIGN\.sectors/);
-  assert.match(mapSource, /DEFAULT_GAME_CAMPAIGN\.visualThemes\.find/);
+  // REVAMP(R): Authored sector IDs now resolve through N's shared world palette.
+  assert.match(mapSource, /const theme = getSectorTheme\(sector\.id\)/);
+  assert.match(mapSource, /accent: worldColorHex\(theme\.accent\)/);
   assert.doesNotMatch(mapSource, /\{ id: 'sector-open-orbit'/);
   assert.match(mapSource, /data-sector-id=\{sector\.id\}/);
   assert.match(mapSource, /data-mission-role=\{missionRole\}/);
@@ -249,7 +251,7 @@ test('Campaign celestial motion is limited to selected, current, and hovered nod
 });
 
 test('Campaign Map is an opaque routed screen with a real Back-to-Home transition', () => {
-  assert.match(mapSource, /<main className="campaign-map-screen">/);
+  assert.match(mapSource, /<main className="campaign-map-screen"[^>]*data-world-theme=\{selectedWorldTheme\.id\}[^>]*>/);
   assert.match(mapSource, /aria-label="Back to Home"/);
   assert.doesNotMatch(mapSource, /<main[^>]*aria-modal="true"|campaign-map-overlay/);
   assert.match(appSource, /get\('view'\) === 'campaign-map'/);

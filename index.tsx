@@ -5,6 +5,8 @@ import ReactDOM from 'react-dom/client';
 import './styles/tailwind.generated.css';
 // REVAMP(H): Shared pixel typography and reduced-motion-aware menu animation.
 import './styles/revamp-ui.css';
+// REVAMP(R): Shared sector accents and reduced-motion-aware frame effects.
+import './styles/revamp-theme.css';
 import DesktopMobileLaunchShell from './components/DesktopMobileLaunchShell';
 import AppErrorBoundary from './components/AppErrorBoundary';
 import { AppProviders } from './providers';

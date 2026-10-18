@@ -1,0 +1,164 @@
+/* REVAMP(R): Cosmetic skin only. Geometry belongs to the HUD/map/result owners. */
+:root {
+  --world-accent: #84d7e3;
+  --world-secondary: #b9c7e8;
+  --world-danger: #ff8096;
+  --world-glow: #4ac7d9;
+  --world-ink: #040a10;
+  --world-surface: #08121e;
+  --world-metal: #486673;
+  --world-energy-hue: 10deg;
+  --world-gem-hue: 70deg;
+}
+
+[data-theme-accent], .theme-accent { color: var(--world-accent); }
+[data-theme-glow], .theme-glow { color: var(--world-glow); }
+
+/* Thin rails and charge meters carry identity; life/coin/status semantics stay legible. */
+[data-world-theme] .scicon-combat-hud :is(.sci-compact-status-hud,.sci-compact-score-hud)::before {
+  background: linear-gradient(180deg, color-mix(in srgb,var(--world-accent) 72%,transparent),color-mix(in srgb,var(--world-glow) 40%,transparent));
+}
+[data-world-theme] .scicon-combat-hud :is(.sci-compact-status-hud,.sci-compact-score-hud)::after {
+  background: linear-gradient(180deg,color-mix(in srgb,var(--world-surface) 86%,transparent),#020617b8);
+}
+[data-world-theme] .scicon-combat-hud .sci-compact-score-hud__inner { color: var(--world-secondary); }
+[data-world-theme] .revamp-wing-button.is-ready {
+  border-color: color-mix(in srgb,var(--world-accent) 60%,transparent);
+  box-shadow: inset 0 -2px color-mix(in srgb,var(--world-accent) 45%,transparent);
+}
+[data-world-theme] .revamp-wing-button {
+  background: linear-gradient(to top,color-mix(in srgb,var(--world-glow) 25%,#081622) var(--wing-charge),#081622b8 var(--wing-charge));
+}
+[data-world-theme] .frontier-transmission {
+  --frontier-signal: var(--world-accent);
+  border-color: color-mix(in srgb,var(--world-metal) 85%,transparent);
+  background: linear-gradient(115deg,color-mix(in srgb,var(--world-surface) 96%,transparent),#040c19ed);
+}
+[data-world-theme] .frontier-transmission--hostile { --frontier-signal: var(--world-danger); }
+
+/* Selected-sector briefing and each individual node use the same world recipe. */
+.campaign-map-screen[data-world-theme] { background: var(--world-ink); }
+[data-world-theme] .campaign-map-dialog {
+  border-color: color-mix(in srgb,var(--world-accent) 65%,transparent);
+  box-shadow: inset 0 0 0 3px var(--world-surface),0 0 25px color-mix(in srgb,var(--world-glow) 16%,transparent);
+}
+[data-world-theme] :is(.campaign-map-header,.campaign-map-selection) {
+  background: linear-gradient(180deg,color-mix(in srgb,var(--world-surface) 92%,#182333),var(--world-ink));
+  border-color: color-mix(in srgb,var(--world-accent) 30%,transparent);
+}
+[data-world-theme] .campaign-map-header::after {
+  background: linear-gradient(90deg,transparent,var(--world-secondary),var(--world-accent),transparent);
+  box-shadow: 0 0 7px color-mix(in srgb,var(--world-glow) 40%,transparent);
+}
+[data-world-theme] :is(.campaign-map-heading span,.campaign-map-selection-topline,.campaign-map-environment) { color: var(--world-accent); }
+.campaign-map-node[data-world-theme].is-unlocked .campaign-map-node-ring { border-color: var(--world-accent); }
+.campaign-map-node[data-world-theme].is-selected .campaign-map-node-core { box-shadow: inset 0 0 12px color-mix(in srgb,var(--world-accent) 24%,transparent),0 0 14px color-mix(in srgb,var(--world-glow) 34%,transparent); }
+
+/* Opt-in adapter for Q: frame-anim on a positioned panel; frame-gem on a gem.
+   All decoration is inset, pointer-free and independent of layout/centering. */
+.frame-anim::after,[data-world-theme] .wave-record-art::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  z-index: 8;
+  pointer-events: none;
+  background-image: linear-gradient(var(--world-secondary),var(--world-accent)),linear-gradient(var(--world-accent),var(--world-secondary)),linear-gradient(var(--world-secondary),var(--world-accent)),linear-gradient(var(--world-accent),var(--world-secondary));
+  background-repeat: no-repeat;
+  background-size: 15px 2px,2px 15px,15px 2px,2px 15px;
+  background-position: 0 0,100% 0,100% 100%,0 100%;
+  opacity: .58;
+  animation: revamp-theme-running-light 8s steps(36,end) infinite;
+}
+[data-world-theme] .wave-record-art::before { inset: 8% 7%; }
+.frame-gem,[data-frame-gem] {
+  animation: revamp-theme-gem 3.8s steps(8,end) infinite;
+  color: var(--world-accent);
+}
+
+/* Existing result selectors are a compatibility adapter: Q can use the generic
+   classes above without changing this stylesheet. Scott's frame art stays gold. */
+[data-world-theme] .wave-victory-overlay {
+  --wave-cyan: var(--world-accent);
+  --wave-mint: var(--world-secondary);
+}
+[data-world-theme] .wave-victory-backdrop {
+  background: radial-gradient(ellipse at 50% 30%,color-mix(in srgb,var(--world-glow) 22%,transparent),transparent 65%),linear-gradient(#020817ed,#02050ffa);
+}
+[data-world-theme] :is(.wave-record-sector small,.wave-record-score>span,.wave-record-heading span,.result-reward--data strong,.result-reward__data) { color: var(--world-accent); }
+[data-world-theme] :is(.wave-record-stats,.wave-record-result-grid,.result-reward--data) { border-color: color-mix(in srgb,var(--world-accent) 36%,transparent); }
+[data-world-theme] .result-reward--data { background: linear-gradient(135deg,color-mix(in srgb,var(--world-glow) 24%,var(--world-ink)),var(--world-surface)); }
+[data-world-theme] .result-reward__data { text-shadow: 0 0 8px color-mix(in srgb,var(--world-glow) 45%,transparent); animation: revamp-theme-gem 3.8s steps(8,end) infinite; }
+[data-world-theme] .wave-victory-continue {
+  border-color: var(--world-accent);
+  background: linear-gradient(120deg,color-mix(in srgb,var(--world-glow) 30%,#071c22),color-mix(in srgb,var(--world-glow) 48%,#071c22));
+}
+[data-world-theme] :is(.wave-record-glow,.wave-victory-glow,.wave-victory-flare,.wave-record-ring) { filter: hue-rotate(var(--world-energy-hue)) drop-shadow(0 0 5px var(--world-glow)); }
+[data-world-theme] .wave-record-lamp { filter: drop-shadow(0 0 3px var(--world-glow)); }
+/* The source crown contains gold prongs. Reuse it only through a diamond mask
+   over the green crystal, preserving every original gold/steel frame pixel. */
+[data-world-theme] .wave-victory-plaque-art::before {
+  content: '';
+  position: absolute;
+  top: -2%;
+  left: 36%;
+  width: 28%;
+  height: 50%;
+  z-index: 5;
+  pointer-events: none;
+  background: url('/game-art/generated/ui/scicon-ui-system-v2/animations/weekly-champion-reveal/parts/crown-cap.png') center / contain no-repeat;
+  --frame-gem-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 273 217'%3E%3Cpath fill='white' d='M137 56 160 98 160 144 137 174 113 144 113 98Z'/%3E%3C/svg%3E");
+  mask: var(--frame-gem-mask) center / contain no-repeat;
+  -webkit-mask: var(--frame-gem-mask) center / contain no-repeat;
+  image-rendering: pixelated;
+  filter: hue-rotate(var(--world-gem-hue));
+  animation: revamp-theme-gem 3.8s steps(8,end) infinite;
+}
+[data-world-theme] .sci-gameover-window__rail {
+  background: linear-gradient(90deg,transparent,var(--world-accent),transparent);
+  box-shadow: 0 0 8px color-mix(in srgb,var(--world-glow) 45%,transparent);
+}
+/* Weekly results inherit the broadcast palette inside the original defeat frame. */
+[data-world-theme] .sci-gameover-result-content .sci-weekly-run-result {
+  border-color: color-mix(in srgb,var(--world-accent) 40%,transparent);
+  background: radial-gradient(ellipse at top,color-mix(in srgb,var(--world-glow) 22%,var(--world-surface)),var(--world-ink));
+}
+[data-world-theme] .sci-gameover-result-content .sci-weekly-run-result__eyebrow,
+[data-world-theme] .sci-gameover-result-content .sci-weekly-run-result__grid > div:last-child strong {
+  color: var(--world-accent);
+}
+[data-world-theme] .sci-gameover-result-content .sci-weekly-run-result__grid strong span { color: inherit; }
+[data-world-theme] .sci-gameover-result-content .sci-weekly-run-result__grid > div + div {
+  border-color: color-mix(in srgb,var(--world-secondary) 24%,transparent);
+}
+
+/* Low-frequency metal glint is clipped to the existing opaque frame pixels. */
+.frame-metal-shimmer::before,[data-world-theme] .wave-record-art::after,[data-world-theme] .sci-gameover-window::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(112deg,transparent 40%,#fff2b532 48%,#fff9d970 50%,transparent 56%) 150% 0 / 280% 100% no-repeat;
+  mask: var(--frame-shimmer-mask) center / 100% 100% no-repeat;
+  -webkit-mask: var(--frame-shimmer-mask) center / 100% 100% no-repeat;
+  mix-blend-mode: screen;
+  animation: revamp-theme-metal 9s steps(48,end) infinite;
+}
+[data-world-theme] .wave-record-art { --frame-shimmer-mask: url('/game-art/generated/ui/scicon-ui-system-v2/animations/mission-record-verification/parts/record-card-body.png'); }
+[data-world-theme] .sci-gameover-window { --frame-shimmer-mask: url('/game-art/generated/ui/scicon-game-over-panel-v1/scicon-game-over-panel-tall.png'); }
+
+@keyframes revamp-theme-running-light {
+  0% { background-position: 0 0,100% 0,100% 100%,0 100%; }
+  100% { background-position: 100% 0,100% 100%,0 100%,0 0; }
+}
+@keyframes revamp-theme-gem { 0%,100% { opacity: .74; } 45%,60% { opacity: 1; } }
+@keyframes revamp-theme-metal {
+  0%,72% { background-position: 150% 0; opacity: 0; }
+  76% { opacity: .85; }
+  92% { background-position: -50% 0; opacity: .85; }
+  100% { background-position: -50% 0; opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .frame-anim::after,.frame-gem,[data-frame-gem],[data-world-theme] .wave-record-art::before,[data-world-theme] .wave-victory-plaque-art::before,[data-world-theme] .result-reward__data { animation: none; opacity: 1; }
+  .frame-metal-shimmer::before,[data-world-theme] .wave-record-art::after,[data-world-theme] .sci-gameover-window::after { animation: none; opacity: 0; }
+}

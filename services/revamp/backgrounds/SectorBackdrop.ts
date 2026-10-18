@@ -5,7 +5,9 @@ import { createBackgroundQuad } from '../performance/BackgroundQuad';
 import { tagLargeSprite } from '../performance/SelectedSpriteBatcher';
 import { BackdropTextures } from './BackdropTextures';
 import { createMissionBackdropLayout, type MissionBackdropLayout } from './layout';
-import { createBackdropRandom, resolveMissionBackdrop, type MissionBackdropSelection } from './themes';
+import { createBackdropRandom, type MissionBackdropSelection } from './themes';
+// REVAMP(R): Weekly uses the same N scenery pipeline with its broadcast palette.
+import { resolveWorldBackdrop } from '../theme/WorldBackdrop';
 import { bakeCapitalShip, bakeDebris, bakeNebula, bakePlanet, bakeSignature, mixColor } from './pixelArt';
 import { backdropDetailBudget, sampleBackdropEvent, warpEnvelope, type SET_PIECE_DURATION } from './timeline';
 
@@ -66,7 +68,7 @@ export class SectorBackdrop {
     const restarted = engine.frameCount < this.lastFrame;
     if (this.levelId !== levelId || this.campaign !== engine.campaign || restarted) {
       this.levelId = levelId; this.campaign = engine.campaign;
-      this.select(resolveMissionBackdrop(engine.campaign, levelId));
+      this.select(resolveWorldBackdrop(engine.campaign, levelId));
     }
     this.lastFrame = this.lastFrame < 0 ? engine.frameCount : this.lastFrame;
     if (!this.selection || !this.layout) { this.root.visible = false; this.lastFrame = engine.frameCount; return false; }
