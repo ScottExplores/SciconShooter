@@ -1,6 +1,7 @@
 import type { BossComponentState, Entity, GameEngine } from '../../gameLogic';
 import { getBossCoinBurstCount } from '../../bossCoinBurst';
 import { revampEvents } from '../events';
+import { playBossDeathSequence } from '../vfx/BossDeathSequence';
 import { resolveRevampBoss } from './catalog';
 import {
   advanceBossEncounter, beginBossPhaseTransition, bossCanTakeDamage,
@@ -177,6 +178,8 @@ export const defeatRevampBoss = (engine: GameEngine, boss: Entity): void => {
   if (!state || state.stage === 'defeated') return;
   state.stage = 'defeated'; state.plan = null; state.attack = null;
   cancelBossHazards(engine, boss, 'defeat');
+  // REVAMP(S): Safe to call again from the common feel receipt or O's terminal hook.
+  playBossDeathSequence(engine, boss);
   const base = payload(engine, boss, state);
   revampEvents.emit('boss:defeat', base);
   for (let index = 0; index < 6; index++) {

@@ -49,6 +49,8 @@ import {
   runRequiredGameplayAssetPreloadQueue
 } from '../gameplayAssetPreloadBudget';
 import { ArcadeEffectPool } from './ArcadeEffectPool';
+// REVAMP(S): One death sequence owns retained hull art and procedural pixel explosions.
+import { BossDeathPresentation } from '../revamp/vfx/BossDeathPresentation';
 import { CombatImpactPresentation } from './CombatImpactPresentation';
 // REVAMP(A): Pooled feel presentation; shared renderer only delegates hooks.
 import { FeelPresentation, drawReadableProjectile } from '../revamp/feel/FeelPresentation';
@@ -1459,6 +1461,8 @@ export class PixiGameRenderer {
     () => createSoftRadialLight()
   );
   private readonly effectPool = new ArcadeEffectPool(this.layers.effects);
+  private readonly bossDeaths = new BossDeathPresentation(this.effectPool, this.layers.enemy,
+    this.layers.overlay, this.layers.background, () => this.app.renderer); // REVAMP(S)
   // REVAMP(A): All transient effects share the existing bounded pool.
   // REVAMP(J): Derived alpha masks are cached per renderer and disposed with it.
   private readonly hitFlashTextures = new HitFlashTextureCache(() => this.app.renderer);
@@ -6130,6 +6134,7 @@ export class PixiGameRenderer {
       && engine.lastBossTerminalOutcome !== 'escaped'
       && engine.waveTransitionPending
       && this.lastBossSnapshot
+      && !this.bossDeaths.hasHandled(this.lastBossSnapshot.id) // REVAMP(S): Avoid the legacy second death chain.
       && !this.bossDeathHandled
     ) {
       this.startBossDeath(this.lastBossSnapshot);
@@ -6829,6 +6834,7 @@ export class PixiGameRenderer {
         }
       }
       this.updateEntityView(view, entity, engine);
+      if (this.bossDeaths.hasHandled(entity.id)) view.root.visible = false; // REVAMP(S): Retained dying mini-boss art owns the pose.
     }
 
     const playerView = this.views.get('__player__') ?? (() => {
@@ -7989,6 +7995,11 @@ export class PixiGameRenderer {
     this.environment.setBackdropVisible(!sectorBackdropActive);
     if (!sectorBackdropActive) this.environment.update(engine);
     this.effectPool.setQuality(engine.performanceMode, engine.mobileProfile, quality.particleScale);
+    // REVAMP(S): Capture before syncEntities releases views; clocks keep advancing during hit-stop.
+    this.effectPool.setReducedMotion(getFeelSettings().reducedMotion);
+    this.bossDeaths.sync(engine, elapsedMs, quality, (id) => this.views.get(id));
+    this.camera.x += this.bossDeaths.cameraOffset.x;
+    this.camera.y += this.bossDeaths.cameraOffset.y;
     // REVAMP(A): Advance VFX during simulation hit-stop and consume receipts once.
     // REVAMP(P): Pickup spawn/collect accents share the pooled quality budget.
     this.feelPresentation.beginFrame(engine, elapsedMs, quality.particleScale,
@@ -8047,6 +8058,7 @@ export class PixiGameRenderer {
     this.releaseSelectedBatcher?.();
     // REVAMP(A): Release owned text/filter state before the stage is destroyed.
     this.feelPresentation.destroy();
+    this.bossDeaths.destroy(); // REVAMP(S): Includes snapshot textures, filters and context listeners.
     this.combatHeaderInsets.destroy();
     this.hitFlashTextures.destroy();
     this.effectPool.destroy();

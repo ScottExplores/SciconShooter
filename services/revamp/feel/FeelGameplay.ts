@@ -1,5 +1,6 @@
 import { EntityType } from '../../../types';
 import type { Entity, GameEngine } from '../../gameLogic';
+import { playBossDeathSequence } from '../vfx/BossDeathSequence';
 
 const aimedShots = new WeakSet<object>();
 export const markAimedShot = (shot: object) => { aimedShots.add(shot); };
@@ -7,13 +8,16 @@ export const isAimedShot = (shot: object) => aimedShots.has(shot);
 
 /** Receipts are presentation only; rewards remain owned by the existing economy. */
 export function recordFeelKill(engine: GameEngine, target: Entity, score: number) {
+  // REVAMP(S): All major and mini-boss terminal paths share one idempotent visual API.
+  const bossDeathSequence = target.type === EntityType.BOSS || target.type === EntityType.MINI_BOSS;
+  if (bossDeathSequence) playBossDeathSequence(engine, target, target.type === EntityType.MINI_BOSS);
   const tier = target.type === EntityType.BOSS ? 'boss'
     : target.isElite || target.type === EntityType.MINI_BOSS
       || target.type === EntityType.ENEMY_BRICK || target.type === EntityType.ENEMY_JOURNAL
       || target.type === EntityType.ENEMY_INVADER ? 'elite' : 'small';
   const freeze = engine.feel.recordKill({
     frame: engine.frameCount, x: target.x + target.width / 2, y: target.y + target.height / 2,
-    tier, score, color: target.color || '#67e8f9', width: target.width, height: target.height
+    tier, score, color: target.color || '#67e8f9', width: target.width, height: target.height, bossDeathSequence
   });
   if (freeze) engine.addHitStop(freeze);
 }
