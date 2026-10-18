@@ -1,4 +1,7 @@
 // REVAMP(H): The original frame now presents an ordered medal and reward reveal.
+import { FrameEffects } from './revamp/FrameEffects';
+import { ResultScroll } from './revamp/ResultScroll';
+import { useResultViewport } from './revamp/useResultViewport';
 import { ResultMedals, ResultRewards } from './revamp/ResultRewards';
 import { AnimatedNumber } from './revamp/UiMotion';
 import type { RevampMedal, RevampMissionSettlement } from '../services/revamp/progression/types';
@@ -43,6 +46,7 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
   onOpenCampaignMap,
   onReturnHome
 }) => {
+  const viewportStyle = useResultViewport();
   const observedMedals: RevampMedal[] = ['clear'];
   if (summary.revampMetrics && summary.revampMetrics.spawned > 0 && summary.revampMetrics.kills / summary.revampMetrics.spawned >= 0.9) observedMedals.push('kills');
   if (summary.damageTaken === 0) observedMedals.push('noHit');
@@ -105,13 +109,14 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
   return (
     <div
       className="wave-victory-overlay is-mission-result"
+      style={viewportStyle}
       role="dialog"
       aria-modal="true"
       aria-labelledby="wave-victory-title"
     >
       <div className="wave-victory-backdrop" aria-hidden="true" />
       <div className="wave-victory-stage">
-        <header className="wave-victory-plaque">
+        <header className="wave-victory-plaque" data-frame-inner-rect="20.5 47 79.5 77.4">
           <div className="wave-victory-plaque-art" aria-hidden="true">
             <LayerImage className="wave-victory-glow" src={`${CHAMPION_PARTS}/energy-glow.png`} />
             <LayerImage className="wave-victory-wing wave-victory-wing-left" src={`${CHAMPION_PARTS}/wing-left.png`} />
@@ -121,7 +126,8 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
             <LayerImage className="wave-victory-flare" src={`${CHAMPION_PARTS}/energy-flare.png`} />
             <LayerImage className="wave-victory-scan" src={`${CHAMPION_PARTS}/scan-bar.png`} />
           </div>
-          <div className="wave-victory-copy">
+          <FrameEffects variant="banner" art={`${CHAMPION_PARTS}/plaque-body.png`} />
+          <div className="wave-victory-copy" data-ui-center="x">
             <h1
               id="wave-victory-title"
               className={campaignComplete ? 'wave-victory-title-complete' : undefined}
@@ -134,6 +140,7 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
 
         <section
           className={`wave-record-shell wave-record-shell-mission ${missionMastered ? 'is-mastered' : ''}`}
+          data-frame-inner-rect="18.5 16 81.5 84"
           data-onboarding-target="mission-rewards"
           aria-label={`Mission ${summary.stage} completed after ${summary.waveTotal} waves`}
         >
@@ -148,18 +155,21 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
             <LayerImage className="wave-record-scan" src={`${RECORD_PARTS}/scan-strip.png`} />
           </div>
 
+          <FrameEffects variant="record" art={`${RECORD_PARTS}/record-card-body.png`} />
+          {/* REVAMP(Q): The measured inner rectangle scrolls independently of the action dock. */}
+          <ResultScroll>
           <div className="wave-record-content">
             <div className="wave-record-heading">
               <span>Mission Record</span>
               <strong>Mission {summary.stage} · W{summary.waveNumber}/{summary.waveTotal}</strong>
             </div>
 
-            <div className="wave-record-sector">
+            <div className="wave-record-sector" data-ui-center="x">
               <span>{summary.stageName}</span>
               <small>{summary.finalWaveName}</small>
             </div>
 
-            <div className="wave-record-score">
+            <div className="wave-record-score" data-ui-center="x">
               <span>Mission Score</span>
               <strong><AnimatedNumber value={summary.scoreEarned} delay={350} duration={950} /></strong>
             </div>
@@ -184,7 +194,7 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
             </div>
 
             <ResultMedals settlement={revampSettlement} observedMedals={observedMedals} />
-            <ResultRewards credits={rewardCredits} settlement={revampSettlement} />
+            <ResultRewards campaignReward={campaignResult} credits={rewardCredits} settlement={revampSettlement} />
             <div className="wave-record-result-grid">
               <div><span>Total Score</span><strong>{summary.totalScore.toLocaleString()}</strong></div>
               {campaignSettlement ? (
@@ -199,10 +209,11 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
               {recordStatus}
             </div>
           </div>
+          </ResultScroll>
         </section>
 
         <div className="wave-victory-actions">
-          <button
+          <button data-ui-center="both" data-ui-min-target="44"
             className="wave-victory-continue"
             type="button"
             onClick={onContinue}
@@ -213,7 +224,7 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
             <strong>{primaryAction.target}</strong>
           </button>
           {onOpenHangar && !bossArchiveReplay ? (
-            <button
+            <button data-ui-center="both" data-ui-min-target="44"
               className="wave-victory-secondary is-hangar"
               type="button"
               onClick={onOpenHangar}
@@ -225,7 +236,7 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
             </button>
           ) : null}
           {onOpenCampaignMap && !bossArchiveReplay ? (
-            <button
+            <button data-ui-center="both" data-ui-min-target="44"
               className="wave-victory-secondary is-map"
               type="button"
               onClick={onOpenCampaignMap}
@@ -237,7 +248,7 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
             </button>
           ) : null}
           {onReturnHome ? (
-            <button
+            <button data-ui-center="both" data-ui-min-target="44"
               className="wave-victory-secondary is-home"
               data-onboarding-target="mission-home"
               data-guide-required={guideRequiresHome ? 'true' : 'false'}

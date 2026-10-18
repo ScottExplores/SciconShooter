@@ -1,7 +1,7 @@
 import {readFile,mkdir,copyFile} from 'node:fs/promises';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {UI_DEVICES,UI_SCREEN_NAMES,writeReport} from './ui-audit.mjs';
+import {UI_DEVICES,UI_SCREEN_NAMES,UI_GEOMETRY_ENGINE_HASH,writeReport} from './ui-audit.mjs';
 
 /** Combine sequential batches without turning missing/failed coverage into a pass. */
 export async function combineUiReports(reportPaths,{output='/workspace/scicon-revamp/qa',runId}={}){
@@ -10,10 +10,10 @@ export async function combineUiReports(reportPaths,{output='/workspace/scicon-re
   const cases=new Map(), provenance=[], browserErrors=[],network=[];
   for(const reportPath of reportPaths){
     const source=JSON.parse(await readFile(reportPath,'utf8'));
-    provenance.push({runId:source.runId,dist:source.dist,reportPath:path.resolve(reportPath),startedAt:source.startedAt,finishedAt:source.finishedAt||'interrupted after captured cases'});
+    provenance.push({runId:source.runId,dist:source.dist,geometryEngineHash:source.geometryEngineHash,reportPath:path.resolve(reportPath),startedAt:source.startedAt,finishedAt:source.finishedAt||'interrupted after captured cases'});
     for(const result of source.results){
       if(result.status==='running')continue;
-      cases.set(`${result.device}:${result.screen}`,{...result,build:result.build||source.dist||'unrecorded legacy build',sourceRunId:source.runId,sourceReport:path.resolve(reportPath),sourceArtifactDir:source.artifactDir});
+      cases.set(`${result.device}:${result.screen}`,{...result,build:result.build||source.dist||'unrecorded legacy build',geometryEngineHash:result.geometryEngineHash||source.geometryEngineHash,sourceRunId:source.runId,sourceReport:path.resolve(reportPath),sourceArtifactDir:source.artifactDir});
     }
     browserErrors.push(...source.browserErrors);network.push(...source.network);
   }
@@ -21,11 +21,12 @@ export async function combineUiReports(reportPaths,{output='/workspace/scicon-re
     if(!cases.has(`${device}:${screen}`))browserErrors.push({device,error:`Required screen was not captured: ${screen}`});
   }
   const results=[...cases.values()];
+  for (const result of results) if (result.geometryEngineHash !== UI_GEOMETRY_ENGINE_HASH) browserErrors.push({device:result.device,error:`Geometry engine mismatch for ${result.screen}; recapture this case with the current checker`});
   for(const result of results){
     const directory=path.join(artifactDir,result.device);await mkdir(directory,{recursive:true});
     for(const screenshot of result.screenshots)await copyFile(path.join(result.sourceArtifactDir,result.device,screenshot),path.join(directory,screenshot));
   }
-  const report={runId,artifactDir,startedAt:provenance[0]?.startedAt,finishedAt:new Date().toISOString(),devices:Object.keys(UI_DEVICES),partial:false,results,browserErrors,network,provenance};
+  const report={runId,artifactDir,geometryEngineHash:UI_GEOMETRY_ENGINE_HASH,startedAt:provenance[0]?.startedAt,finishedAt:new Date().toISOString(),devices:Object.keys(UI_DEVICES),partial:false,results,browserErrors,network,provenance};
   await writeReport(report);return report;
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){

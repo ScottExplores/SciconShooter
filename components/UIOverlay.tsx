@@ -371,7 +371,8 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
             aria-label={`Score ${stats.score}`}
           >
             <div className="sci-compact-score-hud__inner flex h-full w-full items-center">
-              <span className={`arcade-font relative z-10 w-full -translate-y-[2%] whitespace-nowrap pl-[0.8rem] pr-[0.3rem] text-center font-black leading-none text-slate-50 drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)] [font-variant-numeric:tabular-nums] ${stats.score >= 100000000 ? 'text-[0.58rem] tracking-[0]' : stats.score >= 1000000 ? 'text-[0.68rem] tracking-[0.02em]' : 'text-[0.78rem] tracking-[0.06em]'}`}>
+              {/* REVAMP(Q): Equal side padding centers the score without changing its glyph budget. */}
+              <span className={`arcade-font relative z-10 w-full -translate-y-[2%] whitespace-nowrap px-[0.55rem] text-center font-black leading-none text-slate-50 drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)] [font-variant-numeric:tabular-nums] ${stats.score >= 100000000 ? 'text-[0.58rem] tracking-[0]' : stats.score >= 1000000 ? 'text-[0.68rem] tracking-[0.02em]' : 'text-[0.78rem] tracking-[0.06em]'}`}>
                 <HudCounter value={stats.score} compactAbove={1_000_000}>{stats.score.toString().padStart(6, '0')}</HudCounter>
               </span>
             </div>

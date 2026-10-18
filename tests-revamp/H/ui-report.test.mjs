@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {mkdtemp,mkdir,writeFile,rm} from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import {UI_DEVICES,UI_SCREEN_NAMES} from '../../tools-revamp/qa/ui-audit.mjs';
+import {UI_DEVICES,UI_SCREEN_NAMES,UI_GEOMETRY_ENGINE_HASH} from '../../tools-revamp/qa/ui-audit.mjs';
 import {combineUiReports} from '../../tools-revamp/qa/ui-report.mjs';
 
 test('combined UI report cannot pass with missing device or screen coverage',async()=>{
@@ -27,7 +27,7 @@ test('combined UI report preserves failed cases and records later verified repla
       await mkdir(path.join(temp,device));await writeFile(path.join(temp,device,'capture.png'),'fixture');
       for(const screen of [...UI_SCREEN_NAMES,...(device==='desktop'?['desktop-shell','desktop-playing-shell']:[])])results.push({device,screen,source:'test fixture',status:'passed',violations:[],screenshots:['capture.png'],checkedTextNodes:8,checkedControls:2});
     }
-    const base={runId:'base',artifactDir:temp,dist:'snapshot-a',results,browserErrors:[],network:[],finishedAt:new Date().toISOString()};
+    const base={runId:'base',artifactDir:temp,dist:'snapshot-a',geometryEngineHash:UI_GEOMETRY_ENGINE_HASH,results,browserErrors:[],network:[],finishedAt:new Date().toISOString()};
     const baseFile=path.join(temp,'base.json');await writeFile(baseFile,JSON.stringify(base));
     const replacement={...base,runId:'replacement',dist:'snapshot-b',results:[{...results[0],status:'failed',violations:[{type:'text-clipped',selector:'p',text:'Label',screenshot:'capture.png'}]}]};
     const replaceFile=path.join(temp,'replacement.json');await writeFile(replaceFile,JSON.stringify(replacement));
@@ -35,8 +35,12 @@ test('combined UI report preserves failed cases and records later verified repla
     assert.equal(failed.status,'failed');assert.equal(failed.overflowCount,1);
     replacement.results[0]={...results[0]};await writeFile(replaceFile,JSON.stringify(replacement));
     const repaired=await combineUiReports([baseFile,replaceFile],{output:temp,runId:'repaired'});
-    assert.equal(repaired.status,'passed');assert.equal(repaired.results.length,UI_SCREEN_NAMES.length*4+2);
+    assert.equal(repaired.status,'passed');assert.equal(repaired.results.length,UI_SCREEN_NAMES.length*Object.keys(UI_DEVICES).length+2);
     assert.equal(repaired.results[0].build,'snapshot-b');assert.equal(repaired.results[0].sourceRunId,'replacement');
     assert.equal(repaired.provenance.length,2);
+    replacement.geometryEngineHash='earlier-checker';await writeFile(replaceFile,JSON.stringify(replacement));
+    const outdated=await combineUiReports([baseFile,replaceFile],{output:temp,runId:'outdated'});
+    assert.equal(outdated.status,'failed');
+    assert.ok(outdated.browserErrors.some(item=>item.error.includes('Geometry engine mismatch')));
   }finally{await rm(temp,{recursive:true,force:true});}
 });

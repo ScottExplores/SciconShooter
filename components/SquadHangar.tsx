@@ -181,7 +181,8 @@ const AnimatedSelector = ({
 const AnimatedTraceLabel = ({ children }: { children: React.ReactNode }) => {
   const frame = useAnimationFrame(traceFrames.length, TRACE_LABEL_FRAME_DELAY_MS);
   return (
-    <div className="relative mx-auto h-14 w-full max-w-[24rem]">
+    // REVAMP(Q): All 24 320×96 trace frames are clear (alpha≤1) inside x24..296/y24..72.
+    <div className="relative mx-auto h-14 w-full max-w-[24rem]" data-frame-inner-rect="7.5 25 92.5 75">
       <img src={traceFrames[frame]} alt="" draggable={false} className="absolute inset-0 h-full w-full object-fill" />
       <div className="relative flex h-full items-center justify-center px-9 pb-1 text-center text-sm font-black uppercase tracking-[0.08em] text-cyan-100 sm:text-base">
         {children}
@@ -603,6 +604,9 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
                     tone="cyan"
                     disabled={busy || !sku.enabled}
                     onClick={() => onPurchaseWithRsc(skuId)}
+                    // REVAMP(Q): The cyan CSS face ends above the raised lower rail (12..72% of inset chrome).
+                    data-frame-inner-rect="14 16 86 72"
+                    data-ui-center="both"
                     className="sci-token-exchange-action min-h-12 px-1 text-[0.55rem] font-black uppercase"
                   >
                     <span className="flex flex-col items-center leading-tight">

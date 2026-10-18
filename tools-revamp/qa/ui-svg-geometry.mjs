@@ -1,7 +1,7 @@
 /** Browser-side SVG typography audit, including same-origin SVG image cards. */
 export async function auditSvgTextGeometry() {
   const violations = [];
-  let checkedSvgTexts = 0;
+  let checkedSvgTexts = 0, checkedSvgCenters = 0;
   const visible = element => {
     for (let node = element; node instanceof Element; node = node.parentElement) {
       const css = getComputedStyle(node);
@@ -27,6 +27,17 @@ export async function auditSvgTextGeometry() {
       const bounds = declared?.length === 4 && declared.every(Number.isFinite) ? {x:declared[0],y:declared[1],width:declared[2],height:declared[3]} : {x:view.x,y:view.y,width:view.width,height:view.height};
       const box = entry.box;
       if (box.x < bounds.x - 2 || box.x + box.width > bounds.x + bounds.width + 2 || box.y < bounds.y - 2 || box.y + box.height > bounds.y + bounds.height + 2) add('svg-text-outside-column',entry);
+      // REVAMP(Q): centered SVG card titles/stats use their declared column,
+      // with the same 3 CSS-pixel threshold as DOM labels after image scaling.
+      if (declared?.length === 4 && declared.every(Number.isFinite) && getComputedStyle(entry.element).textAnchor === 'middle') {
+        checkedSvgCenters++;
+        const painted = mapRect(box), column = mapRect(bounds);
+        const offset = Math.abs(painted.x + painted.width / 2 - column.x - column.width / 2);
+        if (offset > 3) {
+          add('svg-text-off-center',entry);
+          violations.at(-1).centerOffset = {x:round(offset)};
+        }
+      }
     }
     for (let i=0;i<texts.length;i++) for(let j=i+1;j<texts.length;j++) if(overlap(texts[i].box,texts[j].box)) add('svg-text-overlap',texts[i],texts[j]);
   };
@@ -52,5 +63,5 @@ export async function auditSvgTextGeometry() {
       violations.push({type:'svg-image-audit-error',selector:'svg-image(record-card)',text:String(error.message).slice(0,180),rect:rect(img.getBoundingClientRect())});
     } finally {probe?.remove();}
   }
-  return {checkedSvgTexts,violations};
+  return {checkedSvgTexts,checkedSvgCenters,violations};
 }

@@ -9,7 +9,7 @@ import { startWeeklyCampaignStreak } from '../../weeklyCampaignStreak';
 import type { CampaignGraphIndex } from '../../campaignGraph';
 import { GAME_VERSION, type RunReceipt } from '../../runReceiptService';
 
-export type UIAuditScene = 'home' | 'victory' | 'defeat' | 'weekly-result' | 'weekly-score-entry' | 'record-preview' | 'proposal-selection' | 'story' | 'story-vault' | 'mission-help' | 'unlock-archive' | 'loading' | 'pause';
+export type UIAuditScene = 'home' | 'victory' | 'victory-long' | 'boss-result' | 'boss-defeat' | 'campaign-complete' | 'defeat' | 'weekly-result' | 'weekly-score-entry' | 'record-preview' | 'proposal-selection' | 'story' | 'story-vault' | 'mission-help' | 'unlock-archive' | 'loading' | 'pause';
 export const uiAuditEnabled = () => {
   if (typeof window === 'undefined') return false;
   const params = new URLSearchParams(window.location.search);
@@ -21,7 +21,7 @@ export function useUIAuditBridge(ready: boolean, present: (scene: UIAuditScene) 
     if (!ready || !uiAuditEnabled()) return;
     const target = window as typeof window & { __sciconUIAudit?: { present: (scene: UIAuditScene) => void } };
     target.__sciconUIAudit = { present: scene => {
-      if (!['home', 'victory', 'defeat', 'weekly-result', 'weekly-score-entry', 'record-preview', 'proposal-selection', 'story', 'story-vault', 'mission-help', 'unlock-archive', 'loading', 'pause'].includes(scene)) throw new Error('Unknown UI audit scene');
+      if (!['home', 'victory', 'victory-long', 'boss-result', 'boss-defeat', 'campaign-complete', 'defeat', 'weekly-result', 'weekly-score-entry', 'record-preview', 'proposal-selection', 'story', 'story-vault', 'mission-help', 'unlock-archive', 'loading', 'pause'].includes(scene)) throw new Error('Unknown UI audit scene');
       latest.current(scene);
     } };
     return () => { delete target.__sciconUIAudit; };
@@ -30,7 +30,7 @@ export function useUIAuditBridge(ready: boolean, present: (scene: UIAuditScene) 
 export const uiAuditStory = STORY_BEATS.reduce((longest, beat) => beat.text.length > longest.text.length ? beat : longest, STORY_BEATS[0]);
 // Use an authored Explorer bridge with his original ship portrait for the retained full-screen transmission.
 export const uiAuditVaultStory = CAMPAIGN_MISSIONS.map(mission => getStoryBeatForMission(mission.id)).find(beat => beat?.portrait) ?? uiAuditStory;
-export function createUIAuditVictory() {
+export function createUIAuditVictory(scene = 'victory') {
   const mission = CAMPAIGN_MISSIONS[0], next = CAMPAIGN_MISSIONS[1];
   const wave = mission.waves.at(-1)!;
   const summary: WaveVictorySummary = {
@@ -53,6 +53,19 @@ export function createUIAuditVictory() {
   });
   // Match the final presentation receipt after App finalizes collected Tokens.
   const settlement = { ...completion.settlement, coinsAwarded: completion.settlement.coinsAwarded + summary.coinsCollected };
+  // REVAMP(Q): Real authored content, plus accepted large-score formatting, inside
+  // the existing presentation-only bridge. These receipts never enter settlement.
+  if (scene !== 'victory') {
+    const longest = DEFAULT_GAME_CAMPAIGN.levels.reduce((a, b) => b.name.length > a.name.length ? b : a);
+    summary.stageName = longest.name;
+    summary.finalWaveName = longest.waves.at(-1)?.name ?? wave.name;
+    summary.scoreEarned = 987654321;
+    summary.totalScore = 987654321;
+    summary.enemiesDefeated = 1234;
+    summary.elapsedSeconds = 599;
+    settlement.coinsAwarded = 12480;
+  }
+  if (scene === 'campaign-complete') { summary.campaignComplete = true; summary.hasNextStage = false; }
   return { summary, settlement, revamp };
 }
 export function createUIAuditWeekly(graph: CampaignGraphIndex) {

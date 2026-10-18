@@ -4,25 +4,34 @@
 
 Build with `npm run build`, then run `npm run qa:ui -- --run-id H-ui-review`.
 The audit serves the built files through the same offline server/browser helpers
-as gameplay QA. It checks 360×640/DPR 2, 390×844/DPR 2, 430×932/DPR 3, and the
-real 1280×800 desktop launcher and game iframe. JSON, Markdown, and screenshots
+as gameplay QA. It checks short 360×560, 390×664, and 412×700 visual viewports (DPR 2),
+retains 360×640/DPR 2, 390×844/DPR 2, 430×932/DPR 3, and checks the
+real 1280×800 desktop launcher and game iframe. The short sizes represent space
+remaining after Android browser toolbars and an install banner. JSON, Markdown, and screenshots
 are written under `/workspace/scicon-revamp/qa/<runId>/`.
 
 The screen matrix covers menu tabs, campaign selection, research, wings and
 previews, populated/empty Signals and leaderboards, rewards, More panels,
 settings, pause, story, loading, and result/guest-record panels. Synthetic
 offline content includes long accepted pilot/proposal/author names and large
-scores. Every scrollable panel is sampled through its contents. Text ranges,
-scroll dimensions, border bounds, clipping, and overlapping controls are checked;
+scores. Result fixtures separately cover victory, the longest authored mission
+name, boss victory, campaign completion, defeat, boss defeat, and weekly results.
+Every scrollable panel is sampled through its contents. Text ranges,
+scroll dimensions, border bounds, clipping, overlapping controls, centering,
+image-frame interiors, and interactive safe-area bounds are checked;
 any overflow, navigation failure, or browser error fails the command. Closed
 details, screen-reader-only labels, ordinary scrolling, and the background behind
 a modal are distinguished from visible clipped text. Visible `aria-hidden`
 counters are still checked. `tests-revamp/H/` plants actual faults to verify the
-checker.
+checker. `tests-revamp/Q/` plants horizontal/vertical centering faults, frame-border
+intrusions, offscreen buttons, and real CDP-emulated `env(safe-area-inset-*)`
+insets to prove the additional checks.
 
 SVG mission-record images are fetched from the offline fixture server and their
 text is measured with SVG `getBBox()`. Explicit text-column bounds detect collisions
-inside the image, which ordinary DOM text ranges cannot see. The Flight Guide case
+inside the image, which ordinary DOM text ranges cannot see. Middle-anchored SVG
+titles and stat labels with declared columns also fail above a 3 CSS-pixel center
+offset, measured after the image's display scaling. The Flight Guide case
 uses a normal disposable guest session because `qa=1` intentionally disables
 onboarding; its real mission is launched and the steering lesson must be visible.
 
@@ -37,6 +46,9 @@ The composer requires every screen/device pair, retains failures, and fails on
 missing coverage. A later capture of the same pair replaces the earlier one;
 each case records its build and source report, and the original reports remain
 untouched. This supports explicit rechecks after a localized fix.
+Each capture records a SHA-256 hash of the DOM/SVG geometry engines; composing
+a final report fails if any retained case used an older checker. A newer capture
+must replace that case rather than silently dropping its earlier violations.
 
 The opt-in `?qa=1&uiAudit=1` bridge supplies presentation fixtures using production
 components and disposable QA storage; it freezes combat/settlement while a fixture
@@ -52,8 +64,38 @@ build is running so lazy-loaded assets cannot disappear between captures.
 
 Motion respects the live OS reduced-motion preference, including menu sprite
 timers. Pixelify Sans and its OFL license are bundled locally in `public/fonts`.
-Visual review remains necessary for text intersecting decorative image frames,
-which have no DOM border geometry.
+Image frames declare their measured transparent interior with
+`data-frame-inner-rect="left top right bottom"`: all four values are percentages
+of the element border box, with right/bottom expressed as coordinates rather
+than insets. For example, `"12 15 88 90"` reserves 12% on each side, 15% above,
+and 10% below. Text painted outside that rectangle fails. A nested banner can
+declare its own inner rectangle; that nearest frame governs its descendants.
+Ordinary scroll content is measured only where painted, and every scroll slice
+is still captured. Invalid rectangle declarations also fail.
+
+Center-aligned blocks are inferred from `text-align:center`; button icon/text
+content is measured as one group and normal wrapped copy is checked per line.
+Flex/grid controls with explicit vertical centering also check the aggregate
+content's vertical center, including multiline labels and visible icon capsules.
+Positioned corner badges and headings are checked in their own label boxes,
+separately from a button's flowing content. When a centered control declares a
+frame inner rectangle, that painted interior supplies its alignment center.
+Use `data-ui-center="x"`, `"y"`, or `"both"` on an actual alignment box to
+explicitly assert the intended axes. A deviation greater than **3 CSS pixels**
+fails. `data-ui-center-icon` includes a non-image decoration in a centered button
+group. `data-ui-center="off"` is reserved for intentionally asymmetric designs,
+not for silencing a failed centered label. `data-ui-min-target="44"` declares a
+44px minimum interactive height on a control or its enclosing action dock.
+
+Interactive controls are checked against `visualViewport` and computed
+`env(safe-area-inset-*)`, including focusable scroll regions and ARIA controls.
+Wholly offscreen controls fail unless their content is
+reachable by an ordinary scrollport. The report records the actual viewport,
+insets, and separate center/frame/safe-control coverage counts. Visual review
+remains necessary for motion quality and agreement between the declared inner
+rectangle and the original frame PNG.
+Declared 44px targets are measured after the desktop iframe's CSS display scale,
+so a 44px game-space button rendered as 34px in the outer shell still fails.
 
 Build once with `npx vite build`, then run `npm run qa:playthrough`. The harness never builds, deploys, connects a wallet, or writes to a remote API. It serves the existing `dist` directory on an ephemeral loopback port. All `/api/*` GETs use JSON fixtures in `tools-revamp/qa/fixtures/`; POSTs receive `{ "ok": true }`. Browser requests outside the local origin are fulfilled offline, and WebSockets are closed. Request bodies, headers, and query values are not recorded.
 

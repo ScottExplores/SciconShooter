@@ -1,0 +1,28 @@
+/* REVAMP(Q): Static masks keep shimmer on metal; only transform/opacity animate. */
+.result-frame-light { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 4; }
+.result-frame-light__metal { position: absolute; inset: 0; mask: var(--frame-art) center / 100% 100% no-repeat; clip-path: polygon(0 0,100% 0,100% 100%,0 100%,0 0,18.5% 16%,18.5% 84%,81.5% 84%,81.5% 16%,18.5% 16%); }
+.result-frame-light__metal > i { position: absolute; inset: -50%; background: linear-gradient(115deg,transparent 42%,#ffe69a00 46%,#fff0ba70 49%,#ffffffaa 50%,#ffe69a00 54%,transparent 58%); transform: translateX(-70%); animation: result-frame-metal 6.8s ease-in-out 1.8s infinite; }
+.result-frame-light__track { position: absolute; top: 16%; bottom: 15%; width: 3px; overflow: hidden; }
+.result-frame-light__track--left { left: 9.8%; }
+.result-frame-light__track--right { right: 9.8%; transform: rotate(180deg); }
+.result-frame-light__track > i { position: absolute; inset: -100% 0 0; background: linear-gradient(transparent 40%,#a5ffff22 45%,#d2ffff 50%,transparent 55%); animation: result-frame-run 3.6s linear infinite; }
+.result-frame-light__gem { position: absolute; left: 46%; width: 8%; height: 5%; background: radial-gradient(ellipse,#f0ffffa0,#59cfff4a 45%,transparent 72%); animation: result-frame-breathe 2.8s ease-in-out infinite; }
+.result-frame-light__gem::after { content: ''; position: absolute; left: 45%; top: 20%; width: 2px; height: 2px; background: #fffce1; box-shadow: -3px 0 #fffce180,3px 0 #fffce180,0 -3px #fffce180,0 3px #fffce180; animation: result-frame-glint 4.6s steps(2,end) 1s infinite; }
+.result-frame-light__gem--top { top: 4.5%; }
+.result-frame-light__gem--bottom { bottom: 3%; animation-delay: -1.4s; }
+.result-frame-light--banner .result-frame-light__metal { inset: 19% 10% 1%; clip-path: polygon(0 0,100% 0,100% 100%,0 100%,0 0,13% 35%,13% 73%,87% 73%,87% 35%,13% 35%); }
+.result-frame-light--banner .result-frame-light__gem--top { left: 44%; width: 12%; height: 25%; top: 13%; background: radial-gradient(ellipse,#ddffe995,#5cff7b55 42%,transparent 70%); }
+.result-frame-light--banner .result-frame-light__gem--bottom { bottom: 8%; height: 9%; background: radial-gradient(ellipse,#f4ffdda0,#5cff7b55 42%,transparent 70%); }
+.result-frame-light--banner .result-frame-light__track { top: 48%; bottom: 26%; }
+.result-frame-light--banner .result-frame-light__track--left { left: 13%; }
+.result-frame-light--banner .result-frame-light__track--right { right: 13%; }
+.result-frame-light--defeat .result-frame-light__metal { clip-path: polygon(0 0,100% 0,100% 100%,0 100%,0 0,19% 13%,19% 87%,81% 87%,81% 13%,19% 13%); }
+.result-frame-light--defeat .result-frame-light__track { top: 20%; bottom: 20%; }
+.result-frame-light--defeat .result-frame-light__track--left { left: 11%; }
+.result-frame-light--defeat .result-frame-light__track--right { right: 11%; }
+.result-frame-light--defeat .result-frame-light__gem { display: none; }
+@keyframes result-frame-metal { 0%,55%,100% { opacity: 0; transform: translateX(-70%); } 62% { opacity: .6; } 80% { opacity: 0; transform: translateX(70%); } }
+@keyframes result-frame-run { from { transform: translateY(-25%); opacity: .3; } 50% { opacity: .85; } to { transform: translateY(75%); opacity: .3; } }
+@keyframes result-frame-breathe { 0%,100% { opacity: .25; transform: scale(.85); } 50% { opacity: .8; transform: scale(1.08); } }
+@keyframes result-frame-glint { 0%,70%,100% { opacity: 0; transform: scale(.5); } 80%,90% { opacity: .9; transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .result-frame-light { display: none; } }
