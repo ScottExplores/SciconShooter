@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no"
+    />
+    <meta name="theme-color" content="#02040a" />
+    <meta name="robots" content="noindex,nofollow,noarchive" />
+    <meta
+      name="description"
+      content="Standalone SciCon Shooter boss lab for testing bosses, elite encounters, and ship loadouts."
+    />
+    <title>SciCon Shooter Boss Lab</title>
+    <link rel="icon" href="/favicon.svg" />
+    <style>
+      :root {
+        color-scheme: dark;
+        --runner-background: #02040a;
+        --runner-ink: #dffcff;
+        --runner-accent: #58e6f2;
+      }
+
+      * { box-sizing: border-box; }
+
+      html, body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background:
+          radial-gradient(circle at 50% 12%, rgb(24 94 112 / 28%), transparent 40%),
+          linear-gradient(180deg, #07121c 0%, var(--runner-background) 52%);
+        color: var(--runner-ink);
+        font-family: Arial, Helvetica, sans-serif;
+      }
+
+      .runner-shell {
+        position: fixed;
+        inset: 0;
+        padding:
+          env(safe-area-inset-top, 0)
+          env(safe-area-inset-right, 0)
+          env(safe-area-inset-bottom, 0)
+          env(safe-area-inset-left, 0);
+      }
+
+      .runner-frame {
+        width: 100%;
+        height: 100%;
+        border: 0;
+        background: transparent;
+      }
+
+      .runner-noscript {
+        margin: 2rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="runner-shell">
+      <iframe
+        class="runner-frame"
+        src="/runner/index.html?release=0.34"
+        title="SciCon Shooter boss test arena"
+        allow="autoplay; fullscreen; gamepad"
+        allowfullscreen
+        loading="eager"
+        referrerpolicy="strict-origin-when-cross-origin"
+      ></iframe>
+      <noscript>
+        <p class="runner-noscript">JavaScript is required to run the SciCon Shooter boss lab.</p>
+      </noscript>
+    </main>
+  </body>
+</html>

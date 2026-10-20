@@ -1,0 +1,159 @@
+{
+  "schemaVersion": 1,
+  "kind": "scicon-read-only-boss-runner",
+  "campaignSha256": "e99356fa973d9d70260280664a8d1dffe47414967f798def4a38c0fa0a83d7dd",
+  "assets": [
+    {
+      "path": "prototype-assets/meridian-harrower/assembled.png",
+      "sha256": "1f55d59ef09ade50b9ec35465208b687c8fb8830047592bfae3daec67bfd28c5"
+    },
+    {
+      "path": "prototype-assets/meridian-harrower/sheet.png",
+      "sha256": "640d5fb62390fa8cb5c0644f780cf87c341b7c253564a5af710b7b3dffc569f4"
+    },
+    {
+      "path": "prototype-assets/helios-clawcarrier/assembled.png",
+      "sha256": "08fcc15404f57aecb70b35d9498b267bd4c2f313e84dc142becf190d7a9f7f57"
+    },
+    {
+      "path": "prototype-assets/helios-clawcarrier/sheet.png",
+      "sha256": "a686d39293f096e21adee7e7c85b78d1e2f3eb10d644f47b16235362eb7e9c11"
+    },
+    {
+      "path": "prototype-assets/helios-clawcarrier/reference.png",
+      "sha256": "8d6ce675283e1bb3dfd684247c13efaf80f1230400b529032dea3467f9177cb4"
+    },
+    {
+      "path": "prototype-assets/frontier-crownclaw/assembled.png",
+      "sha256": "3fe62b12ade41026f74c334e3272f28261a60c8a0935b003e536bcff9d33e342"
+    },
+    {
+      "path": "prototype-assets/frontier-crownclaw/sheet.png",
+      "sha256": "8da50a881b5ad2425c294e7b9f382172c7fadbff70b8b52f4d2206d793e980fb"
+    },
+    {
+      "path": "prototype-assets/frontier-crownclaw/reference.png",
+      "sha256": "a3c2e6853d192b45d996ee50b3432fd61d20513a2ea468695670d8df5957f4a5"
+    },
+    {
+      "path": "prototype-assets/prism-moth-broodkeeper/assembled.png",
+      "sha256": "cd0381398cbfb5003822f126192dc0d18af3fe874eff11defec9d57202109f39"
+    },
+    {
+      "path": "prototype-assets/prism-moth-broodkeeper/sheet.png",
+      "sha256": "5ef8ca7e395c94b3777d4f85808b5701f8bc952d96a335438e8353dcc82b6292"
+    },
+    {
+      "path": "prototype-assets/prism-moth-broodkeeper/reference.png",
+      "sha256": "b006c73ab1b027d5dce5ac2dc5cf841a2b2e30a202da264b91c00f8f93b77ade"
+    },
+    {
+      "path": "prototype-assets/aurora-storm-engine/assembled.png",
+      "sha256": "4b0db8c860f6813b60375241c4cbca710633bf1ea98677f3ab2d66d7b04925e3"
+    },
+    {
+      "path": "prototype-assets/aurora-storm-engine/sheet.png",
+      "sha256": "e2132ed3b90a78a64bea25350ed19477aa3a94a312beaffa258f1ba691351f5e"
+    },
+    {
+      "path": "prototype-assets/umbra-needlewing/assembled.png",
+      "sha256": "a1635e616add1b99336c366bc51499311f130ce62fbecd8d4a8956e1c9b2aba2"
+    },
+    {
+      "path": "prototype-assets/umbra-needlewing/sheet.png",
+      "sha256": "c98290efd065277225b9d64bbcf06f23e5013cd29ca9ae501f404c18750321d1"
+    },
+    {
+      "path": "prototype-assets/umbra-needlewing/reference.png",
+      "sha256": "2db71f4a183415e9851be2363b2224b8d7912e272922b55c7cfb8c1043e0ac21"
+    },
+    {
+      "path": "prototype-assets/cinderjaw-siege-beetle/assembled.png",
+      "sha256": "133b11009ad6ccb6f1b31252d10ee90554a31aaa56f0a6769e51f47f31744611"
+    },
+    {
+      "path": "prototype-assets/cinderjaw-siege-beetle/sheet.png",
+      "sha256": "62900c5d0aaa386b6c8c9b5ab84d0c91d22a55d3dcc99d0a3f4ea4ea2b142055"
+    },
+    {
+      "path": "prototype-assets/vesperglass-mothmother/assembled.png",
+      "sha256": "66ceb0d68b16951b054cb28dcc11d585f01813d6b8d63e94ec3ba8a94d6ab5ee"
+    },
+    {
+      "path": "prototype-assets/vesperglass-mothmother/sheet.png",
+      "sha256": "6e425e4faf5c1daefc7a8c16a7052e6dee407f02225b6ddf7c206fdf46398a67"
+    },
+    {
+      "path": "prototype-assets/twin-halo-wardens/assembled.png",
+      "sha256": "9982182d70ef8e8fe1e9c852377d5f1251719573211b49c172ec78d9ff90e170"
+    },
+    {
+      "path": "prototype-assets/twin-halo-wardens/sheet.png",
+      "sha256": "e386d8f70308b7f648b8f7480185913675fd9b1b1564ff9f9d66278d617b1030"
+    },
+    {
+      "path": "prototype-assets/riftcoil-wyrm/assembled.png",
+      "sha256": "8656a9ae41084c118ceffbe192b7ff0d9c4bd7d3eb3ad4e63de64e4fc8f12cf2"
+    },
+    {
+      "path": "prototype-assets/riftcoil-wyrm/sheet.png",
+      "sha256": "75f380b04706bf46fbaeb2b428c409549da55321359a36e7692aa7a6842f455e"
+    },
+    {
+      "path": "prototype-assets/nullwake-revenant/assembled.png",
+      "sha256": "5ee76a64cc5207e85be611744ada5784dd5c95776cc0e3262d3fbf888d3f5407"
+    },
+    {
+      "path": "prototype-assets/nullwake-revenant/sheet.png",
+      "sha256": "4b6fd55cac26b66b3c3705789e1e6ee6a91d87258d19aaff97f284457ba5a53f"
+    },
+    {
+      "path": "prototype-assets/nullwake-revenant/factory-atlas-v3.png",
+      "sha256": "a0d29566c3e925c764267f48202ce1a18247f28007b43ad7fdcba7c8573da2cd"
+    },
+    {
+      "path": "prototype-assets/gloamforge-mantis/assembled.png",
+      "sha256": "1f120a336cbd05bce0955b657964e35fb724ed59664b2301540a39b7c2c9bca8"
+    },
+    {
+      "path": "prototype-assets/gloamforge-mantis/sheet.png",
+      "sha256": "eb08e5b68bdbc6cc999f8d1e45d293628248308d338004d86be6d4f2e6857f60"
+    },
+    {
+      "path": "prototype-assets/sandbox-boss-vfx/sheet.png",
+      "sha256": "09bcf6e00e0a3d6d96b4a64f73f09a3b7a59b890219169bcf433ebfea2b7e8b1"
+    },
+    {
+      "path": "prototype-assets/fracture-engine-elite/fracture-engine-elite-neutral.png",
+      "sha256": "9317c47cad3831aeef0678f62e186fa5f77be361cf1b19bbe938d98f06d63e01"
+    },
+    {
+      "path": "prototype-assets/aegis-brood-core/aegis-brood-core-neutral.png",
+      "sha256": "b0c9362818de611a0e1a89204750c0c057b3eff8fbd27bce7904b97502a3a6d9"
+    },
+    {
+      "path": "prototype-assets/railspine-wallcrawler/railspine-wallcrawler-neutral.png",
+      "sha256": "ec4642aa28b32f53fe98d076ae53c6cfe6dc8021d97467b562d0e7adb2083f9e"
+    },
+    {
+      "path": "prototype-assets/maw-carrier/maw-carrier-neutral.png",
+      "sha256": "ed0b12a31c579c20126d25f6913a69cb0da6b35f17ce4fed4ad73fb2e8bcbecc"
+    },
+    {
+      "path": "prototype-assets/twin-meridian-sentinels/twin-meridian-sentinels-neutral.png",
+      "sha256": "200d196565e275f57a4060d9d665a2ea78678acb3e03ef21c07337f1645282d1"
+    },
+    {
+      "path": "prototype-assets/prism-bloom/prism-bloom-neutral.png",
+      "sha256": "f82046671d153b35e512c720d41ddcc4797ee358f7e16b6c75e1b2ee63da89df"
+    },
+    {
+      "path": "prototype-assets/aegis-convoy-captain/aegis-convoy-captain-neutral.png",
+      "sha256": "eebbbf517bf981ad9b279ed12124f56cf605d14b9fbe05db9aa4a4d3821c6da9"
+    },
+    {
+      "path": "prototype-assets/gridline-sentries/gridline-sentries-neutral.png",
+      "sha256": "60874bcd825f99656f0d00d9e239fc65ef7390b74a0d43dda7f7a0d1ed92eb52"
+    }
+  ]
+}
