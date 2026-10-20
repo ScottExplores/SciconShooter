@@ -1,0 +1,48 @@
+name: Boss lab pages
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - boss-lab/**
+      - public/game-art/**
+      - public/audio/**
+      - .github/workflows/boss-lab-pages.yml
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: boss-lab-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Assemble boss lab
+        env:
+          BASE_PATH: /SciconShooter
+          BOSS_LAB_ASSET_MODE: copy
+        run: node boss-lab/scripts/assemble-site.mjs
+
+      - name: Verify static asset URLs
+        run: node boss-lab/scripts/check-static-urls.mjs
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: boss-lab/dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
