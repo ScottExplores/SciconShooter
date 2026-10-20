@@ -717,7 +717,7 @@ export const buildFrontierCrownclawEngineTraceProof = (
   request: Readonly<FrontierCrownclawEngineTraceRequest>
 ): FrontierCrownclawEngineTraceProof => {
   invariant(
-    request.sandboxBoundary.source === 'director-sandbox-prototype'
+    request.sandboxBoundary.source === 'sandbox-prototype'
       && request.sandboxBoundary.sandboxOnly
       && !request.sandboxBoundary.promotionAllowed,
     'trace input must be the non-promotable Director sandbox prototype'

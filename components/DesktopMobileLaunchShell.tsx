@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { DONATION_CONFIG } from '../constants';
 import { trackEvent } from '../services/analyticsService';
 import { readSocialCampaignAttribution } from '../shared/socialCampaignAttribution.mjs';
+import { isBossLabQueryEnabled } from '../services/gameplay/bossLabFlag.mjs';
 import {
   buildMobileFrameUrl,
   DESKTOP_LAUNCH_MEDIA_QUERY,
@@ -62,6 +63,7 @@ export interface DesktopMobileLaunchShellProps {
 }
 
 const DesktopMobileLaunchShell: React.FC<DesktopMobileLaunchShellProps> = ({ children }) => {
+  const bossLabRequested = isBossLabQueryEnabled(window.location.search);
   const framedDisplayRequested = hasMobileFrameDisplay(window.location.href);
   const topLevel = window.self === window.top;
   const [desktopMediaMatches, setDesktopMediaMatches] = useState(readDesktopMediaMatch);
@@ -104,10 +106,11 @@ const DesktopMobileLaunchShell: React.FC<DesktopMobileLaunchShellProps> = ({ chi
   }, [useDesktopShell]);
 
   useEffect(() => {
-    if (useDesktopShell && !playHereSelected) trackDesktopLaunchView();
-  }, [playHereSelected, useDesktopShell]);
+    if (bossLabRequested || !useDesktopShell || playHereSelected) return;
+    trackDesktopLaunchView();
+  }, [bossLabRequested, playHereSelected, useDesktopShell]);
 
-  if (!useDesktopShell) return <>{children}</>;
+  if (bossLabRequested || !useDesktopShell) return <>{children}</>;
 
   const frameStyle = {
     '--scicon-mobile-frame-scale': String(frameScale)

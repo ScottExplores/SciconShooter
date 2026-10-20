@@ -139,7 +139,7 @@ test('Abyssal Octarch pins only accepted runtime art at content-addressed public
   for (const asset of assets) {
     assert.match(
       asset.url,
-      /^\/game-art\/generated\/bosses\/test-packages\/abyssal-octarch-v1\//
+      /^\/game-art\/generated\/bosses\/abyssal-octarch-v1\//
     );
     assert.ok(asset.url.includes(asset.hash));
     assert.doesNotMatch(asset.url, /director|__director|prototype-assets/);

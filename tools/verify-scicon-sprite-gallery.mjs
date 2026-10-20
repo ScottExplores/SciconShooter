@@ -195,7 +195,7 @@ if (
 ) {
   throw new Error("Helios mine explosion frames are not discoverable under Test Bosses & Prototypes");
 }
-const octarchRuntimeRoot = "/generated/bosses/test-packages/abyssal-octarch-v1/";
+const octarchRuntimeRoot = "/generated/bosses/abyssal-octarch-v1/";
 const requiredOctarchRuntimeAssets = [
   "assembled-a9fc10f01d3d6abcb51ff00b8be1a2b6ead7c02b10e7ee697369b2c1c1b7854d.png",
   "atlas-dae4d697b30ee0a7f6509022fc4273907452b7a71a02377bfe885a3523f4cf30.png",

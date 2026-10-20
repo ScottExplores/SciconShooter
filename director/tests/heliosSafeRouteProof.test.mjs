@@ -119,7 +119,7 @@ const {
 
 const preview = buildSandboxBossPrototypePreview(campaign, 'helios-clawcarrier');
 assert.equal(preview.sandboxPrototype.prototypeId, 'helios-clawcarrier');
-assert.equal(preview.sandboxPrototype.source, 'director-sandbox-prototype');
+assert.equal(preview.sandboxPrototype.source, 'sandbox-prototype');
 const artwork = createSandboxOnlyBossArtwork(preview);
 const bossEvent = preview.previewWave.events.find((event) => event.kind === 'boss');
 assert.ok(bossEvent?.timeline);

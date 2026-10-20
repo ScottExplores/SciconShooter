@@ -114,7 +114,7 @@ const miniBossExpectedDuration = (
 
 export interface SandboxBossPrototypeProvenance {
   readonly schemaVersion: 1;
-  readonly source: 'director-sandbox-prototype';
+  readonly source: 'sandbox-prototype';
   readonly sandboxOnly: true;
   readonly promotionAllowed: false;
   readonly prototypeId: SandboxBossPrototypeId;
@@ -5430,7 +5430,7 @@ const buildPreview = (
   });
   const sandboxPrototype = Object.freeze({
     schemaVersion: 1 as const,
-    source: 'director-sandbox-prototype' as const,
+    source: 'sandbox-prototype' as const,
     sandboxOnly: true as const,
     promotionAllowed: false as const,
     prototypeId: definition.id,

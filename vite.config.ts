@@ -3,6 +3,9 @@ import react from '@vitejs/plugin-react';
 import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const repositoryRoot = path.dirname(fileURLToPath(import.meta.url));
 
 const require = createRequire(import.meta.url);
 const leaderboardHandler = require('./api/leaderboard.js');
@@ -213,6 +216,12 @@ const excludeSandboxTestAssetsFromProduction = () => ({
 
 export default defineConfig({
   plugins: [react(), localApiRoutes(), excludeSandboxTestAssetsFromProduction()],
+  resolve: {
+    alias: {
+      // Sandbox encounter definitions import the game through this prefix.
+      '@game': repositoryRoot
+    }
+  },
   publicDir: 'public', // Ensures public/ folder is served at root
   build: {
     outDir: 'dist',
