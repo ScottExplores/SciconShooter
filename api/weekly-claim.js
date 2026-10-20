@@ -17,7 +17,7 @@ const { hasTrustedReceiptProvenance } = require('./_lib/runReceiptProvenance');
 const NONCES_TABLE = process.env.SUPABASE_WALLET_NONCES_TABLE || 'scicon_wallet_nonces';
 const CHALLENGE_LIFETIME_MS = 10 * 60 * 1000;
 const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
-const RESOLVED_COMPETITION_STATUSES = new Set(['claimed', 'funded']);
+const RESOLVED_COMPETITION_STATUSES = new Set(['claimed', 'pending-funding', 'funded']);
 
 const findCurrentWeekEligibleProposal = (proposalId) => findEligibleProposal(proposalId, {
   requiredOpenUntil: getCurrentWeekRange().end

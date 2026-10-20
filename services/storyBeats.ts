@@ -8,6 +8,8 @@ export interface StoryBeat {
   accent: string;
   title: string;
   text: string;
+  /** Short label above the line. Sector openers keep the sector name. */
+  kicker?: string;
 }
 
 /**
@@ -118,16 +120,120 @@ export const STORY_BEATS: StoryBeat[] = [
 /** Five Missions per Sector, so beat N opens Missions 5N-4 through 5N. */
 const MISSIONS_PER_SECTOR = 5;
 
+const BOSS_INTROS: Record<number, { title: string; name: string; tell: string }> = {
+  5: {
+    title: 'Gatekeeper Prime',
+    name: 'Gatekeeper Prime',
+    tell: 'It owns the lane. Break a cannon and the volley collapses. Do not sit in the gap it paints first.'
+  },
+  10: {
+    title: 'Paywall Decimator',
+    name: 'the Paywall Decimator',
+    tell: 'The wall is the weapon. March with it, then step through the opening it has to leave.'
+  },
+  15: {
+    title: 'Prism Moth',
+    name: 'the Prism Moth',
+    tell: 'Wings first. When the brood fans, the safe lane is the one that was empty a moment ago.'
+  },
+  20: {
+    title: 'Frontier Crownclaw',
+    name: 'the Frontier Crownclaw',
+    tell: 'The claw telegraphs with the arm, not the bullet. If the limb is winding up, you are already late to move.'
+  },
+  25: {
+    title: 'Helios Clawcarrier',
+    name: 'Helios Clawcarrier',
+    tell: 'Crossfire comes from the mounts. Kill a mount and that channel goes quiet.'
+  },
+  30: {
+    title: 'Nullwake Revenant',
+    name: 'the Nullwake Revenant',
+    tell: 'It leaves and comes back. The vanish is the warning. Be off the mark where it faded.'
+  },
+  35: {
+    title: 'Singularity Crab',
+    name: 'the Singularity Crab',
+    tell: 'The collapse point is chosen, then it waits. Leave before the well finishes drawing.'
+  },
+  40: {
+    title: 'Orbit Gyroscope',
+    name: 'the Orbit Gyroscope',
+    tell: 'Rings rotate. A gap that is safe now will not be safe in one turn. Ride the opening.'
+  },
+  45: {
+    title: 'Hammerhead Siege',
+    name: 'Hammerhead Siege',
+    tell: 'It commits to a ram. The lean is the tell. Sidestep, do not race it backward.'
+  },
+  50: {
+    title: 'Umbra Needlewing',
+    name: 'the Umbra Needlewing',
+    tell: 'The needle draws a line before it fires. Treat the bright thread as solid until it goes dark.'
+  }
+};
+
+const BRIDGE_LINES = [
+  'Same rule as the lab: if you cannot point at the result, it is not a result yet.',
+  'Hold formation. The swarm looks random until you watch who peels first.',
+  'Science is a magnifying glass. Get closer, and the pattern stops being noise.',
+  'Pickups are data. Leave them and the next wave is just a harder version of this one.',
+  'Brian says the shield on a holder is the paywall. Break the plate, then the hull.',
+  'Jeffrey: if it splits, you did not kill the claim. You published the correction.',
+  'Patrick: a turret that sits still is a grant review. It will not chase you. You still have to cross its lane.',
+  'Arshia: the one that commits and does not come back is a result that was never replicated. Do not be under it.'
+];
+
+const sectorForMission = (mission: number) => (
+  Math.floor((Math.max(1, mission) - 1) / MISSIONS_PER_SECTOR) + 1
+);
+
+const bridgeBeat = (mission: number): StoryBeat => {
+  const sector = sectorForMission(mission);
+  const opener = STORY_BEATS.find((beat) => beat.phase === sector) ?? STORY_BEATS[0];
+  const line = BRIDGE_LINES[(mission + sector) % BRIDGE_LINES.length];
+  return {
+    phase: sector,
+    speaker: opener.speaker,
+    role: opener.role,
+    portrait: opener.portrait,
+    accent: opener.accent,
+    title: `Mission ${mission}`,
+    kicker: `Mission ${mission}`,
+    text: `.... ${opener.speaker.split(' ')[0]} again. ${line}`
+  };
+};
+
+const bossIntroBeat = (mission: number): StoryBeat | null => {
+  const intro = BOSS_INTROS[mission];
+  if (!intro) return null;
+  const sector = sectorForMission(mission);
+  const opener = STORY_BEATS.find((beat) => beat.phase === sector) ?? STORY_BEATS[0];
+  return {
+    phase: sector,
+    speaker: opener.speaker,
+    role: 'Encounter brief',
+    portrait: opener.portrait,
+    accent: opener.accent,
+    title: intro.title,
+    kicker: `Boss · Mission ${mission}`,
+    text: `.... ${opener.speaker.split(' ')[0]} here. ${intro.name} is what this sector has been building. ${intro.tell} The core glows when the hull is the thing to shoot. Skip this if you already know the fight.`
+  };
+};
+
 /**
- * The transmission for a Mission number, or null when that Mission does not
- * open a Sector. One beat per Sector keeps the story present across all fifty
- * Missions without interrupting every single launch.
+ * Sector openers carry the campaign letter. Boss Missions get a one-line
+ * tell. Every other Mission gets a short bridge. All of them are skippable.
  */
 export const getStoryBeatForPhase = (missionNumber: number) => {
   const mission = Math.max(1, Math.floor(Number(missionNumber) || 1));
-  if ((mission - 1) % MISSIONS_PER_SECTOR !== 0) return null;
-  const sector = Math.floor((mission - 1) / MISSIONS_PER_SECTOR) + 1;
-  return STORY_BEATS.find((beat) => beat.phase === sector) || null;
+  const bossIntro = bossIntroBeat(mission);
+  if (bossIntro) return bossIntro;
+  if ((mission - 1) % MISSIONS_PER_SECTOR === 0) {
+    const sector = sectorForMission(mission);
+    return STORY_BEATS.find((beat) => beat.phase === sector) || null;
+  }
+  return bridgeBeat(mission);
 };
 
 /** The beat for a Sector, for anywhere that already knows the Sector. */

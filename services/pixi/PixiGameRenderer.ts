@@ -3494,8 +3494,15 @@ export class PixiGameRenderer {
       this.setTexture(view, frame);
       view.sprite.tint = '#ffffff';
       view.sprite.alpha = 0.95;
-      view.sprite.width = Math.max(24, entity.width * 2.4);
-      view.sprite.height = Math.max(30, entity.height * 1.7);
+      const wingScale = kind === 'piercing-laser' || kind === 'targeting-laser'
+        ? { width: 1.35, height: 2.5 }
+        : kind === 'heavy-cannon'
+          ? { width: 2.8, height: 1.45 }
+          : kind === 'prism-fan' || kind === 'nova-volley'
+            ? { width: 1.55, height: 1.45 }
+            : { width: 2.2, height: 1.85 };
+      view.sprite.width = Math.max(18, entity.width * wingScale.width);
+      view.sprite.height = Math.max(22, entity.height * wingScale.height);
       view.root.rotation = Math.atan2(entity.vy, entity.vx) + Math.PI / 2;
       const speed = Math.max(1, Math.hypot(entity.vx, entity.vy));
       const length = clamp(speed * 3.2, 14, 38);
@@ -6704,6 +6711,18 @@ export class PixiGameRenderer {
       const pulse = 0.74 + Math.sin((engine.frameCount + entity.variant) * 0.09) * 0.16;
       view.aura.ellipse(0, 0, entity.width * 0.58, entity.height * 0.52)
         .stroke({ color: '#c4b5fd', width: 2, alpha: pulse });
+    }
+    if (entity.shieldHits > 0 && isEnemyType(entity.type)) {
+      const pulse = 0.62 + Math.sin(engine.frameCount * 0.16) * 0.22;
+      view.aura.ellipse(0, 0, entity.width * 0.64, entity.height * 0.5)
+        .stroke({ color: '#e0f2fe', width: 2, alpha: pulse });
+    }
+    if (entity.bossWeakPointOpen && entity.type === EntityType.BOSS) {
+      const coreRadius = Math.min(entity.width, entity.height) * 0.14;
+      view.aura.circle(0, entity.height * 0.06, coreRadius)
+        .stroke({ color: '#fef08a', width: 3, alpha: 0.92 });
+      view.aura.circle(0, entity.height * 0.06, coreRadius * 0.45)
+        .fill({ color: '#fef08a', alpha: 0.55 });
     }
 
     if (

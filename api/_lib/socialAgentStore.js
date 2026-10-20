@@ -163,7 +163,7 @@ const createSocialStore = ({ fetchJson = fetchSupabaseJson } = {}) => ({
   async getLatestFinalizedCompetition() {
     const rows = await fetchJson([
       `${COMPETITIONS_TABLE}?select=*`,
-      'status=in.(finalized,claimed,funded)',
+      'status=in.(finalized,claimed,pending-funding,funded)',
       'order=ends_at.desc',
       'limit=1'
     ].join('&'), { headers: supabaseHeaders() });

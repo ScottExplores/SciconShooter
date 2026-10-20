@@ -354,7 +354,7 @@ const safeDisplayName = (value) => String(value || '')
   .slice(0, 40);
 
 const buildWeeklyThread = (competition) => {
-  if (!['claimed', 'funded'].includes(String(competition?.status || ''))) return null;
+  if (!['claimed', 'pending-funding', 'funded'].includes(String(competition?.status || ''))) return null;
   const winner = safeDisplayName(competition?.winner_name);
   const score = Number(competition?.winning_score);
   const wave = Number(competition?.winning_wave || 1);
@@ -772,7 +772,7 @@ const processWeeklyWinner = async ({ client, store, now = new Date() }) => {
   ) {
     return { published: false, reason: 'competition_not_current', weekKey: competition.week_key };
   }
-  if (!['claimed', 'funded'].includes(String(competition.status || ''))) {
+  if (!['claimed', 'pending-funding', 'funded'].includes(String(competition.status || ''))) {
     return { published: false, reason: 'champion_claim_pending', weekKey: competition.week_key };
   }
   if (!competition.proposal_id || !competition.proposal_url) {

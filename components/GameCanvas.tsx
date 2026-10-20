@@ -46,6 +46,12 @@ import {
 } from '../services/playerWeaponVisuals';
 import { getShipAbilityDefinition } from '../services/shipAbilityService';
 import { resolveEncounterWorldSize } from '../services/gameplay/EncounterCameraRuntime';
+import {
+  applyFairArenaCanvasFrame,
+  FAIR_ARENA_HEIGHT,
+  FAIR_ARENA_WIDTH,
+  resolveFairArenaFrame
+} from '../services/gameplay/fairArena';
 
 export const preloadGameplayAssets = async () => {
   await preloadPixiGameplayTextures();
@@ -55,7 +61,7 @@ const HUD_STATS_SYNC_INTERVAL_MS = 650;
 const RUNTIME_STATE_SYNC_INTERVAL_MS = 200;
 const TELEMETRY_SYNC_INTERVAL_MS = 500;
 const SIMULATION_STEP_MS = 1000 / 60;
-const MAX_SIMULATION_STEPS_PER_FRAME = 4;
+const MAX_SIMULATION_STEPS_PER_FRAME = 8;
 
 const cloneStatsForReact = (stats: Stats): Stats => ({
   ...stats,
@@ -930,13 +936,18 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         });
       }
       const initialRect = host.getBoundingClientRect();
-      const initialWidth = setup.previewViewportWidth ?? Math.max(1, Math.round(initialRect.width || 720));
-      const initialHeight = setup.previewViewportHeight ?? Math.max(1, Math.round(initialRect.height || 720));
-      const initialWorldSize = resolveEncounterWorldSize(
-        initialWidth,
-        initialHeight,
-        setupBossArtwork?.encounterCamera
-      );
+      const initialHostWidth = setup.previewViewportWidth ?? Math.max(1, Math.round(initialRect.width || 720));
+      const initialHostHeight = setup.previewViewportHeight ?? Math.max(1, Math.round(initialRect.height || 720));
+      const initialFairFrame = previewMode ? null : resolveFairArenaFrame(initialHostWidth, initialHostHeight);
+      const initialWidth = initialFairFrame ? FAIR_ARENA_WIDTH : initialHostWidth;
+      const initialHeight = initialFairFrame ? FAIR_ARENA_HEIGHT : initialHostHeight;
+      const initialWorldSize = initialFairFrame
+        ? { width: FAIR_ARENA_WIDTH, height: FAIR_ARENA_HEIGHT }
+        : resolveEncounterWorldSize(
+          initialWidth,
+          initialHeight,
+          setupBossArtwork?.encounterCamera
+        );
       const renderer = new PixiGameRenderer({
         previewBossArtwork: setupBossArtwork,
         startupTexturePolicy: previewMode ? 'resilient-preview' : 'required',
@@ -959,6 +970,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         setup.waveId
       );
       await renderer.init(host, initialWidth, initialHeight, initialEnvironmentWindow);
+      if (initialFairFrame) {
+        host.style.background = '#020617';
+        applyFairArenaCanvasFrame(renderer.canvas, initialFairFrame);
+      }
       if (disposed) {
         renderer.destroy();
         return;
@@ -1096,6 +1111,24 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         const rect = host.getBoundingClientRect();
         const width = setup.previewViewportWidth ?? Math.max(1, Math.round(rect.width || 720));
         const height = setup.previewViewportHeight ?? Math.max(1, Math.round(rect.height || 720));
+        if (!previewMode) {
+          const frame = resolveFairArenaFrame(rect.width || width, rect.height || height);
+          host.style.background = '#020617';
+          if (
+            engine.width === FAIR_ARENA_WIDTH
+            && engine.height === FAIR_ARENA_HEIGHT
+            && renderer.viewportWidth === FAIR_ARENA_WIDTH
+            && renderer.viewportHeight === FAIR_ARENA_HEIGHT
+          ) {
+            applyFairArenaCanvasFrame(renderer.canvas, frame);
+            return;
+          }
+          renderer.resize(FAIR_ARENA_WIDTH, FAIR_ARENA_HEIGHT);
+          applyFairArenaCanvasFrame(renderer.canvas, frame);
+          refreshFrameBudget();
+          engine.resize(FAIR_ARENA_WIDTH, FAIR_ARENA_HEIGHT, FAIR_ARENA_WIDTH, FAIR_ARENA_HEIGHT);
+          return;
+        }
         const worldSize = resolveEncounterWorldSize(
           width,
           height,
@@ -1378,7 +1411,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           })
         : runningRef.current && engine.gameActive;
       if (shouldAdvanceSimulation) {
-        simulationAccumulator += elapsed * timeScaleRef.current;
+        const stepScale = previewMode ? timeScaleRef.current : 1;
+        simulationAccumulator += elapsed * stepScale;
         let simulationSteps = 0;
 
         while (simulationAccumulator >= SIMULATION_STEP_MS && simulationSteps < MAX_SIMULATION_STEPS_PER_FRAME) {
@@ -1388,7 +1422,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         }
 
         if (simulationSteps >= MAX_SIMULATION_STEPS_PER_FRAME && simulationAccumulator >= SIMULATION_STEP_MS) {
-          simulationAccumulator = 0;
+          // Keep one step of debt so a hitch catches up instead of granting
+          // slow-motion reaction time. Effects drop to the performance budget.
+          simulationAccumulator = SIMULATION_STEP_MS;
           engine.setPerformanceMode(true);
         }
 

@@ -101,7 +101,7 @@ export interface ArchivedWinner {
   proposalAuthor?: string;
   proposalImageUrl?: string;
   allocationRsc?: number;
-  status?: 'finalized' | 'claimed' | 'funded' | 'expired';
+  status?: 'finalized' | 'claimed' | 'pending-funding' | 'funded' | 'expired';
   claimDeadline?: string;
   allocationTxHash?: string;
   championTokenId?: string;

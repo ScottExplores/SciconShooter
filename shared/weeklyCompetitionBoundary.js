@@ -18,6 +18,7 @@ const weekdayIndexes = {
   Fri: 5,
   Sat: 6
 };
+const weekdayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const zonedPartsFormatter = new Intl.DateTimeFormat('en-US', {
   timeZone: WEEK_TIME_ZONE,
@@ -43,15 +44,47 @@ const getZonedParts = (value) => {
     if (part.type !== 'literal') parts[part.type] = part.value;
   }
 
-  return {
+  return normalizeZonedClockParts({
     year: Number(parts.year),
     month: Number(parts.month),
     day: Number(parts.day),
     hour: Number(parts.hour),
     minute: Number(parts.minute),
     second: Number(parts.second),
-    weekday: parts.weekday,
-    weekdayIndex: weekdayIndexes[parts.weekday]
+    weekday: parts.weekday
+  });
+};
+
+/**
+ * Some ICU builds report midnight as hour 24 on the previous calendar day.
+ * Leaving that in place shifts the Sunday noon boundary by a day and can
+ * close a weekly board early, or keep last week's scores on the new board.
+ */
+const normalizeZonedClockParts = (parts) => {
+  let year = parts.year;
+  let month = parts.month;
+  let day = parts.day;
+  let hour = parts.hour;
+  let weekday = parts.weekday;
+  let weekdayIndex = weekdayIndexes[parts.weekday];
+  if (hour === 24) {
+    hour = 0;
+    const shifted = shiftCalendarDate({ year, month, day }, 1);
+    year = shifted.year;
+    month = shifted.month;
+    day = shifted.day;
+    weekdayIndex = ((Number.isInteger(weekdayIndex) ? weekdayIndex : 0) + 1) % 7;
+    weekday = weekdayNames[weekdayIndex] ?? weekday;
+  }
+  return {
+    year,
+    month,
+    day,
+    hour,
+    minute: parts.minute,
+    second: parts.second,
+    weekday,
+    weekdayIndex: Number.isInteger(weekdayIndex) ? weekdayIndex : 0
   };
 };
 
@@ -240,7 +273,8 @@ return {
   resolveWeeklyDashboardPublication,
   getWeeklyPresentationMeta,
   getWeeklyBoundaryMeta,
-  getWeekRange
+  getWeekRange,
+  normalizeZonedClockParts
 };
 };
 
