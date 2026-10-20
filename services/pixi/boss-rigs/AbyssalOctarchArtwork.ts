@@ -32,7 +32,7 @@ import {
  * Director-only source boards never become runtime URLs.
  */
 export const ABYSSAL_OCTARCH_ART_ROOT =
-  '/game-art/generated/bosses/test-packages/abyssal-octarch-v1' as const;
+  '/game-art/generated/bosses/abyssal-octarch-v1' as const;
 
 export const ABYSSAL_OCTARCH_NEUTRAL_SHA256 =
   'a9fc10f01d3d6abcb51ff00b8be1a2b6ead7c02b10e7ee697369b2c1c1b7854d' as const;
