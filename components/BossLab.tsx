@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { GAME_CONFIG } from '../constants';
 import { BASE_FLASK_CHARGE_MAX } from '../services/flaskProgress';
 import { getPrimaryAssetPath } from '../services/levelConfig';
-import { listBossLabEncounters, BOSS_LAB_PREVIEW_SEED } from '../services/gameplay/bossLab';
+import { buildBossLabFight, listBossLabEncounterChoices, BOSS_LAB_PREVIEW_SEED } from '../services/gameplay/bossLab';
 import { PLAYER_SHIPS } from '../services/playerShipService';
 import { FieldUpgradeType, PowerupType, type GamePolishSettings, type Stats } from '../types';
 import GameStage from './GameStage';
@@ -51,7 +51,7 @@ const createPreviewStats = (): Stats => ({
 });
 
 const BossLab: React.FC = () => {
-  const encounters = useMemo(() => listBossLabEncounters(), []);
+  const encounters = useMemo(() => listBossLabEncounterChoices(), []);
   const [encounterId, setEncounterId] = useState(encounters[0]?.id ?? '');
   const [invincible, setInvincible] = useState(true);
   const [speed, setSpeed] = useState<(typeof SPEED_OPTIONS)[number]>(1);
@@ -61,8 +61,12 @@ const BossLab: React.FC = () => {
   const [bombCommand, setBombCommand] = useState<{ nonce: number } | null>(null);
   const [shipAbilityCommand, setShipAbilityCommand] = useState<{ nonce: number } | null>(null);
   const encounter = encounters.find((entry) => entry.id === encounterId) ?? encounters[0];
+  const fight = useMemo(
+    () => (encounter ? buildBossLabFight(encounter.id) : null),
+    [encounter]
+  );
 
-  if (!encounter) {
+  if (!encounter || !fight) {
     return <p className="scicon-boss-lab">No boss encounters are configured.</p>;
   }
 
@@ -138,15 +142,15 @@ const BossLab: React.FC = () => {
             onStatsChange: setStats,
             running: playing,
             polishSettings: POLISH_SETTINGS,
-            campaign: encounter.campaign,
-            levelId: encounter.levelId,
-            waveId: encounter.waveId,
+            campaign: fight.campaign,
+            levelId: fight.levelId,
+            waveId: fight.waveId,
             previewMode: true,
             previewInvincible: invincible,
             audioEnabled: true,
             autoFire: true,
             timeScale: speed,
-            previewBossArtwork: encounter.artwork,
+            previewBossArtwork: fight.artwork,
             previewSeed: BOSS_LAB_PREVIEW_SEED,
             playerShipId: PLAYER_SHIP_ID,
             playerShipUrl: PLAYER_SHIPS[PLAYER_SHIP_ID].assetUrl,
@@ -165,7 +169,7 @@ const BossLab: React.FC = () => {
             shipAbilityLocked: !playing,
             onUpgrade: (_type: FieldUpgradeType) => undefined,
             fieldUpgradesEnabled: false,
-            bombIconSrc: getPrimaryAssetPath(encounter.campaign.hudAssets.bombIconAssetKey),
+            bombIconSrc: getPrimaryAssetPath(fight.campaign.hudAssets.bombIconAssetKey),
             bombLocked: false
           }}
         />

@@ -183,7 +183,7 @@ const summarize = (proof) => ({
 
 test('compiled sandbox preview preserves exactly three Frontier cores plus Crown Cross-Link', () => {
   assert.deepEqual(plain(sandboxBoundary), {
-    source: 'sandbox-prototype',
+    source: 'director-sandbox-prototype',
     sandboxOnly: true,
     promotionAllowed: false
   });
