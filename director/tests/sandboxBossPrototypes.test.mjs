@@ -59,7 +59,7 @@ test('all Sandbox boss descriptors build deterministic, valid, immutable-provena
     const first = descriptor.buildPreview(campaign);
     const repeated = descriptor.buildPreview(campaign);
     assert.deepEqual(first, repeated);
-    assert.equal(first.sandboxPrototype.source, 'sandbox-prototype');
+    assert.equal(first.sandboxPrototype.source, 'director-sandbox-prototype');
     assert.equal(first.sandboxPrototype.sandboxOnly, true);
     assert.equal(first.sandboxPrototype.promotionAllowed, false);
     assert.equal(first.sandboxPrototype.prototypeId, descriptor.id);

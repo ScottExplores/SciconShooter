@@ -2538,7 +2538,7 @@ export const isSandboxBossPrototypePreview = (
   preview: CombatLabPreviewResult
 ): preview is SandboxBossPrototypePreview => {
   const provenance = (preview as Partial<SandboxBossPrototypePreview>).sandboxPrototype;
-  return provenance?.source === 'sandbox-prototype'
+  return provenance?.source === 'director-sandbox-prototype'
     && provenance.sandboxOnly === true;
 };
 
