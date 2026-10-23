@@ -136,19 +136,20 @@ test('ground props remain registered to terrain while space landmarks use slow d
 
   assert.match(environment, /const terrainTop = terrainLayer\?\.sprites\[0\]\.y \?\? 0/);
   assert.match(environment, /const groundY = terrainTop \+ prop\.baseY \* terrainLayer\.tileHeight/);
-  assert.match(environment, /const perspectiveScale = 0\.76 \+ screenDepth \* 0\.48/);
-  assert.match(environment, /const perspectiveSpread = 0\.82 \+ screenDepth \* 0\.24/);
-  assert.match(environment, /const playerCenterY = engine\.player\.y \+ engine\.player\.height \/ 2/);
-  assert.match(environment, /const relativeY = groundY - playerCenterY/);
-  assert.match(environment, /getGroundPropPerspectiveState\(relativeY, overheadBand\)/);
+  assert.match(environment, /const perspectiveScale = 0\.82 \+ screenDepth \* 0\.3/);
+  assert.match(environment, /prop\.root\.x = prop\.baseX \* this\.width;/);
+  assert.doesNotMatch(environment, /perspectiveSpread/);
+  assert.doesNotMatch(environment, /playerCenterY/);
+  assert.match(environment, /getGroundPropPerspectiveState\(groundY, this\.height\)/);
   assert.match(environment, /prop\.sprite\.texture = prop\.perspectiveTextures\[perspectiveState\]/);
   assert.match(environment, /GROUND_PROP_PERSPECTIVE_SHEETS/);
   assert.match(environment, /if \(prop\.terrain === 'space'\)/);
-  assert.match(environment, /widthRatio: 0\.78/);
-  assert.match(environment, /widthRatio: 1,/);
+  assert.match(environment, /widthRatio: 0\.5/);
+  assert.match(environment, /widthRatio: 0\.86/);
   assert.match(environment, /rotationSpeed: 0/);
   assert.match(environment, /GAME_PARALLAX_FAR_PLANETS/);
-  assert.match(environment, /softness: 0\.55/);
+  assert.match(environment, /GAME_PARALLAX_BIG_PLANET/);
+  assert.match(environment, /GAME_PARALLAX_RING_PLANET/);
   assert.match(environment, /new BlurFilter\(\{ strength: definition\.softness \?\? 0, quality: 1/);
   assert.match(environment, /SPACE_PARALLAX_DEPTH_SPEEDS/);
   assert.match(environment, /scrollDirection: 'down'/);
@@ -160,6 +161,4 @@ test('ground props remain registered to terrain while space landmarks use slow d
   assert.match(environment, /prop\.root\.zIndex = Math\.round\(groundY \* 10\)/);
   assert.match(environment, /atlasFrameCache/);
   assert.doesNotMatch(environment, /prop\.sprite\.y = \(\(prop\.baseY \* propCycle\)/);
-  assert.doesNotMatch(environment, /GAME_PARALLAX_BIG_PLANET/);
-  assert.doesNotMatch(environment, /GAME_PARALLAX_RING_PLANET/);
 });

@@ -103,7 +103,8 @@ const fromPublicPath = (publicPath) => path.join(root, 'public', ...publicPath.s
 test('ground perspective pack declares spatial states rather than timed animation', () => {
   assert.deepEqual(manifest.stateOrder, ['ahead', 'overhead', 'behind']);
   assert.equal(manifest.productionFormat, 'Spatial three-view PNG sheets; not timed animation');
-  assert.match(manifest.runtimeProtocol, /Select by prop center Y relative to player center Y/);
+  assert.match(manifest.runtimeProtocol, /Select by prop center Y on the screen as the ground scrolls/);
+  assert.match(manifest.runtimeProtocol, /front while entering, top near the middle, back while leaving/);
   assert.equal(manifest.terrains.length, 2);
   assert.deepEqual(manifest.terrains.map((terrain) => terrain.id), ['desert', 'river']);
 });

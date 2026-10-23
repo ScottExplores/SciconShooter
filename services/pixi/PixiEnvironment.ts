@@ -146,12 +146,19 @@ export const getNonLoopingParallaxOffset = (
 
 export type GroundPropPerspectiveState = 0 | 1 | 2;
 
+/**
+ * Ground props scroll down the screen. The entering edge is the top, so that
+ * is the front face. The middle of the view is the true top. The leaving edge
+ * is the back face. Screen position, not the player's ship, chooses the face
+ * so a prop reads the same way no matter where the ship is sitting.
+ */
 export const getGroundPropPerspectiveState = (
-  relativeY: number,
-  overheadBand: number
+  screenY: number,
+  viewHeight: number
 ): GroundPropPerspectiveState => {
-  if (relativeY < -overheadBand) return 0;
-  if (relativeY > overheadBand) return 2;
+  const normalized = screenY / Math.max(1, viewHeight);
+  if (normalized < 0.38) return 0;
+  if (normalized > 0.62) return 2;
   return 1;
 };
 
@@ -175,22 +182,81 @@ const GROUND_PROP_PERSPECTIVE_SHEETS: Partial<Record<TerrainFamily, string>> = {
   river: ASSETS.PIXI_TERRAIN_RIVER_PROP_PERSPECTIVES
 };
 
+const vistaJitter = (seed: number) => {
+  const mixed = Math.sin(seed * 12.9898) * 43758.5453;
+  return mixed - Math.floor(mixed);
+};
+
+/**
+ * One planet per depth band. Horizontal slots and sizes shift with the vista
+ * seed so later sectors do not repeat the same two-edge lineup.
+ */
 const createSpaceRunLayout = (phaseOffset: number, mirrored = false): readonly TerrainPropDefinition[] => {
-  const leftEdge = mirrored ? 1.07 : 0.08;
-  const rightEdge = mirrored ? 0.08 : 1.07;
+  const placeX = (slot: number, seed: number) => {
+    const span = 0.16;
+    const base = 0.1 + slot * 0.28 + (vistaJitter(phaseOffset + seed) - 0.5) * span;
+    const x = Math.min(0.9, Math.max(0.1, base));
+    return mirrored ? 1 - x : x;
+  };
   return [
-    { frame: 0, baseX: leftEdge, baseY: 0.04, speed: 0.04, sway: 1, phase: phaseOffset, widthRatio: 0.86, rotationSpeed: 0, alpha: 1 },
-    { frame: 1, baseX: rightEdge, baseY: 0.42, speed: 0.065, sway: 1.4, phase: phaseOffset + 0.8, widthRatio: 1, rotationSpeed: 0, alpha: 1 }
+    { frame: 0, baseX: placeX(0, 1.1), baseY: 0.06 + vistaJitter(phaseOffset + 2) * 0.08, speed: 0.028 + vistaJitter(phaseOffset + 3) * 0.012, sway: 0, phase: phaseOffset, widthRatio: 0.42 + vistaJitter(phaseOffset + 4) * 0.22, rotationSpeed: 0, alpha: 1 },
+    { frame: 2, baseX: placeX(1, 5.2), baseY: 0.34 + vistaJitter(phaseOffset + 6) * 0.1, speed: 0.05 + vistaJitter(phaseOffset + 7) * 0.02, sway: 0, phase: phaseOffset + 0.8, widthRatio: 0.7 + vistaJitter(phaseOffset + 8) * 0.28, rotationSpeed: 0, alpha: 1 },
+    { frame: 5, baseX: placeX(2, 9.4), baseY: 0.66 + vistaJitter(phaseOffset + 10) * 0.1, speed: 0.082 + vistaJitter(phaseOffset + 11) * 0.03, sway: 0, phase: phaseOffset + 1.7, widthRatio: 0.3 + vistaJitter(phaseOffset + 12) * 0.18, rotationSpeed: 0, alpha: 1 },
+    { frame: 7, baseX: placeX(0.6, 13.5), baseY: 0.9 + vistaJitter(phaseOffset + 14) * 0.06, speed: 0.11 + vistaJitter(phaseOffset + 15) * 0.02, sway: 0, phase: phaseOffset + 2.4, widthRatio: 0.24 + vistaJitter(phaseOffset + 16) * 0.12, rotationSpeed: 0, alpha: 0.9 }
   ];
 };
 
+export type SpaceBodyLandmark = {
+  url: string;
+  baseX: number;
+  phase: number;
+  speed: number;
+  scale: number;
+};
+
+const SPACE_BODY_TEXTURES = [
+  ASSETS.GAME_PARALLAX_BIG_PLANET,
+  ASSETS.GAME_PARALLAX_RING_PLANET,
+  ASSETS.GAME_BG_PLANET
+] as const;
+
+/** Scattered gas giants and ringed worlds. Speeds and phases differ so they cannot hold a row. */
+export const buildSpaceBodyLayout = (profileId: string): readonly SpaceBodyLandmark[] => {
+  let seed = 17;
+  for (const character of profileId) seed = (seed * 33 + character.charCodeAt(0)) >>> 0;
+  const next = (span: number, floor = 0) => {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    return floor + ((seed % 10000) / 10000) * span;
+  };
+  return [0, 1, 2].map((index) => ({
+    url: SPACE_BODY_TEXTURES[index],
+    baseX: Math.min(0.88, 0.08 + index * 0.3 + next(0.16)),
+    phase: next(1),
+    speed: 0.02 + index * 0.028 + next(0.018),
+    scale: 0.26 + next(0.42)
+  }));
+};
+
+const SPACE_PROFILE_IDS = [
+  'open-orbit',
+  'citation-storm',
+  'bastion-protocol',
+  'helix-redline',
+  'shattered-void',
+  'gravity-rift',
+  'ion-eclipse',
+  'terminus-frontier'
+] as const;
+
+export const SPACE_BODY_LAYOUTS: Readonly<Record<(typeof SPACE_PROFILE_IDS)[number], readonly SpaceBodyLandmark[]>> = Object.freeze(
+  Object.fromEntries(SPACE_PROFILE_IDS.map((profileId) => [profileId, buildSpaceBodyLayout(profileId)])) as Record<(typeof SPACE_PROFILE_IDS)[number], readonly SpaceBodyLandmark[]>
+);
+
 const TERRAIN_PROP_LAYOUTS: Record<TerrainPropSet, readonly TerrainPropDefinition[]> = {
   space: [
-    // Keep only the two large, slow planets. The individual asteroids and
-    // satellite props fought the cohesive transparent debris overlay and could
-    // cross in front of Saturn. The planet plane now stays far, clean, and slow.
-    { frame: 1, baseX: 0.08, baseY: 0.05, speed: 0.04, sway: 1, phase: 0.2, widthRatio: 0.78, rotationSpeed: 0, alpha: 1 },
-    { frame: 2, baseX: 1.07, baseY: 0.4, speed: 0.065, sway: 1.4, phase: 1.2, widthRatio: 0.96, rotationSpeed: 0, alpha: 1 }
+    { frame: 1, baseX: 0.16, baseY: 0.08, speed: 0.032, sway: 0, phase: 0.2, widthRatio: 0.5, rotationSpeed: 0, alpha: 1 },
+    { frame: 4, baseX: 0.74, baseY: 0.41, speed: 0.058, sway: 0, phase: 1.2, widthRatio: 0.86, rotationSpeed: 0, alpha: 1 },
+    { frame: 6, baseX: 0.38, baseY: 0.73, speed: 0.094, sway: 0, phase: 2.4, widthRatio: 0.34, rotationSpeed: 0, alpha: 1 }
   ],
   desert: [
     { frame: 0, baseX: 0.1, baseY: 0.06, speed: 0, sway: 0, phase: 0.3, widthRatio: 0.25, rotationSpeed: 0, alpha: 0.96 },
@@ -305,13 +371,17 @@ const createSpaceLayers = (
       scrollDirection: 'down'
     },
     {
+      // The far-planet strip is one horizontal row. Tiling it painted the same
+      // lineup down the whole mission. Individual bodies below carry this depth.
       url: ASSETS.GAME_PARALLAX_FAR_PLANETS,
       speed: speeds[2],
-      alpha: 1,
-      widthScale: 1.12,
-      xDrift: 0.8,
+      alpha: 0,
+      widthScale: 0.42,
+      xDrift: 0,
       phase: 1.6 + phaseOffset,
-      softness: 0.55,
+      loop: false,
+      tilePoolSize: 1,
+      softness: 0,
       scrollDirection: 'down'
     },
     {
@@ -377,7 +447,7 @@ const BACKGROUND_PROFILES = {
     terrain: 'space',
     propSet: 'space',
     propAlpha: 1,
-    propCount: 2,
+    propCount: 4,
     glyphAlpha: 0
   },
   'citation-storm': {
@@ -398,7 +468,7 @@ const BACKGROUND_PROFILES = {
     terrain: 'space',
     propSet: 'space',
     propAlpha: 1,
-    propCount: 2,
+    propCount: 4,
     glyphAlpha: 0
   },
   'paywall-siege': {
@@ -456,7 +526,7 @@ const BACKGROUND_PROFILES = {
     terrain: 'space',
     propSet: 'space',
     propAlpha: 1,
-    propCount: 2,
+    propCount: 4,
     glyphAlpha: 0
   },
   'helix-redline': {
@@ -467,7 +537,7 @@ const BACKGROUND_PROFILES = {
       [ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_RUST, ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_BASALT]
     ),
     horizonAlpha: 0.14, planetTint: '#f0abfc', starSpeedMultiplier: SPACE_DYNAMIC_STAR_SPEED_MULTIPLIERS['helix-redline'],
-    terrain: 'space', propSet: 'helix-redline', propAlpha: 1, propCount: 2, glyphAlpha: 0
+    terrain: 'space', propSet: 'helix-redline', propAlpha: 1, propCount: 4, glyphAlpha: 0
   },
   'shattered-void': {
     tint: '#1e1b4b', accent: '#a5b4fc', family: 1, colorGradeAlpha: 0.1,
@@ -477,7 +547,7 @@ const BACKGROUND_PROFILES = {
       [ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_BASALT]
     ),
     horizonAlpha: 0.1, planetTint: '#c7d2fe', starSpeedMultiplier: SPACE_DYNAMIC_STAR_SPEED_MULTIPLIERS['shattered-void'],
-    terrain: 'space', propSet: 'shattered-void', propAlpha: 1, propCount: 2, glyphAlpha: 0
+    terrain: 'space', propSet: 'shattered-void', propAlpha: 1, propCount: 4, glyphAlpha: 0
   },
   'gravity-rift': {
     tint: '#134e4a', accent: '#5eead4', family: 0, colorGradeAlpha: 0.09,
@@ -487,7 +557,7 @@ const BACKGROUND_PROFILES = {
       [ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_BASALT, ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_RUST]
     ),
     horizonAlpha: 0.16, planetTint: '#99f6e4', starSpeedMultiplier: SPACE_DYNAMIC_STAR_SPEED_MULTIPLIERS['gravity-rift'],
-    terrain: 'space', propSet: 'gravity-rift', propAlpha: 1, propCount: 2, glyphAlpha: 0
+    terrain: 'space', propSet: 'gravity-rift', propAlpha: 1, propCount: 4, glyphAlpha: 0
   },
   'ion-eclipse': {
     tint: '#1e3a8a', accent: '#67e8f9', family: 3, colorGradeAlpha: 0.1,
@@ -497,7 +567,7 @@ const BACKGROUND_PROFILES = {
       [ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_RUST]
     ),
     horizonAlpha: 0.15, planetTint: '#bae6fd', starSpeedMultiplier: SPACE_DYNAMIC_STAR_SPEED_MULTIPLIERS['ion-eclipse'],
-    terrain: 'space', propSet: 'ion-eclipse', propAlpha: 1, propCount: 2, glyphAlpha: 0
+    terrain: 'space', propSet: 'ion-eclipse', propAlpha: 1, propCount: 4, glyphAlpha: 0
   },
   'terminus-frontier': {
     tint: '#78350f', accent: '#fbbf24', family: 2, colorGradeAlpha: 0.08,
@@ -507,7 +577,7 @@ const BACKGROUND_PROFILES = {
       [ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_RUST, ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_BASALT]
     ),
     horizonAlpha: 0.12, planetTint: '#fde68a', starSpeedMultiplier: SPACE_DYNAMIC_STAR_SPEED_MULTIPLIERS['terminus-frontier'],
-    terrain: 'space', propSet: 'terminus-frontier', propAlpha: 1, propCount: 2, glyphAlpha: 0
+    terrain: 'space', propSet: 'terminus-frontier', propAlpha: 1, propCount: 4, glyphAlpha: 0
   }
 } as const satisfies Record<string, EnvironmentProfile>;
 
@@ -573,7 +643,8 @@ export const getEnvironmentProfileTextureUrls = (backgroundId: string): readonly
     ...profile.layers.map((layer) => layer.url),
     ...(profile.horizonAlpha > 0 ? [ASSETS.GAME_BG_PLANET] : []),
     ...(profile.propCount > 0 ? [TERRAIN_PROP_ATLASES[profile.propSet]] : []),
-    ...(perspectiveSheet ? [perspectiveSheet] : [])
+    ...(perspectiveSheet ? [perspectiveSheet] : []),
+    ...(profile.terrain === 'space' ? SPACE_BODY_TEXTURES : [])
   ].filter(Boolean))]);
 };
 
@@ -597,6 +668,8 @@ export class PixiEnvironment {
   private readonly stars: StarPoint[] = [];
   private readonly glyphs: ScienceGlyph[] = [];
   private readonly terrainProps: TerrainProp[] = [];
+  private readonly spaceBodySprites: Sprite[] = [];
+  private activeSpaceBodies: readonly SpaceBodyLandmark[] = [];
   private readonly atlasFrameCache = new Map<string, readonly Texture[]>();
   private readonly backgroundFill = new Graphics();
   private readonly sectorTint = new Graphics();
@@ -713,6 +786,15 @@ export class PixiEnvironment {
         baseY,
         baseAlpha
       });
+      this.backgroundLayer.addChild(sprite);
+    }
+
+    for (let index = 0; index < SPACE_BODY_TEXTURES.length; index++) {
+      const sprite = new Sprite(Texture.WHITE);
+      sprite.anchor.set(0.5, 0.5);
+      sprite.eventMode = 'none';
+      sprite.visible = false;
+      this.spaceBodySprites.push(sprite);
       this.backgroundLayer.addChild(sprite);
     }
 
@@ -957,6 +1039,16 @@ export class PixiEnvironment {
     this.horizon.tint = profile.planetTint;
     this.terrainPropLayer.visible = profile.propAlpha > 0;
     this.terrainPropLayer.alpha = profile.propAlpha;
+    const spaceBodies = profile.terrain === 'space'
+      ? SPACE_BODY_LAYOUTS[resolvedId as keyof typeof SPACE_BODY_LAYOUTS] ?? buildSpaceBodyLayout(resolvedId)
+      : [];
+    this.activeSpaceBodies = spaceBodies;
+    this.spaceBodySprites.forEach((sprite, index) => {
+      const body = spaceBodies[index];
+      const texture = body ? this.textures.get(body.url) : undefined;
+      sprite.visible = Boolean(body && texture);
+      if (texture && body) sprite.texture = texture;
+    });
     return profile;
   }
 
@@ -1114,8 +1206,23 @@ export class PixiEnvironment {
 
     const terrainLayer = this.parallaxLayers[0];
     const terrainTop = terrainLayer?.sprites[0].y ?? 0;
-    const playerCenterY = engine.player.y + engine.player.height / 2;
-    const overheadBand = Math.max(32, engine.player.height * 0.42);
+    for (let index = 0; index < this.spaceBodySprites.length; index++) {
+      const sprite = this.spaceBodySprites[index];
+      const body = profile.terrain === 'space' ? this.activeSpaceBodies[index] : undefined;
+      if (!body || sprite.texture === Texture.WHITE) {
+        sprite.visible = false;
+        continue;
+      }
+      const width = Math.max(48, this.width * body.scale);
+      const aspect = sprite.texture.height / Math.max(1, sprite.texture.width);
+      sprite.width = width;
+      sprite.height = width * aspect;
+      const cycle = this.height + sprite.height + 120;
+      sprite.visible = true;
+      sprite.alpha = 0.94;
+      sprite.x = body.baseX * this.width;
+      sprite.y = ((body.phase * cycle) + motionFrame * body.speed) % cycle - sprite.height * 0.35;
+    }
     for (const prop of this.terrainProps) {
       const visible = prop.propSet === profile.propSet && prop.slot < profile.propCount;
       prop.root.visible = visible;
@@ -1131,20 +1238,18 @@ export class PixiEnvironment {
         continue;
       }
 
-      // Ground props share the terrain master's exact vertical transform. Their
-      // screen-space scale and outward drift create a gentle flyover effect
-      // without allowing the artwork to slide away from the ground beneath it.
+      // Ground props share the terrain master's vertical position and a fixed
+      // horizontal slot, so the contact point scrolls with the ground and never
+      // drifts sideways or lifts off the surface.
       const groundY = terrainTop + prop.baseY * terrainLayer.tileHeight;
-      const screenDepth = Math.max(0, Math.min(1, (groundY + 120) / (this.height + 240)));
-      const perspectiveScale = 0.76 + screenDepth * 0.48;
-      const perspectiveSpread = 0.82 + screenDepth * 0.24;
-      const relativeY = groundY - playerCenterY;
-      const perspectiveState = getGroundPropPerspectiveState(relativeY, overheadBand);
+      const screenDepth = Math.max(0, Math.min(1, (groundY + 80) / (this.height + 160)));
+      const perspectiveScale = 0.82 + screenDepth * 0.3;
+      const perspectiveState = getGroundPropPerspectiveState(groundY, this.height);
       if (prop.perspectiveTextures && prop.perspectiveState !== perspectiveState) {
         prop.sprite.texture = prop.perspectiveTextures[perspectiveState];
         prop.perspectiveState = perspectiveState;
       }
-      prop.root.x = this.width * 0.5 + (prop.baseX - 0.5) * this.width * perspectiveSpread;
+      prop.root.x = prop.baseX * this.width;
       prop.root.y = groundY;
       prop.root.rotation = 0;
       prop.root.scale.set(perspectiveScale);

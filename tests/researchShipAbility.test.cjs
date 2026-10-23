@@ -77,6 +77,11 @@ test('Pixi preloads and animates all ship ability sprite sequences', () => {
   assert.match(renderer, /entity\.projectileVisualKind === 'eth-prism-volley'/);
   assert.match(renderer, /entity\.projectileVisualKind === 'btc-hash-burst'/);
   assert.match(renderer, /view\.root\.rotation = -Math\.PI \/ 2/);
+  assert.match(renderer, /researchChargeArtPointsLeft\(textureKey\)/);
+  assert.match(renderer, /researchPrimaryArtPointsDown\(shotFamily\)/);
+  assert.match(renderer, /view\.sprite\.scale\.y = -Math\.abs\(view\.sprite\.scale\.y\)/);
+  assert.match(read('services/playerWeaponVisuals.ts'), /research-spark/);
+  assert.match(read('services/playerWeaponVisuals.ts'), /research-charge/);
   assert.match(hud, /abilityDefinition\.iconRotationDegrees/);
   assert.match(renderer, /effect\.effectType === 'sprite'/);
 

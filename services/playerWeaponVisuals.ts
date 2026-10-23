@@ -211,6 +211,17 @@ export const getPlayerWeaponVisualFamily = (weaponKind: string): PlayerWeaponVis
   return 'research';
 };
 
+/** Research primary sheets are painted tip-down. Flip them so the tip leads. */
+export const researchPrimaryArtPointsDown = (family: PlayerWeaponVisualFamily) => family === 'research';
+
+/**
+ * Spark and charged signature frames point left. The bolt tier already points
+ * right, which is the direction the shared quarter-turn sends upward.
+ */
+export const researchChargeArtPointsLeft = (frameUrl: string) => (
+  frameUrl.includes('/research-spark/') || frameUrl.includes('/research-charge/')
+);
+
 export const getPlayerShipWeaponVisualFamily = (shipId: string): PlayerWeaponVisualFamily => {
   if (shipId === 'bio') return 'bio';
   if (shipId === 'eth') return 'eth';
