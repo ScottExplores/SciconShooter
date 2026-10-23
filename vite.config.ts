@@ -24,7 +24,9 @@ const { handlePlayerRuns } = require('./api/_lib/playerRuns.js');
 const recordMetadataHandler = require('./api/record-metadata.js');
 const recordCardHandler = require('./api/record-card.js');
 
-const PUBLIC_API_ORIGIN = process.env.SCICON_PUBLIC_API_ORIGIN || 'https://sciconshooter.xyz';
+// Apex redirects to www. A cross-host redirect drops the Cookie header, so the
+// guest-session handshake never completes and Weekly Run retries forever.
+const PUBLIC_API_ORIGIN = process.env.SCICON_PUBLIC_API_ORIGIN || 'https://www.sciconshooter.xyz';
 const hasLocalLeaderboardStorage = Boolean(
   process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
 );
@@ -79,11 +81,19 @@ const proxyPublicApi = async (path: string, req: any, res: any) => {
     res.statusCode = upstream.status;
     res.setHeader('Content-Type', upstream.headers.get('content-type') || 'application/json');
     res.setHeader('Cache-Control', upstream.headers.get('cache-control') || 'no-store');
-    const setCookie = upstream.headers.get('set-cookie');
-    if (setCookie) {
+    const forwardedCookies = typeof upstream.headers.getSetCookie === 'function'
+      ? upstream.headers.getSetCookie()
+      : [];
+    const fallbackCookie = upstream.headers.get('set-cookie');
+    const setCookies = forwardedCookies.length > 0
+      ? forwardedCookies
+      : fallbackCookie
+        ? [fallbackCookie]
+        : [];
+    if (setCookies.length > 0) {
       // The remote API marks profile cookies Secure. The local Vite relay is
       // HTTP-only, so remove that attribute only on this development response.
-      res.setHeader('Set-Cookie', setCookie.replace(/;\s*Secure/gi, ''));
+      res.setHeader('Set-Cookie', setCookies.map((cookie) => cookie.replace(/;\s*Secure/gi, '')));
     }
     res.end(body);
   } catch (error) {

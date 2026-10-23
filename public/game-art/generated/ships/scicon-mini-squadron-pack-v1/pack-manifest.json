@@ -1,8 +1,8 @@
 {
   "id": "scicon-mini-squadron-pack-v1",
-  "version": 1,
-  "generated": "2026-07-18",
-  "sourceMode": "OpenAI built-in image generation with chroma-key removal",
+  "version": 2,
+  "generated": "2026-10-23",
+  "sourceMode": "Existing squadron silhouettes, retinted in tools/harmonize-support-ship-palette.mjs to the research-ship navy and cyan ramp",
   "productionFormat": "Three-frame transparent PNG sprite sheets",
   "frame": {
     "width": 256,
@@ -46,9 +46,9 @@
         "/game-art/generated/ships/scicon-mini-squadron-pack-v1/citation-dart/frames/citation-dart-03-flex-out.png"
       ],
       "frameHashes": {
-        "neutral": "244fe787073d551fd8b67848d5ecd654f5d54d5dfcc9b0984d587e68ab09290a",
-        "flex-in": "1c9807a5d4552e3c5be9dbcb16931f035250a7f539cd309575d31e55e32718d9",
-        "flex-out": "ac5af68711e82e5e618db46e11d186c1bb178771d9639e067eaf63d867541c0a"
+        "neutral": "7b350232895ef1e7e3cbc50b36c0ba051cba187aa3df7c6cd9af03a06a880ba1",
+        "flex-in": "b8c1f2fb7ca4042b759036694d01a21408361a8d5781ca7f18d8c7c2db5e8f04",
+        "flex-out": "e6eb6fa478d6bdc3f0c3277c1225a99caed52d6755885ec528e68f7fbe5572d0"
       },
       "sheet": "/game-art/generated/ships/scicon-mini-squadron-pack-v1/citation-dart/citation-dart-3-frame-sprite-sheet.png",
       "previewGif": "/game-art/generated/ships/scicon-mini-squadron-pack-v1/citation-dart/citation-dart-idle-preview.gif"
@@ -63,9 +63,9 @@
         "/game-art/generated/ships/scicon-mini-squadron-pack-v1/helix-wasp/frames/helix-wasp-03-flex-out.png"
       ],
       "frameHashes": {
-        "neutral": "324c8846ad2df6356d7effbdeeced8dac3c3aaae44516b3450ee11d3de0caa80",
-        "flex-in": "22594da4161d56fc95f230c0c52f442ed00ab2fd7978fc23f78aa81e15d1fd81",
-        "flex-out": "564aef03346250068f01c48553383603c5084049520fd870464163bd18bd889e"
+        "neutral": "dc067a58624f584959a8913e5733c597e3d1f54ce4326e94d1c6dacccb3c9714",
+        "flex-in": "8baa6425b099bced5eb099538c7fb85d9e7078d2cd63d4c6c01556ec5fcae962",
+        "flex-out": "833b7beb7587c01c968f2fbf85e6734cd3fac3441da59f9ee6c77c651c430c65"
       },
       "sheet": "/game-art/generated/ships/scicon-mini-squadron-pack-v1/helix-wasp/helix-wasp-3-frame-sprite-sheet.png",
       "previewGif": "/game-art/generated/ships/scicon-mini-squadron-pack-v1/helix-wasp/helix-wasp-idle-preview.gif"
@@ -80,9 +80,9 @@
         "/game-art/generated/ships/scicon-mini-squadron-pack-v1/photon-manta/frames/photon-manta-03-flex-out.png"
       ],
       "frameHashes": {
-        "neutral": "29706f1f1eae9e0e76c986acc6fc3a2e50f8cb9dc9081a4d3b2ca0ed2daec5af",
-        "flex-in": "0ac079efa26c956af1b6c289599ec764cdacb1ccfccc1ddffb2143e367013cd5",
-        "flex-out": "a45adc4174cacf2335fa245a49fde010908f8d5342b19208ec6734756127d6aa"
+        "neutral": "0964a2163f8b215f7f571c27d00c20fd4d71e2c18015d2c5627386555922e130",
+        "flex-in": "df936a01576e84efb13305c723d1787cc2539aef13f197dd61ebd7685ab7491f",
+        "flex-out": "18ac09aea66ae90927dafd7d777ae27c5fed88ba160884ed3045ea4ac1f86ce0"
       },
       "sheet": "/game-art/generated/ships/scicon-mini-squadron-pack-v1/photon-manta/photon-manta-3-frame-sprite-sheet.png",
       "previewGif": "/game-art/generated/ships/scicon-mini-squadron-pack-v1/photon-manta/photon-manta-idle-preview.gif"
@@ -97,9 +97,9 @@
         "/game-art/generated/ships/scicon-mini-squadron-pack-v1/quorum-crab/frames/quorum-crab-03-flex-out.png"
       ],
       "frameHashes": {
-        "neutral": "52ce905eee0be061cdc8ce6c62ad2df8f6b9a9ceded48e49cc6042703480f5aa",
-        "flex-in": "068c42a55ca9be37a02dff1147c251f027b07d1442edebd9e5ab0ae3cdb3d411",
-        "flex-out": "fcbf48824da00b3da4cbee8d3aeedede79884e0899c6b3a6f04654fc47e3bab2"
+        "neutral": "c4f2d3ff3984ad5d04b4c8a842cfce6c7d53edb80a3a967286e1b3873318fc17",
+        "flex-in": "dd4dd732dfb59c1b2372774c00f5867b35f933810e0f120c143de8211bb4dcc1",
+        "flex-out": "26b9e47e15ca086944babcef2cceff88d32be6fb2e1a64e60fb746bbba0b2efb"
       },
       "sheet": "/game-art/generated/ships/scicon-mini-squadron-pack-v1/quorum-crab/quorum-crab-3-frame-sprite-sheet.png",
       "previewGif": "/game-art/generated/ships/scicon-mini-squadron-pack-v1/quorum-crab/quorum-crab-idle-preview.gif"
@@ -114,9 +114,9 @@
         "/game-art/generated/ships/scicon-mini-squadron-pack-v1/axiom-orbiter/frames/axiom-orbiter-03-flex-out.png"
       ],
       "frameHashes": {
-        "neutral": "86fc1a9f939da3233085341f8c4a371a4123208bfe0127040e96f57f16c12934",
-        "flex-in": "70440822c2e0b331cb750f03558ed6066f14b74c7a95ac03b4ac1c5b5613872f",
-        "flex-out": "0ba0fb85f069487a51d556b7e95f2a0e399d904111624892683e112efc0fba8b"
+        "neutral": "40cb1d03855f46cef5998c15cbc76abdfc0e20ee8b9901a3984ff991e14caec2",
+        "flex-in": "82f0a7830c96b9b4c1c765d72adb93be02063a965b4f4262a139c84228856782",
+        "flex-out": "60b8d2ad717feaab635d51590055011da13ec82c1574c8175d9cf5e5a9fc5865"
       },
       "sheet": "/game-art/generated/ships/scicon-mini-squadron-pack-v1/axiom-orbiter/axiom-orbiter-3-frame-sprite-sheet.png",
       "previewGif": "/game-art/generated/ships/scicon-mini-squadron-pack-v1/axiom-orbiter/axiom-orbiter-idle-preview.gif"
@@ -131,9 +131,9 @@
         "/game-art/generated/ships/scicon-mini-squadron-pack-v1/archive-beetle/frames/archive-beetle-03-flex-out.png"
       ],
       "frameHashes": {
-        "neutral": "fc88ecd67b9ce7ac6f5026d319168baabc7212beff1217435f294fe743d15d0d",
-        "flex-in": "4ac54ac2b11cb379ce66a3b108bec21c44d8fa17597cb7e0ff96763570ff5d05",
-        "flex-out": "af27dddb845af63f37021bafe63b0ed152e1545f4d4fecaf686651f4464241a9"
+        "neutral": "9af7a7bedbbc4d82811d63288b36cde76fc6eaa18a7439e26583b9d46e96eeee",
+        "flex-in": "9e2a3d537f726068834bf986156930dadbc0d0e3bcfb7ed56f0da6e8138fd702",
+        "flex-out": "00e0413eba05b9b11d3d7c27bb99ad4f2bc71f195c24e16201bc551486ba804e"
       },
       "sheet": "/game-art/generated/ships/scicon-mini-squadron-pack-v1/archive-beetle/archive-beetle-3-frame-sprite-sheet.png",
       "previewGif": "/game-art/generated/ships/scicon-mini-squadron-pack-v1/archive-beetle/archive-beetle-idle-preview.gif"
@@ -148,9 +148,9 @@
         "/game-art/generated/ships/scicon-mini-squadron-pack-v1/beacon-kite/frames/beacon-kite-03-flex-out.png"
       ],
       "frameHashes": {
-        "neutral": "c4b98723c9e0e180ce90dccf5328fb96f44a77074bcf118847cb3aff1c603c2a",
-        "flex-in": "ca9d15ca30e196b595c00e32f005cb6270be4be8bb4b0650493d52c5a51a7574",
-        "flex-out": "80c536ab2026bc627882c5e9c5187e21f585dd852729d22d7a25d802b1f15391"
+        "neutral": "77cd2b4307f561757d6454f129ac662d3e0c4cf1fd04f0f15f065ece38c90110",
+        "flex-in": "24a8bee9660f5a4220a76bc17778aac9109236cd07bf060943c7151a8e14f083",
+        "flex-out": "a8f4b5c2c4aead1661d05c44292b760c813c2933b704cdc1f963bbc6d546d8e6"
       },
       "sheet": "/game-art/generated/ships/scicon-mini-squadron-pack-v1/beacon-kite/beacon-kite-3-frame-sprite-sheet.png",
       "previewGif": "/game-art/generated/ships/scicon-mini-squadron-pack-v1/beacon-kite/beacon-kite-idle-preview.gif"
@@ -165,9 +165,9 @@
         "/game-art/generated/ships/scicon-mini-squadron-pack-v1/prism-skimmer/frames/prism-skimmer-03-flex-out.png"
       ],
       "frameHashes": {
-        "neutral": "84051d6a39ca6f4cb2d6456f1e645378f305a276a3e1a3342c1c136c28d847d4",
-        "flex-in": "89f3404a934d1a77c216cb82f23d1093896db87825ad4d0f54510f89626fd915",
-        "flex-out": "8cb6161dd167ab405775999545ea943b6d9ed0ba00d990f159d3e0a0112e0291"
+        "neutral": "7a321a194c402b5dbe01ffb16523a9369a57752210d2d484465df22c20a4e546",
+        "flex-in": "5236a0a1d8aa9fcbf187e2e27c26bb9a039c393d4575fb5e55046c078f743906",
+        "flex-out": "e8e6aef289553085ab17b978a8f2c6cc91d4bee0e780e43ec47e3dcdab6ed0e4"
       },
       "sheet": "/game-art/generated/ships/scicon-mini-squadron-pack-v1/prism-skimmer/prism-skimmer-3-frame-sprite-sheet.png",
       "previewGif": "/game-art/generated/ships/scicon-mini-squadron-pack-v1/prism-skimmer/prism-skimmer-idle-preview.gif"
@@ -182,9 +182,9 @@
         "/game-art/generated/ships/scicon-mini-squadron-pack-v1/ledger-hammer/frames/ledger-hammer-03-flex-out.png"
       ],
       "frameHashes": {
-        "neutral": "9ad9db80b3f06593988db24e7ea285b07150560b7758b385f641a216fdb393f7",
-        "flex-in": "be6fdaf9e9d50c82dd58a502de67d628643bf0ec198a7d6f6fda83b9a87c86f4",
-        "flex-out": "d0b9a13273d24fd20d694ce453ae0039293ecf7fa7f25dc4257d4aeb103e6b4f"
+        "neutral": "9920bbbb57c1c0b1eb5d858fede1d30627b984bd9caf12bbcba5683e4396496f",
+        "flex-in": "76f0797ea6406d05d4342b533fedae58aa17884bc46970f754ce8150cd57a3b2",
+        "flex-out": "d22baa2ba2bb8ed90d83b2c7dd8618a1740aa3967efebe25c11751d3eadf4de2"
       },
       "sheet": "/game-art/generated/ships/scicon-mini-squadron-pack-v1/ledger-hammer/ledger-hammer-3-frame-sprite-sheet.png",
       "previewGif": "/game-art/generated/ships/scicon-mini-squadron-pack-v1/ledger-hammer/ledger-hammer-idle-preview.gif"
@@ -199,9 +199,9 @@
         "/game-art/generated/ships/scicon-mini-squadron-pack-v1/nebula-tern/frames/nebula-tern-03-flex-out.png"
       ],
       "frameHashes": {
-        "neutral": "7ffd45de62a5bf1a4cd3d58172b4eeb58d03c1ec3a4acd00eebed4314f3c8e18",
-        "flex-in": "7ed10a985692b2ed723208d9499cb25a25425582488b948e1e6b66deeed4159d",
-        "flex-out": "72a94c195b5a1d13f62a0d1e87047bc1a7bf13c352fec0834a8db1eb657f362d"
+        "neutral": "1de98a6709a716d8217220c4caf3f0f6755ea5691bd7e4a680bef39b255352ad",
+        "flex-in": "66c3299754aac999ad904282147e2e1757db4b548fef6eda8d50ff048b2305a2",
+        "flex-out": "e54b3db9719298be9a2033c65b6953c014a457439abca03712fbe4d15478e82f"
       },
       "sheet": "/game-art/generated/ships/scicon-mini-squadron-pack-v1/nebula-tern/nebula-tern-3-frame-sprite-sheet.png",
       "previewGif": "/game-art/generated/ships/scicon-mini-squadron-pack-v1/nebula-tern/nebula-tern-idle-preview.gif"
