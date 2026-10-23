@@ -3432,11 +3432,15 @@ export class PixiGameRenderer {
       }
       const radius = Math.min(10, Math.min(width, height) * 0.45);
       if (entity.isTelegraph) {
-        const laneAlpha = entity.beamFillRatio ? 0.28 : 0.08;
+        const matchedLane = Boolean(entity.beamFillRatio);
         view.aura.roundRect(-width / 2, -height / 2, width, height, radius)
-          .fill({ color, alpha: laneAlpha });
+          .fill({ color, alpha: matchedLane ? 0.72 : 0.08 });
+        if (matchedLane) {
+          view.body.roundRect(-width / 2, -height / 2, width, height, radius)
+            .fill({ color: '#ffffff', alpha: 0.62 });
+        }
         view.body.roundRect(-width / 2, -height / 2, width, height, radius)
-          .stroke({ color, width: Math.max(1.5, Math.min(width, height) * 0.22), alpha: 0.9 });
+          .stroke({ color, width: Math.max(1.5, Math.min(width, height) * 0.22), alpha: 0.95 });
       } else {
         view.aura.roundRect(-width / 2, -height / 2, width, height, radius)
           .fill({ color, alpha: cornerAmbushBeam ? 0.44 : 0.28 });
