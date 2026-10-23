@@ -3494,15 +3494,19 @@ export class PixiGameRenderer {
       this.setTexture(view, frame);
       view.sprite.tint = '#ffffff';
       view.sprite.alpha = 0.95;
-      view.sprite.width = Math.max(24, entity.width * 2.4);
-      view.sprite.height = Math.max(30, entity.height * 1.7);
+      view.sprite.width = Math.max(30, entity.width * 3.1);
+      view.sprite.height = Math.max(38, entity.height * 2.05);
       view.root.rotation = Math.atan2(entity.vy, entity.vx) + Math.PI / 2;
       const speed = Math.max(1, Math.hypot(entity.vx, entity.vy));
-      const length = clamp(speed * 3.2, 14, 38);
+      const length = clamp(speed * 4.2, 18, 52);
+      view.trail.blendMode = 'add';
       for (let segment = 0; segment < 3; segment++) {
-        view.trail.rect(-1 + segment * 0.15, 6 + segment * length / 3, 2 - segment * 0.3, length / 3)
-          .fill({ color, alpha: 0.4 - segment * 0.1 });
+        const width = (kind === 'heavy-cannon' || kind === 'homing-missile' ? 4.2 : 2.4) - segment * 0.7;
+        view.trail.rect(-width / 2, 8 + segment * length / 3, width, length / 3)
+          .fill({ color, alpha: 0.72 - segment * 0.18 });
       }
+      view.trail.rect(-0.7, 8, 1.4, length * 0.55)
+        .fill({ color: '#f8fdff', alpha: 0.8 });
       return;
     }
     if (playerShot) {
@@ -3684,6 +3688,10 @@ export class PixiGameRenderer {
       if (playerShot) {
         view.body.roundRect(-projectileWidth * 0.18, -entity.height * 0.45, projectileWidth * 0.36, entity.height * 0.9, projectileWidth * 0.18)
           .fill(color);
+      } else {
+        // A hot core keeps hostile rounds readable against the bright terrain.
+        view.body.roundRect(-projectileWidth * 0.16, -entity.height * 0.4, projectileWidth * 0.32, entity.height * 0.68, projectileWidth * 0.16)
+          .fill({ color: '#fff6e8', alpha: 0.92 });
       }
     }
   }
@@ -6817,12 +6825,12 @@ export class PixiGameRenderer {
     const takeoff = engine.getStageTakeoffPresentation();
     const takeoffActive = takeoff.phase !== 'idle';
     const thrusterFrameCount = ASSETS.PIXI_THRUSTER_FRAMES.length;
-    const thrusterFrameDelay = Math.max(2, Math.round(6 - takeoff.thrustStrength * 4));
-    const thrusterTexture = takeoffActive
-      ? this.textureBank.get(
-        ASSETS.PIXI_THRUSTER_FRAMES[Math.floor(engine.frameCount / thrusterFrameDelay) % thrusterFrameCount]
-      )
-      : null;
+    const thrusterFrameDelay = takeoffActive
+      ? Math.max(2, Math.round(6 - takeoff.thrustStrength * 4))
+      : 5;
+    const thrusterTexture = this.textureBank.get(
+      ASSETS.PIXI_THRUSTER_FRAMES[Math.floor(engine.frameCount / thrusterFrameDelay) % thrusterFrameCount]
+    );
     const speedLevel = clamp(
       Math.floor(engine.stats.upgrades.speed || 0),
       0,
@@ -6836,7 +6844,7 @@ export class PixiGameRenderer {
       const textureKey = companion?.frames[companion.frameIndex] ?? '';
       const texture = textureKey ? this.textureBank.get(textureKey) : null;
       pod.visible = Boolean(companion && texture);
-      thruster.visible = Boolean(takeoffActive && companion && texture && thrusterTexture);
+      thruster.visible = Boolean(companion && texture && thrusterTexture && companion.alpha > 0.05);
       if (!pod.visible || !texture || !companion) {
         thruster.visible = false;
         continue;
@@ -6846,7 +6854,16 @@ export class PixiGameRenderer {
       pod.height = companion.height * companion.scale;
       pod.alpha = companion.alpha;
       pod.position.set(companion.x, companion.y);
-      pod.rotation = Math.sin(engine.frameCount * 0.04 + index * Math.PI) * 0.028;
+      const idleWobble = Math.sin(engine.frameCount * 0.04 + index * Math.PI) * 0.02;
+      pod.rotation = idleWobble + (companion.bank || 0) * 0.7;
+      if (companion.muzzleFlash > 0 && !takeoffActive) {
+        const flash = companion.muzzleFlash / 8;
+        const noseY = companion.y - companion.height * companion.scale * 0.42;
+        this.gunPodUtility.roundRect(companion.x - 3, noseY - 8, 6, 14, 2)
+          .fill({ color: '#f8fdff', alpha: 0.9 * flash });
+        this.gunPodUtility.roundRect(companion.x - 7, noseY - 2, 14, 8, 3)
+          .fill({ color: companion.accent || '#67e8f9', alpha: 0.55 * flash });
+      }
       if (companion.utilityActive && !takeoffActive) {
         const color = companion.id === 'axiom-orbiter' ? '#93c5fd' : '#fde047';
         if (companion.id === 'axiom-orbiter') {
@@ -6863,17 +6880,20 @@ export class PixiGameRenderer {
       }
 
       if (thruster.visible && thrusterTexture) {
-        const thrustScale = Math.min(3.4, 0.8 + takeoff.thrustStrength * 0.8 + takeoff.travel * 1.8);
+        const cruise = 0.42 + Math.sin(engine.frameCount * 0.45 + index) * 0.06;
+        const thrustScale = takeoffActive
+          ? Math.min(3.4, 0.8 + takeoff.thrustStrength * 0.8 + takeoff.travel * 1.8)
+          : cruise;
         thruster.texture = thrusterTexture;
-        thruster.tint = thrusterTint;
-        thruster.alpha = companion.alpha * 0.9;
-        thruster.rotation = -Math.PI / 2;
+        thruster.tint = takeoffActive ? thrusterTint : (companion.accent || thrusterTint);
+        thruster.alpha = companion.alpha * (takeoffActive ? 0.9 : 0.72);
+        thruster.rotation = -Math.PI / 2 + (companion.bank || 0) * 0.35;
         thruster.position.set(
           companion.x,
-          companion.y + companion.height * companion.scale * 0.28
+          companion.y + companion.height * companion.scale * 0.34
         );
-        thruster.width = companion.height * companion.scale * 0.28 * thrustScale;
-        thruster.height = companion.width * companion.scale * 0.1;
+        thruster.width = companion.height * companion.scale * (takeoffActive ? 0.28 : 0.18) * thrustScale;
+        thruster.height = companion.width * companion.scale * (takeoffActive ? 0.1 : 0.07);
       }
     }
   }

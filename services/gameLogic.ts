@@ -1871,6 +1871,11 @@ export interface SquadCompanionVisual {
   alpha: number;
   scale: number;
   utilityActive: boolean;
+  /** Horizontal lean copied from the player's current velocity. */
+  bank: number;
+  /** Frames remaining on the muzzle flash that marks a real shot. */
+  muzzleFlash: number;
+  accent: string;
 }
 
 type ActiveSquadCompanion = RuntimeSquadCompanion & {
@@ -1882,6 +1887,7 @@ type ActiveSquadCompanion = RuntimeSquadCompanion & {
   entryProgress: number;
   utilityCooldown?: number;
   utilityActive?: boolean;
+  muzzleFlash?: number;
 };
 type PendingEnemyLaser = {
   sourceId: string;
@@ -2431,7 +2437,7 @@ export const getSquadCompanionFormationTarget = (
 ) => {
   const centerX = playerX + playerWidth / 2;
   const centerY = playerY + playerHeight / 2;
-  const formationDistance = Math.max(58, Math.min(82, playerWidth * 0.62));
+  const formationDistance = Math.max(96, Math.min(124, playerWidth * 0.92));
   const safeDistanceScale = Math.max(0, Math.min(1, distanceScale));
   return {
     x: centerX + (slot === 'left' ? -1 : 1) * formationDistance * safeDistanceScale,
@@ -3126,6 +3132,11 @@ export class GameEngine {
   playSound(...args: Parameters<typeof audioService.playSound>) {
     if (!this.audioEnabled) return;
     audioService.playSound(...args);
+  }
+
+  private playSupportShot(pitch: number) {
+    if (!this.audioEnabled) return;
+    audioService.playSupportShot(pitch);
   }
 
   getStageTakeoffPresentation() {
@@ -7446,7 +7457,8 @@ export class GameEngine {
   }
 
   getSquadCompanionVisuals(): SquadCompanionVisual[] {
-    const size = this.mobileProfile ? 42 : 50;
+    const size = this.mobileProfile ? 74 : 82;
+    const bank = clamp(this.playerVel.x / 9, -0.42, 0.42);
     return this.squadCompanions.map((companion) => ({
       slot: companion.slot,
       id: companion.id,
@@ -7458,7 +7470,10 @@ export class GameEngine {
       height: size,
       alpha: this.playerDrawAlpha * companion.entryProgress,
       scale: this.waveDepartureFrames > 0 ? this.playerDrawScale : 1,
-      utilityActive: companion.utilityActive ?? false
+      utilityActive: companion.utilityActive ?? false,
+      bank,
+      muzzleFlash: companion.muzzleFlash ?? 0,
+      accent: companion.projectileColor
     }));
   }
 
@@ -7497,7 +7512,8 @@ export class GameEngine {
       companion.entryProgress = Math.min(1, companion.entryProgress + 0.045);
       companion.x += (target.x - companion.x) * 0.46;
       companion.y += (target.y - companion.y) * 0.46;
-      companion.frameIndex = Math.floor(this.frameCount / 10 + index) % companion.frames.length;
+      companion.muzzleFlash = Math.max(0, (companion.muzzleFlash ?? 0) - 1);
+      companion.frameIndex = this.squadCompanionFrame(companion, index);
     });
   }
 
@@ -7551,9 +7567,10 @@ export class GameEngine {
         }
       }
       companion.entryProgress = Math.min(1, companion.entryProgress + 0.045);
-      companion.x += (targetX - companion.x) * 0.14;
-      companion.y += (targetY - companion.y) * 0.14;
-      companion.frameIndex = Math.floor(this.frameCount / 10 + index) % companion.frames.length;
+      companion.x += (targetX - companion.x) * 0.2;
+      companion.y += (targetY - companion.y) * 0.2;
+      companion.muzzleFlash = Math.max(0, (companion.muzzleFlash ?? 0) - 1);
+      companion.frameIndex = this.squadCompanionFrame(companion, index);
 
       if (!canFire) return;
       // Salvage excursions are utility work, not a remote turret exploit.
@@ -7562,7 +7579,32 @@ export class GameEngine {
       if (companion.fireTimer > 0) return;
       this.spawnSquadCompanionBullet(companion);
       companion.fireTimer = companion.fireIntervalFrames;
+      companion.muzzleFlash = 8;
+      companion.frameIndex = 1;
+      this.playSupportShot(this.supportShotPitch(companion.ability));
     });
+  }
+
+  private squadCompanionFrame(companion: ActiveSquadCompanion, index: number) {
+    if ((companion.muzzleFlash ?? 0) > 0) return 1;
+    return Math.floor(this.frameCount / 12 + index) % 2 === 0 ? 0 : 2;
+  }
+
+  private supportShotPitch(ability: MiniShipAbilityKind) {
+    switch (ability) {
+      case 'spread-cycle': return 1.16;
+      case 'piercing-laser': return 0.74;
+      case 'coin-magnet': return 0.96;
+      case 'twin-burst': return 1.1;
+      case 'homing-missile': return 0.62;
+      case 'targeting-laser': return 0.82;
+      case 'prism-fan': return 1.24;
+      case 'heavy-cannon': return 0.54;
+      case 'nova-volley': return 1.32;
+      case 'pulse-cannon':
+      default:
+        return 1.04;
+    }
   }
 
   private updateDepartureSquadCompanions(takeoff: StageTakeoffPresentation) {
@@ -7584,7 +7626,8 @@ export class GameEngine {
       companion.entryProgress = Math.min(1, companion.entryProgress + 0.045);
       companion.x += (target.x - companion.x) * followStrength;
       companion.y += (target.y - companion.y) * followStrength;
-      companion.frameIndex = Math.floor(this.frameCount / 8 + index) % companion.frames.length;
+      companion.muzzleFlash = Math.max(0, (companion.muzzleFlash ?? 0) - 1);
+      companion.frameIndex = this.squadCompanionFrame(companion, index);
     });
   }
 
@@ -7695,7 +7738,7 @@ export class GameEngine {
     }
 
     if (!this.shouldUseLeanEffects()) {
-      this.spawnBurst(companion.x, companion.y - 14, companion.projectileColor, 1, 0.8, 2);
+      this.spawnBurst(companion.x, companion.y - 18, companion.projectileColor, 4, 1.4, 2.4);
     }
   }
 

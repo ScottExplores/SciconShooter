@@ -429,7 +429,8 @@ test('Pixi forces neutral flight, extended blue thrusters, and a pooled launch s
     renderer.indexOf('private syncGunPods(engine: GameEngine)'),
     renderer.indexOf('private syncPlayerThrusters(engine: GameEngine)')
   );
-  assert.match(syncGunPods, /thruster\.visible = Boolean\(takeoffActive/);
+  assert.match(syncGunPods, /thruster\.visible = Boolean\(companion && texture && thrusterTexture && companion\.alpha > 0\.05\)/);
+  assert.match(syncGunPods, /takeoffActive \? thrusterTint : \(companion\.accent \|\| thrusterTint\)/);
   assert.doesNotMatch(syncGunPods, /new Sprite|new Container/);
   const syncLaunchStreak = renderer.slice(
     renderer.indexOf('private syncStageLaunchStreak(engine: GameEngine, takeoff: StageTakeoffPresentation)'),

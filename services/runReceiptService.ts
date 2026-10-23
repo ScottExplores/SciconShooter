@@ -186,6 +186,16 @@ export const startRunSession = async ({
       // Competitive Weekly Run admission is server-authoritative. Falling
       // back to a local session here would let quota/persistence failures look
       // playable even though the result can never be verified.
+      if ((error as { code?: unknown })?.code === 'GUEST_SESSION_REQUIRED') {
+        throw Object.assign(
+          new Error('Weekly Run could not keep a guest session in this browser. Allow cookies for this site, then try again.'),
+          {
+            statusCode: (error as { statusCode?: number })?.statusCode || 428,
+            code: 'GUEST_SESSION_REQUIRED',
+            details: (error as { details?: unknown })?.details
+          }
+        );
+      }
       throw error;
     }
     const statusCode = Number((error as { statusCode?: unknown })?.statusCode);

@@ -173,6 +173,8 @@ class AudioService {
   private pageActive: boolean = typeof document === 'undefined' ? true : !document.hidden;
   private lastSoundTime: Partial<Record<GameSoundType, number>> = {};
   private lastUiSoundTime: Partial<Record<UiSoundType, number>> = {};
+  private lastSupportShotMs = 0;
+  private audioGestureBound = false;
   private playerWeaponVoiceScopes = new Map<object, PlayerWeaponVoiceFamily>();
 
   /** An audio-enabled canvas owns this presentation scope. A preview cleanup
@@ -225,7 +227,56 @@ class AudioService {
       window.addEventListener('pageshow', this.handlePageShow);
       window.addEventListener('blur', this.handleBlur);
       window.addEventListener('focus', this.handleFocus);
+      this.bindAudioGestureUnlock();
     }
+  }
+
+  /**
+   * Browsers refuse to start an AudioContext until a click or key press.
+   * Music that tried to start on the loading screen stays silent unless we
+   * resume on that gesture and start the bed again.
+   */
+  private bindAudioGestureUnlock() {
+    if (this.audioGestureBound || typeof window === 'undefined') return;
+    this.audioGestureBound = true;
+    const unlock = () => {
+      const ctx = this.ensureAudioContext();
+      if (!ctx) return;
+      void ctx.resume().then(() => {
+        if (ctx.state !== 'running') return;
+        this.applyAudioLevels();
+        if (!this.currentMusic || this.musicPaused || this.muted || this.musicSource) return;
+        const request = ++this.musicPlaybackRequest;
+        void this.startMusicSource(this.currentMusic, 0.2, request);
+      }).catch(() => undefined);
+    };
+    window.addEventListener('pointerdown', unlock, { passive: true });
+    window.addEventListener('keydown', unlock);
+  }
+
+  /** A quiet, separate voice so wingmen do not steal the player's shot cooldown. */
+  public playSupportShot(pitch = 1) {
+    if (!this.ctx) this.init();
+    if (!this.ctx || this.muted || !this.pageActive || this.sfxVolumeLevel === 0 || !this.sfxGain) return;
+    const nowMs = performance.now();
+    if (nowMs - this.lastSupportShotMs < 64) return;
+    this.lastSupportShotMs = nowMs;
+    const start = this.ctx.currentTime;
+    const safePitch = Math.max(0.45, Math.min(1.6, pitch));
+    const oscillator = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    oscillator.type = 'square';
+    oscillator.frequency.setValueAtTime(740 * safePitch, start);
+    oscillator.frequency.exponentialRampToValueAtTime(280 * safePitch, start + 0.055);
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.linearRampToValueAtTime(0.028, start + 0.008);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.07);
+    oscillator.connect(gain);
+    gain.connect(this.sfxGain);
+    oscillator.onended = () => this.activeProceduralNodes.delete(oscillator);
+    this.activeProceduralNodes.add(oscillator);
+    oscillator.start(start);
+    oscillator.stop(start + 0.08);
   }
 
   private ensureAudioContext() {
