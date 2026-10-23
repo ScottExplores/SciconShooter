@@ -338,4 +338,8 @@ test('game runtime dispatches Gatekeeper Prime before generic boss movement', ()
   assert.match(source, /const attackTempoMultiplier = boss\.configuredAttackTempoMultiplier/);
   assert.match(source, /isGatekeeperPrimeRailPulseFrame\(combatFrame, healthRatio, attackTempoMultiplier\)/);
   assert.match(source, /sample\.attack\.fireEndFrame - sample\.attack\.fireStartFrame/);
+  assert.match(source, /const telegraphFrames = Math\.max\(72, authoredWarningFrames\)/);
+  assert.match(source, /beam\.beamFillRatio = 1/);
+  assert.match(source, /Math\.round\(authoredWidth \* 0\.34\)/);
+  assert.doesNotMatch(source, /telegraph\s*\?\s*this\.mobileProfile \? 5 : 6/);
 });

@@ -270,7 +270,7 @@ import {
   resolveMiniBossMemberAssetUrl,
   sampleMiniBossEncounter
 } from './gameplay/mini-bosses/MiniBossEncounterRuntime';
-import { stageWeeklyRingVolley } from './gameplay/mini-bosses/weeklyRingPressure';
+import { aegisPulseCollisionSize, stageWeeklyRingVolley, weeklyVolleyUsesStagedPressure } from './gameplay/mini-bosses/weeklyRingPressure';
 import type {
   MiniBossEncounterDefinition,
   MiniBossEncounterId,
@@ -864,6 +864,14 @@ export class Entity {
   beamFromCenter: boolean = false;
   isDetachedBeam: boolean = false;
   isTelegraph: boolean = false;
+  /** Sprite size when the collision box is the bright core, not the halo. */
+  visualWidth: number | null = null;
+  visualHeight: number | null = null;
+  /**
+   * Fraction of a beam's width that is both drawn solid and damaging.
+   * 1 means the collision box is the drawn beam.
+   */
+  beamFillRatio: number | null = null;
   isBossGapGuide: boolean = false;
   isBossSideBarrageGuide: boolean = false;
   beamAnchorOffsetX: number | null = null;
@@ -2517,6 +2525,8 @@ interface MiniBossLabPendingProjectile {
   readonly frames: readonly string[];
   readonly variant: number;
   readonly telegraph?: boolean;
+  readonly visualWidth?: number;
+  readonly visualHeight?: number;
 }
 
 interface MiniBossLabEngineState {
@@ -12399,6 +12409,8 @@ export class GameEngine {
         projectile.spriteStyle = { opacity: 0.55 };
       }
       projectile.color = pending.color;
+      projectile.visualWidth = pending.visualWidth ?? null;
+      projectile.visualHeight = pending.visualHeight ?? null;
       projectile.bossOwnerId = pending.ownerEntityId;
       projectile.sourceEventId = pending.eventId;
       projectile.sourceItemId = state.encounterId;
@@ -12489,7 +12501,11 @@ export class GameEngine {
     owner: Entity,
     telegraph = false
   ) {
-    const weeklyRing = state.eventId.startsWith('weekly-run-') && command.kind === 'ring-with-gap';
+    const weeklyRing = weeklyVolleyUsesStagedPressure(
+      state.eventId,
+      definition.id,
+      command.kind
+    );
     const stagedRing = weeklyRing
       ? stageWeeklyRingVolley(
         command.emissionIndex,
@@ -12529,8 +12545,14 @@ export class GameEngine {
       ? definition.assets.find((candidate) => candidate.id === command.projectileAssetId)
       : undefined;
     const frames = binding?.frames ?? [];
-    const projectileWidth = Math.max(8, binding?.widthPixels ?? (command.kind === 'ring-with-gap' ? 24 : 20));
-    const projectileHeight = Math.max(8, binding?.heightPixels ?? (command.kind === 'ring-with-gap' ? 24 : 26));
+    const spriteWidth = Math.max(8, binding?.widthPixels ?? (command.kind === 'ring-with-gap' ? 24 : 20));
+    const spriteHeight = Math.max(8, binding?.heightPixels ?? (command.kind === 'ring-with-gap' ? 24 : 26));
+    const shrinkAegisCore = weeklyRing && definition.id === 'aegis-brood-core';
+    const collisionSize = shrinkAegisCore
+      ? aegisPulseCollisionSize(spriteWidth, spriteHeight)
+      : { width: spriteWidth, height: spriteHeight };
+    const projectileWidth = collisionSize.width;
+    const projectileHeight = collisionSize.height;
     const color = this.getMiniBossLabHazardColor(command);
     const targetAngle = command.angleRadians
       ?? Math.atan2(command.target.y - command.origin.y, command.target.x - command.origin.x);
@@ -12571,7 +12593,11 @@ export class GameEngine {
         color,
         frames,
         variant: command.emissionIndex * 17 + index,
-        telegraph
+        telegraph,
+        ...(shrinkAegisCore ? {
+          visualWidth: spriteWidth,
+          visualHeight: spriteHeight
+        } : {})
       });
     }
   }
@@ -12598,7 +12624,7 @@ export class GameEngine {
       // is readable before the live shots exist.
       if (command.kind === 'beam' || command.kind === 'rail-sweep' || command.kind === 'grid-boundary') {
         this.spawnMiniBossLabBeam(state, definition, command, owner);
-      } else if (state.eventId.startsWith('weekly-run-') && command.kind === 'ring-with-gap') {
+      } else if (weeklyVolleyUsesStagedPressure(state.eventId, definition.id, command.kind)) {
         this.queueMiniBossLabProjectilePattern(state, definition, command, owner, true);
       }
       owner.isCharging = true;
@@ -14435,14 +14461,12 @@ export class GameEngine {
     sequence: number,
     narrow: boolean = false
   ) {
-    if (this.getGatekeeperPrimeActiveProjectileCount(boss) >= this.getGatekeeperPrimeProjectileCap()) {
-      return;
-    }
-    const width = telegraph
-      ? this.mobileProfile ? 5 : 6
-      : narrow
-        ? this.mobileProfile ? 18 : 22
-        : this.mobileProfile ? 38 : 48;
+    const authoredWidth = narrow
+      ? this.mobileProfile ? 18 : 22
+      : this.mobileProfile ? 38 : 48;
+    // The vertical beam art draws a solid core at 34% of the old lane. Telegraph
+    // and damage both use that core, so the warning is the hitbox.
+    const width = Math.max(8, Math.round(authoredWidth * 0.34));
     const beam = this.createEntity(
       EntityType.PROJECTILE,
       boss.x + boss.width * anchorXRatio - width / 2,
@@ -14450,6 +14474,7 @@ export class GameEngine {
     );
     beam.isBeam = true;
     beam.isTelegraph = telegraph;
+    beam.beamFillRatio = 1;
     beam.width = width;
     beam.height = this.height;
     beam.life = Math.max(1, lifetimeFrames);
@@ -14506,9 +14531,18 @@ export class GameEngine {
       bossHeight: boss.height,
       attackTempoMultiplier
     });
+    const authoredWarningFrames = Math.max(
+      1,
+      sample.attack.fireStartFrame - sample.attack.telegraphStartFrame
+    );
+    // A 48-frame hairline was inside the reaction window once the live lane
+    // appeared. Keep at least 1.2s of warning and finish the lane slide before
+    // the beam can hurt.
+    const telegraphFrames = Math.max(72, authoredWarningFrames);
+    const telegraphStart = Math.max(0, sample.attack.fireStartFrame - telegraphFrames);
     if (
       sample.attack.attackId === 'rail-fan'
-      && sample.attack.localFrame === sample.attack.telegraphStartFrame
+      && sample.attack.localFrame === telegraphStart
       && boss.beamLaneSign === 0
     ) {
       boss.beamLaneSign = this.gameplayRandom.chance(0.5) ? -1 : 1;
@@ -14519,7 +14553,7 @@ export class GameEngine {
     if (
       sample.attack.attackId === 'rail-fan'
       && boss.beamLaneSign !== 0
-      && sample.attack.localFrame >= sample.attack.telegraphStartFrame
+      && sample.attack.localFrame >= telegraphStart
       && sample.attack.localFrame < sample.attack.recoveryEndFrame
     ) {
       const laneCenterX = boss.beamLaneSign < 0 ? this.width * 0.3 : this.width * 0.7;
@@ -14529,8 +14563,8 @@ export class GameEngine {
         sample.maximumX
       );
       const entering = clamp(
-        (sample.attack.localFrame - sample.attack.telegraphStartFrame)
-          / Math.max(1, sample.attack.fireStartFrame - sample.attack.telegraphStartFrame),
+        (sample.attack.localFrame - telegraphStart)
+          / Math.max(1, sample.attack.fireStartFrame - telegraphStart),
         0,
         1
       );
@@ -14556,7 +14590,8 @@ export class GameEngine {
     boss.gatekeeperPrimeMaximumPatrolY = sample.maximumY;
     boss.gatekeeperPrimeAttackId = sample.attack.attackId;
     boss.gatekeeperPrimeAttackStage = sample.attack.stage;
-    boss.isCharging = sample.attack.stage === 'telegraph';
+    boss.isCharging = sample.attack.localFrame >= telegraphStart
+      && sample.attack.localFrame < sample.attack.fireStartFrame;
 
     if (boss.gatekeeperPrimePhaseId !== sample.phase.id) {
       const previousPhase = boss.gatekeeperPrimePhaseId;
@@ -14576,16 +14611,17 @@ export class GameEngine {
       }
     }
 
-    if (sample.attack.localFrame === sample.attack.telegraphStartFrame) {
+    if (sample.attack.localFrame === telegraphStart) {
       boss.gatekeeperPrimeLockedTargetX = this.player.x + this.player.width / 2;
       boss.gatekeeperPrimeLockedTargetY = this.player.y + this.player.height / 2;
       this.spawnGatekeeperPrimeChargeCue(boss);
+      const warningLife = Math.max(1, sample.attack.fireStartFrame - telegraphStart);
       if (sample.attack.attackId === 'rail-fan' || sample.attack.attackId === 'core-lane') {
         this.spawnGatekeeperPrimeLaneBeam(
           boss,
           0.5,
           true,
-          sample.attack.fireStartFrame - sample.attack.telegraphStartFrame,
+          warningLife,
           31
         );
       } else if (sample.attack.attackId === 'twin-gate') {
@@ -14594,7 +14630,7 @@ export class GameEngine {
           boss,
           origin.xRatio,
           true,
-          sample.attack.fireStartFrame - sample.attack.telegraphStartFrame,
+          warningLife,
           61 + index,
           true
         ));
@@ -23431,8 +23467,17 @@ export class GameEngine {
         break;
       case EntityType.PROJECTILE:
       case EntityType.MISSILE:
-        insetX = entity.width * 0.2;
-        insetY = entity.isBeam ? entity.height * 0.04 : entity.height * 0.2;
+        if (entity.isBeam && entity.beamFillRatio) {
+          const ratio = Math.max(0.2, Math.min(1, entity.beamFillRatio));
+          insetX = entity.width * (1 - ratio) / 2;
+          insetY = entity.height * 0.02;
+        } else if (entity.visualWidth || entity.visualHeight) {
+          insetX = entity.width * 0.06;
+          insetY = entity.height * 0.06;
+        } else {
+          insetX = entity.width * 0.2;
+          insetY = entity.isBeam ? entity.height * 0.04 : entity.height * 0.2;
+        }
         break;
       case EntityType.ENEMY_SWARM:
         insetX = entity.width * 0.24;

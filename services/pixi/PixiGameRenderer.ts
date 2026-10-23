@@ -3342,8 +3342,8 @@ export class PixiGameRenderer {
       this.setTexture(view, textureKey);
       view.sprite.tint = '#ffffff';
       view.sprite.alpha = 1;
-      view.sprite.width = entity.width;
-      view.sprite.height = entity.height;
+      view.sprite.width = entity.visualWidth ?? entity.width;
+      view.sprite.height = entity.visualHeight ?? entity.height;
       if (entity.projectileVisualKind === 'research-charge') {
         // The soft pooled light supplies the aura. Keeping the projectile
         // graphics free of circles prevents a hard-edged "bubble" around the
@@ -3432,10 +3432,11 @@ export class PixiGameRenderer {
       }
       const radius = Math.min(10, Math.min(width, height) * 0.45);
       if (entity.isTelegraph) {
+        const laneAlpha = entity.beamFillRatio ? 0.28 : 0.08;
         view.aura.roundRect(-width / 2, -height / 2, width, height, radius)
-          .fill({ color, alpha: 0.08 });
+          .fill({ color, alpha: laneAlpha });
         view.body.roundRect(-width / 2, -height / 2, width, height, radius)
-          .stroke({ color, width: Math.max(1.5, Math.min(width, height) * 0.22), alpha: 0.82 });
+          .stroke({ color, width: Math.max(1.5, Math.min(width, height) * 0.22), alpha: 0.9 });
       } else {
         view.aura.roundRect(-width / 2, -height / 2, width, height, radius)
           .fill({ color, alpha: cornerAmbushBeam ? 0.44 : 0.28 });
@@ -3482,12 +3483,16 @@ export class PixiGameRenderer {
           }
         }
         const angled = entity.beamAngleRadians !== null;
-        const coreWidth = angled || entity.beamAxis === 'horizontal'
-          ? width
-          : Math.max(3, width * 0.34);
-        const coreHeight = angled || entity.beamAxis === 'horizontal'
-          ? Math.max(3, height * 0.34)
-          : height;
+        const coreWidth = entity.beamFillRatio
+          ? width * entity.beamFillRatio
+          : angled || entity.beamAxis === 'horizontal'
+            ? width
+            : Math.max(3, width * 0.34);
+        const coreHeight = entity.beamFillRatio
+          ? height
+          : angled || entity.beamAxis === 'horizontal'
+            ? Math.max(3, height * 0.34)
+            : height;
         view.body.roundRect(-coreWidth / 2, -coreHeight / 2, coreWidth, coreHeight, Math.min(6, radius))
           .fill({ color: '#ffffff', alpha: cornerAmbushBeam ? 1 : 0.96 });
         view.body.roundRect(-width / 2, -height / 2, width, height, radius)

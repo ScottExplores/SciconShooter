@@ -36,3 +36,24 @@ test('weekly ring volleys open up, then fill in without a dense first burst', ()
   assert.equal(full.onScreenCap, 18);
   assert.equal(opening.telegraph, true);
 });
+
+test('weekly aegis pulses use the same staged pressure and a core-sized hitbox', () => {
+  const {
+    weeklyVolleyUsesStagedPressure,
+    aegisPulseCollisionSize,
+    AEGIS_PULSE_CORE_SCALE
+  } = load();
+
+  assert.equal(weeklyVolleyUsesStagedPressure('weekly-run-stage-2-boss-event', 'aegis-brood-core', 'guardian-pulse'), true);
+  assert.equal(weeklyVolleyUsesStagedPressure('weekly-run-stage-2-boss-event', 'aegis-brood-core', 'ring-with-gap'), true);
+  assert.equal(weeklyVolleyUsesStagedPressure('weekly-run-stage-1-boss-event', 'prism-moth', 'ring-with-gap'), true);
+  assert.equal(weeklyVolleyUsesStagedPressure('stage-bastion-protocol-major-boss', 'aegis-brood-core', 'guardian-pulse'), false);
+  assert.equal(weeklyVolleyUsesStagedPressure('weekly-run-stage-2-boss-event', 'aegis-brood-core', 'beam'), false);
+
+  const core = aegisPulseCollisionSize(30, 34);
+  assert.equal(core.width, Math.max(8, Math.round(30 * AEGIS_PULSE_CORE_SCALE)));
+  assert.equal(core.height, Math.max(8, Math.round(34 * AEGIS_PULSE_CORE_SCALE)));
+  assert.ok(core.width < 30);
+  assert.ok(core.height < 34);
+  assert.ok(core.width / 30 <= 0.5);
+});

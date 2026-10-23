@@ -1,6 +1,31 @@
 const TAU = Math.PI * 2;
 
 /**
+ * Weekly ring-with-gap attacks already stage. Aegis Brood Core's support
+ * window is a guardian-pulse fan at the same 30x34 boss-ray asset, so the
+ * ring-only gate left that emitter uncapped.
+ */
+export const weeklyVolleyUsesStagedPressure = (
+  eventId: string,
+  encounterId: string,
+  kind: string
+) => (
+  eventId.startsWith('weekly-run-')
+  && (
+    kind === 'ring-with-gap'
+    || (encounterId === 'aegis-brood-core' && kind === 'guardian-pulse')
+  )
+);
+
+/** Bright center of the aegis-pulse sprite. The halo stays visual-only. */
+export const AEGIS_PULSE_CORE_SCALE = 0.46;
+
+export const aegisPulseCollisionSize = (width: number, height: number) => ({
+  width: Math.max(8, Math.round(Math.max(1, width) * AEGIS_PULSE_CORE_SCALE)),
+  height: Math.max(8, Math.round(Math.max(1, height) * AEGIS_PULSE_CORE_SCALE))
+});
+
+/**
  * Weekly elite rings used to appear as one dense volley. The first bursts are
  * smaller and more open, then the pattern fills in. A telegraph is always
  * required before the live shots.
