@@ -213,6 +213,7 @@ test('match music arrows wrap and Campaign sectors advance from the selected tra
 test('non-RSC primary voice identity uses one click-safe oscillator per existing event', () => {
   for (const family of ['bio', 'eth', 'btc']) {
     const harness = loadAudioService();
+    harness.dispatchWindow('pointerdown');
     const release = harness.audioService.bindPlayerWeaponFamily(family);
     harness.audioService.playSound('shoot', 1, { pitchJitter: 0, pitchOffset: 0 });
     const profile = harness.playerWeaponVoiceProfiles[family];
@@ -234,6 +235,7 @@ test('non-RSC primary voice identity uses one click-safe oscillator per existing
 
 test('voice ownership restores RSC and older preview cleanup cannot clobber a new canvas', () => {
   const harness = loadAudioService();
+  harness.dispatchWindow('pointerdown');
   const releaseBio = harness.audioService.bindPlayerWeaponFamily('bio');
   const releaseEth = harness.audioService.bindPlayerWeaponFamily('eth');
   releaseBio();
@@ -249,6 +251,7 @@ test('voice ownership restores RSC and older preview cleanup cannot clobber a ne
 
 test('primary voice polish preserves rapid-fire throttling, mute, and hidden-page silence', () => {
   const harness = loadAudioService();
+  harness.dispatchWindow('pointerdown');
   harness.audioService.bindPlayerWeaponFamily('btc');
   for (let millisecond = 0; millisecond < 280; millisecond++) {
     harness.audioService.playSound('shoot');
@@ -283,9 +286,14 @@ test('UI interaction initializes only WebAudio and never creates or plays backgr
   assert.equal(harness.mediaElements.length, 0);
   harness.audioService.playUiSound('click');
   await harness.flushPromises();
+  assert.equal(harness.audioContexts.length, 0, 'a scripted UI call is not a user gesture');
+  harness.dispatchWindow('pointerdown');
+  await harness.flushPromises();
 
   assert.equal(harness.audioContexts.length, 1);
   assert.equal(harness.audioContext.resumeCalls, 1);
+  harness.audioService.playUiSound('click');
+  assert.equal(harness.audioContexts.length, 1);
   assert.equal(harness.mediaElements.length, 0);
 });
 
@@ -297,6 +305,7 @@ test('only interface samples fetch eagerly and full SFX preparation contains no 
     })
   });
   await harness.flushPromises(12);
+  harness.dispatchWindow('pointerdown');
 
   assert.equal(harness.fetchCalls.length, 6);
   assert.ok(harness.fetchCalls.every((url) => url.startsWith('/audio/ui/')));
@@ -317,6 +326,7 @@ test('decoded UI samples still produce immediate interface feedback', async () =
       arrayBuffer: async () => new ArrayBuffer(16)
     })
   });
+  harness.dispatchWindow('pointerdown');
   harness.audioService.init();
   await harness.audioService.prepare();
 
@@ -328,6 +338,7 @@ test('decoded UI samples still produce immediate interface feedback', async () =
 
 test('sound-effects volume and global mute control the SFX bus', () => {
   const harness = loadAudioService();
+  harness.dispatchWindow('pointerdown');
   harness.audioService.init();
 
   assert.equal(harness.audioService.getSfxVolumeLevel(), 5);
@@ -371,6 +382,8 @@ test('match music loops while the defeat stinger remains one-shot', async () => 
     })
   });
 
+  harness.dispatchWindow('pointerdown');
+  await harness.flushPromises();
   await harness.audioService.playMusic('open-orbit-relay', { fadeSeconds: 0 });
   assert.equal(harness.bufferSources.length, 1);
   assert.equal(harness.bufferSources[0].loop, true);
@@ -383,6 +396,7 @@ test('match music loops while the defeat stinger remains one-shot', async () => 
 
 test('page lifecycle suspends and resumes the SFX context without media elements', async () => {
   const harness = loadAudioService();
+  harness.dispatchWindow('pointerdown');
   harness.audioService.init();
   await harness.flushPromises();
 
@@ -394,6 +408,27 @@ test('page lifecycle suspends and resumes the SFX context without media elements
   await harness.flushPromises();
   assert.ok(harness.audioContext.resumeCalls >= 2);
   assert.equal(harness.mediaElements.length, 0);
+});
+
+test('music requested before the first gesture starts on that gesture and does not construct early', async () => {
+  const harness = loadAudioService({
+    fetch: async () => ({
+      ok: true,
+      arrayBuffer: async () => new ArrayBuffer(16)
+    })
+  });
+
+  const pending = harness.audioService.playMusic('combat', { fadeSeconds: 0 });
+  await harness.flushPromises();
+  assert.equal(harness.audioContexts.length, 0);
+  await pending;
+  assert.equal(harness.bufferSources.length, 0);
+
+  harness.dispatchWindow('pointerdown');
+  await harness.flushPromises(12);
+  assert.equal(harness.audioContexts.length, 1);
+  assert.equal(harness.bufferSources.length, 1);
+  assert.equal(harness.bufferSources[0].loop, true);
 });
 
 test('server-side simulations can import and prepare audio without a media-element global', async () => {

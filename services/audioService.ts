@@ -175,6 +175,7 @@ class AudioService {
   private lastUiSoundTime: Partial<Record<UiSoundType, number>> = {};
   private lastSupportShotMs = 0;
   private audioGestureBound = false;
+  private audioGestureSeen = false;
   private playerWeaponVoiceScopes = new Map<object, PlayerWeaponVoiceFamily>();
 
   /** An audio-enabled canvas owns this presentation scope. A preview cleanup
@@ -240,9 +241,11 @@ class AudioService {
     if (this.audioGestureBound || typeof window === 'undefined') return;
     this.audioGestureBound = true;
     const unlock = () => {
+      this.audioGestureSeen = true;
       const ctx = this.ensureAudioContext();
       if (!ctx) return;
-      void ctx.resume().then(() => {
+      const resume = ctx.state === 'suspended' ? ctx.resume() : Promise.resolve();
+      void resume.then(() => {
         if (ctx.state !== 'running') return;
         this.applyAudioLevels();
         if (!this.currentMusic || this.musicPaused || this.muted || this.musicSource) return;
@@ -281,6 +284,9 @@ class AudioService {
 
   private ensureAudioContext() {
     if (this.ctx) return this.ctx;
+    // Constructing an AudioContext before a click or key press makes Chrome
+    // reject it and log a warning that later resume calls do not clear.
+    if (!this.audioGestureSeen) return null;
     try {
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioContextClass) return null;
