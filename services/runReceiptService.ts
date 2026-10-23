@@ -172,6 +172,21 @@ export const startRunSession = async ({
     walletAddress: requestedWalletAddress,
     ...(weeklyCampaignProof ? { weeklyCampaignProof } : {})
   };
+  if (!requestedWalletAddress) {
+    try {
+      await postReceiptAction({
+        action: 'prepare-guest',
+        gameVersion: GAME_VERSION,
+        testRun,
+        playerShipId,
+        runMode,
+        profileId,
+        walletAddress: null
+      });
+    } catch {
+      // Start still performs the single guest-cookie retry below.
+    }
+  }
   try {
     try {
       return await postReceiptAction(startPayload);

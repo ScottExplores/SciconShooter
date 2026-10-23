@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { createServer } from 'vite';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const root = process.env.SCICON_ROOT || 'C:/Users/scott/SciconShooter';
+const root = process.env.SCICON_ROOT || path.resolve(here, '..');
 
 globalThis.Image ??= class { complete = true; naturalWidth = 1; naturalHeight = 1; crossOrigin = ''; src = ''; };
 globalThis.document ??= { hidden: false, addEventListener() {}, removeEventListener() {}, dispatchEvent() { return true; } };

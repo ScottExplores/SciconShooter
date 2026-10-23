@@ -47,6 +47,6 @@ test('preview invincibility suppresses damage but still registers hostile projec
   );
   assert.match(
     collisionSource,
-    /else \{[\s\S]*?this\.applyPlayerLifeDamage\(incomingDamage\);[\s\S]*?this\.registerPlayerProjectileHitFeedback\(e, false\)/
+    /else \{[\s\S]*?this\.applyPlayerLifeDamage\(incomingDamage\)[\s\S]*?this\.registerPlayerProjectileHitFeedback\(e, false/
   );
 });

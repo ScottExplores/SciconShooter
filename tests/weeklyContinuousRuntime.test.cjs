@@ -201,11 +201,13 @@ test('Weekly Run caps every collision to one heart and records only damage actua
   assert.equal(engine.lives, 1);
   assert.equal(engine.waveDamageTaken, 1);
 
+  engine.frameCount += 1;
   const lethal = engine.applyPlayerLifeDamage(9);
   assert.equal(lethal.damageApplied, 1);
   assert.equal(engine.lives, 0);
   assert.equal(engine.waveDamageTaken, 2);
 
+  engine.frameCount += 1;
   const overkill = engine.applyPlayerLifeDamage(9);
   assert.equal(overkill.damageApplied, 0);
   assert.equal(engine.waveDamageTaken, 2, 'overkill is not reported as extra damage');

@@ -24,7 +24,7 @@ const jsonResponse = (status, body) => ({
   async json() { return body; }
 });
 
-test('the client acknowledges a first guest cookie and retries start exactly once', async () => {
+test('the client prepares a guest session and retries start exactly once', async () => {
   const client = loadClient();
   const previousFetch = global.fetch;
   let calls = 0;
@@ -32,7 +32,7 @@ test('the client acknowledges a first guest cookie and retries start exactly onc
   global.fetch = async (_url, options) => {
     payloads.push(JSON.parse(options.body));
     calls += 1;
-    if (calls === 1) {
+    if (calls <= 2) {
       return jsonResponse(428, {
         error: 'Guest play is ready.',
         code: 'GUEST_SESSION_REQUIRED'
@@ -50,11 +50,12 @@ test('the client acknowledges a first guest cookie and retries start exactly onc
   };
   try {
     const session = await client.startRunSession({ profileId: 'pilot:untrusted-id' });
-    assert.equal(calls, 2);
+    assert.equal(calls, 3);
+    assert.deepEqual(payloads.map((payload) => payload.action), ['prepare-guest', 'start', 'start']);
     assert.equal(session.runId, 'guest-run');
     assert.equal(session.localOnly, undefined);
     assert.equal(session.identity.kind, 'guest');
-    assert.deepEqual(payloads.map((payload) => payload.walletAddress), [null, null]);
+    assert.deepEqual(payloads.map((payload) => payload.walletAddress), [null, null, null]);
   } finally {
     global.fetch = previousFetch;
   }
@@ -87,7 +88,9 @@ test('a repeated guest handshake response does not create an unbounded retry loo
   const client = loadClient();
   const previousFetch = global.fetch;
   let calls = 0;
-  global.fetch = async () => {
+  const payloads = [];
+  global.fetch = async (_url, options) => {
+    payloads.push(JSON.parse(options.body));
     calls += 1;
     return jsonResponse(428, {
       error: 'Guest play is ready.',
@@ -102,7 +105,11 @@ test('a repeated guest handshake response does not create an unbounded retry loo
       }),
       (error) => error?.code === 'GUEST_SESSION_REQUIRED'
     );
-    assert.equal(calls, 2);
+    assert.equal(calls, 3);
+    assert.deepEqual(
+      payloads.map((payload) => payload.action),
+      ['prepare-guest', 'start', 'start']
+    );
   } finally {
     global.fetch = previousFetch;
   }

@@ -11,12 +11,14 @@ const SCRIPT_DIR = path.dirname(SCRIPT_PATH);
 const PROJECT_ROOT = path.dirname(SCRIPT_DIR);
 const DEFAULT_PORT = 43817;
 const DEFAULT_HOST = "127.0.0.1";
-const DEFAULT_GALLERY_PATH = path.join(
-  process.env.USERPROFILE || "C:\\Users\\scott",
-  "Downloads",
-  "Legacy Collection",
-  "Scicon Space Sprite Gallery.html",
-);
+const galleryHome = process.env.HOME || process.env.USERPROFILE || PROJECT_ROOT;
+const DEFAULT_GALLERY_PATH = process.env.SCICON_SPRITE_GALLERY
+  || path.join(
+    galleryHome,
+    "Downloads",
+    "Legacy Collection",
+    "Scicon Space Sprite Gallery.html",
+  );
 const DEFAULT_PROJECT_ART_ROOT = path.join(PROJECT_ROOT, "public", "game-art");
 const DEFAULT_PROJECT_PROTOTYPE_ART_ROOT = path.join(PROJECT_ROOT, "director-data", "prototype-assets");
 const DEFAULT_PROJECT_SOURCE_ART_ROOT = path.join(PROJECT_ROOT, "tools");
@@ -26,12 +28,13 @@ const DEFAULT_PROJECT_MARKETING_ART_ROOT = path.join(PROJECT_ROOT, "marketing");
 const DEFAULT_PROJECT_DOCUMENTATION_ART_ROOT = path.join(PROJECT_ROOT, "docs");
 const DEFAULT_PROJECT_DESIGN_CONCEPT_ART_ROOT = path.join(PROJECT_ROOT, "director", "design", "concepts");
 const DEFAULT_PROJECT_AUDIO_ROOT = path.join(PROJECT_ROOT, "public", "audio");
-const DEFAULT_LEGACY_ROOT = path.join(
-  process.env.USERPROFILE || "C:\\Users\\scott",
-  "Downloads",
-  "Legacy Collection",
-  "Legacy Collection",
-);
+const DEFAULT_LEGACY_ROOT = process.env.SCICON_LEGACY_ROOT
+  || path.join(
+    galleryHome,
+    "Downloads",
+    "Legacy Collection",
+    "Legacy Collection",
+  );
 const ALLOWED_EXTENSIONS = new Set([".png", ".gif", ".jpg", ".jpeg", ".webp", ".svg", ".bmp", ".avif"]);
 const MAX_BODY_BYTES = 32 * 1024;
 

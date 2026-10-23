@@ -605,7 +605,7 @@ export const COLORS = {
 
 export const GAME_CONFIG = {
   FPS: 60,
-  BASE_PLAYER_SPEED: 2.5, // Reduced from 3.2 to make start heavier
+  BASE_PLAYER_SPEED: 2.9, // Modest cruise speed; acceleration owns the responsive feel
   PLAYER_LIVES: 3,
   // Campaign and field upgrades share one survivability ceiling. The Hangar
   // exposes seven permanent heart purchases on top of the three-heart base.

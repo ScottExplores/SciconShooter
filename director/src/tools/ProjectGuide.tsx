@@ -3,7 +3,10 @@ import { fetchProjectStatus, type ProjectStatus } from '@director/api/controlCen
 import './project-guide.css';
 
 const CANONICAL_BRANCH = 'codex/scicon-experimental';
-const PROJECT_ROOT = 'C:\\Users\\scott\\Documents\\Scicon Shooter';
+const PROJECT_ROOT = (
+  typeof import.meta !== 'undefined'
+  && (import.meta as { env?: { VITE_SCICON_PROJECT_ROOT?: string } }).env?.VITE_SCICON_PROJECT_ROOT
+) || '.';
 const LOCAL_GAME_URL = 'http://127.0.0.1:5179/?display=mobile-frame';
 const LIVE_GAME_URL = 'https://sciconshooter.xyz';
 const SUPABASE_REPORTS_URL = 'https://supabase.com/dashboard/project/ktdruljunithwopizorq/editor/18079?schema=public';

@@ -270,6 +270,7 @@ import {
   resolveMiniBossMemberAssetUrl,
   sampleMiniBossEncounter
 } from './gameplay/mini-bosses/MiniBossEncounterRuntime';
+import { stageWeeklyRingVolley } from './gameplay/mini-bosses/weeklyRingPressure';
 import type {
   MiniBossEncounterDefinition,
   MiniBossEncounterId,
@@ -1093,6 +1094,8 @@ export class Entity {
   miniBossLabReinforcementTargetVy: number = 0;
   miniBossLabReinforcementContactDamage: number = 0;
   flashFrames: number = 0;
+  /** This hazard already spent its damage on the player and is only flashing. */
+  resolvedPlayerHit: boolean = false;
   lastDamageFlashFrame: number = -999;
   damage: number = 1;
   pierceRemaining: number = 0;
@@ -1167,6 +1170,7 @@ export class Entity {
   wallPass?: number;
   wallMarchAmplitude?: number;
   wallMarchStartFrame?: number;
+  wallHoldWarned?: boolean;
   coinBurstFrames: number = 0;
   coinGravity: number = 0;
   coinBounceFloorY?: number;
@@ -1492,9 +1496,9 @@ const easeInOutCubic = (value: number) => {
 };
 
 const GAME_FEEL = {
-  acceleration: 0.38,
-  friction: 0.3,
-  touchAcceleration: 0.46,
+  acceleration: 0.64,
+  friction: 0.56,
+  touchAcceleration: 0.82,
   touchResponse: 0.12,
   tiltEase: 0.18,
   tiltPerSpeed: 0.045,
@@ -2009,6 +2013,11 @@ export interface WaveVictorySummary {
   nextStage: number;
   hasNextStage: boolean;
   campaignComplete: boolean;
+  /**
+   * The cleared mission has more than one authored exit. Continue must open
+   * the route choice even when progress settlement has not stored one yet.
+   */
+  routeChoiceRequired?: boolean;
   /** Present only for authored Present Drop bonus waves. */
   presentDrop?: PresentDropVictoryStats;
 }
@@ -2507,6 +2516,7 @@ interface MiniBossLabPendingProjectile {
   readonly color: string;
   readonly frames: readonly string[];
   readonly variant: number;
+  readonly telegraph?: boolean;
 }
 
 interface MiniBossLabEngineState {
@@ -2551,6 +2561,7 @@ export class GameEngine {
   cinematicPaused: boolean = false;
   lives: number = GAME_CONFIG.PLAYER_LIVES;
   invincibleTimer: number = 0;
+  private lastPlayerLifeDamageFrame: number = -1;
   activePowerups: Map<PowerupType, number> = new Map();
   bossRef: Entity | null = null;
   miniBossRef: Entity | null = null;
@@ -4790,6 +4801,7 @@ export class GameEngine {
       : authoredNextCampaignIndex;
     const nextEntry = nextCampaignIndex === null ? null : this.campaignWaves[nextCampaignIndex] ?? null;
     const hasNextStage = graphNode ? graphOutgoingEdges.length > 0 : nextCampaignIndex !== null;
+    const routeChoiceRequired = Boolean(graphNode && graphOutgoingEdges.length > 1);
     const finalStage = this.campaign.campaignGraph
       ? Math.max(1, ...this.campaign.campaignGraph.nodes.map((node) => Math.floor(node.depth)))
       : Math.max(1, getAuthoredCampaignStageCount(this.campaign.levels.length));
@@ -4858,6 +4870,7 @@ export class GameEngine {
         : finalStage,
       hasNextStage,
       campaignComplete: !hasNextStage,
+      routeChoiceRequired,
       ...(includePresentDrop
         ? {
             presentDrop: {
@@ -5481,6 +5494,14 @@ export class GameEngine {
   }
 
   private applyPlayerLifeDamage(incomingDamage: number) {
+    if (this.frameCount === this.lastPlayerLifeDamageFrame) {
+      return {
+        previousLives: this.lives,
+        lives: this.lives,
+        damageApplied: 0,
+        defeated: this.lives <= 0
+      };
+    }
     const requestedDamage = Math.max(1, Math.round(Number(incomingDamage) || 1));
     const boundedDamage = this.maxPlayerDamagePerHit === null
       ? requestedDamage
@@ -5491,6 +5512,7 @@ export class GameEngine {
       GAME_CONFIG.MAX_LIVES
     );
     this.syncPlayerLives(transition.lives);
+    if (transition.damageApplied > 0) this.lastPlayerLifeDamageFrame = this.frameCount;
     this.recordPlayerDamage(transition.damageApplied);
     if (transition.damageApplied > 0) {
       for (const boss of this.entities) {
@@ -7387,6 +7409,13 @@ export class GameEngine {
       }
 
       if (e.type === EntityType.PROJECTILE) {
+        if ((e.isTelegraph || e.resolvedPlayerHit) && !e.isBeam) {
+          e.life--;
+          if (e.life <= 0) {
+            e.markedForDeletion = true;
+            return;
+          }
+        }
         if (e.heliosMineState) {
           this.updateHeliosMineEntity(e);
           if (e.markedForDeletion) return;
@@ -12258,12 +12287,30 @@ export class GameEngine {
         amplitude: marchAmplitude
       });
 
+      const lowestBottom = invaders.reduce(
+        (lowest, invader) => Math.max(lowest, invader.y + invader.height),
+        0
+      );
+      // Keep the formation above the lane the player actually occupies.
+      const playerZoneTop = Math.min(
+        this.height * 0.64,
+        this.getPlayerHomePosition().y - 48
+      );
+      const wallBlocked = lowestBottom + descentSpeed >= playerZoneTop;
+      if (wallBlocked && !invaders.some((invader) => invader.wallHoldWarned)) {
+        invaders.forEach((invader) => {
+          invader.wallHoldWarned = true;
+          invader.flashFrames = Math.max(invader.flashFrames, 16);
+        });
+        this.spawnFloatingText(this.width / 2, playerZoneTop - 28, 'WALL HOLD', '#fef08a', 18);
+      }
       invaders.forEach(inv => {
           const laneX = inv.wallLaneX ?? inv.x;
           // Every segment shares one offset. The wall remains rigid while it
           // steps to an edge, reverses, and continues its authored descent.
           inv.x = laneX + groupOffset;
-          inv.y += descentSpeed;
+          if (!wallBlocked) inv.y += descentSpeed;
+          else inv.y = Math.min(inv.y, playerZoneTop - inv.height);
           if (inv.y > this.height + inv.height + 12) {
             inv.wallPass = (inv.wallPass ?? 0) + 1;
             inv.y = -inv.height - (inv.wallRowOffset ?? 0) - ((inv.wallPass % 2) * 18);
@@ -12344,7 +12391,13 @@ export class GameEngine {
       projectile.height = pending.height;
       projectile.vx = Math.cos(pending.angleRadians) * pending.speed;
       projectile.vy = Math.sin(pending.angleRadians) * pending.speed;
-      projectile.damage = pending.damage;
+      projectile.damage = pending.telegraph ? 0 : pending.damage;
+      projectile.isTelegraph = Boolean(pending.telegraph);
+      if (pending.telegraph) {
+        projectile.life = 42;
+        projectile.maxLife = 42;
+        projectile.spriteStyle = { opacity: 0.55 };
+      }
       projectile.color = pending.color;
       projectile.bossOwnerId = pending.ownerEntityId;
       projectile.sourceEventId = pending.eventId;
@@ -12433,25 +12486,44 @@ export class GameEngine {
     state: MiniBossLabEngineState,
     definition: MiniBossEncounterDefinition,
     command: MiniBossHazardCommand,
-    owner: Entity
+    owner: Entity,
+    telegraph = false
   ) {
-    const activeProjectileCount = state.pendingProjectiles.length + this.entities.reduce(
+    const weeklyRing = state.eventId.startsWith('weekly-run-') && command.kind === 'ring-with-gap';
+    const stagedRing = weeklyRing
+      ? stageWeeklyRingVolley(
+        command.emissionIndex,
+        command.projectileCount,
+        command.gapArcRadians ?? Math.PI * 0.38
+      )
+      : null;
+    const requestedCount = stagedRing ? stagedRing.count : command.projectileCount;
+    const liveProjectileCount = this.entities.reduce(
       (count, entity) => count + Number(
         !entity.markedForDeletion
         && entity.sourceEventId === state.eventId
         && entity.type === EntityType.PROJECTILE
         && !entity.isPlayerShot
         && !entity.isBeam
+        && !entity.isTelegraph
+        && !entity.resolvedPlayerHit
       ),
       0
     );
-    const allowedCount = Math.max(
-      0,
-      Math.min(
-        command.projectileCount,
-        definition.budgets.maximumProjectiles - activeProjectileCount
-      )
+    const pendingLiveCount = state.pendingProjectiles.reduce(
+      (count, pending) => count + Number(!pending.telegraph),
+      0
     );
+    const pendingTelegraphCount = state.pendingProjectiles.length - pendingLiveCount;
+    const budgetRoom = telegraph
+      ? requestedCount
+      : definition.budgets.maximumProjectiles - pendingLiveCount - liveProjectileCount;
+    const screenRoom = stagedRing && !telegraph
+      ? stagedRing.onScreenCap - pendingLiveCount - liveProjectileCount
+      : telegraph
+        ? Math.max(0, (stagedRing?.onScreenCap ?? requestedCount) - pendingTelegraphCount)
+        : requestedCount;
+    const allowedCount = Math.max(0, Math.min(requestedCount, budgetRoom, screenRoom));
     if (allowedCount <= 0) return;
     const binding = command.projectileAssetId
       ? definition.assets.find((candidate) => candidate.id === command.projectileAssetId)
@@ -12463,7 +12535,9 @@ export class GameEngine {
     const targetAngle = command.angleRadians
       ?? Math.atan2(command.target.y - command.origin.y, command.target.x - command.origin.x);
     const radial = command.kind === 'ring-with-gap';
-    const gapArc = clamp(command.gapArcRadians ?? Math.PI * 0.38, 0.2, Math.PI * 1.5);
+    const gapArc = stagedRing
+      ? stagedRing.gapArc
+      : clamp(command.gapArcRadians ?? Math.PI * 0.38, 0.2, Math.PI * 1.5);
     const availableArc = Math.PI * 2 - gapArc;
     const radialStart = (command.gapCenterRadians ?? -Math.PI / 2) + gapArc / 2;
     const choreographyKind = definition.choreography.kind;
@@ -12476,7 +12550,8 @@ export class GameEngine {
         ? 0.50
         : 0.42;
     const staggerFrames = command.kind === 'diagonal-crossfire' ? 4 : radial ? 0 : 2;
-    const speed = command.kind === 'ring-with-gap' ? 3.35 : command.kind === 'diagonal-crossfire' ? 4.7 : 4.15;
+    const liveSpeed = command.kind === 'ring-with-gap' ? 3.35 : command.kind === 'diagonal-crossfire' ? 4.7 : 4.15;
+    const speed = telegraph ? Math.min(liveSpeed, 0.85) : liveSpeed;
     for (let index = 0; index < allowedCount; index += 1) {
       const normalized = allowedCount <= 1 ? 0.5 : index / (allowedCount - 1);
       const angle = radial
@@ -12492,10 +12567,11 @@ export class GameEngine {
         speed,
         width: projectileWidth,
         height: projectileHeight,
-        damage: Math.max(1, Number(owner.projectileDamage) || 1),
+        damage: telegraph ? 0 : Math.max(1, Number(owner.projectileDamage) || 1),
         color,
         frames,
-        variant: command.emissionIndex * 17 + index
+        variant: command.emissionIndex * 17 + index,
+        telegraph
       });
     }
   }
@@ -12517,11 +12593,13 @@ export class GameEngine {
     if (!owner || owner.markedForDeletion || owner.hp <= 0) return;
     if (command.warning) {
       // The elite's registered charge pose is the anatomy-linked warning.
-      // Spatial attacks still draw the exact beam/lane they will occupy, but
-      // projectile attacks no longer add the old generic web/ring over every
-      // body regardless of its character or firing anatomy.
+      // Spatial attacks still draw the exact beam/lane they will occupy.
+      // Weekly rings also ghost the upcoming volley so the first dense burst
+      // is readable before the live shots exist.
       if (command.kind === 'beam' || command.kind === 'rail-sweep' || command.kind === 'grid-boundary') {
         this.spawnMiniBossLabBeam(state, definition, command, owner);
+      } else if (state.eventId.startsWith('weekly-run-') && command.kind === 'ring-with-gap') {
+        this.queueMiniBossLabProjectilePattern(state, definition, command, owner, true);
       }
       owner.isCharging = true;
       return;
@@ -23456,10 +23534,11 @@ export class GameEngine {
       enemy.vy -= normalY * 1.2;
     }
 
+    let ramDamageApplied = 0;
     if (!protectedFromDamage) {
       const incomingDamage = Math.max(1, Math.round(Number(enemy.contactDamage) || 1));
       if (!this.testMode) {
-        this.applyPlayerLifeDamage(incomingDamage);
+        ramDamageApplied = this.applyPlayerLifeDamage(incomingDamage).damageApplied;
       }
       this.invincibleTimer = 60;
     } else if (this.activePowerups.has(PowerupType.SHIELD)) {
@@ -23472,9 +23551,13 @@ export class GameEngine {
     const contactX = (playerCenterX + enemyCenterX) / 2;
     const contactY = (playerCenterY + enemyCenterY) / 2;
     const contactColor = protectedFromDamage ? '#67e8f9' : '#fb7185';
+    enemy.flashFrames = Math.max(enemy.flashFrames, 12);
     this.playSound('hit');
     this.spawnRingEffect(contactX, contactY, contactColor);
     this.spawnBurst(contactX, contactY, contactColor, bossContact ? 12 : 8, bossContact ? 4.8 : 3.6, 4);
+    if (ramDamageApplied > 0) {
+      this.spawnFloatingText(playerCenterX, this.player.y - 18, `-${ramDamageApplied}`, '#fef08a', 24);
+    }
     this.flashAlpha = Math.max(this.flashAlpha, protectedFromDamage ? 0.3 : 0.5);
     this.addShake(bossContact ? 9.5 : 6.5);
     this.addHitStop(bossContact ? 10 : 7);
@@ -23487,7 +23570,11 @@ export class GameEngine {
     if (!this.testMode && this.lives <= 0) this.startDeathSequence();
   }
 
-  private registerPlayerProjectileHitFeedback(source: Entity, previewSafeHit: boolean) {
+  private registerPlayerProjectileHitFeedback(
+    source: Entity,
+    previewSafeHit: boolean,
+    damageApplied = 0
+  ) {
     if (previewSafeHit) {
       if (
         this.frameCount - this.lastPreviewPlayerHitFeedbackFrame
@@ -23498,6 +23585,18 @@ export class GameEngine {
       this.lastPreviewPlayerHitFeedbackFrame = this.frameCount;
     }
 
+    source.flashFrames = Math.max(source.flashFrames, 14);
+    if (source.bossOwnerId) {
+      const owner = this.entities.find((entity) => (
+        entity.id === source.bossOwnerId && !entity.markedForDeletion
+      ));
+      if (owner) owner.flashFrames = Math.max(owner.flashFrames, 12);
+    }
+    const sourceX = source.x + source.width / 2;
+    const sourceY = source.isBeam
+      ? clamp(this.player.y + this.player.height * 0.45, source.y + 8, source.y + source.height - 8)
+      : source.y + source.height / 2;
+    this.spawnBurst(sourceX, sourceY, source.color || '#fef08a', 10, 4.4, 4);
     this.playSound('hit');
     this.spawnExplosion(this.player.x, this.player.y, '#ffffff');
     this.spawnFloatingText(
@@ -23507,6 +23606,15 @@ export class GameEngine {
       '#fb7185',
       22
     );
+    if (!previewSafeHit && damageApplied > 0) {
+      this.spawnFloatingText(
+        this.player.x + this.player.width / 2,
+        this.player.y - 18,
+        `-${damageApplied}`,
+        '#fef08a',
+        24
+      );
+    }
     this.flashAlpha = Math.max(this.flashAlpha, 0.48);
     this.addShake(7);
     this.addHitStop(10);
@@ -23634,11 +23742,13 @@ export class GameEngine {
       if (e.type === EntityType.PROJECTILE) {
           // If it's a beam, it hurts (Boss weapon)
           if (e.isBeam) {
-              hurtsPlayer = !e.isTelegraph;
+              hurtsPlayer = !e.isTelegraph && !e.resolvedPlayerHit;
           }
           // If it's NOT a player shot, it hurts
           else if (
             !e.isPlayerShot
+            && !e.isTelegraph
+            && !e.resolvedPlayerHit
             && !e.clawReturning
             && !e.clawHasHitPlayer
             && (
@@ -23708,13 +23818,14 @@ export class GameEngine {
           const incomingDamage = e.type === EntityType.PROJECTILE
             ? Math.max(1, Math.round(Number(e.damage) || 1))
             : Math.max(1, Math.round(Number(e.contactDamage) || 1));
-          if (!this.testMode) {
-            this.applyPlayerLifeDamage(incomingDamage);
-           }
+          const damageApplied = this.testMode
+            ? 0
+            : this.applyPlayerLifeDamage(incomingDamage).damageApplied;
            this.stats.lives = this.lives;
            this.invincibleTimer = 60;
-           this.registerPlayerProjectileHitFeedback(e, false);
-           // Only delete bullet if it isn't a beam
+           this.registerPlayerProjectileHitFeedback(e, false, damageApplied);
+           // Beams stay visible. Other rounds linger for a few frames so the
+           // flash that marks the hit is actually drawn.
            if (e.type === EntityType.PROJECTILE && !e.isBeam) {
              if (this.isCrownClawProjectile(e)) {
                e.clawReturning = true;
@@ -23722,7 +23833,12 @@ export class GameEngine {
              } else if (e.heliosMineState) {
                e.heliosMineState.hitPlayer = true;
              } else if (!e.frontierCrownclawArtifactKind) {
-               e.markedForDeletion = true;
+               e.resolvedPlayerHit = true;
+               e.damage = 0;
+               e.life = 12;
+               e.maxLife = Math.max(e.maxLife, 12);
+               e.vx *= 0.2;
+               e.vy *= 0.2;
              }
            }
           if (!this.testMode && this.lives <= 0) this.startDeathSequence();

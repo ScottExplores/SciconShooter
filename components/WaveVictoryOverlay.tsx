@@ -39,6 +39,10 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
 }) => {
   const campaignResult = Boolean(campaignSettlement);
   const campaignComplete = summary.campaignComplete || !summary.hasNextStage;
+  const routeChoice = !campaignComplete && (
+    summary.routeChoiceRequired === true
+    || (summary.hasNextStage && !summary.nextLevelId)
+  );
   const missionMastered = Boolean(
     campaignSettlement
     && campaignSettlement.previousStars < 3
@@ -72,7 +76,9 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
     ? { prefix: 'Return to', target: 'Boss Archive' }
     : campaignComplete
       ? { prefix: 'Open', target: 'Campaign Map' }
-      : { prefix: 'Continue', target: `Mission ${summary.nextStage}` };
+      : routeChoice
+        ? { prefix: 'Choose', target: 'Route' }
+        : { prefix: 'Continue', target: `Mission ${summary.nextStage}` };
   const recordStatus = bossArchiveReplay
     ? 'Archive challenge cleared'
     : !campaignSettlement

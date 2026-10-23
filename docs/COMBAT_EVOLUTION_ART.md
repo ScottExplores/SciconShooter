@@ -77,8 +77,8 @@ The existing nearest-neighbor Pixi pipeline loads just the selected strip and
 shared far layer. Initial preloading warms approach plus the upcoming wreck
 field (three textures total), not every campaign background.
 
-Concept and original generation outputs remain in the local generated-images
-folder `C:/Users/scott/.codex/generated_images/019ffe92-376c-7141-81f7-b8717e407916/`:
+Concept and original generation outputs remain with the local image generation
+`019ffe92-376c-7141-81f7-b8717e407916`:
 
 - Concept: `exec-15ff81fa-00fd-4b8d-a1c8-fb73e2b48082.png`.
 - Far space: `exec-e26d5c00-94ac-4465-b8ad-3d4062ed6ea8.png`.

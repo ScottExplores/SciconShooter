@@ -147,6 +147,30 @@ test('guest start uses a two-phase signed cookie and ignores rotating body profi
   assert.equal(third.body.identity.profileIdHash, second.body.identity.profileIdHash);
 });
 
+test('prepare-guest establishes the guest cookie with a handled 200', async () => {
+  const address = '203.0.113.131';
+  const prepared = makeResponse();
+  await handler(makeRequest({
+    action: 'prepare-guest',
+    gameVersion: 'guest-handshake-test',
+    profileId: 'pilot:prepare'
+  }, address, { 'x-forwarded-proto': 'https' }), prepared);
+  assert.equal(prepared.statusCode, 200);
+  assert.equal(prepared.body.ready, false);
+  assert.equal(prepared.body.code, 'GUEST_SESSION_REQUIRED');
+  assert.equal(prepared.body.runId, undefined);
+  const guestCookie = responseCookie(prepared, GUEST_COOKIE_NAME);
+  assert.ok(guestCookie);
+
+  const started = makeResponse();
+  await handler(makeRequest({
+    action: 'start',
+    gameVersion: 'guest-handshake-test'
+  }, address, { cookie: guestCookie }), started);
+  assert.equal(started.statusCode, 200);
+  assert.equal(started.body.identity.kind, 'guest');
+});
+
 test('lost or tampered guest handshakes never create a run before cookie acknowledgement', async () => {
   const address = '203.0.113.121';
   const lost = makeResponse();

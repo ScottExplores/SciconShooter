@@ -95,6 +95,7 @@ type StarPoint = {
   baseX: number;
   baseY: number;
   baseAlpha: number;
+  band: number;
 };
 
 type ScienceGlyph = {
@@ -765,26 +766,29 @@ export class PixiEnvironment {
     }
 
     this.backgroundLayer.addChild(this.sectorTint);
+    const starBandSpeeds = [0.018, 0.055, 0.14];
     const starCount = this.width < 620 ? 72 : 120;
     for (let index = 0; index < starCount; index++) {
       const sprite = new Sprite(Texture.WHITE);
-      const depth = 0.25 + Math.random() * 0.75;
-      sprite.tint = index % 8 === 0 ? '#67e8f9' : index % 13 === 0 ? '#c4b5fd' : '#e2f4ff';
+      const band = index % 3;
+      const depth = band === 0 ? 0.32 : band === 1 ? 0.62 : 0.95;
+      sprite.tint = band === 2 ? '#67e8f9' : band === 1 ? '#e2f4ff' : '#ffffff';
       sprite.alpha = 0.2 + depth * 0.7;
-      const size = 0.7 + depth * 1.9;
+      const size = band === 0 ? 1 : band === 1 ? 1.6 : 2.4;
       sprite.width = size;
       sprite.height = size;
       const baseX = Math.random();
       const baseY = Math.random();
-      const baseAlpha = 0.2 + depth * 0.58;
+      const baseAlpha = 0.22 + depth * 0.62;
       sprite.eventMode = 'none';
       this.stars.push({
         sprite,
-        speed: 0.025 + depth * 0.16,
+        speed: starBandSpeeds[band],
         phase: Math.random() * Math.PI * 2,
         baseX,
         baseY,
-        baseAlpha
+        baseAlpha,
+        band
       });
       this.backgroundLayer.addChild(sprite);
     }
@@ -1201,7 +1205,10 @@ export class PixiEnvironment {
       star.sprite.visible = true;
       star.sprite.x = star.baseX * this.width;
       star.sprite.y = ((star.baseY * this.height) + motionFrame * star.speed * profile.starSpeedMultiplier) % this.height;
-      star.sprite.alpha = Math.max(0.12, Math.min(0.82, star.baseAlpha + Math.sin(motionFrame * 0.012 + star.phase) * 0.08));
+      const twinkleRate = 0.05 + star.band * 0.028;
+      const twinkle = 0.22 + (Math.sin(motionFrame * twinkleRate + star.phase) * 0.5 + 0.5) * 0.78;
+      star.sprite.alpha = Math.max(0.04, Math.min(1, star.baseAlpha * twinkle));
+      if (star.band === 2) star.sprite.tint = profile.accent || '#67e8f9';
     }
 
     const terrainLayer = this.parallaxLayers[0];

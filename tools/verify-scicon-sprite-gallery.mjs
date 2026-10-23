@@ -6,9 +6,15 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-const galleryPath = "C:\\Users\\scott\\Downloads\\Legacy Collection\\Scicon Space Sprite Gallery.html";
-const galleryRoot = path.dirname(galleryPath);
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const galleryPath = process.env.SCICON_SPRITE_GALLERY
+  || path.join(
+    process.env.HOME || process.env.USERPROFILE || projectRoot,
+    "Downloads",
+    "Legacy Collection",
+    "Scicon Space Sprite Gallery.html"
+  );
+const galleryRoot = path.dirname(galleryPath);
 const gameArtRoot = path.join(projectRoot, "public", "game-art");
 const prototypeArtRoot = path.join(projectRoot, "director-data", "prototype-assets");
 const sourceArtRoot = path.join(projectRoot, "tools");

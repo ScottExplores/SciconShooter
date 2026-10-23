@@ -163,7 +163,11 @@ import {
   calculateSquadPowerRating,  getCampaignRecommendedSupportIds,
   getCampaignSupportTagsForMiniShip
 } from './services/squadPowerRating';
-import { createCampaignGraphIndex } from './services/campaignGraph';
+import {
+  createCampaignGraphIndex,
+  getCampaignGraphNodesForMission,
+  getCampaignOutgoingTargetIds
+} from './services/campaignGraph';
 import {  finalizeWeeklyCampaignDeliberateEnd,
   finalizeWeeklyCampaignLoss,
   markWeeklyCampaignStreakSubmission,
@@ -5966,27 +5970,86 @@ const App: React.FC = () => {
       openCampaignMap(focusMissionId);
       return;
     }
+    const openClearedMissionMap = (focusMissionId: string, message = '') => {
+      setWaveVictorySummary(null);
+      setCampaignResultPresentation(null);
+      setActiveRunMode('standard');
+      setActiveCampaignLaunch(null);
+      campaignAttemptIdRef.current = '';
+      setGameState(GameState.MENU);
+      openCampaignMap(focusMissionId);
+      if (message) setCampaignMapError(message);
+    };
     if (isCampaignRun) {
       const campaignProgress = permanentSquadStateRef.current.campaignProgress;
+      const graph = createCampaignGraphIndex(DEFAULT_GAME_CAMPAIGN);
+      const graphNodes = getCampaignGraphNodesForMission(graph, waveVictorySummary.levelId);
+      const sourceNode = graphNodes.find((node) => node.nodeId === campaignProgress.currentGraphNodeId)
+        ?? graphNodes.find((node) => node.nodeId === campaignProgress.pendingRouteChoice?.sourceNodeId)
+        ?? graphNodes[0]
+        ?? null;
+      const authoredOptionIds = sourceNode
+        ? [...getCampaignOutgoingTargetIds(graph, sourceNode.nodeId)]
+        : [];
       const pendingChoice = campaignProgress.pendingRouteChoice;
-      if (pendingChoice) {
+      const optionNodeIds = pendingChoice && pendingChoice.optionNodeIds.length > 1
+        ? pendingChoice.optionNodeIds
+        : authoredOptionIds;
+      const needsRouteChoice = waveVictorySummary.routeChoiceRequired === true
+        || optionNodeIds.length > 1
+        || (waveVictorySummary.hasNextStage && !waveVictorySummary.nextLevelId);
+      if (needsRouteChoice) {
+        if ((!pendingChoice || pendingChoice.optionNodeIds.length < 2) && sourceNode && optionNodeIds.length > 1) {
+          const attemptId = campaignAttemptIdRef.current || `game-${gameId}`;
+          const resultId = `${activeProfileId}:${attemptId}:${waveVictorySummary.levelId}:${waveVictorySummary.waveId}`;
+          const completion = applyCampaignCompletion(campaignProgress, {
+            resultId,
+            playerId: activeProfileId,
+            campaignId: waveVictorySummary.campaignId,
+            campaignRevision: waveVictorySummary.campaignRevision,
+            missionId: waveVictorySummary.levelId,
+            waveId: waveVictorySummary.waveId,
+            stageComplete: waveVictorySummary.stageComplete,
+            score: waveVictorySummary.totalScore,
+            coinsCollected: waveVictorySummary.coinsCollected,
+            damageTaken: waveVictorySummary.damageTaken,
+            elapsedSeconds: waveVictorySummary.elapsedSeconds,
+            masteryEligible: waveVictorySummary.stageComplete && campaignRunMasteryEligibleRef.current
+          });
+          if (completion.settlement.accepted || completion.settlement.duplicate) {
+            const nextPermanent: PermanentSquadState = {
+              ...permanentSquadStateRef.current,
+              campaignProgress: completion.progress,
+              updatedAt: new Date().toISOString()
+            };
+            permanentSquadStateRef.current = nextPermanent;
+            setPermanentSquadState(nextPermanent);
+            try {
+              commitCampaignSquadSettlement({
+                resultId: `${resultId}:route`,
+                weeklyState: weeklySquadStateRef.current,
+                permanentState: nextPermanent
+              });
+            } catch (error) {
+              console.error('Campaign route choice could not be saved', error);
+            }
+          }
+        }
+        const storedChoice = permanentSquadStateRef.current.campaignProgress.pendingRouteChoice;
+        const firstOptionId = storedChoice?.optionNodeIds[0] ?? optionNodeIds[0];
         const firstOption = DEFAULT_GAME_CAMPAIGN.campaignGraph?.nodes.find((node) => (
-          node.nodeId === pendingChoice.optionNodeIds[0]
+          node.nodeId === firstOptionId
         ));
-        setWaveVictorySummary(null);
-        setCampaignResultPresentation(null);
-        setActiveRunMode('standard');
-        setActiveCampaignLaunch(null);
-        campaignAttemptIdRef.current = '';
-        setGameState(GameState.MENU);
-        openCampaignMap(firstOption?.missionDefinitionId ?? waveVictorySummary.levelId);
-        setCampaignMapError('Choose one connected route to continue. The other route remains available for replay.');
+        openClearedMissionMap(
+          firstOption?.missionDefinitionId ?? waveVictorySummary.levelId,
+          'Choose one connected route to continue. The other route remains available for replay.'
+        );
         return;
       }
     }
     if (waveVictorySummary.campaignComplete || !waveVictorySummary.hasNextStage) {
       if (isCampaignRun) {
-        openCampaignMap(waveVictorySummary.levelId);
+        openClearedMissionMap(waveVictorySummary.levelId);
         return;
       }
       setCampaignCompletedRun(true);
@@ -6014,6 +6077,10 @@ const App: React.FC = () => {
           targetWaveId: nextWaveId
         };
       }
+    }
+    if (isCampaignRun && !continuationTarget) {
+      openClearedMissionMap(waveVictorySummary.levelId);
+      return;
     }
     setWaveContinueCommand(current => ({
       nonce: (current?.nonce ?? 0) + 1,

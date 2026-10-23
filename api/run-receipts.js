@@ -52,6 +52,15 @@ module.exports = async (req, res) => {
       windowMs: 10 * 60 * 1000
     });
     if (!rate.allowed) return sendJson(res, 429, { error: 'Too many run requests. Please wait before trying again.' });
+    if (body.action === 'prepare-guest') {
+      const identity = readGuestIdentityOrEstablish(req, res);
+      return sendJson(res, 200, identity
+        ? { ready: true }
+        : {
+          ready: false,
+          code: 'GUEST_SESSION_REQUIRED'
+        });
+    }
     if (body.action === 'start') {
       let walletSession = null;
       const walletIntentProvided = body.walletAddress !== null

@@ -66,7 +66,8 @@ test('engine test mode preserves lives and supports stage and authored-climax ju
   assert.match(engineSource, /this\.queueConfiguredEncounter\(climax as RuntimeEncounterEvent\)/);
   assert.doesNotMatch(engineSource, /if \(!mainBoss\)[\s\S]{0,180}startBossWarning\('gatekeeper'\)/);
   assert.match(engineSource, /this\.entities = \[\][\s\S]*?this\.resetWaveProgress\(\)/);
-  assert.match(engineSource, /if \(!this\.testMode\) \{\s*this\.applyPlayerLifeDamage\(incomingDamage\)/);
+  assert.match(engineSource, /if \(!this\.testMode\) \{\s*ramDamageApplied = this\.applyPlayerLifeDamage\(incomingDamage\)/);
+  assert.match(engineSource, /this\.testMode\s*\?\s*0\s*:\s*this\.applyPlayerLifeDamage\(incomingDamage\)/);
   assert.match(canvasSource, /engine\.jumpToCampaignWave\(testWaveCommand\.wave\)/);
   assert.match(canvasSource, /engine\.jumpToCampaignBoss\(testBossCommand\.wave\)/);
 });

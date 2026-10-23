@@ -3399,10 +3399,18 @@ export class PixiGameRenderer {
         // add a translucent circle or velocity rotation around the authored art.
         view.root.rotation = entity.spriteFrameFixedRotationRadians;
       } else if (entity.projectileVisualKind === 'boss-ray') {
+        const rayColor = entity.color || '#ff9d2e';
+        const coreWidth = Math.max(8, entity.width * (entity.isTelegraph ? 0.34 : 0.46));
+        const hotWidth = Math.max(3, coreWidth * 0.34);
+        const rayAlpha = entity.isTelegraph ? 0.34 : entity.flashFrames > 0 ? 0.96 : 0.78;
+        view.body.roundRect(-coreWidth / 2, -entity.height / 2, coreWidth, entity.height, 4)
+          .fill({ color: rayColor, alpha: rayAlpha });
+        view.body.roundRect(-hotWidth / 2, -entity.height / 2, hotWidth, entity.height, 2)
+          .fill({ color: '#fff7ed', alpha: entity.isTelegraph ? 0.28 : 0.94 });
         view.aura.roundRect(-entity.width * 0.7, -entity.height * 0.5, entity.width * 1.4, entity.height, entity.width * 0.38)
-          .fill({ color: '#ff9d2e', alpha: 0.18 });
+          .fill({ color: rayColor, alpha: entity.isTelegraph ? 0.08 : 0.18 });
         view.aura.roundRect(-entity.width * 0.34, -entity.height * 0.5, entity.width * 0.68, entity.height, entity.width * 0.24)
-          .stroke({ color: '#fef08a', width: 2, alpha: 0.72 });
+          .stroke({ color: '#fef08a', width: entity.flashFrames > 0 ? 4 : 2, alpha: entity.flashFrames > 0 ? 1 : 0.86 });
       } else {
         const isCrownClaw = entity.projectileVisualKind === 'crown-claw-left'
           || entity.projectileVisualKind === 'crown-claw-right';
@@ -6481,11 +6489,18 @@ export class PixiGameRenderer {
     view.sprite.alpha = 1;
     view.sprite.tint = '#ffffff';
 
-    // Pooled views may previously have carried an optically anchored bolt.
+    // Pooled views may previously have carried an optically anchored bolt
+    // or a bobbing pickup.
     view.sprite.anchor.set(0.5);
+    view.sprite.position.set(0, 0);
 
     if (entity.type === EntityType.PROJECTILE || entity.type === EntityType.MISSILE) {
       this.drawProjectile(view, entity, engine);
+      if (entity.isTelegraph) {
+        view.sprite.alpha = Math.min(view.sprite.alpha, 0.38);
+        view.body.circle(0, 0, Math.max(6, Math.max(entity.width, Math.min(entity.height, 28)) * 0.55))
+          .stroke({ color: entity.color || '#fef08a', width: 2, alpha: 0.9 });
+      }
     } else if (entity.type === EntityType.EFFECT) {
       view.sprite.visible = false;
       view.body.clear();
@@ -6547,6 +6562,14 @@ export class PixiGameRenderer {
 
     if (entity.type === EntityType.PLAYER) {
       this.drawPlayerRig(view, entity, engine);
+      const moveSpeed = Math.hypot(engine.playerVel.x, engine.playerVel.y);
+      if (moveSpeed > 0.45) {
+        const box = engine.getCollisionBox(entity);
+        const localX = box.x + box.width / 2 - (entity.x + entity.width / 2);
+        const localY = box.y + box.height / 2 - (entity.y + entity.height / 2);
+        view.aura.circle(localX, localY, 2.6).fill({ color: '#f8fdff', alpha: 0.96 });
+        view.aura.circle(localX, localY, 4.4).stroke({ color: '#67e8f9', width: 1.25, alpha: 0.9 });
+      }
     } else if (entity.type === EntityType.BOSS) {
       // Authored path banking is presentation-only. Debug bounds and gameplay
       // collision continue to use the unrotated entity x/y/width/height AABB.
@@ -6694,10 +6717,11 @@ export class PixiGameRenderer {
       view.root.rotation = Math.sin((engine.frameCount + entity.variant) * 0.045) * 0.12;
     } else if (entity.type === EntityType.POWERUP) {
       const isMaxShot = entity.text === PowerupType.MAX_SHOT;
-      const maxShotPulse = 1 + Math.sin((engine.frameCount + entity.variant) * 0.16) * 0.055;
-      view.root.scale.set(1.22);
-      if (isMaxShot) view.root.scale.set(1.4 * maxShotPulse);
-      view.root.rotation = isMaxShot ? 0 : Math.sin((engine.frameCount + entity.variant) * 0.045) * 0.035;
+      const phase = engine.frameCount + entity.variant;
+      const maxShotPulse = 1 + Math.sin(phase * 0.16) * 0.055;
+      view.sprite.y = Math.sin(phase * 0.11) * 6;
+      view.root.scale.set(isMaxShot ? 1.4 * maxShotPulse : 1.22);
+      view.root.rotation = phase * 0.05;
       view.aura.clear();
     }
 
@@ -7948,15 +7972,23 @@ export class PixiGameRenderer {
     const sirenWave = (Math.cos((elapsed % 36) / 36 * Math.PI * 2) + 1) * 0.5;
     const redFlashAlpha = 0.07 + sirenWave * 0.2;
     const mainBoss = engine.pendingBossType === 'gatekeeper';
-    const title = mainBoss ? 'BOSS INCOMING' : 'THREAT INCOMING';
     const configuredBossLabel = engine.pendingConfiguredEncounter?.kind === 'boss'
       ? engine.pendingConfiguredEncounter.label.toUpperCase()
       : null;
-    const subtitle = mainBoss
-      ? configuredBossLabel ?? 'GATEKEEPER SENTINEL'
-      : engine.pendingBossType === 'wall'
-        ? 'PAYWALL BASTION'
-        : 'BOTTLENECK HARVESTER';
+    const bannerTitle = mainBoss ? 'BOSS INCOMING' : 'THREAT INCOMING';
+    const eliteName = engine.getPendingEliteBossName();
+    const titleCardName = eliteName
+      ?? configuredBossLabel
+      ?? (mainBoss ? 'GATEKEEPER' : engine.pendingBossType === 'wall' ? 'PAYWALL BASTION' : 'ELITE THREAT');
+    const titlePhase = elapsed >= Math.max(24, engine.bossWarningDuration * 0.42);
+    const title = titlePhase ? titleCardName : bannerTitle;
+    const subtitle = titlePhase
+      ? (mainBoss ? 'BOSS ENGAGEMENT' : 'ELITE ENGAGEMENT')
+      : mainBoss
+        ? configuredBossLabel ?? 'GATEKEEPER SENTINEL'
+        : engine.pendingBossType === 'wall'
+          ? 'PAYWALL BASTION'
+          : 'BOTTLENECK HARVESTER';
     const entryProgress = clamp(elapsed / 24, 0, 1);
     const exitProgress = clamp(engine.bossWarningFrame / 16, 0, 1);
     const deployProgress = Math.min(entryProgress, exitProgress);
@@ -7997,7 +8029,9 @@ export class PixiGameRenderer {
     this.warningCrystal.alpha = 0.9;
 
     this.warningText.text = title;
-    this.warningText.style.fontSize = this.width < 520 ? 70 : 58;
+    this.warningText.style.fontSize = titlePhase
+      ? (this.width < 520 ? 40 : 34)
+      : (this.width < 520 ? 70 : 58);
     this.warningText.position.set(0, -38);
     this.warningText.alpha = 0.9 + pulseWave * 0.1;
     this.warningSubtext.text = subtitle;
