@@ -417,3 +417,23 @@ test('serpentine-weave boards at a top corner and sweeps wide S-curves into rank
   assert.ok(Math.max(...xs) - Math.min(...xs) > viewport.width * 0.45, 'sweep is wide enough to read');
   assertConstantCruise(points, 'serpentine-weave', 2.2);
 });
+
+test('loose squadrons keep a stable Galaga entry and authored paths stay put', () => {
+  const first = runtime.resolveFormationChoreography({ id: 'wave-7-squad', patternId: 'v' });
+  const again = runtime.resolveFormationChoreography({ id: 'wave-7-squad', patternId: 'v' });
+  assert.equal(first.entryPathId, again.entryPathId);
+  assert.ok(['paired-flank', 'mirrored-swoop', 'sweep-bank-reentry'].includes(first.entryPathId));
+  const authored = runtime.resolveFormationChoreography({
+    id: 'wave-7-squad',
+    patternId: 'v',
+    formationBehavior: { entryPathId: 'formation-drop' }
+  });
+  assert.equal(authored.entryPathId, 'formation-drop');
+  const weave = runtime.resolveFormationChoreography({ id: 'wave-9-squad', patternId: 'sine' });
+  assert.ok(['serpentine-weave', 'double-helix', 'loop-the-loop'].includes(weave.entryPathId));
+  const unspecified = runtime.resolveFormationChoreography({
+    patternId: 'v',
+    formationBehavior: { attackId: 'pincer-pass' }
+  });
+  assert.equal(unspecified.attackId, 'pincer-pass');
+});

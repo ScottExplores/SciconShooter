@@ -35,7 +35,9 @@ import {
   getPlayerWeaponLaunchFrameIndex,
   getPlayerWeaponFrameAnchor,
   getPlayerEnergyBoltPresentation,
-  getPlayerWeaponVisualFamily
+  getPlayerWeaponVisualFamily,
+  researchChargeArtPointsLeft,
+  researchPrimaryArtPointsDown
 } from '../playerWeaponVisuals';
 import { getPlayerPrimaryPulseLayout } from '../playerPrimaryBurst';
 import { RESEARCH_IMPACT_ALL_FRAME_URLS, SHIP_ABILITY_FRAME_URLS } from '../shipAbilityService';
@@ -3234,6 +3236,8 @@ export class PixiGameRenderer {
     view.sprite.position.set(0, 0);
     view.sprite.rotation = 0;
     view.sprite.anchor.set(0.5);
+    view.sprite.scale.x = Math.abs(view.sprite.scale.x) || 1;
+    view.sprite.scale.y = Math.abs(view.sprite.scale.y) || 1;
     view.projectileCopies?.forEach((sprite) => {
       sprite.visible = false;
       sprite.position.set(0, 0);
@@ -3369,6 +3373,9 @@ export class PixiGameRenderer {
               alpha: trailFade * (0.4 - depth * 0.24)
             });
         }
+        if (researchChargeArtPointsLeft(textureKey)) {
+          view.sprite.scale.x = -Math.abs(view.sprite.scale.x);
+        }
         view.root.rotation = -Math.PI / 2;
       } else if (entity.projectileVisualKind === 'bio-genome-lance') {
         view.sprite.width = entity.width * 2.1;
@@ -3497,6 +3504,10 @@ export class PixiGameRenderer {
       view.sprite.width = Math.max(30, entity.width * 3.1);
       view.sprite.height = Math.max(38, entity.height * 2.05);
       view.root.rotation = Math.atan2(entity.vy, entity.vx) + Math.PI / 2;
+      if (researchPrimaryArtPointsDown(family)) {
+        view.sprite.anchor.set(0.5, 0.84);
+        view.sprite.scale.y = -Math.abs(view.sprite.scale.y);
+      }
       const speed = Math.max(1, Math.hypot(entity.vx, entity.vy));
       const length = clamp(speed * 4.2, 18, 52);
       view.trail.blendMode = 'add';
@@ -3545,6 +3556,10 @@ export class PixiGameRenderer {
         view.sprite.width = energy?.spriteWidth ?? layout.width;
         view.sprite.height = energy?.spriteHeight ?? layout.height;
         view.root.rotation = Math.atan2(entity.vy, entity.vx) + Math.PI / 2;
+        if (researchPrimaryArtPointsDown(family)) {
+          view.sprite.anchor.set(anchor.x, 0.84);
+          view.sprite.scale.y = -Math.abs(view.sprite.scale.y);
+        }
         // Grow a wake only after the round has actually cleared its muzzle.
         // No frame-zero 40px trail may be laid back across the player's ship.
         const wake = energy?.wakeLength ?? Math.min(18, Math.max(0, weaponAge * speed * 0.4));
@@ -3563,6 +3578,11 @@ export class PixiGameRenderer {
       view.sprite.width = visualWidth;
       view.sprite.height = visualHeight;
       view.root.rotation = Math.atan2(entity.vy, entity.vx) + Math.PI / 2;
+      const shotFamily = entity.weaponVisualFamily ?? getPlayerWeaponVisualFamily(entity.weaponKind);
+      if (researchPrimaryArtPointsDown(shotFamily)) {
+        view.sprite.anchor.set(0.5, 0.84);
+        view.sprite.scale.y = -Math.abs(view.sprite.scale.y);
+      }
       // A compact colored wake exists even on stock hulls. This uses the
       // already pooled Graphics: no trail particles or extra collision bodies.
       const family = entity.weaponVisualFamily;

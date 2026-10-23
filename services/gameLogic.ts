@@ -2242,6 +2242,11 @@ export const STAGE_BOUNDARY_CLEAR_ENTITY_TYPES = Object.freeze([
   'BOMB'
 ] as const);
 
+export const isMissionBannerText = (text: string | undefined) => (
+  typeof text === 'string'
+  && /MISSION COMPLETE|MISSION LOST|TARGET ESCAPED/.test(text)
+);
+
 export const shouldClearStageBoundaryEntityType = (
   entityType: EntityType,
   preserveRewardWindow: boolean = false
@@ -5237,6 +5242,7 @@ export class GameEngine {
     if (autoBankBossCoins) this.bankDepartingBossCoins();
 
     for (const entity of this.entities) {
+      if (entity.type === EntityType.EFFECT && isMissionBannerText(entity.text)) continue;
       const preserveEntity = preserveInternalWaveState
         && shouldKeepInternalWaveEntity(entity.type, entity.isPlayerShot);
       if (!preserveEntity && shouldClearStageBoundaryEntityType(entity.type, preserveRewardWindow)) {
@@ -23218,12 +23224,36 @@ export class GameEngine {
       });
     }
     this.spawnBurst(x, y, color, this.shouldUseLeanEffects() ? 7 : 12, 5, 5);
+    this.spawnSpriteExplosion(x, y, intensity);
     this.addShake(this.shouldUseLeanEffects() ? 0.55 : 0.9);
   }
 
-  spawnFloatingText(x: number, y: number, text: string, color: string, fontSize: number = 32) {
+  private spawnSpriteExplosion(x: number, y: number, intensity: number) {
     if (this.liveEffectCount >= this.getEffectCap()) return;
-    this.entities.push(new VisualEffect(x, y, 'text', text, color, fontSize));
+    const frames = intensity >= 1.2
+      ? ASSETS.PIXI_BOSS_DAMAGE_EXPLOSION_FRAMES
+      : ASSETS.PIXI_EXPLOSION_FRAMES;
+    const size = 36 + intensity * 28;
+    const effect = new VisualEffect(x - size / 2, y - size / 2, 'sprite', '', '#ffffff');
+    effect.width = size;
+    effect.height = size;
+    effect.spriteFrames = [...frames];
+    effect.life = frames.length * 6;
+    effect.maxLife = effect.life;
+    frames.forEach(loadImage);
+    this.entities.push(effect);
+    this.liveEffectCount++;
+  }
+
+  spawnFloatingText(x: number, y: number, text: string, color: string, fontSize: number = 32) {
+    const missionBanner = isMissionBannerText(text);
+    if (!missionBanner && this.liveEffectCount >= this.getEffectCap()) return;
+    const effect = new VisualEffect(x, y, 'text', text, color, fontSize);
+    if (missionBanner) {
+      effect.life = 240;
+      effect.maxLife = 240;
+    }
+    this.entities.push(effect);
     this.liveEffectCount++;
   }
 

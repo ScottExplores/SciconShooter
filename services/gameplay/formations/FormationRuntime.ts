@@ -100,6 +100,7 @@ export interface FormationGeometryEvent {
 }
 
 export interface FormationChoreographyEvent {
+  id?: string;
   patternId?: SpawnPatternId | string;
   formationBehavior?: FormationBehaviorOverride;
 }
@@ -758,6 +759,48 @@ const defaultMovementForMode = (mode: ConfiguredFormationMode): FormationMovemen
   return 'gentle-drift';
 };
 
+const GALAGA_ENTRY_ROTATION: Partial<Record<ConfiguredFormationMode, readonly FormationEntryPathId[]>> = {
+  row: ['mirrored-swoop', 'sweep-bank-reentry', 'paired-flank'],
+  v: ['paired-flank', 'mirrored-swoop', 'sweep-bank-reentry'],
+  'double-v': ['paired-flank', 'mirrored-swoop', 'sweep-bank-reentry'],
+  'staggered-row': ['sweep-bank-reentry', 'mirrored-swoop', 'paired-flank'],
+  sine: ['serpentine-weave', 'double-helix', 'loop-the-loop'],
+  snake: ['loop-the-loop', 'serpentine-weave', 'double-helix'],
+  grid: ['formation-drop', 'lane-stagger', 'armored-grid'],
+  spiral: ['spiral-entry', 'ring-assemble', 'spiral-entry'],
+  wheel: ['ring-assemble', 'spiral-entry', 'pod-converge'],
+  ring: ['ring-assemble', 'spiral-entry', 'pod-converge'],
+  pincer: ['paired-flank', 'side-wall-entry', 'mirrored-swoop'],
+  diamond: ['diamond-lock', 'mirrored-swoop', 'paired-flank'],
+  crescent: ['diamond-lock', 'sweep-bank-reentry', 'paired-flank'],
+  arc: ['sweep-bank-reentry', 'diamond-lock', 'mirrored-swoop'],
+  pods: ['pod-converge', 'paired-flank', 'formation-drop'],
+  escort: ['convoy-column', 'lane-stagger', 'paired-flank'],
+  'shield-wall': ['lane-stagger', 'armored-grid', 'formation-drop'],
+  lanes: ['lane-stagger', 'paired-flank', 'sweep-bank-reentry']
+};
+
+/**
+ * Gives an unspecified squadron a stable Galaga-style entrance.
+ *
+ * Authored formation behavior and formation packs keep their path. Only loose
+ * spawns, which used to share one default per shape, rotate through the
+ * existing swoop, flank, helix, and loop routes. The event id is the seed, so
+ * the same squadron enters the same way on every device.
+ */
+export const applyGalagaEntryVariety = (
+  eventId: string | undefined,
+  patternId: string | undefined,
+  choreography: ResolvedFormationChoreography
+): ResolvedFormationChoreography => {
+  const mode = resolveConfiguredFormationMode(patternId);
+  const options = GALAGA_ENTRY_ROTATION[mode];
+  if (!eventId || !options || options.length === 0) return choreography;
+  const entryPathId = options[getFormationGroupSeed(eventId) % options.length];
+  if (entryPathId === choreography.entryPathId) return choreography;
+  return { ...choreography, entryPathId };
+};
+
 const defaultAttackForMode = (mode: ConfiguredFormationMode): FormationAttackBehaviorId => {
   if (mode === 'pincer') return 'pincer-pass';
   if (mode === 'ring' || mode === 'wheel' || mode === 'spiral') return 'ring-collapse';
@@ -776,7 +819,7 @@ export const resolveFormationChoreography = (
 ): ResolvedFormationChoreography => {
   const mode = resolveConfiguredFormationMode(event.patternId);
   const override = event.formationBehavior;
-  return {
+  const choreography: ResolvedFormationChoreography = {
     entryPathId: override?.entryPathId ?? pack?.entryPath ?? defaultEntryPathForMode(mode),
     movementId: override?.movementId ?? pack?.movementBehavior ?? defaultMovementForMode(mode),
     attackId: override?.attackId ?? pack?.attackBehavior ?? defaultAttackForMode(mode),
@@ -793,6 +836,8 @@ export const resolveFormationChoreography = (
     attackGroupSize: Math.max(1, Math.floor(override?.attackGroupSize ?? pack?.attackGroupSize ?? 2)),
     attackCycles: Math.max(0, Math.floor(override?.attackCycles ?? pack?.attackCycles ?? 0))
   };
+  if (override?.entryPathId || pack?.entryPath) return choreography;
+  return applyGalagaEntryVariety(event.id, event.patternId, choreography);
 };
 
 /** Deterministic subgroup selection keeps every authored attack readable and replayable. */

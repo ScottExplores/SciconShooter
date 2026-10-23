@@ -53,7 +53,9 @@ const {
   SPACE_PARALLAX_DEPTH_SPEEDS,
   TAKEOFF_WORLD_SPEED_MULTIPLIER,
   getLoopingParallaxTileY,
-  getNonLoopingParallaxOffset
+  getNonLoopingParallaxOffset,
+  getGroundPropPerspectiveState,
+  buildSpaceBodyLayout
 } = moduleUnderTest.exports;
 
 test('looping space tiles move downward without gaps and reuse a bounded pool', () => {
@@ -144,7 +146,7 @@ test('space routes keep generated nebula variety while excluding the mismatched 
   assert.match(environmentSource, /_legacyDebrisUrls/);
   assert.doesNotMatch(environmentSource, /speed: speeds\[4 \+ index\]/);
   assert.match(environmentSource, /coverViewport: true/);
-  assert.match(environmentSource, /url: ASSETS\.GAME_PARALLAX_FAR_PLANETS,[\s\S]{0,100}alpha: 1/);
+  assert.match(environmentSource, /url: ASSETS\.GAME_PARALLAX_FAR_PLANETS,[\s\S]{0,140}alpha: 0/);
   assert.match(environmentSource, /url: ASSETS\.GAME_PARALLAX_BACK,[\s\S]{0,100}alpha: 0\.1/);
   assert.match(environmentSource, /url: ASSETS\.GAME_BG_STARS,[\s\S]{0,100}alpha: 0\.12/);
   assert.match(environmentSource, /url: ASSETS\.GAME_PARALLAX_STARS,[\s\S]{0,100}alpha: 0\.22/);
@@ -192,23 +194,45 @@ test('deep space backplates keep moving throughout a long mission instead of cla
   assert.ok(pair[1] + tileHeight >= viewportHeight, 'the pooled pair still covers the viewport');
 });
 
-test('space landmark pools keep only two opaque slow planets above the star and nebula planes', () => {
+test('ground faces follow screen scroll and space bodies stay off a shared row', () => {
+  assert.equal(getGroundPropPerspectiveState(100, 900), 0);
+  assert.equal(getGroundPropPerspectiveState(450, 900), 1);
+  assert.equal(getGroundPropPerspectiveState(700, 900), 2);
+
+  const open = buildSpaceBodyLayout('open-orbit');
+  const terminus = buildSpaceBodyLayout('terminus-frontier');
+  assert.equal(open.length, 3);
+  assert.equal(new Set(open.map((body) => body.baseX)).size, 3);
+  assert.equal(new Set(open.map((body) => body.speed.toFixed(4))).size, 3);
+  assert.notDeepEqual(open.map((body) => body.baseX), terminus.map((body) => body.baseX));
+  assert.ok(open.every((body, index) => body.scale >= 0.26 && body.scale <= 0.7));
+  assert.equal(open[0].url, 'GAME_PARALLAX_BIG_PLANET');
+  assert.equal(open[1].url, 'GAME_PARALLAX_RING_PLANET');
+  assert.equal(open[2].url, 'GAME_BG_PLANET');
+});
+
+test('space landmark pools scatter planets across depth instead of one repeated edge pair', () => {
   const defaultSpaceStart = environmentSource.indexOf('  space: [');
   const defaultSpaceEnd = environmentSource.indexOf('\n  desert: [', defaultSpaceStart);
   const defaultSpaceProps = environmentSource.slice(defaultSpaceStart, defaultSpaceEnd);
   const defaultSpeeds = [...defaultSpaceProps.matchAll(/speed: ([0-9.]+)/g)].map((match) => Number(match[1]));
 
-  assert.deepEqual(defaultSpeeds, [0.04, 0.065]);
-  assert.equal((defaultSpaceProps.match(/alpha: 1/g) ?? []).length, 2);
+  assert.deepEqual(defaultSpeeds, [0.032, 0.058, 0.094]);
+  assert.equal((defaultSpaceProps.match(/alpha: 1/g) ?? []).length, 3);
   assert.match(defaultSpaceProps, /frame: 1/);
-  assert.match(defaultSpaceProps, /frame: 2/);
+  assert.match(defaultSpaceProps, /frame: 4/);
+  assert.match(defaultSpaceProps, /frame: 6/);
+  assert.match(defaultSpaceProps, /baseX: 0\.16/);
+  assert.match(defaultSpaceProps, /baseX: 0\.74/);
+  assert.match(defaultSpaceProps, /baseX: 0\.38/);
   assert.doesNotMatch(defaultSpaceProps, /rotationSpeed: [^0]/);
+  assert.doesNotMatch(defaultSpaceProps, /sway: [^0]/);
 
   const runStart = environmentSource.indexOf('const createSpaceRunLayout');
-  const runEnd = environmentSource.indexOf('\nconst TERRAIN_PROP_LAYOUTS', runStart);
+  const runEnd = environmentSource.indexOf('\nexport type SpaceBodyLandmark', runStart);
   const runProps = environmentSource.slice(runStart, runEnd);
-  assert.equal((runProps.match(/alpha: 1/g) ?? []).length, 2);
-  assert.match(environmentSource, /terrain: 'space', propSet: 'terminus-frontier', propAlpha: 1/);
+  assert.equal((runProps.match(/alpha: 1/g) ?? []).length, 3);
+  assert.match(environmentSource, /terrain: 'space', propSet: 'terminus-frontier', propAlpha: 1, propCount: 4/);
 });
 
 test('ground anchors and hyperspeed effects stay within explicit performance budgets', () => {

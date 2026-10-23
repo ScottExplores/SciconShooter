@@ -17,7 +17,7 @@
     "overhead": "prop is crossing the player's flight line; show true top-down view",
     "behind": "prop is south/behind the player; show its north/rear face"
   },
-  "runtimeProtocol": "Select by prop center Y relative to player center Y. Do not advance these frames with a timer, GIF, AnimatedSprite, weapon level, or simulation state.",
+  "runtimeProtocol": "Select by prop center Y on the screen as the ground scrolls: front while entering, top near the middle, back while leaving. Lock X and the ground contact to the terrain scroll. Do not advance these frames with a timer, GIF, AnimatedSprite, weapon level, or simulation state.",
   "sourceMode": "OpenAI built-in image generation with flat #ff00ff chroma-key removal",
   "terrains": [
     {
