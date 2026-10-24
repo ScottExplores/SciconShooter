@@ -55,7 +55,10 @@ const {
   getLoopingParallaxTileY,
   getNonLoopingParallaxOffset,
   getGroundPropPerspectiveState,
-  buildSpaceBodyLayout
+  buildSpaceBodyLayout,
+  getClampedSpriteCenterX,
+  getSpaceLandmarkDisplaySize,
+  getSpaceLandmarkEdgeInset
 } = moduleUnderTest.exports;
 
 test('looping space tiles move downward without gaps and reuse a bounded pool', () => {
@@ -213,6 +216,32 @@ test('ground faces follow screen scroll and space bodies stay off a shared row',
   assert.equal(open[1].url, 'GAME_PARALLAX_RING_PLANET');
   assert.equal(open[2].url, 'GAME_PARALLAX_BIG_PLANET');
   assert.ok(open.every((body) => body.url !== 'GAME_BG_PLANET'));
+
+  const viewport = 390;
+  const inset = getSpaceLandmarkEdgeInset(viewport);
+  assert.equal(inset, 39);
+  const ring = getSpaceLandmarkDisplaySize(viewport, 51, 115, viewport * open[1].scale);
+  assert.ok(ring.width <= viewport * 0.3);
+  assert.ok(ring.height <= viewport * 0.3 + 0.01);
+  assert.ok(ring.height < viewport * open[1].scale * (115 / 51), 'the tall ring texture is scaled down instead of becoming a horizon');
+  const openOrbitWidths = [88, 51, 88];
+  const openOrbitHeights = [87, 115, 87];
+  open.forEach((body, index) => {
+    const sized = getSpaceLandmarkDisplaySize(
+      viewport,
+      openOrbitWidths[index],
+      openOrbitHeights[index],
+      Math.max(48, viewport * body.scale)
+    );
+    const center = getClampedSpriteCenterX(body.baseX * viewport, sized.width, viewport);
+    const left = center - sized.width / 2;
+    const right = center + sized.width / 2;
+    assert.ok(left >= inset - 0.5, `open-orbit body ${index} stays inside the left inset`);
+    assert.ok(right <= viewport - inset + 0.5, `open-orbit body ${index} stays inside the right inset`);
+  });
+  const station = getSpaceLandmarkDisplaySize(viewport, 256, 256, viewport * 0.42, 0.3);
+  assert.ok(station.width <= viewport * 0.3);
+  assert.ok(station.height <= viewport * 0.3);
 });
 
 test('space landmark pools scatter planets across depth instead of one repeated edge pair', () => {

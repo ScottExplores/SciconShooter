@@ -1385,10 +1385,8 @@ const GAMEPLAY_ASSET_URLS = [
   ASSETS.REAL_RSC_ICON,
   ASSETS.GAME_BG_BACK,
   ASSETS.GAME_BG_STARS,
-  ASSETS.GAME_BG_PLANET,
   ASSETS.GAME_PARALLAX_BACK,
   ASSETS.GAME_PARALLAX_STARS,
-  ASSETS.GAME_PARALLAX_FAR_PLANETS,
   ASSETS.GAME_PARALLAX_BIG_PLANET,
   ASSETS.GAME_PARALLAX_RING_PLANET,
   ASSETS.ENEMY_JOURNAL,
@@ -5134,31 +5132,35 @@ export class GameEngine {
     }
     this.drawTiledLayer(ctx, ASSETS.GAME_BG_BACK, 5, 0.16, 0.03, adaptiveLow ? 0.18 : lowDetail ? 0.24 : 0.35);
     this.drawTiledLayer(ctx, ASSETS.GAME_BG_STARS, 5, 0.22, 0.035, adaptiveLow ? 0.34 : 0.5);
-    if (!lowDetail) {
-      this.drawTiledLayer(ctx, ASSETS.GAME_PARALLAX_FAR_PLANETS, 5, 0.12, 0.02, 0.35);
-    }
 
-    ctx.save();
-    ctx.globalAlpha = adaptiveLow ? 0.58 : 0.9;
-    const horizon = getReadyImage(ASSETS.GAME_BG_PLANET);
-    if (horizon) {
-      const planetHeight = Math.max(220, this.height * 0.3);
-      const planetYOffset = Math.max(180, this.height * 0.2);
-      ctx.drawImage(horizon, 0, this.height - planetHeight + planetYOffset, this.width, planetHeight);
-    }
-    ctx.restore();
-
+    const placeLandmark = (size: number, preferredCenterX: number) => {
+      const half = size / 2;
+      const inset = Math.max(32, this.width * 0.1);
+      const minX = half + inset;
+      const maxX = this.width - half - inset;
+      if (minX > maxX) return this.width / 2;
+      return Math.min(maxX, Math.max(minX, preferredCenterX));
+    };
+    const bigSize = lowDetail ? 112 : 140;
+    const ringWidth = lowDetail ? 52 : 64;
+    const ringHeight = lowDetail ? 96 : 112;
     const planetDrift = (this.frameCount * 0.2) % (this.width + 200);
     ctx.save();
-    ctx.translate(this.width - 130, 110 + Math.sin(this.frameCount * 0.01) * 10);
-    this.drawSprite(ctx, ASSETS.GAME_PARALLAX_BIG_PLANET, lowDetail ? 135 : 170, lowDetail ? 135 : 170, {
+    ctx.translate(
+      placeLandmark(bigSize, this.width * 0.72),
+      110 + Math.sin(this.frameCount * 0.01) * 10
+    );
+    this.drawSprite(ctx, ASSETS.GAME_PARALLAX_BIG_PLANET, bigSize, bigSize, {
       alpha: adaptiveLow ? (lowDetail ? 0.28 : 0.4) : lowDetail ? 0.38 : 0.55
     });
     ctx.restore();
 
     ctx.save();
-    ctx.translate((this.width + 100) - planetDrift, 180 + Math.sin(this.frameCount * 0.015) * 12);
-    this.drawSprite(ctx, ASSETS.GAME_PARALLAX_RING_PLANET, lowDetail ? 70 : 90, lowDetail ? 140 : 180, {
+    ctx.translate(
+      placeLandmark(ringWidth, (this.width + 100) - planetDrift),
+      180 + Math.sin(this.frameCount * 0.015) * 12
+    );
+    this.drawSprite(ctx, ASSETS.GAME_PARALLAX_RING_PLANET, ringWidth, ringHeight, {
       alpha: adaptiveLow ? (lowDetail ? 0.36 : 0.5) : lowDetail ? 0.52 : 0.75
     });
     ctx.restore();

@@ -200,6 +200,39 @@ export const getCrossfadeLoopTileY = (
     : -phase + tileIndex * safeTileHeight;
 };
 
+/** Keep gas giants and stations clearly inside the portrait, including open orbit. */
+export const SPACE_LANDMARK_EDGE_INSET_RATIO = 0.1;
+
+export const getSpaceLandmarkEdgeInset = (viewportWidth: number) => (
+  Math.max(32, Math.round(Math.max(1, viewportWidth) * SPACE_LANDMARK_EDGE_INSET_RATIO))
+);
+
+/**
+ * Fit a landmark inside the portrait cap. Width and height both count, so a
+ * tall ring texture cannot turn into a horizon dome.
+ */
+export const getSpaceLandmarkDisplaySize = (
+  viewportWidth: number,
+  nativeWidth: number,
+  nativeHeight: number,
+  requestedWidth: number,
+  maxEdgeRatio = SPACE_BODY_MAX_SCALE
+) => {
+  const nativeW = Math.max(1, nativeWidth);
+  const nativeH = Math.max(1, nativeHeight);
+  const maxEdge = Math.max(1, viewportWidth) * maxEdgeRatio;
+  const widthLimit = Math.min(maxEdge, nativeW * SPACE_BODY_MAX_NATIVE_SCALE);
+  let width = Math.min(Math.max(1, requestedWidth), widthLimit);
+  let height = width * (nativeH / nativeW);
+  const longEdge = Math.max(width, height);
+  if (longEdge > maxEdge) {
+    const fit = maxEdge / longEdge;
+    width *= fit;
+    height *= fit;
+  }
+  return { width, height };
+};
+
 export const getClampedSpriteCenterX = (
   centerX: number,
   spriteWidth: number,
@@ -207,9 +240,10 @@ export const getClampedSpriteCenterX = (
   edgeBleed?: 'left' | 'right'
 ) => {
   const half = Math.max(0, spriteWidth) / 2;
+  const inset = getSpaceLandmarkEdgeInset(viewportWidth);
   const bleed = edgeBleed ? spriteWidth * 0.2 : 0;
-  const minX = half + 8 - (edgeBleed === 'left' ? bleed : 0);
-  const maxX = viewportWidth - half - 8 + (edgeBleed === 'right' ? bleed : 0);
+  const minX = half + inset - (edgeBleed === 'left' ? bleed : 0);
+  const maxX = viewportWidth - half - inset + (edgeBleed === 'right' ? bleed : 0);
   if (minX > maxX) return viewportWidth / 2;
   return Math.min(maxX, Math.max(minX, centerX));
 };
@@ -814,6 +848,7 @@ export class PixiEnvironment {
         const sprite = new Sprite(Texture.WHITE);
         const seamMask = new Sprite(Texture.WHITE);
         sprite.alpha = definition.alpha;
+        sprite.visible = false;
         sprite.eventMode = 'none';
         seamMask.eventMode = 'none';
         seamMask.visible = false;
@@ -885,6 +920,9 @@ export class PixiEnvironment {
       this.backgroundLayer.addChild(sprite);
     }
 
+    this.horizon.visible = false;
+    this.horizon.renderable = false;
+    this.horizon.alpha = 0;
     this.terrainPropLayer.eventMode = 'none';
     this.terrainPropLayer.sortableChildren = true;
     this.environmentLayer.addChild(this.horizon, this.terrainPropLayer);
@@ -1130,9 +1168,11 @@ export class PixiEnvironment {
       this.layoutParallaxLayer(layer);
     }
 
-    const horizon = this.textures.get(ASSETS.GAME_BG_PLANET);
-    if (horizon) this.horizon.texture = horizon;
-    this.horizon.visible = profile.horizonAlpha > 0;
+    const horizon = profile.horizonAlpha > 0 ? this.textures.get(ASSETS.GAME_BG_PLANET) : undefined;
+    const horizonReady = Boolean(horizon) && horizon !== Texture.WHITE;
+    if (horizonReady && horizon) this.horizon.texture = horizon;
+    this.horizon.visible = horizonReady;
+    this.horizon.renderable = horizonReady;
     this.horizon.tint = profile.planetTint;
     this.terrainPropLayer.visible = profile.propAlpha > 0;
     this.terrainPropLayer.alpha = profile.propAlpha;
@@ -1160,12 +1200,23 @@ export class PixiEnvironment {
     this.sectorTint.alpha = 0;
 
     this.horizon.anchor.set(0.5, 1);
-    this.horizon.width = this.width * 1.24;
-    this.horizon.height = this.horizon.width * (
-      Math.max(1, this.horizon.texture.height) / Math.max(1, this.horizon.texture.width)
-    );
-    this.horizon.position.set(this.width / 2, this.height + this.horizon.height * 0.72);
-    this.horizon.alpha = 0.52;
+    const horizonReady = this.horizon.visible
+      && this.horizon.renderable
+      && this.horizon.texture !== Texture.WHITE;
+    if (!horizonReady) {
+      this.horizon.visible = false;
+      this.horizon.renderable = false;
+      this.horizon.alpha = 0;
+      this.horizon.width = 1;
+      this.horizon.height = 1;
+    } else {
+      this.horizon.width = this.width * 1.24;
+      this.horizon.height = this.horizon.width * (
+        Math.max(1, this.horizon.texture.height) / Math.max(1, this.horizon.texture.width)
+      );
+      this.horizon.position.set(this.width / 2, this.height + this.horizon.height * 0.72);
+      this.horizon.alpha = 0.52;
+    }
 
     this.hyperspeedFrame
       .clear()
@@ -1199,14 +1250,27 @@ export class PixiEnvironment {
   private layoutTerrainProps() {
     for (const prop of this.terrainProps) {
       const nativeWidth = Math.max(1, prop.sprite.texture.width || TERRAIN_PROP_CELL_SIZE);
-      const widthCap = prop.terrain === 'space'
-        ? this.width * HERO_LANDMARK_MAX_WIDTH_RATIO
-        : this.width * prop.widthRatio;
+      const nativeHeight = Math.max(1, prop.sprite.texture.height || TERRAIN_PROP_CELL_SIZE);
       const requested = this.width * prop.widthRatio;
-      const width = Math.max(18, Math.min(requested, widthCap, nativeWidth * SPACE_BODY_MAX_NATIVE_SCALE));
-      const aspect = Math.max(0.25, prop.sprite.texture.height / Math.max(1, prop.sprite.texture.width));
-      prop.sprite.width = width;
-      prop.sprite.height = width * aspect;
+      if (prop.terrain === 'space') {
+        const maxEdgeRatio = prop.propSet === 'space'
+          ? SPACE_BODY_MAX_SCALE
+          : HERO_LANDMARK_MAX_WIDTH_RATIO;
+        const sized = getSpaceLandmarkDisplaySize(
+          this.width,
+          nativeWidth,
+          nativeHeight,
+          requested,
+          maxEdgeRatio
+        );
+        prop.sprite.width = Math.max(18, sized.width);
+        prop.sprite.height = Math.max(18, sized.height);
+      } else {
+        const width = Math.max(18, Math.min(requested, nativeWidth * SPACE_BODY_MAX_NATIVE_SCALE));
+        const aspect = Math.max(0.25, nativeHeight / nativeWidth);
+        prop.sprite.width = width;
+        prop.sprite.height = width * aspect;
+      }
       prop.shadow.clear();
       if (prop.terrain !== 'space') {
         prop.shadow.ellipse(0, 0, width * 0.28, width * 0.085)
@@ -1403,13 +1467,15 @@ export class PixiEnvironment {
         continue;
       }
       const nativeWidth = Math.max(1, sprite.texture.width);
-      const width = Math.min(
-        Math.max(48, this.width * body.scale),
-        nativeWidth * SPACE_BODY_MAX_NATIVE_SCALE
+      const nativeHeight = Math.max(1, sprite.texture.height);
+      const sized = getSpaceLandmarkDisplaySize(
+        this.width,
+        nativeWidth,
+        nativeHeight,
+        Math.max(48, this.width * body.scale)
       );
-      const aspect = sprite.texture.height / nativeWidth;
-      sprite.width = width;
-      sprite.height = width * aspect;
+      sprite.width = sized.width;
+      sprite.height = sized.height;
       const cycle = this.height + sprite.height + 120;
       sprite.visible = true;
       sprite.x = getClampedSpriteCenterX(body.baseX * this.width, width, this.width);
@@ -1455,7 +1521,9 @@ export class PixiEnvironment {
 
     this.sectorTint.tint = profile.tint;
     this.sectorTint.alpha = profile.colorGradeAlpha;
-    this.horizon.alpha = profile.horizonAlpha;
+    this.horizon.visible = profile.horizonAlpha > 0 && this.horizon.texture !== Texture.WHITE;
+    this.horizon.renderable = this.horizon.visible;
+    this.horizon.alpha = this.horizon.visible ? profile.horizonAlpha : 0;
     this.horizon.y = this.height + this.horizon.height * 0.72
       + hyperspeedStrength * this.height * 0.08
       + Math.sin(motionFrame * 0.0014) * 2;

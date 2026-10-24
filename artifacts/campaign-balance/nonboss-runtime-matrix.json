@@ -4,7 +4,7 @@
     "campaignId": "scicon-shooter-campaign",
     "campaignRevision": 24,
     "campaignUpdatedAt": "2026-08-02T12:00:00.000Z",
-    "sourceDigest": "effd683ec1a8d3c9fdc94aad1bfd980912943d4666b048476be2da9f67317492",
+    "sourceDigest": "ec955121994bb251b89ead8d6c6e7fb82621f61d99545a9b930d0624ea8a3ced",
     "runtime": "GameEngine",
     "controllerRevision": "nonboss-lane-planner-v3",
     "maximumSeconds": 180,
