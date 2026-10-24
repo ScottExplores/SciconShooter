@@ -266,6 +266,15 @@ test('space landmark pools scatter planets across depth instead of one repeated 
   const runProps = environmentSource.slice(runStart, runEnd);
   assert.equal((runProps.match(/alpha: 1/g) ?? []).length, 3);
   assert.match(environmentSource, /terrain: 'space', propSet: 'terminus-frontier', propAlpha: 1, propCount: 4/);
+  assert.equal(
+    (environmentSource.match(/propSet: 'space',\n\s*propAlpha: 1,\n\s*propCount: 3/g) ?? []).length,
+    3,
+    'the three-slot space atlas does not reserve an empty fourth prop'
+  );
+  assert.match(
+    environmentSource,
+    /prop\.sprite\.texture !== Texture\.WHITE\s*&& prop\.propSet === profile\.propSet/
+  );
 });
 
 test('ground anchors and hyperspeed effects stay within explicit performance budgets', () => {

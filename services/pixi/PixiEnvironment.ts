@@ -552,7 +552,7 @@ const BACKGROUND_PROFILES = {
     terrain: 'space',
     propSet: 'space',
     propAlpha: 1,
-    propCount: 4,
+    propCount: 3,
     glyphAlpha: 0
   },
   'citation-storm': {
@@ -574,7 +574,7 @@ const BACKGROUND_PROFILES = {
     terrain: 'space',
     propSet: 'space',
     propAlpha: 1,
-    propCount: 4,
+    propCount: 3,
     glyphAlpha: 0
   },
   'paywall-siege': {
@@ -632,7 +632,7 @@ const BACKGROUND_PROFILES = {
     terrain: 'space',
     propSet: 'space',
     propAlpha: 1,
-    propCount: 4,
+    propCount: 3,
     glyphAlpha: 0
   },
   'helix-redline': {
@@ -1025,8 +1025,12 @@ export class PixiEnvironment {
     this.terrainProps.forEach((prop, slot) => {
       const definition = layout[slot];
       const texture = definition ? propTextures[definition.frame] : null;
-      if (!definition || !texture) {
+      if (!definition || !texture || texture === Texture.WHITE) {
         prop.root.visible = false;
+        prop.sprite.visible = false;
+        prop.sprite.texture = Texture.WHITE;
+        prop.sprite.width = 1;
+        prop.sprite.height = 1;
         return;
       }
       const perspectiveStart = definition.frame * 3;
@@ -1249,6 +1253,12 @@ export class PixiEnvironment {
 
   private layoutTerrainProps() {
     for (const prop of this.terrainProps) {
+      if (prop.sprite.texture === Texture.WHITE) {
+        prop.sprite.width = 1;
+        prop.sprite.height = 1;
+        prop.root.visible = false;
+        continue;
+      }
       const nativeWidth = Math.max(1, prop.sprite.texture.width || TERRAIN_PROP_CELL_SIZE);
       const nativeHeight = Math.max(1, prop.sprite.texture.height || TERRAIN_PROP_CELL_SIZE);
       const requested = this.width * prop.widthRatio;
@@ -1482,7 +1492,9 @@ export class PixiEnvironment {
       sprite.alpha = sprite.y > this.height * 0.4 ? 0.7 : 0.94;
     }
     for (const prop of this.terrainProps) {
-      const visible = prop.propSet === profile.propSet && prop.slot < profile.propCount;
+      const visible = prop.sprite.texture !== Texture.WHITE
+        && prop.propSet === profile.propSet
+        && prop.slot < profile.propCount;
       prop.root.visible = visible;
       if (!visible) continue;
       if (prop.terrain === 'space') {
