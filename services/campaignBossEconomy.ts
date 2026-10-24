@@ -82,25 +82,25 @@ export const CAMPAIGN_BOSS_ECONOMY_BY_MISSION = Object.freeze({
   35: economyDefinition({
     missionOrder: 35,
     bossId: 'singularity-crab',
-    hullHealth: 2_700,
+    hullHealth: 3_000,
     fullHullBars: 1
   }),
   40: economyDefinition({
     missionOrder: 40,
     bossId: 'orbit-gyroscope',
-    hullHealth: 2_900,
+    hullHealth: 3_400,
     fullHullBars: 1
   }),
   45: economyDefinition({
     missionOrder: 45,
     bossId: 'hammerhead-siege',
-    hullHealth: 3_150,
+    hullHealth: 3_900,
     fullHullBars: 1
   }),
   50: economyDefinition({
     missionOrder: 50,
     bossId: 'umbra-needlewing',
-    hullHealth: 3_400,
+    hullHealth: 4_800,
     fullHullBars: 1
   })
 } satisfies Readonly<Record<CampaignBossEconomyMissionOrder, CampaignBossEconomyDefinition>>);
@@ -155,3 +155,16 @@ export const recommendCampaignBossHullHealth = ({
 export const getEffectiveCampaignBossHullHealth = (
   definition: CampaignBossEconomyDefinition
 ): number => definition.hullHealth * definition.fullHullBars;
+
+/**
+ * Late commanders grow past the flat 82% phone cap. M20 (1.52) stays at 82%.
+ * Revival sizing keeps its own 82% cap and does not use this ladder.
+ */
+export const getBossViewportWidthCapRatio = (sizeMultiplier: number): number => {
+  if (sizeMultiplier <= 1.5) return 1;
+  if (sizeMultiplier < 1.7) return 0.82;
+  if (sizeMultiplier < 1.9) return 0.88;
+  if (sizeMultiplier < 2.1) return 0.93;
+  if (sizeMultiplier < 2.3) return 0.96;
+  return 0.98;
+};

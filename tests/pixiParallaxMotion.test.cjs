@@ -146,12 +146,15 @@ test('space routes keep generated nebula variety while excluding the mismatched 
   assert.match(environmentSource, /_legacyDebrisUrls/);
   assert.doesNotMatch(environmentSource, /speed: speeds\[4 \+ index\]/);
   assert.match(environmentSource, /coverViewport: true/);
-  assert.match(environmentSource, /url: ASSETS\.GAME_PARALLAX_FAR_PLANETS,[\s\S]{0,140}alpha: 0/);
-  assert.match(environmentSource, /url: ASSETS\.GAME_PARALLAX_BACK,[\s\S]{0,100}alpha: 0\.1/);
-  assert.match(environmentSource, /url: ASSETS\.GAME_BG_STARS,[\s\S]{0,100}alpha: 0\.12/);
-  assert.match(environmentSource, /url: ASSETS\.GAME_PARALLAX_STARS,[\s\S]{0,100}alpha: 0\.22/);
+  assert.match(environmentSource, /HOME_SPARSE_STARFIELD_BASE/);
+  assert.doesNotMatch(environmentSource, /GAME_PARALLAX_FAR_PLANETS/);
+  assert.match(environmentSource, /texture === Texture\.WHITE/);
+  assert.match(environmentSource, /url: ASSETS\.GAME_PARALLAX_BACK,[\s\S]{0,160}alpha: 0\.1/);
+  assert.match(environmentSource, /url: ASSETS\.GAME_BG_STARS,[\s\S]{0,160}alpha: 0\.12/);
+  assert.match(environmentSource, /url: ASSETS\.GAME_PARALLAX_STARS,[\s\S]{0,160}alpha: 0\.22/);
   assert.match(environmentSource, /tileIndex >= layer\.activeTileCount/);
-  assert.match(environmentSource, /Math\.max\(this\.width \* layer\.widthScale, this\.height \/ sourceAspect\) \* 1\.04/);
+  assert.match(environmentSource, /Math\.ceil\(Math\.max\(this\.width \* layer\.widthScale, this\.height \/ sourceAspect\)\)/);
+  assert.doesNotMatch(environmentSource, /sourceAspect\) \* 1\.04/);
 });
 
 test('deep space backplates keep moving throughout a long mission instead of clamping to their overscan', () => {
@@ -170,7 +173,7 @@ test('deep space backplates keep moving throughout a long mission instead of cla
   const sourceWidth = 941;
   const sourceHeight = 1_672;
   const sourceAspect = sourceHeight / sourceWidth;
-  const tileHeight = Math.max(viewportWidth, viewportHeight / sourceAspect) * 1.04 * sourceAspect;
+  const tileHeight = Math.ceil(Math.max(viewportWidth, viewportHeight / sourceAspect)) * sourceAspect;
   const speed = SPACE_PARALLAX_DEPTH_SPEEDS['terminus-frontier'][0];
   const startOffsetRatio = 0.71;
   const startOffset = tileHeight * startOffsetRatio;
@@ -205,10 +208,11 @@ test('ground faces follow screen scroll and space bodies stay off a shared row',
   assert.equal(new Set(open.map((body) => body.baseX)).size, 3);
   assert.equal(new Set(open.map((body) => body.speed.toFixed(4))).size, 3);
   assert.notDeepEqual(open.map((body) => body.baseX), terminus.map((body) => body.baseX));
-  assert.ok(open.every((body, index) => body.scale >= 0.26 && body.scale <= 0.7));
+  assert.ok(open.every((body) => body.scale >= 0.12 && body.scale <= 0.3));
   assert.equal(open[0].url, 'GAME_PARALLAX_BIG_PLANET');
   assert.equal(open[1].url, 'GAME_PARALLAX_RING_PLANET');
-  assert.equal(open[2].url, 'GAME_BG_PLANET');
+  assert.equal(open[2].url, 'GAME_PARALLAX_BIG_PLANET');
+  assert.ok(open.every((body) => body.url !== 'GAME_BG_PLANET'));
 });
 
 test('space landmark pools scatter planets across depth instead of one repeated edge pair', () => {
@@ -222,8 +226,8 @@ test('space landmark pools scatter planets across depth instead of one repeated 
   assert.match(defaultSpaceProps, /frame: 1/);
   assert.match(defaultSpaceProps, /frame: 4/);
   assert.match(defaultSpaceProps, /frame: 6/);
-  assert.match(defaultSpaceProps, /baseX: 0\.16/);
-  assert.match(defaultSpaceProps, /baseX: 0\.74/);
+  assert.match(defaultSpaceProps, /baseX: 0\.22/);
+  assert.match(defaultSpaceProps, /baseX: 0\.72/);
   assert.match(defaultSpaceProps, /baseX: 0\.38/);
   assert.doesNotMatch(defaultSpaceProps, /rotationSpeed: [^0]/);
   assert.doesNotMatch(defaultSpaceProps, /sway: [^0]/);

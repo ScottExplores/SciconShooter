@@ -43,6 +43,9 @@ export type BuiltInAssetKey =
   | 'CAMPAIGN_BOSS_SINGULARITY_CRAB'
   | 'CAMPAIGN_BOSS_TRIBUNAL_DREADNOUGHT'
   | 'CAMPAIGN_BOSS_UMBRA_NEEDLEWING'
+  | 'CAMPAIGN_MINI_BOSS_BOTTLENECK_HARVESTER'
+  | 'CAMPAIGN_MINI_BOSS_MERIDIAN_HARROWER'
+  | 'CAMPAIGN_MINI_BOSS_CINDERJAW_SIEGE_BEETLE'
   | 'CAMPAIGN_ENEMY_BULLET_RING_EMITTER'
   | 'CAMPAIGN_ENEMY_CRESCENT_MINELAYER'
   | 'CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL'
@@ -117,6 +120,9 @@ export type BossId =
   | 'prism-bloom'
   | 'aegis-convoy-captain'
   | 'gridline-sentries'
+  | 'bottleneck-harvester'
+  | 'meridian-harrower'
+  | 'cinderjaw-siege-beetle'
   | 'gatekeeper'
   | 'gatekeeper-prime'
   | 'paywall-decimator'
@@ -145,6 +151,9 @@ export type CampaignMiniBossId = Extract<
   | 'prism-bloom'
   | 'aegis-convoy-captain'
   | 'gridline-sentries'
+  | 'bottleneck-harvester'
+  | 'meridian-harrower'
+  | 'cinderjaw-siege-beetle'
 >;
 export type BossRigId = 'open-orbit' | 'citation-storm' | 'paywall-siege' | 'crown-claw';
 export type PowerupId = 'projectile-upgrade' | 'max-shot' | 'magnet' | 'shield' | 'research-beam' | 'extra-life';

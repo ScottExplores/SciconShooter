@@ -87,6 +87,9 @@ export const BUILT_IN_ASSET_CATALOG: Readonly<Record<BuiltInAssetKey, AssetCatal
   CAMPAIGN_BOSS_ORBIT_GYROSCOPE: asset('CAMPAIGN_BOSS_ORBIT_GYROSCOPE', 'Aurora Oculus', ASSETS.CAMPAIGN_BOSS_ORBIT_GYROSCOPE, ['boss', 'scorecard']),
   CAMPAIGN_BOSS_NULLWAKE_REVENANT: asset('CAMPAIGN_BOSS_NULLWAKE_REVENANT', 'Nullwake Revenant', ASSETS.CAMPAIGN_BOSS_NULLWAKE_REVENANT, ['boss', 'scorecard']),
   CAMPAIGN_BOSS_UMBRA_NEEDLEWING: asset('CAMPAIGN_BOSS_UMBRA_NEEDLEWING', 'Umbra Needlewing', ASSETS.CAMPAIGN_BOSS_UMBRA_NEEDLEWING, ['boss', 'scorecard']),
+  CAMPAIGN_MINI_BOSS_BOTTLENECK_HARVESTER: asset('CAMPAIGN_MINI_BOSS_BOTTLENECK_HARVESTER', 'Bottleneck Harvester', ASSETS.CAMPAIGN_MINI_BOSS_BOTTLENECK_HARVESTER, ['boss', 'scorecard']),
+  CAMPAIGN_MINI_BOSS_MERIDIAN_HARROWER: asset('CAMPAIGN_MINI_BOSS_MERIDIAN_HARROWER', 'Meridian Harrower', ASSETS.CAMPAIGN_MINI_BOSS_MERIDIAN_HARROWER, ['boss', 'scorecard']),
+  CAMPAIGN_MINI_BOSS_CINDERJAW_SIEGE_BEETLE: asset('CAMPAIGN_MINI_BOSS_CINDERJAW_SIEGE_BEETLE', 'Cinderjaw Siege Beetle', ASSETS.CAMPAIGN_MINI_BOSS_CINDERJAW_SIEGE_BEETLE, ['boss', 'scorecard']),
   CAMPAIGN_BOSS_PRISM_MOTH: asset('CAMPAIGN_BOSS_PRISM_MOTH', 'Prism Moth', ASSETS.CAMPAIGN_BOSS_PRISM_MOTH, ['boss', 'scorecard']),
   CAMPAIGN_BOSS_RAIL_SERPENT: asset('CAMPAIGN_BOSS_RAIL_SERPENT', 'Rail Serpent', ASSETS.CAMPAIGN_BOSS_RAIL_SERPENT, ['boss', 'scorecard']),
   CAMPAIGN_BOSS_SINGULARITY_CRAB: asset('CAMPAIGN_BOSS_SINGULARITY_CRAB', 'Singularity Crab', ASSETS.CAMPAIGN_BOSS_SINGULARITY_CRAB, ['boss', 'scorecard']),
@@ -430,6 +433,30 @@ export const BOSS_CATALOG: Record<BossId, BossCatalogEntry> = {
     defaultSpriteKey: 'CAMPAIGN_ENEMY_RING_SENTINEL',
     defaultMovementPatternId: 'arena-roam',
     allowedWeaponIds: ['aimed-shot', 'wall-bolt']
+  },
+  'bottleneck-harvester': {
+    id: 'bottleneck-harvester',
+    label: 'Bottleneck Harvester',
+    entityType: 'MINI_BOSS',
+    defaultSpriteKey: 'CAMPAIGN_MINI_BOSS_BOTTLENECK_HARVESTER',
+    defaultMovementPatternId: 'arena-roam',
+    allowedWeaponIds: ['aimed-shot', 'burst-volley']
+  },
+  'meridian-harrower': {
+    id: 'meridian-harrower',
+    label: 'Meridian Harrower',
+    entityType: 'MINI_BOSS',
+    defaultSpriteKey: 'CAMPAIGN_MINI_BOSS_MERIDIAN_HARROWER',
+    defaultMovementPatternId: 'arena-roam',
+    allowedWeaponIds: ['aimed-shot', 'burst-volley']
+  },
+  'cinderjaw-siege-beetle': {
+    id: 'cinderjaw-siege-beetle',
+    label: 'Cinderjaw Siege Beetle',
+    entityType: 'MINI_BOSS',
+    defaultSpriteKey: 'CAMPAIGN_MINI_BOSS_CINDERJAW_SIEGE_BEETLE',
+    defaultMovementPatternId: 'arena-roam',
+    allowedWeaponIds: ['aimed-shot', 'burst-volley']
   },
   gatekeeper: {
     id: 'gatekeeper',

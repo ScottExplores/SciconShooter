@@ -329,6 +329,7 @@
 
 .boss-archive-carousel__scanner {
   position: absolute;
+  pointer-events: none;
   top: 2%;
   bottom: 17%;
   left: 50%;
@@ -341,6 +342,7 @@
 
 .boss-archive-carousel__platform {
   position: absolute;
+  pointer-events: none;
   right: 20%;
   bottom: 4%;
   left: 20%;
@@ -1509,12 +1511,12 @@ img.boss-archive-carousel__portrait[data-idle-preview='active'][data-composed='f
   .boss-archive-header__emblem { display: none; }
   .boss-archive-header__status { gap: .2rem; }
   .boss-archive-header__status > span {
-    min-width: 3.35rem;
-    padding-inline: .28rem;
+    min-width: 2.9rem;
+    padding-inline: .22rem;
   }
   .boss-archive-header__title h2 {
-    font-size: clamp(.92rem, 4.8vw, 1.25rem);
-    letter-spacing: .025em;
+    font-size: clamp(.72rem, 3.35vw, .95rem);
+    letter-spacing: .01em;
   }
 }
 

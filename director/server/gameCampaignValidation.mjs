@@ -29,7 +29,10 @@ const CAMPAIGN_BOSS_ASSET_KEYS = [
   'CAMPAIGN_BOSS_RAIL_SERPENT',
   'CAMPAIGN_BOSS_SINGULARITY_CRAB',
   'CAMPAIGN_BOSS_TRIBUNAL_DREADNOUGHT',
-  'CAMPAIGN_BOSS_UMBRA_NEEDLEWING'
+  'CAMPAIGN_BOSS_UMBRA_NEEDLEWING',
+  'CAMPAIGN_MINI_BOSS_BOTTLENECK_HARVESTER',
+  'CAMPAIGN_MINI_BOSS_MERIDIAN_HARROWER',
+  'CAMPAIGN_MINI_BOSS_CINDERJAW_SIEGE_BEETLE'
 ];
 const CAMPAIGN_ENEMY_ASSET_KEYS = [
   'CAMPAIGN_ENEMY_BULLET_RING_EMITTER',
@@ -215,7 +218,7 @@ const ENEMY_IDS = new Set(['drone', 'swarm', 'brick', 'journal']);
 const BOSS_IDS = new Set([
   'bottleneck-drone', 'paywall-wall', 'fracture-engine-elite', 'aegis-brood-core',
   'railspine-wallcrawler', 'maw-carrier', 'twin-meridian-sentinels', 'prism-bloom',
-  'aegis-convoy-captain', 'gridline-sentries', 'gatekeeper', 'gatekeeper-prime', 'paywall-decimator',
+  'aegis-convoy-captain', 'gridline-sentries', 'bottleneck-harvester', 'meridian-harrower', 'cinderjaw-siege-beetle', 'gatekeeper', 'gatekeeper-prime', 'paywall-decimator',
   'helios-clawcarrier', 'helix-leviathan',
   'eclipse-engine', 'research-tribunal', 'prism-moth', 'rail-serpent', 'singularity-crab',
   'orbit-gyroscope', 'hammerhead-siege', 'frontier-crownclaw', 'nullwake-revenant',
@@ -341,7 +344,10 @@ const MINI_BOSS_IDS = new Set([
   'twin-meridian-sentinels',
   'prism-bloom',
   'aegis-convoy-captain',
-  'gridline-sentries'
+  'gridline-sentries',
+  'bottleneck-harvester',
+  'meridian-harrower',
+  'cinderjaw-siege-beetle'
 ]);
 const MINI_BOSS_USAGES = new Set(['solo', 'paired', 'solo-or-paired']);
 const MINI_BOSS_VALIDATION_STATUSES = new Set(['validated', 'provisional']);

@@ -218,6 +218,9 @@ export const ASSETS = {
   CAMPAIGN_BOSS_ORBIT_GYROSCOPE: "/game-art/generated/bosses/campaign-packages/orbit-gyroscope/assembled.png",
   CAMPAIGN_BOSS_NULLWAKE_REVENANT: "/game-art/generated/bosses/campaign-packages/nullwake-revenant/assembled.png",
   CAMPAIGN_BOSS_UMBRA_NEEDLEWING: "/game-art/generated/bosses/campaign-packages/umbra-needlewing/assembled.png",
+  CAMPAIGN_MINI_BOSS_BOTTLENECK_HARVESTER: "/game-art/generated/scicon-flight-motion-pack-v1/bosses/bottleneck-harvester/frames/bottleneck-harvester-02-neutral.png",
+  CAMPAIGN_MINI_BOSS_MERIDIAN_HARROWER: "/game-art/generated/bosses/unported/meridian-harrower.png",
+  CAMPAIGN_MINI_BOSS_CINDERJAW_SIEGE_BEETLE: "/game-art/generated/bosses/unported/cinderjaw-siege-beetle.png",
   CAMPAIGN_BOSS_PRISM_MOTH: "/game-art/generated/bosses/campaign-packages/prism-moth/assembled.png",
   CAMPAIGN_BOSS_RAIL_SERPENT: "/game-art/generated/scicon-stage20-expansion-v1/bosses/frames/rail-serpent.png",
   PIXI_BOSS_RAIL_SERPENT_RIG: {

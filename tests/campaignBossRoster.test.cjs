@@ -54,21 +54,21 @@ const expectedBossSlots = [
   {
     order: 40,
     bossId: 'orbit-gyroscope',
-    health: 2900,
+    health: 3400,
     eventId: 'stage-gyroscope-array-commander-major-boss',
     encounterAssetKey: 'CAMPAIGN_BOSS_ORBIT_GYROSCOPE'
   },
   {
     order: 45,
     bossId: 'hammerhead-siege',
-    health: 3150,
+    health: 3900,
     eventId: 'stage-hammerhead-line-commander-major-boss',
     encounterAssetKey: 'CAMPAIGN_BOSS_HAMMERHEAD_SIEGE'
   },
   {
     order: 50,
     bossId: 'umbra-needlewing',
-    health: 3400,
+    health: 4800,
     eventId: 'stage-crownclaw-frontier-commander-major-boss',
     encounterAssetKey: 'CAMPAIGN_BOSS_UMBRA_NEEDLEWING'
   }
@@ -146,17 +146,20 @@ test('promoted Test Bosses keep their exact authored timelines and Mission-scale
   assert.equal(aurora.label, 'Aurora Oculus');
   assert.equal(aurora.rigId, 'paywall-siege');
   assert.equal(aurora.componentMode, 'hull-only');
-  assert.equal(aurora.timeline.clips.length, 27);
+  assert.equal(aurora.phases.length, 3);
+  assert.equal(aurora.timeline.clips.length, 41);
   assert.equal(gloamforge.label, 'Gloamforge Mantis');
   assert.equal(gloamforge.rigId, 'paywall-siege');
   assert.equal(gloamforge.componentMode, 'hull-only');
   assert.equal(gloamforge.componentHealth, undefined);
-  assert.equal(gloamforge.timeline.clips.length, 46);
+  assert.equal(gloamforge.phases.length, 3);
+  assert.equal(gloamforge.timeline.clips.length, 66);
   assert.equal(umbra.label, 'Umbra Needlewing');
   assert.equal(umbra.rigId, 'open-orbit');
   assert.equal(umbra.componentMode, 'hull-only');
   assert.equal(umbra.componentHealth, undefined);
-  assert.equal(umbra.timeline.clips.length, 96);
+  assert.equal(umbra.phases.length, 4);
+  assert.equal(umbra.timeline.clips.length, 120);
 });
 
 test('authored Campaign hull health remains monotonic after the Revenant promotion', () => {
@@ -167,10 +170,10 @@ test('authored Campaign hull health remains monotonic after the Revenant promoti
     [20, 1600],
     [25, 2350],
     [30, 2500],
-    [35, 2700],
-    [40, 2900],
-    [45, 3150],
-    [50, 3400]
+    [35, 3000],
+    [40, 3400],
+    [45, 3900],
+    [50, 4800]
   ]);
   let previousHull = 0;
   for (const [order, expectedHull] of expectedHullByOrder) {

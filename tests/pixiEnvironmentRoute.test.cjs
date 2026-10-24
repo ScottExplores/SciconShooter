@@ -39,7 +39,8 @@ test('campaign restores the original opening backgrounds and preserves the later
       ...Array(5).fill('ion-eclipse'),
       ...Array(5).fill('helix-redline'),
       ...Array(5).fill('gravity-rift'),
-      ...Array(5).fill('open-galaxy'),
+      ...Array(4).fill('open-galaxy'),
+      'ion-eclipse',
       ...Array(5).fill('shattered-void'),
       ...Array(5).fill('terminus-frontier')
     ]
@@ -140,14 +141,14 @@ test('ground props remain registered to terrain while space landmarks use slow d
   assert.match(environment, /prop\.root\.x = prop\.baseX \* this\.width;/);
   assert.doesNotMatch(environment, /perspectiveSpread/);
   assert.doesNotMatch(environment, /playerCenterY/);
-  assert.match(environment, /getGroundPropPerspectiveState\(groundY, this\.height\)/);
+  assert.match(environment, /getGroundPropPerspectiveState\(contactY, this\.height\)/);
   assert.match(environment, /prop\.sprite\.texture = prop\.perspectiveTextures\[perspectiveState\]/);
   assert.match(environment, /GROUND_PROP_PERSPECTIVE_SHEETS/);
   assert.match(environment, /if \(prop\.terrain === 'space'\)/);
-  assert.match(environment, /widthRatio: 0\.5/);
-  assert.match(environment, /widthRatio: 0\.86/);
+  assert.match(environment, /widthRatio: 0\.28/);
+  assert.match(environment, /widthRatio: 0\.42/);
   assert.match(environment, /rotationSpeed: 0/);
-  assert.match(environment, /GAME_PARALLAX_FAR_PLANETS/);
+  assert.doesNotMatch(environment, /GAME_PARALLAX_FAR_PLANETS/);
   assert.match(environment, /GAME_PARALLAX_BIG_PLANET/);
   assert.match(environment, /GAME_PARALLAX_RING_PLANET/);
   assert.match(environment, /new BlurFilter\(\{ strength: definition\.softness \?\? 0, quality: 1/);
@@ -158,7 +159,7 @@ test('ground props remain registered to terrain while space landmarks use slow d
   assert.match(environment, /hyperspeedStreaks/);
   assert.match(environment, /engine\.performanceMode \? 0 : layer\.softness/);
   assert.match(environment, /GROUND_PROP_CONTACT_ANCHOR_Y/);
-  assert.match(environment, /prop\.root\.zIndex = Math\.round\(groundY \* 10\)/);
+  assert.match(environment, /prop\.root\.zIndex = Math\.round\(contactY \* 10\)/);
   assert.match(environment, /atlasFrameCache/);
   assert.doesNotMatch(environment, /prop\.sprite\.y = \(\(prop\.baseY \* propCycle\)/);
 });

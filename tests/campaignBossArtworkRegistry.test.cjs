@@ -167,24 +167,24 @@ test('Weekly Run clones the canonical promoted boss events with only run-specifi
     assert.equal(aurora.label, 'Aurora Oculus');
     assert.equal(aurora.rigId, 'paywall-siege');
     assert.equal(aurora.spriteKey, 'CAMPAIGN_BOSS_ORBIT_GYROSCOPE');
-    assert.equal(aurora.timeline.clips.length, 27);
-    assert.notEqual(aurora.health, 2900, 'Weekly Run keeps its own stage health normalization');
+    assert.equal(aurora.timeline.clips.length, 41);
+    assert.notEqual(aurora.health, 3400, 'Weekly Run keeps its own stage health normalization');
     assert.ok(gloamforge, 'Weekly Run must include the M45 boss identity');
     assert.equal(gloamforge.label, 'Gloamforge Mantis');
     assert.equal(gloamforge.rigId, 'paywall-siege');
     assert.equal(gloamforge.spriteKey, 'CAMPAIGN_BOSS_HAMMERHEAD_SIEGE');
-    assert.equal(gloamforge.timeline.clips.length, 46);
+    assert.equal(gloamforge.timeline.clips.length, 66);
     assert.equal(gloamforge.componentMode, 'hull-only');
     assert.equal(gloamforge.componentHealth, undefined);
-    assert.notEqual(gloamforge.health, 3150, 'Weekly Run keeps its own stage health normalization');
+    assert.notEqual(gloamforge.health, 3900, 'Weekly Run keeps its own stage health normalization');
     assert.ok(umbra, 'Weekly Run must include the M50 final boss identity');
     assert.equal(umbra.label, 'Umbra Needlewing');
     assert.equal(umbra.rigId, 'open-orbit');
     assert.equal(umbra.spriteKey, 'CAMPAIGN_BOSS_UMBRA_NEEDLEWING');
     assert.equal(umbra.componentMode, 'hull-only');
     assert.equal(umbra.componentHealth, undefined);
-    assert.equal(umbra.timeline.clips.length, 96);
-    assert.notEqual(umbra.health, 3400, 'Weekly Run keeps its own stage health normalization');
+    assert.equal(umbra.timeline.clips.length, 120);
+    assert.notEqual(umbra.health, 4800, 'Weekly Run keeps its own stage health normalization');
   } finally {
     await vite.close();
   }

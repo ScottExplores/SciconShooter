@@ -22,6 +22,10 @@ type ParallaxLayer = {
   scrollDirection: 'up' | 'down';
   coverViewport: boolean;
   activeTileCount: number;
+  seamCrossfadePx: number;
+  crossfadeLoopPx: number;
+  integerScale: boolean;
+  seamMasks: Sprite[];
 };
 
 type ParallaxDefinition = {
@@ -37,6 +41,12 @@ type ParallaxDefinition = {
   scrollDirection?: 'up' | 'down';
   coverViewport?: boolean;
   tilePoolSize?: number;
+  /** Screen pixels of overlap used to hide a vertical loop seam. */
+  seamCrossfadePx?: number;
+  /** When set, the layer scrolls forever and overlaps the next copy by this many pixels. */
+  crossfadeLoopPx?: number;
+  /** Tile at an integer multiple of the native texture instead of stretching to the viewport. */
+  integerScale?: boolean;
 };
 
 type TerrainFamily = 'space' | 'desert' | 'river';
@@ -65,6 +75,7 @@ type TerrainProp = {
   widthRatio: number;
   rotationSpeed: number;
   alpha: number;
+  edgeBleed?: 'left' | 'right';
 };
 
 type TerrainPropDefinition = Omit<
@@ -145,6 +156,64 @@ export const getNonLoopingParallaxOffset = (
   return direction === 'down' ? -safeMaxTravel + travel : -travel;
 };
 
+/** 390px design width maps to 2. Pixel-art props snap to this integer scale. */
+export const BACKGROUND_PIXEL_REFERENCE_WIDTH = 195;
+export const SPACE_BODY_MIN_SCALE = 0.12;
+export const SPACE_BODY_MAX_SCALE = 0.3;
+export const SPACE_BODY_MAX_NATIVE_SCALE = 3;
+export const HERO_LANDMARK_MAX_WIDTH_RATIO = 0.45;
+export const LOOP_SEAM_CROSSFADE_PX = 128;
+export const TERRAIN_MASTER_CROSSFADE_PX = 256;
+
+export const getDesignPixelScale = (viewportWidth: number) => (
+  Math.max(1, Math.round(Math.max(1, viewportWidth) / BACKGROUND_PIXEL_REFERENCE_WIDTH))
+);
+
+/** Integer scale that covers the viewport without exceeding a 3x native upsample. */
+export const getIntegerCoverScale = (viewportWidth: number, nativeWidth: number) => {
+  const native = Math.max(1, nativeWidth);
+  const viewport = Math.max(1, viewportWidth);
+  const coverScale = Math.ceil(viewport / native);
+  // Large plates already fill the playfield at 1x. Small pixel tiles step up
+  // to the design pixel so a 272px star sheet is not stretched to the width.
+  const designScale = native >= viewport ? coverScale : Math.max(getDesignPixelScale(viewport), coverScale);
+  return Math.max(1, Math.min(SPACE_BODY_MAX_NATIVE_SCALE, designScale));
+};
+
+/**
+ * Loop by overlapping the next copy instead of hard-wrapping. Adjacent tiles
+ * stay `tileHeight - fadePx` apart so a gradient can blend the seam.
+ */
+export const getCrossfadeLoopTileY = (
+  tileIndex: number,
+  scrollDistance: number,
+  tileHeight: number,
+  fadePx: number,
+  direction: 'up' | 'down'
+) => {
+  const safeTileHeight = Math.max(1, tileHeight);
+  const fade = Math.max(0, Math.min(fadePx, safeTileHeight * 0.45));
+  const period = Math.max(1, safeTileHeight - fade);
+  const phase = positiveModulo(scrollDistance, period);
+  return direction === 'down'
+    ? phase - safeTileHeight + tileIndex * period
+    : -phase + tileIndex * safeTileHeight;
+};
+
+export const getClampedSpriteCenterX = (
+  centerX: number,
+  spriteWidth: number,
+  viewportWidth: number,
+  edgeBleed?: 'left' | 'right'
+) => {
+  const half = Math.max(0, spriteWidth) / 2;
+  const bleed = edgeBleed ? spriteWidth * 0.2 : 0;
+  const minX = half + 8 - (edgeBleed === 'left' ? bleed : 0);
+  const maxX = viewportWidth - half - 8 + (edgeBleed === 'right' ? bleed : 0);
+  if (minX > maxX) return viewportWidth / 2;
+  return Math.min(maxX, Math.max(minX, centerX));
+};
+
 export type GroundPropPerspectiveState = 0 | 1 | 2;
 
 /**
@@ -200,10 +269,10 @@ const createSpaceRunLayout = (phaseOffset: number, mirrored = false): readonly T
     return mirrored ? 1 - x : x;
   };
   return [
-    { frame: 0, baseX: placeX(0, 1.1), baseY: 0.06 + vistaJitter(phaseOffset + 2) * 0.08, speed: 0.028 + vistaJitter(phaseOffset + 3) * 0.012, sway: 0, phase: phaseOffset, widthRatio: 0.42 + vistaJitter(phaseOffset + 4) * 0.22, rotationSpeed: 0, alpha: 1 },
-    { frame: 2, baseX: placeX(1, 5.2), baseY: 0.34 + vistaJitter(phaseOffset + 6) * 0.1, speed: 0.05 + vistaJitter(phaseOffset + 7) * 0.02, sway: 0, phase: phaseOffset + 0.8, widthRatio: 0.7 + vistaJitter(phaseOffset + 8) * 0.28, rotationSpeed: 0, alpha: 1 },
-    { frame: 5, baseX: placeX(2, 9.4), baseY: 0.66 + vistaJitter(phaseOffset + 10) * 0.1, speed: 0.082 + vistaJitter(phaseOffset + 11) * 0.03, sway: 0, phase: phaseOffset + 1.7, widthRatio: 0.3 + vistaJitter(phaseOffset + 12) * 0.18, rotationSpeed: 0, alpha: 1 },
-    { frame: 7, baseX: placeX(0.6, 13.5), baseY: 0.9 + vistaJitter(phaseOffset + 14) * 0.06, speed: 0.11 + vistaJitter(phaseOffset + 15) * 0.02, sway: 0, phase: phaseOffset + 2.4, widthRatio: 0.24 + vistaJitter(phaseOffset + 16) * 0.12, rotationSpeed: 0, alpha: 0.9 }
+    { frame: 0, baseX: placeX(0, 1.1), baseY: 0.06 + vistaJitter(phaseOffset + 2) * 0.08, speed: 0.028 + vistaJitter(phaseOffset + 3) * 0.012, sway: 0, phase: phaseOffset, widthRatio: 0.18 + vistaJitter(phaseOffset + 4) * 0.1, rotationSpeed: 0, alpha: 1 },
+    { frame: 2, baseX: placeX(1, 5.2), baseY: 0.34 + vistaJitter(phaseOffset + 6) * 0.1, speed: 0.05 + vistaJitter(phaseOffset + 7) * 0.02, sway: 0, phase: phaseOffset + 0.8, widthRatio: 0.3 + vistaJitter(phaseOffset + 8) * 0.15, rotationSpeed: 0, alpha: 1 },
+    { frame: 5, baseX: placeX(2, 9.4), baseY: 0.66 + vistaJitter(phaseOffset + 10) * 0.1, speed: 0.082 + vistaJitter(phaseOffset + 11) * 0.03, sway: 0, phase: phaseOffset + 1.7, widthRatio: 0.12 + vistaJitter(phaseOffset + 12) * 0.08, rotationSpeed: 0, alpha: 1 },
+    { frame: 7, baseX: placeX(0.6, 13.5), baseY: 0.9 + vistaJitter(phaseOffset + 14) * 0.06, speed: 0.11 + vistaJitter(phaseOffset + 15) * 0.02, sway: 0, phase: phaseOffset + 2.4, widthRatio: 0.08 + vistaJitter(phaseOffset + 16) * 0.06, rotationSpeed: 0, alpha: 0.9 }
   ];
 };
 
@@ -218,7 +287,7 @@ export type SpaceBodyLandmark = {
 const SPACE_BODY_TEXTURES = [
   ASSETS.GAME_PARALLAX_BIG_PLANET,
   ASSETS.GAME_PARALLAX_RING_PLANET,
-  ASSETS.GAME_BG_PLANET
+  ASSETS.GAME_PARALLAX_BIG_PLANET
 ] as const;
 
 /** Scattered gas giants and ringed worlds. Speeds and phases differ so they cannot hold a row. */
@@ -231,10 +300,10 @@ export const buildSpaceBodyLayout = (profileId: string): readonly SpaceBodyLandm
   };
   return [0, 1, 2].map((index) => ({
     url: SPACE_BODY_TEXTURES[index],
-    baseX: Math.min(0.88, 0.08 + index * 0.3 + next(0.16)),
+    baseX: Math.min(0.78, 0.22 + index * 0.22 + next(0.12)),
     phase: next(1),
     speed: 0.02 + index * 0.028 + next(0.018),
-    scale: 0.26 + next(0.42)
+    scale: SPACE_BODY_MIN_SCALE + next(SPACE_BODY_MAX_SCALE - SPACE_BODY_MIN_SCALE)
   }));
 };
 
@@ -255,9 +324,9 @@ export const SPACE_BODY_LAYOUTS: Readonly<Record<(typeof SPACE_PROFILE_IDS)[numb
 
 const TERRAIN_PROP_LAYOUTS: Record<TerrainPropSet, readonly TerrainPropDefinition[]> = {
   space: [
-    { frame: 1, baseX: 0.16, baseY: 0.08, speed: 0.032, sway: 0, phase: 0.2, widthRatio: 0.5, rotationSpeed: 0, alpha: 1 },
-    { frame: 4, baseX: 0.74, baseY: 0.41, speed: 0.058, sway: 0, phase: 1.2, widthRatio: 0.86, rotationSpeed: 0, alpha: 1 },
-    { frame: 6, baseX: 0.38, baseY: 0.73, speed: 0.094, sway: 0, phase: 2.4, widthRatio: 0.34, rotationSpeed: 0, alpha: 1 }
+    { frame: 1, baseX: 0.22, baseY: 0.08, speed: 0.032, sway: 0, phase: 0.2, widthRatio: 0.28, rotationSpeed: 0, alpha: 1 },
+    { frame: 4, baseX: 0.72, baseY: 0.41, speed: 0.058, sway: 0, phase: 1.2, widthRatio: 0.42, rotationSpeed: 0, alpha: 1 },
+    { frame: 6, baseX: 0.38, baseY: 0.73, speed: 0.094, sway: 0, phase: 2.4, widthRatio: 0.18, rotationSpeed: 0, alpha: 1 }
   ],
   desert: [
     { frame: 0, baseX: 0.1, baseY: 0.06, speed: 0, sway: 0, phase: 0.3, widthRatio: 0.25, rotationSpeed: 0, alpha: 0.96 },
@@ -345,51 +414,48 @@ const createSpaceLayers = (
   startOffsetRatio: number,
   phaseOffset = 0,
   backplateUrl = ASSETS.PIXI_SPACE_PARALLAX_BG_ION_CLOUD,
-  _legacyDebrisUrls: readonly string[] = []
+  _legacyDebrisUrls: readonly string[] = [],
+  seamCrossfadePx = 0
 ): readonly ParallaxDefinition[] => {
   const speeds = SPACE_PARALLAX_DEPTH_SPEEDS[profileId];
   const layers: ParallaxDefinition[] = [
     {
-      url: backplateUrl,
-      speed: speeds[0],
+      url: ASSETS.HOME_SPARSE_STARFIELD_BASE,
+      speed: 0.02,
       alpha: 1,
-      // The portrait master has only a few pixels of overscan on tall phones.
-      // Reuse a two-sprite strip so the slowest depth keeps drifting for long
-      // boss fights instead of clamping after that overscan is exhausted.
+      loop: true,
+      tilePoolSize: DEEP_SPACE_BACKPLATE_TILE_POOL_SIZE,
+      integerScale: true,
+      seamCrossfadePx: LOOP_SEAM_CROSSFADE_PX,
+      scrollDirection: 'down'
+    },
+    {
+      url: backplateUrl,
+      speed: Math.max(speeds[1], 0.028),
+      alpha: 1,
+      // Cover the portrait playfield without the old 4% side crop. A two-sprite
+      // strip keeps the nebula drifting for long boss fights.
       loop: true,
       tilePoolSize: DEEP_SPACE_BACKPLATE_TILE_POOL_SIZE,
       startOffsetRatio,
       coverViewport: true,
+      seamCrossfadePx,
       scrollDirection: 'down'
     },
     {
       url: ASSETS.GAME_PARALLAX_BACK,
-      speed: speeds[1],
+      speed: speeds[3],
       alpha: 0.1,
-      widthScale: 1.04,
+      integerScale: true,
       xDrift: 0.5,
       phase: 4.1 + phaseOffset,
       scrollDirection: 'down'
     },
     {
-      // The far-planet strip is one horizontal row. Tiling it painted the same
-      // lineup down the whole mission. Individual bodies below carry this depth.
-      url: ASSETS.GAME_PARALLAX_FAR_PLANETS,
-      speed: speeds[2],
-      alpha: 0,
-      widthScale: 0.42,
-      xDrift: 0,
-      phase: 1.6 + phaseOffset,
-      loop: false,
-      tilePoolSize: 1,
-      softness: 0,
-      scrollDirection: 'down'
-    },
-    {
       url: ASSETS.GAME_BG_STARS,
-      speed: speeds[3],
+      speed: speeds[4],
       alpha: 0.12,
-      widthScale: 1.06,
+      integerScale: true,
       xDrift: 1.2,
       phase: 2.2 + phaseOffset,
       softness: 0.2,
@@ -404,7 +470,7 @@ const createSpaceLayers = (
     url: ASSETS.GAME_PARALLAX_STARS,
     speed: speeds[6],
     alpha: 0.22,
-    widthScale: 1.08,
+    integerScale: true,
     xDrift: 2.2,
     phase: 5.4 + phaseOffset,
     scrollDirection: 'down'
@@ -414,13 +480,17 @@ const createSpaceLayers = (
 
 // These backgrounds are authored as separate transparent landmark strips.
 // Unlike the legacy space profiles they never inherit the same pair of planets.
-const createBreakwaterProfile = (landmarks: string, speed: number): EnvironmentProfile => ({
+const createBreakwaterProfile = (
+  landmarks: string,
+  speed: number,
+  seamCrossfadePx = 0
+): EnvironmentProfile => ({
   tint: '#081a29', accent: '#67e8f9', family: 0, colorGradeAlpha: 0,
   layers: [
     { url: ASSETS.PIXI_BREAKWATER_FAR, speed: 0.035, alpha: 1,
       loop: true, tilePoolSize: 2, coverViewport: true, scrollDirection: 'down' },
-    { url: landmarks, speed, alpha: 0.74,
-      loop: true, tilePoolSize: 3, scrollDirection: 'down', widthScale: 1 }
+    { url: landmarks, speed, alpha: 0.55,
+      loop: true, tilePoolSize: 3, scrollDirection: 'down', widthScale: 1, seamCrossfadePx }
   ],
   horizonAlpha: 0, planetTint: '#ffffff', starSpeedMultiplier: 2.4,
   terrain: 'space', propSet: 'space', propAlpha: 0, propCount: 0, glyphAlpha: 0
@@ -428,8 +498,8 @@ const createBreakwaterProfile = (landmarks: string, speed: number): EnvironmentP
 
 const BACKGROUND_PROFILES = {
   'breakwater-approach': createBreakwaterProfile(ASSETS.PIXI_BREAKWATER_APPROACH, 0.28),
-  'breakwater-wreckfield': createBreakwaterProfile(ASSETS.PIXI_BREAKWATER_WRECKFIELD, 0.37),
-  'breakwater-gate': createBreakwaterProfile(ASSETS.PIXI_BREAKWATER_GATE, 0.22),
+  'breakwater-wreckfield': createBreakwaterProfile(ASSETS.PIXI_BREAKWATER_WRECKFIELD, 0.37, LOOP_SEAM_CROSSFADE_PX),
+  'breakwater-gate': createBreakwaterProfile(ASSETS.PIXI_BREAKWATER_GATE, 0.22, LOOP_SEAM_CROSSFADE_PX),
   'open-orbit': {
     tint: '#082f49',
     accent: '#67e8f9',
@@ -442,7 +512,7 @@ const BACKGROUND_PROFILES = {
       ASSETS.PIXI_SPACE_PARALLAX_BG_ION_CLOUD,
       [ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_BASALT]
     ),
-    horizonAlpha: 0.11,
+    horizonAlpha: 0,
     planetTint: '#d8f7ff',
     starSpeedMultiplier: SPACE_DYNAMIC_STAR_SPEED_MULTIPLIERS['open-orbit'],
     terrain: 'space',
@@ -461,9 +531,10 @@ const BACKGROUND_PROFILES = {
       0.34,
       0.8,
       ASSETS.PIXI_SPACE_PARALLAX_BG_VIOLET_RIFT,
-      [ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_RUST]
+      [ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_RUST],
+      LOOP_SEAM_CROSSFADE_PX
     ),
-    horizonAlpha: 0.13,
+    horizonAlpha: 0,
     planetTint: '#ddd6fe',
     starSpeedMultiplier: SPACE_DYNAMIC_STAR_SPEED_MULTIPLIERS['citation-storm'],
     terrain: 'space',
@@ -478,9 +549,9 @@ const BACKGROUND_PROFILES = {
     family: 2,
     colorGradeAlpha: 0.095,
     layers: [
-      { url: ASSETS.PIXI_TERRAIN_DESERT_MASTER, speed: 0.4, alpha: 1, loop: false, startOffsetRatio: 0.02, scrollDirection: 'down' },
-      { url: ASSETS.PIXI_DESERT_CLOUDS, speed: 0.118, alpha: 0.18, widthScale: 1.06, xDrift: 2, phase: 1.4, scrollDirection: 'down' },
-      { url: ASSETS.GAME_BG_STARS, speed: 0.017, alpha: 0.025, widthScale: 1.04, xDrift: 1, phase: 2.8, scrollDirection: 'down' }
+      { url: ASSETS.PIXI_TERRAIN_DESERT_MASTER, speed: 0.4, alpha: 1, loop: false, crossfadeLoopPx: TERRAIN_MASTER_CROSSFADE_PX, tilePoolSize: 2, startOffsetRatio: 0.02, scrollDirection: 'down' },
+      { url: ASSETS.PIXI_DESERT_CLOUDS, speed: 0.118, alpha: 0.18, integerScale: true, xDrift: 2, phase: 1.4, scrollDirection: 'down' },
+      { url: ASSETS.GAME_BG_STARS, speed: 0.017, alpha: 0.025, integerScale: true, xDrift: 1, phase: 2.8, scrollDirection: 'down' }
     ],
     horizonAlpha: 0,
     planetTint: '#fde68a',
@@ -497,8 +568,8 @@ const BACKGROUND_PROFILES = {
     family: 3,
     colorGradeAlpha: 0.085,
     layers: [
-      { url: ASSETS.PIXI_TERRAIN_RIVER_MASTER, speed: 0.38, alpha: 1, loop: false, startOffsetRatio: 0.03, scrollDirection: 'down' },
-      { url: ASSETS.GAME_BG_STARS, speed: 0.0135, alpha: 0.02, widthScale: 1.04, xDrift: 1, phase: 2.3, scrollDirection: 'down' }
+      { url: ASSETS.PIXI_TERRAIN_RIVER_MASTER, speed: 0.38, alpha: 1, loop: false, crossfadeLoopPx: TERRAIN_MASTER_CROSSFADE_PX, tilePoolSize: 2, startOffsetRatio: 0.03, scrollDirection: 'down' },
+      { url: ASSETS.GAME_BG_STARS, speed: 0.0135, alpha: 0.02, integerScale: true, xDrift: 1, phase: 2.3, scrollDirection: 'down' }
     ],
     horizonAlpha: 0,
     planetTint: '#bbf7d0',
@@ -521,7 +592,7 @@ const BACKGROUND_PROFILES = {
       ASSETS.PIXI_SPACE_PARALLAX_BG_OBSIDIAN_NEBULA,
       [ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_BASALT, ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_RUST]
     ),
-    horizonAlpha: 0.14,
+    horizonAlpha: 0,
     planetTint: '#fbcfe8',
     starSpeedMultiplier: SPACE_DYNAMIC_STAR_SPEED_MULTIPLIERS['bastion-protocol'],
     terrain: 'space',
@@ -535,9 +606,10 @@ const BACKGROUND_PROFILES = {
     layers: createSpaceLayers(
       'helix-redline', 0.12, 2.2,
       ASSETS.PIXI_SPACE_PARALLAX_BG_VIOLET_RIFT,
-      [ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_RUST, ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_BASALT]
+      [ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_RUST, ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_BASALT],
+      LOOP_SEAM_CROSSFADE_PX
     ),
-    horizonAlpha: 0.14, planetTint: '#f0abfc', starSpeedMultiplier: SPACE_DYNAMIC_STAR_SPEED_MULTIPLIERS['helix-redline'],
+    horizonAlpha: 0, planetTint: '#f0abfc', starSpeedMultiplier: SPACE_DYNAMIC_STAR_SPEED_MULTIPLIERS['helix-redline'],
     terrain: 'space', propSet: 'helix-redline', propAlpha: 1, propCount: 4, glyphAlpha: 0
   },
   'shattered-void': {
@@ -547,7 +619,7 @@ const BACKGROUND_PROFILES = {
       ASSETS.PIXI_SPACE_PARALLAX_BG_OBSIDIAN_NEBULA,
       [ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_BASALT]
     ),
-    horizonAlpha: 0.1, planetTint: '#c7d2fe', starSpeedMultiplier: SPACE_DYNAMIC_STAR_SPEED_MULTIPLIERS['shattered-void'],
+    horizonAlpha: 0, planetTint: '#c7d2fe', starSpeedMultiplier: SPACE_DYNAMIC_STAR_SPEED_MULTIPLIERS['shattered-void'],
     terrain: 'space', propSet: 'shattered-void', propAlpha: 1, propCount: 4, glyphAlpha: 0
   },
   'gravity-rift': {
@@ -557,7 +629,7 @@ const BACKGROUND_PROFILES = {
       ASSETS.PIXI_SPACE_PARALLAX_BG_ION_CLOUD,
       [ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_BASALT, ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_RUST]
     ),
-    horizonAlpha: 0.16, planetTint: '#99f6e4', starSpeedMultiplier: SPACE_DYNAMIC_STAR_SPEED_MULTIPLIERS['gravity-rift'],
+    horizonAlpha: 0, planetTint: '#99f6e4', starSpeedMultiplier: SPACE_DYNAMIC_STAR_SPEED_MULTIPLIERS['gravity-rift'],
     terrain: 'space', propSet: 'gravity-rift', propAlpha: 1, propCount: 4, glyphAlpha: 0
   },
   'ion-eclipse': {
@@ -567,7 +639,7 @@ const BACKGROUND_PROFILES = {
       ASSETS.PIXI_SPACE_PARALLAX_BG_ION_CLOUD,
       [ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_RUST]
     ),
-    horizonAlpha: 0.15, planetTint: '#bae6fd', starSpeedMultiplier: SPACE_DYNAMIC_STAR_SPEED_MULTIPLIERS['ion-eclipse'],
+    horizonAlpha: 0, planetTint: '#bae6fd', starSpeedMultiplier: SPACE_DYNAMIC_STAR_SPEED_MULTIPLIERS['ion-eclipse'],
     terrain: 'space', propSet: 'ion-eclipse', propAlpha: 1, propCount: 4, glyphAlpha: 0
   },
   'terminus-frontier': {
@@ -577,7 +649,7 @@ const BACKGROUND_PROFILES = {
       ASSETS.PIXI_SPACE_PARALLAX_BG_OBSIDIAN_NEBULA,
       [ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_RUST, ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_BASALT]
     ),
-    horizonAlpha: 0.12, planetTint: '#fde68a', starSpeedMultiplier: SPACE_DYNAMIC_STAR_SPEED_MULTIPLIERS['terminus-frontier'],
+    horizonAlpha: 0, planetTint: '#fde68a', starSpeedMultiplier: SPACE_DYNAMIC_STAR_SPEED_MULTIPLIERS['terminus-frontier'],
     terrain: 'space', propSet: 'terminus-frontier', propAlpha: 1, propCount: 4, glyphAlpha: 0
   }
 } as const satisfies Record<string, EnvironmentProfile>;
@@ -694,6 +766,7 @@ export class PixiEnvironment {
   private lastEngineFrame = -1;
   private spacePropBlurActive = false;
   private destroyed = false;
+  private readonly seamMaskTextures = new Map<number, Texture>();
 
   constructor(
     private readonly backgroundLayer: Container,
@@ -736,12 +809,18 @@ export class PixiEnvironment {
           profile.layers[layerIndex]?.tilePoolSize ?? PARALLAX_TILE_POOL_SIZE
         ))
       );
+      const seamMasks: Sprite[] = [];
       for (let tileIndex = 0; tileIndex < allocatedTileCount; tileIndex++) {
         const sprite = new Sprite(Texture.WHITE);
+        const seamMask = new Sprite(Texture.WHITE);
         sprite.alpha = definition.alpha;
         sprite.eventMode = 'none';
+        seamMask.eventMode = 'none';
+        seamMask.visible = false;
+        seamMask.alpha = 1;
         sprites.push(sprite);
-        root.addChild(sprite);
+        seamMasks.push(seamMask);
+        root.addChild(sprite, seamMask);
       }
       this.parallaxLayers.push({
         root,
@@ -760,7 +839,11 @@ export class PixiEnvironment {
         filterActive: Boolean(definition.softness),
         scrollDirection: definition.scrollDirection ?? 'down',
         coverViewport: definition.coverViewport ?? false,
-        activeTileCount: Math.min(allocatedTileCount, definition.tilePoolSize ?? PARALLAX_TILE_POOL_SIZE)
+        activeTileCount: Math.min(allocatedTileCount, definition.tilePoolSize ?? PARALLAX_TILE_POOL_SIZE),
+        seamCrossfadePx: definition.seamCrossfadePx ?? definition.crossfadeLoopPx ?? 0,
+        crossfadeLoopPx: definition.crossfadeLoopPx ?? 0,
+        integerScale: definition.integerScale ?? false,
+        seamMasks
       });
       this.backgroundLayer.addChild(root);
     }
@@ -927,6 +1010,7 @@ export class PixiEnvironment {
       prop.widthRatio = definition.widthRatio;
       prop.rotationSpeed = definition.rotationSpeed;
       prop.alpha = definition.alpha;
+      prop.edgeBleed = definition.edgeBleed;
       prop.perspectiveTextures = perspectiveTextures;
       prop.perspectiveState = perspectiveTextures ? 0 : -1;
       prop.sprite.texture = perspectiveTextures?.[0] ?? texture;
@@ -1023,6 +1107,9 @@ export class PixiEnvironment {
       layer.root.filters = layer.filterActive ? [layer.blurFilter] : null;
       layer.scrollDirection = definition.scrollDirection ?? 'down';
       layer.coverViewport = definition.coverViewport ?? false;
+      layer.seamCrossfadePx = definition.seamCrossfadePx ?? definition.crossfadeLoopPx ?? 0;
+      layer.crossfadeLoopPx = definition.crossfadeLoopPx ?? 0;
+      layer.integerScale = definition.integerScale ?? false;
       layer.activeTileCount = Math.min(
         layer.sprites.length,
         definition.tilePoolSize ?? PARALLAX_TILE_POOL_SIZE
@@ -1030,9 +1117,15 @@ export class PixiEnvironment {
       layer.root.visible = true;
       for (let tileIndex = 0; tileIndex < layer.sprites.length; tileIndex++) {
         const sprite = layer.sprites[tileIndex];
-        if (texture) sprite.texture = texture;
-        sprite.visible = Boolean(texture) && tileIndex < layer.activeTileCount;
+        if (texture) {
+          texture.source.scaleMode = 'nearest';
+          sprite.texture = texture;
+        }
+        const textureReady = Boolean(texture) && texture !== Texture.WHITE;
+        sprite.visible = textureReady && tileIndex < layer.activeTileCount;
         sprite.alpha = definition.alpha;
+        const seamMask = layer.seamMasks[tileIndex];
+        if (seamMask) seamMask.visible = false;
       }
       this.layoutParallaxLayer(layer);
     }
@@ -1050,8 +1143,11 @@ export class PixiEnvironment {
     this.spaceBodySprites.forEach((sprite, index) => {
       const body = spaceBodies[index];
       const texture = body ? this.textures.get(body.url) : undefined;
-      sprite.visible = Boolean(body && texture);
-      if (texture && body) sprite.texture = texture;
+      sprite.visible = Boolean(body && texture && texture !== Texture.WHITE);
+      if (texture && body && texture !== Texture.WHITE) {
+        texture.source.scaleMode = 'nearest';
+        sprite.texture = texture;
+      }
     });
     return profile;
   }
@@ -1087,9 +1183,11 @@ export class PixiEnvironment {
     const sourceWidth = Math.max(1, texture?.width || this.width);
     const sourceHeight = Math.max(1, texture?.height || this.height);
     const sourceAspect = sourceHeight / sourceWidth;
-    const scaledWidth = layer.coverViewport
-      ? Math.max(this.width * layer.widthScale, this.height / sourceAspect) * 1.04
-      : this.width * layer.widthScale;
+    const scaledWidth = layer.integerScale
+      ? sourceWidth * getIntegerCoverScale(this.width, sourceWidth)
+      : layer.coverViewport
+        ? Math.ceil(Math.max(this.width * layer.widthScale, this.height / sourceAspect))
+        : this.width * layer.widthScale;
     layer.tileHeight = scaledWidth * sourceAspect;
     for (const sprite of layer.sprites) {
       sprite.width = scaledWidth;
@@ -1100,7 +1198,12 @@ export class PixiEnvironment {
 
   private layoutTerrainProps() {
     for (const prop of this.terrainProps) {
-      const width = Math.max(18, this.width * prop.widthRatio);
+      const nativeWidth = Math.max(1, prop.sprite.texture.width || TERRAIN_PROP_CELL_SIZE);
+      const widthCap = prop.terrain === 'space'
+        ? this.width * HERO_LANDMARK_MAX_WIDTH_RATIO
+        : this.width * prop.widthRatio;
+      const requested = this.width * prop.widthRatio;
+      const width = Math.max(18, Math.min(requested, widthCap, nativeWidth * SPACE_BODY_MAX_NATIVE_SCALE));
       const aspect = Math.max(0.25, prop.sprite.texture.height / Math.max(1, prop.sprite.texture.width));
       prop.sprite.width = width;
       prop.sprite.height = width * aspect;
@@ -1110,6 +1213,68 @@ export class PixiEnvironment {
           .fill({ color: '#020617', alpha: 0.24 });
       }
     }
+  }
+
+  /** Full-height alpha ramp so a looping tile fades only across its top seam. */
+  private getSeamMaskTexture(fadeRatio: number): Texture | null {
+    const key = Math.max(1, Math.round(Math.min(0.45, fadeRatio) * 512));
+    const cached = this.seamMaskTextures.get(key);
+    if (cached) return cached;
+    if (typeof document === 'undefined') return null;
+    const height = 256;
+    const canvas = document.createElement('canvas');
+    canvas.width = 4;
+    canvas.height = height;
+    const context = canvas.getContext('2d');
+    if (!context) return null;
+    const fadePixels = Math.max(1, Math.min(height - 1, Math.round((key / 512) * height)));
+    const gradient = context.createLinearGradient(0, 0, 0, fadePixels);
+    gradient.addColorStop(0, 'rgba(255,255,255,0)');
+    gradient.addColorStop(1, 'rgba(255,255,255,1)');
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, 4, fadePixels);
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, fadePixels, 4, height - fadePixels);
+    const texture = Texture.from(canvas);
+    texture.source.scaleMode = 'linear';
+    this.seamMaskTextures.set(key, texture);
+    return texture;
+  }
+
+  private applySeamMask(sprite: Sprite, seamMask: Sprite | undefined, fadePx: number, visible: boolean) {
+    if (!seamMask) return;
+    const fadeRatio = visible && fadePx > 0 && sprite.height > 1
+      ? Math.min(0.45, fadePx / sprite.height)
+      : 0;
+    if (fadeRatio <= 0) {
+      sprite.mask = null;
+      seamMask.visible = false;
+      return;
+    }
+    const texture = this.getSeamMaskTexture(fadeRatio);
+    if (!texture) {
+      sprite.mask = null;
+      seamMask.visible = false;
+      return;
+    }
+    seamMask.texture = texture;
+    seamMask.renderable = false;
+    seamMask.visible = true;
+    seamMask.anchor.set(0, 0);
+    seamMask.position.copyFrom(sprite.position);
+    seamMask.width = sprite.width;
+    seamMask.height = sprite.height;
+    sprite.mask = seamMask;
+  }
+
+  private wrapGroundContact(layer: ParallaxLayer, groundY: number, spriteHeight: number) {
+    if (layer.crossfadeLoopPx <= 0) return groundY;
+    const period = Math.max(1, layer.tileHeight - layer.crossfadeLoopPx);
+    const margin = spriteHeight + 40;
+    let wrapped = groundY;
+    while (wrapped > this.height + margin) wrapped -= period;
+    while (wrapped < -margin) wrapped += period;
+    return wrapped;
   }
 
   update(engine: GameEngine) {
@@ -1172,22 +1337,39 @@ export class PixiEnvironment {
       const maxTravel = Math.max(0, layer.tileHeight - this.height);
       const spriteX = (this.width - layer.sprites[0].width) / 2;
       layer.root.x = Math.sin(motionFrame * 0.0016 + layer.phase) * layer.xDrift;
-      if (layer.loop) {
+      if (layer.sprites[0].texture === Texture.WHITE) {
+        layer.root.visible = false;
+        continue;
+      }
+      layer.root.visible = true;
+      const fadePx = layer.crossfadeLoopPx > 0 ? layer.crossfadeLoopPx : layer.seamCrossfadePx;
+      if (layer.crossfadeLoopPx > 0 || layer.loop) {
         const scrollDistance = layer.tileHeight * layer.startOffsetRatio + motionFrame * layer.speed;
         for (let tileIndex = 0; tileIndex < layer.sprites.length; tileIndex++) {
           const sprite = layer.sprites[tileIndex];
-          if (tileIndex >= layer.activeTileCount) {
+          const seamMask = layer.seamMasks[tileIndex];
+          if (tileIndex >= layer.activeTileCount || sprite.texture === Texture.WHITE) {
             sprite.visible = false;
+            if (seamMask) seamMask.visible = false;
             continue;
           }
-          const tileY = getLoopingParallaxTileY(
-            tileIndex,
-            scrollDistance,
-            layer.tileHeight,
-            layer.scrollDirection
-          );
+          const tileY = layer.crossfadeLoopPx > 0
+            ? getCrossfadeLoopTileY(
+              tileIndex,
+              scrollDistance,
+              layer.tileHeight,
+              layer.crossfadeLoopPx,
+              layer.scrollDirection
+            )
+            : getLoopingParallaxTileY(
+              tileIndex,
+              scrollDistance,
+              layer.tileHeight,
+              layer.scrollDirection
+            );
           sprite.visible = tileY < this.height + 2 && tileY + layer.tileHeight > -2;
           sprite.position.set(spriteX, tileY);
+          this.applySeamMask(sprite, seamMask, fadePx, sprite.visible);
         }
       } else {
         const scrollDistance = maxTravel * layer.startOffsetRatio + motionFrame * layer.speed;
@@ -1220,15 +1402,19 @@ export class PixiEnvironment {
         sprite.visible = false;
         continue;
       }
-      const width = Math.max(48, this.width * body.scale);
-      const aspect = sprite.texture.height / Math.max(1, sprite.texture.width);
+      const nativeWidth = Math.max(1, sprite.texture.width);
+      const width = Math.min(
+        Math.max(48, this.width * body.scale),
+        nativeWidth * SPACE_BODY_MAX_NATIVE_SCALE
+      );
+      const aspect = sprite.texture.height / nativeWidth;
       sprite.width = width;
       sprite.height = width * aspect;
       const cycle = this.height + sprite.height + 120;
       sprite.visible = true;
-      sprite.alpha = 0.94;
-      sprite.x = body.baseX * this.width;
+      sprite.x = getClampedSpriteCenterX(body.baseX * this.width, width, this.width);
       sprite.y = ((body.phase * cycle) + motionFrame * body.speed) % cycle - sprite.height * 0.35;
+      sprite.alpha = sprite.y > this.height * 0.4 ? 0.7 : 0.94;
     }
     for (const prop of this.terrainProps) {
       const visible = prop.propSet === profile.propSet && prop.slot < profile.propCount;
@@ -1236,11 +1422,12 @@ export class PixiEnvironment {
       if (!visible) continue;
       if (prop.terrain === 'space') {
         const propCycle = this.height + Math.max(360, prop.sprite.height * 2);
-        prop.root.x = prop.baseX * this.width + Math.sin(motionFrame * 0.0016 + prop.phase) * prop.sway;
+        const swayX = prop.baseX * this.width + Math.sin(motionFrame * 0.0016 + prop.phase) * prop.sway;
+        prop.root.x = getClampedSpriteCenterX(swayX, prop.sprite.width, this.width, prop.edgeBleed);
         prop.root.y = ((prop.baseY * propCycle) + motionFrame * prop.speed) % propCycle - prop.sprite.height;
         prop.root.rotation = motionFrame * prop.rotationSpeed;
         prop.root.scale.set(1);
-        prop.root.alpha = prop.alpha;
+        prop.root.alpha = prop.root.y > this.height * 0.4 ? Math.min(0.7, prop.alpha) : prop.alpha;
         prop.root.zIndex = Math.round(prop.speed * 10_000);
         continue;
       }
@@ -1249,20 +1436,21 @@ export class PixiEnvironment {
       // horizontal slot, so the contact point scrolls with the ground and never
       // drifts sideways or lifts off the surface.
       const groundY = terrainTop + prop.baseY * terrainLayer.tileHeight;
-      const screenDepth = Math.max(0, Math.min(1, (groundY + 80) / (this.height + 160)));
+      const contactY = this.wrapGroundContact(terrainLayer, groundY, prop.sprite.height);
+      const screenDepth = Math.max(0, Math.min(1, (contactY + 80) / (this.height + 160)));
       const perspectiveScale = 0.82 + screenDepth * 0.3;
-      const perspectiveState = getGroundPropPerspectiveState(groundY, this.height);
+      const perspectiveState = getGroundPropPerspectiveState(contactY, this.height);
       if (prop.perspectiveTextures && prop.perspectiveState !== perspectiveState) {
         prop.sprite.texture = prop.perspectiveTextures[perspectiveState];
         prop.perspectiveState = perspectiveState;
       }
       prop.root.x = prop.baseX * this.width;
-      prop.root.y = groundY;
+      prop.root.y = contactY;
       prop.root.rotation = 0;
       prop.root.scale.set(perspectiveScale);
       prop.root.alpha = prop.alpha * (0.76 + screenDepth * 0.24);
-      prop.root.zIndex = Math.round(groundY * 10);
-      prop.root.visible = groundY > -prop.sprite.height && groundY < this.height + prop.sprite.height;
+      prop.root.zIndex = Math.round(contactY * 10);
+      prop.root.visible = contactY > -prop.sprite.height && contactY < this.height + prop.sprite.height;
     }
 
     this.sectorTint.tint = profile.tint;
@@ -1338,6 +1526,8 @@ export class PixiEnvironment {
     this.glyphs.length = 0;
     this.terrainProps.length = 0;
     this.atlasFrameCache.clear();
+    for (const texture of this.seamMaskTextures.values()) texture.destroy(true);
+    this.seamMaskTextures.clear();
     this.activeBackgroundId = '';
     this.activePropSet = null;
     this.profileWindowKey = '';

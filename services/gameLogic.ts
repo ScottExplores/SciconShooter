@@ -34,6 +34,7 @@ import type {
   WaveDefinition
 } from '../game-config/types';
 import { isMajorBossId } from '../game-config/catalog';
+import { getBossViewportWidthCapRatio } from './campaignBossEconomy';
 import {
   DEFAULT_GAME_CAMPAIGN,
   cloneGameCampaign,
@@ -14086,9 +14087,10 @@ export class GameEngine {
       designSize: this.previewBossArtworkDesignSize
     });
     const configuredBossHeight = previewArtworkDimensions.height;
-    const usesOversizedEncounterFraming = sizeMultiplier > 1.5;
+    const viewportWidthCapRatio = getBossViewportWidthCapRatio(sizeMultiplier);
+    const usesOversizedEncounterFraming = viewportWidthCapRatio < 1;
     const bossWidth = usesOversizedEncounterFraming
-      ? Math.min(configuredBossWidth, Math.round(this.width * 0.82))
+      ? Math.min(configuredBossWidth, Math.round(this.width * viewportWidthCapRatio))
       : configuredBossWidth;
     const bossHeight = usesOversizedEncounterFraming
       ? Math.round(bossWidth * (configuredBossHeight / configuredBossWidth))

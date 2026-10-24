@@ -1743,6 +1743,7 @@ const frontierTimeline: BossTimelineConfig = {
 
 const stormEngineStudy = 'sandbox-storm-engine-reference-study';
 const stormEngineOverdrive = 'sandbox-storm-engine-reverse-overdrive';
+const stormEngineGapRing = 'sandbox-storm-engine-gap-ring-finale';
 const stormEngineTimeline: BossTimelineConfig = {
   durationSeconds: 36,
   loop: true,
@@ -1927,6 +1928,95 @@ const stormEngineTimeline: BossTimelineConfig = {
       },
       leadSeconds: 0.9,
       actionDurationSeconds: 2
+    }),
+    phaseCue('sandbox-storm-engine-gap-ring-fx', 'effect-cue', stormEngineGapRing, {
+      color: '#67e8f9'
+    }),
+    phaseCue('sandbox-storm-engine-gap-ring-camera', 'camera-cue', stormEngineGapRing, {
+      strength: 2.4
+    }),
+    ...warned({
+      id: 'sandbox-storm-engine-gap-ring-rotor-reverse',
+      primitiveId: 'rotor-hazard-sentence',
+      startSeconds: 0.8,
+      phaseId: stormEngineGapRing,
+      style: 'ring',
+      color: '#ff3bd4',
+      parameters: {
+        projectileCount: 6,
+        sequence: 4,
+        pulseIntervalSeconds: 0.75,
+        motionCue: 'rotor-volley'
+      },
+      leadSeconds: 0.55,
+      actionDurationSeconds: 5.2
+    }),
+    ...warned({
+      id: 'sandbox-storm-engine-gap-ring-pulses-a',
+      primitiveId: 'gap-ring',
+      startSeconds: 7.4,
+      phaseId: stormEngineGapRing,
+      style: 'ring',
+      color: '#67e8f9',
+      parameters: { projectileCount: 16, sequence: 4 },
+      leadSeconds: 0.8,
+      actionDurationSeconds: 0.25,
+      repeat: { count: 3, intervalSeconds: 0.75 }
+    }),
+    ...warned({
+      id: 'sandbox-storm-engine-gap-ring-radial',
+      primitiveId: 'radial-beam-array',
+      startSeconds: 12.2,
+      phaseId: stormEngineGapRing,
+      style: 'spokes',
+      color: '#facc15',
+      parameters: {
+        sequence: 4,
+        motionCue: 'radial-beam',
+        rotationDirection: 'seeded-random'
+      },
+      leadSeconds: 0.85,
+      actionDurationSeconds: 2
+    }),
+    ...warned({
+      id: 'sandbox-storm-engine-gap-ring-pulses-b',
+      primitiveId: 'gap-ring',
+      startSeconds: 16.8,
+      phaseId: stormEngineGapRing,
+      style: 'ring',
+      color: '#ff3bd4',
+      parameters: { projectileCount: 16, sequence: 5 },
+      leadSeconds: 0.8,
+      actionDurationSeconds: 0.25,
+      repeat: { count: 3, intervalSeconds: 0.7 }
+    }),
+    ...warned({
+      id: 'sandbox-storm-engine-gap-ring-rotor-forward',
+      primitiveId: 'rotor-hazard-sentence',
+      startSeconds: 21.6,
+      phaseId: stormEngineGapRing,
+      style: 'ring',
+      color: '#67e8f9',
+      parameters: {
+        projectileCount: 6,
+        sequence: 5,
+        pulseIntervalSeconds: 0.65,
+        motionCue: 'rotor-volley'
+      },
+      leadSeconds: 0.5,
+      actionDurationSeconds: 5
+    }),
+    ...warned({
+      id: 'sandbox-storm-engine-gap-ring-pulses-c',
+      primitiveId: 'gap-ring',
+      startSeconds: 28.4,
+      phaseId: stormEngineGapRing,
+      style: 'ring',
+      color: '#facc15',
+      parameters: { projectileCount: 14, sequence: 6 },
+      leadSeconds: 0.8,
+      actionDurationSeconds: 0.25,
+      repeat: { count: 3, intervalSeconds: 0.85 }
     })
   ]
 };
@@ -1934,6 +2024,7 @@ const stormEngineTimeline: BossTimelineConfig = {
 const umbraWingSurvey = 'sandbox-umbra-wing-survey';
 const umbraBlackoutHunt = 'sandbox-umbra-blackout-hunt';
 const umbraBrokenCompass = 'sandbox-umbra-broken-compass';
+const umbraFinaleEcho = 'sandbox-umbra-finale-echo';
 
 type UmbraAttackBeatBlueprint = BossAttackBeatBlueprint & {
   /** Stable legacy clip ID retained for direct Sandbox attack deep links. */
@@ -2598,6 +2689,125 @@ const umbraTimeline = compileUmbraTimeline([
         leadSeconds: 0.8,
         actionDurationSeconds: 0.3,
         parameters: {}
+      }
+    ]
+  }),
+  buildUmbraPhase({
+    phaseId: umbraFinaleEcho,
+    color: '#f43f5e',
+    cameraStrength: 2.2,
+    recoverySeconds: 0.7,
+    starts: { wingShear: 0.2, orbitGap: 5.4, cornerNeedle: 11.6, blackoutAmbush: 16.2 },
+    wingShear: [
+      {
+        id: 'echo-helios-port',
+        clipId: 'sandbox-umbra-echo-helios-port',
+        label: 'Helios corridor echo',
+        primitiveId: 'side-barrage',
+        offsetSeconds: 0,
+        telegraphStyle: 'lane',
+        leadSeconds: 0.75,
+        actionDurationSeconds: 0.4,
+        parameters: { projectileCount: 6, side: 'port' }
+      },
+      {
+        id: 'echo-helios-starboard',
+        clipId: 'sandbox-umbra-echo-helios-starboard',
+        label: 'Helios corridor answer',
+        primitiveId: 'side-barrage',
+        offsetSeconds: 1.35,
+        telegraphStyle: 'lane',
+        leadSeconds: 0.75,
+        actionDurationSeconds: 0.4,
+        parameters: { projectileCount: 6, side: 'starboard' }
+      }
+    ],
+    orbitGap: [
+      {
+        id: 'echo-singularity-ring',
+        clipId: 'sandbox-umbra-echo-singularity-ring',
+        label: 'Singularity gap ring',
+        primitiveId: 'gap-ring',
+        offsetSeconds: 0,
+        telegraphStyle: 'ring',
+        leadSeconds: 0.75,
+        actionDurationSeconds: 0.32,
+        parameters: {
+          projectileCount: 18,
+          sequence: 8,
+          rotationDirection: 'counterclockwise'
+        },
+        repeat: { count: 3, intervalSeconds: 0.85 }
+      }
+    ],
+    cornerNeedle: [
+      {
+        id: 'echo-needle-lock',
+        clipId: 'sandbox-umbra-echo-needle-lock',
+        label: 'Finale needle lock',
+        primitiveId: 'corner-ambush-beam',
+        offsetSeconds: 0,
+        telegraphStyle: 'target',
+        leadSeconds: 0.8,
+        actionDurationSeconds: 0.4,
+        parameters: { sequence: 2 }
+      },
+      {
+        id: 'echo-needle-answer',
+        clipId: 'sandbox-umbra-echo-needle-answer',
+        label: 'Finale needle answer',
+        primitiveId: 'corner-ambush-beam',
+        offsetSeconds: 1.4,
+        telegraphStyle: 'target',
+        leadSeconds: 0.8,
+        actionDurationSeconds: 0.4,
+        parameters: { sequence: 3 }
+      }
+    ],
+    blackoutAmbush: [
+      {
+        id: 'echo-nullwake-ram',
+        clipId: 'sandbox-umbra-echo-nullwake-ram',
+        label: 'Nullwake hunt charge',
+        primitiveId: 'corner-ambush-ram',
+        offsetSeconds: 0,
+        telegraphStyle: 'target',
+        leadSeconds: 0.85,
+        actionDurationSeconds: 0.55,
+        parameters: { sequence: 1 }
+      },
+      {
+        id: 'echo-nullwake-return',
+        clipId: 'sandbox-umbra-echo-nullwake-return',
+        label: 'Nullwake return charge',
+        primitiveId: 'corner-ambush-ram',
+        offsetSeconds: 1.8,
+        telegraphStyle: 'target',
+        leadSeconds: 0.85,
+        actionDurationSeconds: 0.55,
+        parameters: { sequence: 0 }
+      },
+      {
+        id: 'echo-nullwake-port',
+        clipId: 'sandbox-umbra-echo-nullwake-port',
+        label: 'Nullwake port charge',
+        primitiveId: 'corner-ambush-ram',
+        offsetSeconds: 3.6,
+        telegraphStyle: 'target',
+        leadSeconds: 0.85,
+        actionDurationSeconds: 0.55,
+        parameters: { sequence: 2 }
+      },
+      {
+        id: 'echo-nullwake-starboard',
+        clipId: 'sandbox-umbra-echo-nullwake-starboard',
+        label: 'Nullwake starboard charge',
+        primitiveId: 'corner-ambush-ram',
+        offsetSeconds: 5.4,
+        telegraphStyle: 'target',
+        leadSeconds: 0.85,
+        actionDurationSeconds: 0.55,
+        parameters: { sequence: 3 }
       }
     ]
   })
@@ -3583,6 +3793,7 @@ const nullwakeTimeline = compileBossAttackTimeline({
 
 const gloamforgeCrucibleMeasure = 'sandbox-gloamforge-crucible-measure';
 const gloamforgeCleaverUnfurl = 'sandbox-gloamforge-cleaver-unfurl';
+const gloamforgeCannonPods = 'sandbox-gloamforge-cannon-pods';
 const gloamforgeTimeline = serialBossTimeline([
   {
     phaseId: gloamforgeCrucibleMeasure,
@@ -3707,6 +3918,60 @@ const gloamforgeTimeline = serialBossTimeline([
         leadSeconds: 1.2,
         actionDurationSeconds: 2,
         recoverySeconds: 2.4
+      }
+    ]
+  },
+  {
+    phaseId: gloamforgeCannonPods,
+    color: '#22d3ee',
+    cameraStrength: 2.2,
+    steps: [
+      {
+        id: 'sandbox-gloamforge-pods-crucible-ring',
+        primitiveId: 'gap-ring',
+        style: 'ring',
+        parameters: { projectileCount: 18, sequence: 2 },
+        leadSeconds: 1
+      },
+      {
+        id: 'sandbox-gloamforge-pods-port-cannon',
+        primitiveId: 'side-barrage',
+        style: 'lane',
+        parameters: { projectileCount: 8, side: 'port', motionCue: 'heavy-cannon' },
+        leadSeconds: 1,
+        actionDurationSeconds: 1
+      },
+      {
+        id: 'sandbox-gloamforge-pods-starboard-cannon',
+        primitiveId: 'side-barrage',
+        style: 'lane',
+        parameters: { projectileCount: 8, side: 'starboard', motionCue: 'heavy-cannon' },
+        leadSeconds: 1,
+        actionDurationSeconds: 1
+      },
+      {
+        id: 'sandbox-gloamforge-pods-slag-burst',
+        primitiveId: 'pod-volley',
+        style: 'warning',
+        parameters: { projectileCount: 9, sequence: 2 },
+        leadSeconds: 0.95,
+        actionDurationSeconds: 1.3
+      },
+      {
+        id: 'sandbox-gloamforge-pods-cleaver-fan',
+        primitiveId: 'tail-fan',
+        style: 'warning',
+        parameters: { projectileCount: 12, sequence: 1 },
+        leadSeconds: 0.95,
+        actionDurationSeconds: 1.2
+      },
+      {
+        id: 'sandbox-gloamforge-pods-cross-cut',
+        primitiveId: 'cross-beam',
+        style: 'lane',
+        leadSeconds: 1.1,
+        actionDurationSeconds: 1.5,
+        recoverySeconds: 2
       }
     ]
   }
@@ -4668,7 +4933,7 @@ const definitions = deepFreeze([
       health: 6_800,
       shieldCount: 0,
       speed: 0.55,
-      sizeMultiplier: 2.35,
+      sizeMultiplier: 1.9,
       burstIntervalSeconds: 30,
       beamIntervalSeconds: 30,
       phases: [
@@ -4683,9 +4948,17 @@ const definitions = deepFreeze([
         {
           id: stormEngineOverdrive,
           label: 'Reverse overdrive',
-          triggerHealthRatio: 0.32,
+          triggerHealthRatio: 0.66,
           movementPatternId: 'sine-drift',
           speedMultiplier: 1.05,
+          weaponSettingIds: ['sandbox-aurora-storm-engine-burst', 'sandbox-aurora-storm-engine-beam']
+        },
+        {
+          id: stormEngineGapRing,
+          label: 'Gap Ring Finale',
+          triggerHealthRatio: 0.34,
+          movementPatternId: 'sine-drift',
+          speedMultiplier: 1.08,
           weaponSettingIds: ['sandbox-aurora-storm-engine-burst', 'sandbox-aurora-storm-engine-beam']
         }
       ],
@@ -4774,7 +5047,7 @@ const definitions = deepFreeze([
       health: 5_200,
       shieldCount: 0,
       speed: 0.8,
-      sizeMultiplier: 1.75,
+      sizeMultiplier: 2.35,
       burstIntervalSeconds: 30,
       beamIntervalSeconds: 30,
       phases: [
@@ -4789,7 +5062,7 @@ const definitions = deepFreeze([
         {
           id: umbraBlackoutHunt,
           label: 'Blackout Hunt',
-          triggerHealthRatio: 0.66,
+          triggerHealthRatio: 0.75,
           movementPatternId: 'sine-drift',
           speedMultiplier: 0.85,
           weaponSettingIds: ['sandbox-umbra-needlewing-burst', 'sandbox-umbra-needlewing-beam']
@@ -4797,9 +5070,17 @@ const definitions = deepFreeze([
         {
           id: umbraBrokenCompass,
           label: 'Broken Compass',
-          triggerHealthRatio: 0.3,
+          triggerHealthRatio: 0.5,
           movementPatternId: 'arena-roam',
           speedMultiplier: 0.88,
+          weaponSettingIds: ['sandbox-umbra-needlewing-burst', 'sandbox-umbra-needlewing-beam']
+        },
+        {
+          id: umbraFinaleEcho,
+          label: 'Finale Echo',
+          triggerHealthRatio: 0.25,
+          movementPatternId: 'sine-drift',
+          speedMultiplier: 0.9,
           weaponSettingIds: ['sandbox-umbra-needlewing-burst', 'sandbox-umbra-needlewing-beam']
         }
       ],
@@ -4879,7 +5160,7 @@ const definitions = deepFreeze([
       health: 5_600,
       shieldCount: 0,
       speed: 0.7,
-      sizeMultiplier: 1.7,
+      sizeMultiplier: 2.1,
       burstIntervalSeconds: 30,
       beamIntervalSeconds: 30,
       phases: [
@@ -4894,9 +5175,17 @@ const definitions = deepFreeze([
         {
           id: gloamforgeCleaverUnfurl,
           label: 'Cleaver Unfurl',
-          triggerHealthRatio: 0.34,
+          triggerHealthRatio: 0.66,
           movementPatternId: 'sine-drift',
           speedMultiplier: 0.8,
+          weaponSettingIds: ['sandbox-gloamforge-mantis-burst', 'sandbox-gloamforge-mantis-beam']
+        },
+        {
+          id: gloamforgeCannonPods,
+          label: 'Cannon Pods',
+          triggerHealthRatio: 0.34,
+          movementPatternId: 'arena-roam',
+          speedMultiplier: 0.84,
           weaponSettingIds: ['sandbox-gloamforge-mantis-burst', 'sandbox-gloamforge-mantis-beam']
         }
       ],

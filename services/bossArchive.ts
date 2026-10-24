@@ -81,7 +81,7 @@ export type BossArchiveMasteryObjectiveKind =
 
 export interface BossArchiveDifficultyPresentation {
   readonly tier: BossArchiveDifficultyTier;
-  readonly label: 'RISING' | 'DANGEROUS' | 'ELITE' | 'APEX' | 'TERMINUS';
+  readonly label: 'RISING' | 'DANGEROUS' | 'ELITE' | 'APEX' | 'TERMINUS' | 'OMEGA' | 'FINAL';
 }
 
 export interface BossArchiveTheme {
@@ -232,14 +232,6 @@ const toNonNegativeInteger = (value: unknown) => {
   return Number.isFinite(parsed) ? Math.max(0, Math.floor(parsed)) : 0;
 };
 
-const DIFFICULTY_LABELS: Record<BossArchiveDifficultyTier, BossArchiveDifficultyPresentation['label']> = {
-  1: 'RISING',
-  2: 'DANGEROUS',
-  3: 'ELITE',
-  4: 'APEX',
-  5: 'TERMINUS'
-};
-
 const RIG_CLASSIFICATIONS: Readonly<Record<string, string>> = Object.freeze({
   'open-orbit': 'ORBITAL GATEKEEPER',
   'paywall-siege': 'SIEGE-CLASS GATEKEEPER',
@@ -277,8 +269,24 @@ const BOSS_ARCHIVE_DESCRIPTIONS: Readonly<Record<string, string>> = Object.freez
 });
 
 const buildDifficulty = (missionNumber: number): BossArchiveDifficultyPresentation => {
-  const tier = Math.min(5, Math.max(1, Math.ceil(missionNumber / 4))) as BossArchiveDifficultyTier;
-  return Object.freeze({ tier, label: DIFFICULTY_LABELS[tier] });
+  const label: BossArchiveDifficultyPresentation['label'] = missionNumber <= 5
+    ? 'DANGEROUS'
+    : missionNumber <= 10
+      ? 'ELITE'
+      : missionNumber <= 20
+        ? 'APEX'
+        : missionNumber <= 35
+          ? 'TERMINUS'
+          : missionNumber <= 45
+            ? 'OMEGA'
+            : 'FINAL';
+  const tier = (
+    label === 'DANGEROUS' ? 2
+      : label === 'ELITE' ? 3
+        : label === 'APEX' ? 4
+          : 5
+  ) as BossArchiveDifficultyTier;
+  return Object.freeze({ tier, label });
 };
 
 const buildMechanicTags = (event: BossEvent): readonly string[] => {

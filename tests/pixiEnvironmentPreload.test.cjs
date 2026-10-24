@@ -95,7 +95,10 @@ test('wave overrides participate in the same current-and-next preload window', (
 });
 
 test('startup and per-profile URL sets exclude unrelated late-run atlases', () => {
-  assert.equal(PIXI_ENVIRONMENT_TEXTURE_URLS.length, 8);
+  assert.equal(PIXI_ENVIRONMENT_TEXTURE_URLS.length, 9);
+  assert.ok(PIXI_ENVIRONMENT_TEXTURE_URLS.includes('HOME_SPARSE_STARFIELD_BASE'));
+  assert.equal(PIXI_ENVIRONMENT_TEXTURE_URLS.includes('GAME_PARALLAX_FAR_PLANETS'), false);
+  assert.equal(PIXI_ENVIRONMENT_TEXTURE_URLS.includes('GAME_BG_PLANET'), false);
   assert.ok(PIXI_ENVIRONMENT_TEXTURE_URLS.includes('PIXI_SPACE_PARALLAX_BG_ION_CLOUD'));
   assert.ok(PIXI_ENVIRONMENT_TEXTURE_URLS.includes('PIXI_SPACE_PARALLAX_BG_VIOLET_RIFT'));
   assert.equal(PIXI_ENVIRONMENT_TEXTURE_URLS.includes('PIXI_BREAKWATER_FAR'), false);
@@ -136,8 +139,14 @@ test('Breakwater environments load only their own landmark layer and never inher
     ['breakwater-gate', 'PIXI_BREAKWATER_GATE']
   ]) {
     const urls = [...getEnvironmentProfileTextureUrls(id)];
-    assert.deepEqual(urls, ['PIXI_BREAKWATER_FAR', layer]);
-    assert.equal(urls.some(url => /PLANET|TERRAIN_SPACE_PROPS/.test(url)), false);
+    assert.deepEqual(urls, [
+      'PIXI_BREAKWATER_FAR',
+      layer,
+      'GAME_PARALLAX_BIG_PLANET',
+      'GAME_PARALLAX_RING_PLANET'
+    ]);
+    assert.equal(urls.includes('PIXI_TERRAIN_SPACE_PROPS'), false);
+    assert.equal(urls.includes('GAME_BG_PLANET'), false);
   }
   assert.match(environmentSource, /profile\.propCount > 0 && !this\.configureTerrainProps/,
     'profiles without props must not wait for an unused planet atlas');

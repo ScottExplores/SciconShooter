@@ -176,7 +176,7 @@ test('M50 Umbra art stays aligned across Campaign, constants, catalog, record ca
   assert.equal(boss.rigId, 'open-orbit');
   assert.equal(boss.componentMode, 'hull-only');
   assert.equal(boss.componentHealth, undefined);
-  assert.equal(boss.health, 3400);
+  assert.equal(boss.health, 4800);
   assert.equal(boss.spriteKey, UMBRA_ASSET_KEY);
   assert.equal(mission.scorecard.encounterAssetKey, UMBRA_ASSET_KEY);
   assert.match(

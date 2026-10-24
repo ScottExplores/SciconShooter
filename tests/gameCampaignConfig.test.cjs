@@ -80,9 +80,9 @@ test('revision 24 contains ten five-depth sectors, explicit routes, and a compac
 });
 
 test('ten deliberate mini-bosses occupy both checkpoint Missions in every sector', () => {
-  assert.equal(campaign.miniBosses.length, 10);
+  assert.equal(campaign.miniBosses.length, 13);
   const catalogByBossId = new Map(campaign.miniBosses.map((entry) => [entry.bossId, entry]));
-  assert.equal(catalogByBossId.size, 10);
+  assert.equal(catalogByBossId.size, 13);
   campaign.miniBosses.forEach((entry) => {
     assert.equal(entry.campaignReady, true, `${entry.bossId} is Campaign-ready`);
     assert.equal(entry.validationStatus, 'validated', `${entry.bossId} is validated`);
@@ -283,7 +283,7 @@ test('ten sector bosses follow a readable durability, bounded score, and project
   });
   const bursts = finalBosses.map((boss) => boss.weapons.find((weapon) => weapon.projectileSpeed > 0));
 
-  assert.deepEqual(finalBosses.map((boss) => boss.health), [500, 800, 1300, 1600, 2350, 2500, 2700, 2900, 3150, 3400]);
+  assert.deepEqual(finalBosses.map((boss) => boss.health), [500, 800, 1300, 1600, 2350, 2500, 3000, 3400, 3900, 4800]);
   assert.deepEqual(finalBosses.map((boss) => boss.scoreReward), [1010, 5010, 9010, 13010, 17010, 21010, 25010, 29010, 33010, 37010]);
   assert.deepEqual(bursts.map((weapon) => weapon.burstCount), [3, 7, 4, 4, 4, 4, 1, 4, 4, 4]);
   finalBosses.slice(1).forEach((boss, index) => {

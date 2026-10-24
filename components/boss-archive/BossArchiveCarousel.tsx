@@ -60,6 +60,7 @@ const BossArchiveCarousel: React.FC<BossArchiveCarouselProps> = ({
     startX: number;
     startY: number;
     horizontal: boolean;
+    cardIndex?: number;
   } | null>(null);
   const lastWheelAtRef = useRef(0);
   const selectedIndexRef = useRef(selectedIndex);
@@ -141,6 +142,9 @@ const BossArchiveCarousel: React.FC<BossArchiveCarouselProps> = ({
     setDragging(false);
     setDragX(0);
     if (cancelled) suppressClickRef.current = false;
+    if (!cancelled && !gesture.horizontal && gesture.cardIndex != null) {
+      onSelectIndex(gesture.cardIndex);
+    }
     if (cancelled || !gesture.horizontal || items.length < 2) return;
     const steps = Math.max(
       -(items.length - 1),
@@ -228,11 +232,14 @@ const BossArchiveCarousel: React.FC<BossArchiveCarouselProps> = ({
           if (!event.isPrimary || items.length < 2) return;
           if (event.pointerType === 'mouse' && event.button !== 0) return;
           suppressClickRef.current = false;
+          const card = (event.target as Element | null)?.closest?.('[data-boss-index]');
+          const cardIndex = card ? Number(card.getAttribute('data-boss-index')) : Number.NaN;
           dragRef.current = {
             pointerId: event.pointerId,
             startX: event.clientX,
             startY: event.clientY,
-            horizontal: false
+            horizontal: false,
+            cardIndex: Number.isInteger(cardIndex) ? cardIndex : undefined
           };
         }}
         onPointerMove={(event) => {
@@ -302,11 +309,12 @@ const BossArchiveCarousel: React.FC<BossArchiveCarouselProps> = ({
               key={item.entry.eventId}
               className="boss-archive-carousel__card"
               style={style}
+              data-boss-index={index}
               data-selected={isSelected ? 'true' : 'false'}
               data-locked={item.unlocked ? 'false' : 'true'}
               data-new={item.isNew ? 'true' : 'false'}
               aria-hidden={isVisible ? undefined : true}
-              tabIndex={isSelected ? 0 : -1}
+              tabIndex={isVisible ? 0 : -1}
               aria-label={item.unlocked
                 ? `${item.entry.label}, Mission ${item.entry.missionNumber}${item.isNew ? ', newly unlocked' : ''}`
                 : `Unknown Signal, Mission ${item.entry.missionNumber}`}

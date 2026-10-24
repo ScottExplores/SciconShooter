@@ -150,7 +150,7 @@ test('proof schedule is derived from the current compiled Umbra timeline', () =>
     'UmbraNeedlewingSafeRouteProof.ts'
   ), 'utf8');
 
-  assert.equal(timeline.clips.length, 96);
+  assert.equal(timeline.clips.length, 120);
   assert.equal(timeline.attacks.length, 4);
   assert.doesNotMatch(proofSource, /const PLANS|wingPlan\(|ringPlan\(|cornerPlan\(|signaturePlan\(/);
 
