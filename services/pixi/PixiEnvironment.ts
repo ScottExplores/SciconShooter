@@ -1252,25 +1252,24 @@ export class PixiEnvironment {
       const nativeWidth = Math.max(1, prop.sprite.texture.width || TERRAIN_PROP_CELL_SIZE);
       const nativeHeight = Math.max(1, prop.sprite.texture.height || TERRAIN_PROP_CELL_SIZE);
       const requested = this.width * prop.widthRatio;
-      if (prop.terrain === 'space') {
-        const maxEdgeRatio = prop.propSet === 'space'
-          ? SPACE_BODY_MAX_SCALE
-          : HERO_LANDMARK_MAX_WIDTH_RATIO;
-        const sized = getSpaceLandmarkDisplaySize(
+      const sized = prop.terrain === 'space'
+        ? getSpaceLandmarkDisplaySize(
           this.width,
           nativeWidth,
           nativeHeight,
           requested,
-          maxEdgeRatio
-        );
-        prop.sprite.width = Math.max(18, sized.width);
-        prop.sprite.height = Math.max(18, sized.height);
-      } else {
-        const width = Math.max(18, Math.min(requested, nativeWidth * SPACE_BODY_MAX_NATIVE_SCALE));
-        const aspect = Math.max(0.25, nativeHeight / nativeWidth);
-        prop.sprite.width = width;
-        prop.sprite.height = width * aspect;
-      }
+          prop.propSet === 'space' ? SPACE_BODY_MAX_SCALE : HERO_LANDMARK_MAX_WIDTH_RATIO
+        )
+        : {
+          width: Math.max(18, Math.min(requested, nativeWidth * SPACE_BODY_MAX_NATIVE_SCALE)),
+          height: 0
+        };
+      const width = Math.max(18, sized.width);
+      const height = prop.terrain === 'space'
+        ? Math.max(18, sized.height)
+        : width * Math.max(0.25, nativeHeight / nativeWidth);
+      prop.sprite.width = width;
+      prop.sprite.height = height;
       prop.shadow.clear();
       if (prop.terrain !== 'space') {
         prop.shadow.ellipse(0, 0, width * 0.28, width * 0.085)
@@ -1478,7 +1477,7 @@ export class PixiEnvironment {
       sprite.height = sized.height;
       const cycle = this.height + sprite.height + 120;
       sprite.visible = true;
-      sprite.x = getClampedSpriteCenterX(body.baseX * this.width, width, this.width);
+      sprite.x = getClampedSpriteCenterX(body.baseX * this.width, sprite.width, this.width);
       sprite.y = ((body.phase * cycle) + motionFrame * body.speed) % cycle - sprite.height * 0.35;
       sprite.alpha = sprite.y > this.height * 0.4 ? 0.7 : 0.94;
     }
