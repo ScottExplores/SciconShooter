@@ -56,6 +56,7 @@ const {
   getNonLoopingParallaxOffset,
   getGroundPropPerspectiveState,
   buildSpaceBodyLayout,
+  SPACE_BULLET_LANE,
   getClampedSpriteCenterX,
   getSpaceLandmarkDisplaySize,
   getSpaceLandmarkEdgeInset
@@ -207,30 +208,36 @@ test('ground faces follow screen scroll and space bodies stay off a shared row',
 
   const open = buildSpaceBodyLayout('open-orbit');
   const terminus = buildSpaceBodyLayout('terminus-frontier');
-  assert.equal(open.length, 3);
-  assert.equal(new Set(open.map((body) => body.baseX)).size, 3);
-  assert.equal(new Set(open.map((body) => body.speed.toFixed(4))).size, 3);
-  assert.notDeepEqual(open.map((body) => body.baseX), terminus.map((body) => body.baseX));
-  assert.ok(open.every((body) => body.scale >= 0.12 && body.scale <= 0.3));
+  const citation = buildSpaceBodyLayout('citation-storm');
+  const profiles = ['open-orbit', 'citation-storm', 'bastion-protocol', 'helix-redline', 'shattered-void', 'gravity-rift', 'ion-eclipse', 'terminus-frontier'];
+  const layouts = profiles.map((profileId) => buildSpaceBodyLayout(profileId)[0]);
+  assert.equal(open.length, 1);
+  assert.equal(new Set(open.map((body) => body.url)).size, 1);
   assert.equal(open[0].url, 'GAME_PARALLAX_BIG_PLANET');
-  assert.equal(open[1].url, 'GAME_PARALLAX_RING_PLANET');
-  assert.equal(open[2].url, 'GAME_PARALLAX_BIG_PLANET');
+  assert.equal(citation[0].url, 'GAME_PARALLAX_RING_PLANET');
+  assert.notEqual(open[0].url, citation[0].url);
+  assert.notEqual(open[0].url, terminus[0].url);
+  assert.notEqual(open[0].phase, terminus[0].phase);
+  assert.ok(layouts.every((body) => body.scale >= 0.12 && body.scale <= 0.3));
+  assert.ok(layouts.every((body) => body.baseX <= SPACE_BULLET_LANE.min || body.baseX >= SPACE_BULLET_LANE.max));
+  assert.equal(new Set(layouts.map((body) => body.url)).size, 2);
   assert.ok(open.every((body) => body.url !== 'GAME_BG_PLANET'));
 
   const viewport = 390;
   const inset = getSpaceLandmarkEdgeInset(viewport);
   assert.equal(inset, 39);
-  const ring = getSpaceLandmarkDisplaySize(viewport, 51, 115, viewport * open[1].scale);
+  const ring = getSpaceLandmarkDisplaySize(viewport, 51, 115, viewport * citation[0].scale);
   assert.ok(ring.width <= viewport * 0.3);
   assert.ok(ring.height <= viewport * 0.3 + 0.01);
-  assert.ok(ring.height < viewport * open[1].scale * (115 / 51), 'the tall ring texture is scaled down instead of becoming a horizon');
-  const openOrbitWidths = [88, 51, 88];
-  const openOrbitHeights = [87, 115, 87];
+  assert.ok(ring.height < viewport * 0.3 * (115 / 51) + 1, 'the tall ring texture is scaled down instead of becoming a horizon');
+  const nativeSize = open[0].url === 'GAME_PARALLAX_RING_PLANET'
+    ? { width: 51, height: 115 }
+    : { width: 88, height: 87 };
   open.forEach((body, index) => {
     const sized = getSpaceLandmarkDisplaySize(
       viewport,
-      openOrbitWidths[index],
-      openOrbitHeights[index],
+      nativeSize.width,
+      nativeSize.height,
       Math.max(48, viewport * body.scale)
     );
     const center = getClampedSpriteCenterX(body.baseX * viewport, sized.width, viewport);
@@ -238,6 +245,7 @@ test('ground faces follow screen scroll and space bodies stay off a shared row',
     const right = center + sized.width / 2;
     assert.ok(left >= inset - 0.5, `open-orbit body ${index} stays inside the left inset`);
     assert.ok(right <= viewport - inset + 0.5, `open-orbit body ${index} stays inside the right inset`);
+    assert.ok(body.baseX <= SPACE_BULLET_LANE.min || body.baseX >= SPACE_BULLET_LANE.max);
   });
   const station = getSpaceLandmarkDisplaySize(viewport, 256, 256, viewport * 0.42, 0.3);
   assert.ok(station.width <= viewport * 0.3);
@@ -246,31 +254,29 @@ test('ground faces follow screen scroll and space bodies stay off a shared row',
 
 test('space landmark pools scatter planets across depth instead of one repeated edge pair', () => {
   const defaultSpaceStart = environmentSource.indexOf('  space: [');
-  const defaultSpaceEnd = environmentSource.indexOf('\n  desert: [', defaultSpaceStart);
+  const defaultSpaceEnd = environmentSource.indexOf("\n  'citation-storm': [", defaultSpaceStart);
   const defaultSpaceProps = environmentSource.slice(defaultSpaceStart, defaultSpaceEnd);
   const defaultSpeeds = [...defaultSpaceProps.matchAll(/speed: ([0-9.]+)/g)].map((match) => Number(match[1]));
+  const defaultFrames = [...defaultSpaceProps.matchAll(/frame: (\d+)/g)].map((match) => Number(match[1]));
+  const defaultLanes = [...defaultSpaceProps.matchAll(/baseX: ([0-9.]+)/g)].map((match) => Number(match[1]));
 
-  assert.deepEqual(defaultSpeeds, [0.032, 0.058, 0.094]);
-  assert.equal((defaultSpaceProps.match(/alpha: 1/g) ?? []).length, 3);
-  assert.match(defaultSpaceProps, /frame: 1/);
-  assert.match(defaultSpaceProps, /frame: 4/);
-  assert.match(defaultSpaceProps, /frame: 6/);
-  assert.match(defaultSpaceProps, /baseX: 0\.22/);
-  assert.match(defaultSpaceProps, /baseX: 0\.72/);
-  assert.match(defaultSpaceProps, /baseX: 0\.38/);
+  assert.deepEqual(defaultSpeeds, [0.034, 0.06, 0.088]);
+  assert.equal(new Set(defaultFrames).size, defaultFrames.length);
+  assert.ok(defaultLanes.every((lane) => lane <= SPACE_BULLET_LANE.min || lane >= SPACE_BULLET_LANE.max));
   assert.doesNotMatch(defaultSpaceProps, /rotationSpeed: [^0]/);
   assert.doesNotMatch(defaultSpaceProps, /sway: [^0]/);
+  assert.match(environmentSource, /frame: 0, baseX: placeX\('left'/);
+  assert.match(environmentSource, /frame: 2, baseX: placeX\('right'/);
+  assert.doesNotMatch(environmentSource, /widthRatio: 0\.3 \+ vistaJitter/);
 
   const runStart = environmentSource.indexOf('const createSpaceRunLayout');
   const runEnd = environmentSource.indexOf('\nexport type SpaceBodyLandmark', runStart);
   const runProps = environmentSource.slice(runStart, runEnd);
-  assert.equal((runProps.match(/alpha: 1/g) ?? []).length, 3);
+  assert.equal((runProps.match(/alpha: 0\.55/g) ?? []).length, 1);
   assert.match(environmentSource, /terrain: 'space', propSet: 'terminus-frontier', propAlpha: 1, propCount: 4/);
-  assert.equal(
-    (environmentSource.match(/propSet: 'space',\n\s*propAlpha: 1,\n\s*propCount: 3/g) ?? []).length,
-    3,
-    'the three-slot space atlas does not reserve an empty fourth prop'
-  );
+  assert.match(environmentSource, /propSet: 'space',\n\s*propAlpha: 1,\n\s*propCount: 3/);
+  assert.match(environmentSource, /propSet: 'citation-storm',\n\s*propAlpha: 1,\n\s*propCount: 3/);
+  assert.match(environmentSource, /propSet: 'bastion-protocol',\n\s*propAlpha: 1,\n\s*propCount: 3/);
   assert.match(
     environmentSource,
     /prop\.sprite\.texture !== Texture\.WHITE\s*&& prop\.propSet === profile\.propSet/

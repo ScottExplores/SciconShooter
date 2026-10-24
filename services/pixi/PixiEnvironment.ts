@@ -56,7 +56,8 @@ type SpaceRunBackgroundId =
   | 'gravity-rift'
   | 'ion-eclipse'
   | 'terminus-frontier';
-type TerrainPropSet = TerrainFamily | SpaceRunBackgroundId;
+type EarlySpaceVistaId = 'citation-storm' | 'bastion-protocol';
+type TerrainPropSet = TerrainFamily | SpaceRunBackgroundId | EarlySpaceVistaId;
 
 type TerrainProp = {
   root: Container;
@@ -268,6 +269,8 @@ export const getGroundPropPerspectiveState = (
 
 const TERRAIN_PROP_ATLASES: Record<TerrainPropSet, string> = {
   space: ASSETS.PIXI_TERRAIN_SPACE_PROPS,
+  'citation-storm': ASSETS.PIXI_TERRAIN_SPACE_PROPS,
+  'bastion-protocol': ASSETS.PIXI_TERRAIN_SPACE_PROPS,
   desert: ASSETS.PIXI_TERRAIN_DESERT_PROPS,
   river: ASSETS.PIXI_TERRAIN_RIVER_PROPS,
   'helix-redline': ASSETS.PIXI_SPACE_RUN_HELIX_REDLINE_PROPS,
@@ -292,21 +295,22 @@ const vistaJitter = (seed: number) => {
 };
 
 /**
- * One planet per depth band. Horizontal slots and sizes shift with the vista
- * seed so later sectors do not repeat the same two-edge lineup.
+ * Four distinct atlas frames, two per side. Sizes and alphas step from a dim
+ * far prop to a nearer one so the lane between them stays open.
  */
 const createSpaceRunLayout = (phaseOffset: number, mirrored = false): readonly TerrainPropDefinition[] => {
-  const placeX = (slot: number, seed: number) => {
-    const span = 0.16;
-    const base = 0.1 + slot * 0.28 + (vistaJitter(phaseOffset + seed) - 0.5) * span;
-    const x = Math.min(0.9, Math.max(0.1, base));
+  const placeX = (side: 'left' | 'right', seed: number) => {
+    const jitter = (vistaJitter(phaseOffset + seed) - 0.5) * 0.08;
+    const x = side === 'left'
+      ? Math.min(0.28, Math.max(0.14, 0.2 + jitter))
+      : Math.min(0.86, Math.max(0.72, 0.8 + jitter));
     return mirrored ? 1 - x : x;
   };
   return [
-    { frame: 0, baseX: placeX(0, 1.1), baseY: 0.06 + vistaJitter(phaseOffset + 2) * 0.08, speed: 0.028 + vistaJitter(phaseOffset + 3) * 0.012, sway: 0, phase: phaseOffset, widthRatio: 0.18 + vistaJitter(phaseOffset + 4) * 0.1, rotationSpeed: 0, alpha: 1 },
-    { frame: 2, baseX: placeX(1, 5.2), baseY: 0.34 + vistaJitter(phaseOffset + 6) * 0.1, speed: 0.05 + vistaJitter(phaseOffset + 7) * 0.02, sway: 0, phase: phaseOffset + 0.8, widthRatio: 0.3 + vistaJitter(phaseOffset + 8) * 0.15, rotationSpeed: 0, alpha: 1 },
-    { frame: 5, baseX: placeX(2, 9.4), baseY: 0.66 + vistaJitter(phaseOffset + 10) * 0.1, speed: 0.082 + vistaJitter(phaseOffset + 11) * 0.03, sway: 0, phase: phaseOffset + 1.7, widthRatio: 0.12 + vistaJitter(phaseOffset + 12) * 0.08, rotationSpeed: 0, alpha: 1 },
-    { frame: 7, baseX: placeX(0.6, 13.5), baseY: 0.9 + vistaJitter(phaseOffset + 14) * 0.06, speed: 0.11 + vistaJitter(phaseOffset + 15) * 0.02, sway: 0, phase: phaseOffset + 2.4, widthRatio: 0.08 + vistaJitter(phaseOffset + 16) * 0.06, rotationSpeed: 0, alpha: 0.9 }
+    { frame: 0, baseX: placeX('left', 1.1), baseY: 0.08, speed: 0.03, sway: 0, phase: phaseOffset, widthRatio: 0.14, rotationSpeed: 0, alpha: 0.55 },
+    { frame: 2, baseX: placeX('right', 5.2), baseY: 0.36, speed: 0.05, sway: 0, phase: phaseOffset + 0.8, widthRatio: 0.2, rotationSpeed: 0, alpha: 0.78 },
+    { frame: 5, baseX: placeX('left', 9.4), baseY: 0.64, speed: 0.078, sway: 0, phase: phaseOffset + 1.7, widthRatio: 0.16, rotationSpeed: 0, alpha: 0.66 },
+    { frame: 7, baseX: placeX('right', 13.5), baseY: 0.9, speed: 0.1, sway: 0, phase: phaseOffset + 2.4, widthRatio: 0.12, rotationSpeed: 0, alpha: 0.5 }
   ];
 };
 
@@ -316,29 +320,56 @@ export type SpaceBodyLandmark = {
   phase: number;
   speed: number;
   scale: number;
+  alpha: number;
+  tint: string;
 };
+
+/** The middle of a portrait stage stays clear for the player's shots. */
+export const SPACE_BULLET_LANE = Object.freeze({ min: 0.34, max: 0.66 });
 
 const SPACE_BODY_TEXTURES = [
   ASSETS.GAME_PARALLAX_BIG_PLANET,
-  ASSETS.GAME_PARALLAX_RING_PLANET,
-  ASSETS.GAME_PARALLAX_BIG_PLANET
+  ASSETS.GAME_PARALLAX_RING_PLANET
 ] as const;
 
-/** Scattered gas giants and ringed worlds. Speeds and phases differ so they cannot hold a row. */
+/**
+ * One planet per stage. The round world and the ringed world alternate, and
+ * the unused one stays off screen so two copies of the same red planet cannot
+ * sit side by side. A cool tint marks the distant stages.
+ */
+const SPACE_BODY_RECIPES: Record<(typeof SPACE_PROFILE_IDS)[number], {
+  urlIndex: 0 | 1;
+  side: 'left' | 'right';
+  scale: number;
+  alpha: number;
+  tint: string;
+  phase: number;
+  speed: number;
+}> = {
+  'open-orbit': { urlIndex: 0, side: 'left', scale: 0.22, alpha: 0.84, tint: '#ffffff', phase: 0.18, speed: 0.038 },
+  'citation-storm': { urlIndex: 1, side: 'right', scale: 0.15, alpha: 0.5, tint: '#c5d4e4', phase: 0.64, speed: 0.024 },
+  'bastion-protocol': { urlIndex: 0, side: 'right', scale: 0.2, alpha: 0.76, tint: '#ffffff', phase: 0.42, speed: 0.034 },
+  'helix-redline': { urlIndex: 1, side: 'left', scale: 0.16, alpha: 0.56, tint: '#d9c8e6', phase: 0.7, speed: 0.028 },
+  'shattered-void': { urlIndex: 0, side: 'left', scale: 0.14, alpha: 0.46, tint: '#a9bdd0', phase: 0.28, speed: 0.02 },
+  'gravity-rift': { urlIndex: 1, side: 'right', scale: 0.19, alpha: 0.7, tint: '#ffffff', phase: 0.56, speed: 0.032 },
+  'ion-eclipse': { urlIndex: 0, side: 'right', scale: 0.16, alpha: 0.54, tint: '#c9daf0', phase: 0.34, speed: 0.026 },
+  'terminus-frontier': { urlIndex: 1, side: 'left', scale: 0.24, alpha: 0.8, tint: '#ffffff', phase: 0.5, speed: 0.044 }
+};
+
+const spaceBodyCenterX = (side: 'left' | 'right') => (side === 'left' ? 0.2 : 0.8);
+
 export const buildSpaceBodyLayout = (profileId: string): readonly SpaceBodyLandmark[] => {
-  let seed = 17;
-  for (const character of profileId) seed = (seed * 33 + character.charCodeAt(0)) >>> 0;
-  const next = (span: number, floor = 0) => {
-    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
-    return floor + ((seed % 10000) / 10000) * span;
-  };
-  return [0, 1, 2].map((index) => ({
-    url: SPACE_BODY_TEXTURES[index],
-    baseX: Math.min(0.78, 0.22 + index * 0.22 + next(0.12)),
-    phase: next(1),
-    speed: 0.02 + index * 0.028 + next(0.018),
-    scale: SPACE_BODY_MIN_SCALE + next(SPACE_BODY_MAX_SCALE - SPACE_BODY_MIN_SCALE)
-  }));
+  const recipe = SPACE_BODY_RECIPES[profileId as keyof typeof SPACE_BODY_RECIPES]
+    ?? SPACE_BODY_RECIPES['open-orbit'];
+  return [{
+    url: SPACE_BODY_TEXTURES[recipe.urlIndex],
+    baseX: spaceBodyCenterX(recipe.side),
+    phase: recipe.phase,
+    speed: recipe.speed,
+    scale: recipe.scale,
+    alpha: recipe.alpha,
+    tint: recipe.tint
+  }];
 };
 
 const SPACE_PROFILE_IDS = [
@@ -358,9 +389,19 @@ export const SPACE_BODY_LAYOUTS: Readonly<Record<(typeof SPACE_PROFILE_IDS)[numb
 
 const TERRAIN_PROP_LAYOUTS: Record<TerrainPropSet, readonly TerrainPropDefinition[]> = {
   space: [
-    { frame: 1, baseX: 0.22, baseY: 0.08, speed: 0.032, sway: 0, phase: 0.2, widthRatio: 0.28, rotationSpeed: 0, alpha: 1 },
-    { frame: 4, baseX: 0.72, baseY: 0.41, speed: 0.058, sway: 0, phase: 1.2, widthRatio: 0.42, rotationSpeed: 0, alpha: 1 },
-    { frame: 6, baseX: 0.38, baseY: 0.73, speed: 0.094, sway: 0, phase: 2.4, widthRatio: 0.18, rotationSpeed: 0, alpha: 1 }
+    { frame: 4, baseX: 0.82, baseY: 0.16, speed: 0.034, sway: 0, phase: 0.2, widthRatio: 0.18, rotationSpeed: 0, alpha: 0.78 },
+    { frame: 5, baseX: 0.78, baseY: 0.7, speed: 0.06, sway: 0, phase: 1.2, widthRatio: 0.13, rotationSpeed: 0, alpha: 0.52 },
+    { frame: 8, baseX: 0.18, baseY: 0.84, speed: 0.088, sway: 0, phase: 2.4, widthRatio: 0.14, rotationSpeed: 0, alpha: 0.58 }
+  ],
+  'citation-storm': [
+    { frame: 0, baseX: 0.18, baseY: 0.14, speed: 0.032, sway: 0, phase: 0.4, widthRatio: 0.16, rotationSpeed: 0, alpha: 0.6 },
+    { frame: 3, baseX: 0.16, baseY: 0.58, speed: 0.056, sway: 0, phase: 1.6, widthRatio: 0.2, rotationSpeed: 0, alpha: 0.8 },
+    { frame: 7, baseX: 0.22, baseY: 0.9, speed: 0.084, sway: 0, phase: 2.6, widthRatio: 0.12, rotationSpeed: 0, alpha: 0.5 }
+  ],
+  'bastion-protocol': [
+    { frame: 6, baseX: 0.18, baseY: 0.2, speed: 0.036, sway: 0, phase: 0.8, widthRatio: 0.17, rotationSpeed: 0, alpha: 0.72 },
+    { frame: 1, baseX: 0.2, baseY: 0.62, speed: 0.058, sway: 0, phase: 1.8, widthRatio: 0.15, rotationSpeed: 0, alpha: 0.64 },
+    { frame: 8, baseX: 0.82, baseY: 0.88, speed: 0.09, sway: 0, phase: 2.8, widthRatio: 0.12, rotationSpeed: 0, alpha: 0.5 }
   ],
   desert: [
     { frame: 0, baseX: 0.1, baseY: 0.06, speed: 0, sway: 0, phase: 0.3, widthRatio: 0.25, rotationSpeed: 0, alpha: 0.96 },
@@ -572,7 +613,7 @@ const BACKGROUND_PROFILES = {
     planetTint: '#ddd6fe',
     starSpeedMultiplier: SPACE_DYNAMIC_STAR_SPEED_MULTIPLIERS['citation-storm'],
     terrain: 'space',
-    propSet: 'space',
+    propSet: 'citation-storm',
     propAlpha: 1,
     propCount: 3,
     glyphAlpha: 0
@@ -630,7 +671,7 @@ const BACKGROUND_PROFILES = {
     planetTint: '#fbcfe8',
     starSpeedMultiplier: SPACE_DYNAMIC_STAR_SPEED_MULTIPLIERS['bastion-protocol'],
     terrain: 'space',
-    propSet: 'space',
+    propSet: 'bastion-protocol',
     propAlpha: 1,
     propCount: 3,
     glyphAlpha: 0
@@ -1268,7 +1309,7 @@ export class PixiEnvironment {
           nativeWidth,
           nativeHeight,
           requested,
-          prop.propSet === 'space' ? SPACE_BODY_MAX_SCALE : HERO_LANDMARK_MAX_WIDTH_RATIO
+          SPACE_BODY_MAX_SCALE
         )
         : {
           width: Math.max(18, Math.min(requested, nativeWidth * SPACE_BODY_MAX_NATIVE_SCALE)),
@@ -1487,9 +1528,11 @@ export class PixiEnvironment {
       sprite.height = sized.height;
       const cycle = this.height + sprite.height + 120;
       sprite.visible = true;
+      sprite.tint = body.tint;
       sprite.x = getClampedSpriteCenterX(body.baseX * this.width, sprite.width, this.width);
       sprite.y = ((body.phase * cycle) + motionFrame * body.speed) % cycle - sprite.height * 0.35;
-      sprite.alpha = sprite.y > this.height * 0.4 ? 0.7 : 0.94;
+      const depthAlpha = body.alpha;
+      sprite.alpha = sprite.y > this.height * 0.55 ? depthAlpha * 0.75 : depthAlpha;
     }
     for (const prop of this.terrainProps) {
       const visible = prop.sprite.texture !== Texture.WHITE

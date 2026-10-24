@@ -145,8 +145,8 @@ test('ground props remain registered to terrain while space landmarks use slow d
   assert.match(environment, /prop\.sprite\.texture = prop\.perspectiveTextures\[perspectiveState\]/);
   assert.match(environment, /GROUND_PROP_PERSPECTIVE_SHEETS/);
   assert.match(environment, /if \(prop\.terrain === 'space'\)/);
-  assert.match(environment, /widthRatio: 0\.28/);
-  assert.match(environment, /widthRatio: 0\.42/);
+  assert.match(environment, /widthRatio: 0\.18/);
+  assert.match(environment, /SPACE_BULLET_LANE/);
   assert.match(environment, /rotationSpeed: 0/);
   assert.doesNotMatch(environment, /GAME_PARALLAX_FAR_PLANETS/);
   assert.match(environment, /GAME_PARALLAX_BIG_PLANET/);
