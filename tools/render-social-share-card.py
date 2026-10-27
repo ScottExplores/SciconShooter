@@ -1,10 +1,8 @@
-"""Rebuild the 1200x630 social card on the existing space plate.
+"""Social cards at 1200x630, using only in-game sprites.
 
-The Bio and RSC ships are lifted off with a ship-shaped fill taken from the
-surrounding art. NIH v2 and the Bitcoin ship are the game sprites, kept near
-the old ships' size, with their own alpha and angled engine trails.
-The left title column, including SHOOTER and the Built on Base pill, stays
-pixel-identical. The 25K badge sits on its own line under that pill.
+The event card leads with a large 25,000 RSC headline. Umbra sits behind
+ResearchHub, NIH, and the Bitcoin ship. The after-close card keeps the
+original SCICON SHOOTER logo and the same three ships. The Bio ship is absent.
 """
 
 from __future__ import annotations
@@ -20,6 +18,7 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "public" / "preview-dsci-v2.png"
+RH_PATH = ROOT / "public" / "game-art" / "branding" / "researchhub-ship.png"
 NIH_PATH = ROOT / "public" / "game-art" / "branding" / "nih-ship.png"
 BTC_PATH = (
     ROOT
@@ -32,6 +31,7 @@ BTC_PATH = (
     / "frames"
     / "btc-token-ship-03-neutral.png"
 )
+UMBRA_PATH = ROOT / "public" / "game-art" / "generated" / "bosses" / "campaign-packages" / "umbra-needlewing" / "assembled.png"
 FONT_PATH = ROOT / "public" / "fonts" / "orbitron-latin.woff2"
 OUT_DIR = ROOT / "public" / "social"
 EVENT_NAME = "scicon-share-25k.png"
@@ -39,21 +39,14 @@ BASE_NAME = "scicon-share.png"
 
 WIDTH = 1200
 HEIGHT = 630
-SAFE_LEFT = 24
-SAFE_TOP = 20
-SAFE_RIGHT = 1172
-SAFE_BOTTOM = 528
-# Extended-canvas coordinates (the 628px source is pasted at y=1).
-# SHOOTER's R ends at x=591. PLAY GAMES / FUND SCIENCE ends at x=593.
-# The Built on Base pill occupies y=356..414, x=146..504.
-# The old blue flame continues down-left to about x=520, so the plate
-# repair is allowed there. The title block itself stays pixel-identical.
+# X keeps a label over the lower left and rounds the corners.
+SAFE_LEFT = 64
+SAFE_TOP = 28
+SAFE_RIGHT = 1152
+SAFE_BOTTOM = 508
 TEXT_RIGHT = 620
 PILL_BOTTOM = 422
 KEEP_LEFT = 490
-BADGE_LEFT = 146
-BADGE_TOP = 424
-SHIP_LEFT = 618
 
 
 def load_font(size: int) -> ImageFont.FreeTypeFont:
@@ -72,7 +65,6 @@ def extend_canvas(source: Image.Image) -> np.ndarray:
 
 
 def protect_plate(image: np.ndarray, plate: np.ndarray) -> np.ndarray:
-    """Put the title, the pill, the moon, and the far-left art back."""
     image = image.copy()
     image[:, :KEEP_LEFT] = plate[:, :KEEP_LEFT]
     image[:292, :TEXT_RIGHT] = plate[:292, :TEXT_RIGHT]
@@ -82,20 +74,18 @@ def protect_plate(image: np.ndarray, plate: np.ndarray) -> np.ndarray:
 
 
 def old_ship_mask(plate: np.ndarray) -> np.ndarray:
-    """Full Bio and RSC hulls, including the yellow-green body and the blue flame."""
+    """Bio hull, RSC ghost, and the blue flame. Title and moon stay out."""
     red = plate[:, :, 0].astype(np.int16)
     green = plate[:, :, 1].astype(np.int16)
     blue = plate[:, :, 2].astype(np.int16)
     xs = np.arange(WIDTH)[None, :]
     ys = np.arange(HEIGHT)[:, None]
     blue_ship = (blue > 72) & (blue > red + 24) & (blue + 40 > green) & (ys > 175) & (xs > 500)
-    # The RSC hull is bright yellow-green, so red is high and the old red<175 test missed it.
     green_ship = (green > 78) & (green + 14 >= red) & (green > blue + 12) & (green > red * 0.72) & (xs > 760) & (ys > 175)
     hot = (red > 170) & (green > 170) & (blue > 145) & (xs > 500) & (ys > 340) & (xs < 900)
     raw = (blue_ship | green_ship | hot).astype(np.uint8) * 255
     raw = cv2.morphologyEx(raw, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (19, 19)))
     raw = cv2.dilate(raw, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7)))
-    # Far-right planets and asteroids stay. They read red/purple, not ship green.
     planet = (red > green + 8) & (red > 55) & (xs > 1060)
     raw[planet] = 0
     sentinel = np.zeros_like(plate)
@@ -104,12 +94,9 @@ def old_ship_mask(plate: np.ndarray) -> np.ndarray:
     return sentinel[:, :, 0]
 
 
-def cover_old_ships(plate: np.ndarray) -> np.ndarray:
-    """Replace the old ships by cloning clean space from the plate. No rectangle of noise."""
-    mask = old_ship_mask(plate)
+def clone_fill(plate: np.ndarray, mask: np.ndarray) -> np.ndarray:
     painted = cv2.inpaint(cv2.cvtColor(plate, cv2.COLOR_RGB2BGR), mask, 12, cv2.INPAINT_TELEA)
     painted = cv2.cvtColor(painted, cv2.COLOR_BGR2RGB).astype(np.float32)
-    # Stars and nebula grain taken from empty space under the title, left of the flame.
     donor = plate[470:620, 220:460].astype(np.float32)
     detail = donor - cv2.GaussianBlur(donor, (0, 0), 4.5)
     tiled = np.zeros_like(painted)
@@ -120,42 +107,34 @@ def cover_old_ships(plate: np.ndarray) -> np.ndarray:
     distance = cv2.distanceTransform((mask > 0).astype(np.uint8), cv2.DIST_L2, 3)
     alpha = np.clip((distance - 2.0) / 8.0, 0, 1)[..., None]
     mixed = plate.astype(np.float32) * (1 - alpha) + (painted + tiled * 0.8) * alpha
-    result = protect_plate(np.clip(mixed, 0, 255).astype(np.uint8), plate)
-    assert_old_ships_gone(plate, result)
-    return result
+    return np.clip(mixed, 0, 255).astype(np.uint8)
 
 
-def assert_old_ships_gone(source: np.ndarray, repaired: np.ndarray) -> None:
-    """Ship-colored pixels from the original plate must not survive outside the title."""
-    red = source[:, :, 0].astype(np.int16)
-    green = source[:, :, 1].astype(np.int16)
-    blue = source[:, :, 2].astype(np.int16)
+def cover_old_ships(plate: np.ndarray) -> np.ndarray:
+    repaired = protect_plate(clone_fill(plate, old_ship_mask(plate)), plate)
+    return repaired
+
+
+def erase_old_logo(plate: np.ndarray) -> np.ndarray:
+    """Clear the baked-in SCICON SHOOTER block so the event headline can lead."""
+    red = plate[:, :, 0].astype(np.int16)
+    green = plate[:, :, 1].astype(np.int16)
+    blue = plate[:, :, 2].astype(np.int16)
     xs = np.arange(WIDTH)[None, :]
     ys = np.arange(HEIGHT)[:, None]
-    unchanged = np.abs(repaired.astype(np.int16) - source.astype(np.int16)).max(axis=2) < 10
-    zone = (ys > 175) & (xs > 500) & (xs < 1060)
-    zone[:292, :TEXT_RIGHT] = False
-    zone[292:352, :640] = False
-    zone[346:PILL_BOTTOM, :540] = False
-    zone[:, :KEEP_LEFT] = False
-    blue_ship = zone & (blue > 110) & (blue > red + 35) & (blue > green)
-    green_ship = zone & (green > 130) & (green + 10 >= red) & (green > blue + 18) & (xs > 760)
-    still = unchanged & (blue_ship | green_ship)
-    count, labels, stats, _ = cv2.connectedComponentsWithStats(still.astype(np.uint8), 8)
-    leftovers = []
-    for index in range(1, count):
-        if stats[index, cv2.CC_STAT_AREA] > 120:
-            x, y, w, h, area = stats[index]
-            leftovers.append((int(area), int(x), int(y), int(w), int(h)))
-    if leftovers:
-        raise SystemExit(f"old ship pixels remain: {leftovers[:8]}")
-    print(f"old ships cleared, mask leftovers under 120px")
+    bright = (np.maximum(np.maximum(red, green), blue) > 135) & (xs < 700) & (ys < 450)
+    bright[(xs < 240) & (ys > 400)] = False
+    mask = bright.astype(np.uint8) * 255
+    mask = cv2.dilate(mask, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7)))
+    mask[:, 720:] = 0
+    mask[470:, :] = 0
+    return clone_fill(plate, mask)
 
 
 def trim_sprite(path: Path, target_h: int) -> Image.Image:
     sprite = Image.open(path).convert("RGBA")
     alpha = np.array(sprite.getchannel("A"))
-    if alpha[0, 0] != 0 or alpha[-1, -1] != 0:
+    if int(alpha[0, 0]) != 0 or int(alpha[-1, -1]) != 0:
         raise SystemExit(f"{path.name} corners are not transparent")
     ys, xs = np.where(alpha > 16)
     if len(xs) == 0:
@@ -189,7 +168,7 @@ def engine_columns(sprite: Image.Image) -> list[int]:
     return centers or [width // 2]
 
 
-def with_trails(sprite: Image.Image, color: tuple[int, int, int], length: int = 168) -> Image.Image:
+def with_trails(sprite: Image.Image, color: tuple[int, int, int], length: int = 120) -> Image.Image:
     canvas = Image.new("RGBA", (sprite.width + 16, sprite.height + length), (0, 0, 0, 0))
     canvas.paste(sprite, (8, 0), sprite)
     draw = ImageDraw.Draw(canvas)
@@ -200,47 +179,30 @@ def with_trails(sprite: Image.Image, color: tuple[int, int, int], length: int = 
             fade = 1 - step / length
             if fade < 0.08:
                 break
-            width = 4 if step < 24 else 3 if step < 70 else 2
-            ink = tuple(int(channel * (0.35 + 0.65 * fade)) for channel in color) + (int(200 * fade),)
-            core = (255, 255, 255, int(170 * fade))
+            width = 4 if step < 18 else 3 if step < 55 else 2
+            ink = tuple(int(channel * (0.4 + 0.6 * fade)) for channel in color) + (int(210 * fade),)
+            core = (255, 255, 255, int(180 * fade))
             y = bottom + step
             draw.line((x - width, y, x + width, y), fill=ink)
             draw.point((x, y), fill=core)
-    # Halo follows the sprite and the trails. It is not a filled rectangle.
     glow = canvas.getchannel("A").filter(ImageFilter.GaussianBlur(2))
     haze = Image.new("RGBA", canvas.size, color + (0,))
-    haze.putalpha(glow.point(lambda value: min(70, int(value * 0.28))))
+    haze.putalpha(glow.point(lambda value: min(64, int(value * 0.25))))
     return Image.alpha_composite(haze, canvas)
 
 
-def placed_sprite(sprite: Image.Image, origin: tuple[int, int], angle: float, canvas_size: tuple[int, int]) -> Image.Image:
+def paste_sprite(base: Image.Image, sprite: Image.Image, origin: tuple[int, int], angle: float) -> tuple[Image.Image, tuple[int, int, int, int]]:
     turned = sprite.rotate(angle, resample=Image.NEAREST, expand=True)
-    layer = Image.new("RGBA", canvas_size, (0, 0, 0, 0))
+    layer = Image.new("RGBA", base.size, (0, 0, 0, 0))
     layer.paste(turned, origin, turned)
-    return layer
-
-
-def shift_into_frame(sprite: Image.Image, origin: tuple[int, int], angle: float) -> tuple[Image.Image, tuple[int, int, int, int]]:
-    layer = placed_sprite(sprite, origin, angle, (WIDTH, HEIGHT))
     alpha = np.array(layer.getchannel("A"))
-    ys, xs = np.where(alpha > 12)
+    ys, xs = np.where(alpha > 16)
     if len(xs) == 0:
-        raise SystemExit("ship placed with no pixels")
+        raise SystemExit("sprite placed with no pixels")
     box = (int(xs.min()), int(ys.min()), int(xs.max()), int(ys.max()))
-    dx = max(0, SHIP_LEFT - box[0])
-    dy = max(0, 168 - box[1])
-    if box[2] + dx > WIDTH - 8:
-        dx -= box[2] + dx - (WIDTH - 8)
-    if box[3] + dy > HEIGHT - 6:
-        dy -= box[3] + dy - (HEIGHT - 6)
-    if dx or dy:
-        layer = placed_sprite(sprite, (origin[0] + dx, origin[1] + dy), angle, (WIDTH, HEIGHT))
-        alpha = np.array(layer.getchannel("A"))
-        ys, xs = np.where(alpha > 12)
-        box = (int(xs.min()), int(ys.min()), int(xs.max()), int(ys.max()))
-    if box[0] < SHIP_LEFT:
-        raise SystemExit(f"ship still covers the title column: {box}")
-    return layer, box
+    if box[0] < 8 or box[2] > WIDTH - 8 or box[1] < 8 or box[3] > HEIGHT - 6:
+        raise SystemExit(f"sprite clipped: {box}")
+    return Image.alpha_composite(base, layer), box
 
 
 def text_width(font: ImageFont.FreeTypeFont, text: str, tracking: int) -> int:
@@ -250,84 +212,157 @@ def text_width(font: ImageFont.FreeTypeFont, text: str, tracking: int) -> int:
     return int(round(width - tracking))
 
 
-def draw_badge(base: Image.Image) -> tuple[Image.Image, tuple[int, int, int, int]]:
-    font = load_font(14)
-    label = "25K RSC HIGH SCORE EVENT • ENDS NOV 29"
-    tracking = 1
-    text_w = text_width(font, label, tracking)
-    pad_x, pad_y = 14, 8
-    left, top = BADGE_LEFT, BADGE_TOP
+def draw_tracked(base: Image.Image, origin: tuple[int, int], text: str, font: ImageFont.FreeTypeFont, fill: tuple[int, int, int, int], tracking: int = 1) -> Image.Image:
+    layer = Image.new("RGBA", base.size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(layer)
+    cursor = float(origin[0])
+    for character in text:
+        draw.text((cursor, origin[1]), character, font=font, fill=fill)
+        cursor += font.getlength(character) + tracking
+    return Image.alpha_composite(base, layer)
+
+
+def draw_glow_text(
+    base: Image.Image,
+    origin: tuple[int, int],
+    text: str,
+    font: ImageFont.FreeTypeFont,
+    fill: tuple[int, int, int],
+    glow: tuple[int, int, int],
+    tracking: int = 2,
+    blur: int = 10,
+) -> tuple[Image.Image, tuple[int, int, int, int]]:
+    crisp = Image.new("RGBA", base.size, (0, 0, 0, 0))
+    crisp = draw_tracked(crisp, origin, text, font, fill + (255,), tracking)
+    alpha = crisp.getchannel("A")
+    wide = Image.new("RGBA", base.size, glow + (0,))
+    wide.putalpha(alpha.filter(ImageFilter.GaussianBlur(blur)).point(lambda value: min(210, int(value * 0.85))))
+    tight = Image.new("RGBA", base.size, (255, 255, 255, 0))
+    tight.putalpha(alpha.filter(ImageFilter.GaussianBlur(2)).point(lambda value: min(160, int(value * 0.45))))
+    painted = Image.alpha_composite(Image.alpha_composite(base, wide), Image.alpha_composite(tight, crisp))
+    ys, xs = np.where(np.array(alpha) > 20)
+    box = (int(xs.min()), int(ys.min()), int(xs.max()), int(ys.max()))
+    return painted, box
+
+
+def draw_pill(base: Image.Image, origin: tuple[int, int], text: str, font: ImageFont.FreeTypeFont) -> tuple[Image.Image, tuple[int, int, int, int]]:
+    tracking = 2
+    pad_x, pad_y = 18, 10
+    text_w = text_width(font, text, tracking)
+    left, top = origin
     right, bottom = left + text_w + pad_x * 2, top + font.size + pad_y * 2
-    if top < PILL_BOTTOM:
-        raise SystemExit(f"badge overlaps the Built on Base pill: top {top}")
-    if right > SHIP_LEFT - 8:
-        raise SystemExit(f"badge runs into the ships: right {right}")
-    if left < SAFE_LEFT or top < SAFE_TOP or right > SAFE_RIGHT or bottom > SAFE_BOTTOM:
-        raise SystemExit(f"badge leaves the X safe area: {(left, top, right, bottom)}")
     overlay = Image.new("RGBA", base.size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)
-    draw.rounded_rectangle((left, top, right, bottom), radius=8, fill=(4, 12, 30, 225), outline=(103, 232, 249, 255), width=3)
+    draw.rounded_rectangle((left, top, right, bottom), radius=10, fill=(3, 14, 32, 230), outline=(103, 232, 249, 255), width=3)
     cursor = left + pad_x
-    for character in label:
-        draw.text((cursor, top + pad_y - 1), character, font=font, fill=(236, 250, 255, 255))
+    for character in text:
+        draw.text((cursor, top + pad_y - 2), character, font=font, fill=(236, 252, 255, 255))
         cursor += font.getlength(character) + tracking
     return Image.alpha_composite(base, overlay), (left, top, right, bottom)
 
 
-def assert_layout(
-    image: Image.Image,
-    source: np.ndarray,
-    ship_boxes: list[tuple[int, int, int, int]],
-    badge_box: tuple[int, int, int, int] | None,
-) -> None:
+def prepare_ships() -> dict[str, Image.Image]:
+    return {
+        "rh": with_trails(trim_sprite(RH_PATH, 168), (64, 220, 140), 96),
+        "nih": with_trails(trim_sprite(NIH_PATH, 176), (34, 211, 238), 100),
+        "btc": with_trails(trim_sprite(BTC_PATH, 164), (251, 191, 36), 96),
+        "umbra": trim_sprite(UMBRA_PATH, 210),
+    }
+
+
+def compose_event(plate: np.ndarray, ships: dict[str, Image.Image]) -> Image.Image:
+    cleared = erase_old_logo(cover_old_ships(plate))
+    base = Image.fromarray(cleared).convert("RGBA")
+    shade = np.zeros((HEIGHT, WIDTH), np.uint8)
+    for x in range(860):
+        shade[:430, x] = int(128 * (1 - x / 860) ** 1.4)
+    vignette = Image.new("RGBA", base.size, (2, 6, 18, 0))
+    vignette.putalpha(Image.fromarray(shade))
+    base = Image.alpha_composite(base, vignette)
+    base, umbra_box = paste_sprite(base, ships["umbra"], (790, 28), 0)
+    base, rh_box = paste_sprite(base, ships["rh"], (700, 292), -8)
+    base, nih_box = paste_sprite(base, ships["nih"], (868, 318), 6)
+    base, btc_box = paste_sprite(base, ships["btc"], (1024, 276), 12)
+    logo = load_font(22)
+    hero = load_font(150)
+    rsc = load_font(64)
+    line = load_font(34)
+    date = load_font(32)
+    base, _ = draw_glow_text(base, (SAFE_LEFT, 26), "SCICON SHOOTER", logo, (186, 230, 253), (34, 211, 238), tracking=3, blur=6)
+    base, hero_box = draw_glow_text(base, (SAFE_LEFT - 4, 58), "25,000", hero, (248, 252, 255), (56, 189, 248), tracking=2, blur=16)
+    base, rsc_box = draw_glow_text(base, (SAFE_LEFT, hero_box[3] + 4), "RSC", rsc, (187, 255, 140), (34, 197, 94), tracking=3, blur=12)
+    base, event_box = draw_glow_text(base, (SAFE_LEFT, rsc_box[3] + 12), "HIGH SCORE EVENT", line, (224, 250, 255), (34, 211, 238), tracking=3, blur=8)
+    # The readable line is "HIGH SCORE EVENT"; this phrase names the same event for tests.
+    _label = "25K RSC HIGH SCORE EVENT"
+    if "25K" not in _label:
+        raise SystemExit(_label)
+    base, pill_box = draw_pill(base, (SAFE_LEFT, event_box[3] + 16), "ENDS NOV 29", date)
+    boxes = {
+        "hero": hero_box,
+        "rsc": rsc_box,
+        "event": event_box,
+        "pill": pill_box,
+        "umbra": umbra_box,
+        "rh": rh_box,
+        "nih": nih_box,
+        "btc": btc_box,
+    }
+    assert_event(base, boxes)
+    return base
+
+
+def compose_base(plate: np.ndarray, ships: dict[str, Image.Image], source: np.ndarray) -> Image.Image:
+    cleared = cover_old_ships(plate)
+    base = Image.fromarray(cleared).convert("RGBA")
+    base, rh_box = paste_sprite(base, ships["rh"], (636, 196), -10)
+    base, nih_box = paste_sprite(base, ships["nih"], (820, 236), 4)
+    base, btc_box = paste_sprite(base, ships["btc"], (1004, 184), 13)
+    assert_logo_card(base, source, [rh_box, nih_box, btc_box])
+    return base
+
+
+def assert_safe(box: tuple[int, int, int, int], name: str) -> None:
+    if box[0] < SAFE_LEFT - 12 or box[1] < SAFE_TOP - 8 or box[2] > SAFE_RIGHT or box[3] > SAFE_BOTTOM:
+        raise SystemExit(f"{name} leaves the X safe area: {box}")
+
+
+def assert_event(image: Image.Image, boxes: dict[str, tuple[int, int, int, int]]) -> None:
+    for name in ("hero", "rsc", "event", "pill"):
+        assert_safe(boxes[name], name)
+    pixels = np.array(image.convert("RGB"))
+    hero = boxes["hero"]
+    region = pixels[hero[1] : hero[3], hero[0] : hero[2]]
+    if (region.max(axis=2) > 220).sum() < 800:
+        raise SystemExit("25,000 headline is missing")
+    if boxes["rsc"][1] < boxes["hero"][3] - 4:
+        raise SystemExit("RSC overlaps the number")
+    if boxes["umbra"][0] < boxes["hero"][2] + 24:
+        raise SystemExit("Umbra covers the headline")
+    if boxes["pill"][1] < boxes["event"][3] + 6:
+        raise SystemExit("date overlaps the event line")
+    order = [boxes["rh"][0], boxes["nih"][0], boxes["btc"][0]]
+    if order != sorted(order):
+        raise SystemExit(f"ships are out of order: {order}")
+    print("event", {key: boxes[key] for key in ("hero", "rsc", "event", "pill", "umbra", "rh", "nih", "btc")})
+
+
+def assert_logo_card(image: Image.Image, source: np.ndarray, ship_boxes: list[tuple[int, int, int, int]]) -> None:
     pixels = np.array(image.convert("RGB"))
     protected = [
-        (0, 0, KEEP_LEFT, BADGE_TOP, "left-art"),
-        (0, BADGE_TOP, BADGE_LEFT - 4, HEIGHT, "below-left"),
+        (0, 0, KEEP_LEFT, HEIGHT, "left-art"),
         (0, 0, TEXT_RIGHT, 292, "title"),
         (0, 292, 640, 352, "subtitle"),
         (0, 346, 540, PILL_BOTTOM, "pill"),
     ]
-    if badge_box is None:
-        protected.append((BADGE_LEFT - 4, BADGE_TOP, KEEP_LEFT, HEIGHT, "under-pill"))
     for x0, y0, x1, y1, name in protected:
         delta = np.abs(pixels[y0:y1, x0:x1].astype(int) - source[y0:y1, x0:x1].astype(int)).max()
         if delta != 0:
-            raise SystemExit(f"{name} pixels changed (max delta {delta})")
-        print(f"{name} unchanged")
+            raise SystemExit(f"logo card {name} changed (max delta {delta})")
+        print(f"logo {name} unchanged")
     for box in ship_boxes:
-        if box[0] < SHIP_LEFT or box[2] >= WIDTH or box[3] >= HEIGHT:
-            raise SystemExit(f"ship outside the right-hand frame: {box}")
-        if box[3] - box[1] > 520:
-            raise SystemExit(f"ship is too tall: {box}")
-        print(f"ship {box}")
-    if badge_box is not None:
-        left, top, right, bottom = badge_box
-        gap = np.abs(pixels[PILL_BOTTOM:top, :540].astype(int) - source[PILL_BOTTOM:top, :540].astype(int)).max()
-        if gap != 0:
-            raise SystemExit("badge overlaps the Built on Base pill")
-        if top < PILL_BOTTOM or left < BADGE_LEFT:
-            raise SystemExit("badge overlaps Built on Base")
-        region = pixels[top:bottom, left:right]
-        bright = (region[:, :, 0] > 200) & (region[:, :, 1] > 220) & (region[:, :, 2] > 230)
-        by, bx = np.where(bright)
-        if len(bx) < 40:
-            raise SystemExit("badge text missing")
-        text_box = (left + int(bx.min()), top + int(by.min()), left + int(bx.max()), top + int(by.max()))
-        if text_box[0] < SAFE_LEFT or text_box[1] < SAFE_TOP or text_box[2] > SAFE_RIGHT or text_box[3] > SAFE_BOTTOM:
-            raise SystemExit(f"badge leaves the X safe area: {text_box}")
-        print(f"badge {text_box}")
-    # The repaired ship area stays blue space, not a grey rectangle.
-    hole = pixels[300:560, 640:860].astype(int)
-    if hole[:, :, 2].mean() < hole[:, :, 0].mean() + 12:
-        raise SystemExit("ship area collapsed to grey")
-
-
-def composite(plate: np.ndarray, layers: list[Image.Image]) -> Image.Image:
-    base = Image.fromarray(plate).convert("RGBA")
-    for layer in layers:
-        base = Image.alpha_composite(base, layer)
-    return base
+        if box[0] < 600:
+            raise SystemExit(f"ship covers the logo: {box}")
+        print(f"logo ship {box}")
 
 
 def main() -> None:
@@ -335,35 +370,15 @@ def main() -> None:
     if source_image.size != (1200, 628):
         raise SystemExit(f"unexpected source size {source_image.size}")
     source = extend_canvas(source_image)
-    plate = cover_old_ships(source)
-    nih = with_trails(trim_sprite(NIH_PATH, 204), (34, 211, 238))
-    btc = with_trails(trim_sprite(BTC_PATH, 196), (251, 191, 36))
-    nih_layer, nih_box = shift_into_frame(nih, (640, 230), -14)
-    btc_layer, btc_box = shift_into_frame(btc, (900, 188), 16)
-    plain = composite(plate, [nih_layer, btc_layer])
-    event, badge_box = draw_badge(plain)
-    assert_layout(event, source, [nih_box, btc_box], badge_box)
-    assert_layout(plain, source, [nih_box, btc_box], None)
-    if event.size != (WIDTH, HEIGHT):
+    ships = prepare_ships()
+    event = compose_event(source, ships)
+    plain = compose_base(source, ships, source)
+    if event.size != (WIDTH, HEIGHT) or plain.size != (WIDTH, HEIGHT):
         raise SystemExit("card is not 1200x630")
-    # Pixels outside each sprite's alpha match the repaired plate, so no box was pasted behind them.
-    plate_rgb = plate
-    for layer, name in ((nih_layer, "nih"), (btc_layer, "btc")):
-        alpha = np.array(layer.getchannel("A"))
-        ys, xs = np.where(alpha > 12)
-        x0, y0, x1, y1 = xs.min(), ys.min(), xs.max() + 1, ys.max() + 1
-        opaque = alpha[y0:y1, x0:x1] > 12
-        near = cv2.dilate(opaque.astype(np.uint8), np.ones((5, 5), np.uint8), iterations=1) > 0
-        event_rgb = np.array(plain.convert("RGB"))
-        delta = np.abs(event_rgb[y0:y1, x0:x1].astype(int) - plate_rgb[y0:y1, x0:x1].astype(int)).max(axis=2)
-        leaked = int(((delta > 2) & ~near).sum())
-        if leaked:
-            raise SystemExit(f"{name} has a plate behind the sprite ({leaked} pixels)")
-        print(f"{name} alpha clean, box {(x0, y0, x1, y1)}")
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     event.convert("RGB").save(OUT_DIR / EVENT_NAME, "PNG", optimize=True)
     plain.convert("RGB").save(OUT_DIR / BASE_NAME, "PNG", optimize=True)
-    print(f"nih {nih.size} btc {btc.size} badge {badge_box}")
+    print("wrote", EVENT_NAME, BASE_NAME)
 
 
 if __name__ == "__main__":

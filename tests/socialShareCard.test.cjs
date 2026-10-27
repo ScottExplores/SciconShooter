@@ -32,8 +32,8 @@ test('social cards are 1200x630 and the metadata follows the 25K close', async (
   assert.equal(lastInstant.live, true);
   assert.equal(closed.live, false);
   assert.equal(before.live, false);
-  assert.equal(during.url, 'https://sciconshooter.xyz/social/scicon-share-25k.png?v=nih-btc-25k');
-  assert.equal(closed.url, 'https://sciconshooter.xyz/social/scicon-share.png?v=nih-btc');
+  assert.equal(during.url, 'https://sciconshooter.xyz/social/scicon-share-25k.png?v=rh-nih-btc-25k');
+  assert.equal(closed.url, 'https://sciconshooter.xyz/social/scicon-share.png?v=rh-nih-btc');
   assert.equal(during.width, 1200);
   assert.equal(during.height, 630);
   assert.match(during.alt, /25K RSC high score event/);
@@ -51,21 +51,24 @@ test('social cards are 1200x630 and the metadata follows the 25K close', async (
     '<meta name="twitter:image:alt" content="old alt" />'
   ].join('\n');
   const applied = card.applyShareCardMeta(sample, closed);
-  assert.match(applied, /property="og:image" content="https:\/\/sciconshooter\.xyz\/social\/scicon-share\.png\?v=nih-btc"/);
+  assert.match(applied, /property="og:image" content="https:\/\/sciconshooter\.xyz\/social\/scicon-share\.png\?v=rh-nih-btc"/);
   assert.match(applied, /property="og:image:height" content="630"/);
-  assert.match(applied, /name="twitter:image" content="https:\/\/sciconshooter\.xyz\/social\/scicon-share\.png\?v=nih-btc"/);
+  assert.match(applied, /name="twitter:image" content="https:\/\/sciconshooter\.xyz\/social\/scicon-share\.png\?v=rh-nih-btc"/);
   assert.match(applied, /name="twitter:card" content="summary_large_image"/);
 
-  assert.match(html, /property="og:image" content="https:\/\/sciconshooter\.xyz\/social\/scicon-share-25k\.png\?v=nih-btc-25k"/);
-  assert.match(html, /name="twitter:image" content="https:\/\/sciconshooter\.xyz\/social\/scicon-share-25k\.png\?v=nih-btc-25k"/);
+  assert.match(html, /property="og:image" content="https:\/\/sciconshooter\.xyz\/social\/scicon-share-25k\.png\?v=rh-nih-btc-25k"/);
+  assert.match(html, /name="twitter:image" content="https:\/\/sciconshooter\.xyz\/social\/scicon-share-25k\.png\?v=rh-nih-btc-25k"/);
   assert.match(html, /name="twitter:card" content="summary_large_image"/);
   assert.match(html, /property="og:image:width" content="1200"/);
   assert.match(html, /property="og:image:height" content="630"/);
   assert.match(middleware, /shareCardForTime\(Date\.now\(\)\)/);
   assert.match(middleware, /applyShareCardMeta/);
+  assert.match(renderer, /researchhub-ship\.png/);
   assert.match(renderer, /nih-ship\.png/);
   assert.match(renderer, /btc-token-ship-03-neutral\.png/);
+  assert.match(renderer, /umbra-needlewing/);
   assert.match(renderer, /25K RSC HIGH SCORE EVENT/);
+  assert.doesNotMatch(renderer, /bio-ship\.png/);
 
   for (const relative of ['public/social/scicon-share-25k.png', 'public/social/scicon-share.png']) {
     assert.deepEqual(pngSize(relative), { width: 1200, height: 630 });
