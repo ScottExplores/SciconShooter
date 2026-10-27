@@ -1425,8 +1425,30 @@ const App: React.FC = () => {
     ? activeWalletAddress
     : null;
   const isOwnerWallet = activeWalletAddress?.toLowerCase() === DONATION_CONFIG.RECIPIENT_ADDRESS.toLowerCase();
+  const founderPresentedWeeklySquadState = useMemo(
+    () => isOwnerWallet ? createFounderSquadSandboxState(weeklySquadState) : weeklySquadState,
+    [isOwnerWallet, weeklySquadState]
+  );
+  const founderPresentedCampaignProgress = useMemo(() => {
+    if (!isOwnerWallet) return permanentSquadState.campaignProgress;
+    // Local map overlay only. Stored progress, badges, and founder-locked
+    // bonus routes stay as the server last saved them.
+    const unlocked = unlockAllCampaignMissions(permanentSquadState.campaignProgress);
+    return {
+      ...unlocked,
+      unviewedMissionIds: permanentSquadState.campaignProgress.unviewedMissionIds,
+      unviewedStarMissionIds: permanentSquadState.campaignProgress.unviewedStarMissionIds,
+      unviewedRewardIds: permanentSquadState.campaignProgress.unviewedRewardIds
+    };
+  }, [isOwnerWallet, permanentSquadState.campaignProgress]);
   const founderAuthorizationRef = useRef(Boolean(isOwnerWallet));
   founderAuthorizationRef.current = Boolean(isOwnerWallet);
+  const openFounderBossLab = useCallback(() => {
+    if (!founderAuthorizationRef.current) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set('bosslab', '');
+    window.location.assign(url.toString());
+  }, []);
   const isOwnerTestRun = activeRunMode === 'owner-test';
   const isBossArchiveRun = activeRunMode === 'boss-archive';
   const isCampaignBranchRun = activeRunMode === 'campaign-branch';
@@ -3202,6 +3224,9 @@ const App: React.FC = () => {
       campaignRequest?.kind === 'weekly-streak'
       && weeklyRun.missionIds.has(campaignRequest.missionId)
     );
+    const launchCampaignProgress = isOwnerWallet
+      ? unlockAllCampaignMissions(permanentSquadStateRef.current.campaignProgress)
+      : permanentSquadStateRef.current.campaignProgress;
     if (
       campaignRequest
       && !authorizedCampaignLabRequest
@@ -3209,11 +3234,11 @@ const App: React.FC = () => {
       && (
         !requestedCampaignMission
         || !isCampaignMissionUnlocked(
-          permanentSquadStateRef.current.campaignProgress,
+          launchCampaignProgress,
           campaignRequest.missionId
         )
         || !isCampaignWaveUnlocked(
-          permanentSquadStateRef.current.campaignProgress,
+          launchCampaignProgress,
           campaignRequest.missionId,
           normalizedCampaignRequest?.waveId ?? requestedCampaignMission.waveIds[0]
         )
@@ -3597,9 +3622,12 @@ const App: React.FC = () => {
     const clampLabLevel = (value: number | undefined, maximum: number) => (
       Math.max(0, Math.min(maximum, Math.floor(Number(value) || 0)))
     );
+    const squadStateForLaunch = isOwnerWallet
+      ? createFounderSquadSandboxState(weeklySquadState)
+      : weeklySquadState;
     const campaignLabState: WeeklySquadState = authorizedCampaignLabRequest
       ? {
-          ...weeklySquadState,
+          ...squadStateForLaunch,
           unlockedSlots: {
             ...weeklySquadState.unlockedSlots,
             left: Boolean(campaignLabLeftSupport),
@@ -3636,7 +3664,7 @@ const App: React.FC = () => {
             }
           }
         }
-      : weeklySquadState;
+      : squadStateForLaunch;
     const squadLoadout = buildRuntimeSquadLoadout(campaignLabState, runShipId);
     const weeklyStreakForLaunch = runMode === 'weekly-streak'
       ? weeklySquadStateRef.current.weeklyCampaignStreak
@@ -4173,7 +4201,10 @@ const App: React.FC = () => {
         weeklyId: boundary.weekKey,
         resetAtMs: boundary.endsAt.getTime(),
         startNodeId: request.nodeId,
-        unlockedNodeIds: permanentSquadStateRef.current.campaignProgress.unlockedGraphNodeIds,
+        unlockedNodeIds: (isOwnerWallet
+          ? unlockAllCampaignMissions(permanentSquadStateRef.current.campaignProgress)
+          : permanentSquadStateRef.current.campaignProgress
+        ).unlockedGraphNodeIds,
         nowMs: now.getTime()
       });
       persistWeeklyCampaignStreak(streak);
@@ -4183,7 +4214,7 @@ const App: React.FC = () => {
       setCampaignMapStatus('launch-error');
       setCampaignMapError(error instanceof Error ? error.message : 'Weekly Streak could not start.');
     }
-  }, [persistWeeklyCampaignStreak]);
+  }, [isOwnerWallet, persistWeeklyCampaignStreak]);
 
   /**
    * Launches the Weekly Run: one continuous gauntlet through every
@@ -5207,6 +5238,9 @@ const App: React.FC = () => {
     walletProfileStatus,
     updatePermanentSquadState
   ]);
+  // The map no longer shows these controls. The callbacks stay so a connected
+  // founder session still rechecks authorization if a lab action is invoked.
+  void campaignMapDeveloperControls;
 
   const markCampaignSettlementWalletDirty = useCallback((
     nextWeeklyState: WeeklySquadState,
@@ -8058,7 +8092,7 @@ const App: React.FC = () => {
           selectedShipId={usableShipId}
           shipUnlocks={shipUnlocks}
           onSelectShip={setSelectedShipId}
-          weeklySquadState={weeklySquadState}
+          weeklySquadState={founderPresentedWeeklySquadState}
           permanentSquadState={permanentSquadState}
           onClaimDailyGift={handleClaimDailyGift}
           onClaimAchievement={handleClaimAchievement}
@@ -8129,8 +8163,8 @@ const App: React.FC = () => {
               || weeklyRunAttemptQuota?.weeklyId !== resolveRunAttemptPolicy().scopeId
             )
           )}
-          bossArchiveDeveloperControls={bossArchiveDeveloperControls}
           founderSandbox={isOwnerWallet}
+          onOpenBossLab={isOwnerWallet ? openFounderBossLab : undefined}
           onUnlockSquadSlot={handleUnlockSquadSlot}
           onPurchaseMiniShip={handlePurchaseMiniShip}
           onUpgradeMiniShip={handleUpgradeMiniShip}
@@ -8172,7 +8206,7 @@ const App: React.FC = () => {
         <React.Suspense fallback={null}>
           <CampaignMap
             open
-            progress={permanentSquadState.campaignProgress}
+            progress={founderPresentedCampaignProgress}
             status={campaignMapStatus}
             errorMessage={campaignMapError}
             initialMissionId={campaignMapFocusMissionId}
@@ -8187,7 +8221,7 @@ const App: React.FC = () => {
             onSelectRoute={selectCampaignRouteFromMap}
             onLaunchBranch={launchCampaignBranchFromMap}
             onSkipBranchAnimation={() => setCampaignMapUnlockingBranchId(null)}
-            developerControls={campaignMapDeveloperControls}
+            developerControls={null}
           />
         </React.Suspense>
       ) : null}
@@ -8210,7 +8244,7 @@ const App: React.FC = () => {
             selectedShipId={usableShipId}
             shipUnlocks={shipUnlocks}
             onSelectShip={setSelectedShipId}
-            weeklySquadState={weeklySquadState}
+            weeklySquadState={founderPresentedWeeklySquadState}
             permanentSquadState={permanentSquadState}
             onClaimDailyGift={handleClaimDailyGift}
             onClaimAchievement={handleClaimAchievement}
@@ -8232,6 +8266,7 @@ const App: React.FC = () => {
             onMusicVolumeChange={setGameMusicVolume}
             onMatchMusicTrackChange={setGameMatchMusicTrack}
             founderSandbox={isOwnerWallet}
+            onOpenBossLab={isOwnerWallet ? openFounderBossLab : undefined}
             onUnlockSquadSlot={handleUnlockSquadSlot}
             onPurchaseMiniShip={handlePurchaseMiniShip}
             onUpgradeMiniShip={handleUpgradeMiniShip}

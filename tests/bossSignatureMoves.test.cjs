@@ -36,6 +36,7 @@ const bundle = (entryPoint) => {
 
 const { GameEngine } = bundle('services/gameLogic.ts');
 const { getSandboxBossKit } = bundle('services/gameplay/sandboxBossRoster.ts');
+const { buildBossReplayCampaign, getBossArchiveEntry } = bundle('services/bossArchive.ts');
 const campaign = JSON.parse(fs.readFileSync(path.join(root, 'game-config/campaign.json'), 'utf8'));
 
 const PRESENTATION_PRIMITIVES = new Set(['telegraph', 'effect-cue', 'camera-cue']);
@@ -353,4 +354,163 @@ test('an Umbra fight that already charged does not arm a second makeup ram', () 
       'umbra-guaranteed-lower-corner-ram'
     );
   }
+});
+
+const UMBRA_REPLAY_EVENT = 'stage-crownclaw-frontier-commander-major-boss';
+
+const createReplayStats = () => ({
+  score: 0,
+  highScore: 0,
+  wave: 1,
+  coins: 0,
+  totalCoins: 0,
+  enemiesDefeated: 0,
+  bombs: 2,
+  bombCharge: 0,
+  bombChargeMax: 100,
+  shipAbilityCooldown: 0,
+  shipAbilityCooldownMax: 960,
+  lives: 9,
+  repairsCount: 0,
+  upgrades: { fireRate: 0, speed: 0, ability: 0 },
+  powerupUses: {},
+  bossProgress: 0,
+  isBossActive: true,
+  bossHp: 0,
+  bossMaxHp: 100
+});
+
+const simulateUmbraEncounter = (options) => {
+  const engine = new GameEngine(createReplayStats(), {
+    campaign: options.campaign,
+    audioEnabled: false,
+    preloadCanvasAssets: false,
+    previewMode: Boolean(options.preview),
+    previewInvincible: true,
+    randomSeed: 'umbra-easy-replay',
+    initialLevelId: options.levelId,
+    initialWaveId: options.waveId
+  });
+  engine.init(412, 915);
+  engine.gameActive = true;
+  engine.lives = 9;
+  engine.invincibleTimer = 999999;
+  if (options.directEvent) engine.spawnBoss(structuredClone(options.directEvent));
+
+  let hiddenRun = 0;
+  let maxHiddenRun = 0;
+  let idleRun = 0;
+  let maxIdleRun = 0;
+  let lastX = null;
+  let lastY = null;
+  let charge = null;
+  const entrance = Math.max(72, Math.min(engine.height * 0.13, 116));
+  const frames = 60 * 30;
+
+  for (let frame = 0; frame < frames; frame += 1) {
+    engine.update(false);
+    const boss = engine.entities.find((entity) => entity.type === 'BOSS' && !entity.markedForDeletion);
+    if (!boss) {
+      hiddenRun = 0;
+      idleRun = 0;
+      lastX = null;
+      lastY = null;
+      continue;
+    }
+    hiddenRun = boss.bossVanishReentryStage === 'hidden' ? hiddenRun + 1 : 0;
+    maxHiddenRun = Math.max(maxHiddenRun, hiddenRun);
+    const moved = lastX !== null && (Math.abs(boss.x - lastX) + Math.abs(boss.y - lastY) > 0.4);
+    const acting = Boolean(boss.bossActionPresentation)
+      || Boolean(boss.bossCornerAmbushRamState)
+      || Boolean(boss.bossCornerAmbushBeamState);
+    const settled = boss.y >= entrance - 1;
+    idleRun = settled && !moved && !acting ? idleRun + 1 : 0;
+    maxIdleRun = Math.max(maxIdleRun, idleRun);
+    lastX = boss.x;
+    lastY = boss.y;
+    const ram = boss.bossCornerAmbushRamState;
+    if (ram?.stage === 'charge') {
+      charge = {
+        ram,
+        boss,
+        opacity: boss.bossVanishOpacity,
+        stage: boss.bossVanishReentryStage,
+        timer: boss.attackTimer,
+        tempo: boss.configuredAttackTempoMultiplier
+      };
+      break;
+    }
+  }
+
+  return { engine, charge, maxHiddenRun, maxIdleRun };
+};
+
+test('Easy Boss Replay and every Umbra difficulty show the corner charge without a long black pause', () => {
+  const rendererSource = fs.readFileSync(
+    path.join(root, 'services/pixi/PixiGameRenderer.ts'),
+    'utf8'
+  );
+  const showStart = rendererSource.indexOf('private shouldShowUmbraBlackoutArt');
+  const showEnd = rendererSource.indexOf('private restoreUmbraBlackoutArt');
+  const showSource = rendererSource.slice(showStart, showEnd);
+  assert.match(showSource, /Boolean\(entity\.bossCornerAmbushBeamState\)/);
+  assert.match(showSource, /stage === 'hidden' && this\.umbraBlackoutConcealedFrames <= 90/);
+  assert.doesNotMatch(
+    showSource,
+    /bossCornerAmbushBeamState && !entity\.bossCornerAmbushRamState/
+  );
+
+  const entry = getBossArchiveEntry(UMBRA_REPLAY_EVENT);
+  assert.ok(entry, 'Umbra needs a Boss Replay entry');
+  const authored = firstCampaignBoss('umbra-needlewing');
+  const authoredRam = authored.timeline.clips.find((clip) => (
+    clip.id === 'sandbox-umbra-survey-lower-right-ram'
+  ));
+  assert.equal(authoredRam.startSeconds, 18.8);
+
+  for (const difficulty of ['easy', 'medium', 'heroic']) {
+    const replay = buildBossReplayCampaign(UMBRA_REPLAY_EVENT, difficulty);
+    const event = replay.levels
+      .flatMap((level) => level.waves)
+      .flatMap((wave) => wave.events)
+      .find((candidate) => candidate.id === UMBRA_REPLAY_EVENT);
+    const ramClip = event.timeline.clips.find((clip) => (
+      clip.id === 'sandbox-umbra-survey-lower-right-ram'
+    ));
+    if (difficulty === 'easy') {
+      assert.equal(event.attackTempoMultiplier ?? 1, 1);
+      assert.equal(ramClip.startSeconds, authoredRam.startSeconds);
+    } else {
+      assert.ok(ramClip.startSeconds < authoredRam.startSeconds);
+    }
+
+    const result = simulateUmbraEncounter({
+      campaign: replay,
+      levelId: entry.missionId,
+      waveId: entry.waveId
+    });
+    assert.ok(result.charge, `${difficulty} Boss Replay never started the corner charge`);
+    assert.equal(result.charge.ram.actionClipId, 'sandbox-umbra-survey-lower-right-ram');
+    assert.notEqual(result.charge.stage, 'hidden');
+    assert.ok(result.charge.opacity >= 0.9, `${difficulty} charge opacity ${result.charge.opacity}`);
+    const boss = result.charge.boss;
+    assert.ok(boss.x + boss.width > 0 && boss.x < result.engine.width, `${difficulty} charge is off the sides`);
+    assert.ok(boss.y + boss.height > 0 && boss.y < result.engine.height, `${difficulty} charge is off the vertical screen`);
+    assert.ok(result.maxHiddenRun <= 90, `${difficulty} pure-black hidden beat ran ${result.maxHiddenRun} frames`);
+    assert.ok(result.maxIdleRun <= 90, `${difficulty} Umbra idled for ${result.maxIdleRun} frames`);
+    if (difficulty === 'easy') {
+      assert.equal(result.charge.tempo ?? 1, 1);
+      assert.equal(result.charge.timer, Math.round(18.8 * 60));
+    }
+  }
+
+  const lab = simulateUmbraEncounter({
+    directEvent: getSandboxBossKit('umbra-needlewing'),
+    preview: true
+  });
+  assert.ok(lab.charge, 'Boss Lab never started the corner charge');
+  assert.notEqual(lab.charge.stage, 'hidden');
+  assert.ok(lab.charge.opacity >= 0.9);
+  assert.ok(lab.maxHiddenRun <= 90, `Boss Lab hidden beat ran ${lab.maxHiddenRun} frames`);
+  assert.ok(lab.maxIdleRun <= 90, `Boss Lab Umbra idled for ${lab.maxIdleRun} frames`);
 });

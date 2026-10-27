@@ -7330,10 +7330,10 @@ export class PixiGameRenderer {
 
   private shouldShowUmbraBlackoutArt(entity: Entity) {
     if (!this.isUmbraNeedlewingBlackoutBoss(entity) || entity.markedForDeletion) return false;
-    if (entity.bossCornerAmbushBeamState && !entity.bossCornerAmbushRamState) return false;
     const blackout = entity.bossUmbraBlackoutHuntActive
       || Boolean(entity.bossCornerAmbushRamState)
-      || Boolean(entity.bossVanishReentryState);
+      || Boolean(entity.bossVanishReentryState)
+      || Boolean(entity.bossCornerAmbushBeamState);
     if (!blackout) return false;
     const stage = entity.bossVanishReentryStage;
     if (stage === 'hidden' && this.umbraBlackoutConcealedFrames <= 90) return false;
@@ -7371,7 +7371,6 @@ export class PixiGameRenderer {
         || entity.bossVanishReentryState
       )
       && entity.bossVanishReentryStage === 'hidden'
-      && !(entity.bossCornerAmbushBeamState && !entity.bossCornerAmbushRamState)
     ));
     this.umbraBlackoutConcealedFrames = concealed
       ? this.umbraBlackoutConcealedFrames + 1

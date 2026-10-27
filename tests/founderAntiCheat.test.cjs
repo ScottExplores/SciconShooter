@@ -222,10 +222,26 @@ test('founder wallet opens every Boss Lab fight, boss replay, and the campaign l
     /!isOwnerWallet\s*&&\s*!permanentSquadState\.bossArchive\.unlockedEventIds\.includes\(requestedBossReplay\.eventId\)/
   );
   assert.match(archiveProgressSource, /unlockedEventIds: BOSS_ARCHIVE_CATALOG\.map\(\(entry\) => entry\.eventId\)/);
-  assert.match(startScreenSource, /founderSandbox \|\| bossArchiveDeveloperControls\?\.enabled/);
   assert.match(
     startScreenSource,
-    /bossArchiveDevelopmentAccess && bossArchiveDevUnlockAll\s*\? BOSS_ARCHIVE_CATALOG\s*:\s*earnedBossArchiveEntries/
+    /availableBossArchiveEntries = founderSandbox\s*\?\s*BOSS_ARCHIVE_CATALOG\s*:\s*earnedBossArchiveEntries/
+  );
+  assert.match(startScreenSource, /data-boss-lab-trigger="true"/);
+  assert.doesNotMatch(startScreenSource, /bossArchiveDevUnlockAll|bossArchiveDeveloperControls/);
+  assert.match(appSource, /const founderPresentedWeeklySquadState = useMemo/);
+  assert.match(appSource, /const founderPresentedCampaignProgress = useMemo/);
+  assert.match(appSource, /weeklySquadState=\{founderPresentedWeeklySquadState\}/);
+  assert.match(appSource, /progress=\{founderPresentedCampaignProgress\}/);
+  assert.match(appSource, /developerControls=\{null\}/);
+  assert.match(appSource, /url\.searchParams\.set\('bosslab', ''\)/);
+  assert.match(appSource, /if \(!founderAuthorizationRef\.current\) return;/);
+  assert.match(
+    appSource,
+    /const squadStateForLaunch = isOwnerWallet\s*\?\s*createFounderSquadSandboxState\(weeklySquadState\)/
+  );
+  assert.match(
+    appSource,
+    /!\s*activeWalletAddress\s*\|\|\s*walletProfileHydratingRef\.current\s*\|\|\s*isOwnerWallet/
   );
   assert.match(appSource, /createBossArchiveDeveloperControls\(\(\) => founderAuthorizationRef\.current\)/);
   assert.match(appSource, /campaignLabRequest && founderAuthorizationRef\.current/);

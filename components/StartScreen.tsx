@@ -53,7 +53,6 @@ import type { MatchMusicTrackId } from '../services/audioService';
 import type { PlayerReportKind } from '../services/playerReportService';
 import ShipCarousel from './ShipCarousel';
 import BossArchive, {
-  type BossArchiveDeveloperControls,
   type BossArchiveFightRequest,
   type BossArchiveResult
 } from './BossArchive';
@@ -174,8 +173,8 @@ interface StartScreenProps {
   weeklyRunAttemptLimit?: number;
   weeklyRunAttemptsUnlimited?: boolean;
   weeklyRunAttemptQuotaUnknown?: boolean;
-  bossArchiveDeveloperControls?: BossArchiveDeveloperControls | null;
   founderSandbox?: boolean;
+  onOpenBossLab?: () => void;
   onUnlockSquadSlot: (slot: SquadSlotId) => void;
   onPurchaseMiniShip: (id: MiniShipId) => void;
   onUpgradeMiniShip: (id: MiniShipId) => void;
@@ -852,8 +851,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
   weeklyRunAttemptLimit = WEEKLY_RUN_ATTEMPT_LIMIT,
   weeklyRunAttemptsUnlimited = false,
   weeklyRunAttemptQuotaUnknown = false,
-  bossArchiveDeveloperControls = null,
   founderSandbox = false,
+  onOpenBossLab,
   onUnlockSquadSlot,
   onPurchaseMiniShip,
   onUpgradeMiniShip,
@@ -896,8 +895,6 @@ const StartScreen: React.FC<StartScreenProps> = ({
     new URLSearchParams(window.location.search).get('view') === 'bosses'
   ));
   const [bossArchiveOpenedNewIds, setBossArchiveOpenedNewIds] = useState<string[]>([]);
-  const [bossArchiveDevUnlockAll, setBossArchiveDevUnlockAll] = useState(false);
-  const [bossArchiveDevShowLocked, setBossArchiveDevShowLocked] = useState(true);
   const [showWeeklyProposalReminder, setShowWeeklyProposalReminder] = useState(false);
   const [rewardCenterInitialTab, setRewardCenterInitialTab] = useState<RewardTab>('daily');
   const [treasuryCopyStatus, setTreasuryCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
@@ -934,10 +931,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const earnedBossArchiveEntries = useMemo(() => (
     getUnlockedBossArchiveEntries(permanentSquadState.bossArchive.unlockedEventIds)
   ), [permanentSquadState.bossArchive.unlockedEventIds]);
-  const bossArchiveDevelopmentAccess = Boolean(
-    founderSandbox || bossArchiveDeveloperControls?.enabled
-  );
-  const availableBossArchiveEntries = bossArchiveDevelopmentAccess && bossArchiveDevUnlockAll
+  const availableBossArchiveEntries = founderSandbox
     ? BOSS_ARCHIVE_CATALOG
     : earnedBossArchiveEntries;
   const newBossArchiveEventIds = useMemo(() => {
@@ -947,9 +941,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
       .filter((eventId) => !seen.has(eventId));
   }, [earnedBossArchiveEntries, permanentSquadState.bossArchive.seenEventIds]);
   const bossArchiveNotificationCount = newBossArchiveEventIds.length;
-  const canOpenBossArchive = Boolean(onStartBossFight) && (
-    availableBossArchiveEntries.length > 0 || bossArchiveDevelopmentAccess
-  );
+  const canOpenBossArchive = Boolean(onStartBossFight) && availableBossArchiveEntries.length > 0;
 
   const openBossArchive = () => {
     if (!canOpenBossArchive) return;
@@ -1489,6 +1481,16 @@ const StartScreen: React.FC<StartScreenProps> = ({
                 </button>
               ) : <span className="col-start-3" aria-hidden="true" />}
             </div>
+          ) : null}
+          {founderSandbox && onOpenBossLab ? (
+            <button
+              type="button"
+              onClick={onOpenBossLab}
+              data-boss-lab-trigger="true"
+              className="mx-auto block text-xs font-black uppercase tracking-[0.16em] text-cyan-100/80 underline-offset-4 hover:text-cyan-50 hover:underline"
+            >
+              Boss Lab
+            </button>
           ) : null}
           {/* Names the mode next to its launch control, so Campaign and the
               Weekly Run read as a matched pair rather than two unlabelled
@@ -2582,8 +2584,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
       {showBossArchive && canOpenBossArchive && onStartBossFight ? (
         <BossArchive
           entries={availableBossArchiveEntries}
-          catalogEntries={bossArchiveDevelopmentAccess ? BOSS_ARCHIVE_CATALOG : undefined}
-          revealLockedEntries={bossArchiveDevelopmentAccess && bossArchiveDevShowLocked}
+          catalogEntries={founderSandbox ? BOSS_ARCHIVE_CATALOG : undefined}
+          revealLockedEntries={false}
           newEncounterIds={bossArchiveOpenedNewIds}
           onClose={closeBossArchive}
           onChallenge={(entry) => onStartBossFight(entry, {
@@ -2601,19 +2603,6 @@ const StartScreen: React.FC<StartScreenProps> = ({
           onDismissResult={onDismissBossArchiveResult}
           launchError={bossArchiveLaunchError}
           onDismissLaunchError={onDismissBossArchiveLaunchError}
-          developerControls={bossArchiveDeveloperControls ? {
-            ...bossArchiveDeveloperControls,
-            showLockedEntries: bossArchiveDevShowLocked,
-            onShowLockedEntriesChange: setBossArchiveDevShowLocked,
-            onUnlockAll: () => {
-              bossArchiveDeveloperControls.onUnlockAll?.();
-              setBossArchiveDevUnlockAll(true);
-            },
-            onResetProgress: () => {
-              setBossArchiveDevUnlockAll(false);
-              bossArchiveDeveloperControls.onResetProgress?.();
-            }
-          } : null}
         />
       ) : null}
 

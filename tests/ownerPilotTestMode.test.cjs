@@ -45,8 +45,12 @@ test('founder Hangar sandbox unlocks the fleet, supports reversible upgrades, an
 });
 
 test('project wallet can practice every authored Boss Archive encounter without granting earned unlocks', () => {
-  assert.match(startScreenSource, /founderSandbox \|\| bossArchiveDeveloperControls\?\.enabled/);
-  assert.match(startScreenSource, /bossArchiveDevelopmentAccess && bossArchiveDevUnlockAll\s*\? BOSS_ARCHIVE_CATALOG\s*:\s*earnedBossArchiveEntries/);
+  assert.match(
+    startScreenSource,
+    /availableBossArchiveEntries = founderSandbox\s*\?\s*BOSS_ARCHIVE_CATALOG\s*:\s*earnedBossArchiveEntries/
+  );
+  assert.match(startScreenSource, /data-boss-lab-trigger="true"/);
+  assert.doesNotMatch(startScreenSource, /bossArchiveDevUnlockAll/);
   assert.match(
     appSource,
     /!requestedBossReplay[\s\S]*?!isOwnerWallet[\s\S]*?!permanentSquadState\.bossArchive\.unlockedEventIds\.includes\(requestedBossReplay\.eventId\)/

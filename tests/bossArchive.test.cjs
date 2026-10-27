@@ -475,16 +475,12 @@ test('production integration unlocks only authored boss victories and keeps repl
   assert.match(startScreen, /walletControl \|\| canOpenBossArchive/);
   assert.match(
     startScreen,
-    /bossArchiveDevelopmentAccess = Boolean\(\s*founderSandbox \|\| bossArchiveDeveloperControls\?\.enabled\s*\)/
+    /availableBossArchiveEntries = founderSandbox\s*\?\s*BOSS_ARCHIVE_CATALOG\s*:\s*earnedBossArchiveEntries/
   );
-  assert.match(startScreen, /availableBossArchiveEntries = bossArchiveDevelopmentAccess && bossArchiveDevUnlockAll\s*\? BOSS_ARCHIVE_CATALOG\s*:\s*earnedBossArchiveEntries/);
-  assert.match(startScreen, /catalogEntries=\{bossArchiveDevelopmentAccess \? BOSS_ARCHIVE_CATALOG : undefined\}/);
-  assert.match(startScreen, /revealLockedEntries=\{bossArchiveDevelopmentAccess && bossArchiveDevShowLocked\}/);
-  assert.match(
-    startScreen,
-    /onUnlockAll:\s*\(\)\s*=>\s*\{\s*bossArchiveDeveloperControls\.onUnlockAll\?\.\(\);\s*setBossArchiveDevUnlockAll\(true\);\s*\}/,
-    'the founder unlock-all preview must also unlock the canonical Archive progression used by launch reservations'
-  );
+  assert.match(startScreen, /catalogEntries=\{founderSandbox \? BOSS_ARCHIVE_CATALOG : undefined\}/);
+  assert.match(startScreen, /revealLockedEntries=\{false\}/);
+  assert.match(startScreen, /data-boss-lab-trigger="true"/);
+  assert.doesNotMatch(startScreen, /bossArchiveDevUnlockAll|bossArchiveDeveloperControls/);
   assert.match(startScreen, /permanentSquadState\.bossArchive\.unlockedEventIds/);
   assert.match(startScreen, /permanentSquadState\.bossArchive\.seenEventIds/);
   assert.match(startScreen, /data-boss-archive-command-row=\{canOpenBossArchive \? 'true' : 'false'\}/);

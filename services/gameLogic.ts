@@ -16554,8 +16554,17 @@ export class GameEngine {
       lock,
       telegraphId: telegraph.id
     };
-    const fadeOutFrames = Math.max(4, Math.min(10, Math.floor(warningFrames * 0.18)));
-    const reappearFrames = Math.max(10, Math.round(GAME_CONFIG.FPS * 0.2));
+    const fadeOutFrames = Math.max(4, Math.min(12, Math.floor(warningFrames * 0.12)));
+    const hiddenFrames = Math.min(
+      Math.max(4, Math.min(Math.round(GAME_CONFIG.FPS * 0.45), Math.floor(warningFrames * 0.2))),
+      Math.round(GAME_CONFIG.FPS * 1.5) - fadeOutFrames
+    );
+    const reentryWarningFrames = Math.max(8, Math.floor(warningFrames * 0.34));
+    const reappearFrames = Math.max(8, Math.floor(warningFrames * 0.22));
+    const recoveryFrames = Math.max(
+      4,
+      warningFrames - fadeOutFrames - hiddenFrames - reentryWarningFrames - reappearFrames
+    );
     const vanishing = this.beginUmbraVanishReentry(
       boss,
       warningFrames,
@@ -16564,14 +16573,16 @@ export class GameEngine {
       lock.targetX,
       lock.targetY,
       {
-        // Attack 3 is a disembodied locked line: the structural boss remains
-        // hidden through the complete live beam, then rematerializes cleanly.
+        // The needle lock used to hide Umbra for the whole beam. That read as
+        // a pure-black pause before the corner charge, especially on Easy
+        // Boss Replay where the authored lead is the longest. He vanishes
+        // only briefly, then stays visible while the red beam fires.
         durations: {
           fadeOutFrames,
-          hiddenFrames: Math.max(1, warningFrames + liveFrames - fadeOutFrames),
-          reentryWarningFrames: 4,
+          hiddenFrames,
+          reentryWarningFrames,
           reappearFrames,
-          recoveryFrames: 6
+          recoveryFrames
         }
       }
     );
@@ -23049,9 +23060,33 @@ export class GameEngine {
     if (boss.y < targetEntranceY) {
       boss.y = Math.min(targetEntranceY, boss.y + entranceSpeed);
       boss.x += ((this.width - boss.width) / 2 - boss.x) * 0.06;
+      if (this.isUmbraNeedlewing(boss)) {
+        // The entity step applies vx/vy before this correction. Leftover
+        // upward velocity from the top-band slide was parking him a fraction
+        // above the anchor and holding the authored clock at zero.
+        boss.vx = 0;
+        boss.vy = 0;
+      }
       return;
     }
     if (this.applySerialQuietBeatMotion(boss, targetEntranceY)) return;
+    if (this.isUmbraNeedlewing(boss)) {
+      // Phone framing makes Umbra wider than the lane, so the generic roam
+      // clamp froze him until the corner charge. Keep a readable top-band
+      // slide between attacks on every difficulty and entry point.
+      const centerX = (this.width - boss.width) / 2;
+      const targetX = centerX + Math.sin(boss.attackTimer * 0.05) * 56;
+      const targetY = targetEntranceY + 6 + (0.5 + Math.sin(boss.attackTimer * 0.037)) * 30;
+      const appliedX = (targetX - boss.x) * 0.14;
+      const appliedY = (targetY - boss.y) * 0.14;
+      boss.x += appliedX;
+      boss.y += appliedY;
+      // Position is authored directly. Leaving the step in vx/vy makes the
+      // next entity integration apply it again and can rewind the timeline.
+      boss.vx = 0;
+      boss.vy = 0;
+      boss.bossPresentationBankRadians = clamp(appliedX * 0.012, -0.14, 0.14);
+    } else {
     boss.vx = 0;
     boss.vy = 0;
     const pattern = boss.movementPattern ?? 'track-player';
@@ -23080,8 +23115,21 @@ export class GameEngine {
       const targetX = this.player.x + this.player.width / 2 - boss.width / 2;
       boss.x += (targetX - boss.x) * 0.018 * boss.activeBossPhaseSpeedMultiplier;
     }
-    boss.x = clamp(boss.x, 10, Math.max(10, this.width - boss.width - 10));
-    boss.y = clamp(boss.y, targetEntranceY, Math.max(targetEntranceY, this.height * 0.48 - boss.height));
+    }
+    // A boss wider than the phone lane used to clamp to a single point and
+    // sit still between attacks. Keep a short, visible sway on screen.
+    let minX = 10;
+    let maxX = Math.max(10, this.width - boss.width - 10);
+    if (maxX - minX < 28) {
+      const centerX = (this.width - boss.width) / 2;
+      minX = centerX - 32;
+      maxX = centerX + 32;
+    }
+    let minY = targetEntranceY;
+    let maxY = Math.max(targetEntranceY, this.height * 0.48 - boss.height);
+    if (maxY - minY < 24) maxY = minY + 42;
+    boss.x = clamp(boss.x, minX, maxX);
+    boss.y = clamp(boss.y, minY, maxY);
   }
 
   updateEscalationBossAttacks(boss: Entity) {
