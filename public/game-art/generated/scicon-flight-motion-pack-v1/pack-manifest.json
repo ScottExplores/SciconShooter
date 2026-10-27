@@ -29,8 +29,8 @@
       "productionNote": "Use PNG frames in Pixi; GIF is gallery preview only."
     },
     {
-      "id": "bio",
-      "title": "BIO Five-View Steering",
+      "id": "nih",
+      "title": "NIH Five-View Steering",
       "role": "ships",
       "fps": 10,
       "loop": "input-driven",
@@ -42,15 +42,15 @@
         "hard-right"
       ],
       "frames": [
-        "/game-art/generated/scicon-flight-motion-pack-v1/ships/bio/frames/bio-01-hard-left.png",
-        "/game-art/generated/scicon-flight-motion-pack-v1/ships/bio/frames/bio-02-bank-left.png",
-        "/game-art/generated/scicon-flight-motion-pack-v1/ships/bio/frames/bio-03-neutral.png",
-        "/game-art/generated/scicon-flight-motion-pack-v1/ships/bio/frames/bio-04-bank-right.png",
-        "/game-art/generated/scicon-flight-motion-pack-v1/ships/bio/frames/bio-05-hard-right.png"
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/nih/frames/nih-01-hard-left.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/nih/frames/nih-02-bank-left.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/nih/frames/nih-03-neutral.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/nih/frames/nih-04-bank-right.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/nih/frames/nih-05-hard-right.png"
       ],
-      "sheet": "/game-art/generated/scicon-flight-motion-pack-v1/ships/bio/bio-sprite-sheet.png",
-      "previewGif": "/game-art/generated/scicon-flight-motion-pack-v1/ships/bio/previews/bio-animation-preview.gif",
-      "productionNote": "Use PNG frames in Pixi; GIF is gallery preview only."
+      "sheet": "/game-art/generated/scicon-flight-motion-pack-v1/ships/nih/nih-sprite-sheet.png",
+      "previewGif": "/game-art/generated/scicon-flight-motion-pack-v1/ships/nih/previews/nih-animation-preview.gif",
+      "productionNote": "SciCon promo ship. Use PNG frames in Pixi; GIF is gallery preview only."
     },
     {
       "id": "eth",
@@ -127,30 +127,30 @@
       "productionNote": "Use PNG frames in Pixi; GIF is gallery preview only."
     },
     {
-      "id": "bio-selection-idle",
-      "title": "BIO Selection Pulse",
+      "id": "nih-selection-idle",
+      "title": "NIH Selection Pulse",
       "role": "ships",
       "fps": 5,
       "loop": "selection-idle",
       "states": [
         "rest",
-        "gene-core-pulse",
-        "upper-channel-pulse",
-        "sensor-pod-pulse",
+        "helix-pulse",
+        "core-pulse",
+        "pod-pulse",
         "rest-hold",
         "settle"
       ],
       "frames": [
-        "/game-art/generated/scicon-flight-motion-pack-v1/ships/bio-selection-idle/frames/bio-selection-idle-01-rest.png",
-        "/game-art/generated/scicon-flight-motion-pack-v1/ships/bio-selection-idle/frames/bio-selection-idle-02-gene-core-pulse.png",
-        "/game-art/generated/scicon-flight-motion-pack-v1/ships/bio-selection-idle/frames/bio-selection-idle-03-upper-channel-pulse.png",
-        "/game-art/generated/scicon-flight-motion-pack-v1/ships/bio-selection-idle/frames/bio-selection-idle-04-sensor-pod-pulse.png",
-        "/game-art/generated/scicon-flight-motion-pack-v1/ships/bio-selection-idle/frames/bio-selection-idle-05-rest-hold.png",
-        "/game-art/generated/scicon-flight-motion-pack-v1/ships/bio-selection-idle/frames/bio-selection-idle-06-settle.png"
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/nih-selection-idle/frames/nih-selection-idle-01-rest.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/nih-selection-idle/frames/nih-selection-idle-02-helix-pulse.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/nih-selection-idle/frames/nih-selection-idle-03-core-pulse.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/nih-selection-idle/frames/nih-selection-idle-04-pod-pulse.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/nih-selection-idle/frames/nih-selection-idle-05-rest-hold.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/nih-selection-idle/frames/nih-selection-idle-06-settle.png"
       ],
-      "sheet": "/game-art/generated/scicon-flight-motion-pack-v1/ships/bio-selection-idle/bio-selection-idle-sprite-sheet.png",
-      "previewGif": "/game-art/generated/scicon-flight-motion-pack-v1/ships/bio-selection-idle/previews/bio-selection-idle-animation-preview.gif",
-      "productionNote": "Use PNG frames in Pixi; GIF is gallery preview only."
+      "sheet": "/game-art/generated/scicon-flight-motion-pack-v1/ships/nih-selection-idle/nih-selection-idle-sprite-sheet.png",
+      "previewGif": "/game-art/generated/scicon-flight-motion-pack-v1/ships/nih-selection-idle/previews/nih-selection-idle-animation-preview.gif",
+      "productionNote": "SciCon promo ship. Use PNG frames in Pixi; GIF is gallery preview only."
     },
     {
       "id": "eth-selection-idle",
@@ -350,6 +350,7 @@
     "targetShips": [
       "researchhub",
       "bio",
+      "nih",
       "eth",
       "btc-token-ship"
     ],
@@ -366,6 +367,11 @@
         "gene membrane/core",
         "upper seed channel",
         "outer sensor pods"
+      ],
+      "nih": [
+        "DNA helix spine",
+        "central plus core",
+        "wingtip sensor pods"
       ],
       "eth": [
         "central diamond reactor",

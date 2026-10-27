@@ -52,7 +52,10 @@ const createPreviewStats = (): Stats => ({
 
 const BossLab: React.FC = () => {
   const encounters = useMemo(() => listBossLabEncounterChoices(), []);
-  const [encounterId, setEncounterId] = useState(encounters[0]?.id ?? '');
+  const requestedEncounterId = new URLSearchParams(window.location.search).get('encounter');
+  const [encounterId, setEncounterId] = useState(
+    encounters.find((entry) => entry.id === requestedEncounterId)?.id ?? encounters[0]?.id ?? ''
+  );
   const [invincible, setInvincible] = useState(true);
   const [speed, setSpeed] = useState<(typeof SPEED_OPTIONS)[number]>(1);
   const [restartToken, setRestartToken] = useState(0);

@@ -137,12 +137,54 @@ const dedupeAndSort = (scores, limit = ALL_TIME_SCORE_LIMIT) => {
   return normalized.slice(0, limit);
 };
 
+const monthlyPrizeSnapshots = new Map();
+
+const monthlySnapshotKey = (prize) => (
+  `${prize.scoreWindow.start.toISOString()}|${prize.scoreWindow.end.toISOString()}`
+);
+
+const persistMonthlyPrizeSnapshot = async (prize, snapshot) => {
+  try {
+    const response = await fetch(supabaseUrl('scicon_monthly_prize_snapshots?on_conflict=window_key'), {
+      method: 'POST',
+      headers: supabaseHeaders({ Prefer: 'resolution=ignore-duplicates,return=minimal' }),
+      body: JSON.stringify({
+        window_key: monthlySnapshotKey(prize),
+        month_key: prize.monthKey,
+        starts_at: prize.scoreWindow.start.toISOString(),
+        ends_at: prize.scoreWindow.end.toISOString(),
+        frozen_at: snapshot.frozenAt,
+        scores: snapshot.monthlyScores
+      })
+    });
+    if (!response.ok) await response.text();
+  } catch {
+    // The in-memory snapshot still freezes the board when the table is absent.
+  }
+};
+
 const toLeaderboardPayload = (scores) => {
   const archive = dedupeAndSort(scores, SYNC_SCORE_LIMIT);
   const prize = getPublicPrizeState();
+  let monthlyScores = dedupeAndSort(archive.filter(isCurrentWeekEntry), WEEKLY_SCORE_LIMIT);
+  let frozenAt = null;
+  if (prize.snapshotFrozen) {
+    const key = monthlySnapshotKey(prize);
+    let snapshot = monthlyPrizeSnapshots.get(key);
+    if (!snapshot) {
+      snapshot = {
+        frozenAt: new Date().toISOString(),
+        monthlyScores
+      };
+      monthlyPrizeSnapshots.set(key, snapshot);
+      void persistMonthlyPrizeSnapshot(prize, snapshot);
+    }
+    monthlyScores = snapshot.monthlyScores;
+    frozenAt = snapshot.frozenAt;
+  }
   return {
     scores: dedupeAndSort(archive, ALL_TIME_SCORE_LIMIT),
-    monthlyScores: dedupeAndSort(archive.filter(isCurrentWeekEntry), WEEKLY_SCORE_LIMIT),
+    monthlyScores,
     publicPrize: {
       phase: prize.phase,
       name: prize.name,
@@ -150,7 +192,8 @@ const toLeaderboardPayload = (scores) => {
       snapshotFrozen: prize.snapshotFrozen,
       statusLabel: prize.statusLabel,
       startsAt: prize.scoreWindow.start.toISOString(),
-      endsAt: prize.scoreWindow.end.toISOString()
+      endsAt: prize.scoreWindow.end.toISOString(),
+      ...(frozenAt ? { frozenAt } : {})
     }
   };
 };
@@ -848,6 +891,13 @@ module.exports = async (req, res) => {
 
       if (action !== 'submit-score') {
         return sendJson(res, 400, { error: 'Unknown leaderboard action.' });
+      }
+
+      if (getPublicPrizeState().snapshotFrozen) {
+        return sendJson(res, 409, {
+          error: 'This month\'s standings are frozen.',
+          code: 'MONTHLY_SCORE_SNAPSHOT_FROZEN'
+        });
       }
 
       if (!receiptFinishedInCurrentCompetitionWeek(receipt)) {

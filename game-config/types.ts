@@ -33,6 +33,9 @@ export type BuiltInAssetKey =
   | 'PIXI_BOSS_CROWNCLAW_FRAMES'
   | 'CAMPAIGN_BOSS_ECLIPSE_ENGINE'
   | 'CAMPAIGN_BOSS_FRONTIER_CROWNCLAW'
+  | 'CAMPAIGN_BOSS_MERIDIAN_HARROWER'
+  | 'CAMPAIGN_BOSS_CINDERJAW_SIEGE_BEETLE'
+  | 'CAMPAIGN_BOSS_VESPERGLASS_MOTHMOTHER'
   | 'CAMPAIGN_BOSS_HAMMERHEAD_SIEGE'
   | 'CAMPAIGN_BOSS_HELIOS_CLAWCARRIER'
   | 'CAMPAIGN_BOSS_HELIX_LEVIATHAN'
@@ -123,6 +126,7 @@ export type BossId =
   | 'bottleneck-harvester'
   | 'meridian-harrower'
   | 'cinderjaw-siege-beetle'
+  | 'vesperglass-mothmother'
   | 'gatekeeper'
   | 'gatekeeper-prime'
   | 'paywall-decimator'
@@ -152,8 +156,6 @@ export type CampaignMiniBossId = Extract<
   | 'aegis-convoy-captain'
   | 'gridline-sentries'
   | 'bottleneck-harvester'
-  | 'meridian-harrower'
-  | 'cinderjaw-siege-beetle'
 >;
 export type BossRigId = 'open-orbit' | 'citation-storm' | 'paywall-siege' | 'crown-claw';
 export type PowerupId = 'projectile-upgrade' | 'max-shot' | 'magnet' | 'shield' | 'research-beam' | 'extra-life';

@@ -71,7 +71,9 @@ test('promoted Test Bosses expose their exact assembled art through every asset 
   };
 
   for (const [key, bossId] of Object.entries(promotedAssets)) {
-    const relativePath = `bosses/campaign-packages/${bossId}/assembled.png`;
+    const relativePath = key === 'CAMPAIGN_BOSS_FRONTIER_CROWNCLAW'
+      ? 'bosses/astral-crownclaw/astral-crownclaw-intact.png'
+      : `bosses/campaign-packages/${bossId}/assembled.png`;
     assert.match(constantsSource, new RegExp(`${key}:\\s*"/game-art/generated/${relativePath.replaceAll('.', '\\.')}`));
     assert.match(typesSource, new RegExp(`'${key}'`));
     assert.match(catalogSource, new RegExp(`${key}: asset\\('${key}'`));
@@ -95,7 +97,7 @@ test('every revision-24 sector ends in one authored major-boss Mission', () => {
     [20, { bossId: 'frontier-crownclaw', spriteKey: 'CAMPAIGN_BOSS_FRONTIER_CROWNCLAW' }],
     [25, { bossId: 'helios-clawcarrier', spriteKey: 'CAMPAIGN_BOSS_HELIOS_CLAWCARRIER' }],
     [30, { bossId: 'nullwake-revenant', spriteKey: 'CAMPAIGN_BOSS_NULLWAKE_REVENANT' }],
-    [35, { bossId: 'singularity-crab', spriteKey: 'CAMPAIGN_BOSS_SINGULARITY_CRAB' }],
+    [35, { bossId: 'meridian-harrower', spriteKey: 'CAMPAIGN_BOSS_MERIDIAN_HARROWER' }],
     [40, { bossId: 'orbit-gyroscope', spriteKey: 'CAMPAIGN_BOSS_ORBIT_GYROSCOPE' }],
     [45, { bossId: 'hammerhead-siege', spriteKey: 'CAMPAIGN_BOSS_HAMMERHEAD_SIEGE' }],
     [50, { bossId: 'umbra-needlewing', spriteKey: 'CAMPAIGN_BOSS_UMBRA_NEEDLEWING' }]
@@ -153,9 +155,7 @@ test('each sector checkpoint and boss-preparation Mission ends with an authored 
     ['prism-bloom', 'CAMPAIGN_ENEMY_BULLET_RING_EMITTER'],
     ['aegis-convoy-captain', 'CAMPAIGN_ENEMY_LASER_HUNTER'],
     ['gridline-sentries', 'CAMPAIGN_ENEMY_RING_SENTINEL'],
-    ['bottleneck-harvester', 'CAMPAIGN_MINI_BOSS_BOTTLENECK_HARVESTER'],
-    ['meridian-harrower', 'CAMPAIGN_MINI_BOSS_MERIDIAN_HARROWER'],
-    ['cinderjaw-siege-beetle', 'CAMPAIGN_MINI_BOSS_CINDERJAW_SIEGE_BEETLE']
+    ['bottleneck-harvester', 'CAMPAIGN_MINI_BOSS_BOTTLENECK_HARVESTER']
   ]);
   const miniBossIds = new Set(campaign.miniBosses.map((entry) => entry.bossId));
   assert.deepEqual(miniBossIds, new Set(expectedSpriteByBossId.keys()));

@@ -32,7 +32,8 @@ test('Home offers the Campaign entry point and the Weekly Run as separate contro
   assert.match(source, /weeklyRunAttemptsRemaining/);
   assert.match(source, /disabled=\{attemptsExhausted\}/);
   assert.match(source, /needsServerVerification = weeklyRunAttemptQuotaUnknown[\s\S]*weeklyRunAttemptsRemaining <= 0/);
-  assert.match(source, /Play Weekly Run\. \$\{weeklyRunAttemptsRemaining\} attempt/);
+  assert.match(source, /Play \$\{runTitle\}\. \$\{weeklyRunAttemptsRemaining\} attempt/);
+  assert.match(source, /const runTitle = eventBoard \? '25K RSC Event' : 'Weekly Run'/);
   assert.match(appSource, /weeklyRunAttemptsRemaining=\{weeklyRunAttemptQuotaOwner === activeWalletAddress\?\.toLowerCase\(\)[\s\S]*weeklyRunAttemptQuota\.attemptsRemaining[\s\S]*getWeeklyRunAttemptsRemaining\(weeklySquadState\)\}/);
   assert.match(appSource, /weeklyRunAttemptQuotaUnknown=\{Boolean\([\s\S]*walletProfileStatus === 'ready'/);
   assert.match(source, /onClick=\{onStart\}/);
@@ -94,10 +95,12 @@ test('the live prize is one 25,000 RSC November event', () => {
   const pickerSource = fs.readFileSync(path.join(__dirname, '..', 'components', 'WeeklyProposalSelection.tsx'), 'utf8');
 
   assert.match(boundarySource, /const WEEKLY_ALLOCATION_RSC = 1_000/);
-  assert.match(boundarySource, /const SCICON_BIG_EVENT = Object\.freeze\(\{[\s\S]*allocationRsc: 25_000[\s\S]*closesAt: '2026-11-30T07:59:00\.000Z'[\s\S]*weeklyResumesWeekKey: '2026-12-06'/);
+  assert.match(boundarySource, /const SCICON_BIG_EVENT = Object\.freeze\(\{[\s\S]*allocationRsc: 25_000[\s\S]*closesAt: '2026-11-30T07:59:00\.000Z'/);
+  assert.match(boundarySource, /Each calendar month the top score wins 25,000 RSC/);
   assert.match(boundaryBrowserSource, /export const SCICON_BIG_EVENT = boundary\.SCICON_BIG_EVENT/);
   assert.match(source, /getPublicPrizeState/);
-  assert.match(source, /winner announced Nov 30/);
+  assert.match(source, /weeklyAllocation\.rulesText/);
+  assert.match(source, /25K RSC Event/);
   assert.match(source, /Weekly Funding/);
   assert.match(source, /SciCon Big Event/);
   assert.match(competitionSource, /\|\| WEEKLY_ALLOCATION_RSC/);

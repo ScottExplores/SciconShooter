@@ -3141,42 +3141,6 @@ const App: React.FC = () => {
       return;
     }
 
-    // BIO is a live holding gate rather than a one-time ownership flag. Recheck
-    // it at the launch boundary so moving the tokens after opening the Hangar
-    // cannot start a new flight with stale eligibility. Never revoke a hull in
-    // the middle of a flight.
-    if (!authorizedCampaignLabRequest && usableShipId === 'bio' && !isOwnerWallet) {
-      if (!activeWalletAddress) {
-        setWalletError('Connect the Base Account holding at least 100 BIO before starting this flight.');
-        releaseLaunchReservation();
-        return;
-      }
-      setPlayerShipAccessUpdate((current) => ({
-        status: 'loading',
-        access: current.access
-      }));
-      try {
-        const verifiedAccess = await loadPlayerShipAccess(activeWalletAddress as Address, {
-          interactive: false
-        });
-        setPlayerShipAccessUpdate({ status: 'ready', access: verifiedAccess });
-        if (!verifiedAccess.bio) {
-          setWalletError('This Base Account needs at least 100 BIO to fly the BIO ship. Choose another ship or add BIO, then refresh access.');
-          releaseLaunchReservation();
-          return;
-        }
-        setWalletError('');
-      } catch (error) {
-        const message = error instanceof Error
-          ? error.message
-          : 'BIO holdings could not be verified before launch.';
-        setPlayerShipAccessUpdate({ status: 'error', access: null, error: message });
-        setWalletError(message);
-        releaseLaunchReservation();
-        return;
-      }
-    }
-
     const requestedBossReplay = bossEncounterId ? getBossArchiveEntry(bossEncounterId) : null;
     const matchingReusableArchiveRun = requestedBossReplay
       && reusableBossArchiveRun?.eventId === requestedBossReplay.eventId

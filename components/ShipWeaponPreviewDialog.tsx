@@ -317,7 +317,7 @@ const ShipWeaponPreviewDialog: React.FC<ShipWeaponPreviewDialogProps> = ({
             }}
             className="min-h-11 px-3 text-[0.68rem] font-black uppercase"
           >
-            {selected ? 'Currently equipped' : `Equip ${ship.name.replace(/ ship$/i, '')}`}
+            {selected ? 'Currently equipped' : `Equip ${ship.name === 'NIH ship' ? ship.name : ship.name.replace(/ ship$/i, '')}`}
           </PixelActionButton>
         </div>
       </section>

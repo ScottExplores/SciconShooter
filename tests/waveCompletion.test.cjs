@@ -45,12 +45,27 @@ test('ten five-Mission sectors own tactical Waves and reserve boss-defeat for ma
     assert.deepEqual(levels.map((level) => level.campaignProgression.missionRole), expectedRoles);
   });
 
+  const promotedBossByMission = new Map([
+    ['stage-hammerhead-line-route-b', 'cinderjaw-siege-beetle'],
+    ['stage-crownclaw-frontier-route-b', 'vesperglass-mothmother']
+  ]);
+
   campaign.levels.forEach((level) => {
     const isMajorBossMission = level.campaignProgression.missionRole === 'major-boss';
+    const promotedBossId = promotedBossByMission.get(level.id);
     level.waves.forEach((wave, index) => {
       const isMajorBossFinale = isMajorBossMission && index === level.waves.length - 1;
+      const isPromotedFinale = Boolean(promotedBossId) && index === level.waves.length - 1;
       const sector = campaign.sectors.find((candidate) => candidate.id === level.campaignProgression.sectorId);
       const majorBosses = wave.events.filter((event) => event.kind === 'boss' && event.bossId === sector.majorBossId);
+      if (isPromotedFinale) {
+        assert.equal(wave.completionRule, 'boss-defeat', wave.id);
+        assert.equal(wave.events.length, 1, wave.id);
+        assert.equal(wave.events[0].bossId, promotedBossId, wave.id);
+        assert.equal(wave.events[0].startSeconds, 0, wave.id);
+        assert.equal(majorBosses.length, 0, wave.id);
+        return;
+      }
       assert.equal(majorBosses.length, wave.completionRule === 'boss-defeat' ? 1 : 0, wave.id);
       assert.equal(wave.completionRule, isMajorBossFinale ? 'boss-defeat' : 'clear-after-duration');
       if (isMajorBossFinale) {

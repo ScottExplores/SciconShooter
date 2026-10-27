@@ -52,6 +52,13 @@ const expectedBossSlots = [
     encounterAssetKey: 'CAMPAIGN_BOSS_NULLWAKE_REVENANT'
   },
   {
+    order: 35,
+    bossId: 'meridian-harrower',
+    health: 3300,
+    eventId: 'stage-singularity-reach-commander-major-boss',
+    encounterAssetKey: 'CAMPAIGN_BOSS_MERIDIAN_HARROWER'
+  },
+  {
     order: 40,
     bossId: 'orbit-gyroscope',
     health: 3400,
@@ -170,7 +177,7 @@ test('authored Campaign hull health remains monotonic after the Revenant promoti
     [20, 1600],
     [25, 2350],
     [30, 2500],
-    [35, 3000],
+    [35, 3300],
     [40, 3400],
     [45, 3900],
     [50, 4800]

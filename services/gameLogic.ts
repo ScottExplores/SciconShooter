@@ -1370,7 +1370,7 @@ const getReadyImage = (url: string) => {
 
 const GAMEPLAY_ASSET_URLS = [
   ASSETS.PLAYER_SHIP,
-  ASSETS.BIO_SHIP,
+  ASSETS.NIH_SHIP,
   ASSETS.ETH_SHIP,
   ASSETS.BTC_SHIP,
   ASSETS.RSC_TOKEN,
@@ -8602,7 +8602,7 @@ export class GameEngine {
         height: 126,
         speed: 10.5,
         damage: 5.5,
-        color: '#86efac',
+        color: '#67e8f9',
         yOffset: -102,
         weaponKind: 'bio-laser',
         pierceRemaining: 12
@@ -14166,6 +14166,14 @@ export class GameEngine {
         boss.width = Math.min(this.width * 0.78, 280);
         boss.height = boss.width * (704 / 1024);
         boss.x -= (boss.width - previousWidth) / 2;
+      }
+      if (boss.sourceItemId === 'frontier-crownclaw') {
+        const previousWidth = boss.width;
+        const previousHeight = boss.height;
+        boss.width = Math.round(this.width * 0.66);
+        boss.height = Math.round(boss.width * (512 / 640));
+        boss.x -= (boss.width - previousWidth) / 2;
+        boss.y -= (boss.height - previousHeight) / 2;
       }
       boss.bossComponents = configured.componentMode === 'hull-only'
         ? []
@@ -24961,7 +24969,12 @@ export class GameEngine {
        }
        if (img && img.complete && img.naturalWidth > 0) {
           ctx.save();
-          ctx.drawImage(img, -e.width / 2, -e.height / 2, e.width, e.height);
+          const imageWidth = Math.max(1, img.width);
+          const imageHeight = Math.max(1, img.height);
+          const uniformScale = Math.min(e.width / imageWidth, e.height / imageHeight);
+          const drawWidth = imageWidth * uniformScale;
+          const drawHeight = imageHeight * uniformScale;
+          ctx.drawImage(img, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
           ctx.restore();
        } else {
          ctx.fillStyle = '#6c63ff';

@@ -57,6 +57,7 @@ test('the revision-24 Campaign roster resolves through generated or dedicated bo
     [20, 'frontier-crownclaw'],
     [25, 'helios-clawcarrier'],
     [30, 'nullwake-revenant'],
+    [35, 'meridian-harrower'],
     [50, 'umbra-needlewing']
   ]);
   for (const [missionOrder, bossId] of dedicatedBossSlots) {
@@ -68,11 +69,10 @@ test('the revision-24 Campaign roster resolves through generated or dedicated bo
       `M${missionOrder} retains its dedicated Boss Factory runtime`
     );
   }
-  assert.equal(generatedBosses.length, 3);
+  assert.equal(generatedBosses.length, 2);
   assert.deepEqual(
     JSON.parse(JSON.stringify(generatedBosses)),
     [
-      { id: 'stage-singularity-reach-commander-major-boss', spriteKey: 'CAMPAIGN_BOSS_SINGULARITY_CRAB', archetype: 'singularity-crab' },
       { id: 'stage-gyroscope-array-commander-major-boss', spriteKey: 'CAMPAIGN_BOSS_ORBIT_GYROSCOPE', archetype: 'orbit-gyroscope' },
       { id: 'stage-hammerhead-line-commander-major-boss', spriteKey: 'CAMPAIGN_BOSS_HAMMERHEAD_SIEGE', archetype: 'hammerhead-siege' }
     ]
