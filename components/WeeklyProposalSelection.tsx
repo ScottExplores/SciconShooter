@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { ResearchHubProposal } from '../services/researchHubProposals';
 import { sortProposalsByFunding } from '../services/proposalFunding';
-import { WEEKLY_ALLOCATION_RSC } from '../shared/weeklyCompetitionBoundary.browser';
+import { PRIZE_EVENT_ALLOCATION_RSC } from '../shared/weeklyCompetitionBoundary.browser';
 
 type ProposalFeedStatus = 'loading' | 'ready' | 'empty' | 'error';
 type ProposalSelectionStatus = 'idle' | 'saving' | 'confirmed' | 'error';
@@ -25,7 +25,7 @@ interface WeeklyProposalSelectionProps {
 const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
   pilotName,
   score,
-  allocationRsc = WEEKLY_ALLOCATION_RSC,
+  allocationRsc = PRIZE_EVENT_ALLOCATION_RSC,
   proposals,
   proposalStatus,
   selectionStatus,
@@ -111,7 +111,7 @@ const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
         <div className="relative overflow-hidden border-b border-yellow-200/20 px-4 py-4 text-center sm:px-6">
           <div className="pointer-events-none absolute left-1/2 top-1/2 h-20 w-64 -translate-x-1/2 -translate-y-1/2 bg-yellow-300/10 blur-xl" />
           <p className="relative animate-pulse font-mono text-[10px] font-black uppercase tracking-[0.28em] text-yellow-200 drop-shadow-[0_0_12px_currentColor]">
-            New weekly high score
+            New event high score
           </p>
           <h2 id="weekly-proposal-selection-title" className="arcade-font relative mt-2 text-2xl font-black uppercase tracking-wider text-white sm:text-3xl">
             You&apos;re #1, {pilotName || 'Pilot'}
@@ -120,17 +120,17 @@ const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
             {score.toLocaleString()} points
           </p>
           <p id="weekly-proposal-selection-description" className="relative mx-auto mt-2 max-w-sm text-[11px] font-semibold leading-relaxed text-slate-300">
-            Choose the ResearchHub proposal that receives the {allocationRsc.toLocaleString('en-US')} RSC allocation if your score remains first at the weekly cutoff.
+            Choose the ResearchHub proposal that receives the {allocationRsc.toLocaleString('en-US')} RSC prize if your score is first when scoring closes.
           </p>
           <p className="relative mx-auto mt-1 max-w-sm font-mono text-[9px] font-bold uppercase tracking-[0.08em] text-cyan-200/70">
-            Only proposals open past Sunday&apos;s noon-Pacific cutoff are eligible.
+            Only proposals whose funding deadline is after November 30, 2026 are eligible.
           </p>
           {dismissible && onClose ? (
             <button
               type="button"
               onClick={onClose}
               disabled={isSaving}
-              aria-label="Choose weekly proposal later"
+              aria-label="Choose proposal later"
               className="absolute right-3 top-3 h-8 w-8 rounded-[5px] border border-white/15 bg-black/35 text-base font-bold text-slate-300 transition hover:border-white/35 hover:text-white disabled:cursor-wait disabled:opacity-45"
             >
               x

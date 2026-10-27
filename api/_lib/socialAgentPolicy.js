@@ -1,4 +1,4 @@
-const { WEEKLY_ALLOCATION_RSC } = require('../../shared/weeklyCompetitionBoundary.js');
+const { PRIZE_EVENT_ALLOCATION_RSC } = require('../../shared/weeklyCompetitionBoundary.js');
 
 const OFFICIAL_URLS = new Set([
   'https://www.sciconshooter.xyz/',
@@ -110,10 +110,10 @@ const deterministicReply = (reason, mentionText = '') => {
     return 'One click, no wallet required: https://www.sciconshooter.xyz/ Bring back a score.';
   }
   if (reason === 'funding_question') {
-    return `The weekly top verified score chooses an eligible ResearchHub proposal for that round's ${WEEKLY_ALLOCATION_RSC.toLocaleString('en-US')} RSC Funding Credits. What part should we unpack?`;
+    return `The top verified score from October 26 through November 29, 2026 chooses a ResearchHub proposal for ${PRIZE_EVENT_ALLOCATION_RSC.toLocaleString('en-US')} RSC Funding Credits. The proposal must stay open after November 30. What part should we unpack?`;
   }
   if (reason === 'competition_question') {
-    return 'The weekly board closes Sunday at noon Pacific. Put up a verified score before the cutoff: https://www.sciconshooter.xyz/';
+    return 'Scoring for the 25,000 RSC event closes Sunday, November 29, 2026 at 11:59 PM Pacific. Put up a verified score before then: https://www.sciconshooter.xyz/';
   }
   if (reason === 'score') {
     return 'Score received. Which ship did you use, and where did the run start getting ugly?';

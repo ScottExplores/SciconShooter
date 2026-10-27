@@ -1,5 +1,5 @@
 {
   "name": "Scicon Shooter",
-  "description": "A Base-native arcade game where high-score missions help direct weekly RSC funding to active ResearchHub proposals.",
+  "description": "A Base-native arcade game. The top score from October 26 through November 29, 2026 wins 25,000 RSC toward a ResearchHub proposal of their choice.",
   "requestFramePermissions": []
 }

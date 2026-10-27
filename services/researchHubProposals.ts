@@ -1,4 +1,4 @@
-import { getWeeklyBoundaryMeta } from '../shared/weeklyCompetitionBoundary.browser';
+import { getPrizeEventMeta } from '../shared/weeklyCompetitionBoundary.browser';
 import { isFundingDeadlineAfter } from '../shared/researchHubProposalEligibility.browser';
 import { getProposalFundingMetrics } from './proposalFunding';
 
@@ -220,7 +220,7 @@ const fetchProposalResponse = async (url: string): Promise<Response> => {
 };
 
 export const getResearchHubProposalFeed = async ({
-  requiredOpenUntil = getWeeklyBoundaryMeta().endsAt,
+  requiredOpenUntil = getPrizeEventMeta().proposalOpenUntil,
   includeProposalIds = []
 }: ResearchHubProposalFeedOptions = {}): Promise<ResearchHubProposalFeedResult> => {
   const requestedProposalIds = normalizeIncludedProposalIds(includeProposalIds);
@@ -267,7 +267,7 @@ export const getResearchHubProposalFeed = async ({
  * Backward-compatible eligible-list wrapper used by existing callers.
  */
 export const getResearchHubFundingProposals = async (
-  requiredOpenUntil: Date | string | number = getWeeklyBoundaryMeta().endsAt
+  requiredOpenUntil: Date | string | number = getPrizeEventMeta().proposalOpenUntil
 ): Promise<ResearchHubProposal[]> => {
   const { eligibleProposals } = await getResearchHubProposalFeed({ requiredOpenUntil });
   return eligibleProposals;

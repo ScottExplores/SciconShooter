@@ -651,7 +651,7 @@ test('policy routes sensitive support, ignores hostility, and validates X length
   assert.equal(classifyMention('How do the RSC Funding Credits work?').reason, 'funding_question');
   assert.equal(classifyMention('When does the weekly leaderboard reset?').reason, 'competition_question');
   assert.match(deterministicReply('play_question'), /sciconshooter\.xyz/);
-  assert.match(deterministicReply('funding_question'), /1,000 RSC Funding Credits/);
+  assert.match(deterministicReply('funding_question'), /25,000 RSC Funding Credits/);
   assert.match(
     deterministicReply('sensitive_support', 'Was funding sent?'),
     /transaction evidence is verified/

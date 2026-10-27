@@ -2,7 +2,7 @@ import { LeaderboardData, LeaderboardEntry } from '../types';
 import type { ResearchHubProposal } from './researchHubProposals';
 import type { RunReceipt } from './runReceiptService';
 import type { Address, Hex } from 'viem';
-import { getWeeklyBoundaryMeta } from '../shared/weeklyCompetitionBoundary.browser';
+import { getPrizeEventMeta } from '../shared/weeklyCompetitionBoundary.browser';
 import { selectWeeklyProposalWithFreshChallenge } from './weeklyProposalAuthorization';
 
 const API_URL = (import.meta.env.VITE_LEADERBOARD_API_URL as string | undefined)?.trim() || '/api/leaderboard';
@@ -21,7 +21,7 @@ const sanitizeUrl = (value: unknown): string | undefined => {
 };
 
 const getCurrentWeekRange = () => {
-  const boundary = getWeeklyBoundaryMeta();
+  const boundary = getPrizeEventMeta();
 
   return {
     start: boundary.startsAt.getTime(),

@@ -4,6 +4,12 @@ const WEEK_BOUNDARY_HOUR = 12;
 // One source of truth for every current-week funding claim. Historical
 // competition rows keep their recorded allocation instead of being rewritten.
 const WEEKLY_ALLOCATION_RSC = 1_000;
+// The live public prize is one fixed event. Historical week rows keep the
+// allocation stored on those rows; this constant is only the current event.
+const PRIZE_EVENT_ALLOCATION_RSC = 25_000;
+const PRIZE_EVENT_START_ISO = '2026-10-26T07:00:00.000Z';
+const PRIZE_EVENT_CLOSE_ISO = '2026-11-30T07:59:00.000Z';
+const PRIZE_EVENT_PROPOSAL_OPEN_UNTIL_ISO = '2026-12-01T08:00:00.000Z';
 // A score receipt can finish before cutoff while its verified leaderboard write
 // is still in flight. Keep the public rollover behind this short settlement
 // window so the new board and the archived Past Pick can publish together.
@@ -206,6 +212,25 @@ const resolveWeeklyDashboardPublication = (completedWeekKeys = [], now = new Dat
   };
 };
 
+const getPrizeEventMeta = (now = new Date()) => {
+  const instant = toDate(now);
+  const startsAt = new Date(PRIZE_EVENT_START_ISO);
+  const endsAt = new Date(PRIZE_EVENT_CLOSE_ISO);
+  const proposalOpenUntil = new Date(PRIZE_EVENT_PROPOSAL_OPEN_UNTIL_ISO);
+  const closed = instant.getTime() >= endsAt.getTime();
+  const remainingMs = Math.max(0, endsAt.getTime() - instant.getTime());
+
+  return {
+    startsAt,
+    endsAt,
+    proposalOpenUntil,
+    daysLeft: closed ? 0 : Math.max(1, Math.ceil(remainingMs / 86_400_000)),
+    endLabel: 'Nov 29',
+    closed,
+    allocationRsc: PRIZE_EVENT_ALLOCATION_RSC
+  };
+};
+
 const getWeeklyBoundaryMeta = (now = new Date(), locale) => {
   const instant = toDate(now);
   const current = getCurrentWeekRange(instant);
@@ -233,6 +258,7 @@ const getWeeklyBoundaryMeta = (now = new Date(), locale) => {
 return {
   WEEK_BOUNDARY_HOUR,
   WEEKLY_ALLOCATION_RSC,
+  PRIZE_EVENT_ALLOCATION_RSC,
   WEEKLY_SCORE_SETTLEMENT_MS,
   WEEK_TIME_ZONE,
   getCurrentWeekRange,
@@ -240,6 +266,7 @@ return {
   resolveWeeklyDashboardPublication,
   getWeeklyPresentationMeta,
   getWeeklyBoundaryMeta,
+  getPrizeEventMeta,
   getWeekRange
 };
 };

@@ -30,8 +30,7 @@ import { ALL_TIME_SCORE_LIMIT, WEEKLY_SCORE_LIMIT } from '../services/leaderboar
 import { resolveProposalSelection } from '../services/weeklyProposalDisplay';
 import { isProposalExplicitlyCompleted } from '../services/weeklyProposalLifecycle';
 import {
-  getWeeklyPresentationMeta,
-  WEEKLY_ALLOCATION_RSC
+  getPrizeEventMeta
 } from '../shared/weeklyCompetitionBoundary.browser';
 import { buildMissionRecordCardPath } from '../shared/record-card/renderRecordCardSvg.mjs';
 import {
@@ -449,10 +448,17 @@ const FirstPlaceLivingRow = ({
   );
 };
 
-const getWeeklyAllocationMeta = (now = new Date()) => ({
-  ...getWeeklyPresentationMeta(now),
-  allocationRsc: WEEKLY_ALLOCATION_RSC
-});
+const getWeeklyAllocationMeta = (now = new Date()) => {
+  const event = getPrizeEventMeta(now);
+  return {
+    ...event,
+    countdownLabel: event.closed
+      ? 'Scoring closed, winner announced Nov 30'
+      : event.daysLeft <= 1
+        ? 'Closes today, 11:59 PM PT'
+        : `Closes in ${event.daysLeft} days`
+  };
+};
 
 const getPastPickTime = (pick: ArchivedWinner) => {
   const dateCandidates = [
@@ -1574,22 +1580,20 @@ const StartScreen: React.FC<StartScreenProps> = ({
         <div className={`sci-weekly-funding-summary ${compact ? 'mb-2 pb-2' : 'mb-3 pb-3'} grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 border-b border-cyan-200/14`}>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-lg font-black text-emerald-200">Weekly Funding</h2>
-              <StatusPill tone={weeklyAllocation.isFinalizing ? 'gold' : 'green'}>
-                {weeklyAllocation.isFinalizing ? 'Finalizing' : 'Live'}
+              <h2 className="text-lg font-black text-emerald-200">November Event</h2>
+              <StatusPill tone={weeklyAllocation.closed ? 'gold' : 'green'}>
+                {weeklyAllocation.closed ? 'Closed' : 'Live'}
               </StatusPill>
             </div>
-            <p className="text-xs text-slate-300">Season 7 - Week {weeklyAllocation.endLabel}</p>
+            <p className="text-xs text-slate-300">25,000 RSC to the top score, toward one ResearchHub proposal.</p>
           </div>
           <div className="text-right">
-            <p className="text-[0.62rem] font-bold uppercase text-slate-400">Prize Pool</p>
+            <p className="text-[0.62rem] font-bold uppercase text-slate-400">Prize</p>
             <p className="mt-0.5 text-2xl font-black leading-none text-emerald-300">
               {weeklyAllocation.allocationRsc.toLocaleString()} <span className="text-sm">RSC</span>
             </p>
             <p className="mt-1 text-[0.68rem] font-semibold text-slate-300">
-              {weeklyAllocation.isFinalizing
-                ? 'Publishing the new week and Past Pick together'
-                : `Ends ${weeklyAllocation.daysLeft === 0 ? 'today' : `in ${weeklyAllocation.daysLeft} day${weeklyAllocation.daysLeft === 1 ? '' : 's'}`}`}
+              {weeklyAllocation.countdownLabel}
             </p>
           </div>
         </div>
@@ -1598,7 +1602,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
           className={`sci-weekly-winner-card group relative w-full overflow-hidden rounded-[8px] border border-emerald-300/24 bg-slate-950/50 text-left transition hover:border-emerald-200/65 hover:bg-emerald-300/10 ${compact ? 'sci-weekly-winner-card--compact' : ''}`}
           role="region"
           aria-roledescription="carousel"
-          aria-label={weeklyProposalSelection ? 'Weekly leader and selected research proposal' : 'Weekly leader'}
+          aria-label={weeklyProposalSelection ? 'Event leader and selected research proposal' : 'Event leader'}
           onMouseEnter={() => setWeeklyWinnerAutoPaused(true)}
           onMouseLeave={() => setWeeklyWinnerAutoPaused(false)}
           onFocusCapture={() => setWeeklyWinnerAutoPaused(true)}
@@ -1620,7 +1624,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
               onClick={() => setDashboardTab('trophies')}
               tabIndex={weeklyWinnerSlide === 'pilot' || !weeklyProposalSelection ? 0 : -1}
               aria-hidden={weeklyWinnerSlide === 'proposal' && Boolean(weeklyProposalSelection)}
-              aria-label={`${weeklyLeaderName}, weekly high score ${formatNumber(weeklyLeaderScore)}. Open Trophy Deck.`}
+              aria-label={`${weeklyLeaderName}, event high score ${formatNumber(weeklyLeaderScore)}. Open Trophy Deck.`}
             >
               <span
                 className={`relative z-10 grid gap-3 ${compact ? '' : 'grid-cols-[5.25rem_minmax(0,1fr)]'}`}
@@ -1639,7 +1643,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
                 <span className="min-w-0 self-center">
                   <span className="flex items-center gap-2">
                     <span className="sci-weekly-live-dot" />
-                    <span className="text-[0.62rem] font-black uppercase text-emerald-200">Weekly high score</span>
+                    <span className="text-[0.62rem] font-black uppercase text-emerald-200">Event high score</span>
                   </span>
                   <span className="mt-2 grid grid-cols-[minmax(0,1fr)_auto] gap-2">
                     <span className="min-w-0">
@@ -1762,7 +1766,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
           const rewardAttention = tab.id === 'more' && hasRewardReady;
           const proposalAttention = tab.id === 'trophies' && weeklyProposalNeedsAttention;
           const tabLabel = proposalAttention
-            ? 'Trophies - weekly high score proposal needs your selection'
+            ? 'Trophies - event high score proposal needs your selection'
             : rewardAttention
               ? `More - ${dailyGiftStatus.isAvailable ? 'daily gift' : 'achievement'} ready`
               : tab.label;
@@ -1900,7 +1904,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
           <p className="text-sm text-slate-300">
             {isCampaignCategory
               ? 'Campaign progression: sectors cleared, Missions mastered, and bosses beaten.'
-              : 'Weekly Run scores, champion picks, confirmed funding, and your recent runs.'}
+              : 'November event standings, proposal picks, confirmed funding, and your recent runs.'}
           </p>
         </div>
 
@@ -1908,7 +1912,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
             Campaign is progression and records no score. */}
         <div className="sci-trophy-category" role="tablist" aria-label="Trophy deck category">
           {([
-            ['weeklyFunding', 'Weekly Funding'],
+            ['weeklyFunding', 'November Event'],
             ['campaign', 'Campaign']
           ] as const).map(([id, label]) => (
             <button
@@ -1947,7 +1951,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
         <div className="mb-4 grid grid-cols-4 rounded-[6px] border border-cyan-300/18 bg-slate-950/70 p-1">
             {[
-              ['weekly', 'Weekly'],
+              ['weekly', 'Event'],
               ['allTime', 'All-time'],
               ['pastPicks', 'Past picks'],
               ['records', 'My records']
@@ -2154,7 +2158,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
                         : weeklyProposalNeedsAttention
                           ? 'Choose'
                           : 'Change'
-                    } proposal for weekly high score ${formatNumber(run.receipt.metrics.score)}`
+                    } proposal for event high score ${formatNumber(run.receipt.metrics.score)}`
                     : undefined}
                   className={`group relative grid w-full grid-cols-[3.25rem_minmax(0,1fr)_auto] items-center gap-3 overflow-hidden rounded-[8px] border border-cyan-300/18 bg-[linear-gradient(135deg,rgba(8,47,73,0.36),rgba(15,23,42,0.72)_48%,rgba(2,6,23,0.82))] px-3 py-2.5 text-left shadow-[inset_0_0_1.25rem_rgba(34,211,238,0.035)] transition hover:border-cyan-200/45 hover:bg-cyan-300/8 ${proposalNeedsAttention ? 'sci-proposal-attention' : ''}`}
                 >
@@ -2466,7 +2470,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
             aria-describedby="weekly-proposal-reminder-description"
             onKeyDown={handleWeeklyProposalReminderKeyDown}
           >
-            <p className="sci-weekly-proposal-reminder__eyebrow">Weekly high score alert</p>
+            <p className="sci-weekly-proposal-reminder__eyebrow">Event high score alert</p>
             <h2 id="weekly-proposal-reminder-title">
               {weeklyProposalAttentionReason === 'completed'
                 ? 'Your research pick reached its goal'
@@ -2474,8 +2478,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
             </h2>
             <p id="weekly-proposal-reminder-description">
               {weeklyProposalAttentionReason === 'completed'
-                ? `Your selected proposal was fully funded before the weekly cutoff. You are still the current #1 pilot with ${formatNumber(weeklyProposalRecovery.leader.score)} points, so choose another open proposal for this week's allocation.`
-                : `You are still the current #1 pilot with ${formatNumber(weeklyProposalRecovery.leader.score)} points, but no ResearchHub proposal is attached to this run yet. Choose one now so your weekly funding pick is ready.`}
+                ? `Your selected proposal was fully funded. You are still the current #1 pilot with ${formatNumber(weeklyProposalRecovery.leader.score)} points, so choose another open proposal whose funding deadline is after November 30, 2026.`
+                : `You are still the current #1 pilot with ${formatNumber(weeklyProposalRecovery.leader.score)} points, but no ResearchHub proposal is attached to this run yet. Choose one whose funding deadline is after November 30, 2026.`}
             </p>
             <div className="sci-weekly-proposal-reminder__actions">
               <button
@@ -2815,9 +2819,9 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
             <div className="mt-5 grid gap-5 text-sm leading-relaxed text-slate-300">
               <section>
-                <h3 className="font-black uppercase text-cyan-100">Weekly competition</h3>
+                <h3 className="font-black uppercase text-cyan-100">November event</h3>
                 <p className="mt-2">
-                  Leaderboard positions remain provisional until the weekly cutoff. The finalized No. 1 pilot may choose an eligible ResearchHub proposal for the announced allocation. Selection and funding are separate steps; funding is only confirmed after a Base transaction reference is recorded.
+                  One prize: 25,000 RSC to the top high-score winner, awarded toward a ResearchHub proposal of the winner&apos;s choice. Scoring opened October 26, 2026 and closes Sunday, November 29, 2026 at 11:59 PM Pacific. The winner is announced Monday, November 30, 2026. The winner must pick an open ResearchHub proposal whose funding deadline is after November 30, 2026, so the proposal is still live when the prize is funded. Standings are the top scores submitted during this window. Selection and funding are separate steps; funding is only confirmed after a Base transaction reference is recorded.
                 </p>
               </section>
               <section>

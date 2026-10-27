@@ -14,7 +14,16 @@ const {
 } = require('./_lib/walletProfileAuth');
 const crypto = require('crypto');
 const { checkRateLimit } = require('./_lib/rateLimit');
-const { getCurrentWeekRange, getWeekRange } = require('../shared/weeklyCompetitionBoundary.js');
+const { getPrizeEventMeta, getWeekRange } = require('../shared/weeklyCompetitionBoundary.js');
+
+const getPrizeEventRange = (now = new Date()) => {
+  const event = getPrizeEventMeta(now);
+  return {
+    start: event.startsAt,
+    end: event.endsAt,
+    proposalOpenUntil: event.proposalOpenUntil
+  };
+};
 
 const LEGACY_SUPABASE_SELECT = 'name,score,wave,date,wallet_address,donated';
 const PROPOSAL_SUPABASE_SELECT = `${LEGACY_SUPABASE_SELECT},proposal_id,proposal_title,proposal_url,proposal_author`;
@@ -54,7 +63,7 @@ const sanitizeUrl = (value) => {
 const receiptFinishedInCurrentCompetitionWeek = (receipt, now = new Date()) => {
   const finishedAt = new Date(receipt?.finishedAt);
   if (!Number.isFinite(finishedAt.getTime())) return false;
-  const { start, end } = getCurrentWeekRange(now);
+  const { start, end } = getPrizeEventRange(now);
   return finishedAt.getTime() >= start.getTime() && finishedAt.getTime() < end.getTime();
 };
 
@@ -82,7 +91,7 @@ const isDuplicateKeyError = (details) => (
 
 const isCurrentWeekEntry = (entry) => {
   const timestamp = new Date(entry.date || 0).getTime();
-  const { start, end } = getCurrentWeekRange();
+  const { start, end } = getPrizeEventRange();
   return Number.isFinite(timestamp) && timestamp >= start.getTime() && timestamp < end.getTime();
 };
 
@@ -206,7 +215,7 @@ const requestSupabaseScores = async (selectColumns, query = '') => {
 };
 
 const readSupabaseScores = async () => {
-  const { start, end } = getCurrentWeekRange();
+  const { start, end } = getPrizeEventRange();
   const monthlyQuery = `&date=gte.${encodeURIComponent(start.toISOString())}&date=lt.${encodeURIComponent(end.toISOString())}&limit=${WEEKLY_SCORE_LIMIT}`;
   let rows;
   let monthlyRows;
@@ -566,7 +575,7 @@ const selectProposalForWeeklyLeader = async (
   }
 
   const proposal = await findEligibleProposal(proposalId, {
-    requiredOpenUntil: getCurrentWeekRange().end
+    requiredOpenUntil: getPrizeEventRange().proposalOpenUntil
   });
 
   // Eligibility lookup is remote and can take long enough for the weekly lead

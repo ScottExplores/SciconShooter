@@ -1,7 +1,7 @@
 {
   "name": "Scicon Shooter",
   "short_name": "Scicon",
-  "description": "Play games. Fund science. A DeSci-inspired, community-built Base arcade game where the finalized weekly winner can direct RSC funding credits toward an eligible science proposal.",
+  "description": "Play games. Fund science. The top score from October 26 through November 29, 2026 wins 25,000 RSC toward a ResearchHub proposal of their choice.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

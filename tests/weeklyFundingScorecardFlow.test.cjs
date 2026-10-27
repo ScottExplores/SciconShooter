@@ -20,7 +20,7 @@ test('a new weekly leader enters a dedicated proposal step before returning to r
   assert.match(appSource, /View \/ mint/);
   assert.match(appSource, /isWeeklyCampaignRun \? 'NEW WEEKLY RUN' : 'RETRY MISSION'/);
   assert.match(appSource, /onHangar=\{openSquadHangar\}/);
-  assert.match(pickerSource, /New weekly high score/);
+  assert.match(pickerSource, /New event high score/);
   assert.match(pickerSource, /You&apos;re #1/);
   assert.match(pickerSource, /1\. Score saved/);
   assert.match(pickerSource, /2\. Choose research/);
@@ -44,7 +44,7 @@ test('mint and share stay gated until the weekly proposal is saved', () => {
   assert.match(previewSource, /weeklyChoiceRequired/);
   assert.match(previewSource, /!weeklyChoiceRequired/);
   assert.match(previewSource, /Funding choice saved/);
-  assert.match(previewSource, /Choose weekly proposal/);
+  assert.match(previewSource, /Choose proposal/);
   assert.doesNotMatch(previewSource, /Browse eligible proposals|View selected proposal/);
 });
 

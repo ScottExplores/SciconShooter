@@ -19,7 +19,7 @@ test('Home presents missing or completed-proposal reminders at most once every f
   assert.match(startScreen, /weeklyProposalNeedsAttention[\s\S]*dashboardTab !== 'home'/);
   assert.match(startScreen, /showWeeklyProposalReminder && weeklyProposalRecovery/);
   assert.match(startScreen, /weeklyProposalAttentionReason === 'completed'/);
-  assert.match(startScreen, /Your selected proposal was fully funded before the weekly cutoff/);
+  assert.match(startScreen, /Your selected proposal was fully funded\. You are still/);
   assert.match(startScreen, />\s*Not now\s*<\/button>/);
   assert.match(startScreen, /onClick=\{openRecoverableWeeklyProposal\}[\s\S]*Choose new proposal/);
 });
@@ -100,7 +100,7 @@ test('the mandatory post-score chooser cannot be dismissed while recovery openin
   assert.match(app, /openWeeklyLeaderProposal[\s\S]*setWeeklyProposalSelectionMode\('recovery'\)/);
   assert.match(app, /dismissible=\{weeklyProposalSelectionMode === 'recovery'\}/);
   assert.match(picker, /\{dismissible && onClose \? \(/);
-  assert.match(picker, /aria-label="Choose weekly proposal later"/);
+  assert.match(picker, /aria-label="Choose proposal later"/);
   assert.match(picker, /role="dialog"/);
   assert.match(picker, /aria-modal="true"/);
   assert.match(picker, /onKeyDown=\{handleDialogKeyDown\}/);
