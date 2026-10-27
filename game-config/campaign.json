@@ -40559,7 +40559,7 @@
                 }
               ],
               "timeline": {
-                "durationSeconds": 50.5,
+                "durationSeconds": 30.2,
                 "loop": true,
                 "clips": [
                   {
@@ -40626,7 +40626,7 @@
                     "primitiveId": "effect-cue",
                     "trigger": "time",
                     "startSeconds": 4.1,
-                    "durationSeconds": 1.8,
+                    "durationSeconds": 1.5,
                     "phaseId": "sandbox-gloamforge-crucible-measure",
                     "parameters": {
                       "color": "#f59e0b"
@@ -40638,7 +40638,7 @@
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 8.5,
+                    "startSeconds": 6,
                     "durationSeconds": 1.1,
                     "phaseId": "sandbox-gloamforge-crucible-measure",
                     "parameters": {
@@ -40653,7 +40653,7 @@
                     "track": "attack",
                     "primitiveId": "side-barrage",
                     "trigger": "time",
-                    "startSeconds": 9.6,
+                    "startSeconds": 7.1,
                     "durationSeconds": 1,
                     "phaseId": "sandbox-gloamforge-crucible-measure",
                     "parameters": {
@@ -40669,8 +40669,8 @@
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 10.6,
-                    "durationSeconds": 1.8,
+                    "startSeconds": 8.1,
+                    "durationSeconds": 1.6,
                     "phaseId": "sandbox-gloamforge-crucible-measure",
                     "parameters": {
                       "color": "#f59e0b"
@@ -40682,7 +40682,7 @@
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 15,
+                    "startSeconds": 10.1,
                     "durationSeconds": 1,
                     "phaseId": "sandbox-gloamforge-crucible-measure",
                     "parameters": {
@@ -40697,7 +40697,7 @@
                     "track": "attack",
                     "primitiveId": "gap-ring",
                     "trigger": "time",
-                    "startSeconds": 16,
+                    "startSeconds": 11.1,
                     "durationSeconds": 0.8,
                     "phaseId": "sandbox-gloamforge-crucible-measure",
                     "parameters": {
@@ -40712,7 +40712,7 @@
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 16.8,
+                    "startSeconds": 11.9,
                     "durationSeconds": 1.8,
                     "phaseId": "sandbox-gloamforge-crucible-measure",
                     "parameters": {
@@ -40725,7 +40725,7 @@
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 21.2,
+                    "startSeconds": 14.1,
                     "durationSeconds": 1,
                     "phaseId": "sandbox-gloamforge-crucible-measure",
                     "parameters": {
@@ -40740,7 +40740,7 @@
                     "track": "attack",
                     "primitiveId": "pod-volley",
                     "trigger": "time",
-                    "startSeconds": 22.2,
+                    "startSeconds": 15.1,
                     "durationSeconds": 1.3,
                     "phaseId": "sandbox-gloamforge-crucible-measure",
                     "parameters": {
@@ -40755,8 +40755,8 @@
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 23.5,
-                    "durationSeconds": 1.8,
+                    "startSeconds": 16.4,
+                    "durationSeconds": 1.2,
                     "phaseId": "sandbox-gloamforge-crucible-measure",
                     "parameters": {
                       "color": "#f59e0b"
@@ -40768,7 +40768,7 @@
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 27.9,
+                    "startSeconds": 18,
                     "durationSeconds": 1.1,
                     "phaseId": "sandbox-gloamforge-crucible-measure",
                     "parameters": {
@@ -40783,7 +40783,7 @@
                     "track": "attack",
                     "primitiveId": "weave-wall",
                     "trigger": "time",
-                    "startSeconds": 29,
+                    "startSeconds": 19.1,
                     "durationSeconds": 1.4,
                     "phaseId": "sandbox-gloamforge-crucible-measure",
                     "parameters": {
@@ -40798,8 +40798,8 @@
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 30.4,
-                    "durationSeconds": 1.8,
+                    "startSeconds": 20.5,
+                    "durationSeconds": 1.1,
                     "phaseId": "sandbox-gloamforge-crucible-measure",
                     "parameters": {
                       "color": "#f59e0b"
@@ -40811,7 +40811,7 @@
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 34.8,
+                    "startSeconds": 22,
                     "durationSeconds": 1.1,
                     "phaseId": "sandbox-gloamforge-crucible-measure",
                     "parameters": {
@@ -40826,7 +40826,7 @@
                     "track": "attack",
                     "primitiveId": "side-barrage",
                     "trigger": "time",
-                    "startSeconds": 35.9,
+                    "startSeconds": 23.1,
                     "durationSeconds": 1,
                     "phaseId": "sandbox-gloamforge-crucible-measure",
                     "parameters": {
@@ -40842,8 +40842,8 @@
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 36.9,
-                    "durationSeconds": 1.8,
+                    "startSeconds": 24.1,
+                    "durationSeconds": 1.5,
                     "phaseId": "sandbox-gloamforge-crucible-measure",
                     "parameters": {
                       "color": "#f59e0b"
@@ -40855,7 +40855,7 @@
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 41.3,
+                    "startSeconds": 26,
                     "durationSeconds": 1.1,
                     "phaseId": "sandbox-gloamforge-crucible-measure",
                     "parameters": {
@@ -40870,7 +40870,7 @@
                     "track": "attack",
                     "primitiveId": "side-barrage",
                     "trigger": "time",
-                    "startSeconds": 42.4,
+                    "startSeconds": 27.1,
                     "durationSeconds": 1,
                     "phaseId": "sandbox-gloamforge-crucible-measure",
                     "parameters": {
@@ -40886,8 +40886,8 @@
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 43.4,
-                    "durationSeconds": 1.8,
+                    "startSeconds": 28.1,
+                    "durationSeconds": 1.5,
                     "phaseId": "sandbox-gloamforge-crucible-measure",
                     "parameters": {
                       "color": "#f59e0b"
@@ -40956,7 +40956,7 @@
                     "primitiveId": "effect-cue",
                     "trigger": "time",
                     "startSeconds": 3.9,
-                    "durationSeconds": 1.8,
+                    "durationSeconds": 1.6,
                     "phaseId": "sandbox-gloamforge-cleaver-unfurl",
                     "parameters": {
                       "color": "#fb7185"
@@ -40968,7 +40968,7 @@
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 8.3,
+                    "startSeconds": 5.9,
                     "durationSeconds": 1.2,
                     "phaseId": "sandbox-gloamforge-cleaver-unfurl",
                     "parameters": {
@@ -40983,7 +40983,7 @@
                     "track": "laser",
                     "primitiveId": "rail-sweep",
                     "trigger": "time",
-                    "startSeconds": 9.5,
+                    "startSeconds": 7.1,
                     "durationSeconds": 2,
                     "phaseId": "sandbox-gloamforge-cleaver-unfurl",
                     "parameters": {
@@ -40997,8 +40997,8 @@
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 11.5,
-                    "durationSeconds": 2.2,
+                    "startSeconds": 9.1,
+                    "durationSeconds": 0.65,
                     "phaseId": "sandbox-gloamforge-cleaver-unfurl",
                     "parameters": {
                       "color": "#fb7185"
@@ -41010,7 +41010,7 @@
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 16.3,
+                    "startSeconds": 10.15,
                     "durationSeconds": 1,
                     "phaseId": "sandbox-gloamforge-cleaver-unfurl",
                     "parameters": {
@@ -41025,7 +41025,7 @@
                     "track": "attack",
                     "primitiveId": "tail-fan",
                     "trigger": "time",
-                    "startSeconds": 17.3,
+                    "startSeconds": 11.15,
                     "durationSeconds": 1.2,
                     "phaseId": "sandbox-gloamforge-cleaver-unfurl",
                     "parameters": {
@@ -41040,8 +41040,8 @@
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 18.5,
-                    "durationSeconds": 1.8,
+                    "startSeconds": 12.35,
+                    "durationSeconds": 1.4,
                     "phaseId": "sandbox-gloamforge-cleaver-unfurl",
                     "parameters": {
                       "color": "#fb7185"
@@ -41053,7 +41053,7 @@
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 22.9,
+                    "startSeconds": 14.15,
                     "durationSeconds": 1,
                     "phaseId": "sandbox-gloamforge-cleaver-unfurl",
                     "parameters": {
@@ -41068,7 +41068,7 @@
                     "track": "attack",
                     "primitiveId": "pod-volley",
                     "trigger": "time",
-                    "startSeconds": 23.9,
+                    "startSeconds": 15.15,
                     "durationSeconds": 1.4,
                     "phaseId": "sandbox-gloamforge-cleaver-unfurl",
                     "parameters": {
@@ -41083,8 +41083,8 @@
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 25.3,
-                    "durationSeconds": 1.8,
+                    "startSeconds": 16.55,
+                    "durationSeconds": 1,
                     "phaseId": "sandbox-gloamforge-cleaver-unfurl",
                     "parameters": {
                       "color": "#fb7185"
@@ -41096,7 +41096,7 @@
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 29.7,
+                    "startSeconds": 17.95,
                     "durationSeconds": 1.2,
                     "phaseId": "sandbox-gloamforge-cleaver-unfurl",
                     "parameters": {
@@ -41111,7 +41111,7 @@
                     "track": "laser",
                     "primitiveId": "cross-beam",
                     "trigger": "time",
-                    "startSeconds": 30.9,
+                    "startSeconds": 19.15,
                     "durationSeconds": 1.6,
                     "phaseId": "sandbox-gloamforge-cleaver-unfurl",
                     "telegraphClipId": "sandbox-gloamforge-unfurl-cross-cut-warning"
@@ -41122,8 +41122,8 @@
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 32.5,
-                    "durationSeconds": 2.2,
+                    "startSeconds": 20.75,
+                    "durationSeconds": 0.9,
                     "phaseId": "sandbox-gloamforge-cleaver-unfurl",
                     "parameters": {
                       "color": "#fb7185"
@@ -41135,7 +41135,7 @@
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 37.3,
+                    "startSeconds": 22.05,
                     "durationSeconds": 1.1,
                     "phaseId": "sandbox-gloamforge-cleaver-unfurl",
                     "parameters": {
@@ -41150,7 +41150,7 @@
                     "track": "attack",
                     "primitiveId": "weave-wall",
                     "trigger": "time",
-                    "startSeconds": 38.4,
+                    "startSeconds": 23.15,
                     "durationSeconds": 1.5,
                     "phaseId": "sandbox-gloamforge-cleaver-unfurl",
                     "parameters": {
@@ -41165,8 +41165,8 @@
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 39.9,
-                    "durationSeconds": 1.8,
+                    "startSeconds": 24.65,
+                    "durationSeconds": 0.9,
                     "phaseId": "sandbox-gloamforge-cleaver-unfurl",
                     "parameters": {
                       "color": "#fb7185"
@@ -41178,7 +41178,7 @@
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 44.3,
+                    "startSeconds": 25.95,
                     "durationSeconds": 1.2,
                     "phaseId": "sandbox-gloamforge-cleaver-unfurl",
                     "parameters": {
@@ -41193,7 +41193,7 @@
                     "track": "laser",
                     "primitiveId": "rail-sweep",
                     "trigger": "time",
-                    "startSeconds": 45.5,
+                    "startSeconds": 27.15,
                     "durationSeconds": 2,
                     "phaseId": "sandbox-gloamforge-cleaver-unfurl",
                     "parameters": {
@@ -41207,8 +41207,8 @@
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 47.5,
-                    "durationSeconds": 2.4,
+                    "startSeconds": 29.15,
+                    "durationSeconds": 0.65,
                     "phaseId": "sandbox-gloamforge-cleaver-unfurl",
                     "parameters": {
                       "color": "#fb7185"
@@ -41289,7 +41289,7 @@
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 8.2,
+                    "startSeconds": 6,
                     "durationSeconds": 1,
                     "phaseId": "sandbox-gloamforge-cannon-pods",
                     "parameters": {
@@ -41304,7 +41304,7 @@
                     "track": "attack",
                     "primitiveId": "side-barrage",
                     "trigger": "time",
-                    "startSeconds": 9.2,
+                    "startSeconds": 7,
                     "durationSeconds": 1,
                     "phaseId": "sandbox-gloamforge-cannon-pods",
                     "parameters": {
@@ -41320,8 +41320,8 @@
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 10.2,
-                    "durationSeconds": 1.8,
+                    "startSeconds": 8,
+                    "durationSeconds": 1.6,
                     "phaseId": "sandbox-gloamforge-cannon-pods",
                     "parameters": {
                       "color": "#22d3ee"
@@ -41333,7 +41333,7 @@
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 14.6,
+                    "startSeconds": 10,
                     "durationSeconds": 1,
                     "phaseId": "sandbox-gloamforge-cannon-pods",
                     "parameters": {
@@ -41348,7 +41348,7 @@
                     "track": "attack",
                     "primitiveId": "side-barrage",
                     "trigger": "time",
-                    "startSeconds": 15.6,
+                    "startSeconds": 11,
                     "durationSeconds": 1,
                     "phaseId": "sandbox-gloamforge-cannon-pods",
                     "parameters": {
@@ -41364,8 +41364,8 @@
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 16.6,
-                    "durationSeconds": 1.8,
+                    "startSeconds": 12,
+                    "durationSeconds": 1.65,
                     "phaseId": "sandbox-gloamforge-cannon-pods",
                     "parameters": {
                       "color": "#22d3ee"
@@ -41377,7 +41377,7 @@
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 21,
+                    "startSeconds": 14.05,
                     "durationSeconds": 0.95,
                     "phaseId": "sandbox-gloamforge-cannon-pods",
                     "parameters": {
@@ -41392,7 +41392,7 @@
                     "track": "attack",
                     "primitiveId": "pod-volley",
                     "trigger": "time",
-                    "startSeconds": 21.95,
+                    "startSeconds": 15,
                     "durationSeconds": 1.3,
                     "phaseId": "sandbox-gloamforge-cannon-pods",
                     "parameters": {
@@ -41407,8 +41407,8 @@
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 23.25,
-                    "durationSeconds": 1.8,
+                    "startSeconds": 16.3,
+                    "durationSeconds": 1.35,
                     "phaseId": "sandbox-gloamforge-cannon-pods",
                     "parameters": {
                       "color": "#22d3ee"
@@ -41420,7 +41420,7 @@
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 27.65,
+                    "startSeconds": 18.05,
                     "durationSeconds": 0.95,
                     "phaseId": "sandbox-gloamforge-cannon-pods",
                     "parameters": {
@@ -41435,7 +41435,7 @@
                     "track": "attack",
                     "primitiveId": "tail-fan",
                     "trigger": "time",
-                    "startSeconds": 28.6,
+                    "startSeconds": 19,
                     "durationSeconds": 1.2,
                     "phaseId": "sandbox-gloamforge-cannon-pods",
                     "parameters": {
@@ -41450,8 +41450,8 @@
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 29.8,
-                    "durationSeconds": 1.8,
+                    "startSeconds": 20.2,
+                    "durationSeconds": 1.3,
                     "phaseId": "sandbox-gloamforge-cannon-pods",
                     "parameters": {
                       "color": "#22d3ee"
@@ -41463,7 +41463,7 @@
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 34.2,
+                    "startSeconds": 21.9,
                     "durationSeconds": 1.1,
                     "phaseId": "sandbox-gloamforge-cannon-pods",
                     "parameters": {
@@ -41478,7 +41478,7 @@
                     "track": "laser",
                     "primitiveId": "cross-beam",
                     "trigger": "time",
-                    "startSeconds": 35.3,
+                    "startSeconds": 23,
                     "durationSeconds": 1.5,
                     "phaseId": "sandbox-gloamforge-cannon-pods",
                     "telegraphClipId": "sandbox-gloamforge-pods-cross-cut-warning"
@@ -41489,8 +41489,8 @@
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 36.8,
-                    "durationSeconds": 2,
+                    "startSeconds": 24.5,
+                    "durationSeconds": 1,
                     "phaseId": "sandbox-gloamforge-cannon-pods",
                     "parameters": {
                       "color": "#22d3ee"

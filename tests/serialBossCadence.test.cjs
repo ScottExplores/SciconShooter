@@ -23,57 +23,57 @@ const bundle = (entryPoint) => {
   return loaded.exports;
 };
 
+const motion = bundle('services/gameplay/serialQuietBeatMotion.ts');
 const { getSandboxBossKit } = bundle('services/gameplay/sandboxBossRoster.ts');
+const { GameEngine } = bundle('services/gameLogic.ts');
 const campaign = JSON.parse(fs.readFileSync(path.join(root, 'game-config/campaign.json'), 'utf8'));
 
-const quietGaps = (timeline) => {
+const NAMED_BOSSES = [
+  ['cinderjaw-siege-beetle', 4.5, 'cinderjaw'],
+  ['vesperglass-mothmother', 4.35, 'vesperglass'],
+  ['twin-halo-wardens', 4.2, 'twin-halo'],
+  ['riftcoil-wyrm', 4.1, 'riftcoil'],
+  ['gloamforge-mantis', 4, 'gloamforge']
+];
+
+const volleyGaps = (timeline) => {
   const gaps = [];
   const phases = [...new Set(timeline.clips.map((clip) => clip.phaseId).filter(Boolean))];
   for (const phaseId of phases) {
     const clips = timeline.clips.filter((clip) => clip.phaseId === phaseId);
-    const warnings = clips
-      .filter((clip) => clip.primitiveId === 'telegraph')
+    const actions = clips
+      .filter((clip) => clip.track === 'attack' || clip.track === 'laser')
       .sort((left, right) => left.startSeconds - right.startSeconds);
-    for (let index = 0; index < warnings.length - 1; index += 1) {
-      const warning = warnings[index];
-      const actionId = warning.id.replace(/-warning$/, '');
-      const recovery = clips.find((clip) => clip.id === `${actionId}-recovery`);
-      assert.ok(recovery, `${actionId} needs its recovery beat`);
+    for (let index = 0; index < actions.length - 1; index += 1) {
+      const action = actions[index];
+      const next = actions[index + 1];
+      const recovery = clips.find((clip) => clip.id === `${action.id}-recovery`);
+      assert.ok(recovery, `${action.id} keeps its recovery`);
       const recoveryEnd = recovery.startSeconds + recovery.durationSeconds;
-      const gap = warnings[index + 1].startSeconds - recoveryEnd;
-      gaps.push(gap);
-      assert.ok(gap > 2.3 && gap < 3.6, `${phaseId} idle ${gap}s between ${actionId} and the next warning`);
+      assert.ok(
+        next.startSeconds + 0.02 >= recoveryEnd,
+        `${phaseId} ${next.id} overlaps ${action.id}`
+      );
+      gaps.push(next.startSeconds - action.startSeconds);
     }
   }
   return gaps;
 };
 
-const NAMED_BOSSES = [
-  ['cinderjaw-siege-beetle', 3.4],
-  ['vesperglass-mothmother', 3.2],
-  ['twin-halo-wardens', 3],
-  ['riftcoil-wyrm', 2.8],
-  ['gloamforge-mantis', 2.6]
-];
-
-test('serial bosses move between attacks and later kits step up', () => {
-  let previousQuiet = 4;
-  for (const [bossId, quietSeconds] of NAMED_BOSSES) {
-    const timeline = getSandboxBossKit(bossId).timeline;
-    const gaps = quietGaps(timeline);
-    assert.ok(gaps.length >= 3, `${bossId} should chain several sentences`);
+test('serial volleys land about every 4 to 4.5 seconds and later kits step up', () => {
+  let previousInterval = 5;
+  for (const [bossId, interval] of NAMED_BOSSES) {
+    const gaps = volleyGaps(getSandboxBossKit(bossId).timeline);
+    assert.ok(gaps.length >= 3, `${bossId} chains several volleys`);
     for (const gap of gaps) {
-      assert.ok(Math.abs(gap - quietSeconds) < 0.05, `${bossId} gap ${gap} expected ${quietSeconds}`);
+      assert.ok(
+        gap >= interval - 0.16 && gap <= 4.55,
+        `${bossId} volley gap ${gap} (target ${interval}; all ${gaps.map((value) => value.toFixed(2)).join(', ')})`
+      );
     }
-    assert.ok(quietSeconds < previousQuiet, `${bossId} should step up from the previous kit`);
-    previousQuiet = quietSeconds;
-    const lastEnd = timeline.clips.reduce(
-      (end, clip) => Math.max(end, clip.startSeconds + clip.durationSeconds),
-      0
-    );
-    const seam = (timeline.durationSeconds - lastEnd) + 2;
-    assert.ok(seam < 3.6, `${bossId} loops after ${seam}s of quiet`);
-    assert.ok(timeline.durationSeconds < 80, `${bossId} should not sit out a 90s loop`);
+    assert.ok(interval < previousInterval, `${bossId} should step up`);
+    assert.ok(Math.min(...gaps) <= interval + 0.05, `${bossId} should reach its ${interval}s beat`);
+    previousInterval = interval;
   }
 });
 
@@ -81,7 +81,7 @@ test('campaign Gloamforge uses the packed mantis cadence', () => {
   const event = campaign.levels
     .flatMap((level) => level.waves)
     .flatMap((wave) => wave.events)
-    .find((event) => event.timeline?.clips?.some((clip) => clip.id === 'sandbox-gloamforge-measure-port-cannon'));
+    .find((candidate) => candidate.timeline?.clips?.some((clip) => clip.id === 'sandbox-gloamforge-measure-port-cannon'));
   assert.ok(event, 'M45 should carry the Gloamforge timeline');
   const kit = getSandboxBossKit('gloamforge-mantis').timeline;
   assert.equal(event.timeline.clips.length, kit.clips.length);
@@ -91,6 +91,130 @@ test('campaign Gloamforge uses the packed mantis cadence', () => {
     assert.equal(authored.startSeconds, clip.startSeconds, clip.id);
   }
   assert.equal(event.timeline.durationSeconds, kit.durationSeconds);
-  const gaps = quietGaps(event.timeline);
-  assert.ok(gaps.every((gap) => gap <= 3));
+  const gaps = volleyGaps(event.timeline);
+  assert.ok(gaps.some((gap) => gap >= 3.95 && gap <= 4.55));
+});
+
+test('each serial boss crosses the top band without leaving the screen or the player lane', () => {
+  const arenaWidth = 412;
+  const arenaHeight = 915;
+  const entranceY = 116;
+  const widths = {
+    cinderjaw: 338,
+    vesperglass: 275,
+    'twin-halo': 362,
+    riftcoil: 362,
+    gloamforge: 395
+  };
+  for (const [, , kind] of NAMED_BOSSES) {
+    const bossWidth = widths[kind];
+    const samples = [];
+    for (let step = 0; step <= 48; step += 1) {
+      samples.push(motion.sampleSerialQuietBeat({
+        kind,
+        elapsedSeconds: step / 20,
+        arenaWidth,
+        arenaHeight,
+        bossWidth,
+        entranceY
+      }));
+    }
+    const travel = Math.max(...samples.map((sample) => sample.x)) - Math.min(...samples.map((sample) => sample.x));
+    assert.ok(travel >= 96, `${kind} only travels ${travel}px`);
+    for (const sample of samples) {
+      assert.ok(sample.y >= entranceY - 0.01, `${kind} climbs above the anchor`);
+      assert.ok(sample.y <= entranceY + 80, `${kind} drops toward the player lane`);
+      const visible = Math.min(arenaWidth, sample.x + bossWidth) - Math.max(0, sample.x);
+      assert.ok(visible >= bossWidth * 0.72, `${kind} leaves the screen`);
+    }
+  }
+  const planted = motion.sampleSerialQuietBeat({
+    kind: 'cinderjaw',
+    elapsedSeconds: 0,
+    arenaWidth,
+    arenaHeight,
+    bossWidth: widths.cinderjaw,
+    entranceY
+  });
+  const lunging = motion.sampleSerialQuietBeat({
+    kind: 'gloamforge',
+    elapsedSeconds: 0.6,
+    arenaWidth,
+    arenaHeight,
+    bossWidth: widths.gloamforge,
+    entranceY
+  });
+  assert.ok(lunging.y > planted.y + 20, 'the mantis lunge dips while the beetle strafe stays high');
+});
+
+test('the live bosses actually cross the top during the beat and still fire', () => {
+  class TestImage {
+    complete = true;
+    naturalWidth = 1;
+    naturalHeight = 1;
+    crossOrigin = '';
+    src = '';
+  }
+  global.Image = TestImage;
+  const engine = new GameEngine({
+    score: 0,
+    highScore: 0,
+    wave: 1,
+    coins: 0,
+    totalCoins: 0,
+    enemiesDefeated: 0,
+    bombs: 2,
+    bombCharge: 0,
+    bombChargeMax: 100,
+    shipAbilityCooldown: 0,
+    shipAbilityCooldownMax: 960,
+    lives: 9,
+    repairsCount: 0,
+    upgrades: { fireRate: 0, speed: 0, ability: 0 },
+    powerupUses: {},
+    bossProgress: 0,
+    isBossActive: true,
+    bossHp: 0,
+    bossMaxHp: 100
+  }, {
+    campaign,
+    audioEnabled: false,
+    preloadCanvasAssets: false,
+    previewMode: true,
+    previewInvincible: true,
+    randomSeed: 'serial-quiet-beat'
+  });
+  engine.init(412, 915);
+  engine.gameActive = true;
+  engine.introFlightFrames = 0;
+  engine.invincibleTimer = 999999;
+  for (const [bossId] of NAMED_BOSSES) {
+    engine.entities = engine.entities.filter((entity) => entity.type !== 'BOSS' && entity.type !== 'PROJECTILE');
+    engine.spawnBoss(structuredClone(getSandboxBossKit(bossId)));
+    const boss = engine.entities.find((entity) => entity.type === 'BOSS');
+    assert.ok(boss, bossId);
+    const entrance = Math.max(72, Math.min(engine.height * 0.13, 116));
+    boss.y = entrance;
+    boss.hp = boss.maxHp;
+    const xs = [];
+    let fired = false;
+    const original = engine.dispatchBossTimelineCue.bind(engine);
+    engine.dispatchBossTimelineCue = (candidate, cue, phase, stage) => {
+      if (cue.clip.track === 'attack' || cue.clip.track === 'laser') fired = true;
+      return original(candidate, cue, phase, stage);
+    };
+    for (let frame = 0; frame < 220; frame += 1) {
+      boss.hp = boss.maxHp;
+      engine.frameCount += 1;
+      engine.updateBoss(boss);
+      xs.push(boss.x);
+      assert.ok(boss.y >= entrance - 0.5, `${bossId} rose above the anchor and rewound the clock`);
+      assert.ok(boss.y <= entrance + 80, `${bossId} dropped out of the top band`);
+    }
+    const travel = Math.max(...xs) - Math.min(...xs);
+    assert.ok(travel >= 90, `${bossId} traveled ${travel.toFixed(1)}px`);
+    assert.ok(boss.attackTimer > 120, `${bossId} rewound its phase clock`);
+    assert.equal(fired, true, `${bossId} did not fire during the crossing`);
+    engine.dispatchBossTimelineCue = original;
+  }
 });

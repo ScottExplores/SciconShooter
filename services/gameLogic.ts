@@ -36,6 +36,11 @@ import type {
 import { isMajorBossId } from '../game-config/catalog';
 import { getBossViewportWidthCapRatio } from './campaignBossEconomy';
 import {
+  resolveSerialQuietBeatKind,
+  sampleSerialQuietBeat,
+  serialQuietBeatHorizontalSpan
+} from './gameplay/serialQuietBeatMotion';
+import {
   DEFAULT_GAME_CAMPAIGN,
   cloneGameCampaign,
   getAssetPaths,
@@ -912,6 +917,9 @@ export class Entity {
    * and the volleys authored on that same timeline both happen.
    */
   bossFollowPathClockHold: boolean = false;
+  /** Firing stance held while a serial boss commits a warned volley. */
+  bossSerialBeatHoldX: number | null = null;
+  bossSerialBeatHoldY: number | null = null;
   bossCornerAmbushBeamState?: BossCornerAmbushBeamState;
   bossCornerAmbushRamState?: BossCornerAmbushRamState;
   bossVanishReentryState?: Readonly<BossVanishReentryRuntimeState>;
@@ -11808,6 +11816,8 @@ export class GameEngine {
       boss.bossUmbraTimelineHoldFrame = -1;
       boss.attackTimer = 0;
       boss.bossFollowPathClockHold = false;
+      boss.bossSerialBeatHoldX = null;
+      boss.bossSerialBeatHoldY = null;
       boss.bossMovementPathId = undefined;
       boss.bossMovementPathStartFrame = -1;
       boss.bossMovementPathDurationFrames = 0;
@@ -22610,6 +22620,50 @@ export class GameEngine {
     return true;
   }
 
+  applySerialQuietBeatMotion(boss: Entity, targetEntranceY: number) {
+    const kind = resolveSerialQuietBeatKind(
+      boss.sourceItemId,
+      boss.sourceEventId,
+      boss.activeBossPhaseId,
+      boss.bossTimelinePhaseId,
+      boss.text
+    );
+    if (!kind) return false;
+    const stage = boss.bossActionPresentation?.stage;
+    const previousX = boss.x;
+    const previousY = boss.y;
+    if (stage === 'warning' || stage === 'fire') {
+      if (boss.bossSerialBeatHoldX === null || boss.bossSerialBeatHoldY === null) {
+        boss.bossSerialBeatHoldX = boss.x;
+        boss.bossSerialBeatHoldY = boss.y;
+      }
+      boss.x += (boss.bossSerialBeatHoldX - boss.x) * 0.24;
+      boss.y += (boss.bossSerialBeatHoldY - boss.y) * 0.24;
+      boss.bossPresentationBankRadians += (0 - boss.bossPresentationBankRadians) * 0.2;
+    } else {
+      boss.bossSerialBeatHoldX = null;
+      boss.bossSerialBeatHoldY = null;
+      const sample = sampleSerialQuietBeat({
+        kind,
+        elapsedSeconds: boss.attackTimer / GAME_CONFIG.FPS,
+        arenaWidth: this.width,
+        arenaHeight: this.height,
+        bossWidth: boss.width,
+        entranceY: targetEntranceY
+      });
+      boss.x += (sample.x - boss.x) * 0.22;
+      boss.y += (sample.y - boss.y) * 0.22;
+      boss.bossPresentationBankRadians += (sample.bankRadians - boss.bossPresentationBankRadians) * 0.2;
+    }
+    const band = Math.min(72, Math.max(48, this.height * 0.08));
+    const span = serialQuietBeatHorizontalSpan(this.width, boss.width);
+    boss.x = clamp(boss.x, span.minX, span.maxX);
+    boss.y = clamp(boss.y, targetEntranceY, targetEntranceY + band);
+    boss.vx = boss.x - previousX;
+    boss.vy = boss.y - previousY;
+    return true;
+  }
+
   updateTimelineBossMovement(boss: Entity, healthRatio: number) {
     const targetEntranceY = Math.max(72, Math.min(this.height * 0.13, 116));
     if (this.updatePrismMothTimelineMovement(boss, targetEntranceY, healthRatio)) {
@@ -22992,6 +23046,7 @@ export class GameEngine {
       boss.x += ((this.width - boss.width) / 2 - boss.x) * 0.06;
       return;
     }
+    if (this.applySerialQuietBeatMotion(boss, targetEntranceY)) return;
     boss.vx = 0;
     boss.vy = 0;
     const pattern = boss.movementPattern ?? 'track-player';

@@ -443,33 +443,73 @@ const serialAttackSentence = (
 };
 
 /**
- * Quiet seconds are the movement beat between one recovery and the next
- * warning. Earlier kits keep the wider beat. Later kits step up.
- * Omit the argument to keep the legacy twelve-second stride used by elites.
+ * Seconds from one damaging volley to the next. Earlier kits keep the wider
+ * beat. Later kits step up. Omit the argument to keep the legacy
+ * twelve-second stride used by elites.
  */
-const SERIAL_QUIET_SECONDS = {
-  cinderjaw: 3.4,
-  vesperglass: 3.2,
-  twinHalo: 3,
-  riftcoil: 2.8,
-  gloamforge: 2.6
+const SERIAL_VOLLEY_INTERVAL_SECONDS = {
+  cinderjaw: 4.5,
+  vesperglass: 4.35,
+  twinHalo: 4.2,
+  riftcoil: 4.1,
+  gloamforge: 4
 } as const;
 
 const serialBossTimeline = (
   phases: readonly SerialPhaseTimeline[],
   durationSeconds = 90,
-  quietSeconds?: number
+  volleyIntervalSeconds?: number
 ): BossTimelineConfig => {
+  const phaseSeamSeconds: number[] = [];
   const clips = phases.flatMap((phase) => {
     let cursor = 2;
-    const sentences = phase.steps.flatMap((step) => {
-      const startSeconds = quietSeconds === undefined ? cursor : roundSeconds(cursor);
-      const sentence = serialAttackSentence(phase.phaseId, phase.color, startSeconds, step);
-      cursor = quietSeconds === undefined
-        ? cursor + 12
-        : roundSeconds(startSeconds + serialSentenceSpanSeconds(step) + quietSeconds);
+    let firstVolleySeconds = 2;
+    let lastVolleySeconds = 2;
+    const sentences = phase.steps.flatMap((step, index) => {
+      const nextStep = phase.steps[index + 1];
+      const leadSeconds = step.leadSeconds ?? 0.9;
+      const nextLeadSeconds = nextStep?.leadSeconds ?? leadSeconds;
+      const fittedStep = volleyIntervalSeconds === undefined
+        ? step
+        : {
+            ...step,
+            recoverySeconds: roundSeconds(Math.min(
+              step.recoverySeconds ?? 1.8,
+              Math.max(
+                0.65,
+                volleyIntervalSeconds
+                  - (step.actionDurationSeconds ?? 0.8)
+                  - (step.repeat
+                    ? Math.max(0, step.repeat.count - 1) * step.repeat.intervalSeconds
+                    : 0)
+                  - nextLeadSeconds
+                  - 0.4
+              )
+            ))
+          };
+      const startSeconds = volleyIntervalSeconds === undefined ? cursor : roundSeconds(cursor);
+      if (index === 0) firstVolleySeconds = startSeconds + leadSeconds;
+      lastVolleySeconds = startSeconds + leadSeconds;
+      const sentence = serialAttackSentence(phase.phaseId, phase.color, startSeconds, fittedStep);
+      if (volleyIntervalSeconds === undefined) {
+        cursor += 12;
+      } else {
+        const recoveryEndSeconds = startSeconds + serialSentenceSpanSeconds(fittedStep);
+        const idealNextSeconds = startSeconds + leadSeconds + volleyIntervalSeconds - nextLeadSeconds;
+        cursor = roundSeconds(Math.max(idealNextSeconds, recoveryEndSeconds + 0.4));
+      }
       return sentence;
     });
+    if (volleyIntervalSeconds !== undefined && phase.steps.length > 0) {
+      const recoveryEnd = sentences.reduce(
+        (end, clip) => Math.max(end, clip.startSeconds + clip.durationSeconds),
+        0
+      );
+      phaseSeamSeconds.push(Math.max(
+        recoveryEnd + 0.4,
+        roundSeconds(lastVolleySeconds + volleyIntervalSeconds - firstVolleySeconds)
+      ));
+    }
     return [
       phaseCue(
         `${phase.phaseId}-identity`,
@@ -488,15 +528,9 @@ const serialBossTimeline = (
       ...sentences
     ];
   });
-  // The next loop's first warning sits at 2s, so the seam only needs
-  // quietSeconds - 2 of extra timeline or the boss idles past the beat.
-  const lastClipEnd = clips.reduce(
-    (end, clip) => Math.max(end, clip.startSeconds + clip.durationSeconds),
-    0
-  );
-  const packedDuration = quietSeconds === undefined
+  const packedDuration = volleyIntervalSeconds === undefined
     ? durationSeconds
-    : roundSeconds(Math.max(12, lastClipEnd + Math.max(0.4, quietSeconds - 2)));
+    : roundSeconds(Math.max(12, ...phaseSeamSeconds));
   return {
     durationSeconds: packedDuration,
     loop: true,
@@ -3044,7 +3078,7 @@ const cinderjawTimeline = serialBossTimeline([
       }
     ]
   }
-], 90, SERIAL_QUIET_SECONDS.cinderjaw);
+], 90, SERIAL_VOLLEY_INTERVAL_SECONDS.cinderjaw);
 
 const vesperglassWingbeatMeasure = 'sandbox-vesperglass-wingbeat-measure';
 const vesperglassBroodLattice = 'sandbox-vesperglass-brood-lattice';
@@ -3226,7 +3260,7 @@ const vesperglassTimeline = serialBossTimeline([
       }
     ]
   }
-], 90, SERIAL_QUIET_SECONDS.vesperglass);
+], 90, SERIAL_VOLLEY_INTERVAL_SECONDS.vesperglass);
 
 const twinHaloCallAndAnswer = 'sandbox-twin-halo-call-and-answer';
 const twinHaloOrbitExchange = 'sandbox-twin-halo-orbit-exchange';
@@ -3411,7 +3445,7 @@ const twinHaloTimeline = serialBossTimeline([
       }
     ]
   }
-], 90, SERIAL_QUIET_SECONDS.twinHalo);
+], 90, SERIAL_VOLLEY_INTERVAL_SECONDS.twinHalo);
 
 const riftcoilFangMeasure = 'sandbox-riftcoil-fang-measure';
 const riftcoilTailCipher = 'sandbox-riftcoil-tail-cipher';
@@ -3591,7 +3625,7 @@ const riftcoilTimeline = serialBossTimeline([
       }
     ]
   }
-], 90, SERIAL_QUIET_SECONDS.riftcoil);
+], 90, SERIAL_VOLLEY_INTERVAL_SECONDS.riftcoil);
 
 const nullwakeBorrowedCharge = 'sandbox-nullwake-borrowed-charge';
 const nullwakeBackplaneCrown = 'sandbox-nullwake-backplane-crown';
@@ -4022,7 +4056,7 @@ const gloamforgeTimeline = serialBossTimeline([
       }
     ]
   }
-], 90, SERIAL_QUIET_SECONDS.gloamforge);
+], 90, SERIAL_VOLLEY_INTERVAL_SECONDS.gloamforge);
 
 const miniBossTimeline = ({
   phaseId,
