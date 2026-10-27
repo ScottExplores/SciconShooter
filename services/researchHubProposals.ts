@@ -26,6 +26,7 @@ export interface ResearchHubProposal {
   status?: string;
   endDate?: string;
   url: string;
+  fundingTargetKind?: 'proposal' | 'rfp';
 }
 
 export interface ResearchHubProposalFeedOptions {

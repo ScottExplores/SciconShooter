@@ -691,7 +691,8 @@ test('the current weekly leader can attach one eligible proposal to the verified
       proposal_title: 'Open Science Target',
       proposal_url: 'https://www.researchhub.com/post/321/open-science-target',
       proposal_author: 'Ada Researcher',
-      proposal_image_url: 'https://images.researchhub.com/proposals/321.png'
+      proposal_image_url: 'https://images.researchhub.com/proposals/321.png',
+      funding_target_kind: 'proposal'
     });
   } finally {
     global.fetch = originalFetch;

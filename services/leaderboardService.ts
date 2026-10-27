@@ -250,6 +250,7 @@ export const saveWeeklyLeaderProposal = async (
       },
       body: JSON.stringify({
         proposalId: proposal.id,
+        targetKind: proposal.fundingTargetKind === 'rfp' ? 'rfp' : 'proposal',
         receiptToken: receipt.receiptToken,
         ...payload
       })

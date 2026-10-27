@@ -21,8 +21,9 @@ export const claimWeeklyChampionProposal = async ({
   address: Address;
   signMessage: (address: Address, message: string) => Promise<Hex>;
 }) => {
-  const challenge = await post({ action: 'challenge', weekKey, proposalId: proposal.id, address });
+  const targetKind = proposal.fundingTargetKind === 'rfp' ? 'rfp' : 'proposal';
+  const challenge = await post({ action: 'challenge', weekKey, proposalId: proposal.id, targetKind, address });
   const signature = await signMessage(address, challenge.message);
-  const result = await post({ action: 'claim', weekKey, proposalId: proposal.id, address, challengeId: challenge.challengeId, signature });
+  const result = await post({ action: 'claim', weekKey, proposalId: proposal.id, targetKind, address, challengeId: challenge.challengeId, signature });
   return result.claim;
 };

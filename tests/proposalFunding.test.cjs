@@ -107,7 +107,7 @@ test('equal ratios use raised amount, backers, title, and ID as stable tie break
 
 test('both proposal surfaces use the shared funding order and no synthetic RSC remains', () => {
   const startScreen = fs.readFileSync(path.join(root, 'components', 'StartScreen.tsx'), 'utf8');
-  const picker = fs.readFileSync(path.join(root, 'components', 'WeeklyProposalSelection.tsx'), 'utf8');
+  const picker = fs.readFileSync(path.join(root, 'components', 'PrizeWinnerFlow.tsx'), 'utf8');
   const feed = fs.readFileSync(path.join(root, 'services', 'researchHubProposals.ts'), 'utf8');
   const app = fs.readFileSync(path.join(root, 'App.tsx'), 'utf8');
 

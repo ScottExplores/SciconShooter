@@ -293,12 +293,12 @@ const prizeWindowForInstant = (instant) => {
   return buildMonthlyWindow(parts.year, parts.month);
 };
 
-const weeklyRulesText = 'Leaderboard positions remain provisional until the weekly cutoff. The finalized No. 1 pilot may choose an eligible ResearchHub proposal for the announced allocation. Selection and funding are separate steps; funding is only confirmed after a Base transaction reference is recorded.';
+const weeklyRulesText = 'Leaderboard positions remain provisional until the weekly cutoff. The finalized No. 1 pilot may choose an eligible ResearchHub proposal or an open RFP pool. Choosing records the pick and does not send RSC. A proposal is funded only after a Base transaction reference is recorded. An RFP is recorded for manual funding.';
 
 const buildEventRulesText = (window, frozen) => (
   frozen
-    ? `Final standings are frozen. The winner is announced ${window.announceLabel}. This month's prize is 25,000 RSC toward one ResearchHub proposal, not an RFP. The proposal's funding deadline must be after the announce date. Selection and funding are separate steps; funding is only confirmed after a Base transaction reference is recorded.`
-    : `Each calendar month the top score wins 25,000 RSC toward one ResearchHub proposal, not an RFP. This month closes ${window.closeLabel} at 11:59 PM Pacific. The winner is announced ${window.announceLabel}. The proposal's funding deadline must be after the announce date. Selection and funding are separate steps; funding is only confirmed after a Base transaction reference is recorded.`
+    ? `Final standings are frozen. The winner is announced ${window.announceLabel}. This month's prize is 25,000 RSC toward one open ResearchHub proposal or RFP pool. The item must still be open after the announce date. Choosing records the pick and does not send RSC. A proposal is funded only after a Base transaction reference is recorded. An RFP is recorded for manual funding.`
+    : `Each calendar month the top score wins 25,000 RSC toward one open ResearchHub proposal or RFP pool. This month closes ${window.closeLabel} at 11:59 PM Pacific. The winner is announced ${window.announceLabel}. The item must still be open after the announce date. Choosing records the pick and does not send RSC. A proposal is funded only after a Base transaction reference is recorded. An RFP is recorded for manual funding.`
 );
 
 const getPublicPrizeState = (now = new Date()) => {

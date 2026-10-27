@@ -52,8 +52,10 @@ test('each month from the November close awards 25,000 RSC and freezes the board
   assert.match(live.rulesText, /Each calendar month the top score wins 25,000 RSC/);
   assert.match(live.rulesText, /Sunday, November 29, 2026 at 11:59 PM Pacific/);
   assert.match(live.rulesText, /Monday, November 30, 2026/);
-  assert.match(live.rulesText, /not an RFP/);
-  assert.match(live.rulesText, /funding deadline must be after the announce date/);
+  assert.match(live.rulesText, /proposal or RFP pool/);
+  assert.match(live.rulesText, /does not send RSC/);
+  assert.match(live.rulesText, /manual funding/);
+  assert.match(live.rulesText, /still be open after the announce date/);
 
   const closed = getPublicPrizeState(new Date('2026-11-30T08:00:00.000Z'));
   assert.equal(closed.phase, 'big-event-closed');
