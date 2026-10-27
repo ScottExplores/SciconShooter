@@ -15,6 +15,8 @@ const {
   getWeeklyBoundaryMeta,
   getWeeklyPresentationMeta,
   resolveWeeklyDashboardPublication,
+  getPublicPrizeState,
+  SCICON_BIG_EVENT,
   WEEKLY_ALLOCATION_RSC,
   WEEKLY_SCORE_SETTLEMENT_MS
 } = require('../shared/weeklyCompetitionBoundary.js');
@@ -31,6 +33,35 @@ const cutoffSnapshotRows = (weekKey, results) => [{
 
 test('the current weekly funding allocation is 1,000 RSC', () => {
   assert.equal(WEEKLY_ALLOCATION_RSC, 1_000);
+});
+
+test('SciCon Big Event pauses the weekly prize and resumes the next Sunday noon after Nov 30', () => {
+  assert.equal(SCICON_BIG_EVENT.closesAt, '2026-11-30T07:59:00.000Z');
+  assert.equal(SCICON_BIG_EVENT.allocationRsc, 25_000);
+  assert.equal(SCICON_BIG_EVENT.weeklyResumesWeekKey, '2026-12-06');
+  assert.equal(
+    getWeekRange(SCICON_BIG_EVENT.weeklyResumesWeekKey).start.toISOString(),
+    '2026-12-06T20:00:00.000Z'
+  );
+
+  const live = getPublicPrizeState(new Date('2026-10-27T04:00:00.000Z'));
+  assert.equal(live.phase, 'big-event');
+  assert.equal(live.allocationRsc, 25_000);
+  assert.equal(live.scoreWindow.end.toISOString(), '2026-11-30T07:59:00.000Z');
+  assert.equal(live.snapshotFrozen, false);
+
+  const closed = getPublicPrizeState(new Date('2026-11-30T08:00:00.000Z'));
+  assert.equal(closed.phase, 'big-event-closed');
+  assert.equal(closed.snapshotFrozen, true);
+  assert.equal(closed.statusLabel, 'winner announced Nov 30');
+  assert.equal(closed.scoreWindow.start.toISOString(), live.scoreWindow.start.toISOString());
+  assert.equal(closed.scoreWindow.end.toISOString(), live.scoreWindow.end.toISOString());
+
+  const justBeforeResume = getPublicPrizeState(new Date('2026-12-06T19:59:59.000Z'));
+  assert.equal(justBeforeResume.phase, 'big-event-closed');
+  const resumed = getPublicPrizeState(new Date('2026-12-06T20:00:00.000Z'));
+  assert.equal(resumed.phase, 'weekly');
+  assert.equal(resumed.allocationRsc, 1_000);
 });
 
 test('weekly competition resets Sunday at noon Pacific', () => {

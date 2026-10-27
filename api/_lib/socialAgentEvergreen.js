@@ -1,4 +1,4 @@
-const { PRIZE_EVENT_ALLOCATION_RSC } = require('../../shared/weeklyCompetitionBoundary.js');
+const { getPublicPrizeState, WEEKLY_ALLOCATION_RSC } = require('../../shared/weeklyCompetitionBoundary.js');
 
 const GAME_URL = 'https://www.sciconshooter.xyz/';
 const CAMPAIGN = 'evergreen-social-v1';
@@ -52,9 +52,13 @@ const VARIANTS = Object.freeze({
     'Start as a guest, learn the controls, and bring back the first score you are willing to defend publicly.'
   ]),
   funding: Object.freeze([
-    `Top the verified board by November 29, 2026 and choose an eligible ResearchHub proposal for the ${PRIZE_EVENT_ALLOCATION_RSC.toLocaleString('en-US')} RSC prize. Make the score useful.`,
+    getPublicPrizeState().phase === 'weekly'
+      ? `Top the verified weekly board and choose an eligible ResearchHub proposal for the round's ${WEEKLY_ALLOCATION_RSC.toLocaleString('en-US')} RSC funding-credit allocation. Make the score useful.`
+      : 'SciCon Big Event: top the verified board by November 29, 2026 and choose a ResearchHub proposal for the one-time 25,000 RSC prize. Make the score useful.',
     'Scicon Shooter is a DeSci-inspired arcade game community-built on Base: play games, compete, and help direct ResearchHub Funding Credits.',
-    'The top score from October 26 through November 29, 2026 can direct 25,000 RSC toward a ResearchHub proposal that stays open after November 30.',
+    getPublicPrizeState().phase === 'weekly'
+      ? 'A weekly high score can do more than sit on a leaderboard. The winner chooses an eligible proposal for that round\'s RSC funding-credit allocation.'
+      : 'The one-time SciCon Big Event awards 25,000 RSC to the top score through November 29, 2026, toward a ResearchHub proposal that stays open after November 30.',
     'The loop is strange on purpose: dodge bullets, top the verified board, choose eligible science for the round\'s Funding Credits.'
   ])
 });

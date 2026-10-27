@@ -94,14 +94,15 @@ test('the live prize is one 25,000 RSC November event', () => {
   const pickerSource = fs.readFileSync(path.join(__dirname, '..', 'components', 'WeeklyProposalSelection.tsx'), 'utf8');
 
   assert.match(boundarySource, /const WEEKLY_ALLOCATION_RSC = 1_000/);
-  assert.match(boundarySource, /const PRIZE_EVENT_ALLOCATION_RSC = 25_000/);
-  assert.match(boundarySource, /PRIZE_EVENT_CLOSE_ISO = '2026-11-30T07:59:00.000Z'/);
-  assert.match(boundaryBrowserSource, /export const PRIZE_EVENT_ALLOCATION_RSC = boundary\.PRIZE_EVENT_ALLOCATION_RSC/);
-  assert.match(source, /getPrizeEventMeta/);
-  assert.match(source, /Scoring closed, winner announced Nov 30/);
+  assert.match(boundarySource, /const SCICON_BIG_EVENT = Object\.freeze\(\{[\s\S]*allocationRsc: 25_000[\s\S]*closesAt: '2026-11-30T07:59:00\.000Z'[\s\S]*weeklyResumesWeekKey: '2026-12-06'/);
+  assert.match(boundaryBrowserSource, /export const SCICON_BIG_EVENT = boundary\.SCICON_BIG_EVENT/);
+  assert.match(source, /getPublicPrizeState/);
+  assert.match(source, /winner announced Nov 30/);
+  assert.match(source, /Weekly Funding/);
+  assert.match(source, /SciCon Big Event/);
   assert.match(competitionSource, /\|\| WEEKLY_ALLOCATION_RSC/);
-  assert.match(fundingFlowSource, /allocationRsc: PRIZE_EVENT_ALLOCATION_RSC/);
-  assert.match(pickerSource, /allocationRsc = PRIZE_EVENT_ALLOCATION_RSC/);
+  assert.match(fundingFlowSource, /allocationRsc: getPublicPrizeState\(\)\.allocationRsc/);
+  assert.match(pickerSource, /allocationRsc = getPublicPrizeState\(\)\.allocationRsc/);
 });
 
 test('Weekly Run home entry always starts a fresh flight and presents only the saved best score', () => {
@@ -281,7 +282,7 @@ test('weekly funding and high score share the exact Start Mission chrome with sa
   assert.match(source, /<HudPanel className="sci-weekly-funding-shell"[^>]*>/);
   assert.match(source, /const renderWeeklyFundingCard =/);
   assert.match(source, /sci-weekly-funding-summary/);
-  assert.match(source, /November Event[\s\S]*Event high score/);
+  assert.match(source, /Weekly Funding[\s\S]*Weekly high score/);
   assert.match(stylesSource, /scicon-pixel-action-buttons-v1\/start-mission-panel\.png/);
   assert.match(stylesSource, /border-image-slice: 54 68 54 68 fill/);
   assert.match(stylesSource, /border-image-repeat: stretch/);

@@ -9,6 +9,7 @@ import {
 import { DEFAULT_GAME_CAMPAIGN, getPrimaryAssetPath } from '../services/levelConfig';
 import type { RunReceipt } from '../services/runReceiptService';
 import type { MissionRecordWeeklyFunding } from '../services/weeklyFundingFlow';
+import { getPublicPrizeState } from '../shared/weeklyCompetitionBoundary.browser';
 import { trackEvent } from '../services/analyticsService';
 import { shareScoreCardImage } from '../services/scoreCardShareService';
 import { openXScoreShare } from '../services/xScoreShareService';
@@ -182,13 +183,13 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
             <div className="mt-3 rounded-[8px] border border-yellow-200/30 bg-yellow-300/10 p-3 shadow-[0_0_18px_rgba(250,204,21,0.18)]">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="font-mono text-[9px] font-black uppercase tracking-[0.2em] text-yellow-200">Event funding</p>
+                  <p className="font-mono text-[9px] font-black uppercase tracking-[0.2em] text-yellow-200">{getPublicPrizeState().phase === 'weekly' ? 'Weekly funding' : 'SciCon Big Event'}</p>
                   <h3 className="arcade-font mt-1 text-sm font-black uppercase tracking-wider text-white">
                     {weeklyFunding.status === 'claimable'
-                      ? 'Event leader confirmed'
+                      ? 'Champion confirmed'
                       : weeklyFunding.status === 'selected'
                         ? 'Funding choice saved'
-                        : 'Event high score'}
+                        : getPublicPrizeState().phase === 'weekly' ? 'Weekly high score' : 'Event high score'}
                   </h3>
                 </div>
                 <span className="shrink-0 border border-yellow-200/30 bg-black/30 px-2 py-1 font-mono text-[9px] font-black uppercase tracking-[0.12em] text-yellow-100">
@@ -197,10 +198,16 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
               </div>
               <p className="mt-2 text-[10px] font-semibold leading-relaxed text-slate-200">
                 {weeklyFunding.status === 'claimable'
-                  ? 'Your winning score is locked. Choose the ResearchHub proposal for this 25,000 RSC prize before minting or sharing.'
+                  ? getPublicPrizeState().phase === 'weekly'
+                    ? 'Your winning score is locked. Choose the ResearchHub proposal for this weekly allocation before minting or sharing.'
+                    : 'Your winning score is locked. Choose the ResearchHub proposal for this 25,000 RSC prize before minting or sharing.'
                   : weeklyFunding.status === 'selected'
-                    ? weeklyFunding.proposalTitle || 'Your funding proposal is saved with this mission record.'
-                    : 'You hold the event high score. Choose a ResearchHub proposal whose funding deadline is after November 30, 2026.'}
+                    ? weeklyFunding.proposalTitle || (getPublicPrizeState().phase === 'weekly'
+                      ? 'Your weekly funding proposal is saved with this mission record.'
+                      : 'Your funding proposal is saved with this mission record.')
+                    : getPublicPrizeState().phase === 'weekly'
+                      ? 'You hold the weekly high score. Choose the proposal that follows this score into the weekly cutoff.'
+                      : 'You hold the event high score. Choose a ResearchHub proposal whose funding deadline is after November 30, 2026.'}
               </p>
               {weeklyFunding.status === 'selected' && weeklyFunding.proposalAuthor ? (
                 <p className="mt-1 truncate font-mono text-[8px] font-black uppercase tracking-[0.12em] text-cyan-100/75">
@@ -213,7 +220,7 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
                   onClick={onOpenWeeklyFunding}
                   className="mt-3 min-h-11 w-full rounded-[6px] border border-yellow-100/40 bg-yellow-300/20 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-yellow-50 transition hover:bg-yellow-300/30"
                 >
-                  Choose proposal
+                  {getPublicPrizeState().phase === 'weekly' ? 'Choose weekly proposal' : 'Choose proposal'}
                 </button>
               ) : null}
             </div>

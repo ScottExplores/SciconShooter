@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { ResearchHubProposal } from '../services/researchHubProposals';
 import { sortProposalsByFunding } from '../services/proposalFunding';
-import { PRIZE_EVENT_ALLOCATION_RSC } from '../shared/weeklyCompetitionBoundary.browser';
+import { getPublicPrizeState } from '../shared/weeklyCompetitionBoundary.browser';
 
 type ProposalFeedStatus = 'loading' | 'ready' | 'empty' | 'error';
 type ProposalSelectionStatus = 'idle' | 'saving' | 'confirmed' | 'error';
@@ -25,7 +25,7 @@ interface WeeklyProposalSelectionProps {
 const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
   pilotName,
   score,
-  allocationRsc = PRIZE_EVENT_ALLOCATION_RSC,
+  allocationRsc = getPublicPrizeState().allocationRsc,
   proposals,
   proposalStatus,
   selectionStatus,
@@ -56,6 +56,7 @@ const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
     ));
   }, [query, sortedProposals]);
   const isSaving = selectionStatus === 'saving';
+  const bigEvent = getPublicPrizeState().phase !== 'weekly';
 
   useEffect(() => {
     const previousFocus = document.activeElement instanceof HTMLElement
@@ -111,7 +112,7 @@ const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
         <div className="relative overflow-hidden border-b border-yellow-200/20 px-4 py-4 text-center sm:px-6">
           <div className="pointer-events-none absolute left-1/2 top-1/2 h-20 w-64 -translate-x-1/2 -translate-y-1/2 bg-yellow-300/10 blur-xl" />
           <p className="relative animate-pulse font-mono text-[10px] font-black uppercase tracking-[0.28em] text-yellow-200 drop-shadow-[0_0_12px_currentColor]">
-            New event high score
+            {bigEvent ? 'SciCon Big Event high score' : 'New weekly high score'}
           </p>
           <h2 id="weekly-proposal-selection-title" className="arcade-font relative mt-2 text-2xl font-black uppercase tracking-wider text-white sm:text-3xl">
             You&apos;re #1, {pilotName || 'Pilot'}
@@ -120,10 +121,14 @@ const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
             {score.toLocaleString()} points
           </p>
           <p id="weekly-proposal-selection-description" className="relative mx-auto mt-2 max-w-sm text-[11px] font-semibold leading-relaxed text-slate-300">
-            Choose the ResearchHub proposal that receives the {allocationRsc.toLocaleString('en-US')} RSC prize if your score is first when scoring closes.
+            {bigEvent
+              ? `Choose the ResearchHub proposal that receives the ${allocationRsc.toLocaleString('en-US')} RSC prize if your score is first when scoring closes. It must be a proposal, not an RFP.`
+              : `Choose the ResearchHub proposal that receives the ${allocationRsc.toLocaleString('en-US')} RSC allocation if your score remains first at the weekly cutoff.`}
           </p>
           <p className="relative mx-auto mt-1 max-w-sm font-mono text-[9px] font-bold uppercase tracking-[0.08em] text-cyan-200/70">
-            Only proposals whose funding deadline is after November 30, 2026 are eligible.
+            {bigEvent
+              ? 'Only proposals whose funding deadline is after November 30, 2026 are eligible.'
+              : 'Only proposals open past Sunday\'s noon-Pacific cutoff are eligible.'}
           </p>
           {dismissible && onClose ? (
             <button

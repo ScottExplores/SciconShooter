@@ -12,6 +12,7 @@ const {
   getCurrentWeekRange,
   getPreviousWeekKey,
   getWeekRange,
+  weekOverlapsBigEventPause,
   WEEKLY_ALLOCATION_RSC,
   WEEKLY_SCORE_SETTLEMENT_MS
 } = require('../../shared/weeklyCompetitionBoundary.js');
@@ -572,6 +573,14 @@ const finalizeWeeklyCompetition = async (
     const error = new Error('An open competition cannot be finalized until its score-submission settlement window closes.');
     error.statusCode = 409;
     throw error;
+  }
+  if (weekOverlapsBigEventPause(start, end)) {
+    return {
+      finalized: false,
+      paused: true,
+      weekKey,
+      reason: 'Weekly prize is paused for the SciCon Big Event.'
+    };
   }
 
   const existingCompetition = await readCompetitionByWeekKey(weekKey);

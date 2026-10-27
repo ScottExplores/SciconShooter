@@ -21,21 +21,33 @@ interface WeeklyDashboardPublication {
   requiredArchiveWeekKey: string | null;
 }
 
-interface PrizeEventMeta {
-  startsAt: Date;
-  endsAt: Date;
-  proposalOpenUntil: Date;
-  daysLeft: number;
-  endLabel: string;
-  closed: boolean;
+interface PublicPrizeState {
+  phase: 'big-event' | 'big-event-closed' | 'weekly';
+  name: string;
   allocationRsc: number;
+  startsAt: Date;
+  closesAt: Date;
+  weeklyResumesAt: Date;
+  proposalOpenUntil: Date;
+  scoreWindow: { start: Date; end: Date };
+  snapshotFrozen: boolean;
+  statusLabel: string | null;
+  daysLeft: number;
 }
 
 interface WeeklyCompetitionBoundary {
   WEEKLY_ALLOCATION_RSC: number;
-  PRIZE_EVENT_ALLOCATION_RSC: number;
+  SCICON_BIG_EVENT: {
+    name: string;
+    allocationRsc: number;
+    startsAt: string;
+    closesAt: string;
+    proposalOpenUntil: string;
+    winnerAnnouncedLabel: string;
+    weeklyResumesWeekKey: string;
+  };
   WEEKLY_SCORE_SETTLEMENT_MS: number;
-  getPrizeEventMeta: (now?: Date | string | number) => PrizeEventMeta;
+  getPublicPrizeState: (now?: Date | string | number) => PublicPrizeState;
   getWeeklyBoundaryMeta: (
     now?: Date | string | number,
     locale?: string | string[]
@@ -59,9 +71,9 @@ if (!boundary) {
 }
 
 export const getWeeklyBoundaryMeta = boundary.getWeeklyBoundaryMeta;
-export const getPrizeEventMeta = boundary.getPrizeEventMeta;
+export const getPublicPrizeState = boundary.getPublicPrizeState;
 export const getWeeklyPresentationMeta = boundary.getWeeklyPresentationMeta;
 export const resolveWeeklyDashboardPublication = boundary.resolveWeeklyDashboardPublication;
 export const WEEKLY_ALLOCATION_RSC = boundary.WEEKLY_ALLOCATION_RSC;
-export const PRIZE_EVENT_ALLOCATION_RSC = boundary.PRIZE_EVENT_ALLOCATION_RSC;
+export const SCICON_BIG_EVENT = boundary.SCICON_BIG_EVENT;
 export const WEEKLY_SCORE_SETTLEMENT_MS = boundary.WEEKLY_SCORE_SETTLEMENT_MS;

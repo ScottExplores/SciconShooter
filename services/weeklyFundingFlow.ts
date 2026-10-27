@@ -1,6 +1,6 @@
 import type { ArchivedWinner, LeaderboardEntry } from '../types';
 import type { RunReceipt } from './runReceiptService';
-import { PRIZE_EVENT_ALLOCATION_RSC } from '../shared/weeklyCompetitionBoundary.browser';
+import { getPublicPrizeState } from '../shared/weeklyCompetitionBoundary.browser';
 
 export type MissionRecordFundingStatus = 'current-leader' | 'claimable' | 'selected';
 
@@ -81,7 +81,7 @@ export const getMissionRecordWeeklyFunding = ({
     if (currentLeader?.proposalId && currentLeader.proposalTitle) {
       return {
         status: 'selected',
-        allocationRsc: PRIZE_EVENT_ALLOCATION_RSC,
+        allocationRsc: getPublicPrizeState().allocationRsc,
         canEditProposal: true,
         proposalId: currentLeader.proposalId,
         proposalTitle: currentLeader.proposalTitle,
@@ -91,7 +91,7 @@ export const getMissionRecordWeeklyFunding = ({
     }
     return {
       status: 'current-leader',
-      allocationRsc: PRIZE_EVENT_ALLOCATION_RSC
+      allocationRsc: getPublicPrizeState().allocationRsc
     };
   }
 

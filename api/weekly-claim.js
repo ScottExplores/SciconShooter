@@ -7,8 +7,8 @@ const { checkRateLimit } = require('./_lib/rateLimit');
 const { assertSameOrigin } = require('./_lib/walletProfileAuth');
 const { readTopEligibleScore } = require('./_lib/weeklyCompetitionService');
 const {
-  getPrizeEventMeta,
-  PRIZE_EVENT_ALLOCATION_RSC
+  getPublicPrizeState,
+  WEEKLY_ALLOCATION_RSC
 } = require('../shared/weeklyCompetitionBoundary.js');
 
 const COMPETITIONS_TABLE = process.env.SUPABASE_WEEKLY_COMPETITIONS_TABLE || 'scicon_weekly_competitions';
@@ -20,7 +20,7 @@ const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const RESOLVED_COMPETITION_STATUSES = new Set(['claimed', 'funded']);
 
 const findCurrentWeekEligibleProposal = (proposalId) => findEligibleProposal(proposalId, {
-  requiredOpenUntil: getPrizeEventMeta().proposalOpenUntil
+  requiredOpenUntil: getPublicPrizeState().proposalOpenUntil
 });
 
 const sendJson = (res, status, payload) => {
@@ -376,7 +376,7 @@ const completeClaim = async ({ weekKey, proposalId, address, challengeId, signat
 
   await sendBaseNotificationBroadcast({
     title: 'Research pick selected',
-    message: `${competition.winner_name || 'The event leader'} selected ${proposal.title} for the ${Number(competition.allocation_rsc || PRIZE_EVENT_ALLOCATION_RSC).toLocaleString('en-US')} RSC allocation.`,
+    message: `${competition.winner_name || 'The leader'} selected ${proposal.title} for the ${Number(competition.allocation_rsc || getPublicPrizeState().allocationRsc).toLocaleString('en-US')} RSC allocation.`,
     targetPath: '/?view=trophies'
   }).catch((error) => console.error('Base proposal notification failed:', error));
   return claimResultFromCompetition({

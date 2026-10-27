@@ -182,7 +182,7 @@ import {
   getWeeklyBoundaryMeta,
   getWeeklyPresentationMeta,
   resolveWeeklyDashboardPublication,
-  PRIZE_EVENT_ALLOCATION_RSC
+  getPublicPrizeState
 } from './shared/weeklyCompetitionBoundary.browser';
 import {
   CAMPAIGN_MISSIONS,
@@ -1653,6 +1653,16 @@ const App: React.FC = () => {
   const activeMissionPlayerShipUrl = PLAYER_SHIPS[activeMissionShipId].assetUrl;
 
   useEffect(() => {
+    const prize = getPublicPrizeState();
+    const description = prize.phase === 'weekly'
+      ? 'Play games. Fund science. Scicon Shooter is a DeSci-inspired, community-built Base arcade game where the finalized weekly winner can direct RSC funding credits toward an eligible science proposal.'
+      : 'Play games. Fund science. SciCon Big Event: one-time 25,000 RSC for the top score through November 29, 2026, toward a ResearchHub proposal of the winner\'s choice.';
+    for (const selector of ['meta[name="description"]', 'meta[property="og:description"]', 'meta[name="twitter:description"]']) {
+      document.querySelector(selector)?.setAttribute('content', description);
+    }
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
     const startedAt = Date.now();
 
@@ -1868,7 +1878,10 @@ const App: React.FC = () => {
         if (archive === null) return;
 
         const publication = resolveWeeklyDashboardPublication(archive.completedWeekKeys);
-        const presentedWeeklyScores = await getLeaderboardWeekScores(publication.visibleWeekKey);
+        const publicPrize = getPublicPrizeState();
+        const presentedWeeklyScores = publicPrize.phase === 'weekly'
+          ? await getLeaderboardWeekScores(publication.visibleWeekKey)
+          : data.monthlyScores;
         if (!active || presentedWeeklyScores === null) return;
 
         if (data.scores.length > 0) {
@@ -1876,7 +1889,11 @@ const App: React.FC = () => {
         }
         setMonthlyLeaderboard(presentedWeeklyScores);
         setArchivedWinners(archive.winners);
-        setWeeklyPresentationTime(publication.presentationTime);
+        if (publicPrize.phase === 'weekly') {
+          setWeeklyPresentationTime(publication.presentationTime);
+        } else {
+          setWeeklyPresentationTime(Date.now());
+        }
       } catch (error) {
         console.error("Failed to refresh weekly dashboard", error);
       } finally {
@@ -7713,7 +7730,7 @@ const App: React.FC = () => {
     score: stats.score,
     wave: stats.wave,
     scoreDate: new Date().toISOString(),
-    allocationRsc: PRIZE_EVENT_ALLOCATION_RSC,
+    allocationRsc: getPublicPrizeState().allocationRsc,
     status: 'finalized'
   };
   /**

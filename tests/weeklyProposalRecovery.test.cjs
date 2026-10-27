@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const ts = require('typescript');
-const { PRIZE_EVENT_ALLOCATION_RSC } = require('../shared/weeklyCompetitionBoundary.js');
+const { getPublicPrizeState } = require('../shared/weeklyCompetitionBoundary.js');
 
 const root = path.resolve(__dirname, '..');
 const loadTypeScriptService = (relativePath, dependencyMap) => {
@@ -38,7 +38,7 @@ const { getWeeklyProposalRecovery } = loadTypeScriptService(
 );
 const { getMissionRecordWeeklyFunding } = loadTypeScriptService(
   'services/weeklyFundingFlow.ts',
-  { '../shared/weeklyCompetitionBoundary.browser': { PRIZE_EVENT_ALLOCATION_RSC } }
+  { '../shared/weeklyCompetitionBoundary.browser': { getPublicPrizeState } }
 );
 
 const wallet = '0x1111111111111111111111111111111111111111';

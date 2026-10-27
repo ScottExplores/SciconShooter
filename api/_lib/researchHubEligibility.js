@@ -1,7 +1,7 @@
 const FEED_URL = 'https://backend.prod.researchhub.com/api/funding_feed/?fundraise_status=OPEN&ordering=best&page_size=100&content_type=PREREGISTRATION';
 const MAX_OPEN_FEED_PAGES = 5;
 const MAX_OPEN_PROPOSALS = 500;
-const { getPrizeEventMeta } = require('../../shared/weeklyCompetitionBoundary.js');
+const { getPublicPrizeState } = require('../../shared/weeklyCompetitionBoundary.js');
 const { isFundingDeadlineAfter } = require('../../shared/researchHubProposalEligibility.js');
 
 const asText = (value, max = 500) => typeof value === 'string' && value.trim()
@@ -170,7 +170,7 @@ const eligibleProposalsFromEntries = (entries, requiredOpenUntil) => (
 
 const findEligibleProposal = async (
   proposalId,
-  { requiredOpenUntil = getPrizeEventMeta().proposalOpenUntil } = {}
+  { requiredOpenUntil = getPublicPrizeState().proposalOpenUntil } = {}
 ) => {
   const target = String(proposalId || '');
   if (!/^\d{1,20}$/.test(target)) {
@@ -190,7 +190,7 @@ const findEligibleProposal = async (
 };
 
 const findHighestFundedEligibleProposal = async (
-  { requiredOpenUntil = getPrizeEventMeta().proposalOpenUntil } = {}
+  { requiredOpenUntil = getPublicPrizeState().proposalOpenUntil } = {}
 ) => {
   const entries = await fetchOpenProposalEntries();
   const proposal = eligibleProposalsFromEntries(entries, requiredOpenUntil)
@@ -207,7 +207,7 @@ const resolveEligibleProposalForFinalization = async (
   proposalId,
   { requiredOpenUntil, proposalEntries } = {}
 ) => {
-  const cutoff = requiredOpenUntil || getPrizeEventMeta().proposalOpenUntil;
+  const cutoff = requiredOpenUntil || getPublicPrizeState().proposalOpenUntil;
   const entries = Array.isArray(proposalEntries)
     ? proposalEntries
     : await fetchOpenProposalEntries();
