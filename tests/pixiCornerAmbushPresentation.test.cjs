@@ -147,6 +147,36 @@ test('Umbra blackout hides the world without spotlights and draws exact threats 
       < sync.indexOf('this.syncEntities(engine)'),
     'the active ambush owner must be known before its pooled beam view is drawn'
   );
+  assert.ok(
+    sync.indexOf('this.syncEntities(engine)')
+      < sync.indexOf('this.syncUmbraBlackoutBossArt(engine)'),
+    'Umbra is lifted after his world sprite has been drawn'
+  );
+});
+
+test('Umbra corner charge keeps his sprite readable and keeps the red aim cues', () => {
+  const pose = fs.readFileSync(
+    path.join(root, 'services', 'pixi', 'boss-rigs', 'UmbraNeedlewingModularPose.ts'),
+    'utf8'
+  );
+  const art = sliceMethod(
+    'private shouldShowUmbraBlackoutArt(',
+    'private setCornerAmbushPlayerLayerRaised('
+  );
+  assert.match(renderer, /fill\(\{ color: '#000002', alpha: blackoutAlpha \}\)/);
+  assert.match(renderer, /private drawUmbraBlackoutDashSilhouette\(/);
+  assert.match(renderer, /color: '#ef233c'/);
+  assert.match(renderer, /color: '#7f0017'/);
+  assert.match(renderer, /color: '#fff1f2'/);
+  assert.match(art, /stage === 'hidden' && this\.umbraBlackoutConcealedFrames <= 90/);
+  assert.match(art, /this\.app\.stage\.addChildAt\(view\.root, Math\.max\(0, guideIndex\)\)/);
+  assert.match(art, /color: '#c5d9ff'/);
+  assert.match(pose, /const cornerChargeVisible = isRam && vanish\?\.stage !== 'hidden'/);
+  assert.match(
+    pose,
+    /Math\.max\(authoredOpacity, vanish\?\.stage === 'fade-out' \? authoredOpacity : 0\.92\)/
+  );
+  assert.doesNotMatch(art, /\.ellipse\(|\.cut\(\)/);
 });
 
 test('corner ambush live beam stays bright while transforming orbiter hull hits stay local', () => {

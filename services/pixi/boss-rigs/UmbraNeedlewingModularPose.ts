@@ -258,18 +258,26 @@ export const sampleUmbraNeedlewingModularPose = (
   const phaseTransitionPulse = phaseTransitionActive
     ? Math.sin(phaseTransitionProgress * Math.PI)
     : 0;
-  const structuralOpacity = clamp(
+  const authoredOpacity = clamp(
     finiteOr(escape?.opacity, finiteOr(vanish?.opacity, 1)),
     0,
     1
   );
+  // The corner charge keeps Scott's sprite readable on the black field.
+  // Only the short hidden beat stays fully invisible.
+  const cornerChargeVisible = isRam && vanish?.stage !== 'hidden';
+  const structuralOpacity = cornerChargeVisible
+    ? Math.max(authoredOpacity, vanish?.stage === 'fade-out' ? authoredOpacity : 0.92)
+    : authoredOpacity;
   const bodyVisible = structuralOpacity > 0.001 && escape?.stage !== 'complete';
   const vanishFold = !vanish
     ? 0
     : vanish.stage === 'fade-out'
       ? smoothstep(vanishProgress)
-      : vanish.stage === 'hidden' || vanish.stage === 'reentry-warning'
-        ? 1
+    : vanish.stage === 'hidden'
+      ? 1
+      : vanish.stage === 'reentry-warning'
+        ? (cornerChargeVisible ? 0.16 : 1)
         : vanish.stage === 'reappear'
           ? 1 - smoothstep(vanishProgress)
           : (1 - smoothstep(vanishProgress)) * 0.22;
@@ -282,7 +290,7 @@ export const sampleUmbraNeedlewingModularPose = (
         : escape.stage === 'escape-charge' || escape.stage === 'escaping'
           ? 0.5 + 0.5 * smoothstep(escapeProgress)
           : 1;
-  const attackFold = isRam ? actionEnergy * 0.86 : isBlackout ? actionEnergy * 0.24 : 0;
+  const attackFold = isRam ? actionEnergy * 0.22 : isBlackout ? actionEnergy * 0.24 : 0;
   const fold = clamp(
     Math.max(
       1 - entrance,
@@ -324,7 +332,9 @@ export const sampleUmbraNeedlewingModularPose = (
       scaleYMultiplier: 1 + breathing * 0.12
     }),
     'eye.port': freezeOverride({
-      alpha: structuralOpacity * (0.6 + Math.max(actionEnergy, phaseTransitionPulse) * 0.4),
+      alpha: cornerChargeVisible
+        ? 1
+        : structuralOpacity * (0.6 + Math.max(actionEnergy, phaseTransitionPulse) * 0.4),
       visible: bodyVisible && (
         (
           (warningStage || isWingShear || isCornerNeedle || isBlackout)
@@ -334,7 +344,9 @@ export const sampleUmbraNeedlewingModularPose = (
       )
     }),
     'eye.starboard': freezeOverride({
-      alpha: structuralOpacity * (0.6 + Math.max(actionEnergy, phaseTransitionPulse) * 0.4),
+      alpha: cornerChargeVisible
+        ? 1
+        : structuralOpacity * (0.6 + Math.max(actionEnergy, phaseTransitionPulse) * 0.4),
       visible: bodyVisible && (
         (
           (warningStage || isWingShear || isCornerNeedle || isBlackout)

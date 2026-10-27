@@ -2697,7 +2697,7 @@ const umbraTimeline = compileUmbraTimeline([
     color: '#f43f5e',
     cameraStrength: 2.2,
     recoverySeconds: 0.7,
-    starts: { wingShear: 0.2, orbitGap: 5.4, cornerNeedle: 11.6, blackoutAmbush: 16.2 },
+    starts: { wingShear: 7.9, orbitGap: 13.1, cornerNeedle: 19.3, blackoutAmbush: 0.35 },
     wingShear: [
       {
         id: 'echo-helios-port',

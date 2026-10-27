@@ -887,6 +887,15 @@ export class Entity {
   bossTimelineLastPhaseId?: string;
   bossActionPresentation?: BossActionPresentationState;
   bossUmbraBlackoutHuntActive: boolean = false;
+  /** True after Umbra has launched one blackout corner charge this fight. */
+  bossUmbraBlackoutRamFired: boolean = false;
+  /** A phase reset skipped the authored charge, so the next stable phase owes one. */
+  bossUmbraBlackoutRamDue: boolean = false;
+  /**
+   * While a guaranteed charge is in flight, timeline cues stay on this frame
+   * and the phase clock rewinds here when the charge ends.
+   */
+  bossUmbraTimelineHoldFrame: number = -1;
   bossRevival?: BossRevivalConfig;
   bossRevivalRuntime?: BossRevivalRuntimeState;
   bossRevivalStage?: BossRevivalStage;
@@ -11780,9 +11789,17 @@ export class GameEngine {
     if ((boss.bossAttackArchetype || boss.bossTimeline) && transitionedBetweenActivePhases) {
       // A new authored boss phase starts at the beginning of its cue cycle so
       // a damaging technique can never skip its warning.
+      const umbraOwesBlackout = this.isUmbraNeedlewing(boss)
+        && !boss.bossUmbraBlackoutRamFired;
       if (!this.restoreUmbraCombatRuntime(boss)) {
         this.clearPrismMothRuntime(boss);
       }
+      if (umbraOwesBlackout) {
+        // The reset drops the 13–18s charge. Arm one for this phase instead
+        // of waiting out another full list, including the finale.
+        boss.bossUmbraBlackoutRamDue = true;
+      }
+      boss.bossUmbraTimelineHoldFrame = -1;
       boss.attackTimer = 0;
       boss.bossMovementPathId = undefined;
       boss.bossMovementPathStartFrame = -1;
@@ -16574,6 +16591,51 @@ export class GameEngine {
     this.addHitStop(4);
   }
 
+  private beginGuaranteedUmbraBlackoutCharge(boss: Entity) {
+    const warningSeconds = 0.9;
+    const actionSeconds = 0.65;
+    const phaseId = boss.bossTimelinePhaseId ?? boss.activeBossPhaseId;
+    const actionClip: BossTimelineCue['clip'] = {
+      id: 'umbra-guaranteed-lower-corner-ram',
+      label: 'Lower-corner blackout charge',
+      track: 'movement',
+      primitiveId: 'corner-ambush-ram',
+      trigger: 'time',
+      startSeconds: warningSeconds,
+      durationSeconds: actionSeconds,
+      phaseId,
+      telegraphClipId: 'umbra-guaranteed-lower-corner-ram-warning',
+      parameters: {
+        sequence: 1,
+        motionCue: 'umbra-blackout-ambush'
+      }
+    };
+    const warningClip: BossTimelineCue['clip'] = {
+      id: 'umbra-guaranteed-lower-corner-ram-warning',
+      label: 'Lower-corner blackout charge warning',
+      track: 'presentation',
+      primitiveId: 'telegraph',
+      trigger: 'time',
+      startSeconds: 0,
+      durationSeconds: warningSeconds,
+      phaseId,
+      parameters: {
+        warningSeconds,
+        telegraphStyle: 'target',
+        sequence: 1,
+        motionCue: 'umbra-blackout-ambush'
+      }
+    };
+    boss.bossUmbraBlackoutHuntActive = true;
+    const cue: BossTimelineCue = {
+      clip: warningClip,
+      executionIndex: 0,
+      timelineFrame: boss.attackTimer
+    };
+    this.setBossActionPresentation(boss, cue, 'warning', actionClip);
+    this.beginBossCornerAmbushRamWarning(boss, cue, actionClip);
+  }
+
   private beginBossCornerAmbushRamWarning(
     boss: Entity,
     cue: BossTimelineCue,
@@ -16614,6 +16676,17 @@ export class GameEngine {
       endFrame: boss.attackTimer + warningFrames,
       lock
     };
+    const fadeOutFrames = Math.max(4, Math.min(12, Math.floor(warningFrames * 0.12)));
+    const hiddenFrames = Math.max(
+      4,
+      Math.min(Math.round(GAME_CONFIG.FPS * 0.45), Math.floor(warningFrames * 0.2))
+    );
+    const reentryWarningFrames = Math.max(8, Math.floor(warningFrames * 0.34));
+    const reappearFrames = Math.max(8, Math.floor(warningFrames * 0.22));
+    const recoveryFrames = Math.max(
+      4,
+      warningFrames - fadeOutFrames - hiddenFrames - reentryWarningFrames - reappearFrames
+    );
     const vanishing = this.beginUmbraVanishReentry(
       boss,
       warningFrames,
@@ -16621,7 +16694,18 @@ export class GameEngine {
       lock.startY,
       lock.targetX,
       lock.targetY,
-      { startHidden: continuingFromHiddenExit }
+      {
+        startHidden: continuingFromHiddenExit,
+        // The corner charge may vanish only briefly. A longer empty black
+        // reads as Umbra doing nothing before the lower-corner ram.
+        durations: {
+          fadeOutFrames,
+          hiddenFrames: Math.min(hiddenFrames, Math.round(GAME_CONFIG.FPS * 1.5) - fadeOutFrames),
+          reentryWarningFrames,
+          reappearFrames,
+          recoveryFrames
+        }
+      }
     );
     if (!vanishing) {
       boss.x = lock.startX;
@@ -16649,6 +16733,7 @@ export class GameEngine {
       CORNER_AMBUSH_RAM_MAX_LIVE_SECONDS
     );
     state.stage = 'charge';
+    if (this.isUmbraNeedlewing(boss)) boss.bossUmbraBlackoutRamFired = true;
     state.startFrame = boss.attackTimer;
     state.endFrame = boss.attackTimer + Math.max(
       1,
@@ -22421,8 +22506,10 @@ export class GameEngine {
       boss.bossActionPresentation = undefined;
     }
     const timelineDurationFrames = getBossTimelineDurationFrames(timeline, GAME_CONFIG.FPS);
+    const timelineClockHeld = boss.bossUmbraTimelineHoldFrame >= 0;
     if (
       timeline.loop
+      && !timelineClockHeld
       && boss.attackTimer > 0
       && boss.attackTimer % timelineDurationFrames === 0
     ) {
@@ -22433,6 +22520,18 @@ export class GameEngine {
         this.clearAbyssalOctarchActionRuntime(boss);
       }
       this.clearBossTimelineActionLocks(boss);
+    }
+    if (
+      this.isUmbraNeedlewing(boss)
+      && boss.bossUmbraBlackoutRamDue
+      && !boss.bossUmbraBlackoutRamFired
+      && !boss.bossCornerAmbushRamState
+      && boss.attackTimer >= 48
+    ) {
+      // Shortly after the phase that skipped the authored charge has settled.
+      this.beginGuaranteedUmbraBlackoutCharge(boss);
+      boss.bossUmbraBlackoutRamDue = false;
+      boss.bossUmbraTimelineHoldFrame = Math.max(0, boss.attackTimer - 1);
     }
     const phaseId = boss.bossTimelinePhaseId ?? boss.activeBossPhaseId;
     if (phaseId !== boss.bossTimelineLastPhaseId) {
@@ -22448,8 +22547,10 @@ export class GameEngine {
       getBossTimelineTriggeredCues(timeline, 'phase-enter', phaseId)
         .forEach((cue) => this.dispatchBossTimelineCue(boss, cue, phase, 'phase-enter'));
     }
-    getBossTimelineCuesAtFrame(timeline, boss.attackTimer, phaseId, GAME_CONFIG.FPS)
-      .forEach((cue) => this.dispatchBossTimelineCue(boss, cue, phase));
+    if (boss.bossUmbraTimelineHoldFrame < 0) {
+      getBossTimelineCuesAtFrame(timeline, boss.attackTimer, phaseId, GAME_CONFIG.FPS)
+        .forEach((cue) => this.dispatchBossTimelineCue(boss, cue, phase));
+    }
     this.updateBossCornerAmbushBeamTracking(boss);
     if (
       boss.bossActionPresentation?.primitiveId === 'rotor-hazard-sentence'
@@ -22763,12 +22864,33 @@ export class GameEngine {
     if (cornerRam) {
       const lock = cornerRam.lock;
       if (cornerRam.stage === 'warning') {
-        boss.x = lock.startX;
-        boss.y = lock.startY;
-        boss.vx = 0;
-        boss.vy = 0;
-        boss.bossPresentationBankRadians = lock.angleRadians - Math.PI / 2;
-        return;
+        if (
+          boss.bossUmbraTimelineHoldFrame >= 0
+          && boss.attackTimer >= cornerRam.endFrame
+        ) {
+          this.fireBossCornerAmbushRam(boss, {
+            clip: {
+              id: cornerRam.actionClipId,
+              label: 'Lower-corner blackout charge',
+              track: 'movement',
+              primitiveId: 'corner-ambush-ram',
+              trigger: 'time',
+              startSeconds: 0.9,
+              durationSeconds: 0.65,
+              parameters: { sequence: lock.sequence, motionCue: 'umbra-blackout-ambush' }
+            },
+            executionIndex: 0,
+            timelineFrame: boss.attackTimer
+          });
+        }
+        if (boss.bossCornerAmbushRamState?.stage === 'warning') {
+          boss.x = lock.startX;
+          boss.y = lock.startY;
+          boss.vx = 0;
+          boss.vy = 0;
+          boss.bossPresentationBankRadians = lock.angleRadians - Math.PI / 2;
+          return;
+        }
       }
       const durationFrames = Math.max(1, cornerRam.endFrame - cornerRam.startFrame);
       const rawProgress = clamp(
@@ -22789,6 +22911,10 @@ export class GameEngine {
       boss.bossPresentationBankRadians = 0;
       boss.isCharging = false;
       if (this.isUmbraNeedlewing(boss)) {
+        if (boss.bossUmbraTimelineHoldFrame >= 0) {
+          boss.attackTimer = boss.bossUmbraTimelineHoldFrame;
+          boss.bossUmbraTimelineHoldFrame = -1;
+        }
         const anchor = this.getBossUpperCombatAnchor(boss);
         this.beginUmbraVanishReentry(
           boss,

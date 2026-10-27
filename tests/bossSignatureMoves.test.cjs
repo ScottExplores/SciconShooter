@@ -193,3 +193,105 @@ test('every other authored campaign boss fires its opening moves', () => {
   }
   assert.ok(checked.size >= 4, 'expected the other authored campaign bosses to be checked');
 });
+
+const settleUmbra = (event) => {
+  const engine = createEngine();
+  engine.spawnBoss(structuredClone(event));
+  const boss = engine.entities.find((entity) => entity.type === 'BOSS');
+  assert.ok(boss, 'Umbra should spawn');
+  const entrance = Math.max(72, Math.min(engine.height * 0.13, 116));
+  boss.y = entrance;
+  boss.hp = boss.maxHp;
+  for (let frame = 0; frame < 20; frame += 1) {
+    boss.hp = boss.maxHp;
+    engine.frameCount += 1;
+    engine.updateBoss(boss);
+  }
+  assert.equal(boss.bossUmbraBlackoutRamFired, false);
+  assert.equal(boss.bossUmbraBlackoutRamDue, false);
+  return { engine, boss };
+};
+
+const stepUntilCornerCharge = (engine, boss, frames) => {
+  let hiddenRun = 0;
+  let maxHiddenRun = 0;
+  for (let frame = 0; frame < frames; frame += 1) {
+    engine.frameCount += 1;
+    engine.updateBoss(boss);
+    if (boss.bossVanishReentryStage === 'hidden') {
+      hiddenRun += 1;
+      maxHiddenRun = Math.max(maxHiddenRun, hiddenRun);
+    } else {
+      hiddenRun = 0;
+    }
+    const ram = boss.bossCornerAmbushRamState;
+    if (ram?.stage === 'charge') {
+      return { ram, maxHiddenRun, frames: frame + 1 };
+    }
+  }
+  return { ram: null, maxHiddenRun, frames };
+};
+
+test('a skipped Umbra phase still charges from a lower corner within a few seconds', () => {
+  const event = firstCampaignBoss('umbra-needlewing');
+  const { engine, boss } = settleUmbra(event);
+  boss.hp = boss.maxHp * 0.7;
+  const result = stepUntilCornerCharge(engine, boss, 220);
+  assert.ok(result.ram, 'phase change before the authored ram should still charge');
+  assert.equal(result.ram.lock.sequence, 1);
+  assert.ok(
+    result.ram.lock.startY >= engine.height * 0.5,
+    `charge should leave a lower corner, startY=${result.ram.lock.startY}`
+  );
+  assert.equal(boss.bossUmbraBlackoutRamFired, true);
+  assert.ok(result.maxHiddenRun <= 90, `pure-black hidden beat ran ${result.maxHiddenRun} frames`);
+  assert.ok(result.frames <= 180, `charge took ${result.frames} frames`);
+});
+
+test('the Umbra finale opens with a lower-corner charge', () => {
+  const event = firstCampaignBoss('umbra-needlewing');
+  const sandbox = getSandboxBossKit('umbra-needlewing');
+  for (const [source, candidate] of [['campaign', event], ['boss lab', sandbox]]) {
+    const rams = (candidate.timeline?.clips ?? [])
+      .filter((clip) => (
+        clip.phaseId === 'sandbox-umbra-finale-echo'
+        && clip.primitiveId === 'corner-ambush-ram'
+      ))
+      .sort((left, right) => left.startSeconds - right.startSeconds);
+    assert.ok(rams.length >= 1, `${source} finale needs a corner charge`);
+    assert.ok(
+      rams[0].startSeconds > 0.5 && rams[0].startSeconds < 2,
+      `${source} finale ram starts at ${rams[0].startSeconds}s`
+    );
+    assert.equal(rams[0].parameters?.sequence, 1);
+  }
+  const { engine, boss } = settleUmbra(event);
+  boss.hp = boss.maxHp * 0.1;
+  const result = stepUntilCornerCharge(engine, boss, 180);
+  assert.equal(boss.activeBossPhaseId, 'sandbox-umbra-finale-echo');
+  assert.ok(result.ram, 'a fast drop into the finale should still charge');
+  assert.ok(result.ram.lock.startY >= engine.height * 0.5);
+  assert.notEqual(result.ram.actionClipId, 'umbra-guaranteed-lower-corner-ram');
+  assert.ok(result.maxHiddenRun <= 90, `pure-black hidden beat ran ${result.maxHiddenRun} frames`);
+});
+
+test('an Umbra fight that already charged does not arm a second makeup ram', () => {
+  const event = firstCampaignBoss('umbra-needlewing');
+  const { engine, boss } = settleUmbra(event);
+  const first = stepUntilCornerCharge(engine, boss, 1600);
+  assert.ok(first.ram, 'phase-one authored ram should still charge');
+  assert.equal(boss.bossUmbraBlackoutRamFired, true);
+  boss.hp = boss.maxHp * 0.7;
+  engine.frameCount += 1;
+  engine.updateBoss(boss);
+  assert.equal(boss.activeBossPhaseId, 'sandbox-umbra-blackout-hunt');
+  assert.equal(boss.bossUmbraBlackoutRamDue, false);
+  for (let frame = 0; frame < 90; frame += 1) {
+    engine.frameCount += 1;
+    engine.updateBoss(boss);
+    assert.notEqual(
+      boss.bossCornerAmbushRamState?.actionClipId,
+      'umbra-guaranteed-lower-corner-ram'
+    );
+  }
+});

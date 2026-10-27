@@ -1383,6 +1383,7 @@ export class PixiGameRenderer {
   private readonly camera = createLayer();
   private readonly world = createLayer();
   private readonly cornerAmbushShade = new Graphics();
+  private readonly umbraBlackoutGlow = new Graphics();
   private readonly cornerAmbushGuide = new Graphics();
   private readonly previewDebugOverlay = new Graphics();
   private readonly views = new Map<string, EntityView>();
@@ -1497,6 +1498,8 @@ export class PixiGameRenderer {
   private readonly previewBossRuntimeEntityIds = new Set<string>();
   private cornerAmbushBossId: string | null = null;
   private cornerAmbushPlayerLayerRaised = false;
+  private umbraBlackoutArtEntityId: string | null = null;
+  private umbraBlackoutConcealedFrames = 0;
   private previewDebugOverlays: PreviewDebugOverlayState = DEFAULT_PREVIEW_DEBUG_OVERLAYS;
   private previewBossReferenceComparison: PreviewBossReferenceComparisonState =
     DEFAULT_PREVIEW_BOSS_REFERENCE_COMPARISON;
@@ -1859,6 +1862,7 @@ export class PixiGameRenderer {
       this.camera,
       this.layers.overlay,
       this.cornerAmbushShade,
+      this.umbraBlackoutGlow,
       this.cornerAmbushGuide,
       this.bossHealthRoot
     );
@@ -1875,6 +1879,9 @@ export class PixiGameRenderer {
 
     this.cornerAmbushShade.eventMode = 'none';
     this.cornerAmbushShade.visible = false;
+    this.umbraBlackoutGlow.eventMode = 'none';
+    this.umbraBlackoutGlow.visible = false;
+    this.umbraBlackoutGlow.blendMode = 'add';
     this.cornerAmbushGuide.eventMode = 'none';
     this.cornerAmbushGuide.visible = false;
     this.cornerAmbushGuide.blendMode = 'add';
@@ -6767,8 +6774,12 @@ export class PixiGameRenderer {
         && String(entity.sourceItemId ?? '').endsWith('umbra-needlewing')
       );
       if (!modularPoseOwnsLifecycleAlpha) {
+        const showCornerCharge = this.shouldShowUmbraBlackoutArt(entity);
+        const vanishOpacity = showCornerCharge && entity.bossVanishReentryStage !== 'fade-out'
+          ? Math.max(entity.bossVanishOpacity, 0.92)
+          : entity.bossVanishOpacity;
         view.root.alpha *= clamp(
-          entity.bossVanishOpacity * entity.bossEscapeOpacity,
+          vanishOpacity * entity.bossEscapeOpacity,
           0,
           1
         );
@@ -7317,6 +7328,92 @@ export class PixiGameRenderer {
       && String(entity.sourceItemId ?? '').endsWith('umbra-needlewing');
   }
 
+  private shouldShowUmbraBlackoutArt(entity: Entity) {
+    if (!this.isUmbraNeedlewingBlackoutBoss(entity) || entity.markedForDeletion) return false;
+    if (entity.bossCornerAmbushBeamState && !entity.bossCornerAmbushRamState) return false;
+    const blackout = entity.bossUmbraBlackoutHuntActive
+      || Boolean(entity.bossCornerAmbushRamState)
+      || Boolean(entity.bossVanishReentryState);
+    if (!blackout) return false;
+    const stage = entity.bossVanishReentryStage;
+    if (stage === 'hidden' && this.umbraBlackoutConcealedFrames <= 90) return false;
+    return true;
+  }
+
+  private restoreUmbraBlackoutArt(view?: EntityView) {
+    const entityId = this.umbraBlackoutArtEntityId;
+    const raised = view ?? (entityId ? this.views.get(entityId) : undefined);
+    this.umbraBlackoutArtEntityId = null;
+    this.umbraBlackoutGlow.clear();
+    this.umbraBlackoutGlow.visible = false;
+    if (!raised || raised.root.parent !== this.app.stage) return;
+    const enemyLayer = this.layers.enemy;
+    const projectileIndex = enemyLayer.parent
+      ? this.world.children.indexOf(enemyLayer)
+      : -1;
+    if (projectileIndex >= 0) enemyLayer.addChild(raised.root);
+  }
+
+  private syncUmbraBlackoutBossArt(engine: GameEngine) {
+    let boss: Entity | undefined;
+    for (const entity of engine.entities) {
+      if (this.shouldShowUmbraBlackoutArt(entity)) {
+        boss = entity;
+        break;
+      }
+    }
+    const concealed = engine.entities.some((entity) => (
+      this.isUmbraNeedlewingBlackoutBoss(entity)
+      && !entity.markedForDeletion
+      && (
+        entity.bossUmbraBlackoutHuntActive
+        || entity.bossCornerAmbushRamState
+        || entity.bossVanishReentryState
+      )
+      && entity.bossVanishReentryStage === 'hidden'
+      && !(entity.bossCornerAmbushBeamState && !entity.bossCornerAmbushRamState)
+    ));
+    this.umbraBlackoutConcealedFrames = concealed
+      ? this.umbraBlackoutConcealedFrames + 1
+      : 0;
+    if (!boss) {
+      this.restoreUmbraBlackoutArt();
+      return;
+    }
+    const view = this.views.get(boss.id);
+    if (!view) {
+      this.restoreUmbraBlackoutArt();
+      return;
+    }
+    if (this.umbraBlackoutArtEntityId && this.umbraBlackoutArtEntityId !== boss.id) {
+      this.restoreUmbraBlackoutArt(this.views.get(this.umbraBlackoutArtEntityId));
+    }
+    this.umbraBlackoutArtEntityId = boss.id;
+    const guideIndex = this.app.stage.children.indexOf(this.cornerAmbushGuide);
+    this.app.stage.addChildAt(view.root, Math.max(0, guideIndex));
+    // Red aim lines stay above Scott's sprite. Moving an existing child
+    // changes indexes, so place the guide again after the lift.
+    this.app.stage.addChildAt(
+      this.cornerAmbushGuide,
+      this.app.stage.getChildIndex(view.root) + 1
+    );
+    view.root.position.set(
+      this.camera.position.x + (boss.x + boss.width / 2) * this.camera.scale.x,
+      this.camera.position.y + (boss.y + boss.height / 2) * this.camera.scale.y
+    );
+    view.root.scale.set(
+      view.root.scale.x * this.camera.scale.x,
+      view.root.scale.y * this.camera.scale.y
+    );
+    const pulse = 0.82 + Math.sin(engine.frameCount * 0.2) * 0.12;
+    const glowRadius = Math.max(boss.width, boss.height) * 0.72 * this.camera.scale.x;
+    this.umbraBlackoutGlow.clear();
+    this.umbraBlackoutGlow.visible = true;
+    this.umbraBlackoutGlow
+      .circle(view.root.position.x, view.root.position.y, glowRadius)
+      .fill({ color: '#c5d9ff', alpha: 0.28 * pulse });
+  }
+
   private setCornerAmbushPlayerLayerRaised(raised: boolean, engine?: GameEngine) {
     const playerLayer = this.layers.player;
     if (raised) {
@@ -7546,11 +7643,11 @@ export class PixiGameRenderer {
           ? 1 - smoothstep(vanishProgress)
           : 1;
 
-    // Umbra's signature attacks fade the world and structural boss art under
-    // the blackout instead of toggling them. The real player layer, authored
-    // threat cue, and HUD remain above it throughout disappearance and return.
-    // Unlike the generic compatibility presentation, this blackout has no
-    // circular spotlights and never punches a hole through to the pooled beam.
+    // Umbra's signature attacks fade the world under the blackout. His own
+    // sprite is lifted above that shade while he materializes and rams, so the
+    // corner charge stays readable. The player, red aim cues, and HUD stay
+    // above the shade as well. This blackout has no circular spotlights and
+    // never punches a hole through to the pooled beam.
     this.cornerAmbushShade
       .rect(
         -overscan,
@@ -8092,6 +8189,7 @@ export class PixiGameRenderer {
     this.syncCornerAmbushPresentation(engine);
     this.modularBossDebugSnapshot = null;
     this.syncEntities(engine);
+    this.syncUmbraBlackoutBossArt(engine);
     this.syncCombatImpacts(engine);
     this.syncPreviewDebugOverlay(engine);
     this.syncMaxShotPresentation(engine);
