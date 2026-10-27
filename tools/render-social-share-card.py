@@ -46,8 +46,11 @@ SAFE_BOTTOM = 528
 # Extended-canvas coordinates (the 628px source is pasted at y=1).
 # SHOOTER's R ends at x=591. PLAY GAMES / FUND SCIENCE ends at x=593.
 # The Built on Base pill occupies y=356..414, x=146..504.
-TEXT_RIGHT = 612
-PILL_BOTTOM = 416
+# The old blue flame continues down-left to about x=520, so the plate
+# repair is allowed there. The title block itself stays pixel-identical.
+TEXT_RIGHT = 620
+PILL_BOTTOM = 422
+KEEP_LEFT = 490
 BADGE_LEFT = 146
 BADGE_TOP = 424
 SHIP_LEFT = 618
@@ -68,48 +71,85 @@ def extend_canvas(source: Image.Image) -> np.ndarray:
     return plate
 
 
+def protect_plate(image: np.ndarray, plate: np.ndarray) -> np.ndarray:
+    """Put the title, the pill, the moon, and the far-left art back."""
+    image = image.copy()
+    image[:, :KEEP_LEFT] = plate[:, :KEEP_LEFT]
+    image[:292, :TEXT_RIGHT] = plate[:292, :TEXT_RIGHT]
+    image[292:352, :640] = plate[292:352, :640]
+    image[346:PILL_BOTTOM, :540] = plate[346:PILL_BOTTOM, :540]
+    return image
+
+
 def old_ship_mask(plate: np.ndarray) -> np.ndarray:
-    """Ship-shaped mask only. Title, pill, and the whole left column stay out."""
+    """Full Bio and RSC hulls, including the yellow-green body and the blue flame."""
     red = plate[:, :, 0].astype(np.int16)
     green = plate[:, :, 1].astype(np.int16)
     blue = plate[:, :, 2].astype(np.int16)
     xs = np.arange(WIDTH)[None, :]
     ys = np.arange(HEIGHT)[:, None]
-    blue_ship = (blue > 100) & (blue > red + 36) & (blue + 6 > green) & (red < 170) & (xs >= SHIP_LEFT) & (ys > 200)
-    green_ship = (green > 90) & (green > red + 30) & (green + 8 > blue) & (red < 160) & (xs > 800) & (ys > 170)
-    hot = (red > 190) & (green > 170) & (blue > 150) & (xs >= SHIP_LEFT) & (ys > 250) & (ys < 600)
-    raw = (blue_ship | green_ship | hot).astype(np.uint8)
-    count, labels, stats, _ = cv2.connectedComponentsWithStats(raw, 8)
-    keep = np.zeros_like(raw)
-    for index in range(1, count):
-        if stats[index, cv2.CC_STAT_AREA] >= 40:
-            keep[labels == index] = 255
-    keep = cv2.dilate(keep, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7)), iterations=1)
-    keep[:, :SHIP_LEFT] = 0
-    keep[:170, :] = 0
-    return keep
+    blue_ship = (blue > 72) & (blue > red + 24) & (blue + 40 > green) & (ys > 175) & (xs > 500)
+    # The RSC hull is bright yellow-green, so red is high and the old red<175 test missed it.
+    green_ship = (green > 78) & (green + 14 >= red) & (green > blue + 12) & (green > red * 0.72) & (xs > 760) & (ys > 175)
+    hot = (red > 170) & (green > 170) & (blue > 145) & (xs > 500) & (ys > 340) & (xs < 900)
+    raw = (blue_ship | green_ship | hot).astype(np.uint8) * 255
+    raw = cv2.morphologyEx(raw, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (19, 19)))
+    raw = cv2.dilate(raw, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7)))
+    # Far-right planets and asteroids stay. They read red/purple, not ship green.
+    planet = (red > green + 8) & (red > 55) & (xs > 1060)
+    raw[planet] = 0
+    sentinel = np.zeros_like(plate)
+    sentinel[raw > 0] = 255
+    sentinel = protect_plate(sentinel, np.zeros_like(plate))
+    return sentinel[:, :, 0]
 
 
 def cover_old_ships(plate: np.ndarray) -> np.ndarray:
-    """Fill the old ship shapes from neighboring art. No rectangle, no static."""
+    """Replace the old ships by cloning clean space from the plate. No rectangle of noise."""
     mask = old_ship_mask(plate)
-    painted = cv2.inpaint(cv2.cvtColor(plate, cv2.COLOR_RGB2BGR), mask, 5, cv2.INPAINT_TELEA)
+    painted = cv2.inpaint(cv2.cvtColor(plate, cv2.COLOR_RGB2BGR), mask, 12, cv2.INPAINT_TELEA)
     painted = cv2.cvtColor(painted, cv2.COLOR_BGR2RGB).astype(np.float32)
-    # High-frequency stars borrowed from a real patch of empty space under the pill.
-    donor = plate[470:600, 230:470].astype(np.float32)
-    detail = donor - cv2.GaussianBlur(donor, (0, 0), 4)
+    # Stars and nebula grain taken from empty space under the title, left of the flame.
+    donor = plate[470:620, 220:460].astype(np.float32)
+    detail = donor - cv2.GaussianBlur(donor, (0, 0), 4.5)
     tiled = np.zeros_like(painted)
     th, tw = detail.shape[:2]
     for y in range(0, HEIGHT, th):
         for x in range(0, WIDTH, tw):
             tiled[y : y + th, x : x + tw] = detail[: min(th, HEIGHT - y), : min(tw, WIDTH - x)]
     distance = cv2.distanceTransform((mask > 0).astype(np.uint8), cv2.DIST_L2, 3)
-    alpha = np.clip((distance - 1.5) / 5.0, 0, 1)[..., None]
-    mixed = plate.astype(np.float32) * (1 - alpha) + (painted + tiled * 0.65) * alpha
-    result = np.clip(mixed, 0, 255).astype(np.uint8)
-    # The title, the pill, and the moon stay pixel-identical. Ships live to the right.
-    result[:, :SHIP_LEFT] = plate[:, :SHIP_LEFT]
+    alpha = np.clip((distance - 2.0) / 8.0, 0, 1)[..., None]
+    mixed = plate.astype(np.float32) * (1 - alpha) + (painted + tiled * 0.8) * alpha
+    result = protect_plate(np.clip(mixed, 0, 255).astype(np.uint8), plate)
+    assert_old_ships_gone(plate, result)
     return result
+
+
+def assert_old_ships_gone(source: np.ndarray, repaired: np.ndarray) -> None:
+    """Ship-colored pixels from the original plate must not survive outside the title."""
+    red = source[:, :, 0].astype(np.int16)
+    green = source[:, :, 1].astype(np.int16)
+    blue = source[:, :, 2].astype(np.int16)
+    xs = np.arange(WIDTH)[None, :]
+    ys = np.arange(HEIGHT)[:, None]
+    unchanged = np.abs(repaired.astype(np.int16) - source.astype(np.int16)).max(axis=2) < 10
+    zone = (ys > 175) & (xs > 500) & (xs < 1060)
+    zone[:292, :TEXT_RIGHT] = False
+    zone[292:352, :640] = False
+    zone[346:PILL_BOTTOM, :540] = False
+    zone[:, :KEEP_LEFT] = False
+    blue_ship = zone & (blue > 110) & (blue > red + 35) & (blue > green)
+    green_ship = zone & (green > 130) & (green + 10 >= red) & (green > blue + 18) & (xs > 760)
+    still = unchanged & (blue_ship | green_ship)
+    count, labels, stats, _ = cv2.connectedComponentsWithStats(still.astype(np.uint8), 8)
+    leftovers = []
+    for index in range(1, count):
+        if stats[index, cv2.CC_STAT_AREA] > 120:
+            x, y, w, h, area = stats[index]
+            leftovers.append((int(area), int(x), int(y), int(w), int(h)))
+    if leftovers:
+        raise SystemExit(f"old ship pixels remain: {leftovers[:8]}")
+    print(f"old ships cleared, mask leftovers under 120px")
 
 
 def trim_sprite(path: Path, target_h: int) -> Image.Image:
@@ -218,7 +258,7 @@ def draw_badge(base: Image.Image) -> tuple[Image.Image, tuple[int, int, int, int
     pad_x, pad_y = 14, 8
     left, top = BADGE_LEFT, BADGE_TOP
     right, bottom = left + text_w + pad_x * 2, top + font.size + pad_y * 2
-    if top < PILL_BOTTOM + 6:
+    if top < PILL_BOTTOM:
         raise SystemExit(f"badge overlaps the Built on Base pill: top {top}")
     if right > SHIP_LEFT - 8:
         raise SystemExit(f"badge runs into the ships: right {right}")
@@ -242,14 +282,14 @@ def assert_layout(
 ) -> None:
     pixels = np.array(image.convert("RGB"))
     protected = [
-        (0, 0, TEXT_RIGHT, PILL_BOTTOM, "title-column"),
-        (0, PILL_BOTTOM, BADGE_LEFT - 4, HEIGHT, "moon-column"),
+        (0, 0, KEEP_LEFT, BADGE_TOP, "left-art"),
+        (0, BADGE_TOP, BADGE_LEFT - 4, HEIGHT, "below-left"),
+        (0, 0, TEXT_RIGHT, 292, "title"),
+        (0, 292, 640, 352, "subtitle"),
+        (0, 346, 540, PILL_BOTTOM, "pill"),
     ]
-    if badge_box is not None:
-        _left, _top, _right, bottom = badge_box
-        protected.append((0, bottom + 2, TEXT_RIGHT, HEIGHT, "below-badge"))
-    else:
-        protected.append((0, PILL_BOTTOM, TEXT_RIGHT, HEIGHT, "below-pill"))
+    if badge_box is None:
+        protected.append((BADGE_LEFT - 4, BADGE_TOP, KEEP_LEFT, HEIGHT, "under-pill"))
     for x0, y0, x1, y1, name in protected:
         delta = np.abs(pixels[y0:y1, x0:x1].astype(int) - source[y0:y1, x0:x1].astype(int)).max()
         if delta != 0:
@@ -263,10 +303,10 @@ def assert_layout(
         print(f"ship {box}")
     if badge_box is not None:
         left, top, right, bottom = badge_box
-        gap = np.abs(pixels[PILL_BOTTOM:top, :TEXT_RIGHT].astype(int) - source[PILL_BOTTOM:top, :TEXT_RIGHT].astype(int)).max()
+        gap = np.abs(pixels[PILL_BOTTOM:top, :540].astype(int) - source[PILL_BOTTOM:top, :540].astype(int)).max()
         if gap != 0:
             raise SystemExit("badge overlaps the Built on Base pill")
-        if top < PILL_BOTTOM + 6 or left < BADGE_LEFT:
+        if top < PILL_BOTTOM or left < BADGE_LEFT:
             raise SystemExit("badge overlaps Built on Base")
         region = pixels[top:bottom, left:right]
         bright = (region[:, :, 0] > 200) & (region[:, :, 1] > 220) & (region[:, :, 2] > 230)
