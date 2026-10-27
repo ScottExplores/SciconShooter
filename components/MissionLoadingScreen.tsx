@@ -1,5 +1,6 @@
 import React from 'react';
 import './mission-loading-screen.css';
+import './event-loading-screen.css';
 
 export type MissionLoadingPhase =
   | 'flight-systems'
@@ -14,6 +15,7 @@ export interface MissionLoadingScreenProps {
   phase: MissionLoadingPhase;
   tip: string;
   context?: 'startup' | 'mission';
+  presentation?: 'standard' | 'event';
   onRetry?: () => void;
   onCancel?: () => void;
 }
@@ -21,6 +23,14 @@ export interface MissionLoadingScreenProps {
 const LOADING_BACKGROUND = '/game-art/generated/ui/scicon-mission-loading-v1/loading-background.png';
 const LOADING_EMBLEM = '/game-art/generated/ui/scicon-mission-loading-v1/loading-emblem.png';
 const LOADING_BAR_FRAME = '/game-art/generated/ui/scicon-mission-loading-v1/loading-bar-frame.png';
+const EVENT_BOSS = '/game-art/generated/bosses/campaign-packages/umbra-needlewing/assembled.png';
+const EVENT_SHIPS = [
+  { key: 'researchhub', src: '/game-art/branding/researchhub-ship.png' },
+  { key: 'bio', src: '/game-art/branding/bio-ship.png' },
+  { key: 'nih', src: '/game-art/branding/nih-ship.png' },
+  { key: 'eth', src: '/game-art/branding/eth-ship.png' },
+  { key: 'btc', src: '/game-art/generated/scicon-flight-motion-pack-v1/ships/btc-token-ship/frames/btc-token-ship-03-neutral.png' }
+] as const;
 
 const PHASE_LABELS: Record<MissionLoadingPhase, string> = {
   'flight-systems': 'Loading flight systems',
@@ -45,6 +55,7 @@ const MissionLoadingScreen: React.FC<MissionLoadingScreenProps> = ({
   phase,
   tip,
   context = 'mission',
+  presentation = 'standard',
   onRetry,
   onCancel
 }) => {
@@ -52,6 +63,64 @@ const MissionLoadingScreen: React.FC<MissionLoadingScreenProps> = ({
   const hasError = phase === 'error';
   const isStartup = context === 'startup';
   const phaseLabel = (isStartup ? STARTUP_PHASE_LABELS : PHASE_LABELS)[phase];
+
+  if (presentation === 'event' && !hasError) {
+    return (
+      <section
+        className="sci-event-loader"
+        data-event-loading="umbra"
+        aria-label={isStartup ? 'Loading Scicon Shooter' : 'Preparing mission'}
+        aria-live="polite"
+        aria-busy={safeProgress < 100}
+      >
+        <img className="sci-event-loader__backdrop" src={LOADING_BACKGROUND} alt="" aria-hidden="true" />
+        <div className="sci-event-loader__veil" aria-hidden="true" />
+        <div className="sci-event-loader__scanlines" aria-hidden="true" />
+        <div className="sci-event-loader__frame">
+          <header className="sci-event-loader__brand">
+            <img className="sci-event-loader__emblem" src={LOADING_EMBLEM} alt="" aria-hidden="true" />
+            <p className="sci-event-loader__wordmark">Scicon Shooter</p>
+          </header>
+          <div className="sci-event-loader__stage" aria-hidden="true">
+            <img className="sci-event-loader__boss" src={EVENT_BOSS} alt="" />
+            {EVENT_SHIPS.map((ship) => (
+              <img
+                key={ship.key}
+                className={`sci-event-loader__ship sci-event-loader__ship--${ship.key}`}
+                src={ship.src}
+                alt=""
+              />
+            ))}
+          </div>
+          <div className="sci-event-loader__lockup">
+            <h1>25,000 <span>RSC</span></h1>
+            <p className="sci-event-loader__event">25K High Score</p>
+            <p className="sci-event-loader__ends">Ends Nov 29</p>
+            <p className="sci-event-loader__campaign">Play Campaign first to upgrade your ship.</p>
+            <div
+              className="sci-event-loader__progress"
+              role="progressbar"
+              aria-label={phaseLabel}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={safeProgress}
+            >
+              <div className="sci-event-loader__progress-track">
+                <div className="sci-event-loader__progress-fill" style={{ width: `${safeProgress}%` }} />
+                <div className="sci-event-loader__progress-sheen" style={{ left: `${Math.max(0, safeProgress - 8)}%` }} />
+              </div>
+              <img src={LOADING_BAR_FRAME} alt="" aria-hidden="true" />
+            </div>
+            {onCancel ? (
+              <button className="sci-event-loader__cancel" type="button" onClick={onCancel}>
+                Cancel launch
+              </button>
+            ) : null}
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section

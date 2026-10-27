@@ -7810,6 +7810,7 @@ const App: React.FC = () => {
           : 'other';
   const hasCampaignClear = permanentSquadState.campaignProgress.completedMissionIds.length > 0
     || permanentSquadState.lifetimeStats.campaignMissionsCleared > 0;
+  const eventLoadingScreen = getPublicPrizeState().phase === 'big-event';
   const onboardingSuspended = Boolean(
     startupLoading
     || missionLoading
@@ -7860,12 +7861,14 @@ const App: React.FC = () => {
       {startupLoading || walletIdentityHydrating ? (
         <MissionLoadingScreen
           context="startup"
+          presentation={eventLoadingScreen ? 'event' : 'standard'}
           progress={startupLoading?.progress ?? 96}
           phase={startupLoading?.phase ?? 'runtime-sync'}
           tip={startupLoadingTip}
         />
       ) : missionLoading ? (
         <MissionLoadingScreen
+          presentation={eventLoadingScreen ? 'event' : 'standard'}
           progress={missionLoading.progress}
           phase={missionLoading.phase}
           tip={missionLoading.tip}
