@@ -57,19 +57,19 @@ export const PLAYER_SHIP_MOTION: Readonly<Record<PlayerShipId, PlayerShipMotion>
   },
   bio: {
     steeringFrames: {
-      'hard-left': `${packPath}/bio/frames/bio-01-hard-left.png`,
-      'bank-left': `${packPath}/bio/frames/bio-02-bank-left.png`,
-      neutral: `${packPath}/bio/frames/bio-03-neutral.png`,
-      'bank-right': `${packPath}/bio/frames/bio-04-bank-right.png`,
-      'hard-right': `${packPath}/bio/frames/bio-05-hard-right.png`
+      'hard-left': `${packPath}/nih/frames/nih-01-hard-left.png`,
+      'bank-left': `${packPath}/nih/frames/nih-02-bank-left.png`,
+      neutral: `${packPath}/nih/frames/nih-03-neutral.png`,
+      'bank-right': `${packPath}/nih/frames/nih-04-bank-right.png`,
+      'hard-right': `${packPath}/nih/frames/nih-05-hard-right.png`
     },
     selectionIdleFrames: [
-      `${packPath}/bio-selection-idle/frames/bio-selection-idle-01-rest.png`,
-      `${packPath}/bio-selection-idle/frames/bio-selection-idle-02-gene-core-pulse.png`,
-      `${packPath}/bio-selection-idle/frames/bio-selection-idle-03-upper-channel-pulse.png`,
-      `${packPath}/bio-selection-idle/frames/bio-selection-idle-04-sensor-pod-pulse.png`,
-      `${packPath}/bio-selection-idle/frames/bio-selection-idle-05-rest-hold.png`,
-      `${packPath}/bio-selection-idle/frames/bio-selection-idle-06-settle.png`
+      `${packPath}/nih-selection-idle/frames/nih-selection-idle-01-rest.png`,
+      `${packPath}/nih-selection-idle/frames/nih-selection-idle-02-gene-core-pulse.png`,
+      `${packPath}/nih-selection-idle/frames/nih-selection-idle-03-upper-channel-pulse.png`,
+      `${packPath}/nih-selection-idle/frames/nih-selection-idle-04-sensor-pod-pulse.png`,
+      `${packPath}/nih-selection-idle/frames/nih-selection-idle-05-rest-hold.png`,
+      `${packPath}/nih-selection-idle/frames/nih-selection-idle-06-settle.png`
     ]
   },
   eth: {
