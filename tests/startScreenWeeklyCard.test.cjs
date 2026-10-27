@@ -86,6 +86,21 @@ test('the Weekly Run drawer keeps its static quota-driven call to action compact
   assert.doesNotMatch(stylesSource, /sci-weekly-run-(?:face|cta)-pulse|sci-weekly-run-entry\[data-attention/);
 });
 
+test('a failed Try Here launch offers a themed retry instead of a raw fetch error', () => {
+  const entry = source.slice(
+    source.indexOf('const renderWeeklyRunEntry'),
+    source.indexOf('const renderWeeklyFundingCard')
+  );
+  const alert = entry.slice(entry.indexOf('weeklyRunLaunchError ?'));
+  assert.match(alert, /sci-weekly-run-launch-error/);
+  assert.match(alert, /Try Again/);
+  assert.match(alert, /onClick=\{onStartWeeklyRun\}/);
+  assert.match(alert, /border-cyan-300\/40/);
+  assert.doesNotMatch(alert, /bg-red-950|text-red-100|Failed to fetch/);
+  assert.match(appSource, /weeklyRunLaunchFailureCopy\(error\)/);
+  assert.doesNotMatch(appSource, /setWeeklyRunLaunchError\(error instanceof Error \? error\.message/);
+});
+
 test('the live prize is one 25,000 RSC November event', () => {
   const boundarySource = fs.readFileSync(path.join(__dirname, '..', 'shared', 'weeklyCompetitionBoundary.js'), 'utf8');
   const boundaryBrowserSource = fs.readFileSync(path.join(__dirname, '..', 'shared', 'weeklyCompetitionBoundary.browser.ts'), 'utf8');

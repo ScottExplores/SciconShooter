@@ -94,6 +94,26 @@ export const canRetryPendingWeeklyRunAdmission = ({
   && streak.score.eventCount === 0
 );
 
+const RAW_LAUNCH_FAILURE = /^(failed to fetch|load failed|networkerror|network request failed|failed to load)$/i;
+
+/** Browser transport failures should not land on the home card as a raw exception. */
+export const weeklyRunLaunchFailureCopy = (error: unknown): string => {
+  const message = error instanceof Error ? error.message.trim() : '';
+  const details = (error as { details?: unknown })?.details;
+  const detailList = Array.isArray(details) ? details.map((item) => String(item)) : [];
+  if (detailList.includes('weekly_run_attempts_exhausted')) {
+    return 'This week\'s free runs are already in. The board resets with the next week.';
+  }
+  if (
+    error instanceof TypeError
+    || message.length === 0
+    || RAW_LAUNCH_FAILURE.test(message)
+  ) {
+    return 'The launch link dropped before the run could start. Try again.';
+  }
+  return message;
+};
+
 export const isRetryableWeeklyRunAdmissionError = (error: unknown) => {
   const statusCode = Number((error as { statusCode?: unknown })?.statusCode);
   return !Number.isFinite(statusCode)

@@ -86,6 +86,7 @@ import {
   getWeeklyRunAdmissionSessionKey,
   getWeeklyRunSessionQuotaOwner,
   isRetryableWeeklyRunAdmissionError,
+  weeklyRunLaunchFailureCopy,
   readPendingWeeklyRunAdmission,
   writePendingWeeklyRunAdmission
 } from './services/weeklyRunAdmissionRecovery';
@@ -4394,8 +4395,9 @@ const App: React.FC = () => {
         saveWeeklySquadState(pending);
         setWeeklySquadState(pending);
       }
-      setCampaignMapError(error instanceof Error ? error.message : 'The Weekly Run attempt could not be verified.');
-      setWeeklyRunLaunchError(error instanceof Error ? error.message : 'The Weekly Run attempt could not be verified.');
+      const launchFailureCopy = weeklyRunLaunchFailureCopy(error);
+      setCampaignMapError(launchFailureCopy || 'The Weekly Run attempt could not be verified.');
+      setWeeklyRunLaunchError(launchFailureCopy || 'The Weekly Run attempt could not be verified.');
       setCampaignMapStatus('launch-error');
       return;
     }

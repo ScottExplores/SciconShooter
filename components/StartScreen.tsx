@@ -1577,19 +1577,28 @@ const StartScreen: React.FC<StartScreenProps> = ({
         </button>
         {weeklyRunLaunchError ? (
           <div
-            className="mt-1 flex items-center justify-between gap-2 border border-red-300/35 bg-red-950/75 px-3 py-2 text-left text-[0.68rem] font-bold text-red-100"
+            className="sci-weekly-run-launch-error mt-1 flex items-center justify-between gap-2 border border-cyan-300/40 bg-slate-950/85 px-3 py-2 text-left text-[0.68rem] font-bold text-cyan-50"
             role="alert"
           >
             <span>{weeklyRunLaunchError}</span>
-            {onDismissWeeklyRunLaunchError ? (
+            <span className="flex shrink-0 items-center gap-3">
               <button
                 type="button"
-                className="shrink-0 text-cyan-100 underline decoration-cyan-300/60 underline-offset-2"
-                onClick={onDismissWeeklyRunLaunchError}
+                className="text-emerald-200 underline decoration-emerald-300/70 underline-offset-2"
+                onClick={onStartWeeklyRun}
               >
-                Dismiss
+                Try Again
               </button>
-            ) : null}
+              {onDismissWeeklyRunLaunchError ? (
+                <button
+                  type="button"
+                  className="text-cyan-100 underline decoration-cyan-300/60 underline-offset-2"
+                  onClick={onDismissWeeklyRunLaunchError}
+                >
+                  Dismiss
+                </button>
+              ) : null}
+            </span>
           </div>
         ) : null}
       </>

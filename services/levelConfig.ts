@@ -47,15 +47,14 @@ const PROMOTED_BOSS_TUNING = {
 } as const;
 
 /**
- * Sandbox sentences stay the attack vocabulary. Campaign time scale makes the
- * ladder step up: Meridian keeps the readable study cadence, Cinderjaw
- * commits those heavier cannon and mine sentences sooner, and Vesperglass
- * is the tightest of the three.
+ * Sandbox sentences already carry the cadence. Meridian studies the sweep,
+ * Cinderjaw keeps the widest serial beat, and Vesperglass steps in tighter
+ * inside the kit. Scaling those timelines again would crush the telegraphs.
  */
 const PROMOTED_TIMELINE_SCALE = {
   'meridian-harrower': 1,
-  'cinderjaw-siege-beetle': 0.32,
-  'vesperglass-mothmother': 0.24
+  'cinderjaw-siege-beetle': 1,
+  'vesperglass-mothmother': 1
 } as const;
 
 const scalePromotedTimeline = <T extends { durationSeconds: number; clips: Array<{ startSeconds: number; durationSeconds: number; parameters?: { warningSeconds?: number }; repeat?: { intervalSeconds: number } }> }>(

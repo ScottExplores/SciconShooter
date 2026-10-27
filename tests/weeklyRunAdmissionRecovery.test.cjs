@@ -86,6 +86,18 @@ test('played, scored, finalized, or different-profile flights cannot reuse pendi
   assert.equal(canRetry(streak, 'pilot:two'), false);
 });
 
+test('a dropped launch link becomes a retryable home message', () => {
+  const copy = recovery.weeklyRunLaunchFailureCopy(new TypeError('Failed to fetch'));
+  assert.equal(copy, 'The launch link dropped before the run could start. Try again.');
+  assert.equal(recovery.weeklyRunLaunchFailureCopy(new Error('Failed to fetch')), copy);
+  assert.match(recovery.weeklyRunLaunchFailureCopy(new Error('Load failed')), /Try again/);
+  assert.equal(
+    recovery.weeklyRunLaunchFailureCopy(new Error('Your Base Account is still loading.')),
+    'Your Base Account is still loading.'
+  );
+  assert.doesNotMatch(copy, /Failed to fetch/);
+});
+
 test('only transport and temporary server failures retain the pending admission marker', () => {
   assert.equal(recovery.isRetryableWeeklyRunAdmissionError(new TypeError('network')), true);
   assert.equal(recovery.isRetryableWeeklyRunAdmissionError({ statusCode: 503 }), true);

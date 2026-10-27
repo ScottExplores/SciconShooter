@@ -40559,7 +40559,7 @@
                 }
               ],
               "timeline": {
-                "durationSeconds": 90,
+                "durationSeconds": 50.5,
                 "loop": true,
                 "clips": [
                   {
@@ -40638,7 +40638,7 @@
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 14,
+                    "startSeconds": 8.5,
                     "durationSeconds": 1.1,
                     "phaseId": "sandbox-gloamforge-crucible-measure",
                     "parameters": {
@@ -40653,7 +40653,7 @@
                     "track": "attack",
                     "primitiveId": "side-barrage",
                     "trigger": "time",
-                    "startSeconds": 15.1,
+                    "startSeconds": 9.6,
                     "durationSeconds": 1,
                     "phaseId": "sandbox-gloamforge-crucible-measure",
                     "parameters": {
@@ -40669,7 +40669,7 @@
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 16.1,
+                    "startSeconds": 10.6,
                     "durationSeconds": 1.8,
                     "phaseId": "sandbox-gloamforge-crucible-measure",
                     "parameters": {
@@ -40682,7 +40682,7 @@
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 26,
+                    "startSeconds": 15,
                     "durationSeconds": 1,
                     "phaseId": "sandbox-gloamforge-crucible-measure",
                     "parameters": {
@@ -40697,7 +40697,7 @@
                     "track": "attack",
                     "primitiveId": "gap-ring",
                     "trigger": "time",
-                    "startSeconds": 27,
+                    "startSeconds": 16,
                     "durationSeconds": 0.8,
                     "phaseId": "sandbox-gloamforge-crucible-measure",
                     "parameters": {
@@ -40712,7 +40712,7 @@
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 27.8,
+                    "startSeconds": 16.8,
                     "durationSeconds": 1.8,
                     "phaseId": "sandbox-gloamforge-crucible-measure",
                     "parameters": {
@@ -40725,7 +40725,7 @@
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 38,
+                    "startSeconds": 21.2,
                     "durationSeconds": 1,
                     "phaseId": "sandbox-gloamforge-crucible-measure",
                     "parameters": {
@@ -40740,7 +40740,7 @@
                     "track": "attack",
                     "primitiveId": "pod-volley",
                     "trigger": "time",
-                    "startSeconds": 39,
+                    "startSeconds": 22.2,
                     "durationSeconds": 1.3,
                     "phaseId": "sandbox-gloamforge-crucible-measure",
                     "parameters": {
@@ -40755,7 +40755,7 @@
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 40.3,
+                    "startSeconds": 23.5,
                     "durationSeconds": 1.8,
                     "phaseId": "sandbox-gloamforge-crucible-measure",
                     "parameters": {
@@ -40768,7 +40768,7 @@
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 50,
+                    "startSeconds": 27.9,
                     "durationSeconds": 1.1,
                     "phaseId": "sandbox-gloamforge-crucible-measure",
                     "parameters": {
@@ -40783,7 +40783,7 @@
                     "track": "attack",
                     "primitiveId": "weave-wall",
                     "trigger": "time",
-                    "startSeconds": 51.1,
+                    "startSeconds": 29,
                     "durationSeconds": 1.4,
                     "phaseId": "sandbox-gloamforge-crucible-measure",
                     "parameters": {
@@ -40798,7 +40798,7 @@
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 52.5,
+                    "startSeconds": 30.4,
                     "durationSeconds": 1.8,
                     "phaseId": "sandbox-gloamforge-crucible-measure",
                     "parameters": {
@@ -40811,7 +40811,7 @@
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 62,
+                    "startSeconds": 34.8,
                     "durationSeconds": 1.1,
                     "phaseId": "sandbox-gloamforge-crucible-measure",
                     "parameters": {
@@ -40826,7 +40826,7 @@
                     "track": "attack",
                     "primitiveId": "side-barrage",
                     "trigger": "time",
-                    "startSeconds": 63.1,
+                    "startSeconds": 35.9,
                     "durationSeconds": 1,
                     "phaseId": "sandbox-gloamforge-crucible-measure",
                     "parameters": {
@@ -40842,7 +40842,7 @@
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 64.1,
+                    "startSeconds": 36.9,
                     "durationSeconds": 1.8,
                     "phaseId": "sandbox-gloamforge-crucible-measure",
                     "parameters": {
@@ -40855,7 +40855,7 @@
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 74,
+                    "startSeconds": 41.3,
                     "durationSeconds": 1.1,
                     "phaseId": "sandbox-gloamforge-crucible-measure",
                     "parameters": {
@@ -40870,7 +40870,7 @@
                     "track": "attack",
                     "primitiveId": "side-barrage",
                     "trigger": "time",
-                    "startSeconds": 75.1,
+                    "startSeconds": 42.4,
                     "durationSeconds": 1,
                     "phaseId": "sandbox-gloamforge-crucible-measure",
                     "parameters": {
@@ -40886,7 +40886,7 @@
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 76.1,
+                    "startSeconds": 43.4,
                     "durationSeconds": 1.8,
                     "phaseId": "sandbox-gloamforge-crucible-measure",
                     "parameters": {
@@ -40955,7 +40955,7 @@
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 3.9000000000000004,
+                    "startSeconds": 3.9,
                     "durationSeconds": 1.8,
                     "phaseId": "sandbox-gloamforge-cleaver-unfurl",
                     "parameters": {
@@ -40968,7 +40968,7 @@
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 14,
+                    "startSeconds": 8.3,
                     "durationSeconds": 1.2,
                     "phaseId": "sandbox-gloamforge-cleaver-unfurl",
                     "parameters": {
@@ -40983,7 +40983,7 @@
                     "track": "laser",
                     "primitiveId": "rail-sweep",
                     "trigger": "time",
-                    "startSeconds": 15.2,
+                    "startSeconds": 9.5,
                     "durationSeconds": 2,
                     "phaseId": "sandbox-gloamforge-cleaver-unfurl",
                     "parameters": {
@@ -40997,7 +40997,7 @@
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 17.2,
+                    "startSeconds": 11.5,
                     "durationSeconds": 2.2,
                     "phaseId": "sandbox-gloamforge-cleaver-unfurl",
                     "parameters": {
@@ -41010,7 +41010,7 @@
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 26,
+                    "startSeconds": 16.3,
                     "durationSeconds": 1,
                     "phaseId": "sandbox-gloamforge-cleaver-unfurl",
                     "parameters": {
@@ -41025,7 +41025,7 @@
                     "track": "attack",
                     "primitiveId": "tail-fan",
                     "trigger": "time",
-                    "startSeconds": 27,
+                    "startSeconds": 17.3,
                     "durationSeconds": 1.2,
                     "phaseId": "sandbox-gloamforge-cleaver-unfurl",
                     "parameters": {
@@ -41040,7 +41040,7 @@
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 28.2,
+                    "startSeconds": 18.5,
                     "durationSeconds": 1.8,
                     "phaseId": "sandbox-gloamforge-cleaver-unfurl",
                     "parameters": {
@@ -41053,7 +41053,7 @@
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 38,
+                    "startSeconds": 22.9,
                     "durationSeconds": 1,
                     "phaseId": "sandbox-gloamforge-cleaver-unfurl",
                     "parameters": {
@@ -41068,7 +41068,7 @@
                     "track": "attack",
                     "primitiveId": "pod-volley",
                     "trigger": "time",
-                    "startSeconds": 39,
+                    "startSeconds": 23.9,
                     "durationSeconds": 1.4,
                     "phaseId": "sandbox-gloamforge-cleaver-unfurl",
                     "parameters": {
@@ -41083,7 +41083,7 @@
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 40.4,
+                    "startSeconds": 25.3,
                     "durationSeconds": 1.8,
                     "phaseId": "sandbox-gloamforge-cleaver-unfurl",
                     "parameters": {
@@ -41096,7 +41096,7 @@
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 50,
+                    "startSeconds": 29.7,
                     "durationSeconds": 1.2,
                     "phaseId": "sandbox-gloamforge-cleaver-unfurl",
                     "parameters": {
@@ -41111,7 +41111,7 @@
                     "track": "laser",
                     "primitiveId": "cross-beam",
                     "trigger": "time",
-                    "startSeconds": 51.2,
+                    "startSeconds": 30.9,
                     "durationSeconds": 1.6,
                     "phaseId": "sandbox-gloamforge-cleaver-unfurl",
                     "telegraphClipId": "sandbox-gloamforge-unfurl-cross-cut-warning"
@@ -41122,7 +41122,7 @@
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 52.800000000000004,
+                    "startSeconds": 32.5,
                     "durationSeconds": 2.2,
                     "phaseId": "sandbox-gloamforge-cleaver-unfurl",
                     "parameters": {
@@ -41135,7 +41135,7 @@
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 62,
+                    "startSeconds": 37.3,
                     "durationSeconds": 1.1,
                     "phaseId": "sandbox-gloamforge-cleaver-unfurl",
                     "parameters": {
@@ -41150,7 +41150,7 @@
                     "track": "attack",
                     "primitiveId": "weave-wall",
                     "trigger": "time",
-                    "startSeconds": 63.1,
+                    "startSeconds": 38.4,
                     "durationSeconds": 1.5,
                     "phaseId": "sandbox-gloamforge-cleaver-unfurl",
                     "parameters": {
@@ -41165,7 +41165,7 @@
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 64.6,
+                    "startSeconds": 39.9,
                     "durationSeconds": 1.8,
                     "phaseId": "sandbox-gloamforge-cleaver-unfurl",
                     "parameters": {
@@ -41178,7 +41178,7 @@
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 74,
+                    "startSeconds": 44.3,
                     "durationSeconds": 1.2,
                     "phaseId": "sandbox-gloamforge-cleaver-unfurl",
                     "parameters": {
@@ -41193,7 +41193,7 @@
                     "track": "laser",
                     "primitiveId": "rail-sweep",
                     "trigger": "time",
-                    "startSeconds": 75.2,
+                    "startSeconds": 45.5,
                     "durationSeconds": 2,
                     "phaseId": "sandbox-gloamforge-cleaver-unfurl",
                     "parameters": {
@@ -41207,7 +41207,7 @@
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 77.2,
+                    "startSeconds": 47.5,
                     "durationSeconds": 2.4,
                     "phaseId": "sandbox-gloamforge-cleaver-unfurl",
                     "parameters": {
@@ -41289,7 +41289,7 @@
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 14,
+                    "startSeconds": 8.2,
                     "durationSeconds": 1,
                     "phaseId": "sandbox-gloamforge-cannon-pods",
                     "parameters": {
@@ -41304,7 +41304,7 @@
                     "track": "attack",
                     "primitiveId": "side-barrage",
                     "trigger": "time",
-                    "startSeconds": 15,
+                    "startSeconds": 9.2,
                     "durationSeconds": 1,
                     "phaseId": "sandbox-gloamforge-cannon-pods",
                     "parameters": {
@@ -41320,7 +41320,7 @@
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 16,
+                    "startSeconds": 10.2,
                     "durationSeconds": 1.8,
                     "phaseId": "sandbox-gloamforge-cannon-pods",
                     "parameters": {
@@ -41333,7 +41333,7 @@
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 26,
+                    "startSeconds": 14.6,
                     "durationSeconds": 1,
                     "phaseId": "sandbox-gloamforge-cannon-pods",
                     "parameters": {
@@ -41348,7 +41348,7 @@
                     "track": "attack",
                     "primitiveId": "side-barrage",
                     "trigger": "time",
-                    "startSeconds": 27,
+                    "startSeconds": 15.6,
                     "durationSeconds": 1,
                     "phaseId": "sandbox-gloamforge-cannon-pods",
                     "parameters": {
@@ -41364,7 +41364,7 @@
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 28,
+                    "startSeconds": 16.6,
                     "durationSeconds": 1.8,
                     "phaseId": "sandbox-gloamforge-cannon-pods",
                     "parameters": {
@@ -41377,7 +41377,7 @@
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 38,
+                    "startSeconds": 21,
                     "durationSeconds": 0.95,
                     "phaseId": "sandbox-gloamforge-cannon-pods",
                     "parameters": {
@@ -41392,7 +41392,7 @@
                     "track": "attack",
                     "primitiveId": "pod-volley",
                     "trigger": "time",
-                    "startSeconds": 38.95,
+                    "startSeconds": 21.95,
                     "durationSeconds": 1.3,
                     "phaseId": "sandbox-gloamforge-cannon-pods",
                     "parameters": {
@@ -41407,7 +41407,7 @@
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 40.25,
+                    "startSeconds": 23.25,
                     "durationSeconds": 1.8,
                     "phaseId": "sandbox-gloamforge-cannon-pods",
                     "parameters": {
@@ -41420,7 +41420,7 @@
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 50,
+                    "startSeconds": 27.65,
                     "durationSeconds": 0.95,
                     "phaseId": "sandbox-gloamforge-cannon-pods",
                     "parameters": {
@@ -41435,7 +41435,7 @@
                     "track": "attack",
                     "primitiveId": "tail-fan",
                     "trigger": "time",
-                    "startSeconds": 50.95,
+                    "startSeconds": 28.6,
                     "durationSeconds": 1.2,
                     "phaseId": "sandbox-gloamforge-cannon-pods",
                     "parameters": {
@@ -41450,7 +41450,7 @@
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 52.150000000000006,
+                    "startSeconds": 29.8,
                     "durationSeconds": 1.8,
                     "phaseId": "sandbox-gloamforge-cannon-pods",
                     "parameters": {
@@ -41463,7 +41463,7 @@
                     "track": "presentation",
                     "primitiveId": "telegraph",
                     "trigger": "time",
-                    "startSeconds": 62,
+                    "startSeconds": 34.2,
                     "durationSeconds": 1.1,
                     "phaseId": "sandbox-gloamforge-cannon-pods",
                     "parameters": {
@@ -41478,7 +41478,7 @@
                     "track": "laser",
                     "primitiveId": "cross-beam",
                     "trigger": "time",
-                    "startSeconds": 63.1,
+                    "startSeconds": 35.3,
                     "durationSeconds": 1.5,
                     "phaseId": "sandbox-gloamforge-cannon-pods",
                     "telegraphClipId": "sandbox-gloamforge-pods-cross-cut-warning"
@@ -41489,7 +41489,7 @@
                     "track": "presentation",
                     "primitiveId": "effect-cue",
                     "trigger": "time",
-                    "startSeconds": 64.6,
+                    "startSeconds": 36.8,
                     "durationSeconds": 2,
                     "phaseId": "sandbox-gloamforge-cannon-pods",
                     "parameters": {

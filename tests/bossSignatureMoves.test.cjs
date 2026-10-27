@@ -275,6 +275,65 @@ test('the Umbra finale opens with a lower-corner charge', () => {
   assert.ok(result.maxHiddenRun <= 90, `pure-black hidden beat ran ${result.maxHiddenRun} frames`);
 });
 
+const stepBoss = (engine, boss, frames) => {
+  for (let frame = 0; frame < frames; frame += 1) {
+    boss.hp = boss.maxHp;
+    engine.frameCount += 1;
+    engine.updateBoss(boss);
+  }
+};
+
+test('Meridian and Redline fly the re-entry sweep and still fire', () => {
+  const cases = [
+    { id: 'meridian-harrower', primitive: 'pod-volley' },
+    { id: 'sweep-bank-reentry', primitive: 'rail-sweep' }
+  ];
+  for (const { id, primitive } of cases) {
+    const engine = createEngine();
+    const seen = [];
+    const original = engine.dispatchBossTimelineCue.bind(engine);
+    engine.dispatchBossTimelineCue = (boss, cue, phase, stage) => {
+      if (!PRESENTATION_PRIMITIVES.has(cue.clip.primitiveId)) {
+        seen.push({
+          primitive: cue.clip.primitiveId,
+          timer: boss.attackTimer,
+          path: boss.bossMovementPathId ?? null
+        });
+      }
+      return original(boss, cue, phase, stage);
+    };
+    engine.spawnBoss(structuredClone(getSandboxBossKit(id)));
+    const boss = engine.entities.find((entity) => entity.type === 'BOSS');
+    assert.ok(boss, `${id} should spawn`);
+    const entrance = Math.max(72, Math.min(engine.height * 0.13, 116));
+    boss.y = 0;
+    boss.hp = boss.maxHp;
+    stepBoss(engine, boss, 30);
+    assert.equal(boss.attackTimer, 0, `${id} stays silent until it reaches the anchor`);
+    assert.equal(seen.length, 0, `${id} does not fire while still entering`);
+    boss.y = entrance;
+    let roseOnPath = false;
+    let clockRewound = false;
+    let peakTimer = 0;
+    for (let frame = 0; frame < 1400 && !seen.some((shot) => shot.primitive === primitive); frame += 1) {
+      boss.hp = boss.maxHp;
+      engine.frameCount += 1;
+      engine.updateBoss(boss);
+      if (boss.bossMovementPathId === 'sweep-bank-reentry' && boss.y < entrance - 4) {
+        roseOnPath = true;
+      }
+      if (peakTimer > 40 && boss.attackTimer < 5) clockRewound = true;
+      peakTimer = Math.max(peakTimer, boss.attackTimer);
+    }
+    assert.equal(roseOnPath, true, `${id} should climb above the anchor on sweep-bank-reentry`);
+    assert.equal(clockRewound, false, `${id} rewound the phase clock during the sweep`);
+    assert.ok(
+      seen.some((shot) => shot.primitive === primitive && shot.timer > 30),
+      `${id} never fired ${primitive}; saw ${seen.map((shot) => shot.primitive).join(', ')}`
+    );
+  }
+});
+
 test('an Umbra fight that already charged does not arm a second makeup ram', () => {
   const event = firstCampaignBoss('umbra-needlewing');
   const { engine, boss } = settleUmbra(event);

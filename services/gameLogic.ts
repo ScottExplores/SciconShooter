@@ -906,6 +906,12 @@ export class Entity {
   bossMovementPathId?: MovementPathId;
   bossMovementPathStartFrame: number = -1;
   bossMovementPathDurationFrames: number = 0;
+  /**
+   * A follow-path re-entry may climb above the combat anchor. The phase
+   * clock keeps running until the silhouette settles back, so the sweep
+   * and the volleys authored on that same timeline both happen.
+   */
+  bossFollowPathClockHold: boolean = false;
   bossCornerAmbushBeamState?: BossCornerAmbushBeamState;
   bossCornerAmbushRamState?: BossCornerAmbushRamState;
   bossVanishReentryState?: Readonly<BossVanishReentryRuntimeState>;
@@ -11801,6 +11807,7 @@ export class GameEngine {
       }
       boss.bossUmbraTimelineHoldFrame = -1;
       boss.attackTimer = 0;
+      boss.bossFollowPathClockHold = false;
       boss.bossMovementPathId = undefined;
       boss.bossMovementPathStartFrame = -1;
       boss.bossMovementPathDurationFrames = 0;
@@ -22444,6 +22451,13 @@ export class GameEngine {
     const timeline = boss.bossTimeline;
     if (!timeline) return false;
     const targetEntranceY = Math.max(72, Math.min(this.height * 0.13, 116));
+    const followPathOwnsClock = Boolean(
+      boss.bossMovementPathId
+      && boss.bossMovementPathStartFrame >= 0
+      && boss.attackTimer >= boss.bossMovementPathStartFrame
+    );
+    if (followPathOwnsClock) boss.bossFollowPathClockHold = true;
+    if (boss.y >= targetEntranceY) boss.bossFollowPathClockHold = false;
     const isPerformingSettledTimelineMovement = Boolean(
       (
         boss.bossTrackingPincerState
@@ -22484,14 +22498,17 @@ export class GameEngine {
       )
       || this.isAbyssalOctarch(boss)
       || this.isSingularityCommander(boss)
+      || followPathOwnsClock
+      || boss.bossFollowPathClockHold
     );
     if (boss.y < targetEntranceY && !isPerformingSettledTimelineMovement) {
       // The authored phase clock begins only after the silhouette has settled
       // into its combat anchor. This preserves a real read window and prevents
       // off-screen attacks when a deliberately slow boss enters. Authored
-      // Helios, Prism, and Singularity movement sentences may rise above that
-      // anchor after a visible preparation without accidentally restarting the
-      // whole timeline.
+      // Helios, Prism, Singularity, and follow-path re-entry sentences may
+      // rise above that anchor without restarting the timeline. A sweep that
+      // has already begun keeps the clock through the climb and the descent
+      // back to the anchor, so volleys authored on that path still fire.
       boss.attackTimer = 0;
       boss.bossActionPresentation = undefined;
       return true;

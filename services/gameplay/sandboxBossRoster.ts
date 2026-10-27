@@ -272,6 +272,8 @@ const primitiveLabels: Record<BossTimelinePrimitiveId, string> = {
   'camera-cue': 'Camera cue'
 };
 
+const roundSeconds = (value: number) => Math.round(value * 1000) / 1000;
+
 const clip = (
   id: string,
   primitiveId: BossTimelinePrimitiveId,
@@ -344,7 +346,7 @@ const warned = ({
     clip(
       id,
       primitiveId,
-      startSeconds + leadSeconds,
+      roundSeconds(startSeconds + leadSeconds),
       phaseId,
       parameters,
       {
@@ -389,9 +391,19 @@ interface SerialPhaseTimeline {
 
 /**
  * Test-boss attack sentences are intentionally linear: show the exact danger,
- * commit one authored action, then publish a visible recovery beat. A generous
- * twelve-second cadence leaves room to traverse the route on a phone viewport.
+ * commit one authored action, then publish a visible recovery beat. The quiet
+ * window after that recovery is a movement beat, not a dead roam.
  */
+const serialSentenceSpanSeconds = (step: SerialAttackStep): number => {
+  const leadSeconds = step.leadSeconds ?? 0.9;
+  const actionDurationSeconds = step.actionDurationSeconds ?? 0.8;
+  const recoverySeconds = step.recoverySeconds ?? 1.8;
+  const repeatSpan = step.repeat
+    ? Math.max(0, step.repeat.count - 1) * step.repeat.intervalSeconds
+    : 0;
+  return leadSeconds + actionDurationSeconds + repeatSpan + recoverySeconds;
+};
+
 const serialAttackSentence = (
   phaseId: string,
   color: string,
@@ -404,12 +416,12 @@ const serialAttackSentence = (
   const repeatSpan = step.repeat
     ? Math.max(0, step.repeat.count - 1) * step.repeat.intervalSeconds
     : 0;
-  const recoveryStartSeconds = startSeconds + leadSeconds + actionDurationSeconds + repeatSpan;
+  const recoveryStartSeconds = roundSeconds(startSeconds + leadSeconds + actionDurationSeconds + repeatSpan);
   return [
     ...warned({
       id: step.id,
       primitiveId: step.primitiveId,
-      startSeconds,
+      startSeconds: roundSeconds(startSeconds),
       phaseId,
       style: step.style,
       color,
@@ -430,32 +442,67 @@ const serialAttackSentence = (
   ];
 };
 
+/**
+ * Quiet seconds are the movement beat between one recovery and the next
+ * warning. Earlier kits keep the wider beat. Later kits step up.
+ * Omit the argument to keep the legacy twelve-second stride used by elites.
+ */
+const SERIAL_QUIET_SECONDS = {
+  cinderjaw: 3.4,
+  vesperglass: 3.2,
+  twinHalo: 3,
+  riftcoil: 2.8,
+  gloamforge: 2.6
+} as const;
+
 const serialBossTimeline = (
   phases: readonly SerialPhaseTimeline[],
-  durationSeconds = 90
-): BossTimelineConfig => ({
-  durationSeconds,
-  loop: true,
-  clips: phases.flatMap((phase) => [
-    phaseCue(
-      `${phase.phaseId}-identity`,
-      'effect-cue',
-      phase.phaseId,
-      { color: phase.color }
-    ),
-    ...(phase.cameraStrength === undefined
-      ? []
-      : [phaseCue(
-          `${phase.phaseId}-camera`,
-          'camera-cue',
-          phase.phaseId,
-          { strength: phase.cameraStrength }
-        )]),
-    ...phase.steps.flatMap((step, index) => (
-      serialAttackSentence(phase.phaseId, phase.color, 2 + (index * 12), step)
-    ))
-  ])
-});
+  durationSeconds = 90,
+  quietSeconds?: number
+): BossTimelineConfig => {
+  const clips = phases.flatMap((phase) => {
+    let cursor = 2;
+    const sentences = phase.steps.flatMap((step) => {
+      const startSeconds = quietSeconds === undefined ? cursor : roundSeconds(cursor);
+      const sentence = serialAttackSentence(phase.phaseId, phase.color, startSeconds, step);
+      cursor = quietSeconds === undefined
+        ? cursor + 12
+        : roundSeconds(startSeconds + serialSentenceSpanSeconds(step) + quietSeconds);
+      return sentence;
+    });
+    return [
+      phaseCue(
+        `${phase.phaseId}-identity`,
+        'effect-cue',
+        phase.phaseId,
+        { color: phase.color }
+      ),
+      ...(phase.cameraStrength === undefined
+        ? []
+        : [phaseCue(
+            `${phase.phaseId}-camera`,
+            'camera-cue',
+            phase.phaseId,
+            { strength: phase.cameraStrength }
+          )]),
+      ...sentences
+    ];
+  });
+  // The next loop's first warning sits at 2s, so the seam only needs
+  // quietSeconds - 2 of extra timeline or the boss idles past the beat.
+  const lastClipEnd = clips.reduce(
+    (end, clip) => Math.max(end, clip.startSeconds + clip.durationSeconds),
+    0
+  );
+  const packedDuration = quietSeconds === undefined
+    ? durationSeconds
+    : roundSeconds(Math.max(12, lastClipEnd + Math.max(0.4, quietSeconds - 2)));
+  return {
+    durationSeconds: packedDuration,
+    loop: true,
+    clips
+  };
+};
 
 const gatekeeperBoss = ({
   id,
@@ -2997,7 +3044,7 @@ const cinderjawTimeline = serialBossTimeline([
       }
     ]
   }
-]);
+], 90, SERIAL_QUIET_SECONDS.cinderjaw);
 
 const vesperglassWingbeatMeasure = 'sandbox-vesperglass-wingbeat-measure';
 const vesperglassBroodLattice = 'sandbox-vesperglass-brood-lattice';
@@ -3179,7 +3226,7 @@ const vesperglassTimeline = serialBossTimeline([
       }
     ]
   }
-]);
+], 90, SERIAL_QUIET_SECONDS.vesperglass);
 
 const twinHaloCallAndAnswer = 'sandbox-twin-halo-call-and-answer';
 const twinHaloOrbitExchange = 'sandbox-twin-halo-orbit-exchange';
@@ -3364,7 +3411,7 @@ const twinHaloTimeline = serialBossTimeline([
       }
     ]
   }
-]);
+], 90, SERIAL_QUIET_SECONDS.twinHalo);
 
 const riftcoilFangMeasure = 'sandbox-riftcoil-fang-measure';
 const riftcoilTailCipher = 'sandbox-riftcoil-tail-cipher';
@@ -3544,7 +3591,7 @@ const riftcoilTimeline = serialBossTimeline([
       }
     ]
   }
-]);
+], 90, SERIAL_QUIET_SECONDS.riftcoil);
 
 const nullwakeBorrowedCharge = 'sandbox-nullwake-borrowed-charge';
 const nullwakeBackplaneCrown = 'sandbox-nullwake-backplane-crown';
@@ -3975,7 +4022,7 @@ const gloamforgeTimeline = serialBossTimeline([
       }
     ]
   }
-]);
+], 90, SERIAL_QUIET_SECONDS.gloamforge);
 
 const miniBossTimeline = ({
   phaseId,
