@@ -16,7 +16,7 @@ test('campaign boss slots use registered damage art and Gatekeeper Prime retains
     [20, { bossId: 'frontier-crownclaw', spriteKey: 'CAMPAIGN_BOSS_FRONTIER_CROWNCLAW' }],
     [25, { bossId: 'helios-clawcarrier', spriteKey: 'CAMPAIGN_BOSS_HELIOS_CLAWCARRIER' }],
     [30, { bossId: 'nullwake-revenant', spriteKey: 'CAMPAIGN_BOSS_NULLWAKE_REVENANT' }],
-    [35, { bossId: 'singularity-crab', spriteKey: 'CAMPAIGN_BOSS_SINGULARITY_CRAB' }],
+    [35, { bossId: 'meridian-harrower', spriteKey: 'CAMPAIGN_BOSS_MERIDIAN_HARROWER' }],
     [40, { bossId: 'orbit-gyroscope', spriteKey: 'CAMPAIGN_BOSS_ORBIT_GYROSCOPE' }],
     [45, { bossId: 'hammerhead-siege', spriteKey: 'CAMPAIGN_BOSS_HAMMERHEAD_SIEGE' }],
     [50, { bossId: 'umbra-needlewing', spriteKey: 'CAMPAIGN_BOSS_UMBRA_NEEDLEWING' }]

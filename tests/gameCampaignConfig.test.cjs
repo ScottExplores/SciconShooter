@@ -80,9 +80,9 @@ test('revision 24 contains ten five-depth sectors, explicit routes, and a compac
 });
 
 test('ten deliberate mini-bosses occupy both checkpoint Missions in every sector', () => {
-  assert.equal(campaign.miniBosses.length, 13);
+  assert.equal(campaign.miniBosses.length, 11);
   const catalogByBossId = new Map(campaign.miniBosses.map((entry) => [entry.bossId, entry]));
-  assert.equal(catalogByBossId.size, 13);
+  assert.equal(catalogByBossId.size, 11);
   campaign.miniBosses.forEach((entry) => {
     assert.equal(entry.campaignReady, true, `${entry.bossId} is Campaign-ready`);
     assert.equal(entry.validationStatus, 'validated', `${entry.bossId} is validated`);
@@ -229,11 +229,11 @@ test('fifty main depths form a non-recycling campaign with ten authored sector c
   assert.ok(campaign.levels.every((stage) => stage.loopWaves === false));
   assert.deepEqual(sectorBosses.map((boss) => boss.bossId), [
     'gatekeeper-prime', 'paywall-decimator', 'prism-moth', 'frontier-crownclaw', 'helios-clawcarrier',
-    'nullwake-revenant', 'singularity-crab', 'orbit-gyroscope', 'hammerhead-siege', 'umbra-needlewing'
+    'nullwake-revenant', 'meridian-harrower', 'orbit-gyroscope', 'hammerhead-siege', 'umbra-needlewing'
   ]);
   assert.deepEqual(
     campaign.levels.filter((level) => level.waves.some((wave) => wave.completionRule === 'boss-defeat')).map((level) => level.order),
-    [5, 10, 15, 20, 25, 30, 35, 40, 45, 50]
+    [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 59, 60]
   );
   sectorBosses.forEach((boss, index) => {
     if (index === 0) return;
@@ -283,7 +283,7 @@ test('ten sector bosses follow a readable durability, bounded score, and project
   });
   const bursts = finalBosses.map((boss) => boss.weapons.find((weapon) => weapon.projectileSpeed > 0));
 
-  assert.deepEqual(finalBosses.map((boss) => boss.health), [500, 800, 1300, 1600, 2350, 2500, 3000, 3400, 3900, 4800]);
+  assert.deepEqual(finalBosses.map((boss) => boss.health), [500, 800, 1300, 1600, 2350, 2500, 3300, 3400, 3900, 4800]);
   assert.deepEqual(finalBosses.map((boss) => boss.scoreReward), [1010, 5010, 9010, 13010, 17010, 21010, 25010, 29010, 33010, 37010]);
   assert.deepEqual(bursts.map((weapon) => weapon.burstCount), [3, 7, 4, 4, 4, 4, 1, 4, 4, 4]);
   finalBosses.slice(1).forEach((boss, index) => {
@@ -336,7 +336,12 @@ test('sector Missions expose ordered role-specific Waves with short major-boss l
       assert.equal(level.waves.at(-1).events[0].startSeconds, 0);
       assert.ok(level.waves.at(-1).events[0].warningSeconds <= 1.5);
     } else {
-      assert.ok(level.waves.every((wave) => wave.completionRule === 'clear-after-duration'));
+      const promotedFinale = level.id === 'stage-hammerhead-line-route-b'
+        || level.id === 'stage-crownclaw-frontier-route-b';
+      assert.ok(level.waves.every((wave, index) => (
+        wave.completionRule === 'clear-after-duration'
+        || (promotedFinale && index === level.waves.length - 1 && wave.completionRule === 'boss-defeat')
+      )));
     }
   });
 });

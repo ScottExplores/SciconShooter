@@ -65,9 +65,9 @@ export const PLAYER_SHIP_MOTION: Readonly<Record<PlayerShipId, PlayerShipMotion>
     },
     selectionIdleFrames: [
       `${packPath}/nih-selection-idle/frames/nih-selection-idle-01-rest.png`,
-      `${packPath}/nih-selection-idle/frames/nih-selection-idle-02-gene-core-pulse.png`,
-      `${packPath}/nih-selection-idle/frames/nih-selection-idle-03-upper-channel-pulse.png`,
-      `${packPath}/nih-selection-idle/frames/nih-selection-idle-04-sensor-pod-pulse.png`,
+      `${packPath}/nih-selection-idle/frames/nih-selection-idle-02-helix-pulse.png`,
+      `${packPath}/nih-selection-idle/frames/nih-selection-idle-03-core-pulse.png`,
+      `${packPath}/nih-selection-idle/frames/nih-selection-idle-04-pod-pulse.png`,
       `${packPath}/nih-selection-idle/frames/nih-selection-idle-05-rest-hold.png`,
       `${packPath}/nih-selection-idle/frames/nih-selection-idle-06-settle.png`
     ]

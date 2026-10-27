@@ -160,7 +160,7 @@ test('all ten authored sector bosses carry stable rigs and runtime prefers them 
     { missionOrder: 20, bossId: 'frontier-crownclaw', rigId: 'crown-claw' },
     { missionOrder: 25, bossId: 'helios-clawcarrier', rigId: 'crown-claw' },
     { missionOrder: 30, bossId: 'nullwake-revenant', rigId: 'open-orbit' },
-    { missionOrder: 35, bossId: 'singularity-crab', rigId: 'crown-claw' },
+    { missionOrder: 35, bossId: 'meridian-harrower', rigId: 'paywall-siege' },
     { missionOrder: 40, bossId: 'orbit-gyroscope', rigId: 'paywall-siege' },
     { missionOrder: 45, bossId: 'hammerhead-siege', rigId: 'paywall-siege' },
     { missionOrder: 50, bossId: 'umbra-needlewing', rigId: 'open-orbit' }

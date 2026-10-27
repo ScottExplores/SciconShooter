@@ -12,6 +12,10 @@ const migration = JSON.parse(
   fs.readFileSync(path.join(root, 'game-config', 'campaign-migration-v24.json'), 'utf8')
 );
 const breakwaterMissionIds = new Set(campaign.sectors[0].missionIds);
+const promotedBossFinales = new Set([
+  'stage-hammerhead-line-route-b',
+  'stage-crownclaw-frontier-route-b'
+]);
 
 test('revision 24 uses compact continuous Missions with authored pressure through every climax', () => {
   assert.equal(campaign.revision, 24);
@@ -57,6 +61,12 @@ test('revision 24 uses compact continuous Missions with authored pressure throug
     assert.equal(mission.waves.some((wave) => wave.rhythm === 'recovery'), false);
 
     for (const wave of mission.waves) {
+      if (promotedBossFinales.has(mission.id) && wave === mission.waves.at(-1)) {
+        assert.equal(wave.completionRule, 'boss-defeat', mission.id);
+        assert.equal(wave.events.length, 1, mission.id);
+        assert.equal(wave.events[0].kind, 'boss', mission.id);
+        continue;
+      }
       const spawns = wave.events.filter((event) => event.kind === 'spawn');
       assert.ok(spawns.length > 0, `${mission.id}/${wave.id} has active traffic`);
       assert.equal(Math.min(...spawns.map((event) => event.startSeconds)), 0);
@@ -75,7 +85,10 @@ test('revision 24 uses compact continuous Missions with authored pressure throug
 
     const climaxSpawns = mission.waves.at(-1).events.filter((event) => event.kind === 'spawn');
     const checkpoint = mission.waves.at(-1).events.find(event => event.kind === 'boss');
-    if (isBreakwater && checkpoint) {
+    if (promotedBossFinales.has(mission.id)) {
+      assert.ok(['cinderjaw-siege-beetle', 'vesperglass-mothmother'].includes(checkpoint.bossId), mission.id);
+      assert.ok(checkpoint.health >= 5800, mission.id);
+    } else if (isBreakwater && checkpoint) {
       assert.equal(climaxSpawns.length, 1, 'a deliberate escort beat clears the lane for the checkpoint');
       assert.ok(climaxSpawns[0].count >= 4);
       assert.ok(climaxSpawns[0].startSeconds + (climaxSpawns[0].count - 1) * climaxSpawns[0].spawnIntervalSeconds < checkpoint.startSeconds);

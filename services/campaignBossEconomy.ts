@@ -81,8 +81,8 @@ export const CAMPAIGN_BOSS_ECONOMY_BY_MISSION = Object.freeze({
   }),
   35: economyDefinition({
     missionOrder: 35,
-    bossId: 'singularity-crab',
-    hullHealth: 3_000,
+    bossId: 'meridian-harrower',
+    hullHealth: 3_300,
     fullHullBars: 1
   }),
   40: economyDefinition({

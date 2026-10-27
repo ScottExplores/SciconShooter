@@ -35,20 +35,25 @@ test('the current weekly funding allocation is 1,000 RSC', () => {
   assert.equal(WEEKLY_ALLOCATION_RSC, 1_000);
 });
 
-test('SciCon Big Event pauses the weekly prize and resumes the next Sunday noon after Nov 30', () => {
+test('each month from the November close awards 25,000 RSC and freezes the board at 11:59 PM Pacific', () => {
   assert.equal(SCICON_BIG_EVENT.closesAt, '2026-11-30T07:59:00.000Z');
   assert.equal(SCICON_BIG_EVENT.allocationRsc, 25_000);
-  assert.equal(SCICON_BIG_EVENT.weeklyResumesWeekKey, '2026-12-06');
-  assert.equal(
-    getWeekRange(SCICON_BIG_EVENT.weeklyResumesWeekKey).start.toISOString(),
-    '2026-12-06T20:00:00.000Z'
-  );
+
+  const beforeSeries = getPublicPrizeState(new Date('2026-10-26T06:59:00.000Z'));
+  assert.equal(beforeSeries.phase, 'weekly');
+  assert.equal(beforeSeries.allocationRsc, 1_000);
 
   const live = getPublicPrizeState(new Date('2026-10-27T04:00:00.000Z'));
   assert.equal(live.phase, 'big-event');
   assert.equal(live.allocationRsc, 25_000);
+  assert.equal(live.monthKey, '2026-11');
   assert.equal(live.scoreWindow.end.toISOString(), '2026-11-30T07:59:00.000Z');
   assert.equal(live.snapshotFrozen, false);
+  assert.match(live.rulesText, /Each calendar month the top score wins 25,000 RSC/);
+  assert.match(live.rulesText, /Sunday, November 29, 2026 at 11:59 PM Pacific/);
+  assert.match(live.rulesText, /Monday, November 30, 2026/);
+  assert.match(live.rulesText, /not an RFP/);
+  assert.match(live.rulesText, /funding deadline must be after the announce date/);
 
   const closed = getPublicPrizeState(new Date('2026-11-30T08:00:00.000Z'));
   assert.equal(closed.phase, 'big-event-closed');
@@ -56,12 +61,23 @@ test('SciCon Big Event pauses the weekly prize and resumes the next Sunday noon 
   assert.equal(closed.statusLabel, 'winner announced Nov 30');
   assert.equal(closed.scoreWindow.start.toISOString(), live.scoreWindow.start.toISOString());
   assert.equal(closed.scoreWindow.end.toISOString(), live.scoreWindow.end.toISOString());
+  assert.ok(closed.proposalOpenUntil.getTime() > new Date('2026-11-30T08:00:00.000Z').getTime());
 
-  const justBeforeResume = getPublicPrizeState(new Date('2026-12-06T19:59:59.000Z'));
-  assert.equal(justBeforeResume.phase, 'big-event-closed');
-  const resumed = getPublicPrizeState(new Date('2026-12-06T20:00:00.000Z'));
-  assert.equal(resumed.phase, 'weekly');
-  assert.equal(resumed.allocationRsc, 1_000);
+  const december = getPublicPrizeState(new Date('2026-12-06T20:00:00.000Z'));
+  assert.equal(december.phase, 'big-event');
+  assert.equal(december.allocationRsc, 25_000);
+  assert.equal(december.monthKey, '2026-12');
+  assert.equal(december.closesAt.toISOString(), '2026-12-28T07:59:00.000Z');
+  assert.equal(december.announceShortLabel, 'Dec 28');
+
+  const decemberClosed = getPublicPrizeState(new Date('2026-12-28T08:00:00.000Z'));
+  assert.equal(decemberClosed.phase, 'big-event-closed');
+  assert.equal(decemberClosed.snapshotFrozen, true);
+
+  const january = getPublicPrizeState(new Date('2027-01-01T08:00:00.000Z'));
+  assert.equal(january.phase, 'big-event');
+  assert.equal(january.monthKey, '2027-01');
+  assert.equal(january.allocationRsc, 25_000);
 });
 
 test('weekly competition resets Sunday at noon Pacific', () => {

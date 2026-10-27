@@ -30,7 +30,7 @@ const BUILT_IN_CARD_ASSET_PATHS = {
   CAMPAIGN_BOSS_ECLIPSE_ENGINE: '/game-art/generated/scicon-stage20-expansion-v1/bosses/frames/eclipse-engine.png',
   CAMPAIGN_BOSS_HAMMERHEAD_SIEGE: '/game-art/generated/bosses/campaign-packages/hammerhead-siege/assembled.png',
   CAMPAIGN_BOSS_HELIX_LEVIATHAN: '/game-art/generated/scicon-stage20-expansion-v1/bosses/frames/helix-leviathan.png',
-  CAMPAIGN_BOSS_FRONTIER_CROWNCLAW: '/game-art/generated/bosses/campaign-packages/frontier-crownclaw/assembled.png',
+  CAMPAIGN_BOSS_FRONTIER_CROWNCLAW: '/game-art/generated/bosses/astral-crownclaw/astral-crownclaw-intact.png',
   CAMPAIGN_BOSS_HELIOS_CLAWCARRIER: '/game-art/generated/bosses/campaign-packages/helios-clawcarrier/assembled.png',
   CAMPAIGN_BOSS_ORBIT_GYROSCOPE: '/game-art/generated/bosses/campaign-packages/orbit-gyroscope/assembled.png',
   CAMPAIGN_BOSS_NULLWAKE_REVENANT: '/game-art/generated/bosses/campaign-packages/nullwake-revenant/assembled.png',

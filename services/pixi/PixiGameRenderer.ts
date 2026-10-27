@@ -3400,15 +3400,22 @@ export class PixiGameRenderer {
         view.root.rotation = entity.spriteFrameFixedRotationRadians;
       } else if (entity.projectileVisualKind === 'boss-ray') {
         const rayColor = entity.color || '#ff9d2e';
-        const coreWidth = Math.max(8, entity.width * (entity.isTelegraph ? 0.34 : 0.46));
+        if (entity.isTelegraph) {
+          view.sprite.visible = false;
+          const muzzleY = -entity.height / 2 + 14;
+          view.aura.circle(0, muzzleY, 16).fill({ color: rayColor, alpha: 0.4 });
+          view.body.circle(0, muzzleY, 6).fill({ color: '#fff7ed', alpha: 0.85 });
+          return;
+        }
+        const coreWidth = Math.max(8, entity.width * 0.46);
         const hotWidth = Math.max(3, coreWidth * 0.34);
-        const rayAlpha = entity.isTelegraph ? 0.34 : entity.flashFrames > 0 ? 0.96 : 0.78;
+        const rayAlpha = entity.flashFrames > 0 ? 0.96 : 0.78;
         view.body.roundRect(-coreWidth / 2, -entity.height / 2, coreWidth, entity.height, 4)
           .fill({ color: rayColor, alpha: rayAlpha });
         view.body.roundRect(-hotWidth / 2, -entity.height / 2, hotWidth, entity.height, 2)
-          .fill({ color: '#fff7ed', alpha: entity.isTelegraph ? 0.28 : 0.94 });
+          .fill({ color: '#fff7ed', alpha: 0.94 });
         view.aura.roundRect(-entity.width * 0.7, -entity.height * 0.5, entity.width * 1.4, entity.height, entity.width * 0.38)
-          .fill({ color: rayColor, alpha: entity.isTelegraph ? 0.08 : 0.18 });
+          .fill({ color: rayColor, alpha: 0.18 });
         view.aura.roundRect(-entity.width * 0.34, -entity.height * 0.5, entity.width * 0.68, entity.height, entity.width * 0.24)
           .stroke({ color: '#fef08a', width: entity.flashFrames > 0 ? 4 : 2, alpha: entity.flashFrames > 0 ? 1 : 0.86 });
       } else {
@@ -3432,15 +3439,14 @@ export class PixiGameRenderer {
       }
       const radius = Math.min(10, Math.min(width, height) * 0.45);
       if (entity.isTelegraph) {
-        const matchedLane = Boolean(entity.beamFillRatio);
-        view.aura.roundRect(-width / 2, -height / 2, width, height, radius)
-          .fill({ color, alpha: matchedLane ? 0.72 : 0.08 });
-        if (matchedLane) {
-          view.body.roundRect(-width / 2, -height / 2, width, height, radius)
-            .fill({ color: '#ffffff', alpha: 0.62 });
-        }
-        view.body.roundRect(-width / 2, -height / 2, width, height, radius)
-          .stroke({ color, width: Math.max(1.5, Math.min(width, height) * 0.22), alpha: 0.95 });
+        // Warning is a short muzzle glow on the boss. The aim line itself is
+        // not drawn across the playfield.
+        view.sprite.visible = false;
+        const muzzle = 18;
+        const originX = entity.beamAngleRadians !== null ? (-width / 2) + muzzle : 0;
+        view.aura.circle(originX, 0, muzzle).fill({ color, alpha: 0.42 });
+        view.body.circle(originX, 0, 7).fill({ color: '#f8fdff', alpha: 0.88 });
+        return;
       } else {
         view.aura.roundRect(-width / 2, -height / 2, width, height, radius)
           .fill({ color, alpha: cornerAmbushBeam ? 0.44 : 0.28 });
@@ -6293,6 +6299,24 @@ export class PixiGameRenderer {
       const bossWeapon = entity.isBeam || Boolean(entity.bossOwnerId) || entity.projectileVisualKind === 'boss-ray';
       if (!bossWeapon) continue;
       const liveBeam = entity.isBeam && !entity.isTelegraph;
+      if (entity.isTelegraph) {
+        const originX = Number.isFinite(entity.beamOriginX)
+          ? entity.beamOriginX
+          : entity.x + entity.width / 2;
+        const originY = Number.isFinite(entity.beamOriginY)
+          ? entity.beamOriginY
+          : entity.y + entity.height / 2;
+        lightCount = this.configureCombatLight(
+          lightCount,
+          originX,
+          originY,
+          34,
+          26,
+          COMBAT_LIGHT_BOSS_COLOR,
+          0.2 * intensityScale
+        );
+        continue;
+      }
       const radiusX = entity.isBeam
         ? clamp(entity.width * 0.54, 12, this.width * 0.55)
         : clamp(entity.width * 1.15, 16, 72);
@@ -6306,7 +6330,7 @@ export class PixiGameRenderer {
         radiusX,
         radiusY,
         liveBeam ? COMBAT_LIGHT_BEAM_COLOR : COMBAT_LIGHT_BOSS_COLOR,
-        (entity.isTelegraph ? 0.09 : liveBeam ? 0.3 : 0.19) * intensityScale
+        (liveBeam ? 0.3 : 0.19) * intensityScale
       );
     }
 
@@ -6505,9 +6529,9 @@ export class PixiGameRenderer {
 
     if (entity.type === EntityType.PROJECTILE || entity.type === EntityType.MISSILE) {
       this.drawProjectile(view, entity, engine);
-      if (entity.isTelegraph) {
+      if (entity.isTelegraph && !entity.isBeam) {
         view.sprite.alpha = Math.min(view.sprite.alpha, 0.38);
-        view.body.circle(0, 0, Math.max(6, Math.max(entity.width, Math.min(entity.height, 28)) * 0.55))
+        view.body.circle(0, 0, Math.max(6, Math.min(entity.width, entity.height, 16)))
           .stroke({ color: entity.color || '#fef08a', width: 2, alpha: 0.9 });
       }
     } else if (entity.type === EntityType.EFFECT) {
@@ -6590,6 +6614,9 @@ export class PixiGameRenderer {
         view.sprite.scale.x = -Math.abs(view.sprite.scale.x);
       }
       view.sprite.y = Math.sin(engine.frameCount * 0.04) * 5;
+      if (entity.sourceItemId === 'frontier-crownclaw') {
+        view.sprite.rotation = Math.sin(engine.frameCount * 0.045) * 0.045;
+      }
       this.drawBossComponents(view, entity, engine);
       this.drawBossRig(view, entity, engine);
       const articulatedBossReady = this.drawArticulatedGeneratedBoss(view, entity, engine);

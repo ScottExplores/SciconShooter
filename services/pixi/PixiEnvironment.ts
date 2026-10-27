@@ -307,10 +307,10 @@ const createSpaceRunLayout = (phaseOffset: number, mirrored = false): readonly T
     return mirrored ? 1 - x : x;
   };
   return [
-    { frame: 0, baseX: placeX('left', 1.1), baseY: 0.08, speed: 0.03, sway: 0, phase: phaseOffset, widthRatio: 0.14, rotationSpeed: 0, alpha: 0.55 },
-    { frame: 2, baseX: placeX('right', 5.2), baseY: 0.36, speed: 0.05, sway: 0, phase: phaseOffset + 0.8, widthRatio: 0.2, rotationSpeed: 0, alpha: 0.78 },
-    { frame: 5, baseX: placeX('left', 9.4), baseY: 0.64, speed: 0.078, sway: 0, phase: phaseOffset + 1.7, widthRatio: 0.16, rotationSpeed: 0, alpha: 0.66 },
-    { frame: 7, baseX: placeX('right', 13.5), baseY: 0.9, speed: 0.1, sway: 0, phase: phaseOffset + 2.4, widthRatio: 0.12, rotationSpeed: 0, alpha: 0.5 }
+    { frame: 0, baseX: placeX('left', 1.1), baseY: 0.08, speed: 1.4, sway: 0, phase: phaseOffset, widthRatio: 0.14, rotationSpeed: 0, alpha: 0.55 },
+    { frame: 2, baseX: placeX('right', 5.2), baseY: 0.36, speed: 2.1, sway: 0, phase: phaseOffset + 0.8, widthRatio: 0.2, rotationSpeed: 0, alpha: 0.78 },
+    { frame: 5, baseX: placeX('left', 9.4), baseY: 0.64, speed: 3.1, sway: 0, phase: phaseOffset + 1.7, widthRatio: 0.16, rotationSpeed: 0, alpha: 0.66 },
+    { frame: 7, baseX: placeX('right', 13.5), baseY: 0.9, speed: 4.2, sway: 0, phase: phaseOffset + 2.4, widthRatio: 0.12, rotationSpeed: 0, alpha: 0.5 }
   ];
 };
 
@@ -346,14 +346,14 @@ const SPACE_BODY_RECIPES: Record<(typeof SPACE_PROFILE_IDS)[number], {
   phase: number;
   speed: number;
 }> = {
-  'open-orbit': { urlIndex: 0, side: 'left', scale: 0.22, alpha: 0.84, tint: '#ffffff', phase: 0.18, speed: 0.038 },
-  'citation-storm': { urlIndex: 1, side: 'right', scale: 0.15, alpha: 0.5, tint: '#c5d4e4', phase: 0.64, speed: 0.024 },
-  'bastion-protocol': { urlIndex: 0, side: 'right', scale: 0.2, alpha: 0.76, tint: '#ffffff', phase: 0.42, speed: 0.034 },
-  'helix-redline': { urlIndex: 1, side: 'left', scale: 0.16, alpha: 0.56, tint: '#d9c8e6', phase: 0.7, speed: 0.028 },
-  'shattered-void': { urlIndex: 0, side: 'left', scale: 0.14, alpha: 0.46, tint: '#a9bdd0', phase: 0.28, speed: 0.02 },
-  'gravity-rift': { urlIndex: 1, side: 'right', scale: 0.19, alpha: 0.7, tint: '#ffffff', phase: 0.56, speed: 0.032 },
-  'ion-eclipse': { urlIndex: 0, side: 'right', scale: 0.16, alpha: 0.54, tint: '#c9daf0', phase: 0.34, speed: 0.026 },
-  'terminus-frontier': { urlIndex: 1, side: 'left', scale: 0.24, alpha: 0.8, tint: '#ffffff', phase: 0.5, speed: 0.044 }
+  'open-orbit': { urlIndex: 0, side: 'left', scale: 0.22, alpha: 0.84, tint: '#ffffff', phase: 0.18, speed: 1.15 },
+  'citation-storm': { urlIndex: 1, side: 'right', scale: 0.15, alpha: 0.5, tint: '#c5d4e4', phase: 0.64, speed: 0.85 },
+  'bastion-protocol': { urlIndex: 0, side: 'right', scale: 0.2, alpha: 0.76, tint: '#ffffff', phase: 0.42, speed: 1.05 },
+  'helix-redline': { urlIndex: 1, side: 'left', scale: 0.16, alpha: 0.56, tint: '#d9c8e6', phase: 0.7, speed: 0.95 },
+  'shattered-void': { urlIndex: 0, side: 'left', scale: 0.14, alpha: 0.46, tint: '#a9bdd0', phase: 0.28, speed: 0.72 },
+  'gravity-rift': { urlIndex: 1, side: 'right', scale: 0.19, alpha: 0.7, tint: '#ffffff', phase: 0.56, speed: 1.08 },
+  'ion-eclipse': { urlIndex: 0, side: 'right', scale: 0.16, alpha: 0.54, tint: '#c9daf0', phase: 0.34, speed: 0.9 },
+  'terminus-frontier': { urlIndex: 1, side: 'left', scale: 0.24, alpha: 0.8, tint: '#ffffff', phase: 0.5, speed: 1.35 }
 };
 
 const spaceBodyCenterX = (side: 'left' | 'right') => (side === 'left' ? 0.2 : 0.8);
@@ -389,19 +389,19 @@ export const SPACE_BODY_LAYOUTS: Readonly<Record<(typeof SPACE_PROFILE_IDS)[numb
 
 const TERRAIN_PROP_LAYOUTS: Record<TerrainPropSet, readonly TerrainPropDefinition[]> = {
   space: [
-    { frame: 4, baseX: 0.82, baseY: 0.16, speed: 0.034, sway: 0, phase: 0.2, widthRatio: 0.18, rotationSpeed: 0, alpha: 0.78 },
-    { frame: 5, baseX: 0.78, baseY: 0.7, speed: 0.06, sway: 0, phase: 1.2, widthRatio: 0.13, rotationSpeed: 0, alpha: 0.52 },
-    { frame: 8, baseX: 0.18, baseY: 0.84, speed: 0.088, sway: 0, phase: 2.4, widthRatio: 0.14, rotationSpeed: 0, alpha: 0.58 }
+    { frame: 4, baseX: 0.82, baseY: 0.16, speed: 1.6, sway: 0, phase: 0.2, widthRatio: 0.18, rotationSpeed: 0, alpha: 0.78 },
+    { frame: 5, baseX: 0.78, baseY: 0.7, speed: 2.6, sway: 0, phase: 1.2, widthRatio: 0.13, rotationSpeed: 0, alpha: 0.52 },
+    { frame: 8, baseX: 0.18, baseY: 0.84, speed: 3.8, sway: 0, phase: 2.4, widthRatio: 0.14, rotationSpeed: 0, alpha: 0.58 }
   ],
   'citation-storm': [
-    { frame: 0, baseX: 0.18, baseY: 0.14, speed: 0.032, sway: 0, phase: 0.4, widthRatio: 0.16, rotationSpeed: 0, alpha: 0.6 },
-    { frame: 3, baseX: 0.16, baseY: 0.58, speed: 0.056, sway: 0, phase: 1.6, widthRatio: 0.2, rotationSpeed: 0, alpha: 0.8 },
-    { frame: 7, baseX: 0.22, baseY: 0.9, speed: 0.084, sway: 0, phase: 2.6, widthRatio: 0.12, rotationSpeed: 0, alpha: 0.5 }
+    { frame: 0, baseX: 0.18, baseY: 0.14, speed: 1.5, sway: 0, phase: 0.4, widthRatio: 0.16, rotationSpeed: 0, alpha: 0.6 },
+    { frame: 3, baseX: 0.16, baseY: 0.58, speed: 2.4, sway: 0, phase: 1.6, widthRatio: 0.2, rotationSpeed: 0, alpha: 0.8 },
+    { frame: 7, baseX: 0.22, baseY: 0.9, speed: 3.6, sway: 0, phase: 2.6, widthRatio: 0.12, rotationSpeed: 0, alpha: 0.5 }
   ],
   'bastion-protocol': [
-    { frame: 6, baseX: 0.18, baseY: 0.2, speed: 0.036, sway: 0, phase: 0.8, widthRatio: 0.17, rotationSpeed: 0, alpha: 0.72 },
-    { frame: 1, baseX: 0.2, baseY: 0.62, speed: 0.058, sway: 0, phase: 1.8, widthRatio: 0.15, rotationSpeed: 0, alpha: 0.64 },
-    { frame: 8, baseX: 0.82, baseY: 0.88, speed: 0.09, sway: 0, phase: 2.8, widthRatio: 0.12, rotationSpeed: 0, alpha: 0.5 }
+    { frame: 6, baseX: 0.18, baseY: 0.2, speed: 1.7, sway: 0, phase: 0.8, widthRatio: 0.17, rotationSpeed: 0, alpha: 0.72 },
+    { frame: 1, baseX: 0.2, baseY: 0.62, speed: 2.5, sway: 0, phase: 1.8, widthRatio: 0.15, rotationSpeed: 0, alpha: 0.64 },
+    { frame: 8, baseX: 0.82, baseY: 0.88, speed: 3.9, sway: 0, phase: 2.8, widthRatio: 0.12, rotationSpeed: 0, alpha: 0.5 }
   ],
   desert: [
     { frame: 0, baseX: 0.1, baseY: 0.06, speed: 0, sway: 0, phase: 0.3, widthRatio: 0.25, rotationSpeed: 0, alpha: 0.96 },
@@ -460,28 +460,31 @@ export const CAMPAIGN_ENVIRONMENT_ROUTE = [
   { stage: 20, backgroundId: 'terminus-frontier', terrain: 'space', storyBeat: 'terminus-ascendant' }
 ] as const;
 
+// Pixels per frame at the campaign timestep. Far stars move about 30px in one
+// second. Each later step is a closer layer and travels faster, so a one-second
+// screenshot pair shows the field streaming downward.
 export const SPACE_PARALLAX_DEPTH_SPEEDS = Object.freeze({
-  'open-orbit': Object.freeze([0.012, 0.03, 0.08, 0.16, 0.36, 0.52, 0.68]),
-  'citation-storm': Object.freeze([0.013, 0.034, 0.095, 0.179, 0.394, 0.59, 0.765]),
-  'bastion-protocol': Object.freeze([0.014, 0.037, 0.107, 0.197, 0.429, 0.659, 0.85]),
-  'helix-redline': Object.freeze([0.013, 0.034, 0.088, 0.172, 0.377, 0.573, 0.748]),
-  'shattered-void': Object.freeze([0.011, 0.028, 0.075, 0.148, 0.333, 0.503, 0.663]),
-  'gravity-rift': Object.freeze([0.014, 0.036, 0.1, 0.188, 0.412, 0.625, 0.816]),
-  'ion-eclipse': Object.freeze([0.012, 0.032, 0.09, 0.176, 0.394, 0.59, 0.782]),
-  'terminus-frontier': Object.freeze([0.015, 0.039, 0.115, 0.209, 0.463, 0.694, 0.918])
+  'open-orbit': Object.freeze([0.48, 0.98, 2.05, 2.7, 3.6, 4.4, 5.2]),
+  'citation-storm': Object.freeze([0.5, 1.02, 2.12, 2.8, 3.75, 4.55, 5.35]),
+  'bastion-protocol': Object.freeze([0.52, 1.06, 2.2, 2.9, 3.9, 4.7, 5.5]),
+  'helix-redline': Object.freeze([0.49, 1, 2.08, 2.75, 3.68, 4.48, 5.28]),
+  'shattered-void': Object.freeze([0.46, 0.94, 1.96, 2.58, 3.45, 4.2, 4.95]),
+  'gravity-rift': Object.freeze([0.51, 1.04, 2.16, 2.85, 3.82, 4.62, 5.42]),
+  'ion-eclipse': Object.freeze([0.48, 0.99, 2.06, 2.72, 3.64, 4.42, 5.22]),
+  'terminus-frontier': Object.freeze([0.54, 1.1, 2.28, 3.02, 4.05, 4.9, 5.7])
 } as const);
 
 type SpaceParallaxProfileId = keyof typeof SPACE_PARALLAX_DEPTH_SPEEDS;
 
 export const SPACE_DYNAMIC_STAR_SPEED_MULTIPLIERS = Object.freeze({
-  'open-orbit': 4,
-  'citation-storm': 4.5,
-  'bastion-protocol': 5,
-  'helix-redline': 4.4,
-  'shattered-void': 3.9,
-  'gravity-rift': 4.8,
-  'ion-eclipse': 4.6,
-  'terminus-frontier': 5.4
+  'open-orbit': 32,
+  'citation-storm': 33,
+  'bastion-protocol': 34,
+  'helix-redline': 32,
+  'shattered-void': 30,
+  'gravity-rift': 33,
+  'ion-eclipse': 32,
+  'terminus-frontier': 36
 } as const satisfies Record<SpaceParallaxProfileId, number>);
 
 const createSpaceLayers = (
@@ -496,7 +499,7 @@ const createSpaceLayers = (
   const layers: ParallaxDefinition[] = [
     {
       url: ASSETS.HOME_SPARSE_STARFIELD_BASE,
-      speed: 0.02,
+      speed: speeds[0],
       alpha: 1,
       loop: true,
       tilePoolSize: DEEP_SPACE_BACKPLATE_TILE_POOL_SIZE,
@@ -562,7 +565,7 @@ const createBreakwaterProfile = (
 ): EnvironmentProfile => ({
   tint: '#081a29', accent: '#67e8f9', family: 0, colorGradeAlpha: 0,
   layers: [
-    { url: ASSETS.PIXI_BREAKWATER_FAR, speed: 0.035, alpha: 1,
+    { url: ASSETS.PIXI_BREAKWATER_FAR, speed: 0.55, alpha: 1,
       loop: true, tilePoolSize: 2, coverViewport: true, scrollDirection: 'down' },
     { url: landmarks, speed, alpha: 0.55,
       loop: true, tilePoolSize: 3, scrollDirection: 'down', widthScale: 1, seamCrossfadePx }
@@ -572,9 +575,9 @@ const createBreakwaterProfile = (
 });
 
 const BACKGROUND_PROFILES = {
-  'breakwater-approach': createBreakwaterProfile(ASSETS.PIXI_BREAKWATER_APPROACH, 0.28),
-  'breakwater-wreckfield': createBreakwaterProfile(ASSETS.PIXI_BREAKWATER_WRECKFIELD, 0.37, LOOP_SEAM_CROSSFADE_PX),
-  'breakwater-gate': createBreakwaterProfile(ASSETS.PIXI_BREAKWATER_GATE, 0.22, LOOP_SEAM_CROSSFADE_PX),
+  'breakwater-approach': createBreakwaterProfile(ASSETS.PIXI_BREAKWATER_APPROACH, 1.8),
+  'breakwater-wreckfield': createBreakwaterProfile(ASSETS.PIXI_BREAKWATER_WRECKFIELD, 2.4, LOOP_SEAM_CROSSFADE_PX),
+  'breakwater-gate': createBreakwaterProfile(ASSETS.PIXI_BREAKWATER_GATE, 1.5, LOOP_SEAM_CROSSFADE_PX),
   'open-orbit': {
     tint: '#082f49',
     accent: '#67e8f9',

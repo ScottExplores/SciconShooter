@@ -88,7 +88,7 @@ test('revision-24 record cards embed their resolved mission encounter art withou
     [7, '/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/dark-asteroid-sentinel.png'],
     [8, '/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/crescent-minelayer.png'],
     [9, '/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/ring-sentinel.png'],
-    [20, '/game-art/generated/bosses/campaign-packages/frontier-crownclaw/assembled.png'],
+    [20, '/game-art/generated/bosses/astral-crownclaw/astral-crownclaw-intact.png'],
     [25, '/game-art/generated/bosses/campaign-packages/helios-clawcarrier/assembled.png'],
     [50, '/game-art/generated/bosses/campaign-packages/umbra-needlewing/assembled.png']
   ]);

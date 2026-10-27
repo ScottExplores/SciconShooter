@@ -5770,3 +5770,12 @@ export const buildSandboxBossEncounter = (
 ): SandboxBossEncounterPreview => (
   SANDBOX_BOSS_ROSTER_BY_ID[prototypeId].buildEncounter(sourceCampaign)
 );
+
+/** Campaign load copies this kit onto a promoted boss without rebuilding the sandbox encounter. */
+export const getSandboxBossKit = (prototypeId: SandboxBossPrototypeId): BossEvent => {
+  const definition = definitions.find((entry) => entry.id === prototypeId);
+  if (!definition?.boss) {
+    throw new Error(`Unknown sandbox boss kit: ${prototypeId}`);
+  }
+  return structuredClone(definition.boss);
+};

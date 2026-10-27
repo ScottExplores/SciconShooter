@@ -462,9 +462,11 @@ const getWeeklyAllocationMeta = (now = new Date()) => {
       snapshotFrozen: prize.snapshotFrozen,
       isFinalizing: false,
       daysLeft: prize.daysLeft,
-      endLabel: 'Nov 29',
+      endLabel: prize.closeShortLabel,
+      announceLabel: prize.announceLabel,
+      rulesText: prize.rulesText,
       countdownLabel: prize.phase === 'big-event-closed'
-        ? 'winner announced Nov 30'
+        ? (prize.statusLabel ?? 'Winner announced')
         : prize.daysLeft <= 1
           ? 'Closes today, 11:59 PM PT'
           : `Closes in ${prize.daysLeft} days`
@@ -478,6 +480,8 @@ const getWeeklyAllocationMeta = (now = new Date()) => {
     allocationRsc: WEEKLY_ALLOCATION_RSC,
     closed: false,
     snapshotFrozen: false,
+    announceLabel: '',
+    rulesText: 'Leaderboard positions remain provisional until the weekly cutoff. The finalized No. 1 pilot may choose an eligible ResearchHub proposal for the announced allocation. Selection and funding are separate steps; funding is only confirmed after a Base transaction reference is recorded.',
     countdownLabel: weekly.isFinalizing
       ? 'Publishing the new week and Past Pick together'
       : `Ends ${weekly.daysLeft === 0 ? 'today' : `in ${weekly.daysLeft} day${weekly.daysLeft === 1 ? '' : 's'}`}`
@@ -1526,6 +1530,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
       : needsServerVerification
         ? 'checking'
         : 'available';
+    const eventBoard = weeklyAllocation.phase !== 'weekly';
+    const runTitle = eventBoard ? '25K RSC Event' : 'Weekly Run';
     const attemptLabel = `${weeklyRunAttemptsRemaining} Attempt${weeklyRunAttemptsRemaining === 1 ? '' : 's'} Left`;
 
     return onStartWeeklyRun ? (
@@ -1539,14 +1545,14 @@ const StartScreen: React.FC<StartScreenProps> = ({
           onClick={onStartWeeklyRun}
           disabled={attemptsExhausted}
           aria-label={weeklyRunAttemptsRemaining > 0
-            ? `Play Weekly Run. ${weeklyRunAttemptsRemaining} attempt${weeklyRunAttemptsRemaining === 1 ? '' : 's'} remain, with endless escalating waves and bosses scored on the weekly board. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`
+            ? `Play ${runTitle}. ${weeklyRunAttemptsRemaining} attempt${weeklyRunAttemptsRemaining === 1 ? '' : 's'} remain, with endless escalating waves and bosses scored on the ${eventBoard ? '25K RSC event' : 'weekly'} board. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`
             : needsServerVerification
-              ? `Check Weekly Run attempts with the server. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`
-              : `Weekly Run attempts used. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`}
+              ? `Check ${runTitle} attempts with the server. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`
+              : `${runTitle} attempts used. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`}
         >
           <span className="sci-weekly-run-entry__copy">
             <span className="sci-weekly-run-entry__title">
-              Weekly Run
+              {runTitle}
             </span>
             <span className="sci-weekly-run-entry__sub">
               {weeklyRunAttemptsRemaining > 0
@@ -1615,8 +1621,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
               {weeklyAllocation.phase === 'weekly'
                 ? `Season 7 - Week ${weeklyAllocation.endLabel}`
                 : weeklyAllocation.snapshotFrozen
-                  ? 'Final standings. One-time 25,000 RSC prize.'
-                  : 'One-time. 25,000 RSC to the top score, toward one ResearchHub proposal.'}
+                  ? 'Final standings. 25,000 RSC toward one ResearchHub proposal.'
+                  : '25,000 RSC to the top score this month, toward one ResearchHub proposal.'}
             </p>
           </div>
           <div className="text-right">
@@ -1941,7 +1947,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
               : weeklyAllocation.phase === 'weekly'
                 ? 'Weekly Run scores, champion picks, confirmed funding, and your recent runs.'
                 : weeklyAllocation.snapshotFrozen
-                  ? 'SciCon Big Event final standings. winner announced Nov 30.'
+                  ? `SciCon Big Event final standings. ${weeklyAllocation.countdownLabel}.`
                   : 'SciCon Big Event standings, proposal picks, confirmed funding, and your recent runs.'}
           </p>
         </div>
@@ -2863,11 +2869,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
               <section>
                 <h3 className="font-black uppercase text-cyan-100">{weeklyAllocation.phase === 'weekly' ? 'Weekly competition' : 'SciCon Big Event'}</h3>
                 <p className="mt-2">
-                  {weeklyAllocation.phase === 'weekly'
-                    ? 'Leaderboard positions remain provisional until the weekly cutoff. The finalized No. 1 pilot may choose an eligible ResearchHub proposal for the announced allocation. Selection and funding are separate steps; funding is only confirmed after a Base transaction reference is recorded.'
-                    : weeklyAllocation.snapshotFrozen
-                      ? 'Final standings are frozen. winner announced Nov 30. The one-time prize is 25,000 RSC toward an open ResearchHub proposal the winner chooses. It must be a proposal, not an RFP, and its funding deadline must be after November 30, 2026. The weekly prize resumes with the first weekly period after November 30.'
-                      : 'One-time prize: 25,000 RSC to the top high score from October 26, 2026 through Sunday, November 29, 2026 at 11:59 PM Pacific. The winner is announced Monday, November 30, 2026 and chooses an open ResearchHub proposal, not an RFP, whose funding deadline is after November 30, 2026. The weekly prize is paused until the first weekly period after November 30. Selection and funding are separate steps; funding is only confirmed after a Base transaction reference is recorded.'}
+                  {weeklyAllocation.rulesText}
                 </p>
               </section>
               <section>

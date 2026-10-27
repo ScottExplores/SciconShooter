@@ -14167,6 +14167,14 @@ export class GameEngine {
         boss.height = boss.width * (704 / 1024);
         boss.x -= (boss.width - previousWidth) / 2;
       }
+      if (boss.sourceItemId === 'frontier-crownclaw') {
+        const previousWidth = boss.width;
+        const previousHeight = boss.height;
+        boss.width = Math.round(this.width * 0.66);
+        boss.height = Math.round(boss.width * (512 / 640));
+        boss.x -= (boss.width - previousWidth) / 2;
+        boss.y -= (boss.height - previousHeight) / 2;
+      }
       boss.bossComponents = configured.componentMode === 'hull-only'
         ? []
         : this.createBossComponents(boss, configured.componentHealth);

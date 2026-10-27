@@ -57,7 +57,7 @@ test('Director, in-game mission record, and NFT image share the same card config
   assert.match(api, /presentation: cardConfig/);
   assert.match(metadataApi, /buildMissionRecordCardPath/);
   assert.match(mintAuthorizationApi, /buildMissionRecordMetadataPath/);
-  assert.match(levelConfig, /normalizeGameCampaignRecordCard\(parseGameCampaign\(campaignJson\)\)/);
+  assert.match(levelConfig, /normalizeGameCampaignRecordCard\(\s*applyPromotedBossKits\(structuredClone\(parseGameCampaign\(campaignJson\)\)\)\s*\)/);
 });
 
 test('mission-record onboarding uses the configured Base app invite and a separate wallet connection', () => {

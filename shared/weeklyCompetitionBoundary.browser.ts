@@ -33,6 +33,12 @@ interface PublicPrizeState {
   snapshotFrozen: boolean;
   statusLabel: string | null;
   daysLeft: number;
+  monthKey: string;
+  closeLabel: string;
+  closeShortLabel: string;
+  announceLabel: string;
+  announceShortLabel: string;
+  rulesText: string;
 }
 
 interface WeeklyCompetitionBoundary {
@@ -44,7 +50,6 @@ interface WeeklyCompetitionBoundary {
     closesAt: string;
     proposalOpenUntil: string;
     winnerAnnouncedLabel: string;
-    weeklyResumesWeekKey: string;
   };
   WEEKLY_SCORE_SETTLEMENT_MS: number;
   getPublicPrizeState: (now?: Date | string | number) => PublicPrizeState;

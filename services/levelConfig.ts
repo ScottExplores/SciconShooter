@@ -13,6 +13,7 @@ import {
 } from '../game-config/catalog';
 import { parseGameCampaign } from '../game-config/validate';
 import { normalizeGameCampaignRecordCard } from '../game-config/recordCard';
+import { getSandboxBossKit } from './gameplay/sandboxBossRoster';
 import { resolveAuthoredDifficulty } from './gameplay/difficulty';
 import type {
   AssetKey,
@@ -39,9 +40,48 @@ const deepFreeze = <T,>(value: T): T => {
   return value;
 };
 
+const PROMOTED_BOSS_TUNING = {
+  'meridian-harrower': { health: 3300, scoreReward: 25010, sizeMultiplier: 1.45 },
+  'cinderjaw-siege-beetle': { health: 5800, scoreReward: 42010, sizeMultiplier: 1.65 },
+  'vesperglass-mothmother': { health: 6600, scoreReward: 47010, sizeMultiplier: 1.25 }
+} as const;
+
+/**
+ * The campaign file stays schema-valid on its own. These three bosses then
+ * take the sandbox weapons, phases, timeline, and rig while keeping the
+ * campaign identity, sprite, health, and score.
+ */
+const applyPromotedBossKits = (campaign: GameCampaignConfig): GameCampaignConfig => {
+  for (const level of campaign.levels) {
+    for (const wave of level.waves) {
+      for (const event of wave.events) {
+        if (event.kind !== 'boss') continue;
+        const tuning = PROMOTED_BOSS_TUNING[event.bossId as keyof typeof PROMOTED_BOSS_TUNING];
+        if (!tuning) continue;
+        const kit = getSandboxBossKit(event.bossId as keyof typeof PROMOTED_BOSS_TUNING);
+        event.weapons = kit.weapons;
+        event.phases = kit.phases;
+        event.timeline = kit.timeline;
+        event.rigId = kit.rigId;
+        event.speed = kit.speed;
+        if (kit.componentMode) event.componentMode = kit.componentMode;
+        else delete event.componentMode;
+        if (kit.componentHealth) event.componentHealth = kit.componentHealth;
+        else delete event.componentHealth;
+        event.health = tuning.health;
+        event.scoreReward = tuning.scoreReward;
+        event.sizeMultiplier = tuning.sizeMultiplier;
+      }
+    }
+  }
+  return campaign;
+};
+
 /** Validated, immutable source of truth used by both the real game and local editor. */
 export const DEFAULT_GAME_CAMPAIGN: GameCampaignConfig = deepFreeze(
-  normalizeGameCampaignRecordCard(parseGameCampaign(campaignJson))
+  normalizeGameCampaignRecordCard(
+    applyPromotedBossKits(structuredClone(parseGameCampaign(campaignJson)))
+  )
 );
 
 export const cloneGameCampaign = (

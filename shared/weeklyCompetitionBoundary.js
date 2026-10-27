@@ -4,17 +4,18 @@ const WEEK_BOUNDARY_HOUR = 12;
 // One source of truth for every current-week funding claim. Historical
 // competition rows keep their recorded allocation instead of being rewritten.
 const WEEKLY_ALLOCATION_RSC = 1_000;
-// One-time prize window. Weekly scoring stays in the code and turns back on
-// at weeklyResumesWeekKey (the first Sunday-noon Pacific week after Nov 30).
+// Monthly 25,000 RSC series. The first window is the authored October 26
+// through November 29, 2026 close. From December 2026 each Pacific month
+// starts at midnight on the 1st and closes at 11:59 PM on its last Sunday.
 const SCICON_BIG_EVENT = Object.freeze({
   name: 'SciCon Big Event',
   allocationRsc: 25_000,
   startsAt: '2026-10-26T07:00:00.000Z',
   closesAt: '2026-11-30T07:59:00.000Z',
   proposalOpenUntil: '2026-12-01T08:00:00.000Z',
-  winnerAnnouncedLabel: 'Nov 30',
-  weeklyResumesWeekKey: '2026-12-06'
+  winnerAnnouncedLabel: 'Nov 30'
 });
+const MONTHLY_SERIES_START = SCICON_BIG_EVENT.startsAt;
 // A score receipt can finish before cutoff while its verified leaderboard write
 // is still in flight. Keep the public rollover behind this short settlement
 // window so the new board and the archived Past Pick can publish together.
@@ -217,48 +218,146 @@ const resolveWeeklyDashboardPublication = (completedWeekKeys = [], now = new Dat
   };
 };
 
-const getPublicPrizeState = (now = new Date()) => {
-  const instant = toDate(now);
-  const startsAt = new Date(SCICON_BIG_EVENT.startsAt);
-  const closesAt = new Date(SCICON_BIG_EVENT.closesAt);
-  const weeklyResumesAt = getWeekRange(SCICON_BIG_EVENT.weeklyResumesWeekKey).start;
-  const proposalDeadline = new Date(SCICON_BIG_EVENT.proposalOpenUntil);
-  const time = instant.getTime();
-  const phase = time >= startsAt.getTime() && time < closesAt.getTime()
-    ? 'big-event'
-    : time >= closesAt.getTime() && time < weeklyResumesAt.getTime()
-      ? 'big-event-closed'
-      : 'weekly';
-  const eventBoard = phase !== 'weekly';
-  const week = getCurrentWeekRange(instant);
-  const remainingMs = Math.max(0, closesAt.getTime() - time);
+const formatLongLabel = (calendarDate) => new Intl.DateTimeFormat('en-US', {
+  timeZone: WEEK_TIME_ZONE,
+  weekday: 'long',
+  month: 'long',
+  day: 'numeric',
+  year: 'numeric'
+}).format(zonedDateTimeToUtc({ ...calendarDate, hour: 12 }));
 
+const formatShortLabel = (calendarDate) => new Intl.DateTimeFormat('en-US', {
+  timeZone: WEEK_TIME_ZONE,
+  month: 'short',
+  day: 'numeric'
+}).format(zonedDateTimeToUtc({ ...calendarDate, hour: 12 }));
+
+const lastSundayOfMonth = (year, month) => {
+  const last = new Date(Date.UTC(year, month, 0, 12));
+  return shiftCalendarDate({
+    year: last.getUTCFullYear(),
+    month: last.getUTCMonth() + 1,
+    day: last.getUTCDate()
+  }, -last.getUTCDay());
+};
+
+const monthStart = (year, month) => zonedDateTimeToUtc({
+  year,
+  month,
+  day: 1,
+  hour: 0,
+  minute: 0,
+  second: 0
+});
+
+const buildMonthlyWindow = (year, month) => {
+  const closeSunday = lastSundayOfMonth(year, month);
+  const announceDate = shiftCalendarDate(closeSunday, 1);
+  const proposalDate = shiftCalendarDate(announceDate, 1);
+  const nextMonth = month === 12
+    ? { year: year + 1, month: 1 }
+    : { year, month: month + 1 };
   return {
-    phase,
+    monthKey: `${year}-${String(month).padStart(2, '0')}`,
     name: SCICON_BIG_EVENT.name,
-    allocationRsc: eventBoard ? SCICON_BIG_EVENT.allocationRsc : WEEKLY_ALLOCATION_RSC,
-    startsAt,
-    closesAt,
-    weeklyResumesAt,
-    proposalOpenUntil: eventBoard ? proposalDeadline : week.end,
-    scoreWindow: eventBoard
-      ? { start: startsAt, end: closesAt }
-      : { start: week.start, end: week.end },
-    snapshotFrozen: phase === 'big-event-closed',
-    statusLabel: phase === 'big-event-closed'
-      ? `winner announced ${SCICON_BIG_EVENT.winnerAnnouncedLabel}`
-      : null,
-    daysLeft: phase === 'big-event'
-      ? Math.max(1, Math.ceil(remainingMs / 86_400_000))
-      : 0
+    startsAt: monthStart(year, month),
+    closesAt: zonedDateTimeToUtc({ ...closeSunday, hour: 23, minute: 59, second: 0 }),
+    proposalOpenUntil: zonedDateTimeToUtc({ ...proposalDate, hour: 12, minute: 0, second: 0 }),
+    nextStartsAt: monthStart(nextMonth.year, nextMonth.month),
+    closeLabel: formatLongLabel(closeSunday),
+    closeShortLabel: formatShortLabel(closeSunday),
+    announceLabel: formatLongLabel(announceDate),
+    announceShortLabel: formatShortLabel(announceDate)
   };
 };
 
-const weekOverlapsBigEventPause = (start, end) => {
-  const pauseStart = new Date(SCICON_BIG_EVENT.startsAt).getTime();
-  const pauseEnd = getWeekRange(SCICON_BIG_EVENT.weeklyResumesWeekKey).start.getTime();
-  return start.getTime() < pauseEnd && end.getTime() > pauseStart;
+const firstEventWindow = () => ({
+  monthKey: '2026-11',
+  name: SCICON_BIG_EVENT.name,
+  startsAt: new Date(SCICON_BIG_EVENT.startsAt),
+  closesAt: new Date(SCICON_BIG_EVENT.closesAt),
+  proposalOpenUntil: new Date(SCICON_BIG_EVENT.proposalOpenUntil),
+  nextStartsAt: monthStart(2026, 12),
+  closeLabel: formatLongLabel({ year: 2026, month: 11, day: 29 }),
+  closeShortLabel: formatShortLabel({ year: 2026, month: 11, day: 29 }),
+  announceLabel: formatLongLabel({ year: 2026, month: 11, day: 30 }),
+  announceShortLabel: SCICON_BIG_EVENT.winnerAnnouncedLabel
+});
+
+const prizeWindowForInstant = (instant) => {
+  const time = instant.getTime();
+  if (time < new Date(MONTHLY_SERIES_START).getTime()) return null;
+  const first = firstEventWindow();
+  if (time < first.nextStartsAt.getTime()) return first;
+  const parts = getZonedParts(instant);
+  return buildMonthlyWindow(parts.year, parts.month);
 };
+
+const weeklyRulesText = 'Leaderboard positions remain provisional until the weekly cutoff. The finalized No. 1 pilot may choose an eligible ResearchHub proposal for the announced allocation. Selection and funding are separate steps; funding is only confirmed after a Base transaction reference is recorded.';
+
+const buildEventRulesText = (window, frozen) => (
+  frozen
+    ? `Final standings are frozen. The winner is announced ${window.announceLabel}. This month's prize is 25,000 RSC toward one ResearchHub proposal, not an RFP. The proposal's funding deadline must be after the announce date. Selection and funding are separate steps; funding is only confirmed after a Base transaction reference is recorded.`
+    : `Each calendar month the top score wins 25,000 RSC toward one ResearchHub proposal, not an RFP. This month closes ${window.closeLabel} at 11:59 PM Pacific. The winner is announced ${window.announceLabel}. The proposal's funding deadline must be after the announce date. Selection and funding are separate steps; funding is only confirmed after a Base transaction reference is recorded.`
+);
+
+const getPublicPrizeState = (now = new Date()) => {
+  const instant = toDate(now);
+  const window = prizeWindowForInstant(instant);
+  const week = getCurrentWeekRange(instant);
+  if (!window) {
+    return {
+      phase: 'weekly',
+      name: SCICON_BIG_EVENT.name,
+      allocationRsc: WEEKLY_ALLOCATION_RSC,
+      startsAt: week.start,
+      closesAt: week.end,
+      weeklyResumesAt: new Date(MONTHLY_SERIES_START),
+      proposalOpenUntil: week.end,
+      scoreWindow: { start: week.start, end: week.end },
+      snapshotFrozen: false,
+      statusLabel: null,
+      daysLeft: 0,
+      monthKey: week.weekKey,
+      closeLabel: '',
+      closeShortLabel: '',
+      announceLabel: '',
+      announceShortLabel: '',
+      rulesText: weeklyRulesText
+    };
+  }
+
+  const time = instant.getTime();
+  const phase = time < window.closesAt.getTime() ? 'big-event' : 'big-event-closed';
+  const remainingMs = Math.max(0, window.closesAt.getTime() - time);
+  return {
+    phase,
+    name: window.name,
+    allocationRsc: SCICON_BIG_EVENT.allocationRsc,
+    startsAt: window.startsAt,
+    closesAt: window.closesAt,
+    weeklyResumesAt: phase === 'big-event' ? window.closesAt : window.nextStartsAt,
+    proposalOpenUntil: window.proposalOpenUntil,
+    scoreWindow: { start: window.startsAt, end: window.closesAt },
+    snapshotFrozen: phase === 'big-event-closed',
+    statusLabel: phase === 'big-event-closed'
+      ? `winner announced ${window.announceShortLabel}`
+      : null,
+    daysLeft: phase === 'big-event'
+      ? Math.max(1, Math.ceil(remainingMs / 86_400_000))
+      : 0,
+    monthKey: window.monthKey,
+    closeLabel: window.closeLabel,
+    closeShortLabel: window.closeShortLabel,
+    announceLabel: window.announceLabel,
+    announceShortLabel: window.announceShortLabel,
+    rulesText: buildEventRulesText(window, phase === 'big-event-closed')
+  };
+};
+
+const weekOverlapsBigEventPause = (_start, end) => (
+  end.getTime() > new Date(MONTHLY_SERIES_START).getTime()
+);
 
 const getWeeklyBoundaryMeta = (now = new Date(), locale) => {
   const instant = toDate(now);

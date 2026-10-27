@@ -28,6 +28,9 @@ const CAMPAIGN_BOSS_ASSET_KEYS = [
   'CAMPAIGN_BOSS_PRISM_MOTH',
   'CAMPAIGN_BOSS_RAIL_SERPENT',
   'CAMPAIGN_BOSS_SINGULARITY_CRAB',
+  'CAMPAIGN_BOSS_MERIDIAN_HARROWER',
+  'CAMPAIGN_BOSS_CINDERJAW_SIEGE_BEETLE',
+  'CAMPAIGN_BOSS_VESPERGLASS_MOTHMOTHER',
   'CAMPAIGN_BOSS_TRIBUNAL_DREADNOUGHT',
   'CAMPAIGN_BOSS_UMBRA_NEEDLEWING',
   'CAMPAIGN_MINI_BOSS_BOTTLENECK_HARVESTER',
@@ -218,17 +221,18 @@ const ENEMY_IDS = new Set(['drone', 'swarm', 'brick', 'journal']);
 const BOSS_IDS = new Set([
   'bottleneck-drone', 'paywall-wall', 'fracture-engine-elite', 'aegis-brood-core',
   'railspine-wallcrawler', 'maw-carrier', 'twin-meridian-sentinels', 'prism-bloom',
-  'aegis-convoy-captain', 'gridline-sentries', 'bottleneck-harvester', 'meridian-harrower', 'cinderjaw-siege-beetle', 'gatekeeper', 'gatekeeper-prime', 'paywall-decimator',
+  'aegis-convoy-captain', 'gridline-sentries', 'bottleneck-harvester', 'gatekeeper', 'gatekeeper-prime', 'paywall-decimator',
   'helios-clawcarrier', 'helix-leviathan',
   'eclipse-engine', 'research-tribunal', 'prism-moth', 'rail-serpent', 'singularity-crab',
   'orbit-gyroscope', 'hammerhead-siege', 'frontier-crownclaw', 'nullwake-revenant',
-  'umbra-needlewing'
+  'umbra-needlewing', 'meridian-harrower', 'cinderjaw-siege-beetle', 'vesperglass-mothmother'
 ]);
 const MAJOR_BOSS_IDS = new Set([
   'gatekeeper', 'gatekeeper-prime', 'paywall-decimator', 'helios-clawcarrier', 'helix-leviathan',
   'eclipse-engine', 'research-tribunal',
   'prism-moth', 'rail-serpent', 'singularity-crab', 'orbit-gyroscope', 'hammerhead-siege',
-  'frontier-crownclaw', 'nullwake-revenant', 'umbra-needlewing'
+  'frontier-crownclaw', 'nullwake-revenant', 'umbra-needlewing',
+  'meridian-harrower', 'cinderjaw-siege-beetle', 'vesperglass-mothmother'
 ]);
 const BOSS_RIG_IDS = new Set(['open-orbit', 'citation-storm', 'paywall-siege', 'crown-claw']);
 const POWERUP_IDS = new Set(['projectile-upgrade', 'max-shot', 'magnet', 'shield', 'research-beam', 'extra-life']);
@@ -345,9 +349,7 @@ const MINI_BOSS_IDS = new Set([
   'prism-bloom',
   'aegis-convoy-captain',
   'gridline-sentries',
-  'bottleneck-harvester',
-  'meridian-harrower',
-  'cinderjaw-siege-beetle'
+  'bottleneck-harvester'
 ]);
 const MINI_BOSS_USAGES = new Set(['solo', 'paired', 'solo-or-paired']);
 const MINI_BOSS_VALIDATION_STATUSES = new Set(['validated', 'provisional']);

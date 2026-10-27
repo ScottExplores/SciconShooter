@@ -50,7 +50,7 @@
       ],
       "sheet": "/game-art/generated/scicon-flight-motion-pack-v1/ships/nih/nih-sprite-sheet.png",
       "previewGif": "/game-art/generated/scicon-flight-motion-pack-v1/ships/nih/previews/nih-animation-preview.gif",
-      "productionNote": "Placeholder copies of the Bio pack. Replace these 256x256 frames and the sprite sheet in place. Same five steering frames."
+      "productionNote": "Use PNG frames in Pixi; GIF is gallery preview only."
     },
     {
       "id": "eth",
@@ -134,23 +134,23 @@
       "loop": "selection-idle",
       "states": [
         "rest",
-        "gene-core-pulse",
-        "upper-channel-pulse",
-        "sensor-pod-pulse",
+        "helix-pulse",
+        "core-pulse",
+        "pod-pulse",
         "rest-hold",
         "settle"
       ],
       "frames": [
         "/game-art/generated/scicon-flight-motion-pack-v1/ships/nih-selection-idle/frames/nih-selection-idle-01-rest.png",
-        "/game-art/generated/scicon-flight-motion-pack-v1/ships/nih-selection-idle/frames/nih-selection-idle-02-gene-core-pulse.png",
-        "/game-art/generated/scicon-flight-motion-pack-v1/ships/nih-selection-idle/frames/nih-selection-idle-03-upper-channel-pulse.png",
-        "/game-art/generated/scicon-flight-motion-pack-v1/ships/nih-selection-idle/frames/nih-selection-idle-04-sensor-pod-pulse.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/nih-selection-idle/frames/nih-selection-idle-02-helix-pulse.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/nih-selection-idle/frames/nih-selection-idle-03-core-pulse.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/nih-selection-idle/frames/nih-selection-idle-04-pod-pulse.png",
         "/game-art/generated/scicon-flight-motion-pack-v1/ships/nih-selection-idle/frames/nih-selection-idle-05-rest-hold.png",
         "/game-art/generated/scicon-flight-motion-pack-v1/ships/nih-selection-idle/frames/nih-selection-idle-06-settle.png"
       ],
       "sheet": "/game-art/generated/scicon-flight-motion-pack-v1/ships/nih-selection-idle/nih-selection-idle-sprite-sheet.png",
       "previewGif": "/game-art/generated/scicon-flight-motion-pack-v1/ships/nih-selection-idle/previews/nih-selection-idle-animation-preview.gif",
-      "productionNote": "Placeholder copies of the Bio selection idle. Replace these six 256x256 frames and the idle sheet in place."
+      "productionNote": "Use PNG frames in Pixi; GIF is gallery preview only."
     },
     {
       "id": "eth-selection-idle",
