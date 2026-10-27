@@ -152,10 +152,12 @@ test('canonical left-slot spend applies the exact gameplay purchase and seasonal
 });
 
 test('canonical main-ship spend rejects locked hulls and permits canonical unlocks', () => {
-  assert.throws(() => serverSpends.canonicalWalletTokenSpend({
+  const bio = serverSpends.canonicalWalletTokenSpend({
     profile: profileWithTokens(),
     action: { kind: 'upgrade-main-ship', shipId: 'bio', upgradeId: 'speed' }
-  }), (error) => error.code === 'wallet_token_action_locked');
+  });
+  assert.equal(bio.cost, squad.getMainShipUpgradeCost('speed', 0));
+  assert.equal(bio.nextSnapshot.weeklyState.shipUpgrades.bio.speed, 1);
 
   assert.throws(() => serverSpends.canonicalWalletTokenSpend({
     profile: profileWithTokens(),

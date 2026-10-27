@@ -35,7 +35,7 @@ export const createCombatLabStats = (): Stats => ({
 
 export const COMBAT_LAB_HULLS = {
   researchhub: { title: 'RSC', role: 'Precision pulse', color: '#67e8f9', detail: 'Your familiar tight pulse column. The reference for comparing every other hull.' },
-  bio: { title: 'BIO', role: 'Twin plasma rails', color: '#a3e635', detail: 'Paired green energy bolts with living-energy wakes. Pierces at tier 4; Genome Lance delivers a piercing corridor strike.' },
+  bio: { title: 'NIH', role: 'Twin plasma rails', color: '#67e8f9', detail: 'Paired cyan energy bolts with living-energy wakes. Pierces at tier 4; Pathfinder Lance delivers a piercing corridor strike.' },
   eth: { title: 'ETH', role: 'Prism fan', color: '#c4b5fd', detail: 'Three crystal lanes catch crossing swarms. Prism Volley releases a wider shattering fan.' },
   btc: { title: 'BTC', role: 'Heavy penetrator', color: '#fbbf24', detail: 'Slower gold penetrators punch through targets. Hash Burst is your concentrated siege strike.' }
 } as const;

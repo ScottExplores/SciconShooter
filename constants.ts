@@ -5,6 +5,7 @@ import { FIRE_RATE_MAX_LEVEL } from './services/weaponTierProgression';
 export const ASSETS = {
   PLAYER_SHIP: "/game-art/branding/researchhub-ship.png",
   BIO_SHIP: "/game-art/branding/bio-ship.png",
+  NIH_SHIP: "/game-art/branding/nih-ship.png",
   ETH_SHIP: "/game-art/branding/eth-ship.png",
   BTC_SHIP: "/game-art/generated/scicon-flight-motion-pack-v1/ships/btc-token-ship/frames/btc-token-ship-03-neutral.png",
   
@@ -211,7 +212,10 @@ export const ASSETS = {
     (_, index) => `/game-art/generated/bosses/astral-crownclaw/animations/decay/frames/astral-crownclaw-decay-frame-0${index + 1}.png`
   ),
   CAMPAIGN_BOSS_ECLIPSE_ENGINE: "/game-art/generated/scicon-stage20-expansion-v1/bosses/frames/eclipse-engine.png",
-  CAMPAIGN_BOSS_FRONTIER_CROWNCLAW: "/game-art/generated/bosses/campaign-packages/frontier-crownclaw/assembled.png",
+  CAMPAIGN_BOSS_FRONTIER_CROWNCLAW: "/game-art/generated/bosses/astral-crownclaw/astral-crownclaw-intact.png",
+  CAMPAIGN_BOSS_MERIDIAN_HARROWER: "/game-art/generated/bosses/meridian-harrower/meridian-harrower-intact.png",
+  CAMPAIGN_BOSS_CINDERJAW_SIEGE_BEETLE: "/game-art/generated/bosses/cinderjaw-siege-beetle/cinderjaw-siege-beetle-intact.png",
+  CAMPAIGN_BOSS_VESPERGLASS_MOTHMOTHER: "/game-art/generated/bosses/vesperglass-mothmother/vesperglass-mothmother-intact.png",
   CAMPAIGN_BOSS_HAMMERHEAD_SIEGE: "/game-art/generated/bosses/campaign-packages/hammerhead-siege/assembled.png",
   CAMPAIGN_BOSS_HELIOS_CLAWCARRIER: "/game-art/generated/bosses/campaign-packages/helios-clawcarrier/assembled.png",
   CAMPAIGN_BOSS_HELIX_LEVIATHAN: "/game-art/generated/scicon-stage20-expansion-v1/bosses/frames/helix-leviathan.png",
@@ -219,8 +223,8 @@ export const ASSETS = {
   CAMPAIGN_BOSS_NULLWAKE_REVENANT: "/game-art/generated/bosses/campaign-packages/nullwake-revenant/assembled.png",
   CAMPAIGN_BOSS_UMBRA_NEEDLEWING: "/game-art/generated/bosses/campaign-packages/umbra-needlewing/assembled.png",
   CAMPAIGN_MINI_BOSS_BOTTLENECK_HARVESTER: "/game-art/generated/scicon-flight-motion-pack-v1/bosses/bottleneck-harvester/frames/bottleneck-harvester-02-neutral.png",
-  CAMPAIGN_MINI_BOSS_MERIDIAN_HARROWER: "/game-art/generated/bosses/unported/meridian-harrower.png",
-  CAMPAIGN_MINI_BOSS_CINDERJAW_SIEGE_BEETLE: "/game-art/generated/bosses/unported/cinderjaw-siege-beetle.png",
+  CAMPAIGN_MINI_BOSS_MERIDIAN_HARROWER: "/game-art/generated/bosses/meridian-harrower/meridian-harrower-intact.png",
+  CAMPAIGN_MINI_BOSS_CINDERJAW_SIEGE_BEETLE: "/game-art/generated/bosses/cinderjaw-siege-beetle/cinderjaw-siege-beetle-intact.png",
   CAMPAIGN_BOSS_PRISM_MOTH: "/game-art/generated/bosses/campaign-packages/prism-moth/assembled.png",
   CAMPAIGN_BOSS_RAIL_SERPENT: "/game-art/generated/scicon-stage20-expansion-v1/bosses/frames/rail-serpent.png",
   PIXI_BOSS_RAIL_SERPENT_RIG: {
@@ -469,20 +473,6 @@ export const DONATION_CONFIG = {
   SUPPORT_EMAIL: "Sciconshooter@gmail.com",
   GAME_URL: "https://sciconshooter.xyz"
 };
-
-/**
- * Public, immutable BIO holding requirement. The access API independently
- * reads this exact ERC-20 balance on Base before reporting the ship unlocked.
- * BIO uses 18 decimals on the configured Base contract.
- */
-export const BIO_SHIP_HOLDING_REQUIREMENT = Object.freeze({
-  shipId: 'bio',
-  tokenAddress: DONATION_CONFIG.BIO_CONTRACT_ADDRESS,
-  tokenSymbol: 'BIO',
-  decimals: 18,
-  minimumAmount: '100',
-  minimumAmountRaw: '100000000000000000000'
-} as const);
 
 /**
  * Public ship-purchase terms mirrored by the server. Values are strings so no

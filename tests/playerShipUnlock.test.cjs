@@ -26,6 +26,7 @@ const compilePlayerShipService = () => {
         ASSETS: {
           PLAYER_SHIP: 'researchhub.png',
           BIO_SHIP: 'bio.png',
+          NIH_SHIP: 'nih.png',
           ETH_SHIP: 'eth.png',
           BTC_SHIP: 'btc.png'
         }
@@ -96,18 +97,11 @@ test('token access, paid entitlements, and perfect Campaign mastery are the only
     permanentUnlockIds: ['bio', 'eth', 'btc']
   });
   assert.equal(ships.isPlayerShipUnlocked('researchhub', locked), true);
-  assert.equal(locked.bio, false, 'a legacy local BIO flag is not holder proof');
+  assert.equal(locked.bio, true, 'the NIH ship does not require a token holding');
+  assert.equal(ships.isPlayerShipUnlocked('bio', locked), true);
   assert.equal(locked.eth, false, 'a legacy local ETH flag is not payment proof');
   assert.equal(locked.btc, false, 'a legacy local BTC flag is not payment or mastery proof');
-
-  const holder = ships.getPlayerShipUnlocks({
-    accessStatus: 'ready',
-    bioUnlocked: true,
-    bioBalanceRaw: '100000000000000000000',
-    bioBalance: '100'
-  });
-  assert.equal(holder.bio, true);
-  assert.equal(holder.bioBalance, '100');
+  assert.match(shipServiceSource, /name: 'NIH'/);
 
   const loadingPaidAccess = ships.getPlayerShipUnlocks({
     accessStatus: 'loading',
@@ -165,7 +159,8 @@ test('title screen keeps the updated BTC ship in the playable roster', () => {
   assert.match(carouselSource, /aria-label="Next ship"/);
   assert.match(startScreenSource, /PLAYER_SHIPS\[shipFocusId\]/);
   assert.match(carouselSource, /sci-ship-carousel-item--locked/);
-  assert.match(startScreenSource, /Hold at least 100 BIO on Base/);
+  assert.match(startScreenSource, /NIH is unlocked\./);
+  assert.doesNotMatch(startScreenSource, /Hold at least 100 BIO on Base/);
   assert.match(startScreenSource, /Unlock permanently for 0\.001 ETH on Base/);
   assert.match(startScreenSource, /0\.00008 cbBTC on Base/);
   assert.doesNotMatch(startScreenSource, /score NFT to unlock this ship/);

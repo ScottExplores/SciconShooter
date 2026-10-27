@@ -83,10 +83,11 @@ test('Pilot progress keeps standalone and Campaign settlement paths separate', (
 
 test('paid ship access remains scoped to the connected authenticated wallet', () => {
   const app = read('App.tsx');
+  const wallet = read('components', 'WalletRuntime.tsx');
   const ships = read('services', 'playerShipService.ts');
   const squad = read('services', 'squadProgression.ts');
 
-  assert.match(app, /loadPlayerShipAccess\(activeWalletAddress as Address/);
+  assert.match(wallet, /loadPlayerShipAccess\(owner as Address, \{ interactive: false \}\)/);
   assert.match(app, /getPlayerShipUnlocks\(\{[\s\S]*?authoritativePaidUnlockIds: access\?\.unlockedPlayerShips/);
   assert.match(ships, /Server-verified payment entitlements/);
   assert.match(ships, /accessReady && paidUnlockIds\.has\('eth'\)/);

@@ -55,7 +55,7 @@ test('upgrade drops render as larger unframed sprites in Pixi and canvas', () =>
   const canvasStart = engine.lastIndexOf('} else if (e.type === EntityType.POWERUP)');
   const canvasPowerup = engine.slice(canvasStart, engine.indexOf('} else if (e.type === EntityType.MINI_BOSS)', canvasStart));
 
-  assert.match(pixiPowerup, /view\.root\.scale\.set\(1\.22\)/);
+  assert.match(pixiPowerup, /view\.root\.scale\.set\(isMaxShot \? 1\.4 \* maxShotPulse : 1\.22\)/);
   assert.match(pixiPowerup, /view\.aura\.clear\(\)/);
   assert.doesNotMatch(pixiPowerup, /\.circle\(/);
   assert.match(canvasPowerup, /ctx\.drawImage\(img, -23, -23, 46, 46\)/);

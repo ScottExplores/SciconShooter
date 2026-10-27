@@ -22,7 +22,7 @@ const expectedPackages = Object.freeze({
   }),
   20: Object.freeze({
     bossId: 'frontier-crownclaw',
-    rigId: 'frontier-crownclaw'
+    intactUrl: '/game-art/generated/bosses/astral-crownclaw/astral-crownclaw-intact.png'
   }),
   25: Object.freeze({
     bossId: 'helios-clawcarrier',
@@ -121,18 +121,26 @@ test('campaign missions resolve the same promoted modular packages used by Test 
       );
       assert.ok(artwork, `Mission ${order} must resolve promoted artwork`);
       assert.equal(artwork.eventId, boss.id);
-      if (expectation.rigId) {
+      if (expectation.intactUrl) {
+        assert.equal(artwork.modularRig, undefined);
+        assert.equal(artwork.sampleModularPose, undefined);
+        assert.equal(artwork.url, expectation.intactUrl);
+      } else if (expectation.rigId) {
         assert.equal(artwork.modularRig.manifest.id, expectation.rigId);
         assert.equal(typeof artwork.sampleModularPose, 'function');
+        assert.match(
+          artwork.url,
+          new RegExp(`/campaign-packages/${expectation.bossId}/assembled\\.png$`)
+        );
       } else {
         assert.equal(artwork.modularRig, undefined);
         assert.equal(artwork.articulatedAtlas.kind, expectation.atlasKind);
         assert.equal(artwork.sampleModularPose, undefined);
+        assert.match(
+          artwork.url,
+          new RegExp(`/campaign-packages/${expectation.bossId}/assembled\\.png$`)
+        );
       }
-      assert.match(
-        artwork.url,
-        new RegExp(`/campaign-packages/${expectation.bossId}/assembled\\.png$`)
-      );
     }
   } finally {
     await vite.close();

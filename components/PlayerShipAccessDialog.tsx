@@ -1,6 +1,5 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import {
-  BIO_SHIP_HOLDING_REQUIREMENT,
   DONATION_CONFIG,
   PLAYER_SHIP_PURCHASE_SKUS,
   type PlayerShipPurchaseSkuId
@@ -49,7 +48,7 @@ const PlayerShipAccessDialog: React.FC<PlayerShipAccessDialogProps> = ({
   walletConnected,
   playerShipPurchaseStatus,
   onClose,
-  onRefreshPlayerShipAccess,
+  onRefreshPlayerShipAccess: _onRefreshPlayerShipAccess,
   onPurchasePlayerShip,
   onUnlockedAction,
   unlockedActionLabel
@@ -192,18 +191,9 @@ const PlayerShipAccessDialog: React.FC<PlayerShipAccessDialogProps> = ({
           <div className="min-w-0">
             {shipId === 'bio' ? (
               <>
-                <p className="text-sm font-black uppercase text-emerald-100">Hold 100 BIO</p>
+                <p className="text-sm font-black uppercase text-cyan-100">NIH</p>
                 <p className="mt-1 text-[0.66rem] leading-relaxed text-slate-300">
-                  Keep at least 100 BIO in this Base Account. Holdings are checked again before each flight.
-                </p>
-                <p className="mt-2 font-mono text-[0.62rem] font-black uppercase text-cyan-100">
-                  Balance: {shipUnlocks.accessStatus === 'loading'
-                    ? 'checking...'
-                    : shipUnlocks.bioBalance
-                      ? `${shipUnlocks.bioBalance} BIO`
-                      : walletConnected
-                        ? 'unavailable'
-                        : 'connect wallet'}
+                  Available to every player.
                 </p>
               </>
             ) : shipId === 'eth' ? (
@@ -229,9 +219,7 @@ const PlayerShipAccessDialog: React.FC<PlayerShipAccessDialogProps> = ({
 
         <div className="mt-3 border border-white/10 bg-black/25 px-3 py-2 text-[0.55rem] font-bold uppercase leading-relaxed text-slate-400">
           <p>Network: Base mainnet</p>
-          {shipId === 'bio' ? (
-            <p className="mt-1 break-all">BIO contract: {BIO_SHIP_HOLDING_REQUIREMENT.tokenAddress}</p>
-          ) : purchaseSkuId ? (
+          {shipId === 'bio' ? null : purchaseSkuId ? (
             <>
               <p className="mt-1">Recipient: {DONATION_CONFIG.RECIPIENT_ADDRESS.slice(0, 8)}...{DONATION_CONFIG.RECIPIENT_ADDRESS.slice(-6)}</p>
               <p className="mt-1">Exact price: {PLAYER_SHIP_PURCHASE_SKUS[purchaseSkuId].amount} {PLAYER_SHIP_PURCHASE_SKUS[purchaseSkuId].tokenSymbol}</p>
@@ -250,21 +238,6 @@ const PlayerShipAccessDialog: React.FC<PlayerShipAccessDialogProps> = ({
           >
             {unlockedActionLabel}
           </PixelActionButton>
-        ) : shipId === 'bio' ? (
-          <PixelActionButton
-            type="button"
-            tone="cyan"
-            ready={walletConnected}
-            disabled={shipUnlocks.accessStatus === 'loading'}
-            onClick={onRefreshPlayerShipAccess}
-            className="mt-3 min-h-12 w-full px-4 text-xs font-black uppercase"
-          >
-            {shipUnlocks.accessStatus === 'loading'
-              ? 'Checking BIO balance...'
-              : walletConnected
-                ? 'Refresh BIO balance'
-                : 'Connect Base Account'}
-          </PixelActionButton>
         ) : purchaseSkuId ? (
           <PixelActionButton
             type="button"
@@ -281,11 +254,6 @@ const PlayerShipAccessDialog: React.FC<PlayerShipAccessDialogProps> = ({
           </PixelActionButton>
         ) : null}
 
-        {shipUnlocks.accessStatus === 'error' && shipId === 'bio' ? (
-          <p className="mt-2 border border-red-300/30 bg-red-950/60 px-3 py-2 text-center text-[0.62rem] font-bold text-red-100" role="status">
-            {shipUnlocks.accessError || 'BIO holdings could not be checked. Try again.'}
-          </p>
-        ) : null}
         {purchaseMessage ? (
           <p className={`mt-2 border px-3 py-2 text-center text-[0.62rem] font-bold ${playerShipPurchaseStatus.status === 'error' ? 'border-red-300/30 bg-red-950/60 text-red-100' : playerShipPurchaseStatus.status === 'confirmed' ? 'border-emerald-300/30 bg-emerald-950/55 text-emerald-100' : 'border-cyan-300/25 bg-slate-950/70 text-cyan-100'}`} role="status">
             {purchaseMessage}

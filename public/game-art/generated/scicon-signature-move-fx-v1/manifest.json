@@ -35,8 +35,8 @@
     {
       "shipId": "bio",
       "abilityId": "bio-genome-lance",
-      "name": "Genome Lance",
-      "colour": "#86efac",
+      "name": "Pathfinder Lance",
+      "colour": "#67e8f9",
       "frameSize": [
         68,
         252

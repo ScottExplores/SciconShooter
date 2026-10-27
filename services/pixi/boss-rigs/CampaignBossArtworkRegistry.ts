@@ -138,6 +138,16 @@ export const resolveCampaignBossArtwork = (
     modularRigManifest: _modularRigManifest,
     ...artwork
   } = packageDefinition.artwork;
+  if (packageDefinition.poseKey === 'frontier-crownclaw') {
+    // The assembled campaign rig is the squashed 260x210 plate. The intact
+    // Astral Crownclaw sprite is the portrait boss, with bob and a small rock
+    // applied by the renderer.
+    return Object.freeze({
+      eventId: boss.id,
+      ...artwork,
+      url: '/game-art/generated/bosses/astral-crownclaw/astral-crownclaw-intact.png'
+    });
+  }
   const sampleModularPose = poseSamplers[packageDefinition.poseKey];
   return Object.freeze({
     eventId: boss.id,

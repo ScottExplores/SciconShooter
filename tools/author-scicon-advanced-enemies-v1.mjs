@@ -668,6 +668,11 @@ const authorWaveTrain = ({
   for (const event of newEvents) {
     event.durationSeconds = round(Math.max(0.5, wave.durationSeconds - event.startSeconds), 2);
   }
+  // Recovery windows keep their authored start time. Rebuilt cohorts must sit
+  // in that same timeline instead of being appended after a later window.
+  wave.events.sort((left, right) => (
+    (Number(left.startSeconds) || 0) - (Number(right.startSeconds) || 0)
+  ));
 
   const newThreat = newEvents.reduce((total, event) => (
     total + weightedThreatForEvent(event, roleById)

@@ -173,14 +173,15 @@ test('founder wallet unlocks every ship, including the NIH hull, without a purch
   const nihHull = Object.values(ships.PLAYER_SHIPS).find((ship) => (
     /nih/i.test(`${ship.id} ${ship.name} ${ship.assetUrl}`)
   )) || ships.PLAYER_SHIPS.bio;
-  assert.match(nihHull.name, /^(BIO|NIH) ship$/);
+  assert.match(nihHull.name, /^NIH$/);
   assert.equal(ships.isPlayerShipUnlocked(nihHull.id, founderUnlocks), true);
   assert.equal(ships.getUsablePlayerShip(nihHull.id, founderUnlocks), nihHull.id);
   const unpaid = ships.getPlayerShipUnlocks({ accessStatus: 'idle' });
   assert.equal(unpaid.eth, false);
   assert.equal(unpaid.btc, false);
   assert.match(appSource, /unlockAll: isOwnerWallet/);
-  assert.match(appSource, /usableShipId === 'bio' && !isOwnerWallet/);
+  assert.doesNotMatch(appSource, /usableShipId === 'bio' && !isOwnerWallet/);
+  assert.match(shipServiceSource, /bio: true/);
   assert.match(read('api/_lib/playerShipAccess.js'), /player_ship_self_payment_forbidden/);
 });
 

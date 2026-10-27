@@ -10,7 +10,7 @@ test('published player ship terms preserve exact Base asset units', () => {
   const constants = read('constants.ts');
   assert.match(constants, /BIO_CONTRACT_ADDRESS:\s*"0x226a2fa2556c48245e57cd1cba4c6c9e67077dd2"/);
   assert.match(constants, /CBBTC_CONTRACT_ADDRESS:\s*"0xcbb7c0000ab88b473b1f5afd9ef808440eed33bf"/);
-  assert.match(constants, /minimumAmountRaw:\s*'100000000000000000000'/);
+  assert.doesNotMatch(constants, /BIO_SHIP_HOLDING_REQUIREMENT/);
   assert.match(constants, /'eth-ship'[\s\S]*amount:\s*'0\.001'[\s\S]*amountRaw:\s*'1000000000000000'/);
   assert.match(constants, /'btc-ship'[\s\S]*amount:\s*'0\.00008'[\s\S]*amountRaw:\s*'8000'/);
 });
@@ -18,7 +18,9 @@ test('published player ship terms preserve exact Base asset units', () => {
 test('wallet helpers use exact recoverable native ETH and cbBTC transfer paths', () => {
   const wallet = read('services', 'baseAccountWallet.ts');
   assert.match(wallet, /export const getBioBalance/);
-  assert.match(wallet, /raw >= minimum/);
+  assert.match(wallet, /DONATION_CONFIG\.BIO_CONTRACT_ADDRESS/);
+  assert.doesNotMatch(wallet, /raw >= minimum/);
+  assert.doesNotMatch(wallet, /BIO_SHIP_HOLDING_REQUIREMENT/);
   assert.match(wallet, /method:\s*'eth_chainId'/);
   assert.match(wallet, /export const sendEthShipPurchaseTransfer/);
   const nativePayment = wallet.slice(

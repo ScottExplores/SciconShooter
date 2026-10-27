@@ -14,7 +14,6 @@ import {
 } from 'viem';
 import { base } from 'viem/chains';
 import {
-  BIO_SHIP_HOLDING_REQUIREMENT,
   DONATION_CONFIG,
   PLAYER_SHIP_PURCHASE_SKUS,
   STORAGE_KEYS
@@ -125,9 +124,8 @@ export interface BioBalanceSnapshot {
   address: Address;
   raw: bigint;
   formatted: string;
-  decimals: typeof BIO_SHIP_HOLDING_REQUIREMENT.decimals;
-  symbol: typeof BIO_SHIP_HOLDING_REQUIREMENT.tokenSymbol;
-  meetsRequirement: boolean;
+  decimals: 18;
+  symbol: 'BIO';
 }
 
 export const getRscBalance = async (address: Address): Promise<RscBalanceSnapshot> => {
@@ -150,25 +148,23 @@ export const getRscBalance = async (address: Address): Promise<RscBalanceSnapsho
 };
 
 /**
- * Reads BIO as a raw bigint and only formats it after the exact holding check.
- * Ship admission is still decided by the authenticated access API; this helper
- * is useful for an immediate wallet-side refresh without number coercion.
+ * Reads the BIO donation-token balance. NIH ship access does not depend
+ * on this balance; donations still use DONATION_CONFIG.BIO_CONTRACT_ADDRESS.
  */
 export const getBioBalance = async (address: Address): Promise<BioBalanceSnapshot> => {
+  const decimals = 18;
   const raw = await publicClient.readContract({
-    address: BIO_SHIP_HOLDING_REQUIREMENT.tokenAddress as Address,
+    address: DONATION_CONFIG.BIO_CONTRACT_ADDRESS as Address,
     abi: erc20Abi,
     functionName: 'balanceOf',
     args: [address]
   } as any) as bigint;
-  const minimum = BigInt(BIO_SHIP_HOLDING_REQUIREMENT.minimumAmountRaw);
   return {
     address,
     raw,
-    formatted: formatUnits(raw, BIO_SHIP_HOLDING_REQUIREMENT.decimals),
-    decimals: BIO_SHIP_HOLDING_REQUIREMENT.decimals,
-    symbol: BIO_SHIP_HOLDING_REQUIREMENT.tokenSymbol,
-    meetsRequirement: raw >= minimum
+    formatted: formatUnits(raw, decimals),
+    decimals,
+    symbol: 'BIO'
   };
 };
 

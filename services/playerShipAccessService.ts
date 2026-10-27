@@ -1,6 +1,5 @@
 import type { Address, Hex } from 'viem';
 import {
-  BIO_SHIP_HOLDING_REQUIREMENT,
   DONATION_CONFIG,
   PLAYER_SHIP_PURCHASE_SKUS,
   type PlayerShipPurchaseSkuId
@@ -30,7 +29,6 @@ export interface PlayerShipAccessSnapshot {
   btc: boolean;
   bioBalanceRaw: string | null;
   bioBalance: string | null;
-  bioThresholdRaw: string;
   campaignMastered: boolean;
   unlockedPlayerShips: PlayerShipId[];
 }
@@ -120,7 +118,6 @@ const assertAccessSnapshot = (value: unknown): PlayerShipAccessSnapshot => {
     || (access.bioBalance !== null
       && (typeof access.bioBalance !== 'string' || !/^\d+(?:\.\d+)?$/.test(access.bioBalance)))
     || (access.bioBalanceRaw === null) !== (access.bioBalance === null)
-    || access.bioThresholdRaw !== BIO_SHIP_HOLDING_REQUIREMENT.minimumAmountRaw
     || typeof access.campaignMastered !== 'boolean'
     || !Array.isArray(unlockedPlayerShips)
     || unlockedPlayerShips.some((shipId) => !allowedShipIds.has(shipId))
@@ -133,7 +130,6 @@ const assertAccessSnapshot = (value: unknown): PlayerShipAccessSnapshot => {
   }
   // Prove every raw quantity is losslessly parseable before returning it.
   if (access.bioBalanceRaw !== null) BigInt(access.bioBalanceRaw);
-  BigInt(access.bioThresholdRaw);
   return access as PlayerShipAccessSnapshot;
 };
 

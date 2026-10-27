@@ -25,7 +25,7 @@ Weekly leaderboard points and proposal funding are never converted into Campaign
 | Boss Archive mastery | 5,700 across all authored bosses | Three one-time mastery receipts per boss; seasonal balance after claim. |
 | Ordinary combat coin | 1 coin per credited coin entity | Repeatable. Enemy kills, recovery drops, bonus targets, and boss bursts settle through the run boundary. |
 | Main-route configured pickup ceiling | 6,104 (3,549 configured kills + 200 recovery + 0 mini-boss + 2,355 major-boss) | Ceiling, not forecast: formation-generated enemies, missed kills/pickups, bonus targets, and the 128-coin active cap can change realized income. |
-| Alternate-route configured pickup ceiling | 1,280 | Same variable combat conditions as the main route. |
+| Alternate-route configured pickup ceiling | 1,404 | Same variable combat conditions as the main route. |
 
 ### Reward Center totals
 

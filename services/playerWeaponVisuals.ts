@@ -47,8 +47,8 @@ export const getPlayerEnergyBoltPresentation = (
   const spriteHeight = Math.min(34, Math.max(22, finiteNonNegative(layout.height) * 0.82));
   return {
     spriteWidth, spriteHeight,
-    color: family === 'bio' ? '#a6ff68' : family === 'eth' ? '#b9c7ff' : '#ffc75e',
-    coreColor: family === 'bio' ? '#f3ffe8' : family === 'eth' ? '#f0f7ff' : '#fff8da',
+    color: family === 'bio' ? '#67e8f9' : family === 'eth' ? '#b9c7ff' : '#ffc75e',
+    coreColor: family === 'bio' ? '#f0fdff' : family === 'eth' ? '#f0f7ff' : '#fff8da',
     coreWidth: (heavy ? 1.4 : 1.1) + tier * 0.08,
     coreHeight: Math.min(13, spriteHeight * (heavy ? 0.36 : 0.4)),
     coreY: -spriteHeight * 0.08,

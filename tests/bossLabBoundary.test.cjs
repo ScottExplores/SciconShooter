@@ -33,8 +33,11 @@ test('boss lab lists encounter labels without building every fight', async () =>
     const started = performance.now();
     const choices = lab.listBossLabEncounterChoices();
     const elapsed = performance.now() - started;
-    assert.equal(choices.length, 54);
+    assert.equal(choices.length, 56);
     assert.ok(elapsed < 1000, `listing encounters took ${elapsed.toFixed(0)}ms`);
+    assert.equal(choices.some((choice) => choice.label.includes('Meridian Harrower')), true);
+    assert.equal(choices.some((choice) => choice.label.includes('Cinderjaw Siege Beetle')), true);
+    assert.equal(choices.some((choice) => choice.label.includes('Vesperglass Mothmother')), true);
     assert.equal(choices.some((choice) => Object.hasOwn(choice, 'campaign')), false);
     assert.equal(choices.some((choice) => choice.id === 'sandbox:abyssal-octarch'), true);
 

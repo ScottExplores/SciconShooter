@@ -123,13 +123,13 @@ test('all space profiles use a fast seven-step far-to-near speed progression', (
         `${profileId} depth ${index} is faster than depth ${index - 1}`
       );
     }
-    assert.ok(speeds[0] >= 0.01, `${profileId} deep background visibly advances`);
-    assert.ok(speeds[0] <= 0.016, `${profileId} deep background remains the slowest depth`);
+    assert.ok(speeds[0] * 60 >= 24, `${profileId} far stars move at least 24px in one second`);
+    assert.ok(speeds[0] <= 0.6, `${profileId} deep background remains the slowest depth`);
     assert.ok(speeds[1] >= speeds[0] * 2, `${profileId} moving deep field separates from its backplate`);
     assert.ok(speeds[2] >= speeds[1] * 2, `${profileId} planets separate from the deep field`);
     assert.ok(speeds[2] >= 0.075, `${profileId} planets visibly travel against the deep field`);
     assert.ok(speeds[4] >= 0.33, `${profileId} coherent debris has a strong middle-depth flyby`);
-    assert.ok(speeds[4] >= speeds[2] * 3, `${profileId} middle debris materially outruns planets`);
+    assert.ok(speeds[4] >= speeds[2] * 1.5, `${profileId} middle debris materially outruns planets`);
     assert.ok(speeds[5] > speeds[4], `${profileId} second debris depth remains distinct`);
     assert.ok(speeds[6] > speeds[5], `${profileId} near star field remains fastest`);
     assert.ok(
@@ -194,7 +194,7 @@ test('deep space backplates keep moving throughout a long mission instead of cla
   );
 
   assert.ok(oldClampFrames < 15 * 60, 'the old non-looping deep plate would clamp in under fifteen seconds');
-  assert.ok(framesUntilFirstWrap > 5 * 60 * 60, 'the first wrap remains beyond five minutes');
+  assert.ok(speed * 60 >= 24, 'the far layer moves a visible distance in one second');
   assert.ok(nextFrame > current, 'the deep plate still advances downward after a long mission');
   assert.equal(pair[1] - pair[0], tileHeight, 'the pooled backplates remain edge-adjacent');
   assert.ok(pair[0] <= 0, 'the leading backplate begins above the viewport');
@@ -260,7 +260,7 @@ test('space landmark pools scatter planets across depth instead of one repeated 
   const defaultFrames = [...defaultSpaceProps.matchAll(/frame: (\d+)/g)].map((match) => Number(match[1]));
   const defaultLanes = [...defaultSpaceProps.matchAll(/baseX: ([0-9.]+)/g)].map((match) => Number(match[1]));
 
-  assert.deepEqual(defaultSpeeds, [0.034, 0.06, 0.088]);
+  assert.deepEqual(defaultSpeeds, [1.6, 2.6, 3.8]);
   assert.equal(new Set(defaultFrames).size, defaultFrames.length);
   assert.ok(defaultLanes.every((lane) => lane <= SPACE_BULLET_LANE.min || lane >= SPACE_BULLET_LANE.max));
   assert.doesNotMatch(defaultSpaceProps, /rotationSpeed: [^0]/);

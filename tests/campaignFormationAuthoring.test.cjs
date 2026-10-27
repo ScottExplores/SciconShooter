@@ -38,9 +38,9 @@ test('formation normalization is idempotent and never changes Campaign route top
   const first = normalizeCampaignFormationAuthoring(campaign);
   const second = normalizeCampaignFormationAuthoring(campaign);
 
-  // The authored first sector has 33 grouped entries. The remaining Missions
-  // and route alternatives retain their 552 existing grouped entries.
-  assert.equal(first.groupedSpawnCount, 33 + 552);
+  // The late ladder keeps 581 grouped formation entries. Normalization must
+  // stay idempotent and must not add or retarget those declarations.
+  assert.equal(first.groupedSpawnCount, 581);
   assert.equal(second.groupedSpawnCount, first.groupedSpawnCount);
   assert.deepEqual(first.declarationChanges, []);
   assert.deepEqual(first.cooldownChanges, []);

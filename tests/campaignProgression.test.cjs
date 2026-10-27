@@ -132,7 +132,10 @@ const TEST_MAJOR_BOSS_IDS = [
   'hammerhead-siege',
   'frontier-crownclaw',
   'nullwake-revenant',
-  'umbra-needlewing'
+  'umbra-needlewing',
+  'meridian-harrower',
+  'cinderjaw-siege-beetle',
+  'vesperglass-mothmother'
 ];
 
 const progression = compileService('campaignProgression.ts', {

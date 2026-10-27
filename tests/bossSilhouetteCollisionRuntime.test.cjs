@@ -8,7 +8,11 @@ const ts = require('typescript');
 const root = path.resolve(__dirname, '..');
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), 'utf8');
 
+const typescriptModules = new Map();
+
 const executeTypeScriptModule = (relativePath) => {
+  const cached = typescriptModules.get(relativePath);
+  if (cached) return cached;
   const source = read(relativePath);
   const compiled = ts.transpileModule(source, {
     compilerOptions: {
@@ -17,11 +21,25 @@ const executeTypeScriptModule = (relativePath) => {
     }
   }).outputText;
   const moduleBox = { exports: {} };
+  const loaded = { source, ...moduleBox.exports };
+  typescriptModules.set(relativePath, loaded);
+  const localRequire = (request) => {
+    if (request.startsWith('.')) {
+      const base = path.posix.dirname(relativePath);
+      const resolved = path.posix.normalize(path.posix.join(base, request));
+      const withExtension = resolved.endsWith('.ts') ? resolved : `${resolved}.ts`;
+      if (fs.existsSync(path.join(root, withExtension))) {
+        return executeTypeScriptModule(withExtension);
+      }
+    }
+    return require(request);
+  };
   vm.runInNewContext(
     `(function(exports, require, module) { ${compiled} })(module.exports, require, module);`,
-    { module: moduleBox, require, exports: moduleBox.exports, Math, Number }
+    { module: moduleBox, require: localRequire, exports: moduleBox.exports, Math, Number }
   );
-  return { source, ...moduleBox.exports };
+  Object.assign(loaded, moduleBox.exports);
+  return loaded;
 };
 
 const maskRuntime = executeTypeScriptModule(

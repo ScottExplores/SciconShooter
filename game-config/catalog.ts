@@ -81,6 +81,9 @@ export const BUILT_IN_ASSET_CATALOG: Readonly<Record<BuiltInAssetKey, AssetCatal
   PIXI_BOSS_CROWNCLAW_FRAMES: asset('PIXI_BOSS_CROWNCLAW_FRAMES', 'Astral Crownclaw', ASSETS.PIXI_BOSS_CROWNCLAW_FRAMES, ['boss', 'scorecard']),
   CAMPAIGN_BOSS_ECLIPSE_ENGINE: asset('CAMPAIGN_BOSS_ECLIPSE_ENGINE', 'Eclipse Engine', ASSETS.CAMPAIGN_BOSS_ECLIPSE_ENGINE, ['boss', 'scorecard']),
   CAMPAIGN_BOSS_FRONTIER_CROWNCLAW: asset('CAMPAIGN_BOSS_FRONTIER_CROWNCLAW', 'Frontier Crownclaw', ASSETS.CAMPAIGN_BOSS_FRONTIER_CROWNCLAW, ['boss', 'scorecard']),
+  CAMPAIGN_BOSS_MERIDIAN_HARROWER: asset('CAMPAIGN_BOSS_MERIDIAN_HARROWER', 'Meridian Harrower', ASSETS.CAMPAIGN_BOSS_MERIDIAN_HARROWER, ['boss', 'scorecard']),
+  CAMPAIGN_BOSS_CINDERJAW_SIEGE_BEETLE: asset('CAMPAIGN_BOSS_CINDERJAW_SIEGE_BEETLE', 'Cinderjaw Siege Beetle', ASSETS.CAMPAIGN_BOSS_CINDERJAW_SIEGE_BEETLE, ['boss', 'scorecard']),
+  CAMPAIGN_BOSS_VESPERGLASS_MOTHMOTHER: asset('CAMPAIGN_BOSS_VESPERGLASS_MOTHMOTHER', 'Vesperglass Mothmother', ASSETS.CAMPAIGN_BOSS_VESPERGLASS_MOTHMOTHER, ['boss', 'scorecard']),
   CAMPAIGN_BOSS_HAMMERHEAD_SIEGE: asset('CAMPAIGN_BOSS_HAMMERHEAD_SIEGE', 'Gloamforge Mantis', ASSETS.CAMPAIGN_BOSS_HAMMERHEAD_SIEGE, ['boss', 'scorecard']),
   CAMPAIGN_BOSS_HELIOS_CLAWCARRIER: asset('CAMPAIGN_BOSS_HELIOS_CLAWCARRIER', 'Helios Clawcarrier', ASSETS.CAMPAIGN_BOSS_HELIOS_CLAWCARRIER, ['boss', 'scorecard']),
   CAMPAIGN_BOSS_HELIX_LEVIATHAN: asset('CAMPAIGN_BOSS_HELIX_LEVIATHAN', 'Helix Leviathan', ASSETS.CAMPAIGN_BOSS_HELIX_LEVIATHAN, ['boss', 'scorecard']),
@@ -445,18 +448,26 @@ export const BOSS_CATALOG: Record<BossId, BossCatalogEntry> = {
   'meridian-harrower': {
     id: 'meridian-harrower',
     label: 'Meridian Harrower',
-    entityType: 'MINI_BOSS',
-    defaultSpriteKey: 'CAMPAIGN_MINI_BOSS_MERIDIAN_HARROWER',
+    entityType: 'BOSS',
+    defaultSpriteKey: 'CAMPAIGN_BOSS_MERIDIAN_HARROWER',
     defaultMovementPatternId: 'arena-roam',
-    allowedWeaponIds: ['aimed-shot', 'burst-volley']
+    allowedWeaponIds: ['burst-volley', 'lane-beam']
   },
   'cinderjaw-siege-beetle': {
     id: 'cinderjaw-siege-beetle',
     label: 'Cinderjaw Siege Beetle',
-    entityType: 'MINI_BOSS',
-    defaultSpriteKey: 'CAMPAIGN_MINI_BOSS_CINDERJAW_SIEGE_BEETLE',
+    entityType: 'BOSS',
+    defaultSpriteKey: 'CAMPAIGN_BOSS_CINDERJAW_SIEGE_BEETLE',
     defaultMovementPatternId: 'arena-roam',
-    allowedWeaponIds: ['aimed-shot', 'burst-volley']
+    allowedWeaponIds: ['burst-volley', 'lane-beam']
+  },
+  'vesperglass-mothmother': {
+    id: 'vesperglass-mothmother',
+    label: 'Vesperglass Mothmother',
+    entityType: 'BOSS',
+    defaultSpriteKey: 'CAMPAIGN_BOSS_VESPERGLASS_MOTHMOTHER',
+    defaultMovementPatternId: 'arena-roam',
+    allowedWeaponIds: ['burst-volley', 'lane-beam']
   },
   gatekeeper: {
     id: 'gatekeeper',

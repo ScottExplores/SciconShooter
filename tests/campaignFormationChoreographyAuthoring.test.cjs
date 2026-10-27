@@ -52,11 +52,12 @@ test('current Campaign retains its newer topology and complete pack choreography
   assert.equal(campaign.revision, 24);
   assert.equal(campaign.levels.length, 60);
   // Mission count and route topology are unchanged; only the first five
-  // Missions are reauthored. The other 55 keep all 611 existing spawn events.
+  // Missions are reauthored. The other 55 keep 607 spawn events: the two
+  // high-risk finales replaced their closing formation pair with a boss fight.
   assert.equal(campaign.levels.reduce((sum, level) => sum + level.waves.length, 0), 311);
   assert.deepEqual(firstSectorLevels(campaign).map((level) => spawnEvents({ levels: [level] }).length), [11, 15, 6, 7, 3]);
-  assert.equal(spawnEvents({ levels: preservedLevels(campaign) }).length, 611);
-  assert.equal(spawnEvents(campaign).length, 653);
+  assert.equal(spawnEvents({ levels: preservedLevels(campaign) }).length, 607);
+  assert.equal(spawnEvents(campaign).length, 649);
   assert.equal(campaign.formationPacks.filter((pack) => pack.id.startsWith('pack-breakwater-')).length, 25);
   assert.equal(campaign.formationPacks.filter((pack) => !pack.id.startsWith('pack-breakwater-')).length, 16);
   campaign.formationPacks.forEach((pack) => {
