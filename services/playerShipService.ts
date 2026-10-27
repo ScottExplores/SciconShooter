@@ -25,7 +25,7 @@ export interface PlayerShipUnlocks {
 }
 
 export interface PlayerShipUnlockOptions {
-  /** Server-verified BIO holder access for the currently connected wallet. */
+  /** Ignored. The NIH ship is free; this field remains so older callers still type-check. */
   bioUnlocked?: boolean;
   bioBalanceRaw?: string | null;
   bioBalance?: string | null;
@@ -51,8 +51,8 @@ export const PLAYER_SHIPS: Readonly<Record<PlayerShipId, {
   },
   bio: {
     id: 'bio',
-    name: 'BIO ship',
-    assetUrl: ASSETS.BIO_SHIP
+    name: 'NIH ship',
+    assetUrl: ASSETS.NIH_SHIP
   },
   eth: {
     id: 'eth',
@@ -80,7 +80,7 @@ export const getPlayerShipUnlocks = (
   const unlockAll = options.unlockAll === true;
 
   return {
-    bio: unlockAll || (accessReady && options.bioUnlocked === true),
+    bio: true,
     eth: unlockAll || (accessReady && paidUnlockIds.has('eth')),
     btc: unlockAll || campaign.mastered || (accessReady && paidUnlockIds.has('btc')),
     bioBalanceRaw: typeof options.bioBalanceRaw === 'string' ? options.bioBalanceRaw : null,
@@ -119,7 +119,7 @@ export const addCampaignMasteryBtcUnlock = <
 export const isPlayerShipUnlocked = (
   shipId: PlayerShipId,
   unlocks: PlayerShipUnlocks
-) => shipId === 'researchhub' || unlocks[shipId];
+) => shipId === 'researchhub' || shipId === 'bio' || unlocks[shipId];
 
 export const getUsablePlayerShip = (
   selectedShip: PlayerShipId,

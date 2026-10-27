@@ -259,8 +259,8 @@ test('access status exposes the flat client contract with formatted BIO and Camp
     bio: true,
     eth: false,
     btc: false,
-    bioBalanceRaw: '100500000000000000000',
-    bioBalance: '100.5',
+    bioBalanceRaw: null,
+    bioBalance: null,
     bioThresholdRaw: '100000000000000000000',
     campaignMastered: false,
     unlockedPlayerShips: ['researchhub', 'bio']
@@ -614,7 +614,7 @@ test('settlement returns the client contract plus the authoritative updated prof
   ]);
   assert.equal(settlement.grantsShipId, 'eth');
   assert.equal(settlement.access.eth, true);
-  assert.equal(settlement.access.bio, false);
+  assert.equal(settlement.access.bio, true);
 });
 
 test('cbBTC settlement requires exactly one matching 8,000-unit Transfer log', async () => {

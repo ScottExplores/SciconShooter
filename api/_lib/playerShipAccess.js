@@ -174,7 +174,7 @@ const formatTokenBalance = (rawValue, decimals) => {
   return fraction ? `${whole}.${fraction}` : whole.toString();
 };
 
-const profilePlayerShipAccess = (profile, bioStatus = null) => {
+const profilePlayerShipAccess = (profile, _bioStatus = null) => {
   const entitlements = sanitizePlayerShipEntitlements(
     profile?.snapshot?.permanentState?.playerShipEntitlements
   );
@@ -183,7 +183,7 @@ const profilePlayerShipAccess = (profile, bioStatus = null) => {
   const btcPaid = Boolean(entitlements.btc);
   return {
     researchhub: true,
-    bio: bioStatus?.verificationStatus === 'verified' && bioStatus.unlocked === true,
+    bio: true,
     eth: ethPaid,
     btc: btcPaid || mastery.complete,
     ethPaid,
@@ -196,15 +196,12 @@ const profilePlayerShipAccess = (profile, bioStatus = null) => {
 const getPlayerShipAccessStatus = async ({
   address,
   now = Date.now(),
-  publicClient = null,
+  publicClient: _publicClient = null,
   profile: providedProfile = null
 }) => {
   const walletAddress = normalizeWalletAddress(address);
   if (!walletAddress) throw apiError('A valid Base wallet address is required.', 400);
-  const [profile, bio] = await Promise.all([
-    providedProfile || ensureWalletProfile(walletAddress, now),
-    getBioHoldingStatus({ address: walletAddress, publicClient })
-  ]);
+  const profile = providedProfile || await ensureWalletProfile(walletAddress, now);
   if (!profile) {
     throw apiError(
       'The wallet profile could not be prepared for ship access.',
@@ -212,15 +209,13 @@ const getPlayerShipAccessStatus = async ({
       'player_ship_profile_unavailable'
     );
   }
-  const access = profilePlayerShipAccess(profile, bio);
+  const access = profilePlayerShipAccess(profile, null);
   return {
-    bio: access.bio,
+    bio: true,
     eth: access.eth,
     btc: access.btc,
-    bioBalanceRaw: bio.balanceRaw,
-    bioBalance: bio.balanceRaw === null
-      ? null
-      : formatTokenBalance(bio.balanceRaw, BIO_DECIMALS),
+    bioBalanceRaw: null,
+    bioBalance: null,
     bioThresholdRaw: BIO_SHIP_REQUIRED_BALANCE_RAW,
     campaignMastered: access.mastery.complete,
     unlockedPlayerShips: ['researchhub',
