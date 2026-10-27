@@ -2,8 +2,10 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
   deadlineFromPost,
+  detailsFromPost,
   eligibleRfpsFromEntries,
-  inspectGrantEntry
+  inspectGrantEntry,
+  orderFeaturedRfpFirst
 } = require('../api/_lib/researchHubRfps');
 
 const entry = {
@@ -41,9 +43,30 @@ test('an RFP that closes before the payout date is excluded', () => {
   assert.deepEqual(rfps, []);
 });
 
-test('the public post payload is the deadline source', () => {
+test('the public post payload is the deadline and description source', () => {
+  const details = detailsFromPost({
+    renderable_text: 'Request for Proposals: Airborne Disease Resilience  How can we make airborne disease much harder to spread?',
+    note: { post: { unified_document: { grant: { end_date: '2029-12-31T00:00:00Z' } } } }
+  });
+  assert.equal(details.endDate, '2029-12-31T00:00:00Z');
   assert.equal(deadlineFromPost({
     note: { post: { unified_document: { grant: { end_date: '2029-12-31T00:00:00Z' } } } }
   }), '2029-12-31T00:00:00Z');
+  assert.match(details.description, /Airborne Disease Resilience/);
   assert.equal(deadlineFromPost({ unified_document: { grant: {} } }), null);
+});
+
+test('the Airborne Disease Resilience RFP stays pinned first', () => {
+  const other = { ...entry, id: 32931, content_object: { ...entry.content_object, id: 32931, slug: 'lost-light', title: 'Lost Light' } };
+  const ordered = eligibleRfpsFromEntries(
+    [other, entry],
+    new Map([
+      ['32931', { endDate: '2027-06-30T00:00:00Z', description: 'Sky brightness.' }],
+      ['33131', { endDate: '2029-12-31T00:00:00Z', description: 'Airborne Disease Resilience seeks practical advances.' }]
+    ]),
+    '2026-12-01T08:00:00.000Z'
+  );
+  assert.deepEqual(ordered.map((rfp) => rfp.id), ['33131', '32931']);
+  assert.match(ordered[0].description, /Airborne Disease Resilience/);
+  assert.deepEqual(orderFeaturedRfpFirst([{ id: '9' }, { id: '33131' }]).map((rfp) => rfp.id), ['33131', '9']);
 });

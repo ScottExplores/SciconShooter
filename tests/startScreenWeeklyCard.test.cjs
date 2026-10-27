@@ -96,7 +96,8 @@ test('the live prize is one 25,000 RSC November event', () => {
 
   assert.match(boundarySource, /const WEEKLY_ALLOCATION_RSC = 1_000/);
   assert.match(boundarySource, /const SCICON_BIG_EVENT = Object\.freeze\(\{[\s\S]*allocationRsc: 25_000[\s\S]*closesAt: '2026-11-30T07:59:00\.000Z'/);
-  assert.match(boundarySource, /Each calendar month the top score wins 25,000 RSC/);
+  assert.match(boundarySource, /paused through \$\{window\.closeLabel\} at 11:59 PM Pacific and resumes after November 30/);
+  assert.match(boundarySource, /Airborne Disease Resilience/);
   assert.match(boundaryBrowserSource, /export const SCICON_BIG_EVENT = boundary\.SCICON_BIG_EVENT/);
   assert.match(source, /getPublicPrizeState/);
   assert.match(source, /weeklyAllocation\.rulesText/);

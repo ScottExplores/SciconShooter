@@ -199,15 +199,15 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
               <p className="mt-2 text-[10px] font-semibold leading-relaxed text-slate-200">
                 {weeklyFunding.status === 'claimable'
                   ? getPublicPrizeState().phase === 'weekly'
-                    ? 'Your winning score is locked. Choose the ResearchHub proposal for this weekly allocation before minting or sharing.'
-                    : 'Your winning score is locked. Choose the ResearchHub proposal for this 25,000 RSC prize before minting or sharing.'
+                    ? 'Your winning score is locked. Choose an open ResearchHub proposal or RFP before minting or sharing.'
+                    : 'Your winning score is locked. Choose the Airborne Disease Resilience pool, a proposal under it, or any other open proposal or RFP.'
                   : weeklyFunding.status === 'selected'
                     ? weeklyFunding.proposalTitle || (getPublicPrizeState().phase === 'weekly'
-                      ? 'Your weekly funding proposal is saved with this mission record.'
-                      : 'Your funding proposal is saved with this mission record.')
+                      ? 'Your weekly funding choice is saved with this mission record.'
+                      : 'Your event funding choice is saved with this mission record.')
                     : getPublicPrizeState().phase === 'weekly'
-                      ? 'You hold the weekly high score. Choose the proposal that follows this score into the weekly cutoff.'
-                      : 'You hold the event high score. Choose a ResearchHub proposal whose funding deadline is after November 30, 2026.'}
+                      ? 'You hold the weekly high score. Choose an open proposal or RFP before the weekly cutoff.'
+                      : 'You hold the event high score. Airborne Disease Resilience is featured. Any open proposal or RFP still counts if it stays open after November 30, 2026.'}
               </p>
               {weeklyFunding.status === 'selected' && weeklyFunding.proposalAuthor ? (
                 <p className="mt-1 truncate font-mono text-[8px] font-black uppercase tracking-[0.12em] text-cyan-100/75">

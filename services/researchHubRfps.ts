@@ -9,6 +9,7 @@ export interface ResearchHubRfp {
   goalUsd: number | null;
   goalRsc: number | null;
   raisedRsc: number | null;
+  description?: string | null;
   imageUrl?: string | null;
 }
 
@@ -36,6 +37,7 @@ const asRfp = (value: unknown): ResearchHubRfp | null => {
     goalUsd: typeof value.goalUsd === 'number' ? value.goalUsd : null,
     goalRsc: typeof value.goalRsc === 'number' ? value.goalRsc : null,
     raisedRsc: typeof value.raisedRsc === 'number' ? value.raisedRsc : null,
+    description: typeof value.description === 'string' ? value.description : null,
     imageUrl: typeof value.imageUrl === 'string' ? value.imageUrl : null
   };
 };

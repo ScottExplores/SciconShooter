@@ -42,15 +42,55 @@ const safeNextGrantUrl = (value) => {
   return parsed.toString();
 };
 
-const deadlineFromPost = (payload) => {
+const FEATURED_RFP_ID = '33131';
+
+const plainDescription = (value) => {
+  const text = asText(value, 2000);
+  if (!text) return null;
+  const cleaned = text.replace(/\s+/g, ' ').trim();
+  if (!cleaned) return null;
+  return cleaned.length > 280 ? `${cleaned.slice(0, 279).trimEnd()}…` : cleaned;
+};
+
+const postDetails = (value) => {
+  if (typeof value === 'string') return { endDate: value, description: null };
+  if (value && typeof value === 'object') {
+    return {
+      endDate: typeof value.endDate === 'string' ? value.endDate : null,
+      description: typeof value.description === 'string' ? value.description : null
+    };
+  }
+  return { endDate: null, description: null };
+};
+
+const detailsFromPost = (payload) => {
   const grant = payload?.note?.post?.unified_document?.grant
     || payload?.unified_document?.grant
     || null;
   const endDate = asText(grant?.end_date, 80);
-  return endDate && Number.isFinite(Date.parse(endDate)) ? endDate : null;
+  return {
+    endDate: endDate && Number.isFinite(Date.parse(endDate)) ? endDate : null,
+    description: plainDescription(
+      payload?.renderable_text
+      || payload?.note?.post?.renderable_text
+      || grant?.description
+    )
+  };
 };
 
-const inspectGrantEntry = (entry, endDate, requiredOpenUntil) => {
+const deadlineFromPost = (payload) => detailsFromPost(payload).endDate;
+
+const orderFeaturedRfpFirst = (rfps) => {
+  const featured = [];
+  const rest = [];
+  for (const rfp of rfps) {
+    if (rfp?.id === FEATURED_RFP_ID) featured.push(rfp);
+    else rest.push(rfp);
+  }
+  return [...featured, ...rest];
+};
+
+const inspectGrantEntry = (entry, endDate, requiredOpenUntil, description = null) => {
   const content = entry?.content_object || {};
   const grant = content.grant || {};
   const id = String(content.id ?? entry?.id ?? '');
@@ -75,15 +115,17 @@ const inspectGrantEntry = (entry, endDate, requiredOpenUntil) => {
     goalUsd: money(grant.amount, 'usd'),
     goalRsc: money(grant.amount, 'rsc'),
     raisedRsc: money(pool.amount_raised, 'rsc'),
+    description: plainDescription(description),
     imageUrl: asText(content.image_url, 500)
   };
 };
 
-const eligibleRfpsFromEntries = (entries, deadlinesById, requiredOpenUntil) => (
+const eligibleRfpsFromEntries = (entries, deadlinesById, requiredOpenUntil) => orderFeaturedRfpFirst(
   entries
     .map((entry) => {
       const id = String(entry?.content_object?.id ?? entry?.id ?? '');
-      return inspectGrantEntry(entry, deadlinesById.get(id) || null, requiredOpenUntil);
+      const details = postDetails(deadlinesById.get(id) || null);
+      return inspectGrantEntry(entry, details.endDate, requiredOpenUntil, details.description);
     })
     .filter(Boolean)
 );
@@ -137,7 +179,7 @@ const loadEligibleRfps = async (
   const deadlines = await mapWithConcurrency(ids, POST_CONCURRENCY, async (id) => {
     try {
       const post = await fetchJson(`${API_ORIGIN}/api/researchhubpost/${id}/`);
-      return [id, deadlineFromPost(post)];
+      return [id, detailsFromPost(post)];
     } catch {
       return [id, null];
     }
@@ -171,8 +213,10 @@ const findEligibleRfp = async (
 
 module.exports = {
   deadlineFromPost,
+  detailsFromPost,
   eligibleRfpsFromEntries,
   findEligibleRfp,
   inspectGrantEntry,
-  loadEligibleRfps
+  loadEligibleRfps,
+  orderFeaturedRfpFirst
 };

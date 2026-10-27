@@ -482,7 +482,7 @@ const getWeeklyAllocationMeta = (now = new Date()) => {
     closed: false,
     snapshotFrozen: false,
     announceLabel: '',
-    rulesText: 'Leaderboard positions remain provisional until the weekly cutoff. The finalized No. 1 pilot may choose an eligible ResearchHub proposal for the announced allocation. Selection and funding are separate steps; funding is only confirmed after a Base transaction reference is recorded.',
+    rulesText: prize.rulesText,
     countdownLabel: weekly.isFinalizing
       ? 'Publishing the new week and Past Pick together'
       : `Ends ${weekly.daysLeft === 0 ? 'today' : `in ${weekly.daysLeft} day${weekly.daysLeft === 1 ? '' : 's'}`}`
@@ -1622,8 +1622,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
               {weeklyAllocation.phase === 'weekly'
                 ? `Season 7 - Week ${weeklyAllocation.endLabel}`
                 : weeklyAllocation.snapshotFrozen
-                  ? 'Final standings. 25,000 RSC toward one ResearchHub proposal.'
-                  : '25,000 RSC to the top score this month, toward one ResearchHub proposal.'}
+                  ? 'Final standings. 25,000 RSC. Weekly prize resumes after November 30.'
+                  : '25,000 RSC this month. Featured RFP: Airborne Disease Resilience. Any open proposal or RFP still counts.'}
             </p>
           </div>
           <div className="text-right">
@@ -2455,6 +2455,10 @@ const StartScreen: React.FC<StartScreenProps> = ({
           score={128440}
           allocationRsc={25000}
           proposalStatus="ready"
+          initialStep={(['win', 'pick', 'confirm', 'receipt'] as const).find((step) => step === new URLSearchParams(window.location.search).get('prize-step')) ?? 'win'}
+          initialTab={new URLSearchParams(window.location.search).get('prize-tab') === 'rfps' ? 'rfps' : 'proposals'}
+          initialQuery={new URLSearchParams(window.location.search).get('prize-q') ?? ''}
+          initialSelectedId={new URLSearchParams(window.location.search).get('prize-id')}
           proposals={[
             {
               id: '88001',
@@ -2467,7 +2471,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
               raisedUsd: 6400,
               backers: 12,
               votes: 40,
-              comments: 3
+              comments: 3,
+              description: 'A sample proposal under the airborne-disease theme. The live picker uses open ResearchHub proposals, including any filed under Airborne Disease Resilience.'
             },
             {
               id: '88002',
@@ -2480,7 +2485,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
               raisedUsd: 2200,
               backers: 7,
               votes: 19,
-              comments: 1
+              comments: 1,
+              description: 'A second open proposal. The winner can choose this, the featured RFP pool, or any other eligible item.'
             }
           ]}
           onConfirm={() => undefined}

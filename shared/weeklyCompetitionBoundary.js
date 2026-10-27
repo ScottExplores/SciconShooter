@@ -4,9 +4,9 @@ const WEEK_BOUNDARY_HOUR = 12;
 // One source of truth for every current-week funding claim. Historical
 // competition rows keep their recorded allocation instead of being rewritten.
 const WEEKLY_ALLOCATION_RSC = 1_000;
-// Monthly 25,000 RSC series. The first window is the authored October 26
-// through November 29, 2026 close. From December 2026 each Pacific month
-// starts at midnight on the 1st and closes at 11:59 PM on its last Sunday.
+// One 25,000 RSC event. It runs from October 26 through 11:59 PM Pacific
+// on Sunday, November 29, 2026. The weekly 1,000 RSC prize resumes after
+// November 30, when this window's announcement day has ended.
 const SCICON_BIG_EVENT = Object.freeze({
   name: 'SciCon Big Event',
   allocationRsc: 25_000,
@@ -232,52 +232,13 @@ const formatShortLabel = (calendarDate) => new Intl.DateTimeFormat('en-US', {
   day: 'numeric'
 }).format(zonedDateTimeToUtc({ ...calendarDate, hour: 12 }));
 
-const lastSundayOfMonth = (year, month) => {
-  const last = new Date(Date.UTC(year, month, 0, 12));
-  return shiftCalendarDate({
-    year: last.getUTCFullYear(),
-    month: last.getUTCMonth() + 1,
-    day: last.getUTCDate()
-  }, -last.getUTCDay());
-};
-
-const monthStart = (year, month) => zonedDateTimeToUtc({
-  year,
-  month,
-  day: 1,
-  hour: 0,
-  minute: 0,
-  second: 0
-});
-
-const buildMonthlyWindow = (year, month) => {
-  const closeSunday = lastSundayOfMonth(year, month);
-  const announceDate = shiftCalendarDate(closeSunday, 1);
-  const proposalDate = shiftCalendarDate(announceDate, 1);
-  const nextMonth = month === 12
-    ? { year: year + 1, month: 1 }
-    : { year, month: month + 1 };
-  return {
-    monthKey: `${year}-${String(month).padStart(2, '0')}`,
-    name: SCICON_BIG_EVENT.name,
-    startsAt: monthStart(year, month),
-    closesAt: zonedDateTimeToUtc({ ...closeSunday, hour: 23, minute: 59, second: 0 }),
-    proposalOpenUntil: zonedDateTimeToUtc({ ...proposalDate, hour: 12, minute: 0, second: 0 }),
-    nextStartsAt: monthStart(nextMonth.year, nextMonth.month),
-    closeLabel: formatLongLabel(closeSunday),
-    closeShortLabel: formatShortLabel(closeSunday),
-    announceLabel: formatLongLabel(announceDate),
-    announceShortLabel: formatShortLabel(announceDate)
-  };
-};
-
 const firstEventWindow = () => ({
   monthKey: '2026-11',
   name: SCICON_BIG_EVENT.name,
   startsAt: new Date(SCICON_BIG_EVENT.startsAt),
   closesAt: new Date(SCICON_BIG_EVENT.closesAt),
   proposalOpenUntil: new Date(SCICON_BIG_EVENT.proposalOpenUntil),
-  nextStartsAt: monthStart(2026, 12),
+  nextStartsAt: new Date(SCICON_BIG_EVENT.proposalOpenUntil),
   closeLabel: formatLongLabel({ year: 2026, month: 11, day: 29 }),
   closeShortLabel: formatShortLabel({ year: 2026, month: 11, day: 29 }),
   announceLabel: formatLongLabel({ year: 2026, month: 11, day: 30 }),
@@ -288,17 +249,18 @@ const prizeWindowForInstant = (instant) => {
   const time = instant.getTime();
   if (time < new Date(MONTHLY_SERIES_START).getTime()) return null;
   const first = firstEventWindow();
-  if (time < first.nextStartsAt.getTime()) return first;
-  const parts = getZonedParts(instant);
-  return buildMonthlyWindow(parts.year, parts.month);
+  if (time >= first.nextStartsAt.getTime()) return null;
+  return first;
 };
 
 const weeklyRulesText = 'Leaderboard positions remain provisional until the weekly cutoff. The finalized No. 1 pilot may choose an eligible ResearchHub proposal or an open RFP pool. Choosing records the pick and does not send RSC. A proposal is funded only after a Base transaction reference is recorded. An RFP is recorded for manual funding.';
 
+const resilienceRules = 'Airborne Disease Resilience is the featured ResearchHub RFP. ResearchHub Foundation posted a $10,000 budget, and Jeffrey Koury has contributed about $1,000 to its open pool. The winner can fund that pool, a proposal under it, or any other open proposal or RFP.';
+
 const buildEventRulesText = (window, frozen) => (
   frozen
-    ? `Final standings are frozen. The winner is announced ${window.announceLabel}. This month's prize is 25,000 RSC toward one open ResearchHub proposal or RFP pool. The item must still be open after the announce date. Choosing records the pick and does not send RSC. A proposal is funded only after a Base transaction reference is recorded. An RFP is recorded for manual funding.`
-    : `Each calendar month the top score wins 25,000 RSC toward one open ResearchHub proposal or RFP pool. This month closes ${window.closeLabel} at 11:59 PM Pacific. The winner is announced ${window.announceLabel}. The item must still be open after the announce date. Choosing records the pick and does not send RSC. A proposal is funded only after a Base transaction reference is recorded. An RFP is recorded for manual funding.`
+    ? `Final standings are frozen. The winner is announced ${window.announceLabel}. The weekly 1,000 RSC prize resumes after November 30. This month's prize is 25,000 RSC. ${resilienceRules} The item must still be open after the announce date. Choosing records the pick and does not send RSC. A proposal is funded only after a Base transaction reference is recorded. An RFP is recorded for manual funding.`
+    : `The weekly 1,000 RSC prize is paused through ${window.closeLabel} at 11:59 PM Pacific and resumes after November 30. This month the top score wins 25,000 RSC. The winner is announced ${window.announceLabel}. ${resilienceRules} The item must still be open after the announce date. Choosing records the pick and does not send RSC. A proposal is funded only after a Base transaction reference is recorded. An RFP is recorded for manual funding.`
 );
 
 const getPublicPrizeState = (now = new Date()) => {
@@ -357,6 +319,7 @@ const getPublicPrizeState = (now = new Date()) => {
 
 const weekOverlapsBigEventPause = (_start, end) => (
   end.getTime() > new Date(MONTHLY_SERIES_START).getTime()
+  && end.getTime() <= new Date(SCICON_BIG_EVENT.closesAt).getTime()
 );
 
 const getWeeklyBoundaryMeta = (now = new Date(), locale) => {
