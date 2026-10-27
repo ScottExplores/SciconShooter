@@ -57,6 +57,16 @@ const proposalFromCompetition = (competition) => ({
   imageUrl: competition?.proposal_image_url || null
 });
 
+const assertStoredPickIsUnchanged = (competition, proposalId) => {
+  const stored = String(competition?.proposal_id || '').trim();
+  if (!stored || stored === String(proposalId || '').trim()) return;
+  throw apiError(
+    'This winner already submitted a research pick.',
+    409,
+    'WEEKLY_PROPOSAL_ALREADY_SELECTED'
+  );
+};
+
 const isSameStoredClaim = (competition, wallet, proposalId) => (
   RESOLVED_COMPETITION_STATUSES.has(String(competition?.status || '').toLowerCase())
   && normalizeAddress(competition?.winner_wallet) === wallet
@@ -218,6 +228,7 @@ const createChallenge = async ({ weekKey, proposalId, address, targetKind }) => 
   if (!wallet) throw apiError('A valid Base wallet is required.', 400, 'WEEKLY_CLAIM_WALLET_INVALID');
   const competition = await getCompetition(weekKey);
   await assertCompetitionIsClaimable(competition, wallet);
+  assertStoredPickIsUnchanged(competition, proposalId);
   const kind = targetKind === 'rfp' ? 'rfp' : 'proposal';
   const proposal = await findCurrentWeekEligibleProposal(proposalId, kind);
   const challengeId = crypto.randomUUID();
@@ -321,6 +332,7 @@ const completeClaim = async ({ weekKey, proposalId, address, challengeId, signat
   }
 
   await assertCompetitionIsClaimable(competition, wallet);
+  assertStoredPickIsUnchanged(competition, proposalId);
   if (
     !challenge
     || challenge.used_at

@@ -115,6 +115,77 @@ test('leaderboard accepts a verified zero score without a rank threshold', async
   }
 });
 
+test('leaderboard stores a pilot name with controls and markup removed', async () => {
+  const runId = crypto.randomUUID();
+  const originalFetch = global.fetch;
+  let insertedName;
+  global.fetch = async (url, options = {}) => {
+    const value = String(url);
+    if (value.includes('select=run_id&run_id=eq.')) return jsonResponse([]);
+    if (options.method === 'POST') {
+      insertedName = JSON.parse(options.body)[0].name;
+      return jsonResponse(null, 204);
+    }
+    return jsonResponse([{
+      name: insertedName, score: 4321, wave: 4, date: new Date().toISOString(), wallet_address: null,
+      donated: false, proposal_id: null, proposal_title: null, proposal_url: null, proposal_author: null,
+      run_id: runId, verified: true, receipt_hash: 'hash'
+    }]);
+  };
+
+  try {
+    const res = makeResponse();
+    await leaderboardHandler({
+      method: 'POST',
+      body: {
+        name: ' pi\nlot<script>\u202e ',
+        score: 999999,
+        receiptToken: makeReceipt(runId)
+      },
+      headers: {},
+      socket: { remoteAddress: '127.0.0.41' }
+    }, res);
+    assert.equal(res.statusCode, 200);
+    assert.equal(insertedName, 'PILOTSCRIPT');
+    assert.equal(res.body.scores[0].name, 'PILOTSCRIPT');
+    assert.doesNotMatch(res.body.scores[0].name, /[<>\u0000-\u001F\u202E]/u);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('leaderboard rejects a score finished at the SciCon Big Event close', async () => {
+  const finishedAt = Date.parse('2026-11-30T07:59:00.000Z');
+  const originalFetch = global.fetch;
+  let fetchCalled = false;
+  global.fetch = async () => {
+    fetchCalled = true;
+    return jsonResponse([]);
+  };
+
+  try {
+    const res = makeResponse();
+    await leaderboardHandler({
+      method: 'POST',
+      body: {
+        name: 'late pilot',
+        receiptToken: makeReceipt(crypto.randomUUID(), {
+          startedAt: finishedAt - 60_000,
+          finishedAt,
+          expiresAt: finishedAt + 60_000
+        })
+      },
+      headers: {},
+      socket: { remoteAddress: '127.0.0.42' }
+    }, res);
+    assert.equal(res.statusCode, 409);
+    assert.equal(res.body.code, 'WEEKLY_SCORE_CUTOFF_PASSED');
+    assert.equal(fetchCalled, false);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
 test('leaderboard rejects an unexpired receipt after its weekly score cutoff without touching storage', async () => {
   const runId = crypto.randomUUID();
   const { start } = getCurrentWeekRange(new Date());
@@ -843,7 +914,7 @@ test('a run that is not the current weekly leader cannot attach a proposal', asy
   }
 });
 
-test('the exact verified current leader can replace its saved proposal', async () => {
+test('the exact verified current leader cannot replace its saved proposal', async () => {
   const runId = crypto.randomUUID();
   const originalFetch = global.fetch;
   const now = new Date().toISOString();
@@ -889,13 +960,10 @@ test('the exact verified current leader can replace its saved proposal', async (
       headers: {}, socket: { remoteAddress: '127.0.0.21' }
     }, res);
 
-    assert.equal(res.statusCode, 200);
-    assert.equal(res.body.monthlyScores[0].proposalId, '654');
-    assert.match(patchRequest.url, new RegExp(`run_id=eq\\.${runId}`));
-    assert.match(patchRequest.url, /verified=eq\.true&score=eq\.4321&wave=eq\.4/);
-    assert.doesNotMatch(patchRequest.url, /proposal_id=is\.null/);
-    assert.equal(patchRequest.body.proposal_title, 'Replacement Target');
-    assert.equal(patchRequest.body.proposal_image_url, null);
+    assert.equal(res.statusCode, 409);
+    assert.equal(res.body.code, 'WEEKLY_PROPOSAL_ALREADY_SELECTED');
+    assert.match(res.body.error, /already submitted its research pick/i);
+    assert.equal(patchRequest, undefined);
   } finally {
     global.fetch = originalFetch;
   }
@@ -1023,8 +1091,8 @@ test('proposal recovery rolls back its exact write if the lead changes during th
   let rollbackBody;
   const requestedRow = () => ({
     name: 'PILOT', score: 4321, wave: 4, date: new Date().toISOString(), wallet_address: null,
-    donated: false, proposal_id: proposalApplied ? '654' : '321',
-    proposal_title: proposalApplied ? 'Replacement Target' : 'Original Target',
+    donated: false, proposal_id: proposalApplied ? '654' : null,
+    proposal_title: proposalApplied ? 'Replacement Target' : null,
     proposal_url: 'https://www.researchhub.com/post/target', proposal_author: 'Ada Researcher',
     run_id: requestedRunId, verified: true, receipt_hash: 'hash'
   });
@@ -1065,8 +1133,8 @@ test('proposal recovery rolls back its exact write if the lead changes during th
     assert.equal(res.statusCode, 409);
     assert.match(res.body.error, /no longer the current weekly high score/i);
     assert.equal(res.body.code, 'WEEKLY_LEADER_CHANGED');
-    assert.equal(rollbackBody.proposal_id, '321');
-    assert.equal(rollbackBody.proposal_title, 'Original Target');
+    assert.equal(rollbackBody.proposal_id, null);
+    assert.equal(rollbackBody.proposal_title, null);
   } finally {
     global.fetch = originalFetch;
   }
@@ -1250,7 +1318,7 @@ test('a wallet-backed leader accepts PostgREST-normalized challenge timestamps o
   }
 });
 
-test('proposal replacement clears a stale image and still retries without the optional image column', async () => {
+test('a saved research pick cannot be replaced to clear a stale image', async () => {
   const runId = crypto.randomUUID();
   const originalFetch = global.fetch;
   const patchBodies = [];
@@ -1293,10 +1361,9 @@ test('proposal replacement clears a stale image and still retries without the op
       body: { action: 'select-proposal', proposalId: '654', receiptToken: makeReceipt(runId) },
       headers: {}, socket: { remoteAddress: '127.0.0.33' }
     }, res);
-    assert.equal(res.statusCode, 200);
-    assert.equal(patchBodies.length, 2);
-    assert.equal(patchBodies[0].proposal_image_url, null);
-    assert.equal(Object.hasOwn(patchBodies[1], 'proposal_image_url'), false);
+    assert.equal(res.statusCode, 409);
+    assert.equal(res.body.code, 'WEEKLY_PROPOSAL_ALREADY_SELECTED');
+    assert.equal(patchBodies.length, 0);
   } finally {
     global.fetch = originalFetch;
   }

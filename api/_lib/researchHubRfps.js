@@ -6,9 +6,12 @@ const GRANT_FEED_URL = `${API_ORIGIN}/api/grant_feed/?content_type=GRANT&status=
 const MAX_PAGES = 3;
 const POST_CONCURRENCY = 6;
 
-const asText = (value, max = 500) => (
-  typeof value === 'string' && value.trim() ? value.trim().slice(0, max) : null
-);
+const { stripUnsafePublicText } = require('../../shared/publicText.cjs');
+
+const asText = (value, max = 500) => {
+  const cleaned = stripUnsafePublicText(value).trim();
+  return cleaned ? cleaned.slice(0, max) : null;
+};
 
 const asNumber = (value) => {
   if (typeof value === 'number' && Number.isFinite(value)) return value;

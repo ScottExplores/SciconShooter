@@ -82,7 +82,7 @@ export const getMissionRecordWeeklyFunding = ({
       return {
         status: 'selected',
         allocationRsc: getPublicPrizeState().allocationRsc,
-        canEditProposal: true,
+        canEditProposal: false,
         proposalId: currentLeader.proposalId,
         proposalTitle: currentLeader.proposalTitle,
         proposalUrl: currentLeader.proposalUrl,

@@ -3,6 +3,7 @@ import type { ResearchHubProposal } from '../services/researchHubProposals';
 import { sortProposalsByFunding } from '../services/proposalFunding';
 import { fetchEligibleRfps, type ResearchHubRfp } from '../services/researchHubRfps';
 import { getPublicPrizeState, SCICON_EVENT_CHOICE_COPY } from '../shared/weeklyCompetitionBoundary.browser';
+import { sanitizeSearchQuery } from '../shared/publicText';
 
 type ProposalFeedStatus = 'loading' | 'ready' | 'empty' | 'error';
 type ProposalSelectionStatus = 'idle' | 'saving' | 'confirmed' | 'error';
@@ -102,7 +103,7 @@ const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
     () => sortedProposals.find((proposal) => proposal.id === selectedProposalId) ?? null,
     [selectedProposalId, sortedProposals]
   );
-  const normalizedQuery = query.trim().toLowerCase();
+  const normalizedQuery = sanitizeSearchQuery(query).trim().toLowerCase();
   const filteredProposals = useMemo(() => {
     if (!normalizedQuery) return sortedProposals;
     return sortedProposals.filter((proposal) => (
@@ -267,7 +268,7 @@ const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
             id="weekly-proposal-search"
             type="search"
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => setQuery(sanitizeSearchQuery(event.target.value))}
             placeholder={bigEvent && tab === 'rfps' ? 'Search RFP or organization' : 'Search proposal, researcher, or topic'}
             className="h-11 w-full rounded-[6px] border border-cyan-200/25 bg-slate-950/85 px-3 text-sm font-semibold text-white outline-none placeholder:text-slate-500 focus:border-yellow-200/60"
           />

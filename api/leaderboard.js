@@ -15,6 +15,7 @@ const {
 } = require('./_lib/walletProfileAuth');
 const crypto = require('crypto');
 const { checkRateLimit } = require('./_lib/rateLimit');
+const { sanitizePilotName, stripUnsafePublicText } = require('../shared/publicText.cjs');
 const { getPublicPrizeState, getWeekRange } = require('../shared/weeklyCompetitionBoundary.js');
 
 const getPublicScoreWindow = (now = new Date()) => getPublicPrizeState(now).scoreWindow;
@@ -45,8 +46,17 @@ const sendJson = (res, status, payload) => {
 
 const sanitizeText = (value, maxLength) => {
   if (typeof value !== 'string') return undefined;
-  const trimmed = value.trim();
+  const trimmed = stripUnsafePublicText(value).trim();
   return trimmed ? trimmed.slice(0, maxLength) : undefined;
+};
+
+const normalizeTargetKind = (value) => {
+  if (value === undefined || value === null || value === '' || value === 'proposal') return null;
+  if (value === 'rfp') return 'rfp';
+  throw Object.assign(new Error('Invalid research target.'), {
+    statusCode: 400,
+    code: 'RESEARCH_TARGET_INVALID'
+  });
 };
 
 const sanitizeUrl = (value) => {
@@ -94,7 +104,7 @@ const sanitizeEntry = (entry) => {
     return null;
   }
 
-  const name = entry.name.trim().slice(0, 15).toUpperCase();
+  const name = sanitizePilotName(entry.name);
   if (!name) return null;
 
   return {
@@ -426,6 +436,12 @@ const createProposalSelectionChallenge = async (
   }
 
   const { currentLeader } = await getVerifiedWeeklyLeaderForReceipt(receipt);
+  if (currentLeader.proposalId && currentLeader.proposalId !== normalizedProposalId) {
+    throw Object.assign(new Error('This winning run already submitted its research pick.'), {
+      statusCode: 409,
+      code: 'WEEKLY_PROPOSAL_ALREADY_SELECTED'
+    });
+  }
   const leaderWallet = normalizeAddress(currentLeader.walletAddress);
   if (!leaderWallet) return { signatureRequired: false };
 
@@ -561,9 +577,20 @@ const selectProposalForWeeklyLeader = async (
   authenticatedWalletAddress = null,
   targetKind = null
 ) => {
+  const requestedProposalId = String(proposalId || '').trim();
+  if (!/^\d{1,20}$/.test(requestedProposalId)) {
+    throw Object.assign(new Error('Invalid ResearchHub proposal ID.'), { statusCode: 400 });
+  }
   const { currentLeader, currentScores } = await getVerifiedWeeklyLeaderForReceipt(receipt);
 
-  if (currentLeader.proposalId === String(proposalId)) {
+  if (currentLeader.proposalId && currentLeader.proposalId !== requestedProposalId) {
+    throw Object.assign(new Error('This winning run already submitted its research pick.'), {
+      statusCode: 409,
+      code: 'WEEKLY_PROPOSAL_ALREADY_SELECTED'
+    });
+  }
+
+  if (currentLeader.proposalId === requestedProposalId) {
     // A signed request must still consume its one-time challenge even when the
     // chosen proposal is unchanged. Otherwise that valid signature could be
     // replayed after a later edit to restore this proposal.
@@ -585,10 +612,10 @@ const selectProposalForWeeklyLeader = async (
   }
 
   const proposal = targetKind === 'rfp'
-    ? await findEligibleRfp(proposalId, {
+    ? await findEligibleRfp(requestedProposalId, {
       requiredOpenUntil: getPublicPrizeState().proposalOpenUntil
     })
-    : await findEligibleProposal(proposalId, {
+    : await findEligibleProposal(requestedProposalId, {
       requiredOpenUntil: getPublicPrizeState().proposalOpenUntil
     });
 
@@ -624,6 +651,7 @@ const selectProposalForWeeklyLeader = async (
     `${SUPABASE_TABLE}?run_id=eq.${encodeURIComponent(receipt.runId)}`
     + `&verified=eq.true&score=eq.${receipt.metrics.score}&wave=eq.${receipt.metrics.wave}`
   );
+  const firstWriteUrl = `${selectionUrl}&proposal_id=is.null`;
   const proposalRow = {
     proposal_id: proposal.id,
     proposal_title: proposal.title,
@@ -631,7 +659,7 @@ const selectProposalForWeeklyLeader = async (
     proposal_author: proposal.author,
     proposal_image_url: proposal.imageUrl || null
   };
-  let response = await fetch(selectionUrl, {
+  let response = await fetch(firstWriteUrl, {
     method: 'PATCH',
     headers: supabaseHeaders({ Prefer: 'return=representation' }),
     body: JSON.stringify(proposalRow)
@@ -641,7 +669,7 @@ const selectProposalForWeeklyLeader = async (
     let details = await response.text();
     if (isMissingProposalImageColumnError(new Error(details))) {
       const { proposal_image_url: _proposalImageUrl, ...compatibleRow } = proposalRow;
-      response = await fetch(selectionUrl, {
+      response = await fetch(firstWriteUrl, {
         method: 'PATCH',
         headers: supabaseHeaders({ Prefer: 'return=representation' }),
         body: JSON.stringify(compatibleRow)
@@ -653,6 +681,21 @@ const selectProposalForWeeklyLeader = async (
 
   const rows = await response.json();
   if (!Array.isArray(rows) || rows.length === 0) {
+    const racedScores = await readScores();
+    const racedLeader = toLeaderboardPayload(racedScores).monthlyScores[0];
+    if (receiptMatchesVerifiedLeader(receipt, racedLeader) && racedLeader.proposalId === proposal.id) {
+      return {
+        ...toLeaderboardPayload(racedScores),
+        selectedProposal: proposal,
+        ...(proposal.fundingTargetKind === 'rfp' ? { manualFunding: true } : {})
+      };
+    }
+    if (receiptMatchesVerifiedLeader(receipt, racedLeader) && racedLeader.proposalId) {
+      throw Object.assign(new Error('This winning run already submitted its research pick.'), {
+        statusCode: 409,
+        code: 'WEEKLY_PROPOSAL_ALREADY_SELECTED'
+      });
+    }
     throw Object.assign(new Error('This run is no longer the current weekly high score.'), {
       statusCode: 409,
       code: 'WEEKLY_LEADER_CHANGED'
@@ -861,23 +904,23 @@ module.exports = async (req, res) => {
         }
       }
 
-      if (action === 'select-proposal-challenge') {
-        const challenge = await createProposalSelectionChallenge(
-          receipt,
-          body.proposalId,
-          body.address,
-          proposalSession?.walletAddress,
-          body.targetKind
-        );
-        return sendJson(res, 200, { challenge });
-      }
-
-      if (action === 'select-proposal') {
+      if (action === 'select-proposal-challenge' || action === 'select-proposal') {
+        const targetKind = normalizeTargetKind(body.targetKind);
+        if (action === 'select-proposal-challenge') {
+          const challenge = await createProposalSelectionChallenge(
+            receipt,
+            body.proposalId,
+            body.address,
+            proposalSession?.walletAddress,
+            targetKind
+          );
+          return sendJson(res, 200, { challenge });
+        }
         const result = await selectProposalForWeeklyLeader(receipt, body.proposalId, {
           address: body.address,
           challengeId: body.challengeId,
           signature: body.signature
-        }, proposalSession?.walletAddress, body.targetKind);
+        }, proposalSession?.walletAddress, targetKind);
         return sendJson(res, 200, result);
       }
 
@@ -892,7 +935,7 @@ module.exports = async (req, res) => {
         });
       }
 
-      const name = sanitizeText(body.name, 15)?.toUpperCase();
+      const name = sanitizePilotName(body.name);
       if (!name) {
         return sendJson(res, 400, { error: 'Pilot name is required' });
       }

@@ -12,7 +12,7 @@ export interface WeeklyProposalRecovery {
   needsProposal: boolean;
   attentionReason: WeeklyProposalReminderReason | null;
   reminderStorageKey: string | null;
-  canEditProposal: true;
+  canEditProposal: boolean;
 }
 
 interface WeeklyProposalRecoveryInput {
@@ -34,8 +34,7 @@ const addressesMatch = (left?: string | null, right?: string | null) => (
 export const getWeeklyProposalRecovery = ({
   weeklyLeaderboard,
   walletRuns,
-  walletAddress,
-  proposalLifecycle
+  walletAddress
 }: WeeklyProposalRecoveryInput): WeeklyProposalRecovery | null => {
   const leader = weeklyLeaderboard[0];
   if (!leader?.runId || leader.verified !== true) return null;
@@ -52,16 +51,10 @@ export const getWeeklyProposalRecovery = ({
   if (!record) return null;
 
   const selectedProposalId = leader.proposalId?.trim();
-  const lifecycleMatchesSelection = Boolean(
-    selectedProposalId
-    && proposalLifecycle?.proposalId === selectedProposalId
-  );
-  const attentionReason: WeeklyProposalReminderReason | null = !selectedProposalId
-    ? 'missing'
-    : lifecycleMatchesSelection && proposalLifecycle?.state === 'replacement-required'
-      && proposalLifecycle.reason === 'completed'
-      ? 'completed'
-      : null;
+  // A stored pick is final, including when the chosen proposal later fills.
+  const attentionReason: WeeklyProposalReminderReason | null = selectedProposalId
+    ? null
+    : 'missing';
   const reminderStorageKey = getWeeklyProposalReminderStorageKey({
     runId: leader.runId,
     reason: attentionReason,
@@ -74,6 +67,6 @@ export const getWeeklyProposalRecovery = ({
     needsProposal: attentionReason !== null,
     attentionReason,
     reminderStorageKey,
-    canEditProposal: true
+    canEditProposal: !selectedProposalId
   };
 };

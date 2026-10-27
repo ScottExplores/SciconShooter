@@ -19,7 +19,7 @@ test('Home presents missing or completed-proposal reminders at most once every f
   assert.match(startScreen, /weeklyProposalNeedsAttention[\s\S]*dashboardTab !== 'home'/);
   assert.match(startScreen, /showWeeklyProposalReminder && weeklyProposalRecovery/);
   assert.match(startScreen, /weeklyProposalAttentionReason === 'completed'/);
-  assert.match(startScreen, /Your selected proposal was fully funded\. You are still/);
+  assert.match(startScreen, /Your selected proposal was fully funded before the weekly cutoff\. You are still/);
   assert.match(startScreen, />\s*Not now\s*<\/button>/);
   assert.match(startScreen, /onClick=\{openRecoverableWeeklyProposal\}[\s\S]*Choose new proposal/);
 });
@@ -100,7 +100,7 @@ test('the mandatory post-score chooser cannot be dismissed while recovery openin
   assert.match(app, /openWeeklyLeaderProposal[\s\S]*setWeeklyProposalSelectionMode\('recovery'\)/);
   assert.match(app, /dismissible=\{weeklyProposalSelectionMode === 'recovery'\}/);
   assert.match(picker, /\{dismissible && onClose \? \(/);
-  assert.match(picker, /aria-label="Choose proposal later"/);
+  assert.match(picker, /aria-label="Choose research later"/);
   assert.match(picker, /role="dialog"/);
   assert.match(picker, /aria-modal="true"/);
   assert.match(picker, /onKeyDown=\{handleDialogKeyDown\}/);
@@ -158,7 +158,7 @@ test('a selected recovery proposal survives a failed save and exposes a clear re
   assert.match(app, /initialProposalId=\{monthlyLeaderboard\.find\(\(entry\) => entry\.runId === runReceipt\.runId\)\?\.proposalId \?\? null\}/);
   assert.match(picker, /const \[selectedProposalId, setSelectedProposalId\]/);
   assert.match(picker, /sortedProposals\.find\(\(proposal\) => proposal\.id === selectedProposalId\)/);
-  assert.match(picker, /Your proposal is still selected\. Tap retry below\./);
-  assert.match(picker, /Retry saving proposal/);
+  assert.match(picker, /Your pick is still selected\. Tap retry below\./);
+  assert.match(picker, /Retry saving pick/);
   assert.match(app, /onProposalChange=\{\(\) => \{[\s\S]*setWeeklyProposalSelectionStatus\('idle'\)[\s\S]*setWeeklyProposalSelectionMessage\(''\)/);
 });

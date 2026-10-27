@@ -4,9 +4,12 @@ const MAX_OPEN_PROPOSALS = 500;
 const { getPublicPrizeState } = require('../../shared/weeklyCompetitionBoundary.js');
 const { isFundingDeadlineAfter } = require('../../shared/researchHubProposalEligibility.js');
 
-const asText = (value, max = 500) => typeof value === 'string' && value.trim()
-  ? value.trim().slice(0, max)
-  : null;
+const { stripUnsafePublicText } = require('../../shared/publicText.cjs');
+
+const asText = (value, max = 500) => {
+  const cleaned = stripUnsafePublicText(value).trim();
+  return cleaned ? cleaned.slice(0, max) : null;
+};
 
 const asHttpUrl = (value) => {
   const url = asText(value);

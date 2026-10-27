@@ -91,7 +91,7 @@ test('recovery identifies the exact wallet-bound verified weekly leader run', ()
   assert.equal(result?.canEditProposal, true);
 });
 
-test('recovery remains editable when the current leader already selected a proposal', () => {
+test('a stored research pick cannot be submitted again', () => {
   const result = getWeeklyProposalRecovery({
     weeklyLeaderboard: [leader({ proposalId: '321', proposalTitle: 'Original pick' })],
     walletRuns: [{ pilotName: 'PILOT', receipt: receipt() }],
@@ -101,10 +101,10 @@ test('recovery remains editable when the current leader already selected a propo
   assert.equal(result?.needsProposal, false);
   assert.equal(result?.attentionReason, null);
   assert.equal(result?.reminderStorageKey, null);
-  assert.equal(result?.canEditProposal, true);
+  assert.equal(result?.canEditProposal, false);
 });
 
-test('recovery requests a replacement only when the exact current leader proposal explicitly completed', () => {
+test('a completed proposal does not reopen the one-time research pick', () => {
   const selected = leader({ proposalId: '321', proposalTitle: 'Original pick' });
   const proposalLifecycle = getWeeklyProposalLifecycle({
     selectedProposalId: selected.proposalId,
@@ -129,12 +129,10 @@ test('recovery requests a replacement only when the exact current leader proposa
     proposalLifecycle
   });
 
-  assert.equal(result?.needsProposal, true);
-  assert.equal(result?.attentionReason, 'completed');
-  assert.equal(
-    result?.reminderStorageKey,
-    'scicon.weekly-proposal-reminder:verified-leading-run:completed:321'
-  );
+  assert.equal(result?.needsProposal, false);
+  assert.equal(result?.attentionReason, null);
+  assert.equal(result?.reminderStorageKey, null);
+  assert.equal(result?.canEditProposal, false);
 });
 
 test('recovery never treats an absent or mismatched referenced proposal as completed', () => {
@@ -191,7 +189,7 @@ test('recovery rejects mismatched wallet, run, metrics, and verification state',
   }) }] }), null);
 });
 
-test('a selected proposal remains editable only while that receipt is the current leader', () => {
+test('a selected proposal stays locked to the current leader receipt', () => {
   const selectedLeader = leader({ proposalId: '321', proposalTitle: 'Original pick' });
   const funding = getMissionRecordWeeklyFunding({
     receipt: receipt(),
@@ -200,7 +198,7 @@ test('a selected proposal remains editable only while that receipt is the curren
     archivedWinners: []
   });
   assert.equal(funding?.status, 'selected');
-  assert.equal(funding?.canEditProposal, true);
+  assert.equal(funding?.canEditProposal, false);
   assert.equal(funding?.allocationRsc, 25_000);
 
   const displaced = getMissionRecordWeeklyFunding({

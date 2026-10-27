@@ -21,6 +21,7 @@ import type {
 import type { WalletRunRecord } from '../services/playerRunService';
 import { getWalletActivityViewState } from '../services/walletActivityMerge';
 import type { WeeklyProposalRecovery } from '../services/weeklyProposalRecovery';
+import { sanitizeSearchQuery } from '../shared/publicText';
 import {
   isWeeklyProposalReminderDue,
   parseWeeklyProposalReminderTimestamp,
@@ -1176,7 +1177,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const sortedProposals = useMemo(() => sortProposalsByFunding(proposals), [proposals]);
 
   const filteredProposals = useMemo(() => {
-    const query = proposalSearch.trim().toLowerCase();
+    const query = sanitizeSearchQuery(proposalSearch).trim().toLowerCase();
     if (!query) return sortedProposals;
     return sortedProposals.filter((proposal) => (
       `${proposal.title} ${proposal.author} ${proposal.organization ?? ''}`.toLowerCase().includes(query)
@@ -1859,7 +1860,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
             <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-cyan-200/70" />
             <input
               value={proposalSearch}
-              onChange={(event) => setProposalSearch(event.target.value)}
+              onChange={(event) => setProposalSearch(sanitizeSearchQuery(event.target.value))}
               placeholder="Search proposals"
               className="w-full rounded-[6px] border border-cyan-300/20 bg-slate-950/75 py-2 pl-9 pr-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300/60"
             />
@@ -2176,7 +2177,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
                 && record.status === 'confirmed'
               ));
               const isEditableWeeklyLeader = weeklyProposalRunId === run.receipt.runId
-                && Boolean(onOpenWeeklyLeaderProposal);
+                && Boolean(onOpenWeeklyLeaderProposal)
+                && weeklyProposalNeedsAttention;
               const proposalNeedsAttention = isEditableWeeklyLeader && weeklyProposalNeedsAttention;
               const proposalReplacementRequired = proposalNeedsAttention
                 && weeklyProposalAttentionReason === 'completed';
