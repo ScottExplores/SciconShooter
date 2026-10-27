@@ -183,7 +183,7 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
             <div className="mt-3 rounded-[8px] border border-yellow-200/30 bg-yellow-300/10 p-3 shadow-[0_0_18px_rgba(250,204,21,0.18)]">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="font-mono text-[9px] font-black uppercase tracking-[0.2em] text-yellow-200">{getPublicPrizeState().phase === 'weekly' ? 'Weekly funding' : 'SciCon Big Event'}</p>
+                  <p className="font-mono text-[9px] font-black uppercase tracking-[0.2em] text-yellow-200">{getPublicPrizeState().phase === 'weekly' ? 'Weekly funding' : '25K High Score'}</p>
                   <h3 className="arcade-font mt-1 text-sm font-black uppercase tracking-wider text-white">
                     {weeklyFunding.status === 'claimable'
                       ? 'Champion confirmed'

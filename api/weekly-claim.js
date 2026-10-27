@@ -243,7 +243,7 @@ const createChallenge = async ({ weekKey, proposalId, address, targetKind }) => 
     `Challenge: ${challengeId}`,
     `Expires: ${expiresAt}`, '',
     kind === 'rfp'
-      ? 'Signing logs this RFP pool. Scott funds it manually. It does not send funds or mint yet.'
+      ? 'Signing records this RFP pool. The winner picks a proposal or RFP pool to fund. It does not send funds or mint yet.'
       : 'Signing selects this proposal. It does not send funds or mint yet.'
   ].join('\n');
   await fetchSupabaseJson(NONCES_TABLE, {
@@ -407,13 +407,13 @@ const completeClaim = async ({ weekKey, proposalId, address, challengeId, signat
       title: proposal.title,
       url: proposal.url,
       runId: competition.winner_run_id,
-      note: 'Scott funds this RFP pool manually. No automatic contribution was sent.'
+      note: 'The winner picks a proposal or RFP pool to fund. No automatic contribution was sent.'
     }));
   }
   await sendBaseNotificationBroadcast({
     title: 'Research pick selected',
     message: proposal.fundingTargetKind === 'rfp'
-      ? `${competition.winner_name || 'The leader'} logged ${proposal.title}. Scott funds this RFP pool manually.`
+      ? `${competition.winner_name || 'The leader'} picked ${proposal.title}. The winner picks a proposal or RFP pool to fund.`
       : `${competition.winner_name || 'The leader'} selected ${proposal.title} for the ${Number(competition.allocation_rsc || getPublicPrizeState().allocationRsc).toLocaleString('en-US')} RSC allocation.`,
     targetPath: '/?view=trophies'
   }).catch((error) => console.error('Base proposal notification failed:', error));

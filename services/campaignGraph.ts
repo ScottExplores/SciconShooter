@@ -513,6 +513,21 @@ export const decideNextCampaignNode = (
       reason: 'only-valid-target'
     };
   }
+  // Cinderjaw and Vesperglass live on the high-risk fork. A player who just
+  // continues from the signal follows that fork so the ladder is not optional.
+  const promotedMainRoute = valid.find((selection) => (
+    selection.targetNode.missionDefinitionId === 'stage-hammerhead-line-route-b'
+    || selection.targetNode.missionDefinitionId === 'stage-crownclaw-frontier-route-b'
+  ));
+  if (promotedMainRoute) {
+    return {
+      kind: 'advance',
+      currentNode,
+      nextNode: promotedMainRoute.targetNode,
+      edge: promotedMainRoute.edge,
+      reason: 'only-valid-target'
+    };
+  }
   return {
     kind: 'choice-required',
     currentNode,

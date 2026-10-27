@@ -739,7 +739,7 @@ const selectProposalForWeeklyLeader = async (
       title: proposal.title,
       url: proposal.url,
       runId: receipt.runId,
-      note: 'Scott funds this RFP pool manually. No automatic contribution was sent.'
+      note: 'The winner picks a proposal or RFP pool to fund. No automatic contribution was sent.'
     }));
   }
   return {
@@ -781,7 +781,7 @@ const buildProposalChallengeMessage = ({ receipt, proposalId, wallet, challengeI
     `Expires: ${expiresAt}`,
     '',
     targetKind === 'rfp'
-      ? 'Signing logs this RFP pool. Scott funds it manually. It does not send funds or mint.'
+      ? 'Signing records this RFP pool. The winner picks a proposal or RFP pool to fund. It does not send funds or mint.'
       : 'Signing authorizes this proposal choice. It does not send funds or mint.'
   );
   return lines.join('\n');

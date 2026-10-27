@@ -10,6 +10,7 @@ import {
   Texture
 } from 'pixi.js';
 import { ASSETS, GAME_CONFIG } from '../../constants';
+import { isIntactCampaignBossSprite } from './standaloneBossSprites';
 import { EntityType, PowerupType } from '../../types';
 import { BOSS_CANNON_SCALE, CROWNCLAW_ARM_SCALE, Entity, GameEngine, VisualEffect } from '../gameLogic';
 import type { BossComponentState, BossPartId, GameRuntimeState, StageTakeoffPresentation } from '../gameLogic';
@@ -1346,13 +1347,7 @@ const getDefaultEntityTexture = (engine: GameEngine, entity: Entity) => {
 
 const usesStandaloneBossArt = (entity: Entity, previewArtwork = false) => (
   entity.type === EntityType.BOSS
-  && Boolean(
-    previewArtwork
-    ||
-    entity.spriteUrl?.includes('/scicon-stage20-expansion-v1/bosses/')
-    ||
-    entity.spriteUrl === ASSETS.CAMPAIGN_BOSS_HELIOS_CLAWCARRIER
-  )
+  && Boolean(previewArtwork || isIntactCampaignBossSprite(entity.spriteUrl))
 );
 
 export interface PixiGameRendererOptions {
@@ -5848,8 +5843,9 @@ export class PixiGameRenderer {
       return;
     }
     rig.parts.visible = components.length > 0;
-    rig.thrust.visible = entity.bossRigId === 'paywall-siege';
+    rig.thrust.visible = components.length > 0 && entity.bossRigId === 'paywall-siege';
     if (components.length === 0) {
+      rig.thrust.visible = false;
       Object.values(rig.partSprites).forEach((sprite) => {
         sprite.visible = false;
       });

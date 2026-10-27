@@ -47,6 +47,51 @@ const PROMOTED_BOSS_TUNING = {
 } as const;
 
 /**
+ * Sandbox sentences stay the attack vocabulary. Campaign time scale makes the
+ * ladder step up: Meridian keeps the readable study cadence, Cinderjaw
+ * commits those heavier cannon and mine sentences sooner, and Vesperglass
+ * is the tightest of the three.
+ */
+const PROMOTED_TIMELINE_SCALE = {
+  'meridian-harrower': 1,
+  'cinderjaw-siege-beetle': 0.32,
+  'vesperglass-mothmother': 0.24
+} as const;
+
+const scalePromotedTimeline = <T extends { durationSeconds: number; clips: Array<{ startSeconds: number; durationSeconds: number; parameters?: { warningSeconds?: number }; repeat?: { intervalSeconds: number } }> }>(
+  timeline: T,
+  scale: number
+): T => {
+  if (scale === 1) return timeline;
+  const clips = timeline.clips.map((clip) => {
+    const parameters = clip.parameters && typeof clip.parameters.warningSeconds === 'number'
+      ? { ...clip.parameters, warningSeconds: clip.parameters.warningSeconds * scale }
+      : clip.parameters;
+    return {
+      ...clip,
+      startSeconds: clip.startSeconds * scale,
+      durationSeconds: clip.durationSeconds * scale,
+      ...(parameters ? { parameters } : {}),
+      ...(clip.repeat ? {
+        repeat: {
+          ...clip.repeat,
+          intervalSeconds: clip.repeat.intervalSeconds * scale
+        }
+      } : {})
+    };
+  });
+  const lastClipEnd = clips.reduce(
+    (end, clip) => Math.max(end, clip.startSeconds + clip.durationSeconds),
+    0
+  );
+  return {
+    ...timeline,
+    durationSeconds: Math.max(12, lastClipEnd + 0.4),
+    clips
+  };
+};
+
+/**
  * The campaign file stays schema-valid on its own. These three bosses then
  * take the sandbox weapons, phases, timeline, and rig while keeping the
  * campaign identity, sprite, health, and score.
@@ -61,13 +106,17 @@ const applyPromotedBossKits = (campaign: GameCampaignConfig): GameCampaignConfig
         const kit = getSandboxBossKit(event.bossId as keyof typeof PROMOTED_BOSS_TUNING);
         event.weapons = kit.weapons;
         event.phases = kit.phases;
-        event.timeline = kit.timeline;
+        event.timeline = scalePromotedTimeline(
+          kit.timeline,
+          PROMOTED_TIMELINE_SCALE[event.bossId as keyof typeof PROMOTED_TIMELINE_SCALE]
+        );
         event.rigId = kit.rigId;
         event.speed = kit.speed;
-        if (kit.componentMode) event.componentMode = kit.componentMode;
-        else delete event.componentMode;
-        if (kit.componentHealth) event.componentHealth = kit.componentHealth;
-        else delete event.componentHealth;
+        // Scott's intact sprite is the whole boss. Borrowed paywall and
+        // open-orbit parts stay off, the same way Crownclaw and Helios do
+        // not wear another rig's pods.
+        event.componentMode = 'hull-only';
+        delete event.componentHealth;
         event.health = tuning.health;
         event.scoreReward = tuning.scoreReward;
         event.sizeMultiplier = tuning.sizeMultiplier;

@@ -7,7 +7,7 @@ const WEEKLY_ALLOCATION_RSC = 1_000;
 // One-time prize window. Weekly scoring stays in the code and turns back on
 // at weeklyResumesWeekKey (the first Sunday-noon Pacific week after Nov 30).
 const SCICON_BIG_EVENT = Object.freeze({
-  name: 'SciCon Big Event',
+  name: '25K High Score',
   allocationRsc: 25_000,
   startsAt: '2026-10-26T07:00:00.000Z',
   closesAt: '2026-11-30T07:59:00.000Z',
@@ -15,7 +15,8 @@ const SCICON_BIG_EVENT = Object.freeze({
   winnerAnnouncedLabel: 'Nov 30',
   weeklyResumesWeekKey: '2026-12-06'
 });
-const SCICON_EVENT_CHOICE_COPY = 'The winner can choose the Airborne Disease Resilience RFP pool, a proposal under it, or any other open ResearchHub proposal or RFP. Airborne Disease Resilience is the featured suggestion. An RFP pool is logged for Scott to fund manually.';
+const SCICON_EVENT_CHOICE_COPY = 'The winner picks the Airborne Disease Resilience RFP pool, a proposal under it, or any open ResearchHub proposal or RFP.';
+const SCICON_EVENT_PAUSE_COPY = 'Weekly prizes are paused during the event and return after Nov 30.';
 // A score receipt can finish before cutoff while its verified leaderboard write
 // is still in flight. Keep the public rollover behind this short settlement
 // window so the new board and the archived Past Pick can publish together.
@@ -290,6 +291,7 @@ return {
   WEEKLY_ALLOCATION_RSC,
   SCICON_BIG_EVENT,
   SCICON_EVENT_CHOICE_COPY,
+  SCICON_EVENT_PAUSE_COPY,
   WEEKLY_SCORE_SETTLEMENT_MS,
   WEEK_TIME_ZONE,
   getCurrentWeekRange,

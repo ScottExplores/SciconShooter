@@ -4760,9 +4760,10 @@ const definitions = deepFreeze([
     boss: gatekeeperBoss({
       id: 'sandbox-meridian-harrower',
       label: 'Meridian Harrower',
-      // Paywall Siege owns a real helmet component, allowing the authored
-      // aperture exposure to change mechanics as well as presentation.
+      // The intact campaign sprite is the body. Hull-only keeps the Paywall
+      // Siege helmet and pods from drawing over it.
       rigId: 'paywall-siege',
+      componentMode: 'hull-only',
       // The Boss Sandbox swaps this validated catalog placeholder for the
       // ignored local concept image only after the pure preview is built.
       spriteKey: 'CAMPAIGN_BOSS_TRIBUNAL_DREADNOUGHT',
@@ -5102,6 +5103,7 @@ const definitions = deepFreeze([
       id: 'sandbox-cinderjaw-siege-beetle',
       label: 'Cinderjaw Siege Beetle',
       rigId: 'paywall-siege',
+      componentMode: 'hull-only',
       spriteKey: 'CAMPAIGN_BOSS_SINGULARITY_CRAB',
       health: 5_800,
       shieldCount: 0,
@@ -5207,6 +5209,7 @@ const definitions = deepFreeze([
       id: 'sandbox-vesperglass-mothmother',
       label: 'Vesperglass Mothmother',
       rigId: 'open-orbit',
+      componentMode: 'hull-only',
       spriteKey: 'CAMPAIGN_BOSS_PRISM_MOTH',
       health: 5_000,
       shieldCount: 0,

@@ -119,7 +119,7 @@ const deterministicReply = (reason, mentionText = '') => {
   if (reason === 'competition_question') {
     return getPublicPrizeState().phase === 'weekly'
       ? 'The weekly board closes Sunday at noon Pacific. Put up a verified score before the cutoff: https://www.sciconshooter.xyz/'
-      : 'SciCon Big Event scoring closes Sunday, November 29, 2026 at 11:59 PM Pacific. Put up a verified score before then: https://www.sciconshooter.xyz/';
+      : '25K High Score closes Sunday, November 29, 2026 at 11:59 PM Pacific. Put up a verified score before then: https://www.sciconshooter.xyz/';
   }
   if (reason === 'score') {
     return 'Score received. Which ship did you use, and where did the run start getting ugly?';

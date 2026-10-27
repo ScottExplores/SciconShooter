@@ -577,7 +577,7 @@ const finalizeWeeklyCompetition = async (
       finalized: false,
       paused: true,
       weekKey,
-      reason: 'Weekly prize is paused for the SciCon Big Event.'
+      reason: 'Weekly prize is paused for the 25K High Score.'
     };
   }
 
