@@ -182,7 +182,8 @@ import {
   getWeeklyBoundaryMeta,
   getWeeklyPresentationMeta,
   resolveWeeklyDashboardPublication,
-  getPublicPrizeState
+  getPublicPrizeState,
+  SCICON_EVENT_CHOICE_COPY
 } from './shared/weeklyCompetitionBoundary.browser';
 import {
   CAMPAIGN_MISSIONS,
@@ -1049,6 +1050,17 @@ const App: React.FC = () => {
   const [weeklyProposalSelectionStatus, setWeeklyProposalSelectionStatus] = useState<ProposalSelectionStatus>('idle');
   const [weeklyProposalSelectionMessage, setWeeklyProposalSelectionMessage] = useState('');
   const [weeklyProposalSelectionMode, setWeeklyProposalSelectionMode] = useState<'required' | 'recovery'>('recovery');
+  const prizePreviewRequest = useMemo(() => {
+    if (typeof window === 'undefined') return null;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('prize-preview') !== '1') return null;
+    return {
+      tab: params.get('prize-tab') === 'proposals' ? 'proposals' as const : 'rfps' as const
+    };
+  }, []);
+  const [prizePreviewOpen, setPrizePreviewOpen] = useState(Boolean(prizePreviewRequest));
+  const [prizePreviewStatus, setPrizePreviewStatus] = useState<'idle' | 'confirmed'>('idle');
+  const [prizePreviewMessage, setPrizePreviewMessage] = useState('');
   const [weeklyGuestProposalCapabilities, setWeeklyGuestProposalCapabilities] = useState(
     readWeeklyGuestProposalCapabilities
   );
@@ -1656,7 +1668,7 @@ const App: React.FC = () => {
     const prize = getPublicPrizeState();
     const description = prize.phase === 'weekly'
       ? 'Play games. Fund science. Scicon Shooter is a DeSci-inspired, community-built Base arcade game where the finalized weekly winner can direct RSC funding credits toward an eligible science proposal.'
-      : 'Play games. Fund science. SciCon Big Event: one-time 25,000 RSC for the top score through November 29, 2026, toward a ResearchHub proposal of the winner\'s choice.';
+      : `Play games. Fund science. ${SCICON_EVENT_CHOICE_COPY}`;
     for (const selector of ['meta[name="description"]', 'meta[property="og:description"]', 'meta[name="twitter:description"]']) {
       document.querySelector(selector)?.setAttribute('content', description);
     }
@@ -7561,7 +7573,11 @@ const App: React.FC = () => {
       setWeeklyLeaderboardHydrated(true);
       settleWeeklyGuestProposalCapability(proposalRunId, 'resolved');
       setWeeklyProposalSelectionStatus('confirmed');
-      setWeeklyProposalSelectionMessage(`${proposal.title} is saved with your weekly-leading score.`);
+      setWeeklyProposalSelectionMessage(
+        proposal.fundingTargetKind === 'rfp'
+          ? SCICON_EVENT_CHOICE_COPY
+          : `${proposal.title} is saved with your weekly-leading score.`
+      );
       trackEvent('proposal_selected', {
         proposal_id: proposal.id,
         source: 'weekly_high_score'
@@ -8605,6 +8621,29 @@ const App: React.FC = () => {
             }}
             onRetry={() => void refreshFundingProposals()}
             onClose={closeWeeklyProposalSelection}
+          />
+        </React.Suspense>
+      ) : prizePreviewOpen && prizePreviewRequest ? (
+        <React.Suspense fallback={null}>
+          <WeeklyProposalSelection
+            pilotName="PILOT"
+            score={100000}
+            proposals={fundingProposals}
+            proposalStatus={proposalStatus}
+            selectionStatus={prizePreviewStatus}
+            selectionMessage={prizePreviewMessage}
+            initialTab={prizePreviewRequest.tab}
+            dismissible
+            onConfirm={(proposal) => {
+              setPrizePreviewStatus('confirmed');
+              setPrizePreviewMessage(
+                proposal.fundingTargetKind === 'rfp'
+                  ? `Preview only. Nothing was saved. ${SCICON_EVENT_CHOICE_COPY}`
+                  : `${proposal.title} is the preview pick. Nothing was saved.`
+              );
+            }}
+            onRetry={() => void refreshFundingProposals()}
+            onClose={() => setPrizePreviewOpen(false)}
           />
         </React.Suspense>
       ) : null}

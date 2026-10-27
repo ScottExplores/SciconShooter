@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const { fetchSupabaseJson, supabaseHeaders } = require('./_lib/supabase');
 const { findEligibleProposal } = require('./_lib/researchHubEligibility');
+const { findEligibleRfp } = require('./_lib/researchHubRfps');
 const { sendBaseNotificationBroadcast } = require('./_lib/baseNotifications');
 const { verifyBaseMessage } = require('./_lib/baseSignatures');
 const { checkRateLimit } = require('./_lib/rateLimit');
@@ -19,9 +20,11 @@ const CHALLENGE_LIFETIME_MS = 10 * 60 * 1000;
 const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const RESOLVED_COMPETITION_STATUSES = new Set(['claimed', 'funded']);
 
-const findCurrentWeekEligibleProposal = (proposalId) => findEligibleProposal(proposalId, {
-  requiredOpenUntil: getPublicPrizeState().proposalOpenUntil
-});
+const findCurrentWeekEligibleProposal = (proposalId, targetKind) => (
+  targetKind === 'rfp'
+    ? findEligibleRfp(proposalId, { requiredOpenUntil: getPublicPrizeState().proposalOpenUntil })
+    : findEligibleProposal(proposalId, { requiredOpenUntil: getPublicPrizeState().proposalOpenUntil })
+);
 
 const sendJson = (res, status, payload) => {
   res.statusCode = status;
@@ -133,7 +136,7 @@ const assertCompetitionIsClaimable = async (competition, wallet) => {
   }
 };
 
-const challengeMatchesClaim = ({ challenge, challengeId, competition, wallet, proposal }) => {
+const challengeMatchesClaim = ({ challenge, challengeId, competition, wallet, proposal, targetKind }) => {
   if (
     !challenge
     || String(challenge.challenge_id || '') !== String(challengeId || '')
@@ -142,6 +145,8 @@ const challengeMatchesClaim = ({ challenge, challengeId, competition, wallet, pr
   ) return false;
 
   const lines = String(challenge.message || '').split(/\r?\n/);
+  const expectsRfp = targetKind === 'rfp';
+  if (lines.includes('Target: rfp') !== expectsRfp) return false;
   return lines.includes(`Week: ${competition.week_key}`)
     && lines.includes(`Winning run: ${competition.winner_run_id}`)
     && lines.includes(`Wallet: ${wallet}`)
@@ -165,8 +170,8 @@ const hasDurablyConsumedChallenge = (challenge) => {
     && usedAt <= expiresAt;
 };
 
-const verifyClaimSignature = async ({ challenge, challengeId, competition, wallet, proposal, signature }) => {
-  if (!challengeMatchesClaim({ challenge, challengeId, competition, wallet, proposal })) {
+const verifyClaimSignature = async ({ challenge, challengeId, competition, wallet, proposal, signature, targetKind }) => {
+  if (!challengeMatchesClaim({ challenge, challengeId, competition, wallet, proposal, targetKind })) {
     throw apiError(
       'Champion challenge is invalid or expired.',
       410,
@@ -208,12 +213,13 @@ const consumeChallenge = async ({ challengeId, now }) => {
   return consumed[0];
 };
 
-const createChallenge = async ({ weekKey, proposalId, address }) => {
+const createChallenge = async ({ weekKey, proposalId, address, targetKind }) => {
   const wallet = normalizeAddress(address);
   if (!wallet) throw apiError('A valid Base wallet is required.', 400, 'WEEKLY_CLAIM_WALLET_INVALID');
   const competition = await getCompetition(weekKey);
   await assertCompetitionIsClaimable(competition, wallet);
-  const proposal = await findCurrentWeekEligibleProposal(proposalId);
+  const kind = targetKind === 'rfp' ? 'rfp' : 'proposal';
+  const proposal = await findCurrentWeekEligibleProposal(proposalId, kind);
   const challengeId = crypto.randomUUID();
   const expiresAt = new Date(Date.now() + CHALLENGE_LIFETIME_MS).toISOString();
   const message = [
@@ -222,9 +228,12 @@ const createChallenge = async ({ weekKey, proposalId, address }) => {
     `Winning run: ${competition.winner_run_id}`,
     `Wallet: ${wallet}`,
     `Proposal: ${proposal.id} - ${proposal.title}`,
+    ...(kind === 'rfp' ? ['Target: rfp'] : []),
     `Challenge: ${challengeId}`,
     `Expires: ${expiresAt}`, '',
-    'Signing selects this proposal. It does not send funds or mint yet.'
+    kind === 'rfp'
+      ? 'Signing logs this RFP pool. Scott funds it manually. It does not send funds or mint yet.'
+      : 'Signing selects this proposal. It does not send funds or mint yet.'
   ].join('\n');
   await fetchSupabaseJson(NONCES_TABLE, {
     method: 'POST',
@@ -270,7 +279,7 @@ const saveClaimedCompetition = async ({ competition, wallet, proposal, now }) =>
   }
 };
 
-const completeClaim = async ({ weekKey, proposalId, address, challengeId, signature }) => {
+const completeClaim = async ({ weekKey, proposalId, address, challengeId, signature, targetKind }) => {
   const wallet = normalizeAddress(address);
   if (!wallet || !challengeId || !signature) {
     throw apiError('Claim signature details are incomplete.', 400, 'WEEKLY_CLAIM_DETAILS_INCOMPLETE');
@@ -302,9 +311,13 @@ const completeClaim = async ({ weekKey, proposalId, address, challengeId, signat
       competition,
       wallet,
       proposal: storedProposal,
-      signature
+      signature,
+      targetKind
     });
-    return claimResultFromCompetition({ competition, wallet, challenge, replayed: true });
+    return {
+      ...claimResultFromCompetition({ competition, wallet, challenge, replayed: true }),
+      ...(targetKind === 'rfp' ? { manualFunding: true } : {})
+    };
   }
 
   await assertCompetitionIsClaimable(competition, wallet);
@@ -319,8 +332,9 @@ const completeClaim = async ({ weekKey, proposalId, address, challengeId, signat
       'WEEKLY_CLAIM_CHALLENGE_STALE'
     );
   }
-  const proposal = await findCurrentWeekEligibleProposal(proposalId);
-  await verifyClaimSignature({ challenge, challengeId, competition, wallet, proposal, signature });
+  const kind = targetKind === 'rfp' ? 'rfp' : 'proposal';
+  const proposal = await findCurrentWeekEligibleProposal(proposalId, kind);
+  await verifyClaimSignature({ challenge, challengeId, competition, wallet, proposal, signature, targetKind: kind });
 
   const now = new Date().toISOString();
   const consumedChallenge = await consumeChallenge({ challengeId, now });
@@ -374,17 +388,32 @@ const completeClaim = async ({ weekKey, proposalId, address, challengeId, signat
     );
   }
 
+  if (proposal.fundingTargetKind === 'rfp') {
+    console.info(JSON.stringify({
+      event: 'rfp_pool_pick_logged',
+      rfpId: proposal.id,
+      title: proposal.title,
+      url: proposal.url,
+      runId: competition.winner_run_id,
+      note: 'Scott funds this RFP pool manually. No automatic contribution was sent.'
+    }));
+  }
   await sendBaseNotificationBroadcast({
     title: 'Research pick selected',
-    message: `${competition.winner_name || 'The leader'} selected ${proposal.title} for the ${Number(competition.allocation_rsc || getPublicPrizeState().allocationRsc).toLocaleString('en-US')} RSC allocation.`,
+    message: proposal.fundingTargetKind === 'rfp'
+      ? `${competition.winner_name || 'The leader'} logged ${proposal.title}. Scott funds this RFP pool manually.`
+      : `${competition.winner_name || 'The leader'} selected ${proposal.title} for the ${Number(competition.allocation_rsc || getPublicPrizeState().allocationRsc).toLocaleString('en-US')} RSC allocation.`,
     targetPath: '/?view=trophies'
   }).catch((error) => console.error('Base proposal notification failed:', error));
-  return claimResultFromCompetition({
-    competition: committedCompetition,
-    wallet,
-    challenge: consumedChallenge,
-    replayed: false
-  });
+  return {
+    ...claimResultFromCompetition({
+      competition: committedCompetition,
+      wallet,
+      challenge: consumedChallenge,
+      replayed: false
+    }),
+    ...(proposal.fundingTargetKind === 'rfp' ? { manualFunding: true } : {})
+  };
 };
 
 module.exports = async (req, res) => {

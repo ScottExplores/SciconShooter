@@ -1,4 +1,4 @@
-const { getPublicPrizeState, WEEKLY_ALLOCATION_RSC } = require('../../shared/weeklyCompetitionBoundary.js');
+const { getPublicPrizeState, SCICON_EVENT_CHOICE_COPY, WEEKLY_ALLOCATION_RSC } = require('../../shared/weeklyCompetitionBoundary.js');
 
 const GAME_URL = 'https://www.sciconshooter.xyz/';
 const CAMPAIGN = 'evergreen-social-v1';
@@ -54,11 +54,11 @@ const VARIANTS = Object.freeze({
   funding: Object.freeze([
     getPublicPrizeState().phase === 'weekly'
       ? `Top the verified weekly board and choose an eligible ResearchHub proposal for the round's ${WEEKLY_ALLOCATION_RSC.toLocaleString('en-US')} RSC funding-credit allocation. Make the score useful.`
-      : 'SciCon Big Event: top the verified board by November 29, 2026 and choose a ResearchHub proposal for the one-time 25,000 RSC prize. Make the score useful.',
+      : 'SciCon Big Event scoring runs through November 29, 2026. Airborne Disease Resilience is the featured suggestion, and any open ResearchHub proposal or RFP can be chosen.',
     'Scicon Shooter is a DeSci-inspired arcade game community-built on Base: play games, compete, and help direct ResearchHub Funding Credits.',
     getPublicPrizeState().phase === 'weekly'
       ? 'A weekly high score can do more than sit on a leaderboard. The winner chooses an eligible proposal for that round\'s RSC funding-credit allocation.'
-      : 'The one-time SciCon Big Event awards 25,000 RSC to the top score through November 29, 2026, toward a ResearchHub proposal that stays open after November 30.',
+      : SCICON_EVENT_CHOICE_COPY,
     'The loop is strange on purpose: dodge bullets, top the verified board, choose eligible science for the round\'s Funding Credits.'
   ])
 });

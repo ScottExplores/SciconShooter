@@ -21,8 +21,23 @@ export const claimWeeklyChampionProposal = async ({
   address: Address;
   signMessage: (address: Address, message: string) => Promise<Hex>;
 }) => {
-  const challenge = await post({ action: 'challenge', weekKey, proposalId: proposal.id, address });
+  const targetKind = proposal.fundingTargetKind === 'rfp' ? 'rfp' : undefined;
+  const challenge = await post({
+    action: 'challenge',
+    weekKey,
+    proposalId: proposal.id,
+    address,
+    ...(targetKind ? { targetKind } : {})
+  });
   const signature = await signMessage(address, challenge.message);
-  const result = await post({ action: 'claim', weekKey, proposalId: proposal.id, address, challengeId: challenge.challengeId, signature });
+  const result = await post({
+    action: 'claim',
+    weekKey,
+    proposalId: proposal.id,
+    address,
+    challengeId: challenge.challengeId,
+    signature,
+    ...(targetKind ? { targetKind } : {})
+  });
   return result.claim;
 };

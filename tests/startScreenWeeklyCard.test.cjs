@@ -95,9 +95,24 @@ test('the live prize is one 25,000 RSC November event', () => {
 
   assert.match(boundarySource, /const WEEKLY_ALLOCATION_RSC = 1_000/);
   assert.match(boundarySource, /const SCICON_BIG_EVENT = Object\.freeze\(\{[\s\S]*allocationRsc: 25_000[\s\S]*closesAt: '2026-11-30T07:59:00\.000Z'[\s\S]*weeklyResumesWeekKey: '2026-12-06'/);
+  assert.match(boundarySource, /const SCICON_EVENT_CHOICE_COPY = 'The winner can choose the Airborne Disease Resilience RFP pool, a proposal under it, or any other open ResearchHub proposal or RFP\. Airborne Disease Resilience is the featured suggestion\. An RFP pool is logged for Scott to fund manually\.'/);
   assert.match(boundaryBrowserSource, /export const SCICON_BIG_EVENT = boundary\.SCICON_BIG_EVENT/);
+  assert.match(boundaryBrowserSource, /export const SCICON_EVENT_CHOICE_COPY = boundary\.SCICON_EVENT_CHOICE_COPY/);
   assert.match(source, /getPublicPrizeState/);
+  assert.match(source, /SCICON_EVENT_CHOICE_COPY/);
+  assert.match(source, /phase === 'big-event'/);
   assert.match(source, /winner announced Nov 30/);
+  assert.match(pickerSource, /SCICON_EVENT_CHOICE_COPY/);
+  assert.match(pickerSource, /33131/);
+  assert.match(pickerSource, /data-event-tab/);
+  assert.match(pickerSource, /data-featured/);
+  assert.doesNotMatch(source, /not an RFP/);
+  assert.doesNotMatch(pickerSource, /not an RFP/);
+  const leaderboardApiSource = fs.readFileSync(path.join(__dirname, '..', 'api', 'leaderboard.js'), 'utf8');
+  const claimSource = fs.readFileSync(path.join(__dirname, '..', 'api', 'weekly-claim.js'), 'utf8');
+  assert.match(leaderboardApiSource, /rfp_pool_pick_logged/);
+  assert.match(leaderboardApiSource, /Scott funds this RFP pool manually/);
+  assert.match(claimSource, /Scott funds this RFP pool manually/);
   assert.match(source, /Weekly Funding/);
   assert.match(source, /SciCon Big Event/);
   assert.match(competitionSource, /\|\| WEEKLY_ALLOCATION_RSC/);

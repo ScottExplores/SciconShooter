@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { ResearchHubProposal } from '../services/researchHubProposals';
 import { sortProposalsByFunding } from '../services/proposalFunding';
-import { getPublicPrizeState } from '../shared/weeklyCompetitionBoundary.browser';
+import { fetchEligibleRfps, type ResearchHubRfp } from '../services/researchHubRfps';
+import { getPublicPrizeState, SCICON_EVENT_CHOICE_COPY } from '../shared/weeklyCompetitionBoundary.browser';
 
 type ProposalFeedStatus = 'loading' | 'ready' | 'empty' | 'error';
 type ProposalSelectionStatus = 'idle' | 'saving' | 'confirmed' | 'error';
+type PickerTab = 'rfps' | 'proposals';
 
 interface WeeklyProposalSelectionProps {
   pilotName: string;
@@ -15,12 +17,51 @@ interface WeeklyProposalSelectionProps {
   selectionStatus: ProposalSelectionStatus;
   selectionMessage?: string;
   initialProposalId?: string | null;
+  initialTab?: PickerTab;
   dismissible?: boolean;
   onConfirm: (proposal: ResearchHubProposal) => void;
   onProposalChange?: () => void;
   onRetry: () => void;
   onClose?: () => void;
 }
+
+const FEATURED_RFP_ID = '33131';
+const FEATURED_RFP: ResearchHubRfp = {
+  id: FEATURED_RFP_ID,
+  poolId: '',
+  title: 'Airborne Disease Resilience',
+  url: 'https://www.researchhub.com/rfp/33131',
+  organization: 'ResearchHub Foundation',
+  status: 'OPEN',
+  endDate: '2029-12-31T00:00:00.000Z',
+  goalUsd: 10_000,
+  goalRsc: null,
+  raisedRsc: null,
+  description: null,
+  imageUrl: null
+};
+
+const pinFeaturedRfp = (rfps: ResearchHubRfp[]) => {
+  const featured = rfps.find((rfp) => rfp.id === FEATURED_RFP_ID) ?? FEATURED_RFP;
+  return [featured, ...rfps.filter((rfp) => rfp.id !== FEATURED_RFP_ID)];
+};
+
+const rfpAsChoice = (rfp: ResearchHubRfp): ResearchHubProposal => ({
+  id: rfp.id,
+  title: rfp.title,
+  author: rfp.organization,
+  organization: rfp.organization,
+  backers: 0,
+  votes: 0,
+  comments: 0,
+  url: rfp.url,
+  imageUrl: rfp.imageUrl || undefined,
+  endDate: rfp.endDate,
+  status: rfp.status,
+  requestedUsd: rfp.goalUsd ?? undefined,
+  raisedRsc: rfp.raisedRsc ?? undefined,
+  fundingTargetKind: 'rfp'
+});
 
 const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
   pilotName,
@@ -31,32 +72,58 @@ const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
   selectionStatus,
   selectionMessage = '',
   initialProposalId = null,
+  initialTab,
   dismissible = true,
   onConfirm,
   onProposalChange,
   onRetry,
   onClose
 }) => {
+  const bigEvent = getPublicPrizeState().phase !== 'weekly';
   const [query, setQuery] = useState('');
+  const [tab, setTab] = useState<PickerTab>(
+    bigEvent ? (initialTab === 'proposals' ? 'proposals' : 'rfps') : 'proposals'
+  );
   const [selectedProposalId, setSelectedProposalId] = useState(() => initialProposalId?.trim() ?? '');
+  const [selectedRfpId, setSelectedRfpId] = useState('');
+  const [rfps, setRfps] = useState<ResearchHubRfp[]>([FEATURED_RFP]);
+  const [rfpStatus, setRfpStatus] = useState<ProposalFeedStatus>('loading');
+  const [rfpRetry, setRfpRetry] = useState(0);
   const dialogRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const sortedProposals = useMemo(() => sortProposalsByFunding(proposals), [proposals]);
+  const sortedProposals = useMemo(() => {
+    const sorted = sortProposalsByFunding(proposals);
+    if (!bigEvent) return sorted;
+    const underFeatured = sorted.filter((proposal) => proposal.rfpPostId === FEATURED_RFP_ID);
+    const others = sorted.filter((proposal) => proposal.rfpPostId !== FEATURED_RFP_ID);
+    return [...underFeatured, ...others];
+  }, [bigEvent, proposals]);
   const selectedProposal = useMemo(
     () => sortedProposals.find((proposal) => proposal.id === selectedProposalId) ?? null,
     [selectedProposalId, sortedProposals]
   );
+  const normalizedQuery = query.trim().toLowerCase();
   const filteredProposals = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
     if (!normalizedQuery) return sortedProposals;
     return sortedProposals.filter((proposal) => (
       proposal.title.toLowerCase().includes(normalizedQuery)
       || proposal.author.toLowerCase().includes(normalizedQuery)
       || proposal.organization?.toLowerCase().includes(normalizedQuery)
     ));
-  }, [query, sortedProposals]);
+  }, [normalizedQuery, sortedProposals]);
+  const filteredRfps = useMemo(() => {
+    if (!normalizedQuery) return rfps;
+    return rfps.filter((rfp) => (
+      rfp.title.toLowerCase().includes(normalizedQuery)
+      || rfp.organization.toLowerCase().includes(normalizedQuery)
+      || (rfp.description || '').toLowerCase().includes(normalizedQuery)
+    ));
+  }, [normalizedQuery, rfps]);
+  const selectedRfp = rfps.find((rfp) => rfp.id === selectedRfpId) ?? null;
+  const activeChoice = bigEvent && tab === 'rfps'
+    ? (selectedRfp ? rfpAsChoice(selectedRfp) : null)
+    : selectedProposal;
   const isSaving = selectionStatus === 'saving';
-  const bigEvent = getPublicPrizeState().phase !== 'weekly';
 
   useEffect(() => {
     const previousFocus = document.activeElement instanceof HTMLElement
@@ -65,6 +132,26 @@ const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
     searchInputRef.current?.focus();
     return () => previousFocus?.focus();
   }, []);
+
+  useEffect(() => {
+    if (!bigEvent) return undefined;
+    let cancelled = false;
+    setRfpStatus('loading');
+    fetchEligibleRfps()
+      .then((loaded) => {
+        if (cancelled) return;
+        setRfps(pinFeaturedRfp(loaded));
+        setRfpStatus('ready');
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setRfps([FEATURED_RFP]);
+        setRfpStatus('ready');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [bigEvent, rfpRetry]);
 
   const handleDialogKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.key === 'Escape') {
@@ -122,20 +209,20 @@ const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
           </p>
           <p id="weekly-proposal-selection-description" className="relative mx-auto mt-2 max-w-sm text-[11px] font-semibold leading-relaxed text-slate-300">
             {bigEvent
-              ? `Choose the ResearchHub proposal that receives the ${allocationRsc.toLocaleString('en-US')} RSC prize if your score is first when scoring closes. It must be a proposal, not an RFP.`
+              ? SCICON_EVENT_CHOICE_COPY
               : `Choose the ResearchHub proposal that receives the ${allocationRsc.toLocaleString('en-US')} RSC allocation if your score remains first at the weekly cutoff.`}
           </p>
-          <p className="relative mx-auto mt-1 max-w-sm font-mono text-[9px] font-bold uppercase tracking-[0.08em] text-cyan-200/70">
-            {bigEvent
-              ? 'Only proposals whose funding deadline is after November 30, 2026 are eligible.'
-              : 'Only proposals open past Sunday\'s noon-Pacific cutoff are eligible.'}
-          </p>
+          {bigEvent ? null : (
+            <p className="relative mx-auto mt-1 max-w-sm font-mono text-[9px] font-bold uppercase tracking-[0.08em] text-cyan-200/70">
+              Only proposals open past Sunday&apos;s noon-Pacific cutoff are eligible.
+            </p>
+          )}
           {dismissible && onClose ? (
             <button
               type="button"
               onClick={onClose}
               disabled={isSaving}
-              aria-label="Choose proposal later"
+              aria-label="Choose research later"
               className="absolute right-3 top-3 h-8 w-8 rounded-[5px] border border-white/15 bg-black/35 text-base font-bold text-slate-300 transition hover:border-white/35 hover:text-white disabled:cursor-wait disabled:opacity-45"
             >
               x
@@ -150,51 +237,61 @@ const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
         </div>
 
         <div className="relative flex min-h-0 flex-1 flex-col p-3 sm:p-4">
-          <label className="sr-only" htmlFor="weekly-proposal-search">Search eligible proposals</label>
+          {bigEvent ? (
+            <div className="mb-3 grid grid-cols-2 gap-2" role="tablist" aria-label="Research choice">
+              {(['rfps', 'proposals'] as const).map((id) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  data-event-tab={id}
+                  aria-selected={tab === id}
+                  onClick={() => {
+                    setTab(id);
+                    setQuery('');
+                  }}
+                  className={`min-h-10 rounded-[6px] border px-2 text-[10px] font-black uppercase tracking-[0.14em] ${tab === id
+                    ? 'border-yellow-200/70 bg-yellow-300/15 text-yellow-50'
+                    : 'border-cyan-200/20 bg-slate-950/70 text-slate-300'}`}
+                >
+                  {id === 'rfps' ? 'RFPs' : 'Proposals'}
+                </button>
+              ))}
+            </div>
+          ) : null}
+          <label className="sr-only" htmlFor="weekly-proposal-search">
+            {bigEvent && tab === 'rfps' ? 'Search eligible RFPs' : 'Search eligible proposals'}
+          </label>
           <input
             ref={searchInputRef}
             id="weekly-proposal-search"
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search proposal, researcher, or topic"
+            placeholder={bigEvent && tab === 'rfps' ? 'Search RFP or organization' : 'Search proposal, researcher, or topic'}
             className="h-11 w-full rounded-[6px] border border-cyan-200/25 bg-slate-950/85 px-3 text-sm font-semibold text-white outline-none placeholder:text-slate-500 focus:border-yellow-200/60"
           />
 
           <div className="mt-3 min-h-0 flex-1 overflow-y-auto pr-1">
-            {proposalStatus === 'loading' ? (
-              <div className="space-y-2" aria-label="Loading eligible proposals">
-                {[0, 1, 2].map((index) => <div key={index} className="h-20 animate-pulse rounded-[6px] bg-white/[0.04]" />)}
-              </div>
-            ) : null}
-
-            {proposalStatus === 'error' || proposalStatus === 'empty' ? (
-              <div className="rounded-[6px] border border-red-200/25 bg-red-400/10 p-4 text-center">
-                <p className="text-sm font-bold text-red-100">
-                  {proposalStatus === 'error' ? 'Eligible proposals could not be loaded.' : 'No eligible proposals are open right now.'}
-                </p>
-                <button type="button" onClick={onRetry} className="mt-3 min-h-10 rounded-[6px] border border-white/25 bg-white/10 px-4 text-[10px] font-black uppercase tracking-[0.14em] text-white">
-                  Try again
-                </button>
-              </div>
-            ) : null}
-
-            {proposalStatus === 'ready' && filteredProposals.length === 0 ? (
-              <p className="py-8 text-center text-sm font-semibold text-slate-400">No proposals match that search.</p>
-            ) : null}
-
-            {proposalStatus === 'ready' ? (
-              <div className="space-y-2">
-                {filteredProposals.map((proposal) => {
-                  const selected = selectedProposal?.id === proposal.id;
+            {bigEvent && tab === 'rfps' ? (
+              <div className="space-y-2" data-picker-tab="rfps">
+                {rfpStatus === 'loading' ? (
+                  <p className="font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-slate-400">Loading open RFPs</p>
+                ) : null}
+                {filteredRfps.length === 0 ? (
+                  <p className="py-8 text-center text-sm font-semibold text-slate-400">No RFPs match that search.</p>
+                ) : filteredRfps.map((rfp) => {
+                  const selected = selectedRfp?.id === rfp.id;
+                  const featured = rfp.id === FEATURED_RFP_ID;
                   return (
                     <button
-                      key={proposal.id}
+                      key={rfp.id}
                       type="button"
                       disabled={isSaving || selectionStatus === 'confirmed'}
                       aria-pressed={selected}
+                      data-featured={featured ? 'true' : 'false'}
                       onClick={() => {
-                        setSelectedProposalId(proposal.id);
+                        setSelectedRfpId(rfp.id);
                         onProposalChange?.();
                       }}
                       className={`grid w-full grid-cols-[3.5rem_minmax(0,1fr)] items-center gap-3 rounded-[6px] border p-2 text-left transition ${selected
@@ -202,27 +299,95 @@ const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
                         : 'border-cyan-200/15 bg-cyan-300/[0.04] hover:border-cyan-200/40 hover:bg-cyan-300/10'}`}
                     >
                       <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-[5px] border border-white/15 bg-slate-900">
-                        {proposal.imageUrl ? (
-                          <img src={proposal.imageUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
+                        {rfp.imageUrl ? (
+                          <img src={rfp.imageUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
                         ) : (
                           <span className="arcade-font text-lg font-black text-cyan-200">R</span>
                         )}
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-start justify-between gap-2">
-                          <h3 className="line-clamp-2 text-xs font-black leading-snug text-white">{proposal.title}</h3>
+                          <h3 className="line-clamp-2 text-xs font-black leading-snug text-white">{rfp.title}</h3>
                           <span className={`mt-0.5 h-4 w-4 shrink-0 rounded-full border ${selected ? 'border-yellow-100 bg-yellow-300 shadow-[0_0_12px_rgba(250,204,21,0.55)]' : 'border-slate-500'}`} />
                         </div>
-                        <p className="mt-1 truncate text-[10px] font-semibold text-cyan-100/75">{proposal.author}</p>
-                        <p className="mt-1 font-mono text-[8px] font-black uppercase tracking-[0.1em] text-slate-400">
-                          {proposal.votes.toLocaleString()} votes · {proposal.backers.toLocaleString()} backers
-                        </p>
+                        {featured ? (
+                          <p className="mt-1 font-mono text-[8px] font-black uppercase tracking-[0.12em] text-yellow-200">Featured suggestion</p>
+                        ) : null}
+                        <p className="mt-1 truncate text-[10px] font-semibold text-cyan-100/75">{rfp.organization}</p>
                       </div>
                     </button>
                   );
                 })}
               </div>
-            ) : null}
+            ) : (
+              <>
+                {proposalStatus === 'loading' ? (
+                  <div className="space-y-2" aria-label="Loading eligible proposals">
+                    {[0, 1, 2].map((index) => <div key={index} className="h-20 animate-pulse rounded-[6px] bg-white/[0.04]" />)}
+                  </div>
+                ) : null}
+
+                {proposalStatus === 'error' || proposalStatus === 'empty' ? (
+                  <div className="rounded-[6px] border border-red-200/25 bg-red-400/10 p-4 text-center">
+                    <p className="text-sm font-bold text-red-100">
+                      {proposalStatus === 'error' ? 'Eligible proposals could not be loaded.' : 'No eligible proposals are open right now.'}
+                    </p>
+                    <button type="button" onClick={onRetry} className="mt-3 min-h-10 rounded-[6px] border border-white/25 bg-white/10 px-4 text-[10px] font-black uppercase tracking-[0.14em] text-white">
+                      Try again
+                    </button>
+                  </div>
+                ) : null}
+
+                {proposalStatus === 'ready' && filteredProposals.length === 0 ? (
+                  <p className="py-8 text-center text-sm font-semibold text-slate-400">No proposals match that search.</p>
+                ) : null}
+
+                {proposalStatus === 'ready' ? (
+                  <div className="space-y-2" data-picker-tab="proposals">
+                    {filteredProposals.map((proposal) => {
+                      const selected = selectedProposal?.id === proposal.id;
+                      const underFeatured = proposal.rfpPostId === FEATURED_RFP_ID;
+                      return (
+                        <button
+                          key={proposal.id}
+                          type="button"
+                          disabled={isSaving || selectionStatus === 'confirmed'}
+                          aria-pressed={selected}
+                          onClick={() => {
+                            setSelectedProposalId(proposal.id);
+                            onProposalChange?.();
+                          }}
+                          className={`grid w-full grid-cols-[3.5rem_minmax(0,1fr)] items-center gap-3 rounded-[6px] border p-2 text-left transition ${selected
+                            ? 'border-yellow-200/70 bg-yellow-300/15 shadow-[0_0_18px_rgba(250,204,21,0.18)]'
+                            : 'border-cyan-200/15 bg-cyan-300/[0.04] hover:border-cyan-200/40 hover:bg-cyan-300/10'}`}
+                        >
+                          <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-[5px] border border-white/15 bg-slate-900">
+                            {proposal.imageUrl ? (
+                              <img src={proposal.imageUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
+                            ) : (
+                              <span className="arcade-font text-lg font-black text-cyan-200">R</span>
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-start justify-between gap-2">
+                              <h3 className="line-clamp-2 text-xs font-black leading-snug text-white">{proposal.title}</h3>
+                              <span className={`mt-0.5 h-4 w-4 shrink-0 rounded-full border ${selected ? 'border-yellow-100 bg-yellow-300 shadow-[0_0_12px_rgba(250,204,21,0.55)]' : 'border-slate-500'}`} />
+                            </div>
+                            {underFeatured ? (
+                              <p className="mt-1 font-mono text-[8px] font-black uppercase tracking-[0.12em] text-yellow-200">Under Airborne Disease Resilience</p>
+                            ) : null}
+                            <p className="mt-1 truncate text-[10px] font-semibold text-cyan-100/75">{proposal.author}</p>
+                            <p className="mt-1 font-mono text-[8px] font-black uppercase tracking-[0.1em] text-slate-400">
+                              {proposal.votes.toLocaleString()} votes · {proposal.backers.toLocaleString()} backers
+                            </p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : null}
+              </>
+            )}
           </div>
 
           <div className="mt-3 border-t border-cyan-200/15 pt-3">
@@ -237,28 +402,32 @@ const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
                 aria-live="polite"
               >
                 <p>{selectionMessage}</p>
-                {selectionStatus === 'error' && selectedProposal ? (
+                {selectionStatus === 'error' && activeChoice ? (
                   <p className="mt-1 text-[9px] font-semibold text-slate-300">
-                    Your proposal is still selected. Tap retry below.
+                    Your pick is still selected. Tap retry below.
                   </p>
                 ) : null}
               </div>
             ) : null}
             <button
               type="button"
-              disabled={!selectedProposal || isSaving || selectionStatus === 'confirmed'}
-              onClick={() => selectedProposal && onConfirm(selectedProposal)}
+              disabled={!activeChoice || isSaving || selectionStatus === 'confirmed'}
+              onClick={() => activeChoice && onConfirm(activeChoice)}
               className="min-h-12 w-full rounded-[6px] border border-yellow-100/40 bg-yellow-300/20 px-4 text-xs font-black uppercase tracking-[0.15em] text-yellow-50 shadow-[0_0_18px_rgba(250,204,21,0.18)] transition hover:bg-yellow-300/30 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/5 disabled:text-slate-500 disabled:shadow-none"
             >
               {selectionStatus === 'confirmed'
-                ? 'Proposal saved'
+                ? (activeChoice?.fundingTargetKind === 'rfp' ? 'RFP logged' : 'Proposal saved')
                 : isSaving
-                  ? 'Saving weekly pick...'
-                  : selectionStatus === 'error' && selectedProposal
-                    ? 'Retry saving proposal'
-                  : selectedProposal
-                    ? `Confirm ${allocationRsc.toLocaleString('en-US')} RSC proposal`
-                    : 'Select a proposal'}
+                  ? 'Saving your pick...'
+                  : selectionStatus === 'error' && activeChoice
+                    ? 'Retry saving pick'
+                    : activeChoice?.fundingTargetKind === 'rfp'
+                      ? 'Confirm this RFP pool'
+                      : activeChoice
+                        ? `Confirm ${allocationRsc.toLocaleString('en-US')} RSC proposal`
+                        : bigEvent && tab === 'rfps'
+                          ? 'Select an RFP'
+                          : 'Select a proposal'}
             </button>
           </div>
         </div>

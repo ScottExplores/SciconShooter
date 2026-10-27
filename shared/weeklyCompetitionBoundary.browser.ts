@@ -46,6 +46,7 @@ interface WeeklyCompetitionBoundary {
     winnerAnnouncedLabel: string;
     weeklyResumesWeekKey: string;
   };
+  SCICON_EVENT_CHOICE_COPY: string;
   WEEKLY_SCORE_SETTLEMENT_MS: number;
   getPublicPrizeState: (now?: Date | string | number) => PublicPrizeState;
   getWeeklyBoundaryMeta: (
@@ -76,4 +77,5 @@ export const getWeeklyPresentationMeta = boundary.getWeeklyPresentationMeta;
 export const resolveWeeklyDashboardPublication = boundary.resolveWeeklyDashboardPublication;
 export const WEEKLY_ALLOCATION_RSC = boundary.WEEKLY_ALLOCATION_RSC;
 export const SCICON_BIG_EVENT = boundary.SCICON_BIG_EVENT;
+export const SCICON_EVENT_CHOICE_COPY = boundary.SCICON_EVENT_CHOICE_COPY;
 export const WEEKLY_SCORE_SETTLEMENT_MS = boundary.WEEKLY_SCORE_SETTLEMENT_MS;

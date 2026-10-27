@@ -1,4 +1,4 @@
-const { getPublicPrizeState, WEEKLY_ALLOCATION_RSC } = require('../../shared/weeklyCompetitionBoundary.js');
+const { getPublicPrizeState, SCICON_EVENT_CHOICE_COPY, WEEKLY_ALLOCATION_RSC } = require('../../shared/weeklyCompetitionBoundary.js');
 
 const OFFICIAL_URLS = new Set([
   'https://www.sciconshooter.xyz/',
@@ -114,7 +114,7 @@ const deterministicReply = (reason, mentionText = '') => {
     if (prize.phase === 'weekly') {
       return `The weekly top verified score chooses an eligible ResearchHub proposal for that round's ${WEEKLY_ALLOCATION_RSC.toLocaleString('en-US')} RSC Funding Credits. What part should we unpack?`;
     }
-    return `SciCon Big Event awards ${prize.allocationRsc.toLocaleString('en-US')} RSC Funding Credits to the top score through November 29, 2026. The proposal must stay open after November 30. What part should we unpack?`;
+    return SCICON_EVENT_CHOICE_COPY;
   }
   if (reason === 'competition_question') {
     return getPublicPrizeState().phase === 'weekly'

@@ -7,6 +7,7 @@ const RUN_RECEIPTS_TABLE = process.env.SUPABASE_RUN_RECEIPTS_TABLE || 'scicon_ru
 const WEEKLY_PROPOSAL_CHALLENGE_STALE_CODE = 'WEEKLY_PROPOSAL_CHALLENGE_STALE';
 const { verifyRunReceipt } = require('./_lib/runReceipts');
 const { findEligibleProposal } = require('./_lib/researchHubEligibility');
+const { findEligibleRfp } = require('./_lib/researchHubRfps');
 const { verifyBaseMessage } = require('./_lib/baseSignatures');
 const {
   clearWalletProfileSessionCookie,
@@ -416,7 +417,8 @@ const createProposalSelectionChallenge = async (
   receipt,
   proposalId,
   requestedAddress,
-  authenticatedWalletAddress = null
+  authenticatedWalletAddress = null,
+  targetKind = null
 ) => {
   const normalizedProposalId = String(proposalId || '').trim();
   if (!/^\d{1,20}$/.test(normalizedProposalId)) {
@@ -447,7 +449,8 @@ const createProposalSelectionChallenge = async (
     proposalId: normalizedProposalId,
     wallet,
     challengeId,
-    expiresAt
+    expiresAt,
+    targetKind
   });
   const response = await fetch(supabaseUrl(NONCES_TABLE), {
     method: 'POST',
@@ -472,7 +475,8 @@ const requireWalletProposalAuthorization = async ({
   receipt,
   proposalId,
   authorization,
-  authenticatedWalletAddress = null
+  authenticatedWalletAddress = null,
+  targetKind = null
 }) => {
   const leaderWallet = normalizeAddress(leader.walletAddress);
   if (!leaderWallet) return;
@@ -505,7 +509,8 @@ const requireWalletProposalAuthorization = async ({
     proposalId: String(proposalId),
     wallet,
     challengeId,
-    expiresAt: canonicalExpiresAt
+    expiresAt: canonicalExpiresAt,
+    targetKind
   }) : '';
   if (
     !challenge
@@ -553,7 +558,8 @@ const selectProposalForWeeklyLeader = async (
   receipt,
   proposalId,
   authorization = {},
-  authenticatedWalletAddress = null
+  authenticatedWalletAddress = null,
+  targetKind = null
 ) => {
   const { currentLeader, currentScores } = await getVerifiedWeeklyLeaderForReceipt(receipt);
 
@@ -566,7 +572,8 @@ const selectProposalForWeeklyLeader = async (
       receipt,
       proposalId: currentLeader.proposalId,
       authorization,
-      authenticatedWalletAddress
+      authenticatedWalletAddress,
+      targetKind
     });
     return { ...toLeaderboardPayload(currentScores), selectedProposal: {
       id: currentLeader.proposalId,
@@ -577,9 +584,13 @@ const selectProposalForWeeklyLeader = async (
     } };
   }
 
-  const proposal = await findEligibleProposal(proposalId, {
-    requiredOpenUntil: getPublicPrizeState().proposalOpenUntil
-  });
+  const proposal = targetKind === 'rfp'
+    ? await findEligibleRfp(proposalId, {
+      requiredOpenUntil: getPublicPrizeState().proposalOpenUntil
+    })
+    : await findEligibleProposal(proposalId, {
+      requiredOpenUntil: getPublicPrizeState().proposalOpenUntil
+    });
 
   // Eligibility lookup is remote and can take long enough for the weekly lead
   // to change. Re-check the server-owned leaderboard immediately before the
@@ -598,7 +609,8 @@ const selectProposalForWeeklyLeader = async (
     receipt,
     proposalId: proposal.id,
     authorization,
-    authenticatedWalletAddress
+    authenticatedWalletAddress,
+    targetKind
   });
 
   const previousProposal = {
@@ -676,7 +688,21 @@ const selectProposalForWeeklyLeader = async (
       code: 'WEEKLY_LEADER_CHANGED'
     });
   }
-  return { ...updatedPayload, selectedProposal: proposal };
+  if (proposal.fundingTargetKind === 'rfp') {
+    console.info(JSON.stringify({
+      event: 'rfp_pool_pick_logged',
+      rfpId: proposal.id,
+      title: proposal.title,
+      url: proposal.url,
+      runId: receipt.runId,
+      note: 'Scott funds this RFP pool manually. No automatic contribution was sent.'
+    }));
+  }
+  return {
+    ...updatedPayload,
+    selectedProposal: proposal,
+    ...(proposal.fundingTargetKind === 'rfp' ? { manualFunding: true } : {})
+  };
 };
 
 const normalizeAddress = (value) => {
@@ -695,19 +721,27 @@ const requestNonceRows = async (query) => {
   return response.json();
 };
 
-const buildProposalChallengeMessage = ({ receipt, proposalId, wallet, challengeId, expiresAt }) => [
-  'Scicon Shooter weekly proposal selection',
-  '',
-  `Run: ${receipt.runId}`,
-  `Score: ${receipt.metrics.score}`,
-  `Wave: ${receipt.metrics.wave}`,
-  `Wallet: ${wallet}`,
-  `Proposal: ${proposalId}`,
-  `Challenge: ${challengeId}`,
-  `Expires: ${expiresAt}`,
-  '',
-  'Signing authorizes this proposal choice. It does not send funds or mint.'
-].join('\n');
+const buildProposalChallengeMessage = ({ receipt, proposalId, wallet, challengeId, expiresAt, targetKind }) => {
+  const lines = [
+    'Scicon Shooter weekly proposal selection',
+    '',
+    `Run: ${receipt.runId}`,
+    `Score: ${receipt.metrics.score}`,
+    `Wave: ${receipt.metrics.wave}`,
+    `Wallet: ${wallet}`,
+    `Proposal: ${proposalId}`
+  ];
+  if (targetKind === 'rfp') lines.push('Target: rfp');
+  lines.push(
+    `Challenge: ${challengeId}`,
+    `Expires: ${expiresAt}`,
+    '',
+    targetKind === 'rfp'
+      ? 'Signing logs this RFP pool. Scott funds it manually. It does not send funds or mint.'
+      : 'Signing authorizes this proposal choice. It does not send funds or mint.'
+  );
+  return lines.join('\n');
+};
 
 const readScores = async () => {
   if (hasSupabaseConfig()) {
@@ -832,7 +866,8 @@ module.exports = async (req, res) => {
           receipt,
           body.proposalId,
           body.address,
-          proposalSession?.walletAddress
+          proposalSession?.walletAddress,
+          body.targetKind
         );
         return sendJson(res, 200, { challenge });
       }
@@ -842,7 +877,7 @@ module.exports = async (req, res) => {
           address: body.address,
           challengeId: body.challengeId,
           signature: body.signature
-        }, proposalSession?.walletAddress);
+        }, proposalSession?.walletAddress, body.targetKind);
         return sendJson(res, 200, result);
       }
 

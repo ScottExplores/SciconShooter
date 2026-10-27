@@ -26,6 +26,8 @@ export interface ResearchHubProposal {
   status?: string;
   endDate?: string;
   url: string;
+  fundingTargetKind?: 'proposal' | 'rfp';
+  rfpPostId?: string;
 }
 
 export interface ResearchHubProposalFeedOptions {
@@ -167,7 +169,8 @@ const normalizeProposal = (entry: RawRecord): ResearchHubProposal | null => {
     imageUrl: validImageUrl(content.image_url) ?? validImageUrl(firstGrant?.image) ?? validImageUrl(authorProfile?.profile_image),
     status: asString(fundraise?.status),
     endDate,
-    url: slug ? `https://www.researchhub.com/post/${id}/${slug}` : RESEARCHHUB_FUND_URL
+    url: slug ? `https://www.researchhub.com/post/${id}/${slug}` : RESEARCHHUB_FUND_URL,
+    rfpPostId: firstGrant?.post_id == null ? undefined : String(firstGrant.post_id)
   };
 };
 

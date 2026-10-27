@@ -1125,6 +1125,15 @@
   white-space: nowrap;
 }
 
+.sci-weekly-run-entry[data-event='true'] .sci-weekly-run-entry__sub {
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.28;
+  text-transform: none;
+  white-space: normal;
+}
+
 .sci-weekly-run-entry__action {
   position: relative;
   z-index: 1;

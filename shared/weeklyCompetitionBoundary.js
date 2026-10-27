@@ -15,6 +15,7 @@ const SCICON_BIG_EVENT = Object.freeze({
   winnerAnnouncedLabel: 'Nov 30',
   weeklyResumesWeekKey: '2026-12-06'
 });
+const SCICON_EVENT_CHOICE_COPY = 'The winner can choose the Airborne Disease Resilience RFP pool, a proposal under it, or any other open ResearchHub proposal or RFP. Airborne Disease Resilience is the featured suggestion. An RFP pool is logged for Scott to fund manually.';
 // A score receipt can finish before cutoff while its verified leaderboard write
 // is still in flight. Keep the public rollover behind this short settlement
 // window so the new board and the archived Past Pick can publish together.
@@ -288,6 +289,7 @@ return {
   WEEK_BOUNDARY_HOUR,
   WEEKLY_ALLOCATION_RSC,
   SCICON_BIG_EVENT,
+  SCICON_EVENT_CHOICE_COPY,
   WEEKLY_SCORE_SETTLEMENT_MS,
   WEEK_TIME_ZONE,
   getCurrentWeekRange,
