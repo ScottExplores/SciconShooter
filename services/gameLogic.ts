@@ -40,6 +40,7 @@ import {
   sampleSerialQuietBeat,
   serialQuietBeatHorizontalSpan
 } from './gameplay/serialQuietBeatMotion';
+import { clampFloatingLabelCenter } from './floatingLabelLayout';
 import {
   DEFAULT_GAME_CAMPAIGN,
   cloneGameCampaign,
@@ -23625,7 +23626,8 @@ export class GameEngine {
   spawnFloatingText(x: number, y: number, text: string, color: string, fontSize: number = 32) {
     const missionBanner = isMissionBannerText(text);
     if (!missionBanner && this.liveEffectCount >= this.getEffectCap()) return;
-    const effect = new VisualEffect(x, y, 'text', text, color, fontSize);
+    const visualCenterX = clampFloatingLabelCenter(x + 15, text, fontSize, this.width);
+    const effect = new VisualEffect(visualCenterX - 15, y, 'text', text, color, fontSize);
     if (missionBanner) {
       effect.life = 240;
       effect.maxLife = 240;

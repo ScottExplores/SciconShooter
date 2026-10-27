@@ -163,7 +163,7 @@
 .sci-mission-loader__progress > img {
   position: absolute;
   inset: 0;
-  z-index: 3;
+  z-index: 2;
   width: 100%;
   height: 100%;
   object-fit: fill;
@@ -173,7 +173,7 @@
 
 .sci-mission-loader__progress-track {
   position: absolute;
-  z-index: 2;
+  z-index: 4;
   top: 38%;
   right: 4.8%;
   bottom: 35%;

@@ -219,16 +219,27 @@
   letter-spacing: 0.01em;
 }
 
+.sci-event-loader__percent {
+  margin: 0.35rem 0.4rem 0;
+  color: #d8ffff;
+  font-family: Orbitron, ui-monospace, monospace;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-align: right;
+  text-shadow: 0 0 10px rgba(34, 223, 255, 0.65);
+}
+
 .sci-event-loader__progress {
   position: relative;
   height: 3.15rem;
-  margin-top: 0.35rem;
+  margin-top: 0.15rem;
 }
 
 .sci-event-loader__progress > img {
   position: absolute;
   inset: 0;
-  z-index: 3;
+  z-index: 2;
   width: 100%;
   height: 100%;
   object-fit: fill;
@@ -238,7 +249,7 @@
 
 .sci-event-loader__progress-track {
   position: absolute;
-  z-index: 2;
+  z-index: 4;
   top: 38%;
   right: 4.8%;
   bottom: 35%;
@@ -250,8 +261,10 @@
 
 .sci-event-loader__progress-fill {
   height: 100%;
+  min-width: 0;
   background: linear-gradient(90deg, #0877bb, #13dfff 72%, #d8ffff);
   box-shadow: 0 0 10px #22dfff;
+  transition: width 180ms ease-out;
 }
 
 .sci-event-loader__progress-sheen {

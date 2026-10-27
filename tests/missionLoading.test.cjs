@@ -110,12 +110,15 @@ test('mission launch reserves and validates one token before wallet authorizatio
 
 test('loading presentation uses generated Scicon art and an accessible real progress bar', () => {
   const component = fs.readFileSync(path.join(root, 'components', 'MissionLoadingScreen.tsx'), 'utf8');
+  const art = fs.readFileSync(path.join(root, 'services', 'eventLoadingArt.ts'), 'utf8');
   const styles = fs.readFileSync(path.join(root, 'components', 'mission-loading-screen.css'), 'utf8');
   const document = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 
-  assert.match(component, /scicon-mission-loading-v1\/loading-background\.png/);
-  assert.match(component, /scicon-mission-loading-v1\/loading-emblem\.png/);
-  assert.match(component, /scicon-mission-loading-v1\/loading-bar-frame\.png/);
+  assert.match(art, /scicon-mission-loading-v1\/loading-background\.png/);
+  assert.match(art, /scicon-mission-loading-v1\/loading-emblem\.png/);
+  assert.match(art, /scicon-mission-loading-v1\/loading-bar-frame\.png/);
+  assert.match(component, /EVENT_LOADING_BACKGROUND/);
+  assert.match(component, /src=\{LOADING_BACKGROUND\}/);
   assert.match(component, /role="progressbar"/);
   assert.match(component, /aria-valuenow=\{safeProgress\}/);
   assert.match(component, /Loading only the systems needed for play/);

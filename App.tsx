@@ -117,6 +117,10 @@ import {
   preloadStartupAssets,
   type StartupPreloadSnapshot
 } from './services/startupPreload';
+import {
+  EVENT_LOADING_ART_EXTRA_WAIT_MS,
+  preloadEventLoadingArt
+} from './services/eventLoadingArt';
 import PauseMenu from './components/PauseMenu';
 import GameOverPresentation from './components/GameOverPresentation';
 import PixelActionButton from './components/PixelActionButton';
@@ -743,6 +747,7 @@ const App: React.FC = () => {
   const [startupLoading, setStartupLoading] = useState<StartupPreloadSnapshot | null>(
     getStartupPreloadSnapshot
   );
+  const [eventSplashReady, setEventSplashReady] = useState(false);
   const [startupLoadingTip] = useState(getRandomMissionLoadingTip);
   const [missionLoading, setMissionLoading] = useState<MissionLoadingState | null>(null);
   const [onboardingRestartNonce, setOnboardingRestartNonce] = useState(0);
@@ -1703,6 +1708,12 @@ const App: React.FC = () => {
     const startedAt = Date.now();
 
     const finishStartup = async () => {
+      const eventActive = getPublicPrizeState().phase === 'big-event';
+      let revealSplash = eventActive;
+      const splashPromise = eventActive ? preloadEventLoadingArt() : Promise.resolve(false);
+      void splashPromise.then((ready) => {
+        if (!cancelled && ready && revealSplash) setEventSplashReady(true);
+      });
       const result = await preloadStartupAssets({
         selectedShipId: startupShipIdRef.current,
         onProgress: (snapshot) => {
@@ -1719,6 +1730,17 @@ const App: React.FC = () => {
         });
       }
       if (cancelled) return;
+      if (eventActive) {
+        const splashReady = await Promise.race([
+          splashPromise,
+          new Promise<boolean>((resolve) => {
+            window.setTimeout(() => resolve(false), EVENT_LOADING_ART_EXTRA_WAIT_MS);
+          })
+        ]);
+        if (!splashReady) revealSplash = false;
+        else if (!cancelled) setEventSplashReady(true);
+      }
+      if (cancelled) return;
 
       setStartupLoading((current) => ({
         ...(current ?? getStartupPreloadSnapshot()),
@@ -1730,6 +1752,11 @@ const App: React.FC = () => {
         window.setTimeout(resolve, STARTUP_LOADING_READY_HOLD_MS);
       });
       if (!cancelled) setStartupLoading(null);
+      if (eventActive) {
+        void splashPromise.then((ready) => {
+          if (ready) setEventSplashReady(true);
+        });
+      }
     };
 
     void finishStartup();
@@ -7861,14 +7888,14 @@ const App: React.FC = () => {
       {startupLoading || walletIdentityHydrating ? (
         <MissionLoadingScreen
           context="startup"
-          presentation={eventLoadingScreen ? 'event' : 'standard'}
+          presentation={eventLoadingScreen && eventSplashReady ? 'event' : 'standard'}
           progress={startupLoading?.progress ?? 96}
           phase={startupLoading?.phase ?? 'runtime-sync'}
           tip={startupLoadingTip}
         />
       ) : missionLoading ? (
         <MissionLoadingScreen
-          presentation={eventLoadingScreen ? 'event' : 'standard'}
+          presentation={eventLoadingScreen && eventSplashReady ? 'event' : 'standard'}
           progress={missionLoading.progress}
           phase={missionLoading.phase}
           tip={missionLoading.tip}

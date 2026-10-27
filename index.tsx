@@ -6,8 +6,14 @@ import DesktopMobileLaunchShell from './components/DesktopMobileLaunchShell';
 import AppErrorBoundary from './components/AppErrorBoundary';
 import { AppProviders } from './providers';
 import { recoverFromModulePreloadFailure } from './services/deploymentUpdateService';
+import { preloadEventLoadingArt } from './services/eventLoadingArt';
 import { isBossLabDevKey, isBossLabQueryEnabled } from './services/gameplay/bossLabFlag.mjs';
 import { installPlayerReportMonitoring } from './services/playerReportService';
+import { getPublicPrizeState } from './shared/weeklyCompetitionBoundary.browser';
+
+if (getPublicPrizeState().phase === 'big-event') {
+  void preloadEventLoadingArt();
+}
 
 const combatLabRequested = import.meta.env.DEV && new URLSearchParams(window.location.search).get('lab') === 'combat';
 if (!combatLabRequested) installPlayerReportMonitoring();

@@ -16,6 +16,33 @@
     <link rel="apple-touch-icon" href="/icon.png" />
     <link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/fonts/orbitron-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <script>
+      (function () {
+        var startsAt = Date.parse('2026-10-26T07:00:00.000Z');
+        var closesAt = Date.parse('2026-11-30T07:59:00.000Z');
+        var now = Date.now();
+        if (!(now >= startsAt && now < closesAt)) return;
+        var urls = [
+          '/game-art/generated/ui/scicon-mission-loading-v1/loading-emblem.png',
+          '/game-art/generated/ui/scicon-mission-loading-v1/loading-bar-frame.png',
+          '/game-art/generated/bosses/campaign-packages/umbra-needlewing/assembled.png',
+          '/game-art/branding/researchhub-ship.png',
+          '/game-art/branding/bio-ship.png',
+          '/game-art/branding/nih-ship.png',
+          '/game-art/branding/eth-ship.png',
+          '/game-art/generated/scicon-flight-motion-pack-v1/ships/btc-token-ship/frames/btc-token-ship-03-neutral.png',
+          '/game-art/generated/ui/scicon-mission-loading-v1/loading-background.png'
+        ];
+        for (var i = 0; i < urls.length; i += 1) {
+          var link = document.createElement('link');
+          link.rel = 'preload';
+          link.as = 'image';
+          link.href = urls[i];
+          link.setAttribute('fetchpriority', 'high');
+          document.head.appendChild(link);
+        }
+      })();
+    </script>
     <link rel="preload" href="/game-art/generated/ui/scicon-mission-loading-v1/loading-emblem.png" as="image" fetchpriority="high" />
     <link rel="preload" href="/game-art/generated/ui/scicon-mission-loading-v1/loading-background.png" as="image" fetchpriority="high" />
     <link rel="preload" href="/game-art/generated/ui/scicon-mission-loading-v1/loading-bar-frame.png" as="image" />
