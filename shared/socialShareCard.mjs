@@ -6,8 +6,8 @@ export const SHARE_EVENT_CLOSE = '2026-11-30T07:59:00.000Z';
 const ORIGIN = 'https://sciconshooter.xyz';
 const EVENT_FILE = 'scicon-share-25k.png';
 const BASE_FILE = 'scicon-share.png';
-const EVENT_VERSION = 'rh-nih-btc-25k';
-const BASE_VERSION = 'rh-nih-btc';
+const EVENT_VERSION = 'gen2-25k';
+const BASE_VERSION = 'gen2';
 
 export const SHARE_CARD_EVENT_ALT = 'Scicon Shooter: Play games. Fund science. The ResearchHub ship, the NIH ship, and the Bitcoin ship during the 25K RSC high score event, ending Nov 29.';
 export const SHARE_CARD_BASE_ALT = 'Scicon Shooter: Play games. Fund science. The ResearchHub ship, the NIH ship, and the Bitcoin ship in a neon pixel-art arena.';
