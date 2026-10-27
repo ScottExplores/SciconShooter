@@ -16,6 +16,7 @@ const {
   settleWeeklyRunAttempt
 } = require('./weeklyRunAttempts');
 const { readGuestIdentity } = require('./guestIdentity');
+const { isFounderWalletAddress } = require('./founderWallet');
 const {
   CURRENT_RECEIPT_PROVENANCE_VERSION,
   requireTrustedReceiptProvenance
@@ -309,6 +310,9 @@ const createRunStart = (
     ? createWeeklyCampaignStreakRunBinding(weeklyCampaignProof, { now: issuedAt })
     : null;
   const identity = createRunIdentityBinding({ profileId, guestIdentityId, walletSession });
+  // A connected founder wallet is a sandbox even when the client omits testRun.
+  // The signed receipt then fails leaderboard admission and prize finalization.
+  const founderRun = isFounderWalletAddress(walletSession?.walletAddress);
   const generatedWeeklyRun = weeklyCampaignBinding?.startNodeId?.startsWith('weekly-run-');
   if (generatedWeeklyRun && !weeklyAttemptReservation) {
     const error = new Error('Weekly Run starts require a server attempt reservation.');
@@ -367,7 +371,7 @@ const createRunStart = (
         attemptNumber: weeklyAttemptReservation.attemptNumber
       }
     } : {}),
-    testRun: Boolean(testRun),
+    testRun: Boolean(testRun) || founderRun,
     issuedAt,
     expiresAt: issuedAt + MAX_RUN_DURATION_MS
   };

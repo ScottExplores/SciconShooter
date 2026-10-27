@@ -605,8 +605,9 @@ test('finalization preserves a wallet-associated guest proposal as claimable and
   process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-key';
 
   const pilotTestScore = {
-    name: 'Pilot Test', score: 9999, wave: 9, date: '2020-02-03T12:00:00.000Z',
-    wallet_address: '0x3a8d692aabdd4981080a8f6af8375a21359464bf', run_id: null, verified: false
+    name: 'Pilot Test', score: 999999, wave: 60, date: '2020-02-03T12:00:00.000Z',
+    wallet_address: '0x3A8D692Aabdd4981080a8F6af8375a21359464Bf',
+    run_id: 'founder-sandbox-run', verified: true, receipt_hash: 'founder-sandbox-hash'
   };
   const winner = {
     name: 'Proposal Pilot', score: 7654, wave: 6, date: '2020-02-04T12:00:00.000Z',

@@ -33,11 +33,9 @@ const STABLE_WINNER_MAX_ATTEMPTS = 3;
 const RECENT_COMPETITION_BACKFILL_WEEKS = 3;
 const CLAIM_WINDOW_MS = 72 * 60 * 60 * 1000;
 const TERMINAL_WEEKLY_COMPETITION_STATUSES = new Set(['finalized', 'claimed', 'funded', 'expired']);
+const { founderWalletAddress } = require('./founderWallet');
 const LEADER_PROPOSAL_SELECT = 'name,score,wave,date,wallet_address,run_id,verified,receipt_hash,proposal_id,proposal_title,proposal_url,proposal_author';
 const LEADER_PROPOSAL_IMAGE_SELECT = `${LEADER_PROPOSAL_SELECT},proposal_image_url`;
-const PILOT_TEST_WALLET = String(
-  process.env.PILOT_TEST_WALLET || '0x3a8d692aabdd4981080a8f6af8375a21359464bf'
-).toLowerCase();
 
 const weeklyProposalSnapshotPrefix = (weekKey) => (
   `${WEEKLY_PROPOSAL_CACHE_PREFIX}${weekKey}:snapshot:`
@@ -117,7 +115,7 @@ const readTopEligibleScore = async (weekKey) => {
   if (!Array.isArray(rows)) return null;
 
   const candidates = rows.filter((row) => (
-    String(row?.wallet_address || '').toLowerCase() !== PILOT_TEST_WALLET
+    String(row?.wallet_address || '').toLowerCase() !== founderWalletAddress()
     && Boolean(row?.run_id)
     && row?.verified === true
   ));

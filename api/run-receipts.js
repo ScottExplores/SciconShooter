@@ -10,6 +10,7 @@ const {
   normalizeWalletAddress,
   readOptionalWalletProfileSession
 } = require('./_lib/walletProfileAuth');
+const { isFounderWalletAddress } = require('./_lib/founderWallet');
 
 const sendJson = (res, status, payload) => {
   res.statusCode = status;
@@ -98,16 +99,11 @@ module.exports = async (req, res) => {
           });
         }
       }
-      if (body.testRun) {
-        const pilotTestWallet = normalizeWalletAddress(
-          process.env.PILOT_TEST_WALLET || '0x3a8d692aabdd4981080a8f6af8375a21359464bf'
-        );
-        if (!walletSession || requestedWalletAddress !== pilotTestWallet) {
-          throw Object.assign(new Error('Pilot Test runs require the authorized project Base Account.'), {
-            statusCode: 403,
-            code: 'PILOT_TEST_RUN_FORBIDDEN'
-          });
-        }
+      if (body.testRun && !isFounderWalletAddress(requestedWalletAddress)) {
+        throw Object.assign(new Error('Pilot Test runs require the authorized project Base Account.'), {
+          statusCode: 403,
+          code: 'PILOT_TEST_RUN_FORBIDDEN'
+        });
       }
       // A null wallet intent is authoritative guest intent. Deliberately
       // ignore any retained wallet cookie so disconnecting never attributes a

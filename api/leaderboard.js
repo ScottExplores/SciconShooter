@@ -6,6 +6,7 @@ const NONCES_TABLE = process.env.SUPABASE_WALLET_NONCES_TABLE || 'scicon_wallet_
 const RUN_RECEIPTS_TABLE = process.env.SUPABASE_RUN_RECEIPTS_TABLE || 'scicon_run_receipts';
 const WEEKLY_PROPOSAL_CHALLENGE_STALE_CODE = 'WEEKLY_PROPOSAL_CHALLENGE_STALE';
 const { verifyRunReceipt } = require('./_lib/runReceipts');
+const { isFounderWalletAddress } = require('./_lib/founderWallet');
 const { findEligibleProposal } = require('./_lib/researchHubEligibility');
 const { findEligibleRfp } = require('./_lib/researchHubRfps');
 const { verifyBaseMessage } = require('./_lib/baseSignatures');
@@ -856,8 +857,14 @@ module.exports = async (req, res) => {
         return sendJson(res, 401, { error: 'A valid run receipt is required', details: error.message });
       }
 
-      if (receipt.testRun) {
-        return sendJson(res, 403, { error: 'Pilot Test runs are not eligible for leaderboards.' });
+      const receiptWallet = receipt.identity?.kind === 'wallet'
+        ? receipt.identity.walletAddress
+        : '';
+      if (receipt.testRun || isFounderWalletAddress(receiptWallet)) {
+        return sendJson(res, 403, {
+          error: 'Pilot Test runs are not eligible for leaderboards.',
+          code: 'PILOT_TEST_RUN_FORBIDDEN'
+        });
       }
 
       if (receipt.runMode !== 'weekly-streak') {
