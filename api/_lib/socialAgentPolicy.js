@@ -1,4 +1,4 @@
-const { getPublicPrizeState, SCICON_EVENT_CHOICE_COPY, WEEKLY_ALLOCATION_RSC } = require('../../shared/weeklyCompetitionBoundary.js');
+const { getPublicPrizeState, SCICON_EVENT_CHOICE_COPY } = require('../../shared/weeklyCompetitionBoundary.js');
 
 const OFFICIAL_URLS = new Set([
   'https://www.sciconshooter.xyz/',
@@ -112,7 +112,7 @@ const deterministicReply = (reason, mentionText = '') => {
   if (reason === 'funding_question') {
     const prize = getPublicPrizeState();
     if (prize.phase === 'weekly') {
-      return `The weekly top verified score chooses an eligible ResearchHub proposal for that round's ${WEEKLY_ALLOCATION_RSC.toLocaleString('en-US')} RSC Funding Credits. What part should we unpack?`;
+      return `The weekly top verified score chooses an eligible ResearchHub proposal for that round's ${prize.allocationRsc.toLocaleString('en-US')} RSC Funding Credits. What part should we unpack?`;
     }
     return SCICON_EVENT_CHOICE_COPY;
   }

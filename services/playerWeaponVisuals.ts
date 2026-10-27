@@ -211,15 +211,20 @@ export const getPlayerWeaponVisualFamily = (weaponKind: string): PlayerWeaponVis
   return 'research';
 };
 
-/** Research primary sheets are painted tip-down. Flip them so the tip leads. */
-export const researchPrimaryArtPointsDown = (family: PlayerWeaponVisualFamily) => family === 'research';
+/**
+ * Research primary sheets are painted tip-up. The flight rotation already
+ * sends that tip along velocity, so they must not be mirrored.
+ */
+export const researchPrimaryArtPointsDown = (_family: PlayerWeaponVisualFamily) => false;
 
 /**
- * Spark and charged signature frames point left. The bolt tier already points
- * right, which is the direction the shared quarter-turn sends upward.
+ * Bolt frames are painted nose-left. Spark and charged frames, including
+ * /research-spark/ and /research-charge/, are painted nose-right. The shared
+ * quarter-turn sends a right-facing nose upward and a left-facing nose back
+ * at the player, so only the bolt tier is mirrored.
  */
 export const researchChargeArtPointsLeft = (frameUrl: string) => (
-  frameUrl.includes('/research-spark/') || frameUrl.includes('/research-charge/')
+  frameUrl.includes('/research-bolt/')
 );
 
 export const getPlayerShipWeaponVisualFamily = (shipId: string): PlayerWeaponVisualFamily => {

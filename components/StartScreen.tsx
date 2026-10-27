@@ -35,7 +35,6 @@ import {
   getWeeklyPresentationMeta,
   SCICON_EVENT_CHOICE_COPY,
   SCICON_EVENT_PAUSE_COPY,
-  WEEKLY_ALLOCATION_RSC
 } from '../shared/weeklyCompetitionBoundary.browser';
 import { buildMissionRecordCardPath } from '../shared/record-card/renderRecordCardSvg.mjs';
 import {
@@ -480,7 +479,7 @@ const getWeeklyAllocationMeta = (now = new Date()) => {
   return {
     phase: 'weekly' as const,
     ...weekly,
-    allocationRsc: WEEKLY_ALLOCATION_RSC,
+    allocationRsc: prize.allocationRsc,
     closed: false,
     snapshotFrozen: false,
     countdownLabel: weekly.isFinalizing

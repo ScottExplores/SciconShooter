@@ -18,6 +18,7 @@ const {
   getPublicPrizeState,
   SCICON_BIG_EVENT,
   WEEKLY_ALLOCATION_RSC,
+  resolveWeeklyAllocationRsc,
   WEEKLY_SCORE_SETTLEMENT_MS
 } = require('../shared/weeklyCompetitionBoundary.js');
 
@@ -31,8 +32,12 @@ const cutoffSnapshotRows = (weekKey, results) => [{
   }
 }];
 
-test('the current weekly funding allocation is 1,000 RSC', () => {
-  assert.equal(WEEKLY_ALLOCATION_RSC, 1_000);
+test('weekly prizes from 2026-12-06 onward are 100 RSC', () => {
+  assert.equal(WEEKLY_ALLOCATION_RSC, 100);
+  assert.equal(resolveWeeklyAllocationRsc('2026-12-06'), 100);
+  assert.equal(resolveWeeklyAllocationRsc('2026-12-13'), 100);
+  assert.equal(resolveWeeklyAllocationRsc('2026-11-29'), 1_000);
+  assert.equal(resolveWeeklyAllocationRsc('2020-01-05'), 1_000);
 });
 
 test('SciCon Big Event pauses the weekly prize and resumes the next Sunday noon after Nov 30', () => {
@@ -61,7 +66,11 @@ test('SciCon Big Event pauses the weekly prize and resumes the next Sunday noon 
   assert.equal(justBeforeResume.phase, 'big-event-closed');
   const resumed = getPublicPrizeState(new Date('2026-12-06T20:00:00.000Z'));
   assert.equal(resumed.phase, 'weekly');
-  assert.equal(resumed.allocationRsc, 1_000);
+  assert.equal(resumed.allocationRsc, 100);
+
+  const beforeEvent = getPublicPrizeState(new Date('2026-10-01T20:00:00.000Z'));
+  assert.equal(beforeEvent.phase, 'weekly');
+  assert.equal(beforeEvent.allocationRsc, 1_000);
 });
 
 test('weekly competition resets Sunday at noon Pacific', () => {
@@ -518,6 +527,55 @@ test('finalization locks the top eligible score for a closed week', async (conte
     new Date(result.competition.claim_deadline).getTime() - new Date(result.competition.finalized_at).getTime(),
     72 * 60 * 60 * 1000
   );
+});
+
+test('weeks from 2026-12-06 pay 100 RSC and a recorded allocation stays put', async (context) => {
+  const originalFetch = global.fetch;
+  const originalUrl = process.env.SUPABASE_URL;
+  const originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const originalAllocation = process.env.WEEKLY_ALLOCATION_RSC;
+  process.env.SUPABASE_URL = 'https://example.supabase.co';
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-key';
+  delete process.env.WEEKLY_ALLOCATION_RSC;
+
+  let existingRow = null;
+  global.fetch = async (url, options = {}) => {
+    const requestUrl = String(url);
+    if (requestUrl.includes('scicon_weekly_competitions') && options.method !== 'POST' && options.method !== 'PATCH') {
+      return new Response(JSON.stringify(existingRow ? [existingRow] : []), { status: 200 });
+    }
+    if (requestUrl.includes('scicon_leaderboard') || requestUrl.includes('scicon_proposal_cache')) {
+      return new Response('[]', { status: 200 });
+    }
+    const saved = JSON.parse(options.body);
+    return new Response(JSON.stringify([saved]), { status: 200 });
+  };
+
+  context.after(() => {
+    global.fetch = originalFetch;
+    if (originalUrl === undefined) delete process.env.SUPABASE_URL;
+    else process.env.SUPABASE_URL = originalUrl;
+    if (originalKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    else process.env.SUPABASE_SERVICE_ROLE_KEY = originalKey;
+    if (originalAllocation === undefined) delete process.env.WEEKLY_ALLOCATION_RSC;
+    else process.env.WEEKLY_ALLOCATION_RSC = originalAllocation;
+  });
+
+  const fresh = await finalizeWeeklyCompetition('2026-12-06', {
+    observedAt: shortlyAfterCutoff('2026-12-06')
+  });
+  assert.equal(fresh.competition.allocation_rsc, 100);
+
+  existingRow = {
+    week_key: '2026-12-06',
+    status: 'open',
+    allocation_rsc: 1_000,
+    updated_at: '2026-12-13T20:00:00.000Z'
+  };
+  const preserved = await finalizeWeeklyCompetition('2026-12-06', {
+    observedAt: shortlyAfterCutoff('2026-12-06')
+  });
+  assert.equal(preserved.competition.allocation_rsc, 1_000);
 });
 
 test('finalization re-resolves the proposal when the weekly leader changes during cutoff lookup', async (context) => {

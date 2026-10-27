@@ -93,11 +93,11 @@ test('the live prize is one 25,000 RSC November event', () => {
   const fundingFlowSource = fs.readFileSync(path.join(__dirname, '..', 'services', 'weeklyFundingFlow.ts'), 'utf8');
   const pickerSource = fs.readFileSync(path.join(__dirname, '..', 'components', 'WeeklyProposalSelection.tsx'), 'utf8');
 
-  assert.match(boundarySource, /const WEEKLY_ALLOCATION_RSC = 1_000/);
+  assert.match(boundarySource, /const WEEKLY_ALLOCATION_RSC = 100/);
   assert.match(boundarySource, /const SCICON_BIG_EVENT = Object\.freeze\(\{[\s\S]*allocationRsc: 25_000[\s\S]*closesAt: '2026-11-30T07:59:00\.000Z'[\s\S]*weeklyResumesWeekKey: '2026-12-06'/);
   assert.match(boundarySource, /name: '25K High Score'/);
   assert.match(boundarySource, /const SCICON_EVENT_CHOICE_COPY = 'The winner picks the Airborne Disease Resilience RFP pool, a proposal under it, or any open ResearchHub proposal or RFP\.'/);
-  assert.match(boundarySource, /const SCICON_EVENT_PAUSE_COPY = 'Weekly prizes are paused during the event and return after Nov 30\.'/);
+  assert.match(boundarySource, /const SCICON_EVENT_PAUSE_COPY = 'Weekly prizes return Dec 6 at 100 RSC\.'/);
   assert.match(boundaryBrowserSource, /export const SCICON_BIG_EVENT = boundary\.SCICON_BIG_EVENT/);
   assert.match(boundaryBrowserSource, /export const SCICON_EVENT_CHOICE_COPY = boundary\.SCICON_EVENT_CHOICE_COPY/);
   assert.match(boundaryBrowserSource, /export const SCICON_EVENT_PAUSE_COPY = boundary\.SCICON_EVENT_PAUSE_COPY/);
@@ -146,7 +146,9 @@ test('the live prize is one 25,000 RSC November event', () => {
     source.indexOf('const renderWeeklyFundingCard')
   );
   assert.match(eventEntry, /\{eventCard \? null : \(/);
-  assert.match(competitionSource, /\|\| WEEKLY_ALLOCATION_RSC/);
+  assert.match(competitionSource, /\|\| resolveWeeklyAllocationRsc\(weekKey\)/);
+  assert.match(source, /allocationRsc: prize\.allocationRsc/);
+  assert.doesNotMatch(source, /1,000 RSC|1000 RSC/);
   assert.match(fundingFlowSource, /allocationRsc: getPublicPrizeState\(\)\.allocationRsc/);
   assert.match(pickerSource, /allocationRsc = getPublicPrizeState\(\)\.allocationRsc/);
 });

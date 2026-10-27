@@ -13,7 +13,7 @@ const {
   getPreviousWeekKey,
   getWeekRange,
   weekOverlapsBigEventPause,
-  WEEKLY_ALLOCATION_RSC,
+  resolveWeeklyAllocationRsc,
   WEEKLY_SCORE_SETTLEMENT_MS
 } = require('../../shared/weeklyCompetitionBoundary.js');
 
@@ -199,7 +199,7 @@ const buildCompetitionRow = ({
     : new Date(safeFinalizedAt.getTime() + CLAIM_WINDOW_MS);
   const allocationRsc = Number(existing?.allocation_rsc)
     || Number(process.env.WEEKLY_ALLOCATION_RSC)
-    || WEEKLY_ALLOCATION_RSC;
+    || resolveWeeklyAllocationRsc(weekKey);
 
   return {
     week_key: weekKey,
@@ -232,7 +232,7 @@ const buildExpiredCompetitionRow = ({ weekKey, start, end, existing, observedAt 
   const now = observedAt || new Date();
   const allocationRsc = Number(existing?.allocation_rsc)
     || Number(process.env.WEEKLY_ALLOCATION_RSC)
-    || WEEKLY_ALLOCATION_RSC;
+    || resolveWeeklyAllocationRsc(weekKey);
   return {
     week_key: weekKey,
     starts_at: start.toISOString(),

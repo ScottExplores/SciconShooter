@@ -79,6 +79,10 @@ test('Pixi preloads and animates all ship ability sprite sequences', () => {
   assert.match(renderer, /view\.root\.rotation = -Math\.PI \/ 2/);
   assert.match(renderer, /researchChargeArtPointsLeft\(textureKey\)/);
   assert.match(renderer, /researchPrimaryArtPointsDown\(shotFamily\)/);
+  const weaponVisuals = read('services/playerWeaponVisuals.ts');
+  assert.match(weaponVisuals, /researchChargeArtPointsLeft = \(frameUrl: string\) => \(\s*frameUrl\.includes\('\/research-bolt\/'\)\s*\)/);
+  assert.doesNotMatch(weaponVisuals, /research-spark\/'\) \|\| frameUrl\.includes\('\/research-charge\/'\)/);
+  assert.match(weaponVisuals, /researchPrimaryArtPointsDown = \(_family: PlayerWeaponVisualFamily\) => false/);
   assert.match(renderer, /view\.sprite\.scale\.y = -Math\.abs\(view\.sprite\.scale\.y\)/);
   assert.match(read('services/playerWeaponVisuals.ts'), /research-spark/);
   assert.match(read('services/playerWeaponVisuals.ts'), /research-charge/);

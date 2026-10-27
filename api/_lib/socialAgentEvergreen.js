@@ -1,4 +1,4 @@
-const { getPublicPrizeState, SCICON_EVENT_CHOICE_COPY, WEEKLY_ALLOCATION_RSC } = require('../../shared/weeklyCompetitionBoundary.js');
+const { getPublicPrizeState, SCICON_EVENT_CHOICE_COPY } = require('../../shared/weeklyCompetitionBoundary.js');
 
 const GAME_URL = 'https://www.sciconshooter.xyz/';
 const CAMPAIGN = 'evergreen-social-v1';
@@ -53,7 +53,7 @@ const VARIANTS = Object.freeze({
   ]),
   funding: Object.freeze([
     getPublicPrizeState().phase === 'weekly'
-      ? `Top the verified weekly board and choose an eligible ResearchHub proposal for the round's ${WEEKLY_ALLOCATION_RSC.toLocaleString('en-US')} RSC funding-credit allocation. Make the score useful.`
+      ? `Top the verified weekly board and choose an eligible ResearchHub proposal for the round's ${getPublicPrizeState().allocationRsc.toLocaleString('en-US')} RSC funding-credit allocation. Make the score useful.`
       : '25K High Score runs through November 29, 2026. The winner picks the Airborne Disease Resilience RFP pool, a proposal under it, or any open ResearchHub proposal or RFP.',
     'Scicon Shooter is a DeSci-inspired arcade game community-built on Base: play games, compete, and help direct ResearchHub Funding Credits.',
     getPublicPrizeState().phase === 'weekly'

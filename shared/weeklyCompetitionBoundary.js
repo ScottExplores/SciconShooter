@@ -1,9 +1,12 @@
 const createWeeklyCompetitionBoundary = () => {
 const WEEK_TIME_ZONE = 'America/Los_Angeles';
 const WEEK_BOUNDARY_HOUR = 12;
-// One source of truth for every current-week funding claim. Historical
+// Live weekly prize from the 2026-12-06 resume week onward. Historical
 // competition rows keep their recorded allocation instead of being rewritten.
-const WEEKLY_ALLOCATION_RSC = 1_000;
+const WEEKLY_ALLOCATION_RSC = 100;
+// Weeks before the resume date that are finalized without a stored amount
+// keep the allocation those seasons actually used.
+const PRIOR_WEEKLY_ALLOCATION_RSC = 1_000;
 // One-time prize window. Weekly scoring stays in the code and turns back on
 // at weeklyResumesWeekKey (the first Sunday-noon Pacific week after Nov 30).
 const SCICON_BIG_EVENT = Object.freeze({
@@ -16,7 +19,7 @@ const SCICON_BIG_EVENT = Object.freeze({
   weeklyResumesWeekKey: '2026-12-06'
 });
 const SCICON_EVENT_CHOICE_COPY = 'The winner picks the Airborne Disease Resilience RFP pool, a proposal under it, or any open ResearchHub proposal or RFP.';
-const SCICON_EVENT_PAUSE_COPY = 'Weekly prizes are paused during the event and return after Nov 30.';
+const SCICON_EVENT_PAUSE_COPY = 'Weekly prizes return Dec 6 at 100 RSC.';
 // A score receipt can finish before cutoff while its verified leaderboard write
 // is still in flight. Keep the public rollover behind this short settlement
 // window so the new board and the archived Past Pick can publish together.
@@ -219,6 +222,12 @@ const resolveWeeklyDashboardPublication = (completedWeekKeys = [], now = new Dat
   };
 };
 
+const resolveWeeklyAllocationRsc = (weekKey) => (
+  typeof weekKey === 'string' && weekKey >= SCICON_BIG_EVENT.weeklyResumesWeekKey
+    ? WEEKLY_ALLOCATION_RSC
+    : PRIOR_WEEKLY_ALLOCATION_RSC
+);
+
 const getPublicPrizeState = (now = new Date()) => {
   const instant = toDate(now);
   const startsAt = new Date(SCICON_BIG_EVENT.startsAt);
@@ -238,7 +247,7 @@ const getPublicPrizeState = (now = new Date()) => {
   return {
     phase,
     name: SCICON_BIG_EVENT.name,
-    allocationRsc: eventBoard ? SCICON_BIG_EVENT.allocationRsc : WEEKLY_ALLOCATION_RSC,
+    allocationRsc: eventBoard ? SCICON_BIG_EVENT.allocationRsc : resolveWeeklyAllocationRsc(week.weekKey),
     startsAt,
     closesAt,
     weeklyResumesAt,
@@ -289,6 +298,8 @@ const getWeeklyBoundaryMeta = (now = new Date(), locale) => {
 return {
   WEEK_BOUNDARY_HOUR,
   WEEKLY_ALLOCATION_RSC,
+  PRIOR_WEEKLY_ALLOCATION_RSC,
+  resolveWeeklyAllocationRsc,
   SCICON_BIG_EVENT,
   SCICON_EVENT_CHOICE_COPY,
   SCICON_EVENT_PAUSE_COPY,
