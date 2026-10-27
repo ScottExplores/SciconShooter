@@ -7,7 +7,7 @@ import path from 'node:path';
 const require = createRequire(import.meta.url);
 const leaderboardHandler = require('./api/leaderboard.js');
 const researchHubProposalsHandler = require('./api/researchhub-proposals.js');
-const researchHubRfpsHandler = require('./api/researchhub-rfps.js');
+const { handleResearchHubRfpRequest } = require('./api/_lib/researchHubRfps.js');
 const runReceiptsHandler = require('./api/run-receipts.js');
 const weeklyCompetitionsHandler = require('./api/weekly-competitions.js');
 const eventsHandler = require('./api/events.js');
@@ -127,7 +127,7 @@ const localApiRoutes = () => ({
       return researchHubProposalsHandler(req, res);
     });
     mount('/api/researchhub-rfps', async (req, res) => {
-      return researchHubRfpsHandler(req, res);
+      return handleResearchHubRfpRequest(req, res);
     });
     mount('/api/run-receipts', async (req, res) => {
       if (useRemotePersistence) return proxyPublicApi('/api/run-receipts', req, res);

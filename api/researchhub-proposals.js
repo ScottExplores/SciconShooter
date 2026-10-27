@@ -8,6 +8,7 @@ const MAX_PROPOSALS = 100;
 const MAX_REFERENCED_PROPOSALS = 1;
 const CUTOFF_SNAPSHOT_CAPTURE_WINDOW_MS = 61 * 60 * 1000;
 const { fetchSupabaseJson, hasSupabaseConfig, supabaseHeaders } = require('./_lib/supabase');
+const { handleResearchHubRfpRequest } = require('./_lib/researchHubRfps');
 const { getCurrentWeekRange } = require('../shared/weeklyCompetitionBoundary.js');
 const PROPOSAL_CACHE_TABLE = process.env.SUPABASE_PROPOSAL_CACHE_TABLE || 'scicon_proposal_cache';
 const PROPOSAL_CACHE_KEY = 'researchhub-open-preregistrations';
@@ -238,6 +239,10 @@ const readProposalCache = async () => {
 };
 
 module.exports = async (req, res) => {
+  if (req.query?.feed === 'rfps') {
+    return handleResearchHubRfpRequest(req, res);
+  }
+
   if (req.method === 'OPTIONS') {
     return sendJson(res, 204, {});
   }

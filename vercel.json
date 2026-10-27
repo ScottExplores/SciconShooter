@@ -129,6 +129,10 @@
       "destination": "/api/events?route=player-reports"
     },
     {
+      "source": "/api/researchhub-rfps",
+      "destination": "/api/researchhub-proposals?feed=rfps"
+    },
+    {
       "source": "/api/social-agent",
       "destination": "/api/events?route=social-agent"
     },
