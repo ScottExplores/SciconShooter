@@ -63,6 +63,17 @@ test('real support fire runs while the main ship remains silent', () => {
   }
 });
 
+test('support ships render at seventy percent with a matching intercept radius', () => {
+  const utility = load('services/supportUtility.ts');
+  const engine = fixture('axiom-orbiter');
+  const wing = engine.getSquadCompanionVisuals()[0];
+  assert.equal(utility.SQUAD_COMPANION_DISPLAY_SCALE, 0.7);
+  assert.equal(wing.width, Math.round(74 * 0.7));
+  assert.equal(wing.height, wing.width);
+  assert.equal(utility.getInterceptorRadius(1), Math.round(47 * 0.7));
+  assert.equal(utility.getInterceptorRadius(5), Math.round(67 * 0.7));
+});
+
 test('the preview collector retrieves coins and the guard intercepts hostile shots', () => {
   const collector = fixture('quorum-crab');
   const coin = new Entity('COIN', collector.player.x + 80, collector.player.y - 80, 0.5);

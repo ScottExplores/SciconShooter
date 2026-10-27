@@ -1,4 +1,5 @@
 import { STORAGE_KEYS } from '../constants';
+import { resolveRunAttemptPolicy } from '../shared/weeklyCompetitionBoundary.browser';
 import type { WeeklyCampaignStreakState } from './weeklyCampaignStreak';
 
 export interface PendingWeeklyRunAdmission {
@@ -102,7 +103,10 @@ export const weeklyRunLaunchFailureCopy = (error: unknown): string => {
   const details = (error as { details?: unknown })?.details;
   const detailList = Array.isArray(details) ? details.map((item) => String(item)) : [];
   if (detailList.includes('weekly_run_attempts_exhausted')) {
-    return 'This week\'s free runs are already in. The board resets with the next week.';
+    const policy = resolveRunAttemptPolicy(new Date());
+    return policy.eventWide
+      ? `All ${policy.freeAttempts} event runs are used.`
+      : 'This week\'s free runs are already in. The board resets with the next week.';
   }
   if (
     error instanceof TypeError

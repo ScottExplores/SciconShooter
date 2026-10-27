@@ -79,7 +79,12 @@ import type { PlayerShipId } from './playerShipService';
 import { sampleTripleShotSideAngleRadians } from './playerShotSpread';
 import { BIO_PRIMARY_DAMAGE_PER_ROUND, getBioPrimaryShotPlan } from './bioPrimaryWeapon';
 import { getPlayerPrimaryBurst, getPlayerPrimaryMuzzle, getPlayerPrimaryPulseLayout, isPlayerPrimaryBurstHull } from './playerPrimaryBurst';
-import { findSalvageTarget, findInterceptTarget, getInterceptorCooldown } from './supportUtility';
+import {
+  findSalvageTarget,
+  findInterceptTarget,
+  getInterceptorCooldown,
+  SQUAD_COMPANION_DISPLAY_SCALE
+} from './supportUtility';
 import {
   FIRE_RATE_LEVELS_PER_TIER,
   FIRE_RATE_MAX_LEVEL,
@@ -7528,7 +7533,7 @@ export class GameEngine {
   }
 
   getSquadCompanionVisuals(): SquadCompanionVisual[] {
-    const size = this.mobileProfile ? 74 : 82;
+    const size = Math.round((this.mobileProfile ? 74 : 82) * SQUAD_COMPANION_DISPLAY_SCALE);
     const bank = clamp(this.playerVel.x / 9, -0.42, 0.42);
     return this.squadCompanions.map((companion) => ({
       slot: companion.slot,
@@ -7553,7 +7558,7 @@ export class GameEngine {
     const coinCenterY = coin.y + coin.height / 2;
     return this.squadCompanions.some((companion) => {
       if (companion.ability !== 'coin-magnet' || companion.entryProgress < 0.5) return false;
-      const pickupRadius = 24 + companion.level * 2;
+      const pickupRadius = Math.round((24 + companion.level * 2) * SQUAD_COMPANION_DISPLAY_SCALE);
       return Math.hypot(companion.x - coinCenterX, companion.y - coinCenterY) <= pickupRadius;
     });
   }

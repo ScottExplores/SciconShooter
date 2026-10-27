@@ -23,30 +23,47 @@ const loadSquad = () => {
 const squad = loadSquad();
 
 test('Weekly Run grants exactly five free attempts per competition week', () => {
+  const weeklyNow = '2026-08-02T19:00:00.000Z';
   const initial = squad.createWeeklySquadState('pilot:attempt-test', '2026-08-02');
-  assert.equal(squad.getWeeklyRunAttemptsRemaining(initial), 5);
+  assert.equal(squad.getWeeklyRunAttemptsRemaining(initial, weeklyNow), 5);
 
   let used = initial;
   for (let attempt = 1; attempt <= 5; attempt += 1) {
-    used = squad.consumeWeeklyRunAttempt(used);
+    used = squad.consumeWeeklyRunAttempt(used, weeklyNow);
     assert.equal(used.weeklyStats.weeklyRunAttempts, attempt);
-    assert.equal(squad.getWeeklyRunAttemptsRemaining(used), 5 - attempt);
+    assert.equal(squad.getWeeklyRunAttemptsRemaining(used, weeklyNow), 5 - attempt);
   }
 
-  const blocked = squad.consumeWeeklyRunAttempt(used);
+  const blocked = squad.consumeWeeklyRunAttempt(used, weeklyNow);
   assert.equal(blocked, used, 'a sixth free attempt must not mutate the profile');
 });
 
 test('weekly rollover restores all five free attempts', () => {
+  const weeklyNow = '2026-08-02T19:00:00.000Z';
   const initial = squad.createWeeklySquadState('pilot:attempt-reset', '2026-08-02');
   let used = initial;
   for (let attempt = 0; attempt < 5; attempt += 1) {
-    used = squad.consumeWeeklyRunAttempt(used);
+    used = squad.consumeWeeklyRunAttempt(used, weeklyNow);
   }
   const rolled = squad.rollWeeklySquadStateForward(used, '2026-08-09');
 
   assert.equal(rolled.weeklyStats.weeklyRunAttempts, 0);
-  assert.equal(squad.getWeeklyRunAttemptsRemaining(rolled), 5);
+  assert.equal(squad.getWeeklyRunAttemptsRemaining(rolled, '2026-08-09T19:00:00.000Z'), 5);
+});
+
+test('the 25K event keeps one ten-try allowance across its weeks', () => {
+  const eventNow = '2026-10-27T18:00:00.000Z';
+  let state = squad.createWeeklySquadState('pilot:event-tries', '2026-10-25');
+  assert.equal(squad.getWeeklyRunAttemptsRemaining(state, eventNow), 10);
+  for (let attempt = 0; attempt < 7; attempt += 1) {
+    state = squad.consumeWeeklyRunAttempt(state, eventNow);
+  }
+  const nextWeek = squad.rollWeeklySquadStateForward(state, '2026-11-01');
+  assert.equal(nextWeek.weeklyStats.weeklyRunAttempts, 7);
+  assert.equal(squad.getWeeklyRunAttemptsRemaining(nextWeek, '2026-11-03T18:00:00.000Z'), 3);
+  const resumed = squad.rollWeeklySquadStateForward(nextWeek, '2026-12-06');
+  assert.equal(resumed.weeklyStats.weeklyRunAttempts, 0);
+  assert.equal(squad.getWeeklyRunAttemptsRemaining(resumed, '2026-12-07T18:00:00.000Z'), 5);
 });
 
 test('verified Weekly Run admission is server-authoritative and database-atomic', () => {
@@ -76,7 +93,7 @@ test('verified Weekly Run admission is server-authoritative and database-atomic'
     weeklyLaunch.indexOf('if (!retryPendingAdmission)') < weeklyLaunch.indexOf('startWeeklyCampaignStreak(weeklyRun.graph'),
     'a lost start response must reuse the pristine pending proof before creating another attempt'
   );
-  assert.match(weeklyLaunch, /if \(!retryPendingAdmission && attemptsRemaining <= 0/);
+  assert.match(weeklyLaunch, /!isOwnerWallet[\s\S]*!retryPendingAdmission[\s\S]*attemptsRemaining <= 0/);
   assert.match(weeklyLaunch, /const admissionMarkerStored = retryPendingAdmission \|\| writePendingWeeklyRunAdmission/);
   assert.match(weeklyLaunch, /if \(!admissionMarkerStored\)[\s\S]*No request has been sent yet/);
   assert.match(weeklyLaunch, /const preparedAdmission = \{[\s\S]*weeklyCampaignStreak: startedStreak/);

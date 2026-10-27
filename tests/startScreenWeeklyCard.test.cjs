@@ -31,7 +31,7 @@ test('Home offers the Campaign entry point and the Weekly Run as separate contro
   assert.match(appSource, /startWeeklyRunFromHome/);
   assert.match(source, /weeklyRunAttemptsRemaining/);
   assert.match(source, /disabled=\{attemptsExhausted\}/);
-  assert.match(source, /needsServerVerification = weeklyRunAttemptQuotaUnknown[\s\S]*weeklyRunAttemptsRemaining <= 0/);
+  assert.match(source, /needsServerVerification = !weeklyRunAttemptsUnlimited[\s\S]*weeklyRunAttemptQuotaUnknown[\s\S]*weeklyRunAttemptsRemaining <= 0/);
   assert.match(source, /Play Weekly Run\. \$\{weeklyRunAttemptsRemaining\} attempt/);
   assert.match(appSource, /weeklyRunAttemptsRemaining=\{weeklyRunAttemptQuotaOwner === activeWalletAddress\?\.toLowerCase\(\)[\s\S]*weeklyRunAttemptQuota\.attemptsRemaining[\s\S]*getWeeklyRunAttemptsRemaining\(weeklySquadState\)\}/);
   assert.match(appSource, /weeklyRunAttemptQuotaUnknown=\{Boolean\([\s\S]*walletProfileStatus === 'ready'/);
@@ -58,14 +58,14 @@ test('the Weekly Run drawer omits the ship thumbnail and keeps its quota copy co
   assert.doesNotMatch(entry, /sci-weekly-run-entry__glyph|ASSETS\.PLAYER_SHIP/);
   assert.match(entryRule, /grid-template-columns: minmax\(0, 1fr\) auto/);
   assert.doesNotMatch(stylesSource, /sci-weekly-run-entry__glyph/);
-  assert.match(entry, /const attemptsExhausted = weeklyRunAttemptsRemaining <= 0/);
+  assert.match(entry, /const attemptsExhausted = !weeklyRunAttemptsUnlimited[\s\S]*weeklyRunAttemptsRemaining <= 0/);
   assert.doesNotMatch(entry, /weekly-run-attempt/);
   assert.doesNotMatch(entry, /onPurchaseWithRsc\(weeklyAttemptSkuId\)/);
   assert.doesNotMatch(entry, /Free\/Week/);
   assert.doesNotMatch(entry, /free attempts each week/);
   assert.doesNotMatch(entry, /WEEKLY_RUN_STARTING_LIVES|\bLives\b/i);
   assert.doesNotMatch(entry, /weeklyRunAttemptsRemaining\}\/\$\{WEEKLY_RUN_ATTEMPT_LIMIT/);
-  assert.match(entry, /const attemptLabel = `\$\{weeklyRunAttemptsRemaining\} Attempt/);
+  assert.match(entry, /\$\{weeklyRunAttemptsRemaining\} Attempt\$\{weeklyRunAttemptsRemaining === 1 \? '' : 's'\} Left/);
   assert.doesNotMatch(entry, /\+1 Attempt|3 RSC/);
 });
 
@@ -160,7 +160,11 @@ test('the live prize is one 25,000 RSC November event', () => {
     source.indexOf('const renderWeeklyRunEntry'),
     source.indexOf('const renderWeeklyFundingCard')
   );
-  assert.match(eventEntry, /\{eventCard \? null : \(/);
+  assert.match(eventEntry, /\$\{weeklyRunAttemptsRemaining\}\/\$\{weeklyRunAttemptLimit\} runs/);
+  assert.match(fundingCard, /data-high-score-hint/);
+  assert.match(fundingCard, /Play Campaign first to upgrade your ship, then go for the high score\./);
+  assert.doesNotMatch(fundingCard, /Each player gets 10 runs/);
+  assert.match(source, /Each player gets 10 runs for the whole event\. The founder wallet is unlimited and is not ranked\./);
   assert.match(competitionSource, /\|\| resolveWeeklyAllocationRsc\(weekKey\)/);
   assert.match(source, /allocationRsc: prize\.allocationRsc/);
   assert.doesNotMatch(source, /1,000 RSC|1000 RSC/);

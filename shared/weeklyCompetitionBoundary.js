@@ -20,6 +20,11 @@ const SCICON_BIG_EVENT = Object.freeze({
 });
 const SCICON_EVENT_CHOICE_COPY = 'The winner picks the Airborne Disease Resilience RFP pool, a proposal under it, or any open ResearchHub proposal or RFP.';
 const SCICON_EVENT_PAUSE_COPY = 'Weekly prizes return Dec 6 at 100 RSC.';
+// One allowance for the whole high-score event. Weekly play goes back to
+// five free attempts when the Sunday board resumes.
+const SCICON_EVENT_ATTEMPT_LIMIT = 10;
+const SCICON_EVENT_ATTEMPT_SCOPE_ID = 'scicon-25k-high-score';
+const WEEKLY_RUN_FREE_ATTEMPT_LIMIT = 5;
 // A score receipt can finish before cutoff while its verified leaderboard write
 // is still in flight. Keep the public rollover behind this short settlement
 // window so the new board and the archived Past Pick can publish together.
@@ -265,6 +270,60 @@ const getPublicPrizeState = (now = new Date()) => {
   };
 };
 
+const eventPlayWeekKeys = () => {
+  const startsAt = new Date(SCICON_BIG_EVENT.startsAt).getTime();
+  const closesAt = new Date(SCICON_BIG_EVENT.closesAt).getTime();
+  const keys = [];
+  let cursor = getCurrentWeekRange(startsAt).weekKey;
+  for (let guard = 0; guard < 12; guard += 1) {
+    const range = getWeekRange(cursor);
+    if (range.start.getTime() >= closesAt) break;
+    if (range.end.getTime() > startsAt) keys.push(range.weekKey);
+    cursor = calendarDateKey(shiftCalendarDate(range.startCalendarDate, 7));
+  }
+  return keys;
+};
+
+const weekKeyOverlapsPlayableEvent = (weekKey) => {
+  try {
+    const range = getWeekRange(weekKey);
+    const startsAt = new Date(SCICON_BIG_EVENT.startsAt).getTime();
+    const closesAt = new Date(SCICON_BIG_EVENT.closesAt).getTime();
+    return range.start.getTime() < closesAt && range.end.getTime() > startsAt;
+  } catch {
+    return false;
+  }
+};
+
+const resolveRunAttemptPolicy = (now = new Date()) => {
+  const instant = toDate(now);
+  const prize = getPublicPrizeState(instant);
+  const boundary = getWeeklyBoundaryMeta(instant);
+  if (prize.phase === 'big-event') {
+    return {
+      scopeId: SCICON_EVENT_ATTEMPT_SCOPE_ID,
+      freeAttempts: SCICON_EVENT_ATTEMPT_LIMIT,
+      resetAt: prize.closesAt,
+      resetAtMs: prize.closesAt.getTime(),
+      eventWide: true,
+      weekKey: boundary.weekKey,
+      countedScopeIds: Object.freeze([
+        SCICON_EVENT_ATTEMPT_SCOPE_ID,
+        ...eventPlayWeekKeys()
+      ])
+    };
+  }
+  return {
+    scopeId: boundary.weekKey,
+    freeAttempts: WEEKLY_RUN_FREE_ATTEMPT_LIMIT,
+    resetAt: boundary.endsAt,
+    resetAtMs: boundary.endsAt.getTime(),
+    eventWide: false,
+    weekKey: boundary.weekKey,
+    countedScopeIds: Object.freeze([boundary.weekKey])
+  };
+};
+
 const weekOverlapsBigEventPause = (start, end) => {
   const pauseStart = new Date(SCICON_BIG_EVENT.startsAt).getTime();
   const pauseEnd = getWeekRange(SCICON_BIG_EVENT.weeklyResumesWeekKey).start.getTime();
@@ -301,8 +360,13 @@ return {
   PRIOR_WEEKLY_ALLOCATION_RSC,
   resolveWeeklyAllocationRsc,
   SCICON_BIG_EVENT,
+  SCICON_EVENT_ATTEMPT_LIMIT,
+  SCICON_EVENT_ATTEMPT_SCOPE_ID,
   SCICON_EVENT_CHOICE_COPY,
   SCICON_EVENT_PAUSE_COPY,
+  WEEKLY_RUN_FREE_ATTEMPT_LIMIT,
+  resolveRunAttemptPolicy,
+  weekKeyOverlapsPlayableEvent,
   WEEKLY_SCORE_SETTLEMENT_MS,
   WEEK_TIME_ZONE,
   getCurrentWeekRange,

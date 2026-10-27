@@ -17,7 +17,7 @@ const {
   clearWeeklyRunAttemptMemoryForTests
 } = require('../api/_lib/weeklyRunAttempts');
 const handler = require('../api/run-receipts');
-const { getWeeklyBoundaryMeta } = require('../shared/weeklyCompetitionBoundary');
+const { getWeeklyBoundaryMeta, resolveRunAttemptPolicy } = require('../shared/weeklyCompetitionBoundary');
 
 const browserBundle = esbuild.buildSync({
   stdin: {
@@ -92,13 +92,14 @@ test('deleting the guest cookie cannot grant a sixth claimable ranked Weekly Run
   const originalGuest = createGuestIdentityToken();
   const rotatedGuest = createGuestIdentityToken();
   const testNow = Date.now();
+  const freeAttempts = resolveRunAttemptPolicy(testNow).freeAttempts;
   const currentBoundary = getWeeklyBoundaryMeta(new Date(testNow));
   const baseCreatedAt = Math.max(currentBoundary.startsAt.getTime(), testNow - 60_000);
   let firstProof = null;
   let firstRunId = null;
 
   try {
-    for (let index = 0; index < 5; index += 1) {
+    for (let index = 0; index < freeAttempts; index += 1) {
       const weeklyCampaignProof = freshWeeklyProof(baseCreatedAt + index);
       const response = await request({
         guestToken: originalGuest,
@@ -111,7 +112,7 @@ test('deleting the guest cookie cannot grant a sixth claimable ranked Weekly Run
       });
       assert.equal(response.statusCode, 200, JSON.stringify(response.body));
       assert.equal(response.body.weeklyAttempt.attemptNumber, index + 1);
-      assert.equal(response.body.weeklyAttempt.attemptsRemaining, 4 - index);
+      assert.equal(response.body.weeklyAttempt.attemptsRemaining, freeAttempts - 1 - index);
       if (index === 0) {
         firstProof = weeklyCampaignProof;
         firstRunId = response.body.runId;

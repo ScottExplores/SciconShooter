@@ -35,8 +35,21 @@ interface PublicPrizeState {
   daysLeft: number;
 }
 
+interface RunAttemptPolicy {
+  scopeId: string;
+  freeAttempts: number;
+  resetAt: Date;
+  resetAtMs: number;
+  eventWide: boolean;
+  weekKey: string;
+  countedScopeIds: readonly string[];
+}
+
 interface WeeklyCompetitionBoundary {
   WEEKLY_ALLOCATION_RSC: number;
+  SCICON_EVENT_ATTEMPT_LIMIT: number;
+  SCICON_EVENT_ATTEMPT_SCOPE_ID: string;
+  WEEKLY_RUN_FREE_ATTEMPT_LIMIT: number;
   SCICON_BIG_EVENT: {
     name: string;
     allocationRsc: number;
@@ -50,6 +63,8 @@ interface WeeklyCompetitionBoundary {
   SCICON_EVENT_PAUSE_COPY: string;
   WEEKLY_SCORE_SETTLEMENT_MS: number;
   getPublicPrizeState: (now?: Date | string | number) => PublicPrizeState;
+  resolveRunAttemptPolicy: (now?: Date | string | number) => RunAttemptPolicy;
+  weekKeyOverlapsPlayableEvent: (weekKey: string) => boolean;
   getWeeklyBoundaryMeta: (
     now?: Date | string | number,
     locale?: string | string[]
@@ -74,6 +89,10 @@ if (!boundary) {
 
 export const getWeeklyBoundaryMeta = boundary.getWeeklyBoundaryMeta;
 export const getPublicPrizeState = boundary.getPublicPrizeState;
+export const resolveRunAttemptPolicy = boundary.resolveRunAttemptPolicy;
+export const weekKeyOverlapsPlayableEvent = boundary.weekKeyOverlapsPlayableEvent;
+export const SCICON_EVENT_ATTEMPT_LIMIT = boundary.SCICON_EVENT_ATTEMPT_LIMIT;
+export const SCICON_EVENT_ATTEMPT_SCOPE_ID = boundary.SCICON_EVENT_ATTEMPT_SCOPE_ID;
 export const getWeeklyPresentationMeta = boundary.getWeeklyPresentationMeta;
 export const resolveWeeklyDashboardPublication = boundary.resolveWeeklyDashboardPublication;
 export const WEEKLY_ALLOCATION_RSC = boundary.WEEKLY_ALLOCATION_RSC;

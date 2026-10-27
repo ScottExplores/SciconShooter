@@ -171,6 +171,8 @@ interface StartScreenProps {
   onDismissWeeklyRunLaunchError?: () => void;
   weeklyRunBestScore?: number | null;
   weeklyRunAttemptsRemaining?: number;
+  weeklyRunAttemptLimit?: number;
+  weeklyRunAttemptsUnlimited?: boolean;
   weeklyRunAttemptQuotaUnknown?: boolean;
   bossArchiveDeveloperControls?: BossArchiveDeveloperControls | null;
   founderSandbox?: boolean;
@@ -847,6 +849,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
   onDismissWeeklyRunLaunchError,
   weeklyRunBestScore = null,
   weeklyRunAttemptsRemaining = WEEKLY_RUN_ATTEMPT_LIMIT,
+  weeklyRunAttemptLimit = WEEKLY_RUN_ATTEMPT_LIMIT,
+  weeklyRunAttemptsUnlimited = false,
   weeklyRunAttemptQuotaUnknown = false,
   bossArchiveDeveloperControls = null,
   founderSandbox = false,
@@ -1521,17 +1525,21 @@ const StartScreen: React.FC<StartScreenProps> = ({
    *  panel, not a child, so the competition and the way to enter it are two
    *  separate boxes instead of one crowded card. */
   const renderWeeklyRunEntry = () => {
-    const needsServerVerification = weeklyRunAttemptQuotaUnknown
+    const needsServerVerification = !weeklyRunAttemptsUnlimited
+      && weeklyRunAttemptQuotaUnknown
       && weeklyRunAttemptsRemaining <= 0;
-    const attemptsExhausted = weeklyRunAttemptsRemaining <= 0
+    const attemptsExhausted = !weeklyRunAttemptsUnlimited
+      && weeklyRunAttemptsRemaining <= 0
       && !needsServerVerification;
     const weeklyRunEntryState = attemptsExhausted
       ? 'exhausted'
       : needsServerVerification
         ? 'checking'
         : 'available';
-    const attemptLabel = `${weeklyRunAttemptsRemaining} Attempt${weeklyRunAttemptsRemaining === 1 ? '' : 's'} Left`;
     const eventCard = weeklyAllocation.phase === 'big-event';
+    const attemptLabel = eventCard
+      ? `${weeklyRunAttemptsRemaining}/${weeklyRunAttemptLimit} runs`
+      : `${weeklyRunAttemptsRemaining} Attempt${weeklyRunAttemptsRemaining === 1 ? '' : 's'} Left`;
 
     return onStartWeeklyRun ? (
       <>
@@ -1556,13 +1564,15 @@ const StartScreen: React.FC<StartScreenProps> = ({
             <span className="sci-weekly-run-entry__title">
               {eventCard ? '25K RSC Event' : 'Weekly Run'}
             </span>
-            {eventCard ? null : (
-              <span className="sci-weekly-run-entry__sub">
+            {weeklyRunAttemptsUnlimited ? null : (
+              <span className="sci-weekly-run-entry__sub" data-event-tries={eventCard ? 'true' : 'false'}>
                 {weeklyRunAttemptsRemaining > 0
                   ? attemptLabel
                   : needsServerVerification
                     ? 'Checking Wallet Attempts'
-                    : 'No Attempts Left'}
+                    : eventCard
+                      ? `${weeklyRunAttemptsRemaining}/${weeklyRunAttemptLimit} runs`
+                      : 'No Attempts Left'}
               </span>
             )}
           </span>
@@ -1645,6 +1655,11 @@ const StartScreen: React.FC<StartScreenProps> = ({
               {weeklyAllocation.countdownLabel}
             </p>
           </div>
+          {weeklyAllocation.phase === 'big-event' ? (
+            <p className="sci-high-score-hint col-span-2 text-xs font-semibold leading-snug text-cyan-100" data-high-score-hint="true">
+              Play Campaign first to upgrade your ship, then go for the high score.
+            </p>
+          ) : null}
         </div>
 
         <div
@@ -2882,8 +2897,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
                   {weeklyAllocation.phase === 'weekly'
                     ? 'Leaderboard positions remain provisional until the weekly cutoff. The finalized No. 1 pilot may choose an eligible ResearchHub proposal for the announced allocation. Selection and funding are separate steps; funding is only confirmed after a Base transaction reference is recorded.'
                     : weeklyAllocation.snapshotFrozen
-                      ? `Final standings are frozen. winner announced Nov 30. ${SCICON_EVENT_CHOICE_COPY} ${SCICON_EVENT_PAUSE_COPY}`
-                      : `${SCICON_EVENT_CHOICE_COPY} ${SCICON_EVENT_PAUSE_COPY}`}
+                      ? `Final standings are frozen. winner announced Nov 30. Each player gets 10 runs for the whole event. The founder wallet is unlimited and is not ranked. ${SCICON_EVENT_CHOICE_COPY} ${SCICON_EVENT_PAUSE_COPY}`
+                      : `Each player gets 10 runs for the whole event. The founder wallet is unlimited and is not ranked. ${SCICON_EVENT_CHOICE_COPY} ${SCICON_EVENT_PAUSE_COPY}`}
                 </p>
               </section>
               <section>

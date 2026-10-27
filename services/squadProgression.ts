@@ -1,4 +1,8 @@
-import { getWeeklyBoundaryMeta } from '../shared/weeklyCompetitionBoundary.browser';
+import {
+  getWeeklyBoundaryMeta,
+  resolveRunAttemptPolicy,
+  weekKeyOverlapsPlayableEvent
+} from '../shared/weeklyCompetitionBoundary.browser';
 import type { CampaignGraphDefinition } from '../game-config/types';
 import { PLAYABLE_PLAYER_SHIP_IDS, type PlayerShipId } from './playerShipService';
 import {
@@ -508,12 +512,22 @@ const createWeeklySquadStats = (): WeeklySquadStats => ({
  */
 export const WEEKLY_RUN_ATTEMPT_LIMIT = 5;
 
-export const getWeeklyRunAttemptsRemaining = (state: WeeklySquadState): number => (
-  Math.max(0, WEEKLY_RUN_ATTEMPT_LIMIT - Math.max(0, Math.floor(state.weeklyStats.weeklyRunAttempts || 0)))
+const attemptLimitFor = (now?: Date | string | number) => (
+  resolveRunAttemptPolicy(now ?? new Date()).freeAttempts
 );
 
-export const consumeWeeklyRunAttempt = (state: WeeklySquadState): WeeklySquadState => {
-  if (getWeeklyRunAttemptsRemaining(state) <= 0) return state;
+export const getWeeklyRunAttemptsRemaining = (
+  state: WeeklySquadState,
+  now?: Date | string | number
+): number => (
+  Math.max(0, attemptLimitFor(now) - Math.max(0, Math.floor(state.weeklyStats.weeklyRunAttempts || 0)))
+);
+
+export const consumeWeeklyRunAttempt = (
+  state: WeeklySquadState,
+  now?: Date | string | number
+): WeeklySquadState => {
+  if (getWeeklyRunAttemptsRemaining(state, now) <= 0) return state;
   return {
     ...state,
     weeklyStats: {
@@ -526,11 +540,12 @@ export const consumeWeeklyRunAttempt = (state: WeeklySquadState): WeeklySquadSta
 
 export const reconcileWeeklyRunAttempts = (
   state: WeeklySquadState,
-  attemptsUsed: number
+  attemptsUsed: number,
+  now?: Date | string | number
 ): WeeklySquadState => {
   const authoritativeAttempts = Math.max(
     0,
-    Math.min(WEEKLY_RUN_ATTEMPT_LIMIT, Math.floor(Number(attemptsUsed) || 0))
+    Math.min(attemptLimitFor(now), Math.floor(Number(attemptsUsed) || 0))
   );
   if (state.weeklyStats.weeklyRunAttempts === authoritativeAttempts) return state;
   return {
@@ -604,17 +619,26 @@ export const createWeeklySquadState = (
 export const rollWeeklySquadStateForward = (
   state: WeeklySquadState,
   weekKey = getWeeklyBoundaryMeta(new Date()).weekKey
-): WeeklySquadState => ({
-  ...state,
-  version: SQUAD_PROFILE_VERSION,
-  profileId: normalizeProfileId(state.profileId),
-  weekKey,
-  coins: WEEKLY_STARTING_COINS + Math.max(0, Math.floor(state.durableCampaignCoins || 0)),
-  durableCampaignCoins: Math.max(0, Math.floor(state.durableCampaignCoins || 0)),
-  weeklyCampaignStreak: null,
-  weeklyStats: createWeeklySquadStats(),
-  updatedAt: nowIso()
-});
+): WeeklySquadState => {
+  const preserveEventTries = weekKeyOverlapsPlayableEvent(state.weekKey)
+    && weekKeyOverlapsPlayableEvent(weekKey);
+  return {
+    ...state,
+    version: SQUAD_PROFILE_VERSION,
+    profileId: normalizeProfileId(state.profileId),
+    weekKey,
+    coins: WEEKLY_STARTING_COINS + Math.max(0, Math.floor(state.durableCampaignCoins || 0)),
+    durableCampaignCoins: Math.max(0, Math.floor(state.durableCampaignCoins || 0)),
+    weeklyCampaignStreak: null,
+    weeklyStats: preserveEventTries
+      ? {
+        ...createWeeklySquadStats(),
+        weeklyRunAttempts: Math.max(0, Math.floor(state.weeklyStats.weeklyRunAttempts || 0))
+      }
+      : createWeeklySquadStats(),
+    updatedAt: nowIso()
+  };
+};
 
 export const createPermanentSquadState = (profileId?: string | null): PermanentSquadState => ({
   version: PERMANENT_SQUAD_PROFILE_VERSION,
@@ -714,7 +738,7 @@ const sanitizeWeeklyState = (
     weeklyStats: {
       runs: Math.max(0, Math.floor(Number(value.weeklyStats?.runs) || 0)),
       weeklyRunAttempts: Math.max(0, Math.min(
-        WEEKLY_RUN_ATTEMPT_LIMIT,
+        resolveRunAttemptPolicy(new Date()).freeAttempts,
         Math.floor(Number(value.weeklyStats?.weeklyRunAttempts) || 0)
       )),
       score: Math.max(0, Math.floor(Number(value.weeklyStats?.score) || 0)),

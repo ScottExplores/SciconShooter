@@ -4,7 +4,7 @@ const {
   hasSupabaseConfig,
   supabaseHeaders
 } = require('./supabase');
-const { getWeeklyBoundaryMeta } = require('../../shared/weeklyCompetitionBoundary');
+const { resolveRunAttemptPolicy } = require('../../shared/weeklyCompetitionBoundary');
 
 const WEEKLY_RUN_FREE_ATTEMPT_LIMIT = 5;
 // Backward-compatible name for callers that only need the free weekly grant.
@@ -115,14 +115,21 @@ const normalizeRpcResult = (value) => {
   return result;
 };
 
+const exhaustedAttemptError = (nowMs = Date.now()) => {
+  const policy = resolveRunAttemptPolicy(nowMs);
+  return attemptError(
+    policy.eventWide
+      ? `All ${policy.freeAttempts} event runs have been used.`
+      : 'All Weekly Run attempts have been used. Wait for the weekly reset to play another ranked run.',
+    409,
+    'weekly_run_attempts_exhausted'
+  );
+};
+
 const mapPersistenceError = (error) => {
   const message = String(error?.message || '');
   if (/weekly_run_attempts_exhausted/i.test(message)) {
-    return attemptError(
-      'All Weekly Run attempts have been used. Wait for the weekly reset to play another ranked run.',
-      409,
-      'weekly_run_attempts_exhausted'
-    );
+    return exhaustedAttemptError();
   }
   if (/weekly_run_attempt_already_finalized/i.test(message)) {
     return attemptError(
@@ -150,22 +157,43 @@ const mapPersistenceError = (error) => {
 
 const memoryBucketKey = (identityHash, weeklyId) => `${identityHash}:${weeklyId}`;
 
+const rowsForScope = (identityHash, scopeId) => (
+  memoryAttempts.get(memoryBucketKey(identityHash, scopeId)) || []
+);
+
+const countScopedAttempts = (identityHash, countedScopeIds) => countedScopeIds.reduce(
+  (total, scopeId) => total + rowsForScope(identityHash, scopeId).length,
+  0
+);
+
+const findScopedAttempt = (identityHash, countedScopeIds, attemptKey) => {
+  for (const scopeId of countedScopeIds) {
+    const existing = rowsForScope(identityHash, scopeId)
+      .find((row) => row.attemptKey === attemptKey);
+    if (existing) return existing;
+  }
+  return null;
+};
+
 const reserveInMemory = ({
   identityHash,
   ownerIdentityHash,
   walletAddress,
   weeklyId,
   attemptKey,
-  resetAtMs
+  resetAtMs,
+  freeAttempts,
+  countedScopeIds,
+  nowMs
 }) => {
-  const bucketKey = memoryBucketKey(identityHash, weeklyId);
-  const attempts = memoryAttempts.get(bucketKey) || [];
+  const attemptsUsed = countScopedAttempts(identityHash, countedScopeIds);
   const quota = normalizeQuota({
     weeklyId,
-    attemptsUsed: attempts.length,
+    freeAttempts,
+    attemptsUsed,
     resetAt: resetAtMs
   });
-  const existing = attempts.find((row) => row.attemptKey === attemptKey);
+  const existing = findScopedAttempt(identityHash, countedScopeIds, attemptKey);
   if (existing) {
     if (existing.ownerIdentityHash !== ownerIdentityHash) {
       throw attemptError(
@@ -183,20 +211,19 @@ const reserveInMemory = ({
     }
     return {
       ...existing,
-      ...quota
+      ...quota,
+      weeklyId: existing.weeklyId
     };
   }
   if (quota.attemptsRemaining <= 0) {
-    throw attemptError(
-      'All Weekly Run attempts have been used. Wait for the weekly reset to play another ranked run.',
-      409,
-      'weekly_run_attempts_exhausted'
-    );
+    throw exhaustedAttemptError(nowMs);
   }
+  const bucketKey = memoryBucketKey(identityHash, weeklyId);
+  const attempts = rowsForScope(identityHash, weeklyId);
   const row = {
     reservationId: crypto.randomUUID(),
     runId: crypto.randomUUID(),
-    attemptNumber: attempts.length + 1,
+    attemptNumber: attemptsUsed + 1,
     identityHash,
     ownerIdentityHash,
     walletAddress,
@@ -212,13 +239,19 @@ const reserveInMemory = ({
     ...row,
     ...normalizeQuota({
       weeklyId,
-      attemptsUsed: attempts.length,
+      freeAttempts,
+      attemptsUsed: attemptsUsed + 1,
       resetAt: resetAtMs
     })
   };
 };
 
-const reserveWeeklyRunAttempt = async ({ identity, binding, guestAdmissionScope = null }) => {
+const reserveWeeklyRunAttempt = async ({
+  identity,
+  binding,
+  guestAdmissionScope = null,
+  nowMs = Date.now()
+}) => {
   const ownerIdentityHash = identityHashFor(identity);
   const identityHash = quotaIdentityHashFor(identity, guestAdmissionScope);
   const walletAddress = identity?.kind === 'wallet'
@@ -228,8 +261,12 @@ const reserveWeeklyRunAttempt = async ({ identity, binding, guestAdmissionScope 
     throw attemptError('Weekly Run wallet binding is invalid.', 422, 'weekly_attempt_identity_invalid');
   }
   const attemptKey = attemptKeyFor(binding);
-  const weeklyId = String(binding.weeklyId);
-  const resetAtMs = Math.floor(Number(binding.resetAtMs));
+  const policy = resolveRunAttemptPolicy(nowMs);
+  if (String(binding.weeklyId) !== policy.weekKey) {
+    throw attemptError('Weekly Run attempt binding is invalid.', 422, 'weekly_attempt_binding_invalid');
+  }
+  const weeklyId = policy.scopeId;
+  const resetAtMs = policy.resetAtMs;
   if (!hasSupabaseConfig()) {
     return reserveInMemory({
       identityHash,
@@ -237,7 +274,10 @@ const reserveWeeklyRunAttempt = async ({ identity, binding, guestAdmissionScope 
       walletAddress,
       weeklyId,
       attemptKey,
-      resetAtMs
+      resetAtMs,
+      freeAttempts: policy.freeAttempts,
+      countedScopeIds: policy.countedScopeIds,
+      nowMs
     });
   }
 
@@ -282,18 +322,19 @@ const getWeeklyRunQuota = async ({ address, now = Date.now() }) => {
   if (!walletAddress) {
     throw attemptError('A valid Base wallet address is required.', 400, 'weekly_attempt_identity_invalid');
   }
-  const boundary = getWeeklyBoundaryMeta(new Date(now));
+  const policy = resolveRunAttemptPolicy(now);
   if (!hasSupabaseConfig()) {
     let attemptsUsed = 0;
     for (const attempts of memoryAttempts.values()) {
       attemptsUsed += attempts.filter((row) => (
-        row.walletAddress === walletAddress && row.weeklyId === boundary.weekKey
+        row.walletAddress === walletAddress && policy.countedScopeIds.includes(row.weeklyId)
       )).length;
     }
     return normalizeQuota({
-      weeklyId: boundary.weekKey,
+      weeklyId: policy.scopeId,
+      freeAttempts: policy.freeAttempts,
       attemptsUsed,
-      resetAt: boundary.endsAt
+      resetAt: policy.resetAtMs
     });
   }
   try {
@@ -302,15 +343,15 @@ const getWeeklyRunQuota = async ({ address, now = Date.now() }) => {
       headers: supabaseHeaders(),
       body: JSON.stringify({
         p_wallet_address: walletAddress,
-        p_weekly_id: boundary.weekKey
+        p_weekly_id: policy.scopeId
       })
     }));
     return normalizeQuota({
-      weeklyId: value.weeklyId || value.weekly_id || boundary.weekKey,
-      freeAttempts: value.freeAttempts ?? value.free_attempts,
+      weeklyId: value.weeklyId || value.weekly_id || policy.scopeId,
+      freeAttempts: value.freeAttempts ?? value.free_attempts ?? policy.freeAttempts,
       purchasedAttempts: value.purchasedAttempts ?? value.purchased_attempts,
       attemptsUsed: value.attemptsUsed ?? value.attempts_used,
-      resetAt: boundary.endsAt
+      resetAt: policy.resetAtMs
     });
   } catch (error) {
     throw mapPersistenceError(error);

@@ -183,6 +183,7 @@ import {
   getWeeklyPresentationMeta,
   resolveWeeklyDashboardPublication,
   getPublicPrizeState,
+  resolveRunAttemptPolicy,
   SCICON_EVENT_CHOICE_COPY,
   SCICON_EVENT_PAUSE_COPY
 } from './shared/weeklyCompetitionBoundary.browser';
@@ -4209,9 +4210,10 @@ const App: React.FC = () => {
       setWeeklyRunLaunchError(null);
     const now = new Date();
     const boundary = getWeeklyBoundaryMeta(now);
+    const attemptPolicy = resolveRunAttemptPolicy(now);
     const quotaOwner = activeWalletAddress?.toLowerCase() ?? null;
     const currentQuota = weeklyRunAttemptQuotaOwnerRef.current === quotaOwner
-      && weeklyRunAttemptQuotaRef.current?.weeklyId === boundary.weekKey
+      && weeklyRunAttemptQuotaRef.current?.weeklyId === attemptPolicy.scopeId
       ? weeklyRunAttemptQuotaRef.current
       : null;
     const staleStreak = weeklySquadStateRef.current.weeklyCampaignStreak;
@@ -4252,11 +4254,16 @@ const App: React.FC = () => {
       && walletProfileStatus === 'ready'
       && !currentQuota
     );
-    if (!retryPendingAdmission && attemptsRemaining <= 0 && !serverCanVerifyUnknownWalletQuota) {
-      setCampaignMapError(
-        `All ${WEEKLY_RUN_ATTEMPT_LIMIT} free Weekly Run attempts have been used. `
-        + 'Wait for the weekly reset to play another ranked run.'
-      );
+    if (
+      !isOwnerWallet
+      && !retryPendingAdmission
+      && attemptsRemaining <= 0
+      && !serverCanVerifyUnknownWalletQuota
+    ) {
+      setCampaignMapError(attemptPolicy.eventWide
+        ? `All ${attemptPolicy.freeAttempts} event runs are used.`
+        : `All ${WEEKLY_RUN_ATTEMPT_LIMIT} free Weekly Run attempts have been used. `
+          + 'Wait for the weekly reset to play another ranked run.');
       setCampaignMapStatus('launch-error');
       return;
     }
@@ -4273,7 +4280,7 @@ const App: React.FC = () => {
           nowMs: now.getTime()
         });
         const preparedAdmission = {
-          ...consumeWeeklyRunAttempt(stateBeforeLaunch),
+          ...(isOwnerWallet ? stateBeforeLaunch : consumeWeeklyRunAttempt(stateBeforeLaunch, now)),
           weeklyCampaignStreak: startedStreak,
           updatedAt: new Date().toISOString()
         };
@@ -4363,18 +4370,22 @@ const App: React.FC = () => {
       const retryableAdmission = isRetryableWeeklyRunAdmissionError(error);
       if (details?.includes('weekly_run_attempts_exhausted')) {
         clearPendingWeeklyRunAdmission(sessionKey);
-        const restored = reconcileWeeklyRunAttempts(stateBeforeLaunch, WEEKLY_RUN_ATTEMPT_LIMIT);
+        const restored = reconcileWeeklyRunAttempts(
+          stateBeforeLaunch,
+          attemptPolicy.freeAttempts,
+          now
+        );
         weeklySquadStateRef.current = restored;
         saveWeeklySquadState(restored);
         setWeeklySquadState(restored);
-        const purchasedAttempts = currentQuota?.purchasedAttempts ?? 0;
+        const purchasedAttempts = attemptPolicy.eventWide ? 0 : (currentQuota?.purchasedAttempts ?? 0);
         applyWeeklyRunAttemptQuota({
-          weeklyId: boundary.weekKey,
-          freeAttempts: WEEKLY_RUN_ATTEMPT_LIMIT,
+          weeklyId: attemptPolicy.scopeId,
+          freeAttempts: attemptPolicy.freeAttempts,
           purchasedAttempts,
-          attemptsUsed: WEEKLY_RUN_ATTEMPT_LIMIT + purchasedAttempts,
+          attemptsUsed: attemptPolicy.freeAttempts + purchasedAttempts,
           attemptsRemaining: 0,
-          resetAt: boundary.endsAt.toISOString()
+          resetAt: attemptPolicy.resetAt.toISOString()
         }, quotaOwner);
       } else {
         if (!retryableAdmission) clearPendingWeeklyRunAdmission(sessionKey);
@@ -8101,15 +8112,21 @@ const App: React.FC = () => {
           onDismissWeeklyRunLaunchError={() => setWeeklyRunLaunchError(null)}
           weeklyRunBestScore={weeklySquadState.weeklyStats.score}
           weeklyRunAttemptsRemaining={weeklyRunAttemptQuotaOwner === activeWalletAddress?.toLowerCase()
-            && weeklyRunAttemptQuota?.weeklyId === weeklySquadState.weekKey
+            && weeklyRunAttemptQuota?.weeklyId === resolveRunAttemptPolicy().scopeId
             ? weeklyRunAttemptQuota.attemptsRemaining
             : getWeeklyRunAttemptsRemaining(weeklySquadState)}
+          weeklyRunAttemptLimit={weeklyRunAttemptQuotaOwner === activeWalletAddress?.toLowerCase()
+            && weeklyRunAttemptQuota?.weeklyId === resolveRunAttemptPolicy().scopeId
+            ? weeklyRunAttemptQuota.freeAttempts
+            : resolveRunAttemptPolicy().freeAttempts}
+          weeklyRunAttemptsUnlimited={isOwnerWallet}
           weeklyRunAttemptQuotaUnknown={Boolean(
-            activeWalletAddress
+            !isOwnerWallet
+            && activeWalletAddress
             && walletProfileStatus === 'ready'
             && (
               weeklyRunAttemptQuotaOwner !== activeWalletAddress.toLowerCase()
-              || weeklyRunAttemptQuota?.weeklyId !== weeklySquadState.weekKey
+              || weeklyRunAttemptQuota?.weeklyId !== resolveRunAttemptPolicy().scopeId
             )
           )}
           bossArchiveDeveloperControls={bossArchiveDeveloperControls}

@@ -13,7 +13,7 @@ const {
   createWalletProfileSession
 } = require('../api/_lib/walletProfileAuth');
 const handler = require('../api/run-receipts');
-const { getWeeklyBoundaryMeta } = require('../shared/weeklyCompetitionBoundary');
+const { getWeeklyBoundaryMeta, resolveRunAttemptPolicy } = require('../shared/weeklyCompetitionBoundary');
 const { clearWeeklyRunAttemptMemoryForTests } = require('../api/_lib/weeklyRunAttempts');
 
 const root = path.resolve(__dirname, '..');
@@ -217,7 +217,10 @@ test('the guest handshake consumes zero weekly attempts before acknowledgement',
   }, address, { cookie: responseCookie(handshake, GUEST_COOKIE_NAME) }), acknowledged);
   assert.equal(acknowledged.statusCode, 200);
   assert.equal(acknowledged.body.weeklyAttempt.attemptNumber, 1);
-  assert.equal(acknowledged.body.weeklyAttempt.attemptsRemaining, 4);
+  assert.equal(
+    acknowledged.body.weeklyAttempt.attemptsRemaining,
+    resolveRunAttemptPolicy(now).freeAttempts - 1
+  );
 });
 
 test('an exact wallet intent and authenticated session bind the run to that wallet', async () => {

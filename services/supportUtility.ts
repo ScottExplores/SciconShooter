@@ -1,7 +1,10 @@
 /** Bounded utility tuning shared by the runtime and deterministic tests. */
+export const SQUAD_COMPANION_DISPLAY_SCALE = 0.7;
 export const getSalvageLeash = (level: number) => 155 + Math.max(1, Math.min(5, level)) * 25;
 export const getInterceptorCooldown = (level: number) => (7 - Math.max(1, Math.min(5, level)) * 0.6) * 60;
-export const getInterceptorRadius = (level: number) => 42 + Math.max(1, Math.min(5, level)) * 5;
+export const getInterceptorRadius = (level: number) => Math.round(
+  (42 + Math.max(1, Math.min(5, level)) * 5) * SQUAD_COMPANION_DISPLAY_SCALE
+);
 
 export interface UtilityTarget {
   id: string; type: string; x: number; y: number; width: number; height: number;

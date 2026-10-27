@@ -10,11 +10,11 @@ const {
 } = require('./walletProfiles');
 const { readOptionalWalletProfileSession } = require('./walletProfileAuth');
 const {
-  WEEKLY_RUN_FREE_ATTEMPT_LIMIT,
   attemptKeyFor,
   reserveWeeklyRunAttempt,
   settleWeeklyRunAttempt
 } = require('./weeklyRunAttempts');
+const { resolveRunAttemptPolicy } = require('../../shared/weeklyCompetitionBoundary');
 const { readGuestIdentity } = require('./guestIdentity');
 const { isFounderWalletAddress } = require('./founderWallet');
 const {
@@ -314,29 +314,32 @@ const createRunStart = (
   // The signed receipt then fails leaderboard admission and prize finalization.
   const founderRun = isFounderWalletAddress(walletSession?.walletAddress);
   const generatedWeeklyRun = weeklyCampaignBinding?.startNodeId?.startsWith('weekly-run-');
-  if (generatedWeeklyRun && !weeklyAttemptReservation) {
+  if (generatedWeeklyRun && !weeklyAttemptReservation && !founderRun) {
     const error = new Error('Weekly Run starts require a server attempt reservation.');
     error.statusCode = 503;
     error.details = ['weekly_attempt_reservation_required'];
     throw error;
   }
   if (weeklyAttemptReservation) {
+    const attemptPolicy = resolveRunAttemptPolicy(issuedAt);
     const expectedAttemptKey = attemptKeyFor(weeklyCampaignBinding);
     const purchasedAttempts = Math.floor(Number(weeklyAttemptReservation.purchasedAttempts));
     const attemptsUsed = Math.floor(Number(weeklyAttemptReservation.attemptsUsed));
     const attemptsRemaining = Math.floor(Number(weeklyAttemptReservation.attemptsRemaining));
-    const dynamicCapacity = WEEKLY_RUN_FREE_ATTEMPT_LIMIT + purchasedAttempts;
+    const dynamicCapacity = attemptPolicy.freeAttempts + (attemptPolicy.eventWide ? 0 : purchasedAttempts);
     if (
       !generatedWeeklyRun
-      || weeklyAttemptReservation.weeklyId !== weeklyCampaignBinding.weeklyId
+      || !attemptPolicy.countedScopeIds.includes(String(weeklyAttemptReservation.weeklyId))
+      || weeklyCampaignBinding.weeklyId !== attemptPolicy.weekKey
       || weeklyAttemptReservation.attemptKey !== expectedAttemptKey
       || !/^[0-9a-f-]{36}$/i.test(String(weeklyAttemptReservation.reservationId || ''))
       || !/^[0-9a-f-]{36}$/i.test(String(weeklyAttemptReservation.runId || ''))
       || !Number.isInteger(weeklyAttemptReservation.attemptNumber)
       || weeklyAttemptReservation.attemptNumber < 1
-      || Number(weeklyAttemptReservation.freeAttempts) !== WEEKLY_RUN_FREE_ATTEMPT_LIMIT
+      || Number(weeklyAttemptReservation.freeAttempts) !== attemptPolicy.freeAttempts
       || !Number.isInteger(purchasedAttempts)
       || purchasedAttempts < 0
+      || (attemptPolicy.eventWide && purchasedAttempts !== 0)
       || !Number.isInteger(attemptsUsed)
       || attemptsUsed < weeklyAttemptReservation.attemptNumber
       || attemptsUsed > dynamicCapacity
@@ -786,13 +789,22 @@ const reissueStoredRunReceipt = (row, { verifiedRunMode } = {}) => {
 
 const createReservedRunStart = async (gameVersion = 'unknown', options = {}) => {
   const issuedAt = Math.floor(Number(options.nowMs ?? Date.now()));
+  const founderRun = isFounderWalletAddress(options.walletSession?.walletAddress);
   const normalizedRunMode = options.runMode === 'weekly-streak' ? 'weekly-streak' : 'standard';
   if (normalizedRunMode !== 'weekly-streak') {
-    return createRunStart(gameVersion, { ...options, nowMs: issuedAt });
+    return createRunStart(gameVersion, {
+      ...options,
+      testRun: Boolean(options.testRun) || founderRun,
+      nowMs: issuedAt
+    });
   }
   const binding = createWeeklyCampaignStreakRunBinding(options.weeklyCampaignProof, { now: issuedAt });
   if (!binding.startNodeId.startsWith('weekly-run-')) {
-    return createRunStart(gameVersion, { ...options, nowMs: issuedAt });
+    return createRunStart(gameVersion, {
+      ...options,
+      testRun: Boolean(options.testRun) || founderRun,
+      nowMs: issuedAt
+    });
   }
   if (
     binding.currentNodeId !== binding.startNodeId
@@ -807,6 +819,9 @@ const createReservedRunStart = async (gameVersion = 'unknown', options = {}) => 
     error.details = ['weekly_generated_start_not_pristine'];
     throw error;
   }
+  if (founderRun) {
+    return createRunStart(gameVersion, { ...options, testRun: true, nowMs: issuedAt });
+  }
   const identity = createRunIdentityBinding({
     profileId: options.profileId,
     guestIdentityId: options.guestIdentityId,
@@ -815,7 +830,8 @@ const createReservedRunStart = async (gameVersion = 'unknown', options = {}) => 
   const weeklyAttemptReservation = await reserveWeeklyRunAttempt({
     identity,
     binding,
-    guestAdmissionScope: options.guestAdmissionScope
+    guestAdmissionScope: options.guestAdmissionScope,
+    nowMs: issuedAt
   });
   return createRunStart(gameVersion, {
     ...options,
