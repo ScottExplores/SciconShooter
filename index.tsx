@@ -7,6 +7,7 @@ import AppErrorBoundary from './components/AppErrorBoundary';
 import { AppProviders } from './providers';
 import { recoverFromModulePreloadFailure } from './services/deploymentUpdateService';
 import { isBossLabDevKey, isBossLabQueryEnabled } from './services/gameplay/bossLabFlag.mjs';
+import { eventLoaderVariant } from './services/gameplay/eventLoaderFlag.mjs';
 import { installPlayerReportMonitoring } from './services/playerReportService';
 
 const combatLabRequested = import.meta.env.DEV && new URLSearchParams(window.location.search).get('lab') === 'combat';
@@ -30,6 +31,10 @@ const CombatLab = import.meta.env.DEV
   : null;
 const BossLab = React.lazy(() => import('./components/BossLab'));
 const showCombatLab = Boolean(CombatLab && combatLabRequested);
+const eventLoaderVariantId = eventLoaderVariant(window.location.search);
+const EventLoadingMockup = eventLoaderVariantId
+  ? React.lazy(() => import('./components/EventLoadingMockup'))
+  : null;
 
 const rememberBossLabFlag = () => {
   const url = new URL(window.location.href);
@@ -53,6 +58,14 @@ const AppRoot: React.FC = () => {
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
+
+  if (eventLoaderVariantId && EventLoadingMockup) {
+    return (
+      <React.Suspense fallback={null}>
+        <EventLoadingMockup variant={eventLoaderVariantId} />
+      </React.Suspense>
+    );
+  }
 
   return (
     <AppErrorBoundary>
