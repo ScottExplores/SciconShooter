@@ -2,12 +2,13 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { ResearchHubProposal } from '../services/researchHubProposals';
 import { sortProposalsByFunding } from '../services/proposalFunding';
 import { fetchEligibleRfps, type ResearchHubRfp } from '../services/researchHubRfps';
-import { getPublicPrizeState, SCICON_EVENT_CHOICE_COPY } from '../shared/weeklyCompetitionBoundary.browser';
+import { getPublicPrizeState } from '../shared/weeklyCompetitionBoundary.browser';
 import { sanitizeSearchQuery } from '../shared/publicText';
 
 type ProposalFeedStatus = 'loading' | 'ready' | 'empty' | 'error';
 type ProposalSelectionStatus = 'idle' | 'saving' | 'confirmed' | 'error';
 type PickerTab = 'rfps' | 'proposals';
+type PickerStep = 'browse' | 'detail' | 'confirm' | 'receipt';
 
 interface WeeklyProposalSelectionProps {
   pilotName: string;
@@ -20,6 +21,8 @@ interface WeeklyProposalSelectionProps {
   initialProposalId?: string | null;
   initialTab?: PickerTab;
   dismissible?: boolean;
+  /** Prize-preview mode. The first screen says PREVIEW and confirm never means a saved rank. */
+  preview?: boolean;
   onConfirm: (proposal: ResearchHubProposal) => void;
   onProposalChange?: () => void;
   onRetry: () => void;
@@ -75,6 +78,7 @@ const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
   initialProposalId = null,
   initialTab,
   dismissible = true,
+  preview = false,
   onConfirm,
   onProposalChange,
   onRetry,
@@ -90,6 +94,8 @@ const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
   const [rfps, setRfps] = useState<ResearchHubRfp[]>([FEATURED_RFP]);
   const [rfpStatus, setRfpStatus] = useState<ProposalFeedStatus>('loading');
   const [rfpRetry, setRfpRetry] = useState(0);
+  const [step, setStep] = useState<PickerStep>('browse');
+  const [detailChoice, setDetailChoice] = useState<ResearchHubProposal | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const sortedProposals = useMemo(() => {
@@ -125,6 +131,18 @@ const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
     ? (selectedRfp ? rfpAsChoice(selectedRfp) : null)
     : selectedProposal;
   const isSaving = selectionStatus === 'saving';
+
+  useEffect(() => {
+    if (selectionStatus === 'confirmed') setStep('receipt');
+  }, [selectionStatus]);
+
+  const openDetail = (choice: ResearchHubProposal) => {
+    setDetailChoice(choice);
+    if (choice.fundingTargetKind === 'rfp') setSelectedRfpId(choice.id);
+    else setSelectedProposalId(choice.id);
+    onProposalChange?.();
+    setStep('detail');
+  };
 
   useEffect(() => {
     const previousFocus = document.activeElement instanceof HTMLElement
@@ -199,18 +217,18 @@ const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
         <div className="pointer-events-none absolute inset-0 opacity-70 [background-image:linear-gradient(rgba(34,211,238,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(34,211,238,0.035)_1px,transparent_1px)] [background-size:18px_18px]" />
         <div className="relative overflow-hidden border-b border-yellow-200/20 px-4 py-4 text-center sm:px-6">
           <div className="pointer-events-none absolute left-1/2 top-1/2 h-20 w-64 -translate-x-1/2 -translate-y-1/2 bg-yellow-300/10 blur-xl" />
-          <p className="relative animate-pulse font-mono text-[10px] font-black uppercase tracking-[0.28em] text-yellow-200 drop-shadow-[0_0_12px_currentColor]">
-            {bigEvent ? 'SciCon Big Event high score' : 'New weekly high score'}
+          <p className="relative animate-pulse font-mono text-[10px] font-black uppercase tracking-[0.28em] text-yellow-200 drop-shadow-[0_0_12px_currentColor]" data-prize-preview={preview ? 'true' : 'false'}>
+            {preview ? 'PREVIEW' : bigEvent ? '25K High Score' : 'New weekly high score'}
           </p>
           <h2 id="weekly-proposal-selection-title" className="arcade-font relative mt-2 text-2xl font-black uppercase tracking-wider text-white sm:text-3xl">
-            You&apos;re #1, {pilotName || 'Pilot'}
+            {preview ? 'Prize preview' : <>You&apos;re #1, {pilotName || 'Pilot'}</>}
           </h2>
           <p className="relative mt-1 font-mono text-lg font-black text-cyan-100">
             {score.toLocaleString()} points
           </p>
           <p id="weekly-proposal-selection-description" className="relative mx-auto mt-2 max-w-sm text-[11px] font-semibold leading-relaxed text-slate-300">
             {bigEvent
-              ? SCICON_EVENT_CHOICE_COPY
+              ? 'Open an item for details, then confirm it on the next screen.'
               : `Choose the ResearchHub proposal that receives the ${allocationRsc.toLocaleString('en-US')} RSC allocation if your score remains first at the weekly cutoff.`}
           </p>
           {bigEvent ? null : (
@@ -291,10 +309,7 @@ const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
                       disabled={isSaving || selectionStatus === 'confirmed'}
                       aria-pressed={selected}
                       data-featured={featured ? 'true' : 'false'}
-                      onClick={() => {
-                        setSelectedRfpId(rfp.id);
-                        onProposalChange?.();
-                      }}
+                      onClick={() => openDetail(rfpAsChoice(rfp))}
                       className={`grid w-full grid-cols-[3.5rem_minmax(0,1fr)] items-center gap-3 rounded-[6px] border p-2 text-left transition ${selected
                         ? 'border-yellow-200/70 bg-yellow-300/15 shadow-[0_0_18px_rgba(250,204,21,0.18)]'
                         : 'border-cyan-200/15 bg-cyan-300/[0.04] hover:border-cyan-200/40 hover:bg-cyan-300/10'}`}
@@ -356,7 +371,7 @@ const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
                           aria-pressed={selected}
                           onClick={() => {
                             setSelectedProposalId(proposal.id);
-                            onProposalChange?.();
+                            openDetail(proposal);
                           }}
                           className={`grid w-full grid-cols-[3.5rem_minmax(0,1fr)] items-center gap-3 rounded-[6px] border p-2 text-left transition ${selected
                             ? 'border-yellow-200/70 bg-yellow-300/15 shadow-[0_0_18px_rgba(250,204,21,0.18)]'
@@ -391,46 +406,89 @@ const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
             )}
           </div>
 
-          <div className="mt-3 border-t border-cyan-200/15 pt-3">
-            {selectionMessage ? (
-              <div
-                className={`mb-2 rounded-[6px] border px-3 py-2 text-center text-[10px] font-bold ${
-                  selectionStatus === 'error'
-                    ? 'border-red-200/30 bg-red-400/10 text-red-100'
-                    : 'border-emerald-200/20 bg-emerald-300/5 text-emerald-200'
-                }`}
-                role={selectionStatus === 'error' ? 'alert' : 'status'}
-                aria-live="polite"
-              >
-                <p>{selectionMessage}</p>
-                {selectionStatus === 'error' && activeChoice ? (
-                  <p className="mt-1 text-[9px] font-semibold text-slate-300">
-                    Your pick is still selected. Tap retry below.
-                  </p>
-                ) : null}
+          {step === 'detail' && detailChoice ? (
+            <div className="mt-3 border-t border-cyan-200/15 pt-3" data-picker-step="detail">
+              {preview ? <p className="mb-2 text-center font-mono text-[10px] font-black uppercase tracking-[0.2em] text-yellow-200">PREVIEW</p> : null}
+              <h3 className="text-sm font-black text-white">{detailChoice.title}</h3>
+              <p className="mt-1 text-[11px] font-semibold text-cyan-100/80">{detailChoice.organization || detailChoice.author}</p>
+              <p className="mt-2 text-[11px] leading-relaxed text-slate-300">
+                {detailChoice.fundingTargetKind === 'rfp'
+                  ? 'RFP pool.'
+                  : `${detailChoice.votes.toLocaleString()} votes · ${detailChoice.backers.toLocaleString()} backers · ${detailChoice.comments.toLocaleString()} comments`}
+              </p>
+              {detailChoice.endDate ? (
+                <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.08em] text-slate-400">Open through {detailChoice.endDate.slice(0, 10)}</p>
+              ) : null}
+              <a className="mt-2 inline-block text-[10px] font-bold text-cyan-200 underline" href={detailChoice.url} target="_blank" rel="noreferrer">
+                Open on ResearchHub
+              </a>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button type="button" onClick={() => setStep('browse')} className="min-h-11 rounded-[6px] border border-white/15 text-[10px] font-black uppercase tracking-[0.12em] text-slate-200">Back</button>
+                <button type="button" onClick={() => setStep('confirm')} className="min-h-11 rounded-[6px] border border-yellow-100/40 bg-yellow-300/20 text-[10px] font-black uppercase tracking-[0.12em] text-yellow-50">Review pick</button>
               </div>
-            ) : null}
-            <button
-              type="button"
-              disabled={!activeChoice || isSaving || selectionStatus === 'confirmed'}
-              onClick={() => activeChoice && onConfirm(activeChoice)}
-              className="min-h-12 w-full rounded-[6px] border border-yellow-100/40 bg-yellow-300/20 px-4 text-xs font-black uppercase tracking-[0.15em] text-yellow-50 shadow-[0_0_18px_rgba(250,204,21,0.18)] transition hover:bg-yellow-300/30 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/5 disabled:text-slate-500 disabled:shadow-none"
-            >
-              {selectionStatus === 'confirmed'
-                ? (activeChoice?.fundingTargetKind === 'rfp' ? 'RFP logged' : 'Proposal saved')
-                : isSaving
-                  ? 'Saving your pick...'
-                  : selectionStatus === 'error' && activeChoice
-                    ? 'Retry saving pick'
-                    : activeChoice?.fundingTargetKind === 'rfp'
-                      ? 'Confirm this RFP pool'
-                      : activeChoice
-                        ? `Confirm ${allocationRsc.toLocaleString('en-US')} RSC proposal`
-                        : bigEvent && tab === 'rfps'
-                          ? 'Select an RFP'
-                          : 'Select a proposal'}
-            </button>
-          </div>
+            </div>
+          ) : null}
+          {step === 'confirm' && detailChoice ? (
+            <div className="mt-3 border-t border-cyan-200/15 pt-3" data-picker-step="confirm">
+              {preview ? <p className="mb-2 text-center font-mono text-[10px] font-black uppercase tracking-[0.2em] text-yellow-200">PREVIEW</p> : null}
+              <p className="text-center text-[11px] font-semibold text-slate-300">
+                {preview
+                  ? 'Preview only. Nothing will be saved.'
+                  : 'Confirm this pick for the score.'}
+              </p>
+              <p className="mt-2 text-center text-sm font-black text-white">{detailChoice.title}</p>
+              {selectionMessage ? (
+                <div
+                  className={`mb-2 mt-2 rounded-[6px] border px-3 py-2 text-center text-[10px] font-bold ${
+                    selectionStatus === 'error'
+                      ? 'border-red-200/30 bg-red-400/10 text-red-100'
+                      : 'border-emerald-200/20 bg-emerald-300/5 text-emerald-200'
+                  }`}
+                  role={selectionStatus === 'error' ? 'alert' : 'status'}
+                  aria-live="polite"
+                >
+                  <p>{selectionMessage}</p>
+                  {selectionStatus === 'error' ? (
+                    <p className="mt-1 text-[9px] font-semibold text-slate-300">
+                      Your pick is still selected. Tap retry below.
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button type="button" onClick={() => setStep('detail')} disabled={isSaving} className="min-h-12 rounded-[6px] border border-white/15 text-[10px] font-black uppercase tracking-[0.12em] text-slate-200">Back</button>
+                <button
+                  type="button"
+                  disabled={isSaving || selectionStatus === 'confirmed'}
+                  onClick={() => onConfirm(detailChoice)}
+                  className="min-h-12 rounded-[6px] border border-yellow-100/40 bg-yellow-300/20 px-2 text-[10px] font-black uppercase tracking-[0.12em] text-yellow-50"
+                >
+                  {isSaving
+                    ? 'Saving your pick...'
+                    : selectionStatus === 'error'
+                      ? 'Retry saving pick'
+                      : detailChoice.fundingTargetKind === 'rfp'
+                        ? 'Confirm this RFP pool'
+                        : `Confirm ${allocationRsc.toLocaleString('en-US')} RSC proposal`}
+                </button>
+              </div>
+            </div>
+          ) : null}
+          {step === 'receipt' && detailChoice ? (
+            <div className="mt-3 border-t border-cyan-200/15 pt-3" data-picker-step="receipt">
+              <p className="text-center font-mono text-[10px] font-black uppercase tracking-[0.2em] text-yellow-200">{preview ? 'PREVIEW' : 'Receipt'}</p>
+              <h3 className="mt-2 text-center text-sm font-black text-white">{detailChoice.title}</h3>
+              <p className="mt-2 text-center text-[11px] leading-relaxed text-slate-300">
+                {preview
+                  ? 'Preview only. Nothing was saved.'
+                  : selectionMessage || 'Your pick is saved with this score.'}
+              </p>
+              <p className="mt-1 text-center font-mono text-[10px] text-cyan-100">{score.toLocaleString()} points</p>
+              <button type="button" onClick={onClose} className="mt-3 min-h-12 w-full rounded-[6px] border border-emerald-200/40 bg-emerald-300/15 text-[10px] font-black uppercase tracking-[0.14em] text-emerald-50">
+                Continue
+              </button>
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

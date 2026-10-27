@@ -106,7 +106,19 @@ test('the live prize is one 25,000 RSC November event', () => {
   assert.match(source, /SCICON_EVENT_PAUSE_COPY/);
   assert.match(source, /phase === 'big-event'/);
   assert.match(source, /winner announced Nov 30/);
-  assert.match(pickerSource, /SCICON_EVENT_CHOICE_COPY/);
+  const previewChooser = appSource.slice(
+    appSource.indexOf('prizePreviewOpen && prizePreviewRequest'),
+    appSource.indexOf('showMissionRecordPreview && runReceipt')
+  );
+  assert.match(previewChooser, /\n\s*preview\n/);
+  assert.match(previewChooser, /Nothing was saved/);
+  assert.doesNotMatch(previewChooser, /confirmWeeklyLeaderProposal|saveWeeklyLeaderProposal|You&apos;re #1/);
+  assert.match(pickerSource, /data-picker-step="detail"/);
+  assert.match(pickerSource, /data-picker-step="confirm"/);
+  assert.match(pickerSource, /data-picker-step="receipt"/);
+  assert.match(pickerSource, /preview \? 'PREVIEW'/);
+  assert.match(pickerSource, /preview \? 'Prize preview'/);
+  assert.doesNotMatch(pickerSource, /fund manually|Scott funds/);
   assert.match(pickerSource, /33131/);
   assert.match(pickerSource, /data-event-tab/);
   assert.match(pickerSource, /data-featured/);

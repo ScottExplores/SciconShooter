@@ -7546,11 +7546,6 @@ const App: React.FC = () => {
         proposal_id: proposal.id,
         source: 'weekly_high_score'
       });
-      weeklyProposalTransitionRef.current = window.setTimeout(() => {
-        weeklyProposalTransitionRef.current = null;
-        setShowWeeklyProposalSelection(false);
-        setShowMissionRecordPreview(weeklyProposalReturnRef.current === 'record');
-      }, 650);
     } catch (error) {
       console.error('Weekly proposal selection failed:', error);
       if (isWeeklyLeaderDisplacementError(error)) {
@@ -7586,9 +7581,7 @@ const App: React.FC = () => {
     setShowWeeklyProposalSelection(false);
     setWeeklyProposalSelectionStatus('idle');
     setWeeklyProposalSelectionMessage('');
-    if (weeklyProposalReturnRef.current === 'record') {
-      setShowMissionRecordPreview(true);
-    }
+    setShowMissionRecordPreview(weeklyProposalReturnRef.current === 'record');
   };
 
   const openMissionRecordWeeklyFunding = () => {
@@ -8599,12 +8592,13 @@ const App: React.FC = () => {
             selectionStatus={prizePreviewStatus}
             selectionMessage={prizePreviewMessage}
             initialTab={prizePreviewRequest.tab}
+            preview
             dismissible
             onConfirm={(proposal) => {
               setPrizePreviewStatus('confirmed');
               setPrizePreviewMessage(
                 proposal.fundingTargetKind === 'rfp'
-                  ? `Preview only. Nothing was saved. ${SCICON_EVENT_CHOICE_COPY}`
+                  ? 'Preview only. Nothing was saved.'
                   : `${proposal.title} is the preview pick. Nothing was saved.`
               );
             }}
