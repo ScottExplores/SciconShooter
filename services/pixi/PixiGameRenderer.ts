@@ -3380,7 +3380,7 @@ export class PixiGameRenderer {
       } else if (entity.projectileVisualKind === 'bio-genome-lance') {
         view.sprite.width = entity.width * 2.1;
         view.trail.moveTo(-4, entity.height * 0.2).lineTo(-4, entity.height * 0.65)
-          .stroke({ color: '#a3e635', width: 3, alpha: 0.4 });
+          .stroke({ color: '#22d3ee', width: 3, alpha: 0.4 });
         view.trail.moveTo(4, entity.height * 0.15).lineTo(4, entity.height * 0.55)
           .stroke({ color: '#eaffb2', width: 2, alpha: 0.45 });
       } else if (entity.projectileVisualKind === 'eth-prism-volley') {
@@ -3586,7 +3586,7 @@ export class PixiGameRenderer {
         // Grow a wake only after the round has actually cleared its muzzle.
         // No frame-zero 40px trail may be laid back across the player's ship.
         const wake = energy?.wakeLength ?? Math.min(18, Math.max(0, weaponAge * speed * 0.4));
-        const wakeColor = energy?.color ?? (family === 'bio' ? '#a3e635' : family === 'eth' ? '#b7b0ff' : '#ffbf47');
+        const wakeColor = energy?.color ?? (family === 'bio' ? '#22d3ee' : family === 'eth' ? '#b7b0ff' : '#ffbf47');
         if (energy) {
           view.body.rect(-energy.coreWidth / 2, energy.coreY - energy.coreHeight / 2, energy.coreWidth, energy.coreHeight)
             .fill({ color: energy.coreColor, alpha: 0.92 });
@@ -3610,7 +3610,7 @@ export class PixiGameRenderer {
       // already pooled Graphics: no trail particles or extra collision bodies.
       const family = entity.weaponVisualFamily;
       if (family && family !== 'research') {
-        const wakeColor = family === 'bio' ? '#a3e635' : family === 'eth' ? '#b7b0ff' : '#ffbf47';
+        const wakeColor = family === 'bio' ? '#22d3ee' : family === 'eth' ? '#b7b0ff' : '#ffbf47';
         const wakeLength = (family === 'btc' ? 28 : 38) + Math.min(5, entity.weaponVisualLevel) * 4;
         const lanes = family === 'bio' ? [-9, 9] : [0];
         view.trail.blendMode = 'add';

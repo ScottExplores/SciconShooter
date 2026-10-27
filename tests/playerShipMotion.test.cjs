@@ -21,7 +21,7 @@ const loadMotionRuntime = () => {
   return holder.exports;
 };
 
-const steeringIds = ['researchhub', 'nih', 'eth', 'btc-token-ship'];
+const steeringIds = ['researchhub', 'bio', 'eth', 'btc-token-ship'];
 const selectionIds = steeringIds.map((id) => `${id}-selection-idle`);
 const playerAssets = manifest.assets.filter((asset) => (
   steeringIds.includes(asset.id) || selectionIds.includes(asset.id)

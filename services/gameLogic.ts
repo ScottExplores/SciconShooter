@@ -8602,7 +8602,7 @@ export class GameEngine {
         height: 126,
         speed: 10.5,
         damage: 5.5,
-        color: '#86efac',
+        color: '#67e8f9',
         yOffset: -102,
         weaponKind: 'bio-laser',
         pierceRemaining: 12

@@ -222,15 +222,15 @@ export const SHIP_ABILITY_DEFINITIONS: Readonly<Record<PlayerShipId, ShipAbility
   },
   bio: {
     id: 'bio-genome-lance',
-    name: 'Genome Lance',
-    actionLabel: 'Fire BIO Genome Lance',
+    name: 'Pathfinder Lance',
+    actionLabel: 'Fire Pathfinder Lance',
     frames: BIO_GENOME_LANCE_FRAME_URLS,
     iconUrl: BIO_GENOME_LANCE_FRAME_URLS[3],
     iconRotationDegrees: 0,
     cooldownFrames: SHIP_ABILITY_COOLDOWN_SECONDS.bio * 60,
     cooldownSeconds: SHIP_ABILITY_COOLDOWN_SECONDS.bio,
-    color: '#86efac',
-    glow: 'rgba(74,222,128,0.3)'
+    color: '#67e8f9',
+    glow: 'rgba(34,211,238,0.3)'
   },
   eth: {
     id: 'eth-prism-volley',

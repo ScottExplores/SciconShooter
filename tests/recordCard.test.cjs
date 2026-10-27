@@ -66,7 +66,7 @@ test('record card embeds encounter art and meaningful run values', async () => {
     assert.match(res.body, /data:image\/png;base64,/);
     assert.match(res.body, /preserveAspectRatio="none" style="image-rendering:pixelated"/);
     assert.doesNotMatch(res.body, /SERVER VERIFIED/);
-    assert.ok(fetchedUrls.some((url) => url.includes('/game-art/generated/scicon-flight-motion-pack-v1/ships/nih/frames/nih-03-neutral.png')));
+    assert.ok(fetchedUrls.some((url) => url.includes('/game-art/generated/scicon-flight-motion-pack-v1/ships/bio/frames/bio-03-neutral.png')));
     // Citation Crossing now opens on a Citation Wraith swarm, so AUTO card
     // art must follow that authored encounter instead of the old interceptor.
     assert.ok(fetchedUrls.some((url) => url.includes('/game-art/enemies/citation-wraith.png')));

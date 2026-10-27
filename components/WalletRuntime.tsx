@@ -123,7 +123,7 @@ interface WalletRuntimeProps {
   onWalletPurchaseStatus?: (update: WalletPurchaseStatusUpdate) => void;
   /** Apply the returned authoritative profile; do not recreate the reward client-side. */
   onWalletPurchaseSuccess?: (settlement: WalletPurchaseSettlement) => void;
-  /** Permanent ETH/BTC access reported by the server. The NIH ship is always unlocked. */
+  /** Permanent ETH/BTC access reported by the server. NIH Pathfinder is always unlocked. */
   onPlayerShipAccessChange?: (update: PlayerShipAccessUpdate) => void;
   /** Dedicated lifecycle so ship payments cannot overwrite RSC store status. */
   onPlayerShipPurchaseStatus?: (update: PlayerShipPurchaseStatusUpdate) => void;

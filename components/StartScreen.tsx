@@ -1153,7 +1153,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const focusedShip = PLAYER_SHIPS[shipFocusId];
   const focusedShipLocked = !isPlayerShipUnlocked(shipFocusId, shipUnlocks);
   const getShipUnlockMessage = (shipId: PlayerShipId) => shipId === 'bio'
-    ? 'NIH ship is unlocked.'
+    ? 'NIH Pathfinder is unlocked. SciCon promo ship.'
     : shipId === 'eth'
       ? 'Unlock permanently for 0.001 ETH on Base.'
       : shipId === 'btc'

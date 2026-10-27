@@ -62,7 +62,7 @@ const boundedTokenInteger = (value) => {
 
 const cloneSnapshot = (snapshot) => JSON.parse(JSON.stringify(snapshot));
 
-const profilePlayerShipUpgradeAccess = (profile, bioStatus = null) => {
+const profilePlayerShipUpgradeAccess = (profile) => {
   const rawEntitlements = asObject(
     profile?.snapshot?.permanentState?.playerShipEntitlements
   );
@@ -74,7 +74,7 @@ const profilePlayerShipUpgradeAccess = (profile, bioStatus = null) => {
     : { complete: false };
   return {
     researchhub: true,
-    bio: bioStatus?.verificationStatus === 'verified' && bioStatus.unlocked === true,
+    bio: true,
     eth: Boolean(entitlements.eth),
     btc: Boolean(entitlements.btc) || mastery.complete === true
   };
@@ -323,7 +323,7 @@ const applyWalletTokenSpend = async ({
   expectedRevision,
   action,
   now = Date.now(),
-  publicClient = null
+  publicClient: _publicClient = null
 }) => {
   const walletAddress = normalizeWalletAddress(address);
   const normalizedSpendId = String(spendId || '').trim().toLowerCase();
@@ -369,25 +369,7 @@ const applyWalletTokenSpend = async ({
     );
   }
 
-  let verifiedPlayerShipAccess = profilePlayerShipUpgradeAccess(profile);
-  if (
-    normalizedAction.kind === 'upgrade-main-ship'
-    && normalizedAction.shipId === 'bio'
-  ) {
-    const { getBioHoldingStatus } = require('./playerShipAccess');
-    const bioStatus = await getBioHoldingStatus({
-      address: walletAddress,
-      publicClient
-    });
-    if (bioStatus.verificationStatus !== 'verified') {
-      throw apiError(
-        'BIO holding verification is temporarily unavailable. No Tokens were spent.',
-        503,
-        'wallet_token_bio_verification_unavailable'
-      );
-    }
-    verifiedPlayerShipAccess = profilePlayerShipUpgradeAccess(profile, bioStatus);
-  }
+  const verifiedPlayerShipAccess = profilePlayerShipUpgradeAccess(profile);
   const canonical = canonicalWalletTokenSpend({
     profile,
     action: normalizedAction,

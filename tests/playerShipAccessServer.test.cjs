@@ -186,7 +186,8 @@ test('Base ship catalog uses the exact BIO, ETH, cbBTC, recipient, and raw-unit 
   assert.equal(access.BASE_CHAIN_ID, 8453);
   assert.equal(access.BIO_CONTRACT_ADDRESS, '0x226a2fa2556c48245e57cd1cba4c6c9e67077dd2');
   assert.equal(access.BIO_DECIMALS, 18);
-  assert.equal(access.BIO_SHIP_REQUIRED_BALANCE_RAW, '100000000000000000000');
+  assert.equal(access.BIO_SHIP_REQUIRED_BALANCE_RAW, undefined);
+  assert.equal(typeof access.getBioHoldingStatus, 'undefined');
   assert.equal(access.CBBTC_CONTRACT_ADDRESS, '0xcbb7c0000ab88b473b1f5afd9ef808440eed33bf');
   assert.equal(access.CBBTC_DECIMALS, 8);
   assert.equal(access.PLAYER_SHIP_PURCHASE_RECIPIENT_ADDRESS, '0x3a8d692aabdd4981080a8f6af8375a21359464bf');
@@ -214,36 +215,18 @@ test('Base ship catalog uses the exact BIO, ETH, cbBTC, recipient, and raw-unit 
   );
 });
 
-test('BIO access is fail-closed and unlocks only at the exact 100 BIO threshold on Base', async () => {
-  const status = await access.getBioHoldingStatus({
+test('NIH Pathfinder stays unlocked without a BIO balance check', async () => {
+  const status = await access.getPlayerShipAccessStatus({
     address: WALLET,
+    profile: profileWith(),
     publicClient: {
-      getChainId: async () => 8453,
-      readContract: async () => 100_000_000_000_000_000_000n
+      getChainId: async () => { throw new Error('BIO balance provider must not be called'); },
+      readContract: async () => { throw new Error('BIO balance provider must not be called'); }
     }
   });
-  assert.equal(status.verificationStatus, 'verified');
-  assert.equal(status.unlocked, true);
-  assert.equal(status.balanceRaw, access.BIO_SHIP_REQUIRED_BALANCE_RAW);
-
-  const below = await access.getBioHoldingStatus({
-    address: WALLET,
-    publicClient: {
-      getChainId: async () => 8453,
-      readContract: async () => 99_999_999_999_999_999_999n
-    }
-  });
-  assert.equal(below.unlocked, false);
-
-  const wrongChain = await access.getBioHoldingStatus({
-    address: WALLET,
-    publicClient: {
-      getChainId: async () => 1,
-      readContract: async () => 999_000_000_000_000_000_000n
-    }
-  });
-  assert.equal(wrongChain.verificationStatus, 'unavailable');
-  assert.equal(wrongChain.unlocked, false);
+  assert.equal(status.bio, true);
+  assert.deepEqual(status.unlockedPlayerShips, ['researchhub', 'bio']);
+  assert.equal(Object.hasOwn(status, 'bioThresholdRaw'), false);
 });
 
 test('access status exposes the flat client contract with formatted BIO and Campaign mastery', async () => {
@@ -261,7 +244,6 @@ test('access status exposes the flat client contract with formatted BIO and Camp
     btc: false,
     bioBalanceRaw: null,
     bioBalance: null,
-    bioThresholdRaw: '100000000000000000000',
     campaignMastered: false,
     unlockedPlayerShips: ['researchhub', 'bio']
   });

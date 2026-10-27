@@ -685,6 +685,11 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
           </div>
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_46%,rgba(14,165,233,0.1),transparent_38%),linear-gradient(180deg,rgba(3,8,28,0.18),rgba(3,8,28,0.58))]" />
           <AnimatedTraceLabel>{activeName}</AnimatedTraceLabel>
+          {activePosition === 'main' && mainShipId === 'bio' ? (
+            <p className="relative z-10 mt-1 text-center font-mono text-[0.58rem] font-black uppercase tracking-[0.18em] text-cyan-200">
+              SciCon promo ship
+            </p>
+          ) : null}
 
           <div className="relative mx-auto mt-1 h-[12.75rem] w-full max-w-[26rem] sm:h-[16rem]">
             <div

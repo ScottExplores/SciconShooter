@@ -5,7 +5,7 @@ import { FIRE_RATE_MAX_LEVEL } from './services/weaponTierProgression';
 export const ASSETS = {
   PLAYER_SHIP: "/game-art/branding/researchhub-ship.png",
   BIO_SHIP: "/game-art/branding/bio-ship.png",
-  NIH_SHIP: "/game-art/generated/scicon-flight-motion-pack-v1/ships/nih/frames/nih-03-neutral.png",
+  NIH_SHIP: "/game-art/generated/scicon-flight-motion-pack-v1/ships/bio/frames/bio-03-neutral.png",
   ETH_SHIP: "/game-art/branding/eth-ship.png",
   BTC_SHIP: "/game-art/generated/scicon-flight-motion-pack-v1/ships/btc-token-ship/frames/btc-token-ship-03-neutral.png",
   
@@ -473,20 +473,6 @@ export const DONATION_CONFIG = {
   SUPPORT_EMAIL: "Sciconshooter@gmail.com",
   GAME_URL: "https://sciconshooter.xyz"
 };
-
-/**
- * Public, immutable BIO holding requirement. The access API independently
- * reads this exact ERC-20 balance on Base before reporting the ship unlocked.
- * BIO uses 18 decimals on the configured Base contract.
- */
-export const BIO_SHIP_HOLDING_REQUIREMENT = Object.freeze({
-  shipId: 'bio',
-  tokenAddress: DONATION_CONFIG.BIO_CONTRACT_ADDRESS,
-  tokenSymbol: 'BIO',
-  decimals: 18,
-  minimumAmount: '100',
-  minimumAmountRaw: '100000000000000000000'
-} as const);
 
 /**
  * Public ship-purchase terms mirrored by the server. Values are strings so no

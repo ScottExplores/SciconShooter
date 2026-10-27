@@ -191,9 +191,9 @@ const PlayerShipAccessDialog: React.FC<PlayerShipAccessDialogProps> = ({
           <div className="min-w-0">
             {shipId === 'bio' ? (
               <>
-                <p className="text-sm font-black uppercase text-emerald-100">NIH ship</p>
+                <p className="text-sm font-black uppercase text-cyan-100">NIH Pathfinder</p>
                 <p className="mt-1 text-[0.66rem] leading-relaxed text-slate-300">
-                  This ship is unlocked. No token holding is required.
+                  SciCon promo ship. Available to every player.
                 </p>
               </>
             ) : shipId === 'eth' ? (

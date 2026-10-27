@@ -11,7 +11,6 @@ const BASE_CHAIN_ID = 8453;
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 const BIO_CONTRACT_ADDRESS = '0x226a2fa2556c48245e57cd1cba4c6c9e67077dd2';
 const BIO_DECIMALS = 18;
-const BIO_SHIP_REQUIRED_BALANCE_RAW = '100000000000000000000';
 const CBBTC_CONTRACT_ADDRESS = '0xcbb7c0000ab88b473b1f5afd9ef808440eed33bf';
 const CBBTC_DECIMALS = 8;
 const PLAYER_SHIP_PURCHASE_RECIPIENT_ADDRESS = '0x3a8d692aabdd4981080a8f6af8375a21359464bf';
@@ -50,14 +49,6 @@ const PLAYER_SHIP_PURCHASE_SKUS = Object.freeze({
     entitlementSource: 'base-cbbtc-purchase'
   })
 });
-
-const balanceOfAbi = [{
-  type: 'function',
-  name: 'balanceOf',
-  stateMutability: 'view',
-  inputs: [{ name: 'account', type: 'address' }],
-  outputs: [{ name: 'balance', type: 'uint256' }]
-}];
 
 const transferEventAbi = [{
   type: 'event',
@@ -127,45 +118,6 @@ const playerShipPublicClient = async () => {
   });
 };
 
-const getBioHoldingStatus = async ({ address, publicClient = null }) => {
-  const walletAddress = normalizeWalletAddress(address);
-  if (!walletAddress) throw apiError('A valid Base wallet address is required.', 400);
-  try {
-    const client = publicClient || await playerShipPublicClient();
-    const [chainId, rawBalance] = await Promise.all([
-      client.getChainId(),
-      client.readContract({
-        address: BIO_CONTRACT_ADDRESS,
-        abi: balanceOfAbi,
-        functionName: 'balanceOf',
-        args: [walletAddress]
-      })
-    ]);
-    if (Number(chainId) !== BASE_CHAIN_ID) {
-      throw new Error('BIO balance provider is not connected to Base mainnet.');
-    }
-    const balanceRaw = BigInt(rawBalance);
-    return {
-      verificationStatus: 'verified',
-      unlocked: balanceRaw >= BigInt(BIO_SHIP_REQUIRED_BALANCE_RAW),
-      balanceRaw: balanceRaw.toString(),
-      requiredBalanceRaw: BIO_SHIP_REQUIRED_BALANCE_RAW,
-      tokenAddress: BIO_CONTRACT_ADDRESS,
-      decimals: BIO_DECIMALS
-    };
-  } catch (error) {
-    console.error('BIO ship balance verification failed:', error);
-    return {
-      verificationStatus: 'unavailable',
-      unlocked: false,
-      balanceRaw: null,
-      requiredBalanceRaw: BIO_SHIP_REQUIRED_BALANCE_RAW,
-      tokenAddress: BIO_CONTRACT_ADDRESS,
-      decimals: BIO_DECIMALS
-    };
-  }
-};
-
 const formatTokenBalance = (rawValue, decimals) => {
   const raw = BigInt(rawValue);
   const divisor = 10n ** BigInt(decimals);
@@ -216,7 +168,6 @@ const getPlayerShipAccessStatus = async ({
     btc: access.btc,
     bioBalanceRaw: null,
     bioBalance: null,
-    bioThresholdRaw: BIO_SHIP_REQUIRED_BALANCE_RAW,
     campaignMastered: access.mastery.complete,
     unlockedPlayerShips: ['researchhub',
       ...(access.bio ? ['bio'] : []),
@@ -664,7 +615,6 @@ module.exports = {
   BASE_CHAIN_ID,
   BIO_CONTRACT_ADDRESS,
   BIO_DECIMALS,
-  BIO_SHIP_REQUIRED_BALANCE_RAW,
   CBBTC_CONTRACT_ADDRESS,
   CBBTC_DECIMALS,
   COINBASE_SMART_WALLET_IMPLEMENTATIONS,
@@ -676,7 +626,6 @@ module.exports = {
   PLAYER_SHIP_QUOTE_LIFETIME_MS,
   ZERO_ADDRESS,
   createPlayerShipPurchaseQuote,
-  getBioHoldingStatus,
   getPlayerShipAccessStatus,
   isExactCoinbaseSmartWalletNativeShipPayment,
   isExactDirectNativeShipPayment,
