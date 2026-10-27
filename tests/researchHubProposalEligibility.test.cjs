@@ -7,7 +7,7 @@ const { isFundingDeadlineAfter } = require('../shared/researchHubProposalEligibi
 
 const root = path.resolve(__dirname, '..');
 const proposalServiceSource = fs.readFileSync(path.join(root, 'services', 'researchHubProposals.ts'), 'utf8');
-const pickerSource = fs.readFileSync(path.join(root, 'components', 'WeeklyProposalSelection.tsx'), 'utf8');
+const pickerSource = fs.readFileSync(path.join(root, 'components', 'PrizeWinnerFlow.tsx'), 'utf8');
 const leaderboardApiSource = fs.readFileSync(path.join(root, 'api', 'leaderboard.js'), 'utf8');
 const weeklyClaimSource = fs.readFileSync(path.join(root, 'api', 'weekly-claim.js'), 'utf8');
 
@@ -31,10 +31,11 @@ test('missing or malformed funding deadlines fail closed', () => {
 test('the client feed filters against the shared weekly boundary and explains the rule', () => {
   assert.match(proposalServiceSource, /getPublicPrizeState\(\)\.proposalOpenUntil/);
   assert.match(proposalServiceSource, /isFundingDeadlineAfter\(proposal\.endDate, requiredOpenUntil\)/);
-  assert.match(pickerSource, /Only proposals whose funding deadline is after November 30, 2026 are eligible\./);
-  assert.match(pickerSource, /Only proposals open past Sunday\\?'s noon-Pacific cutoff are eligible\./);
+  assert.match(pickerSource, /Only items still open after November 30, 2026 are listed\./);
+  assert.match(pickerSource, /Only items still open after this week\\'s noon-Pacific cutoff are listed\./);
   assert.match(leaderboardApiSource, /requiredOpenUntil: getPublicPrizeState\(\)\.proposalOpenUntil/);
-  assert.match(weeklyClaimSource, /findCurrentWeekEligibleProposal/);
+  assert.match(weeklyClaimSource, /findCurrentWeekEligibleTarget/);
+  assert.match(weeklyClaimSource, /findEligibleProposal/);
 });
 
 test('the client feed requests and returns exact referenced proposals without changing the eligible-list wrapper', () => {

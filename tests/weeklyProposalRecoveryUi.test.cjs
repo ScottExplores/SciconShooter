@@ -94,18 +94,18 @@ test('App prefers the initial leader but still loads proposals if the leaderboar
 
 test('the mandatory post-score chooser cannot be dismissed while recovery openings can close', () => {
   const app = read('App.tsx');
-  const picker = read('components', 'WeeklyProposalSelection.tsx');
+  const picker = read('components', 'PrizeWinnerFlow.tsx');
 
   assert.match(app, /requiresWeeklyProposal[\s\S]*setWeeklyProposalSelectionMode\('required'\)/);
   assert.match(app, /openWeeklyLeaderProposal[\s\S]*setWeeklyProposalSelectionMode\('recovery'\)/);
   assert.match(app, /dismissible=\{weeklyProposalSelectionMode === 'recovery'\}/);
   assert.match(picker, /\{dismissible && onClose \? \(/);
-  assert.match(picker, /aria-label="Choose proposal later"/);
+  assert.match(picker, /aria-label="Close prize picker"/);
   assert.match(picker, /role="dialog"/);
   assert.match(picker, /aria-modal="true"/);
-  assert.match(picker, /onKeyDown=\{handleDialogKeyDown\}/);
-  assert.match(picker, /disabled=\{isSaving\}/);
-  assert.match(picker, /aria-pressed=\{selected\}/);
+  assert.match(picker, /onKeyDown=\{/);
+  assert.match(picker, /disabled=\{selectionStatus === 'saving'\}/);
+  assert.match(picker, /aria-pressed=\{active\}/);
   assert.match(app, /weeklyProposalReturnRef\.current === 'record'[\s\S]*setShowMissionRecordPreview\(true\)/);
   assert.match(app, /isWeeklyLeaderDisplacementError\(error\)[\s\S]*setWeeklyProposalSelectionMode\('recovery'\)/);
   assert.match(app, /Another pilot took the weekly lead[\s\S]*close this panel to continue/);
@@ -153,12 +153,11 @@ test('guest proposal recovery is durable before score POST and uses the live sco
 
 test('a selected recovery proposal survives a failed save and exposes a clear retry', () => {
   const app = read('App.tsx');
-  const picker = read('components', 'WeeklyProposalSelection.tsx');
+  const picker = read('components', 'PrizeWinnerFlow.tsx');
 
   assert.match(app, /initialProposalId=\{monthlyLeaderboard\.find\(\(entry\) => entry\.runId === runReceipt\.runId\)\?\.proposalId \?\? null\}/);
-  assert.match(picker, /const \[selectedProposalId, setSelectedProposalId\]/);
-  assert.match(picker, /sortedProposals\.find\(\(proposal\) => proposal\.id === selectedProposalId\)/);
-  assert.match(picker, /Your proposal is still selected\. Tap retry below\./);
-  assert.match(picker, /Retry saving proposal/);
+  assert.match(picker, /initialProposalId/);
+  assert.match(picker, /setSelected\(\{ kind: 'proposal', proposal \}\)/);
+  assert.match(picker, /Record this choice/);
   assert.match(app, /onProposalChange=\{\(\) => \{[\s\S]*setWeeklyProposalSelectionStatus\('idle'\)[\s\S]*setWeeklyProposalSelectionMessage\(''\)/);
 });

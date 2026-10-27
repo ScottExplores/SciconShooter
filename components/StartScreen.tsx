@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ArchivedWinner, LeaderboardEntry, MintRecord } from '../types';
 import { ResearchHubProposal } from '../services/researchHubProposals';
+import PrizeWinnerFlow from './PrizeWinnerFlow';
 import {
   formatFundingAmount,
   formatFundingPercent,
@@ -481,7 +482,7 @@ const getWeeklyAllocationMeta = (now = new Date()) => {
     closed: false,
     snapshotFrozen: false,
     announceLabel: '',
-    rulesText: 'Leaderboard positions remain provisional until the weekly cutoff. The finalized No. 1 pilot may choose an eligible ResearchHub proposal for the announced allocation. Selection and funding are separate steps; funding is only confirmed after a Base transaction reference is recorded.',
+    rulesText: prize.rulesText,
     countdownLabel: weekly.isFinalizing
       ? 'Publishing the new week and Past Pick together'
       : `Ends ${weekly.daysLeft === 0 ? 'today' : `in ${weekly.daysLeft} day${weekly.daysLeft === 1 ? '' : 's'}`}`
@@ -1621,8 +1622,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
               {weeklyAllocation.phase === 'weekly'
                 ? `Season 7 - Week ${weeklyAllocation.endLabel}`
                 : weeklyAllocation.snapshotFrozen
-                  ? 'Final standings. 25,000 RSC toward one ResearchHub proposal.'
-                  : '25,000 RSC to the top score this month, toward one ResearchHub proposal.'}
+                  ? 'Final standings. 25,000 RSC. Weekly prize resumes after November 30.'
+                  : '25,000 RSC this month. Featured RFP: Airborne Disease Resilience. Any open proposal or RFP still counts.'}
             </p>
           </div>
           <div className="text-right">
@@ -2109,7 +2110,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
                           ) : null}
                         </div>
                         <div className="min-w-0">
-                          <p className="text-[0.62rem] font-bold uppercase tracking-wide text-emerald-200">{proposalSelection ? proposalClaimed ? 'Proposal selected' : 'Proposal preselected' : 'Proposal pending'}</p>
+                          <p className="text-[0.62rem] font-bold uppercase tracking-wide text-emerald-200">{proposalSelection ? /\/rfp\//.test(proposalSelection.url) ? (proposalClaimed ? 'RFP recorded for manual funding' : 'RFP preselected') : proposalClaimed ? 'Proposal selected' : 'Proposal preselected' : 'Proposal pending'}</p>
                           <p className="mt-1 line-clamp-2 text-sm font-bold leading-snug text-white">{proposalSelection?.title ?? 'Champion selection pending'}</p>
                           {proposalSelection?.author && <p className="mt-1 truncate text-[0.68rem] font-bold uppercase text-cyan-200">{proposalSelection.author}</p>}
                         </div>
@@ -2447,6 +2448,91 @@ const StartScreen: React.FC<StartScreenProps> = ({
       className="scicon-start-screen relative h-full min-h-0 overflow-hidden bg-slate-950 text-white"
       data-dashboard-tab={dashboardTab}
     >
+      {typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('prize-preview') === '1' ? (
+        <PrizeWinnerFlow
+          preview
+          pilotName="SCOTT"
+          score={128440}
+          allocationRsc={25000}
+          proposalStatus="ready"
+          initialStep={(['win', 'pick', 'confirm', 'receipt'] as const).find((step) => step === new URLSearchParams(window.location.search).get('prize-step')) ?? 'win'}
+          initialTab={new URLSearchParams(window.location.search).get('prize-tab') === 'rfps' ? 'rfps' : 'proposals'}
+          initialQuery={new URLSearchParams(window.location.search).get('prize-q') ?? ''}
+          initialSelectedId={new URLSearchParams(window.location.search).get('prize-id')}
+          proposals={[
+            {
+              id: '88001',
+              title: 'Airway epithelial repair after infection',
+              author: 'A. Chen',
+              url: 'https://www.researchhub.com/fund',
+              endDate: '2027-03-01T00:00:00.000Z',
+              goalCurrency: 'USD',
+              requestedUsd: 25000,
+              raisedUsd: 6400,
+              backers: 12,
+              votes: 40,
+              comments: 3,
+              description: 'A sample proposal under the airborne-disease theme. The live picker uses open ResearchHub proposals, including any filed under Airborne Disease Resilience.'
+            },
+            {
+              id: '88002',
+              title: 'Open preregistration: portable pathogen sensors',
+              author: 'M. Okonkwo',
+              url: 'https://www.researchhub.com/fund',
+              endDate: '2027-01-15T00:00:00.000Z',
+              goalCurrency: 'USD',
+              requestedUsd: 18000,
+              raisedUsd: 2200,
+              backers: 7,
+              votes: 19,
+              comments: 1,
+              description: 'A second open proposal. The winner can choose this, the featured RFP pool, or any other eligible item.'
+            }
+          ]}
+          onConfirm={() => undefined}
+        />
+      ) : null}
+      {championClaimWinner && (typeof window === 'undefined' || new URLSearchParams(window.location.search).get('prize-preview') !== '1') ? (
+        <PrizeWinnerFlow
+          preview={Boolean(testChampionWinner)}
+          pilotName={championClaimWinner.winnerName}
+          score={championClaimWinner.score}
+          allocationRsc={championClaimWinner.allocationRsc}
+          proposals={proposals}
+          proposalStatus={proposalStatus}
+          selectionStatus={testChampionWinner ? 'idle' : championClaimStatus === 'signing' || championClaimStatus === 'connecting' ? 'saving' : championClaimStatus === 'confirmed' ? 'confirmed' : championClaimStatus === 'error' ? 'error' : 'idle'}
+          selectionMessage={testChampionWinner ? '' : championClaimMessage}
+          onRetryProposals={() => undefined}
+          onClose={() => {
+            if (testChampionWinner) onCloseTestChampionPreview?.();
+            else {
+              setChampionClaimWinner(null);
+              if (requestedChampionWinner) onCloseRequestedChampion?.();
+            }
+          }}
+          onConfirm={(target) => {
+            if (testChampionWinner || !championClaimWinner) return;
+            const proposal = target.kind === 'rfp' && target.rfp
+              ? {
+                id: target.rfp.id,
+                title: target.rfp.title,
+                author: target.rfp.organization,
+                url: target.rfp.url,
+                endDate: target.rfp.endDate,
+                status: target.rfp.status,
+                backers: 0,
+                votes: 0,
+                comments: 0,
+                requestedUsd: target.rfp.goalUsd ?? undefined,
+                requestedRsc: target.rfp.goalRsc ?? undefined,
+                raisedRsc: target.rfp.raisedRsc ?? undefined,
+                fundingTargetKind: 'rfp' as const
+              }
+              : target.proposal;
+            if (proposal) onClaimWeeklyChampion(championClaimWinner, proposal);
+          }}
+        />
+      ) : null}
       {testChampionWinner && onCloseTestChampionPreview ? (
         <button
           type="button"

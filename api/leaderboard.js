@@ -7,6 +7,7 @@ const RUN_RECEIPTS_TABLE = process.env.SUPABASE_RUN_RECEIPTS_TABLE || 'scicon_ru
 const WEEKLY_PROPOSAL_CHALLENGE_STALE_CODE = 'WEEKLY_PROPOSAL_CHALLENGE_STALE';
 const { verifyRunReceipt } = require('./_lib/runReceipts');
 const { findEligibleProposal } = require('./_lib/researchHubEligibility');
+const { findEligibleRfp } = require('./_lib/researchHubRfps');
 const { verifyBaseMessage } = require('./_lib/baseSignatures');
 const {
   clearWalletProfileSessionCookie,
@@ -455,13 +456,17 @@ const getVerifiedWeeklyLeaderForReceipt = async (receipt) => {
   return { currentLeader, currentScores };
 };
 
+const fundingTargetKindOf = (value) => (value === 'rfp' ? 'rfp' : 'proposal');
+
 const createProposalSelectionChallenge = async (
   receipt,
   proposalId,
   requestedAddress,
-  authenticatedWalletAddress = null
+  authenticatedWalletAddress = null,
+  targetKind = 'proposal'
 ) => {
   const normalizedProposalId = String(proposalId || '').trim();
+  const fundingTargetKind = fundingTargetKindOf(targetKind);
   if (!/^\d{1,20}$/.test(normalizedProposalId)) {
     throw Object.assign(new Error('Invalid ResearchHub proposal ID.'), { statusCode: 400 });
   }
@@ -490,7 +495,8 @@ const createProposalSelectionChallenge = async (
     proposalId: normalizedProposalId,
     wallet,
     challengeId,
-    expiresAt
+    expiresAt,
+    targetKind: fundingTargetKind
   });
   const response = await fetch(supabaseUrl(NONCES_TABLE), {
     method: 'POST',
@@ -515,7 +521,8 @@ const requireWalletProposalAuthorization = async ({
   receipt,
   proposalId,
   authorization,
-  authenticatedWalletAddress = null
+  authenticatedWalletAddress = null,
+  targetKind = 'proposal'
 }) => {
   const leaderWallet = normalizeAddress(leader.walletAddress);
   if (!leaderWallet) return;
@@ -548,7 +555,8 @@ const requireWalletProposalAuthorization = async ({
     proposalId: String(proposalId),
     wallet,
     challengeId,
-    expiresAt: canonicalExpiresAt
+    expiresAt: canonicalExpiresAt,
+    targetKind: fundingTargetKindOf(targetKind)
   }) : '';
   if (
     !challenge
@@ -596,8 +604,10 @@ const selectProposalForWeeklyLeader = async (
   receipt,
   proposalId,
   authorization = {},
-  authenticatedWalletAddress = null
+  authenticatedWalletAddress = null,
+  targetKind = 'proposal'
 ) => {
+  const fundingTargetKind = fundingTargetKindOf(targetKind);
   const { currentLeader, currentScores } = await getVerifiedWeeklyLeaderForReceipt(receipt);
 
   if (currentLeader.proposalId === String(proposalId)) {
@@ -609,7 +619,8 @@ const selectProposalForWeeklyLeader = async (
       receipt,
       proposalId: currentLeader.proposalId,
       authorization,
-      authenticatedWalletAddress
+      authenticatedWalletAddress,
+      targetKind: fundingTargetKind
     });
     return { ...toLeaderboardPayload(currentScores), selectedProposal: {
       id: currentLeader.proposalId,
@@ -620,9 +631,13 @@ const selectProposalForWeeklyLeader = async (
     } };
   }
 
-  const proposal = await findEligibleProposal(proposalId, {
-    requiredOpenUntil: getPublicPrizeState().proposalOpenUntil
-  });
+  const proposal = fundingTargetKind === 'rfp'
+    ? await findEligibleRfp(proposalId, {
+      requiredOpenUntil: getPublicPrizeState().proposalOpenUntil
+    })
+    : await findEligibleProposal(proposalId, {
+      requiredOpenUntil: getPublicPrizeState().proposalOpenUntil
+    });
 
   // Eligibility lookup is remote and can take long enough for the weekly lead
   // to change. Re-check the server-owned leaderboard immediately before the
@@ -641,7 +656,8 @@ const selectProposalForWeeklyLeader = async (
     receipt,
     proposalId: proposal.id,
     authorization,
-    authenticatedWalletAddress
+    authenticatedWalletAddress,
+    targetKind: fundingTargetKind
   });
 
   const previousProposal = {
@@ -660,7 +676,8 @@ const selectProposalForWeeklyLeader = async (
     proposal_title: proposal.title,
     proposal_url: proposal.url,
     proposal_author: proposal.author,
-    proposal_image_url: proposal.imageUrl || null
+    proposal_image_url: proposal.imageUrl || null,
+    funding_target_kind: fundingTargetKind
   };
   let response = await fetch(selectionUrl, {
     method: 'PATCH',
@@ -670,8 +687,8 @@ const selectProposalForWeeklyLeader = async (
 
   if (!response.ok) {
     let details = await response.text();
-    if (isMissingProposalImageColumnError(new Error(details))) {
-      const { proposal_image_url: _proposalImageUrl, ...compatibleRow } = proposalRow;
+    if (/funding_target_kind|proposal_image_url|schema cache/i.test(details)) {
+      const { funding_target_kind: _fundingTargetKind, proposal_image_url: _proposalImageUrl, ...compatibleRow } = proposalRow;
       response = await fetch(selectionUrl, {
         method: 'PATCH',
         headers: supabaseHeaders({ Prefer: 'return=representation' }),
@@ -738,19 +755,25 @@ const requestNonceRows = async (query) => {
   return response.json();
 };
 
-const buildProposalChallengeMessage = ({ receipt, proposalId, wallet, challengeId, expiresAt }) => [
-  'Scicon Shooter weekly proposal selection',
-  '',
-  `Run: ${receipt.runId}`,
-  `Score: ${receipt.metrics.score}`,
-  `Wave: ${receipt.metrics.wave}`,
-  `Wallet: ${wallet}`,
-  `Proposal: ${proposalId}`,
-  `Challenge: ${challengeId}`,
-  `Expires: ${expiresAt}`,
-  '',
-  'Signing authorizes this proposal choice. It does not send funds or mint.'
-].join('\n');
+const buildProposalChallengeMessage = ({ receipt, proposalId, wallet, challengeId, expiresAt, targetKind = 'proposal' }) => {
+  const fundingTargetKind = fundingTargetKindOf(targetKind);
+  return [
+    'Scicon Shooter weekly proposal selection',
+    '',
+    `Run: ${receipt.runId}`,
+    `Score: ${receipt.metrics.score}`,
+    `Wave: ${receipt.metrics.wave}`,
+    `Wallet: ${wallet}`,
+    `Proposal: ${proposalId}`,
+    ...(fundingTargetKind === 'rfp' ? ['Target: rfp'] : []),
+    `Challenge: ${challengeId}`,
+    `Expires: ${expiresAt}`,
+    '',
+    fundingTargetKind === 'rfp'
+      ? 'Signing records this RFP for manual funding. It does not send RSC or contribute to a ResearchHub pool.'
+      : 'Signing authorizes this proposal choice. It does not send funds or mint.'
+  ].join('\n');
+};
 
 const readScores = async () => {
   if (hasSupabaseConfig()) {
@@ -875,7 +898,8 @@ module.exports = async (req, res) => {
           receipt,
           body.proposalId,
           body.address,
-          proposalSession?.walletAddress
+          proposalSession?.walletAddress,
+          body.targetKind
         );
         return sendJson(res, 200, { challenge });
       }
@@ -885,7 +909,7 @@ module.exports = async (req, res) => {
           address: body.address,
           challengeId: body.challengeId,
           signature: body.signature
-        }, proposalSession?.walletAddress);
+        }, proposalSession?.walletAddress, body.targetKind);
         return sendJson(res, 200, result);
       }
 

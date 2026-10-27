@@ -7525,16 +7525,15 @@ const App: React.FC = () => {
       setWeeklyLeaderboardHydrated(true);
       settleWeeklyGuestProposalCapability(proposalRunId, 'resolved');
       setWeeklyProposalSelectionStatus('confirmed');
-      setWeeklyProposalSelectionMessage(`${proposal.title} is saved with your weekly-leading score.`);
+      setWeeklyProposalSelectionMessage(
+        proposal.fundingTargetKind === 'rfp'
+          ? `${proposal.title} is recorded for manual RFP funding. RSC was not sent.`
+          : `${proposal.title} is recorded with this score. RSC was not sent.`
+      );
       trackEvent('proposal_selected', {
         proposal_id: proposal.id,
         source: 'weekly_high_score'
       });
-      weeklyProposalTransitionRef.current = window.setTimeout(() => {
-        weeklyProposalTransitionRef.current = null;
-        setShowWeeklyProposalSelection(false);
-        setShowMissionRecordPreview(weeklyProposalReturnRef.current === 'record');
-      }, 650);
     } catch (error) {
       console.error('Weekly proposal selection failed:', error);
       if (isWeeklyLeaderDisplacementError(error)) {
