@@ -1657,11 +1657,6 @@ const StartScreen: React.FC<StartScreenProps> = ({
               {weeklyAllocation.countdownLabel}
             </p>
           </div>
-          {weeklyAllocation.phase === 'big-event' ? (
-            <p className="sci-high-score-hint col-span-2 text-xs font-semibold leading-snug text-cyan-100" data-high-score-hint="true">
-              Play Campaign first to upgrade your ship, then go for the high score.
-            </p>
-          ) : null}
         </div>
 
         <div
@@ -1822,6 +1817,11 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const renderWeeklyCompetitionStack = ({ compact = false }: { compact?: boolean } = {}) => (
     <div className="sci-weekly-competition-stack">
       {renderWeeklyFundingCard({ compact })}
+      {weeklyAllocation.phase === 'big-event' ? (
+        <p className="sci-high-score-hint" data-high-score-hint="true">
+          Play Campaign first to upgrade your ship.
+        </p>
+      ) : null}
       {renderWeeklyRunEntry()}
     </div>
   );

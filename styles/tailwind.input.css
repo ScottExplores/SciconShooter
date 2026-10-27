@@ -978,6 +978,23 @@
   z-index: 1;
 }
 
+/* One exception to the no-text-under-cards rule: a single line under the
+   25K High Score card on the home screen. The Weekly Run drawer normally
+   tucks under that card; while this line is present it sits just below it. */
+.sci-high-score-hint {
+  margin: 0.15rem 0.55rem 0.05rem;
+  text-align: center;
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  color: rgba(186, 230, 253, 0.82);
+}
+
+.sci-weekly-competition-stack > .sci-high-score-hint + .sci-weekly-run-entry {
+  margin-top: 0.2rem;
+}
+
 /* Standalone Weekly Run control. It uses a dedicated low-profile drawer
    sprite rather than shrinking a second copy of the upper funding frame. */
 .sci-weekly-run-entry {

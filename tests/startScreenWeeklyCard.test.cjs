@@ -161,8 +161,8 @@ test('the live prize is one 25,000 RSC November event', () => {
     source.indexOf('const renderWeeklyFundingCard')
   );
   assert.match(eventEntry, /\$\{weeklyRunAttemptsRemaining\}\/\$\{weeklyRunAttemptLimit\} runs/);
-  assert.match(fundingCard, /data-high-score-hint/);
-  assert.match(fundingCard, /Play Campaign first to upgrade your ship, then go for the high score\./);
+  assert.doesNotMatch(fundingCard, /data-high-score-hint/);
+  assert.doesNotMatch(fundingCard, /Play Campaign first/);
   assert.doesNotMatch(fundingCard, /Each player gets 10 runs/);
   assert.match(source, /Each player gets 10 runs for the whole event\. The founder wallet is unlimited and is not ranked\./);
   assert.match(competitionSource, /\|\| resolveWeeklyAllocationRsc\(weekKey\)/);
@@ -202,7 +202,7 @@ test('the Weekly Run drawer is a distinct sibling connected to the funding frame
     source.indexOf('const renderWeeklyCompetitionStack'),
     source.indexOf('const DashboardNav')
   );
-  assert.match(stack, /sci-weekly-competition-stack[\s\S]*renderWeeklyFundingCard\(\{ compact \}\)[\s\S]*renderWeeklyRunEntry\(\)/);
+  assert.match(stack, /sci-weekly-competition-stack[\s\S]*renderWeeklyFundingCard\(\{ compact \}\)[\s\S]*data-high-score-hint[\s\S]*Play Campaign first to upgrade your ship\.[\s\S]*renderWeeklyRunEntry\(\)/);
   const css = fs.readFileSync(path.join(__dirname, '..', 'styles', 'tailwind.input.css'), 'utf8');
   const entryRule = css.slice(css.indexOf('.sci-weekly-run-entry {'), css.indexOf('.sci-weekly-run-entry:hover'));
   assert.match(entryRule, /align-self: start;/);
