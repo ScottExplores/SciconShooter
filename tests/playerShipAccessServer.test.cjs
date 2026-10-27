@@ -215,7 +215,7 @@ test('Base ship catalog uses the exact BIO, ETH, cbBTC, recipient, and raw-unit 
   );
 });
 
-test('NIH Pathfinder stays unlocked without a BIO balance check', async () => {
+test('the NIH ship stays unlocked without a BIO balance check', async () => {
   const status = await access.getPlayerShipAccessStatus({
     address: WALLET,
     profile: profileWith(),

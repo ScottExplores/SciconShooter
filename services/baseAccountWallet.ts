@@ -148,7 +148,7 @@ export const getRscBalance = async (address: Address): Promise<RscBalanceSnapsho
 };
 
 /**
- * Reads the BIO donation-token balance. NIH Pathfinder access does not depend
+ * Reads the BIO donation-token balance. NIH ship access does not depend
  * on this balance; donations still use DONATION_CONFIG.BIO_CONTRACT_ADDRESS.
  */
 export const getBioBalance = async (address: Address): Promise<BioBalanceSnapshot> => {

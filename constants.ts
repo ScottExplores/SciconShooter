@@ -5,7 +5,7 @@ import { FIRE_RATE_MAX_LEVEL } from './services/weaponTierProgression';
 export const ASSETS = {
   PLAYER_SHIP: "/game-art/branding/researchhub-ship.png",
   BIO_SHIP: "/game-art/branding/bio-ship.png",
-  NIH_SHIP: "/game-art/generated/scicon-flight-motion-pack-v1/ships/bio/frames/bio-03-neutral.png",
+  NIH_SHIP: "/game-art/branding/nih-ship.png",
   ETH_SHIP: "/game-art/branding/eth-ship.png",
   BTC_SHIP: "/game-art/generated/scicon-flight-motion-pack-v1/ships/btc-token-ship/frames/btc-token-ship-03-neutral.png",
   

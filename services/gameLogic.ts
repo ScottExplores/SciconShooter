@@ -24969,7 +24969,12 @@ export class GameEngine {
        }
        if (img && img.complete && img.naturalWidth > 0) {
           ctx.save();
-          ctx.drawImage(img, -e.width / 2, -e.height / 2, e.width, e.height);
+          const imageWidth = Math.max(1, img.width);
+          const imageHeight = Math.max(1, img.height);
+          const uniformScale = Math.min(e.width / imageWidth, e.height / imageHeight);
+          const drawWidth = imageWidth * uniformScale;
+          const drawHeight = imageHeight * uniformScale;
+          ctx.drawImage(img, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
           ctx.restore();
        } else {
          ctx.fillStyle = '#6c63ff';

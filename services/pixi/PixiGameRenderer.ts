@@ -6574,7 +6574,7 @@ export class PixiGameRenderer {
         && this.isPreviewBossEntity(entity)
         && this.previewBossArtwork?.modularRig?.manifest.preserveAspectRatio
       );
-      if (preservePreviewAspect) {
+      if (entity.type === EntityType.PLAYER || preservePreviewAspect) {
         const textureWidth = Math.max(1, view.sprite.texture.width);
         const textureHeight = Math.max(1, view.sprite.texture.height);
         const uniformScale = Math.min(
@@ -7269,8 +7269,11 @@ export class PixiGameRenderer {
       if (!afterimage || !texture) continue;
       sprite.texture = texture;
       sprite.position.set(afterimage.x + afterimage.width / 2, afterimage.y + afterimage.height / 2);
-      sprite.width = afterimage.width;
-      sprite.height = afterimage.height;
+      const textureWidth = Math.max(1, texture.width);
+      const textureHeight = Math.max(1, texture.height);
+      const uniformScale = Math.min(afterimage.width / textureWidth, afterimage.height / textureHeight);
+      sprite.width = textureWidth * uniformScale;
+      sprite.height = textureHeight * uniformScale;
       sprite.rotation = 0;
       sprite.alpha = afterimage.alpha * 0.65;
       sprite.tint = '#67e8f9';

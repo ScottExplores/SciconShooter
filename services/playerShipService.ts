@@ -25,7 +25,7 @@ export interface PlayerShipUnlocks {
 }
 
 export interface PlayerShipUnlockOptions {
-  /** Ignored. NIH Pathfinder is free; this field remains so older callers still type-check. */
+  /** Ignored. The NIH ship is free; this field remains so older callers still type-check. */
   bioUnlocked?: boolean;
   bioBalanceRaw?: string | null;
   bioBalance?: string | null;
@@ -51,7 +51,7 @@ export const PLAYER_SHIPS: Readonly<Record<PlayerShipId, {
   },
   bio: {
     id: 'bio',
-    name: 'NIH Pathfinder',
+    name: 'NIH ship',
     assetUrl: ASSETS.NIH_SHIP
   },
   eth: {

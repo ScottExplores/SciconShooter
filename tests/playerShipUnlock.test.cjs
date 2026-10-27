@@ -101,7 +101,7 @@ test('token access, paid entitlements, and perfect Campaign mastery are the only
   assert.equal(ships.isPlayerShipUnlocked('bio', locked), true);
   assert.equal(locked.eth, false, 'a legacy local ETH flag is not payment proof');
   assert.equal(locked.btc, false, 'a legacy local BTC flag is not payment or mastery proof');
-  assert.match(shipServiceSource, /name: 'NIH Pathfinder'/);
+  assert.match(shipServiceSource, /name: 'NIH ship'/);
 
   const loadingPaidAccess = ships.getPlayerShipUnlocks({
     accessStatus: 'loading',
@@ -159,7 +159,7 @@ test('title screen keeps the updated BTC ship in the playable roster', () => {
   assert.match(carouselSource, /aria-label="Next ship"/);
   assert.match(startScreenSource, /PLAYER_SHIPS\[shipFocusId\]/);
   assert.match(carouselSource, /sci-ship-carousel-item--locked/);
-  assert.match(startScreenSource, /NIH Pathfinder is unlocked\. SciCon promo ship/);
+  assert.match(startScreenSource, /NIH ship is unlocked\. SciCon promo ship/);
   assert.doesNotMatch(startScreenSource, /Hold at least 100 BIO on Base/);
   assert.match(startScreenSource, /Unlock permanently for 0\.001 ETH on Base/);
   assert.match(startScreenSource, /0\.00008 cbBTC on Base/);

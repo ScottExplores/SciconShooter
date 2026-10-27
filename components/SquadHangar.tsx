@@ -369,7 +369,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
   );
 
   const activeName = activePosition === 'main'
-    ? mainShipName.replace(/ ship$/i, '')
+    ? (mainShipName === 'NIH ship' ? mainShipName : mainShipName.replace(/ ship$/i, ''))
     : activeMini?.name || `${activePosition} wing`;
   const isTokenExchangePurchase = Boolean(
     walletPurchaseStatus.skuId
@@ -520,7 +520,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
               </span>
             ) : null}
             <AnimatedPlayerShip shipId={shipId} frame={playerSelectionFrame} className="relative z-10 mx-auto mt-4 h-[52%] w-[86%] drop-shadow-[0_0_10px_rgba(34,211,238,0.4)]" />
-            <span className={`relative z-10 mt-1 block truncate text-[0.52rem] font-black uppercase ${selected ? 'text-yellow-200' : 'text-slate-300'}`}>{ship.name.replace(/ ship$/i, '')}</span>
+            <span className={`relative z-10 mt-1 block truncate text-[0.52rem] font-black uppercase ${selected ? 'text-yellow-200' : 'text-slate-300'}`}>{ship.name === 'NIH ship' ? ship.name : ship.name.replace(/ ship$/i, '')}</span>
             <div className="relative z-10 mt-1"><LevelPips level={shipTier} max={FIRE_RATE_TIER_COUNT} /></div>
           </button>
         );

@@ -8,7 +8,7 @@ const LEADERBOARD_TABLE = process.env.SUPABASE_LEADERBOARD_TABLE || 'scicon_lead
 const recordCardRenderer = import('../shared/record-card/renderRecordCardSvg.mjs');
 const BUILT_IN_CARD_ASSET_PATHS = {
   PLAYER_SHIP: '/game-art/branding/researchhub-ship.png',
-  BIO_SHIP: '/game-art/generated/scicon-flight-motion-pack-v1/ships/bio/frames/bio-03-neutral.png',
+  BIO_SHIP: '/game-art/generated/scicon-flight-motion-pack-v1/ships/nih/frames/nih-03-neutral.png',
   ETH_SHIP: '/game-art/branding/eth-ship.png',
   BTC_SHIP: '/game-art/generated/scicon-flight-motion-pack-v1/ships/btc-token-ship/frames/btc-token-ship-03-neutral.png',
   RSC_TOKEN: '/game-art/tokens/rsc-coin-pixel.png',

@@ -284,7 +284,7 @@ test('locked Home ships open the shared access dialog without navigating to Hang
   assert.match(hangar, /<PlayerShipAccessDialog[\s\S]*shipId=\{lockedPlayerShipId\}/);
   assert.match(accessDialog, /shipId === 'eth'[\s\S]*?'eth-ship'/);
   assert.match(accessDialog, /shipId === 'btc'[\s\S]*?'btc-ship'/);
-  assert.match(accessDialog, /NIH Pathfinder/);
+  assert.match(accessDialog, /NIH ship/);
   assert.match(accessDialog, /SciCon promo ship/);
   assert.match(hangar, /SciCon promo ship/);
   assert.doesNotMatch(accessDialog, /Hold 100 BIO/);
