@@ -5091,7 +5091,7 @@ const definitions = deepFreeze([
         {
           id: nullwakeBackplaneCrown,
           label: 'Backplane Crown',
-          triggerHealthRatio: 0.99,
+          triggerHealthRatio: 0.62,
           movementPatternId: 'sine-drift',
           speedMultiplier: 0.78,
           weaponSettingIds: ['sandbox-nullwake-revenant-burst', 'sandbox-nullwake-revenant-beam']

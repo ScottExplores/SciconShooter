@@ -26123,7 +26123,7 @@
                 {
                   "id": "sandbox-nullwake-backplane-crown",
                   "label": "Backplane Crown",
-                  "triggerHealthRatio": 0.99,
+                  "triggerHealthRatio": 0.62,
                   "movementPatternId": "sine-drift",
                   "speedMultiplier": 0.78,
                   "weaponSettingIds": [

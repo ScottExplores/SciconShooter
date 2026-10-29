@@ -1,4 +1,11 @@
 export const MAX_BOSS_PATTERN_PROJECTILES = 24;
+/** Readable hull used for pattern openings. 1.5 of this stays clear. */
+export const BOSS_PATTERN_SHIP_WIDTH = 72;
+export const BOSS_PATTERN_SAFE_GAP_RATIO = 1.5;
+
+export const bossPatternSafeGapPixels = () => (
+  BOSS_PATTERN_SHIP_WIDTH * BOSS_PATTERN_SAFE_GAP_RATIO
+);
 
 export interface BossWeaveWallLayout {
   laneCount: number;
@@ -58,15 +65,20 @@ export const resolveBossWeaveWallLayout = (
   const laneCount = mobileProfile ? 7 : 10;
   const margin = mobileProfile ? 12 : 20;
   const laneWidth = Math.max(1, (width - margin * 2) / laneCount);
-  const safeGapStartLane = resolveBossPingPongIndex(sequence, laneCount - 2);
+  const minimumGap = bossPatternSafeGapPixels();
+  const gapLanes = Math.min(
+    laneCount - 1,
+    Math.max(2, Math.ceil(minimumGap / laneWidth))
+  );
+  const safeGapStartLane = resolveBossPingPongIndex(sequence, laneCount - gapLanes);
   const safeGapLeftX = margin + safeGapStartLane * laneWidth;
-  const safeGapRightX = safeGapLeftX + laneWidth * 2;
+  const safeGapRightX = safeGapLeftX + laneWidth * gapLanes;
   return {
     laneCount,
     laneWidth,
     margin,
     safeGapStartLane,
-    safeGapEndLane: safeGapStartLane + 1,
+    safeGapEndLane: safeGapStartLane + gapLanes - 1,
     safeGapLeftX,
     safeGapRightX,
     safeGapCenterX: (safeGapLeftX + safeGapRightX) / 2
@@ -146,8 +158,8 @@ export const buildBossWeaveWallSlots = (
   for (let rowIndex = 0; slots.length < count; rowIndex += 1) {
     for (let laneIndex = 0; laneIndex < layout.laneCount && slots.length < count; laneIndex += 1) {
       if (
-        laneIndex === layout.safeGapStartLane
-        || laneIndex === layout.safeGapEndLane
+        laneIndex >= layout.safeGapStartLane
+        && laneIndex <= layout.safeGapEndLane
       ) continue;
       slots.push({
         laneIndex,

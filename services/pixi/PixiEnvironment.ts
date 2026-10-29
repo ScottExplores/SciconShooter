@@ -1003,14 +1003,17 @@ export class PixiEnvironment {
     for (let row = 0; row < rows; row++) {
       for (let column = 0; column < columns; column++) {
         const frameIndex = row * columns + column;
+        const frameX = column * TERRAIN_PROP_CELL_SIZE;
+        const frameY = row * TERRAIN_PROP_CELL_SIZE;
+        const frameWidth = Math.min(TERRAIN_PROP_CELL_SIZE, sheet.width - frameX);
+        const frameHeight = Math.min(TERRAIN_PROP_CELL_SIZE, sheet.height - frameY);
+        if (frameWidth < 8 || frameHeight < 8 || !sheet.source) {
+          frames.push(Texture.WHITE);
+          continue;
+        }
         frames.push(new Texture({
           source: sheet.source,
-          frame: new Rectangle(
-            column * TERRAIN_PROP_CELL_SIZE,
-            row * TERRAIN_PROP_CELL_SIZE,
-            TERRAIN_PROP_CELL_SIZE,
-            TERRAIN_PROP_CELL_SIZE
-          ),
+          frame: new Rectangle(frameX, frameY, frameWidth, frameHeight),
           label: `${cacheKey}:${frameIndex}`
         }));
       }
@@ -1446,7 +1449,12 @@ export class PixiEnvironment {
         : spaceHyperspeedStrength * (0.7 + depthRatio * 5.6);
       layer.blurFilter.strengthX = baseBlurStrength + takeoffBlurX;
       layer.blurFilter.strengthY = baseBlurStrength + takeoffBlurY;
-      const shouldFilter = layer.blurFilter.strengthY > 0.01;
+      const bounds = layer.root.getLocalBounds();
+      const shouldFilter = layer.blurFilter.strengthY > 0.01
+        && Number.isFinite(bounds.width)
+        && Number.isFinite(bounds.height)
+        && bounds.width > 2
+        && bounds.height > 2;
       if (layer.filterActive !== shouldFilter) {
         layer.root.filters = shouldFilter ? [layer.blurFilter] : null;
         layer.filterActive = shouldFilter;

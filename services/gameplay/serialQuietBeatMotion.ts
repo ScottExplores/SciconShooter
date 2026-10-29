@@ -22,23 +22,24 @@ const wrap = (value: number, period: number) => {
 };
 
 /**
- * Large commanders fill the phone width, so a roam based on the leftover
- * margin barely moves. The beat instead slides the body across the top,
- * hanging off only far enough that most of the sprite stays on screen.
+ * Large commanders fill a portrait screen. The beat still slides them across
+ * the top, but the whole body stays inside the playfield.
  */
 export const serialQuietBeatHorizontalSpan = (
   arenaWidth: number,
   bossWidth: number
 ): { minX: number; maxX: number } => {
   const padding = 8;
-  const slack = arenaWidth - bossWidth - (padding * 2);
-  if (slack >= 96) {
-    return { minX: padding, maxX: padding + slack };
+  const width = Math.max(1, arenaWidth);
+  const body = Math.max(1, bossWidth);
+  if (body >= width - padding * 2) {
+    const centered = (width - body) / 2;
+    return { minX: centered, maxX: centered };
   }
-  const overhang = Math.min(bossWidth * 0.22, Math.max(64, arenaWidth * 0.2));
-  const minX = -overhang;
-  const maxX = Math.max(minX + 96, arenaWidth - bossWidth + overhang);
-  return { minX, maxX };
+  return {
+    minX: padding,
+    maxX: width - body - padding
+  };
 };
 
 export const serialQuietBeatVerticalBand = (arenaHeight: number) => (

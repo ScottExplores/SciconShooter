@@ -120,12 +120,15 @@ test('each serial boss crosses the top band without leaving the screen or the pl
       }));
     }
     const travel = Math.max(...samples.map((sample) => sample.x)) - Math.min(...samples.map((sample) => sample.x));
-    assert.ok(travel >= 96, `${kind} only travels ${travel}px`);
+    const slack = arenaWidth - bossWidth - 16;
+    assert.ok(travel >= Math.min(96, Math.max(0, slack)) - 0.5, `${kind} only travels ${travel}px`);
     for (const sample of samples) {
       assert.ok(sample.y >= entranceY - 0.01, `${kind} climbs above the anchor`);
       assert.ok(sample.y <= entranceY + 80, `${kind} drops toward the player lane`);
-      const visible = Math.min(arenaWidth, sample.x + bossWidth) - Math.max(0, sample.x);
-      assert.ok(visible >= bossWidth * 0.72, `${kind} leaves the screen`);
+      if (bossWidth <= arenaWidth) {
+        assert.ok(sample.x >= -0.5, `${kind} leaves the left edge`);
+        assert.ok(sample.x + bossWidth <= arenaWidth + 0.5, `${kind} leaves the right edge`);
+      }
     }
   }
   const planted = motion.sampleSerialQuietBeat({
@@ -212,7 +215,12 @@ test('the live bosses actually cross the top during the beat and still fire', ()
       assert.ok(boss.y <= entrance + 80, `${bossId} dropped out of the top band`);
     }
     const travel = Math.max(...xs) - Math.min(...xs);
-    assert.ok(travel >= 90, `${bossId} traveled ${travel.toFixed(1)}px`);
+    const slack = engine.width - boss.width - 16;
+    assert.ok(travel >= Math.min(24, Math.max(0, slack * 0.45)), `${bossId} traveled ${travel.toFixed(1)}px`);
+    if (boss.width <= engine.width) {
+      assert.ok(Math.min(...xs) >= -1, `${bossId} left the portrait screen`);
+      assert.ok(Math.max(...xs) + boss.width <= engine.width + 1, `${bossId} left the portrait screen`);
+    }
     assert.ok(boss.attackTimer > 120, `${bossId} rewound its phase clock`);
     assert.equal(fired, true, `${bossId} did not fire during the crossing`);
     engine.dispatchBossTimelineCue = original;

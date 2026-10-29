@@ -351,6 +351,7 @@ import {
   type BossTimelineCue
 } from './gameplay/bosses/BossTimelineRuntime';
 import {
+  bossPatternSafeGapPixels,
   buildBossWeaveWallSlots,
   resolveBossGapRoute,
   resolveBossGapRouteDirection,
@@ -902,6 +903,8 @@ export class Entity {
   bossUmbraBlackoutRamFired: boolean = false;
   /** A phase reset skipped the authored charge, so the next stable phase owes one. */
   bossUmbraBlackoutRamDue: boolean = false;
+  bossUmbraDualCornerActive: boolean = false;
+  bossUmbraDualCornerPhase: number = -1;
   /**
    * While a guaranteed charge is in flight, timeline cues stay on this frame
    * and the phase clock rewinds here when the charge ends.
@@ -11756,6 +11759,25 @@ export class GameEngine {
     return e;
   }
 
+  private beginBossPhaseTransition(boss: Entity) {
+    for (const entity of this.entities) {
+      if (
+        entity.type === EntityType.PROJECTILE
+        && !entity.isPlayerShot
+        && !entity.markedForDeletion
+      ) {
+        entity.markedForDeletion = true;
+      }
+    }
+    this.pendingBossStrikes = [];
+    this.flashAlpha = Math.max(this.flashAlpha, 0.84);
+    this.addShake(this.mobileProfile ? 5.5 : 7);
+    boss.flashFrames = Math.max(boss.flashFrames, 16);
+    boss.bossUmbraDualCornerActive = false;
+    boss.bossUmbraDualCornerPhase = -1;
+    this.playSound('boss_roar', 0.92, { pitchJitter: 0.02, pitchOffset: -0.14 });
+  }
+
   applyConfiguredBossPhase(boss: Entity) {
     const octarchPhase = this.isAbyssalOctarch(boss)
       ? resolveAbyssalOctarchPhase(
@@ -11806,6 +11828,9 @@ export class GameEngine {
     boss.movementPattern = resolved.movementPatternId;
     const baseSpeed = boss.configuredBaseSpeed ?? boss.configuredSpeed ?? 2;
     boss.configuredSpeed = baseSpeed * boss.activeBossPhaseSpeedMultiplier;
+    if (transitionedBetweenActivePhases) {
+      this.beginBossPhaseTransition(boss);
+    }
     if ((boss.bossAttackArchetype || boss.bossTimeline) && transitionedBetweenActivePhases) {
       // A new authored boss phase starts at the beginning of its cue cycle so
       // a damaging technique can never skip its warning.
@@ -14537,6 +14562,7 @@ export class GameEngine {
     beam.bossOwnerId = boss.id;
     beam.variant = sequence;
     this.entities.push(beam);
+    return beam;
   }
 
   /**
@@ -14725,6 +14751,54 @@ export class GameEngine {
       boss.gatekeeperPrimeLockedTargetY = null;
       if (sample.attack.attackId === 'rail-fan') boss.beamLaneSign = 0;
     }
+    if (sample.phase.index >= 1) {
+      this.updateGatekeeperPrimeSweep(boss, combatFrame);
+    }
+  }
+
+  /**
+   * Phase 2+ adds one slow lane that crosses the portrait screen. The warning
+   * sits for 0.7s before the beam can hurt, and the beam itself is detached
+   * so the patrol does not drag it.
+   */
+  private updateGatekeeperPrimeSweep(boss: Entity, combatFrame: number) {
+    const period = 280;
+    const sweepFrame = combatFrame % period;
+    const warningFrames = 42;
+    const travelFrames = 130;
+    if (sweepFrame === 8) {
+      const beam = this.spawnGatekeeperPrimeLaneBeam(boss, 0.12, true, warningFrames, 90);
+      beam.isDetachedBeam = true;
+      beam.beamAnchorOffsetX = null;
+      beam.x = this.width * 0.12;
+    }
+    if (sweepFrame === 8 + warningFrames) {
+      const beam = this.spawnGatekeeperPrimeLaneBeam(
+        boss,
+        0.12,
+        false,
+        travelFrames,
+        91
+      );
+      beam.isDetachedBeam = true;
+      beam.beamAnchorOffsetX = null;
+      beam.x = this.width * 0.12;
+      beam.color = '#67e8f9';
+    }
+    if (sweepFrame > 8 + warningFrames && sweepFrame < 8 + warningFrames + travelFrames) {
+      const travel = (sweepFrame - (8 + warningFrames)) / travelFrames;
+      for (const entity of this.entities) {
+        if (
+          entity.bossOwnerId === boss.id
+          && entity.isBeam
+          && !entity.isTelegraph
+          && entity.variant === 91
+          && !entity.markedForDeletion
+        ) {
+          entity.x = Math.max(0, Math.min(this.width - entity.width, this.width * (0.12 + travel * 0.7)));
+        }
+      }
+    }
   }
 
   spawnPaywallBossRay(boss: Entity, enraged: boolean, lifetimeFrames?: number) {
@@ -14852,6 +14926,41 @@ export class GameEngine {
     claw.vy = (dy / distance) * returnSpeed;
   }
 
+  private updatePaywallScriptedSequence(
+    boss: Entity,
+    healthRatio: number,
+    allowsBurst: boolean,
+    cannons: BossComponentState[],
+    boltInterval: number
+  ) {
+    if (!allowsBurst) return;
+    const phaseTwo = healthRatio <= 0.35 || (boss.activeBossPhaseIndex ?? 0) >= 1;
+    const cycle = Math.max(180, boltInterval * (phaseTwo ? 3 : 2));
+    const frame = boss.attackTimer % cycle;
+    const warningFrames = 40;
+    if (frame === 0) {
+      boss.isCharging = true;
+      this.spawnFloatingText(
+        boss.x + boss.width / 2,
+        boss.y + boss.height * 0.2,
+        'GAP WALL',
+        '#67e8f9',
+        16
+      );
+    }
+    if (frame < warningFrames) boss.isCharging = true;
+    if (frame === warningFrames) {
+      this.spawnBossWeaveWall(boss, Math.floor(boss.attackTimer / cycle));
+      boss.isCharging = false;
+    }
+    if (cannons.length === 0) return;
+    const burstFrame = warningFrames + Math.max(24, Math.round(boltInterval * 0.35));
+    if (frame === burstFrame || (phaseTwo && frame === burstFrame + Math.max(18, Math.round(boltInterval * 0.25)))) {
+      cannons.forEach((component) => this.spawnPaywallBossBoltVolley(boss, component, phaseTwo));
+      boss.lastBurstAttackTimer = boss.attackTimer;
+    }
+  }
+
   updatePaywallLayeredBoss(boss: Entity) {
     const healthRatio = clamp(boss.hp / Math.max(1, boss.maxHp), 0, 1);
     const playerCenterX = this.player.x + this.player.width / 2;
@@ -14904,11 +15013,7 @@ export class GameEngine {
       boss.isCharging = true;
     }
 
-    if (allowsBurst && !boss.isCharging && cannons.length > 0 && boss.attackTimer - boss.lastBurstAttackTimer >= cadence.boltInterval) {
-      const enraged = healthRatio <= 0.38;
-      cannons.forEach((component) => this.spawnPaywallBossBoltVolley(boss, component, enraged));
-      boss.lastBurstAttackTimer = boss.attackTimer;
-    }
+    this.updatePaywallScriptedSequence(boss, healthRatio, allowsBurst, cannons, cadence.boltInterval);
     if (allowsBurst && !boss.isCharging && cannons.length === 0) {
       if (boss.attackTimer - boss.lastBurstAttackTimer >= cadence.coreInterval) {
         this.spawnBossCoreVolley(boss, 3);
@@ -16208,7 +16313,13 @@ export class GameEngine {
       this.player.x + this.player.width / 2 - originX
     );
     const shotCount = Math.min(28, 16 + cycle * 2);
-    const gapHalfWidth = Math.max(0.22, 0.38 - cycle * 0.04);
+    const travel = Math.hypot(
+      this.player.x + this.player.width / 2 - originX,
+      this.player.y + this.player.height / 2 - originY
+    );
+    const safeGap = bossPatternSafeGapPixels();
+    const neededHalf = Math.asin(Math.max(0, Math.min(0.95, safeGap / (2 * Math.max(48, travel)))));
+    const gapHalfWidth = Math.max(0.34, neededHalf, 0.38 - cycle * 0.04);
     const speed = Math.min(6.2, 3.3 + cycle * 0.3);
 
     for (let index = 0; index < shotCount; index++) {
@@ -22088,9 +22199,20 @@ export class GameEngine {
         boss.isCharging = false;
         return;
       case 'chainclaw-harpoon':
+        this.beginFrontierCrownclawAction(boss, cue);
+        if ((boss.activeBossPhaseIndex ?? 0) >= 1) {
+          this.spawnBossSideBarrage(boss, phase, 'port', 5);
+        }
+        return;
       case 'crown-reactor-beam':
       case 'bastion-crabwalk-barrage':
         this.beginFrontierCrownclawAction(boss, cue);
+        if (
+          cue.clip.primitiveId === 'bastion-crabwalk-barrage'
+          && (boss.activeBossPhaseIndex ?? 0) >= 1
+        ) {
+          this.spawnBossSideBarrage(boss, phase, 'starboard', 6);
+        }
         return;
       case 'prism-wingbeat-weave':
       case 'prism-brood-procession':
@@ -22098,6 +22220,12 @@ export class GameEngine {
       case 'prism-kaleidoscope-brood':
         if (this.isSandboxPrismMoth(boss)) {
           this.beginPrismMothTimelineAction(boss, cue);
+          if (
+            cue.clip.primitiveId === 'prism-wingbeat-weave'
+            && (boss.activeBossPhaseIndex ?? 0) >= 1
+          ) {
+            this.spawnBossSideBarrage(boss, phase, 'starboard', 4);
+          }
         }
         return;
       case 'singularity-gravity-well-genesis':
@@ -22634,7 +22762,92 @@ export class GameEngine {
     this.updateSingularityAttackFlow(boss);
     this.updateAbyssalOctarchActionRuntime(boss);
     this.updateAbyssalOctarchAttackFlow(boss);
+    this.updateUmbraDualCornerAmbush(boss);
+    this.holdBossChargeBeforeUpcomingAttack(boss);
     return true;
+  }
+
+  private holdBossChargeBeforeUpcomingAttack(boss: Entity) {
+    const timeline = boss.bossTimeline;
+    if (!timeline || boss.bossActionPresentation?.stage === 'fire') return;
+    const phaseId = boss.bossTimelinePhaseId ?? boss.activeBossPhaseId;
+    const now = boss.attackTimer / GAME_CONFIG.FPS;
+    const dense = new Set([
+      'gap-ring',
+      'weave-wall',
+      'helix-volley',
+      'radial-beam-array',
+      'rotating-cross',
+      'corner-ambush-beam',
+      'corner-ambush-ram'
+    ]);
+    for (const clip of timeline.clips) {
+      if (clip.phaseId && phaseId && clip.phaseId !== phaseId) continue;
+      if (clip.track !== 'attack' && clip.track !== 'laser' && clip.track !== 'movement') continue;
+      if (!isDamagingBossTimelinePrimitive(clip.primitiveId) && clip.track !== 'movement') continue;
+      const lead = dense.has(clip.primitiveId) ? 0.85 : 0.62;
+      const until = clip.startSeconds - now;
+      if (until > 0 && until <= lead) {
+        boss.isCharging = true;
+        return;
+      }
+    }
+  }
+
+  private updateUmbraDualCornerAmbush(boss: Entity) {
+    if (!this.isUmbraNeedlewing(boss) || (boss.activeBossPhaseIndex ?? 0) < 2) {
+      if (boss.bossUmbraDualCornerActive && boss.attackTimer > boss.generatedBossTechniqueTimer) {
+        boss.bossUmbraDualCornerActive = false;
+        this.removeBossCornerAmbushBeams(boss);
+      }
+      return;
+    }
+    if (boss.bossCornerAmbushBeamState || boss.bossCornerAmbushRamState || boss.bossUmbraBlackoutHuntActive) {
+      return;
+    }
+    const phase = boss.activeBossPhaseIndex ?? 0;
+    if (boss.bossUmbraDualCornerPhase !== phase && boss.attackTimer >= 96) {
+      this.beginUmbraDualCornerAmbush(boss, phase);
+    }
+    if (!boss.bossUmbraDualCornerActive) return;
+    if (boss.attackTimer === boss.generatedBossTechniqueTimer) {
+      this.removeBossCornerAmbushBeams(boss, true);
+      this.spawnUmbraDualCornerBeams(boss, false, 48);
+      this.playSound('electricity');
+    }
+    if (boss.attackTimer > boss.generatedBossTechniqueTimer + 48) {
+      boss.bossUmbraDualCornerActive = false;
+      this.removeBossCornerAmbushBeams(boss);
+    }
+  }
+
+  private beginUmbraDualCornerAmbush(boss: Entity, phase: number) {
+    boss.bossUmbraDualCornerPhase = phase;
+    boss.bossUmbraDualCornerActive = true;
+    boss.generatedBossTechniqueTimer = boss.attackTimer + 42;
+    boss.isCharging = true;
+    this.spawnUmbraDualCornerBeams(boss, true, 42);
+    this.playSound('siren', 0.7);
+  }
+
+  private spawnUmbraDualCornerBeams(boss: Entity, telegraph: boolean, lifetimeFrames: number) {
+    const playerX = this.player.x + this.player.width / 2;
+    const playerY = this.player.y + this.player.height / 2;
+    const gap = bossPatternSafeGapPixels();
+    [0, 1].forEach((sequence, index) => {
+      const lock = resolveCornerAmbushBeamLock({
+        sequence,
+        arenaWidth: this.width,
+        arenaHeight: this.height,
+        bossWidth: boss.width,
+        bossHeight: boss.height,
+        playerCenterX: playerX + (index === 0 ? -1 : 1) * (gap * 0.65 + 18),
+        playerCenterY: playerY,
+        mobileProfile: this.mobileProfile
+      });
+      const beam = this.spawnBossCornerAmbushBeamEntity(boss, lock, telegraph, lifetimeFrames);
+      beam.variant = 400 + sequence;
+    });
   }
 
   applySerialQuietBeatMotion(boss: Entity, targetEntranceY: number) {

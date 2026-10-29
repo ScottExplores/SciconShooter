@@ -7189,6 +7189,12 @@ export class PixiGameRenderer {
       .fill('#ef233c');
     this.bossHealthBar.roundRect(-barWidth / 2, barY, barWidth, barHeight, barRadius)
       .stroke({ color: '#ff6b76', width: 1, alpha: 0.72 });
+    for (const threshold of boss.phaseThresholds) {
+      if (!Number.isFinite(threshold) || threshold >= 0.98 || threshold <= 0.02) continue;
+      const tickX = -barWidth / 2 + barWidth * threshold;
+      this.bossHealthBar.rect(tickX - 1, barY - 1, 2, barHeight + 2)
+        .fill({ color: '#fff7ed', alpha: 0.92 });
+    }
     if (
       boss.sourceEventId === ABYSSAL_OCTARCH_EVENT_ID
       || boss.sourceItemId === 'abyssal-octarch'
@@ -7721,8 +7727,7 @@ export class PixiGameRenderer {
       return;
     }
 
-    let beam: Entity | null = null;
-    let fallbackBeam: Entity | null = null;
+    const beams: Entity[] = [];
     for (const candidate of engine.entities) {
       if (
         candidate.markedForDeletion
@@ -7732,14 +7737,13 @@ export class PixiGameRenderer {
       ) {
         continue;
       }
-      fallbackBeam ??= candidate;
-      if (candidate.isTelegraph === (presentation?.stage === 'warning')) {
-        beam = candidate;
-        break;
+      const wantsTelegraph = presentation?.stage === 'warning' || boss.bossUmbraDualCornerActive;
+      if (candidate.isTelegraph === wantsTelegraph || boss.bossUmbraDualCornerActive) {
+        beams.push(candidate);
       }
     }
-    beam ??= fallbackBeam;
-    if (!beam) return;
+    if (beams.length === 0) return;
+    for (const beam of beams) {
 
     const angled = beam.beamAngleRadians !== null;
     const horizontal = !angled && beam.beamAxis === 'horizontal';
@@ -7784,7 +7788,7 @@ export class PixiGameRenderer {
           .circle(originX, originY, 12)
           .stroke({ color: '#fde047', width: 1, alpha: 0.72 });
       }
-      return;
+      continue;
     }
 
     // The active strike is deliberately redrawn above the blackout using the
@@ -7813,6 +7817,7 @@ export class PixiGameRenderer {
         width: Math.max(2, beamThickness * 0.2),
         alpha: 0.96 * cueReveal
       });
+    }
   }
 
   private syncCornerAmbushPresentation(engine: GameEngine) {
@@ -7830,6 +7835,7 @@ export class PixiGameRenderer {
       const umbraRuntime = this.isUmbraNeedlewingBlackoutBoss(candidate)
         && Boolean(
           candidate.bossUmbraBlackoutHuntActive
+          || candidate.bossUmbraDualCornerActive
           ||
           candidate.bossCornerAmbushBeamState
           || candidate.bossCornerAmbushRamState
@@ -8215,7 +8221,34 @@ export class PixiGameRenderer {
 
     this.flashOverlay.visible = engine.flashAlpha > 0.01;
     this.flashOverlay.alpha = clamp(engine.flashAlpha * 0.72, 0, 0.7);
-    this.app.renderer.render(this.app.stage);
+    this.renderStageOrRecover();
+  }
+
+  /**
+   * A filter pass can throw `Cannot read properties of null (reading '0')`
+   * when its render target was never allocated. Drop filters and draw the
+   * playfield anyway so one boss cannot blank the campaign.
+   */
+  private renderStageOrRecover() {
+    try {
+      this.app.renderer.render(this.app.stage);
+    } catch (error) {
+      this.clearDisplayFilters(this.app.stage);
+      try {
+        this.app.renderer.render(this.app.stage);
+      } catch {
+        console.error(error);
+      }
+    }
+  }
+
+  private clearDisplayFilters(root: { filters?: unknown; children?: readonly unknown[] }) {
+    if (root.filters) root.filters = null;
+    for (const child of root.children ?? []) {
+      if (child && typeof child === 'object') {
+        this.clearDisplayFilters(child as { filters?: unknown; children?: readonly unknown[] });
+      }
+    }
   }
 
   destroy() {
