@@ -2,6 +2,7 @@ import { GAME_VERSION } from './runReceiptService';
 import { getClientSessionId } from './clientSession';
 import { recordPlayerReportBreadcrumb } from './playerReportService';
 import { readSocialCampaignAttribution } from '../shared/socialCampaignAttribution.mjs';
+import { track as trackVercelEvent } from '@vercel/analytics';
 
 export type ProductEventName =
   | 'app_opened'
@@ -124,6 +125,18 @@ export const trackEvent = (
   }).catch(() => {
     recordPlayerReportBreadcrumb('analytics_delivery_failed', { event_name: eventName });
   });
+  // Mirror run start/end into Vercel Web Analytics custom events (aggregate only).
+  if (eventName === 'mission_started' || eventName === 'run_ended') {
+    try {
+      trackVercelEvent(eventName === 'mission_started' ? 'Run Started' : 'Run Ended', {
+        mode: String(properties.run_mode || 'unknown').slice(0, 32),
+        mission: Number(properties.mission_number) || 0,
+        ...(eventName === 'run_ended' ? { result: String(properties.result || 'unknown').slice(0, 24) } : {})
+      });
+    } catch {
+      // Never let analytics interrupt gameplay.
+    }
+  }
 };
 
 /**

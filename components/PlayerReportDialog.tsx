@@ -15,6 +15,7 @@ interface PlayerReportDraft {
   category: PlayerReportCategory;
   summary: string;
   details: string;
+  contact: string;
   includeDiagnostics: boolean;
   status: 'idle' | 'sending' | 'sent' | 'queued' | 'error';
   reportId: string | null;
@@ -32,6 +33,7 @@ const createDraft = (kind: PlayerReportKind): PlayerReportDraft => ({
   category: (kind === 'bug' ? 'gameplay' : 'other') as PlayerReportCategory,
   summary: '',
   details: '',
+  contact: '',
   includeDiagnostics: true,
   status: 'idle',
   reportId: null
@@ -120,6 +122,7 @@ const PlayerReportDialog: React.FC<PlayerReportDialogProps> = ({ kind, onClose }
         category: draft.category,
         summary,
         details: draft.details.trim(),
+        contact: draft.contact.trim(),
         includeDiagnostics: draft.includeDiagnostics
       });
       updateDraft({ status: result.delivery, reportId: result.reportId });
@@ -133,7 +136,7 @@ const PlayerReportDialog: React.FC<PlayerReportDialogProps> = ({ kind, onClose }
   };
 
   const isBug = kind === 'bug';
-  const title = isBug ? 'Report a Bug' : 'Send Feedback';
+  const title = isBug ? 'Report a Bug' : 'Feedback';
   const availableCategories = categoryOptions.filter((option) => (
     (option.kinds as readonly string[]).includes(kind)
   ));
@@ -170,8 +173,8 @@ const PlayerReportDialog: React.FC<PlayerReportDialogProps> = ({ kind, onClose }
             <h2 id="sci-player-report-title" className="mt-1 text-xl font-black text-white">{title}</h2>
             <p id="sci-player-report-description" className="mt-1 text-xs leading-relaxed text-slate-300">
               {isBug
-                ? 'Tell us what went wrong. Your report is emailed to the Scicon team and saved to the issue log.'
-                : 'Share an idea or tell us what would make Scicon Shooter better. Your feedback is emailed directly to the Scicon team.'}
+                ? 'Tell us what went wrong. Your report goes straight to the Scicon team\'s report log.'
+                : 'Share an idea or tell us what would make Scicon Shooter better. It goes straight to the Scicon team.'}
             </p>
           </div>
           <button
@@ -196,11 +199,13 @@ const PlayerReportDialog: React.FC<PlayerReportDialogProps> = ({ kind, onClose }
               tabIndex={-1}
               className="mt-4 text-lg font-black text-white outline-none"
             >
-              {draft.status === 'sent' ? 'Report received' : 'Report safely queued'}
+              {draft.status === 'sent'
+                ? (isBug ? 'Thanks, pilot. Bug logged.' : 'Thanks, pilot. Feedback received.')
+                : 'Thanks, pilot. Report queued.'}
             </h3>
             <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-slate-300">
               {draft.status === 'sent'
-                ? 'Thank you. This was emailed to the Scicon team and saved under the Report ID below.'
+                ? 'Thank you for helping improve Scicon Shooter. The team has it, saved under the Report ID below.'
                 : 'Delivery is temporarily unavailable, so the report will retry automatically with bounded backoff. Your draft remains queued until delivery.'}
             </p>
             <p className="mt-4 text-[0.65rem] font-black uppercase tracking-[0.12em] text-cyan-200">
@@ -274,6 +279,20 @@ const PlayerReportDialog: React.FC<PlayerReportDialogProps> = ({ kind, onClose }
               />
             </label>
 
+            <label className="grid gap-1.5 text-xs font-bold text-slate-200" htmlFor="sci-player-report-contact">
+              How can we reach you? (optional)
+              <input
+                id="sci-player-report-contact"
+                type="text"
+                value={draft.contact}
+                maxLength={120}
+                autoComplete="off"
+                onChange={(event) => updateDraft({ contact: event.target.value, status: 'idle' })}
+                placeholder="X handle, Discord, or email. Leave blank to stay anonymous."
+                className="min-h-11 w-full rounded-[6px] border border-cyan-300/25 bg-slate-900 px-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-200/70"
+              />
+            </label>
+
             <label className="flex min-h-11 cursor-pointer items-start gap-3 rounded-[6px] border border-cyan-300/18 bg-cyan-400/5 p-3 text-xs leading-relaxed text-slate-200">
               <input
                 type="checkbox"
@@ -283,12 +302,12 @@ const PlayerReportDialog: React.FC<PlayerReportDialogProps> = ({ kind, onClose }
               />
               <span>
                 <strong className="block text-cyan-100">Include technical diagnostics</strong>
-                Adds the game version, screen, mission/wave, device size, connection state, and recent technical events. Manual reports are sent through Resend to the Scicon team's Gmail inbox. Technical diagnostics do not read wallet secrets or browser storage. Never type a recovery phrase or private key into a report.
+                Adds the game version, screen, mission/wave, device size, connection state, and recent technical events. Manual reports are saved to the Scicon report log and sent through Resend to the Scicon team's Gmail inbox. Technical diagnostics do not read wallet secrets or browser storage. Never type a recovery phrase or private key into a report.
               </span>
             </label>
 
             <p className="rounded-[6px] border border-cyan-300/18 bg-slate-900/70 p-3 text-xs leading-relaxed text-slate-300">
-              No email address or wallet is required. If you want a direct reply, submit this report first and then email{' '}
+              No email address or wallet is required. You can also email{' '}
               <a className="font-bold text-cyan-200 underline decoration-cyan-400/50 underline-offset-2" href={supportMailto}>
                 {DONATION_CONFIG.SUPPORT_EMAIL}
               </a>{' '}

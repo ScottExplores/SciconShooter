@@ -14,6 +14,8 @@ const EVENTS_TABLE = process.env.SUPABASE_PRODUCT_EVENTS_TABLE || 'scicon_produc
 const MAX_REQUEST_BODY_BYTES = 64 * 1024;
 const MAX_SUMMARY_LENGTH = 600;
 const MAX_DETAILS_LENGTH = 5_000;
+const MAX_CONTACT_LENGTH = 120;
+const MAX_BROWSER_LENGTH = 60;
 const MAX_BREADCRUMBS = 30;
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 const REPORT_RATE_LIMITS = Object.freeze({ manual: 5, automatic: 20 });
@@ -298,8 +300,32 @@ const validateReport = (body) => {
     sessionId: validateUuid(body.sessionId, 'sessionId'),
     gameVersion: body.gameVersion,
     createdAt: validateTimestamp(body.createdAt, 'createdAt'),
-    diagnostics: sanitizeDiagnostics(body.diagnostics)
+    diagnostics: sanitizeDiagnostics(body.diagnostics),
+    // Optional reply handle the player chose to type (X handle, Discord, email).
+    contact: body.source === 'manual'
+      ? validateText(body.contact, 'contact', { maximum: MAX_CONTACT_LENGTH })
+      : '',
+    // Coarse browser/OS family only (e.g. "Chrome / Android"), never a full user agent.
+    browser: optionalString(body.browser, MAX_BROWSER_LENGTH).replace(/[^a-z0-9 ./()_-]/gi, ''),
+    anonymousPlayerId: typeof body.anonymousPlayerId === 'string' && UUID_PATTERN.test(body.anonymousPlayerId)
+      ? body.anonymousPlayerId.toLowerCase()
+      : '',
+    testReport: body.testReport === true
   };
+};
+
+const anonymousPlayerHash = (anonymousPlayerId) => {
+  if (!anonymousPlayerId) return '';
+  const secret = String(
+    process.env.PRODUCT_ANALYTICS_HASH_SECRET
+    || process.env.RUN_RECEIPT_SECRET
+    || ''
+  ).trim();
+  if (!secret) return '';
+  return crypto
+    .createHmac('sha256', secret)
+    .update(`scicon-product-analytics:v1:${anonymousPlayerId}`)
+    .digest('hex');
 };
 
 const eventNameForReport = (report) => {
@@ -316,7 +342,13 @@ const buildStoredProperties = (report, limiterKey) => ({
   summary: report.summary,
   details: report.details,
   created_at: report.createdAt,
-  ...(report.source === 'manual' ? { email_notification: { status: 'pending' } } : {}),
+  ...(report.contact ? { contact: report.contact } : {}),
+  ...(report.browser ? { browser: report.browser } : {}),
+  ...(anonymousPlayerHash(report.anonymousPlayerId)
+    ? { visitor_hash: anonymousPlayerHash(report.anonymousPlayerId) }
+    : {}),
+  ...(report.testReport ? { test_run: true } : {}),
+  ...(report.source === 'manual' && !report.testReport ? { email_notification: { status: 'pending' } } : {}),
   ...(report.diagnostics ? { diagnostics: report.diagnostics } : {})
 });
 
@@ -352,6 +384,7 @@ const storedReportMatches = (stored, report) => {
     && stored.properties.summary === report.summary
     && stored.properties.details === report.details
     && stored.properties.created_at === report.createdAt
+    && (stored.properties.contact || '') === report.contact
     && isDeepStrictEqual(stored.properties.diagnostics, report.diagnostics);
 };
 
@@ -496,7 +529,9 @@ module.exports = async (req, res) => {
 
     let emailResult = { emailed: false, skipped: true };
     try {
-      if (report.source === 'manual' && storedReportWasEmailed(storedReport)) {
+      if (report.testReport) {
+        emailResult = { emailed: false, skipped: true };
+      } else if (report.source === 'manual' && storedReportWasEmailed(storedReport)) {
         emailResult = { emailed: true, skipped: true };
       } else {
         emailResult = await sendPlayerReportEmail(report);
@@ -535,6 +570,7 @@ module.exports = async (req, res) => {
       accepted: true,
       stored: true,
       emailed: emailResult.emailed,
+      ...(report.testReport ? { test: true } : {}),
       reportId: report.reportId
     });
   } catch (error) {

@@ -64,12 +64,13 @@ test('dialog submission uses the player-report service and retains drafts unless
 
 test('successful and queued submissions show a stable report receipt', () => {
   assert.match(dialogSource, /draft\.status === 'sent' \|\| draft\.status === 'queued'/);
-  assert.match(dialogSource, /Report received/);
-  assert.match(dialogSource, /Report safely queued/);
+  assert.match(dialogSource, /Thanks, pilot\. (Bug logged|Feedback received)\./);
+  assert.match(dialogSource, /Thanks, pilot\. Report queued\./);
   assert.match(dialogSource, /Report ID/);
   assert.match(dialogSource, /\{draft\.reportId\}/);
   assert.match(dialogSource, /Send another/);
-  assert.match(dialogSource, /emailed to the Scicon team and saved under the Report ID/i);
+  assert.match(dialogSource, /saved under the Report ID/i);
+  assert.match(dialogSource, /How can we reach you\? \(optional\)/);
 });
 
 test('support escalation uses the dedicated Scicon account and email without requesting wallet secrets', () => {

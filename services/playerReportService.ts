@@ -15,6 +15,7 @@ export interface PlayerReportInput {
   category: PlayerReportCategory;
   summary: string;
   details?: string;
+  contact?: string;
   includeDiagnostics: boolean;
 }
 
@@ -54,6 +55,9 @@ interface QueuedPlayerReport {
   source: 'manual' | 'automatic';
   summary: string;
   details: string;
+  contact?: string;
+  browser?: string;
+  anonymousPlayerId?: string;
   sessionId: string;
   gameVersion: string;
   createdAt: string;
@@ -363,6 +367,37 @@ export const flushQueuedPlayerReports = () => {
   return flushPromise;
 };
 
+const ANONYMOUS_PLAYER_KEY = 'scicon_anonymous_player_id';
+
+/** Same random device id the anonymous analytics use; the server stores only a hash. */
+const readAnonymousPlayerId = () => {
+  try {
+    const value = globalThis.localStorage?.getItem(ANONYMOUS_PLAYER_KEY) || '';
+    return /^[0-9a-f-]{36}$/i.test(value) ? value : '';
+  } catch {
+    return '';
+  }
+};
+
+/** Coarse browser and OS family only, never the full user-agent string. */
+export const describeBrowser = (userAgent = globalThis.navigator?.userAgent || '') => {
+  const ua = String(userAgent);
+  const browser = /Edg\//.test(ua) ? 'Edge'
+    : /OPR\/|Opera/.test(ua) ? 'Opera'
+      : /Firefox\/|FxiOS/.test(ua) ? 'Firefox'
+        : /CriOS|Chrome\//.test(ua) ? 'Chrome'
+          : /Safari\//.test(ua) ? 'Safari'
+            : 'Other';
+  const os = /Android/.test(ua) ? 'Android'
+    : /iPhone|iPad|iPod/.test(ua) ? 'iOS'
+      : /Mac OS X/.test(ua) ? 'macOS'
+        : /Windows/.test(ua) ? 'Windows'
+          : /CrOS/.test(ua) ? 'ChromeOS'
+            : /Linux/.test(ua) ? 'Linux'
+              : 'Other';
+  return `${browser} / ${os}`;
+};
+
 const makeQueuedReport = (
   input: PlayerReportInput,
   source: 'manual' | 'automatic'
@@ -373,6 +408,11 @@ const makeQueuedReport = (
   source,
   summary: redactSensitiveText(input.summary, 600),
   details: redactSensitiveText(input.details, 5_000),
+  ...(source === 'manual' && input.contact?.trim()
+    ? { contact: redactSensitiveText(input.contact.trim(), 120) }
+    : {}),
+  browser: describeBrowser(),
+  ...(readAnonymousPlayerId() ? { anonymousPlayerId: readAnonymousPlayerId() } : {}),
   sessionId: getClientSessionId(),
   gameVersion: GAME_VERSION,
   createdAt: new Date().toISOString(),

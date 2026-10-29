@@ -52,6 +52,7 @@ const buildPlayerReportEmail = (report) => {
       `Category: ${categoryLabel}`,
       `Submitted: ${report.createdAt}`,
       `Game version: ${report.gameVersion}`,
+      `Reply contact: ${report.contact || 'Not provided.'}`,
       '',
       'Summary',
       report.summary,

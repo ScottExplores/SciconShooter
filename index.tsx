@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { inject as injectVercelAnalytics } from '@vercel/analytics';
 import './styles/tailwind.generated.css';
 import App from './App';
 import DesktopMobileLaunchShell from './components/DesktopMobileLaunchShell';
@@ -17,6 +18,14 @@ if (getPublicPrizeState().phase === 'big-event') {
 
 const combatLabRequested = import.meta.env.DEV && new URLSearchParams(window.location.search).get('lab') === 'combat';
 if (!combatLabRequested) installPlayerReportMonitoring();
+// Vercel Web Analytics: cookieless page views and unique visitors. Production builds only.
+if (import.meta.env.PROD) {
+  try {
+    injectVercelAnalytics({ mode: 'production' });
+  } catch {
+    // Analytics must never block the game from loading.
+  }
+}
 
 window.addEventListener('vite:preloadError', (event) => {
   if (recoverFromModulePreloadFailure(event.payload)) {

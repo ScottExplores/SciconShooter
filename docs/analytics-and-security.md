@@ -124,3 +124,23 @@ use separate keyed, non-reversible IP identifiers.
 The game simulation runs in the browser, so a determined attacker can alter local events. Receipts improve integrity but do not make the game cheat-proof. Before increasing prize value, add an input/event stream with deterministic server replay, device and rate heuristics, manual review for outliers, and operational alerting.
 
 The accepted-report count is durable across serverless instances, but its count and insert are not one atomic database operation. Parallel cold-instance requests can briefly exceed the nominal five-manual or twenty-automatic hourly limit. The retained process-local limiter bounds same-instance bursts; a strict global cap would require an approved database function, dedicated rate-limit store, or external attestation service.
+
+## Owner stats and report review (Oct 2026)
+
+- **Vercel Web Analytics** is injected in production builds (`@vercel/analytics`), giving
+  cookieless page views and unique visitors in the Vercel dashboard. Run starts and ends
+  are mirrored as `Run Started` / `Run Ended` custom events (mode, mission, result only).
+  Web Analytics must be enabled once in the Vercel project's **Analytics** tab.
+- **`public.scicon_player_stats()`** returns production-only aggregates (visitors and
+  run-starting players today / 7 days / all time, new visitors today, runs started and
+  finished, by mode, last 7 days daily). "Today" is America/Los_Angeles.
+- **`public.scicon_recent_player_reports(limit, include_automatic, include_tests)`** lists
+  the newest Feedback / Report a Bug submissions with the optional contact the player chose
+  to give, game version, coarse browser/OS, run mode, mission and wave.
+- Both functions are `service_role` only; `anon` and `authenticated` cannot execute them.
+  Call them with `npm run analytics:stats` (add `-- --reports=20` for reports) using
+  server-only Supabase keys in `.env.local`, or from the Supabase SQL editor.
+- Player reports now also store an optional player-typed contact (≤120 chars), a coarse
+  browser/OS family (never the full user agent), and the same keyed device hash used by
+  analytics. Requests with `testReport: true` are stored with `test_run: true` and never
+  emailed.
