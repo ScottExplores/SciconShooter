@@ -59,14 +59,13 @@ export const resolveBossPingPongIndex = (
 export const resolveBossWeaveWallLayout = (
   arenaWidth: number,
   mobileProfile: boolean,
-  sequence: number,
-  legacyBossScripts = false
+  sequence: number
 ): BossWeaveWallLayout => {
   const width = Math.max(160, Number.isFinite(arenaWidth) ? arenaWidth : 160);
   const laneCount = mobileProfile ? 7 : 10;
   const margin = mobileProfile ? 12 : 20;
   const laneWidth = Math.max(1, (width - margin * 2) / laneCount);
-  const minimumGap = legacyBossScripts ? laneWidth * 2 : bossPatternSafeGapPixels();
+  const minimumGap = bossPatternSafeGapPixels();
   const gapLanes = Math.min(
     laneCount - 1,
     Math.max(2, Math.ceil(minimumGap / laneWidth))

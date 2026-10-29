@@ -22,7 +22,6 @@ import {
   getWeeklyRunSpawnCount
 } from '../shared/weeklyRunPlan.browser';
 import { DEFAULT_GAME_CAMPAIGN } from './levelConfig';
-import { applyLegacyBossEventConfig } from './gameplay/legacyBossScripts';
 
 /**
  * Weekly Run is an endless escalating gauntlet, generated fresh each week.
@@ -438,7 +437,7 @@ const tuneAuthoredBossEvent = (
     (stage.kind === 'major' ? 2.6 : 2.1) - stage.index * 0.025
   );
 
-  return applyLegacyBossEventConfig({
+  return {
     ...authored,
     id: `weekly-run-stage-${stage.index}-boss-event`,
     startSeconds: 0,
@@ -454,7 +453,7 @@ const tuneAuthoredBossEvent = (
         ])
       ) as BossEvent['componentHealth']
     } : {})
-  });
+  };
 };
 
 const buildCombatWave = (

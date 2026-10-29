@@ -350,7 +350,6 @@ import {
   resolveBossTimelineAttackVariant,
   type BossTimelineCue
 } from './gameplay/bosses/BossTimelineRuntime';
-import { isWeeklyOrEventRun } from './gameplay/legacyBossScripts';
 import {
   bossPatternSafeGapPixels,
   buildBossWeaveWallSlots,
@@ -1895,11 +1894,6 @@ export interface GameEngineOptions {
   /** Preview-only world camera; simulation dimensions may exceed the display. */
   previewEncounterCamera?: EncounterCameraProfile;
   previewDisplayViewport?: Readonly<{ width: number; height: number }>;
-  /**
-   * Event and weekly runs keep the pre-batch1 boss scripts. Campaign, boss
-   * replay, and bosslab omit this. Defaults on for a `weekly-run-` campaign.
-   */
-  legacyBossScripts?: boolean;
 }
 
 export interface PreviewPlayerLoadoutUpdate {
@@ -2763,8 +2757,6 @@ export class GameEngine {
   private readonly startingLives: number;
   private readonly refillLivesAtMissionBoundary: boolean;
   private readonly continuousStageBoundaries: boolean;
-  /** Event and weekly runs use the pre-batch1 move list. */
-  readonly legacyBossScripts: boolean;
   private readonly maxPlayerDamagePerHit: number | null;
   private readonly previewBossCollisionMask?: BossCollisionMask;
   private readonly previewBossCollisionEventId?: string;
@@ -2842,8 +2834,6 @@ export class GameEngine {
     this.initialWaveId = options.initialWaveId;
     this.refillLivesAtMissionBoundary = options.refillLivesAtMissionBoundary ?? true;
     this.continuousStageBoundaries = options.continuousStageBoundaries ?? false;
-    this.legacyBossScripts = options.legacyBossScripts
-      ?? isWeeklyOrEventRun(this.campaign.id);
     const configuredDamageCeiling = Math.floor(Number(options.maxPlayerDamagePerHit));
     this.maxPlayerDamagePerHit = Number.isFinite(configuredDamageCeiling)
       && configuredDamageCeiling > 0
@@ -11838,7 +11828,7 @@ export class GameEngine {
     boss.movementPattern = resolved.movementPatternId;
     const baseSpeed = boss.configuredBaseSpeed ?? boss.configuredSpeed ?? 2;
     boss.configuredSpeed = baseSpeed * boss.activeBossPhaseSpeedMultiplier;
-    if (transitionedBetweenActivePhases && !this.legacyBossScripts) {
+    if (transitionedBetweenActivePhases) {
       this.beginBossPhaseTransition(boss);
     }
     if ((boss.bossAttackArchetype || boss.bossTimeline) && transitionedBetweenActivePhases) {
@@ -14761,7 +14751,7 @@ export class GameEngine {
       boss.gatekeeperPrimeLockedTargetY = null;
       if (sample.attack.attackId === 'rail-fan') boss.beamLaneSign = 0;
     }
-    if (!this.legacyBossScripts && sample.phase.index >= 1) {
+    if (sample.phase.index >= 1) {
       this.updateGatekeeperPrimeSweep(boss, combatFrame);
     }
   }
@@ -15023,15 +15013,7 @@ export class GameEngine {
       boss.isCharging = true;
     }
 
-    if (this.legacyBossScripts) {
-      if (allowsBurst && !boss.isCharging && cannons.length > 0 && boss.attackTimer - boss.lastBurstAttackTimer >= cadence.boltInterval) {
-        const enraged = healthRatio <= 0.38;
-        cannons.forEach((component) => this.spawnPaywallBossBoltVolley(boss, component, enraged));
-        boss.lastBurstAttackTimer = boss.attackTimer;
-      }
-    } else {
-      this.updatePaywallScriptedSequence(boss, healthRatio, allowsBurst, cannons, cadence.boltInterval);
-    }
+    this.updatePaywallScriptedSequence(boss, healthRatio, allowsBurst, cannons, cadence.boltInterval);
     if (allowsBurst && !boss.isCharging && cannons.length === 0) {
       if (boss.attackTimer - boss.lastBurstAttackTimer >= cadence.coreInterval) {
         this.spawnBossCoreVolley(boss, 3);
@@ -15386,7 +15368,7 @@ export class GameEngine {
   }
 
   showBossWeaveWallSafeChannel(boss: Entity, sequence: number, warningFrames: number) {
-    const layout = resolveBossWeaveWallLayout(this.width, this.mobileProfile, sequence, this.legacyBossScripts);
+    const layout = resolveBossWeaveWallLayout(this.width, this.mobileProfile, sequence);
     const coreOrigin = this.getPreviewBossWeaponOrigins(boss, ['core'])[0];
     const projectorX = coreOrigin?.x ?? boss.x + boss.width / 2;
     const projectorY = coreOrigin?.y ?? boss.y + boss.height * 0.62;
@@ -15462,7 +15444,7 @@ export class GameEngine {
         entity.markedForDeletion = true;
       }
     }
-    const layout = resolveBossWeaveWallLayout(this.width, this.mobileProfile, sequence, this.legacyBossScripts);
+    const layout = resolveBossWeaveWallLayout(this.width, this.mobileProfile, sequence);
     const defaultCount = (layout.laneCount - 2) * (this.mobileProfile ? 2 : 3);
     const slots = buildBossWeaveWallSlots(
       layout,
@@ -16331,18 +16313,13 @@ export class GameEngine {
       this.player.x + this.player.width / 2 - originX
     );
     const shotCount = Math.min(28, 16 + cycle * 2);
-    const authoredGapHalfWidth = Math.max(0.22, 0.38 - cycle * 0.04);
     const travel = Math.hypot(
       this.player.x + this.player.width / 2 - originX,
       this.player.y + this.player.height / 2 - originY
     );
-    const neededHalf = Math.asin(Math.max(
-      0,
-      Math.min(0.95, bossPatternSafeGapPixels() / (2 * Math.max(48, travel)))
-    ));
-    const gapHalfWidth = this.legacyBossScripts
-      ? authoredGapHalfWidth
-      : Math.max(0.34, neededHalf, authoredGapHalfWidth);
+    const safeGap = bossPatternSafeGapPixels();
+    const neededHalf = Math.asin(Math.max(0, Math.min(0.95, safeGap / (2 * Math.max(48, travel)))));
+    const gapHalfWidth = Math.max(0.34, neededHalf, 0.38 - cycle * 0.04);
     const speed = Math.min(6.2, 3.3 + cycle * 0.3);
 
     for (let index = 0; index < shotCount; index++) {
@@ -22223,7 +22200,7 @@ export class GameEngine {
         return;
       case 'chainclaw-harpoon':
         this.beginFrontierCrownclawAction(boss, cue);
-        if (!this.legacyBossScripts && (boss.activeBossPhaseIndex ?? 0) >= 1) {
+        if ((boss.activeBossPhaseIndex ?? 0) >= 1) {
           this.spawnBossSideBarrage(boss, phase, 'port', 5);
         }
         return;
@@ -22231,8 +22208,7 @@ export class GameEngine {
       case 'bastion-crabwalk-barrage':
         this.beginFrontierCrownclawAction(boss, cue);
         if (
-          !this.legacyBossScripts
-          && cue.clip.primitiveId === 'bastion-crabwalk-barrage'
+          cue.clip.primitiveId === 'bastion-crabwalk-barrage'
           && (boss.activeBossPhaseIndex ?? 0) >= 1
         ) {
           this.spawnBossSideBarrage(boss, phase, 'starboard', 6);
@@ -22245,8 +22221,7 @@ export class GameEngine {
         if (this.isSandboxPrismMoth(boss)) {
           this.beginPrismMothTimelineAction(boss, cue);
           if (
-            !this.legacyBossScripts
-            && cue.clip.primitiveId === 'prism-wingbeat-weave'
+            cue.clip.primitiveId === 'prism-wingbeat-weave'
             && (boss.activeBossPhaseIndex ?? 0) >= 1
           ) {
             this.spawnBossSideBarrage(boss, phase, 'starboard', 4);
@@ -22793,7 +22768,6 @@ export class GameEngine {
   }
 
   private holdBossChargeBeforeUpcomingAttack(boss: Entity) {
-    if (this.legacyBossScripts) return;
     const timeline = boss.bossTimeline;
     if (!timeline || boss.bossActionPresentation?.stage === 'fire') return;
     const phaseId = boss.bossTimelinePhaseId ?? boss.activeBossPhaseId;
@@ -22821,7 +22795,6 @@ export class GameEngine {
   }
 
   private updateUmbraDualCornerAmbush(boss: Entity) {
-    if (this.legacyBossScripts) return;
     if (!this.isUmbraNeedlewing(boss) || (boss.activeBossPhaseIndex ?? 0) < 2) {
       if (boss.bossUmbraDualCornerActive && boss.attackTimer > boss.generatedBossTechniqueTimer) {
         boss.bossUmbraDualCornerActive = false;
