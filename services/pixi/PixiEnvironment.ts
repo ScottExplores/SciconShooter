@@ -814,6 +814,39 @@ const INITIAL_ENVIRONMENT_WINDOW: PixiEnvironmentWindow = Object.freeze({
 /** Initial production route only; later environments are warmed on demand. */
 export const PIXI_ENVIRONMENT_TEXTURE_URLS = getEnvironmentWindowTextureUrls(INITIAL_ENVIRONMENT_WINDOW);
 
+// Seam fade masks are tiny (4x256) gradient textures, at most ~230 distinct keys.
+// They are shared for the whole page and never destroyed. Pixi pools its alpha-mask
+// filter effects globally (BigPool), and a pooled MaskFilter keeps a reference to the
+// last mask texture source in its bind group. Destroying that source destroys the
+// bind group, and the next runtime that reuses the pooled effect crashes with
+// "Cannot read properties of null (reading '0')" / "this.resources[e]".
+const SEAM_MASK_TEXTURES = new Map<number, Texture>();
+
+export function getSeamMaskTexture(fadeRatio: number): Texture | null {
+  const key = Math.max(1, Math.round(Math.min(0.45, fadeRatio) * 512));
+  const cached = SEAM_MASK_TEXTURES.get(key);
+  if (cached && !cached.destroyed) return cached;
+  if (typeof document === 'undefined') return null;
+  const height = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = 4;
+  canvas.height = height;
+  const context = canvas.getContext('2d');
+  if (!context) return null;
+  const fadePixels = Math.max(1, Math.min(height - 1, Math.round((key / 512) * height)));
+  const gradient = context.createLinearGradient(0, 0, 0, fadePixels);
+  gradient.addColorStop(0, 'rgba(255,255,255,0)');
+  gradient.addColorStop(1, 'rgba(255,255,255,1)');
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, 4, fadePixels);
+  context.fillStyle = '#ffffff';
+  context.fillRect(0, fadePixels, 4, height - fadePixels);
+  const texture = Texture.from(canvas);
+  texture.source.scaleMode = 'linear';
+  SEAM_MASK_TEXTURES.set(key, texture);
+  return texture;
+}
+
 export class PixiEnvironment {
   private readonly parallaxLayers: ParallaxLayer[] = [];
   private readonly stars: StarPoint[] = [];
@@ -844,7 +877,6 @@ export class PixiEnvironment {
   private lastEngineFrame = -1;
   private spacePropBlurActive = false;
   private destroyed = false;
-  private readonly seamMaskTextures = new Map<number, Texture>();
 
   constructor(
     private readonly backgroundLayer: Container,
@@ -1336,31 +1368,6 @@ export class PixiEnvironment {
   }
 
   /** Full-height alpha ramp so a looping tile fades only across its top seam. */
-  private getSeamMaskTexture(fadeRatio: number): Texture | null {
-    const key = Math.max(1, Math.round(Math.min(0.45, fadeRatio) * 512));
-    const cached = this.seamMaskTextures.get(key);
-    if (cached) return cached;
-    if (typeof document === 'undefined') return null;
-    const height = 256;
-    const canvas = document.createElement('canvas');
-    canvas.width = 4;
-    canvas.height = height;
-    const context = canvas.getContext('2d');
-    if (!context) return null;
-    const fadePixels = Math.max(1, Math.min(height - 1, Math.round((key / 512) * height)));
-    const gradient = context.createLinearGradient(0, 0, 0, fadePixels);
-    gradient.addColorStop(0, 'rgba(255,255,255,0)');
-    gradient.addColorStop(1, 'rgba(255,255,255,1)');
-    context.fillStyle = gradient;
-    context.fillRect(0, 0, 4, fadePixels);
-    context.fillStyle = '#ffffff';
-    context.fillRect(0, fadePixels, 4, height - fadePixels);
-    const texture = Texture.from(canvas);
-    texture.source.scaleMode = 'linear';
-    this.seamMaskTextures.set(key, texture);
-    return texture;
-  }
-
   private applySeamMask(sprite: Sprite, seamMask: Sprite | undefined, fadePx: number, visible: boolean) {
     if (!seamMask) return;
     const fadeRatio = visible && fadePx > 0 && sprite.height > 1
@@ -1371,7 +1378,7 @@ export class PixiEnvironment {
       seamMask.visible = false;
       return;
     }
-    const texture = this.getSeamMaskTexture(fadeRatio);
+    const texture = getSeamMaskTexture(fadeRatio);
     if (!texture) {
       sprite.mask = null;
       seamMask.visible = false;
@@ -1659,8 +1666,7 @@ export class PixiEnvironment {
     this.glyphs.length = 0;
     this.terrainProps.length = 0;
     this.atlasFrameCache.clear();
-    for (const texture of this.seamMaskTextures.values()) texture.destroy(true);
-    this.seamMaskTextures.clear();
+    // Seam mask textures are shared for the page lifetime on purpose; see getSeamMaskTexture.
     this.activeBackgroundId = '';
     this.activePropSet = null;
     this.profileWindowKey = '';
