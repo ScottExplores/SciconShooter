@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { DONATION_CONFIG } from '../constants';
 import { trackEvent } from '../services/analyticsService';
 import { readSocialCampaignAttribution } from '../shared/socialCampaignAttribution.mjs';
@@ -16,14 +16,6 @@ import './desktop-mobile-launch-shell.css';
 const DESKTOP_LAUNCH_ASSET_ROOT = '/game-art/generated/ui/scicon-desktop-mobile-launch-v1';
 const BASE_APP_INVITE_QR = `${DESKTOP_LAUNCH_ASSET_ROOT}/base-app-invite-qr.png`;
 const DESKTOP_LAUNCH_VIEWED_KEY = `${DESKTOP_LAUNCH_SESSION_KEY}:viewed`;
-
-const readPlayHereSession = () => {
-  try {
-    return window.sessionStorage.getItem(DESKTOP_LAUNCH_SESSION_KEY) === 'true';
-  } catch {
-    return false;
-  }
-};
 
 const rememberPlayHereSession = () => {
   try {
@@ -56,6 +48,32 @@ const trackDesktopLaunchChoice = (
   ...readSocialCampaignAttribution(window.location.search)
 });
 
+// Keys the game reads. When focus sits on the desktop shell instead of the game
+// frame (e.g. after clicking the side art), forward them so controls never go dead.
+const FORWARDED_GAME_KEYS = new Set([
+  'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+  'w', 'a', 's', 'd', 'W', 'A', 'S', 'D', ' ', 'Enter', 'b', 'B'
+]);
+
+const forwardKeyToFrame = (frame: HTMLIFrameElement | null, event: KeyboardEvent) => {
+  if (!FORWARDED_GAME_KEYS.has(event.key)) return;
+  const target = event.target as HTMLElement | null;
+  if (target?.closest?.('a, button, input, textarea, select')) return;
+  const frameWindow = frame?.contentWindow as (Window & typeof globalThis) | null | undefined;
+  if (!frameWindow) return;
+  event.preventDefault();
+  try {
+    frameWindow.dispatchEvent(new frameWindow.KeyboardEvent(event.type, {
+      key: event.key,
+      code: event.code,
+      repeat: event.repeat,
+      bubbles: true
+    }));
+  } catch {
+    // Cross-origin or detached frame: nothing to forward to.
+  }
+};
+
 const readDesktopMediaMatch = () => window.matchMedia(DESKTOP_LAUNCH_MEDIA_QUERY).matches;
 
 export interface DesktopMobileLaunchShellProps {
@@ -67,7 +85,7 @@ const DesktopMobileLaunchShell: React.FC<DesktopMobileLaunchShellProps> = ({ chi
   const framedDisplayRequested = hasMobileFrameDisplay(window.location.href);
   const topLevel = window.self === window.top;
   const [desktopMediaMatches, setDesktopMediaMatches] = useState(readDesktopMediaMatch);
-  const [playHereSelected, setPlayHereSelected] = useState(readPlayHereSession);
+  const frameRef = useRef<HTMLIFrameElement | null>(null);
   const [frameScale, setFrameScale] = useState(() => resolveMobileFrameScale(
     window.innerWidth,
     window.visualViewport?.height ?? window.innerHeight
@@ -106,9 +124,19 @@ const DesktopMobileLaunchShell: React.FC<DesktopMobileLaunchShellProps> = ({ chi
   }, [useDesktopShell]);
 
   useEffect(() => {
-    if (bossLabRequested || !useDesktopShell || playHereSelected) return;
+    if (bossLabRequested || !useDesktopShell) return undefined;
+    // Desktop visitors go straight into the game frame. The old "choose
+    // browser or Base App" landing lost ~90% of desktop visitors before play.
     trackDesktopLaunchView();
-  }, [bossLabRequested, playHereSelected, useDesktopShell]);
+    rememberPlayHereSession();
+    const handleKey = (event: KeyboardEvent) => forwardKeyToFrame(frameRef.current, event);
+    window.addEventListener('keydown', handleKey);
+    window.addEventListener('keyup', handleKey);
+    return () => {
+      window.removeEventListener('keydown', handleKey);
+      window.removeEventListener('keyup', handleKey);
+    };
+  }, [bossLabRequested, useDesktopShell]);
 
   if (bossLabRequested || !useDesktopShell) return <>{children}</>;
 
@@ -119,93 +147,50 @@ const DesktopMobileLaunchShell: React.FC<DesktopMobileLaunchShellProps> = ({ chi
   return (
     <main
       className="scicon-desktop-mobile-launch"
-      data-launch-state={playHereSelected ? 'playing-here' : 'recommend-mobile'}
+      data-launch-state="playing-here"
     >
       <div className="scicon-desktop-mobile-launch__shade" aria-hidden="true" />
 
-      {playHereSelected ? (
-        <section className="scicon-desktop-mobile-launch__play-area" aria-label="Scicon Shooter mobile game frame">
-          <div className="scicon-desktop-mobile-launch__frame" style={frameStyle}>
-            <span className="scicon-desktop-mobile-launch__frame-label" aria-hidden="true">
-              Mobile flight deck / 390 x 844
-            </span>
-            <iframe
-              className="scicon-desktop-mobile-launch__iframe"
-              src={frameUrl}
-              title="Scicon Shooter mobile game"
-              allow="clipboard-write; fullscreen"
-              referrerPolicy="strict-origin-when-cross-origin"
-              data-testid="desktop-mobile-game-frame"
-            />
-          </div>
-          <a
-            className="scicon-desktop-mobile-launch__side-link"
-            href={DONATION_CONFIG.BASE_APP_INVITE_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => trackDesktopLaunchChoice('base_app', 'side_link')}
-          >
-            Open in Base App
-          </a>
-        </section>
-      ) : (
-        <section
-          className="scicon-desktop-mobile-launch__landing"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="desktop-mobile-launch-title"
-          aria-describedby="desktop-mobile-launch-description"
+      <section
+        className="scicon-desktop-mobile-launch__play-area"
+        aria-label="Scicon Shooter game frame"
+        style={{ '--scicon-side-frame-scale': String(frameScale) } as React.CSSProperties}
+      >
+        <aside className="scicon-desktop-mobile-launch__controls" aria-label="Desktop controls">
+          <span className="scicon-desktop-mobile-launch__eyebrow">Desktop flight controls</span>
+          <dl>
+            <div><dt><kbd>WASD</kbd> <kbd>Arrows</kbd></dt><dd>Steer and auto-fire</dd></div>
+            <div><dt><kbd>Mouse</kbd></dt><dd>Hold and drag to steer and fire</dd></div>
+            <div><dt><kbd>Space</kbd></dt><dd>Fire while standing still</dd></div>
+            <div><dt><kbd>B</kbd></dt><dd>Drop a bomb</dd></div>
+            <div><dt><kbd>Enter</kbd></dt><dd>Skip transmissions</dd></div>
+          </dl>
+        </aside>
+        <div className="scicon-desktop-mobile-launch__frame" style={frameStyle}>
+          <iframe
+            ref={frameRef}
+            className="scicon-desktop-mobile-launch__iframe"
+            src={frameUrl}
+            title="Scicon Shooter mobile game"
+            allow="clipboard-write; fullscreen"
+            referrerPolicy="strict-origin-when-cross-origin"
+            data-testid="desktop-mobile-game-frame"
+            onLoad={() => frameRef.current?.contentWindow?.focus()}
+          />
+        </div>
+        <a
+          className="scicon-desktop-mobile-launch__qr-card scicon-desktop-mobile-launch__side-qr"
+          href={DONATION_CONFIG.BASE_APP_INVITE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Open the Scicon Shooter Base App invite"
+          onClick={() => trackDesktopLaunchChoice('base_app', 'qr')}
         >
-          <div className="scicon-desktop-mobile-launch__copy">
-            <span className="scicon-desktop-mobile-launch__eyebrow">Browser mission ready</span>
-            <img
-              className="scicon-desktop-mobile-launch__icon"
-              src="/icon.png"
-              alt=""
-              aria-hidden="true"
-            />
-            <h1 id="desktop-mobile-launch-title">Start a run. Your browser is enough.</h1>
-            <p id="desktop-mobile-launch-description">
-              Play here in a mobile-sized flight deck. No install or wallet required. For the full portrait experience, open it on your phone or in the Base App.
-            </p>
-            <div className="scicon-desktop-mobile-launch__actions">
-              <button
-                type="button"
-                className="scicon-desktop-mobile-launch__play-action"
-                onClick={() => {
-                  trackDesktopLaunchChoice('browser', 'landing');
-                  rememberPlayHereSession();
-                  setPlayHereSelected(true);
-                }}
-              >
-                Start Browser Run
-              </button>
-              <a
-                className="scicon-desktop-mobile-launch__base-action"
-                href={DONATION_CONFIG.BASE_APP_INVITE_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => trackDesktopLaunchChoice('base_app', 'landing')}
-              >
-                Open in Base App
-              </a>
-            </div>
-          </div>
-
-          <a
-            className="scicon-desktop-mobile-launch__qr-card"
-            href={DONATION_CONFIG.BASE_APP_INVITE_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Open the Scicon Shooter Base App invite"
-            onClick={() => trackDesktopLaunchChoice('base_app', 'qr')}
-          >
-            <span>Or scan for Base App</span>
-            <img src={BASE_APP_INVITE_QR} alt="QR code for the Scicon Shooter Base App invite" />
-            <small>ScottExplores / Base</small>
-          </a>
-        </section>
-      )}
+          <span>Play on your phone</span>
+          <img src={BASE_APP_INVITE_QR} alt="QR code for the Scicon Shooter Base App invite" />
+          <small>Scan for Base App</small>
+        </a>
+      </section>
     </main>
   );
 };

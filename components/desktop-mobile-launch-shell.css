@@ -234,6 +234,82 @@
   font-size: 0.58rem;
 }
 
+/* Side panels sit in the space left and right of the scaled game frame. */
+.scicon-desktop-mobile-launch__controls,
+.scicon-desktop-mobile-launch__side-qr {
+  position: absolute;
+  top: 50%;
+  width: min(17rem, calc((100vw - 390px * var(--scicon-side-frame-scale, 1)) / 2 - 3rem));
+  transform: translateY(-50%);
+}
+
+.scicon-desktop-mobile-launch__controls {
+  right: calc(50% + 195px * var(--scicon-side-frame-scale, 1) + 2rem);
+  display: grid;
+  gap: 0.9rem;
+  border: 2px solid rgb(103 232 249 / 0.55);
+  clip-path: polygon(12px 0, calc(100% - 12px) 0, 100% 12px, 100% calc(100% - 12px), calc(100% - 12px) 100%, 12px 100%, 0 calc(100% - 12px), 0 12px);
+  background: linear-gradient(160deg, rgb(8 47 73 / 0.9), rgb(2 6 23 / 0.92) 60%, rgb(46 16 101 / 0.85));
+  padding: 1.2rem 1.25rem;
+  box-shadow: inset 0 0 2rem rgb(34 211 238 / 0.08), 0 0 1.5rem rgb(34 211 238 / 0.14);
+}
+
+.scicon-desktop-mobile-launch__controls .scicon-desktop-mobile-launch__eyebrow {
+  justify-self: start;
+}
+
+.scicon-desktop-mobile-launch__controls dl {
+  display: grid;
+  gap: 0.7rem;
+  margin: 0;
+}
+
+.scicon-desktop-mobile-launch__controls dl > div {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.scicon-desktop-mobile-launch__controls dt {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.scicon-desktop-mobile-launch__controls dd {
+  margin: 0;
+  color: #cbd5e1;
+  font-size: 0.78rem;
+}
+
+.scicon-desktop-mobile-launch__controls kbd {
+  border: 1px solid rgb(165 243 252 / 0.6);
+  border-bottom-width: 3px;
+  background: rgb(2 6 23 / 0.85);
+  padding: 0.18rem 0.45rem;
+  color: #ecfeff;
+  font-family: Orbitron, Inter, sans-serif;
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+}
+
+.scicon-desktop-mobile-launch__side-qr {
+  left: calc(50% + 195px * var(--scicon-side-frame-scale, 1) + 2rem);
+  width: auto;
+}
+
+.scicon-desktop-mobile-launch__side-qr img {
+  width: 9rem;
+  height: 9rem;
+}
+
+@media (max-width: 1180px) {
+  .scicon-desktop-mobile-launch__controls,
+  .scicon-desktop-mobile-launch__side-qr {
+    display: none;
+  }
+}
+
 @media (max-height: 620px) {
   .scicon-desktop-mobile-launch__frame-label,
   .scicon-desktop-mobile-launch__side-link {

@@ -7265,7 +7265,13 @@ export class GameEngine {
       this.announcedFireRateLevel = level;
     }
 
-    const primaryFireHeld = Boolean(this.keys[' '] || this.touchPos || this.keys['Enter']);
+    // Steering with the keyboard fires like steering with a finger does on touch.
+    const keyboardSteering = Boolean(
+      this.keys['ArrowUp'] || this.keys['ArrowDown'] || this.keys['ArrowLeft'] || this.keys['ArrowRight']
+      || this.keys['w'] || this.keys['a'] || this.keys['s'] || this.keys['d']
+      || this.keys['W'] || this.keys['A'] || this.keys['S'] || this.keys['D']
+    );
+    const primaryFireHeld = Boolean(this.keys[' '] || this.touchPos || this.keys['Enter'] || keyboardSteering);
     if (primaryFireHeld) {
       if (this.playerFireCooldownFrames <= 0) {
         this.fireBullet();

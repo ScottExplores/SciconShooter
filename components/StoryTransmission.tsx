@@ -3,6 +3,12 @@ import { audioService } from '../services/audioService';
 import { StoryBeat } from '../services/storyBeats';
 import FundingVaultUnseal, { FUNDING_VAULT_UNSEAL_DURATION_MS } from './FundingVaultUnseal';
 
+const DEPLOY_PROMPT = typeof window !== 'undefined'
+  && typeof window.matchMedia === 'function'
+  && window.matchMedia('(hover: hover) and (pointer: fine)').matches
+  ? 'Click or press Enter to deploy'
+  : 'Tap to deploy';
+
 interface StoryTransmissionProps {
   beat: StoryBeat;
   onComplete: () => void;
@@ -111,7 +117,7 @@ const StoryTransmission: React.FC<StoryTransmissionProps> = ({ beat, onComplete 
           </div>
 
           <div className="border-t border-cyan-200/20 pt-2 text-right font-mono text-[9px] uppercase tracking-[0.16em] text-cyan-200/65">
-            {isComplete ? 'Tap to deploy' : 'Receiving transmission'}
+            {isComplete ? DEPLOY_PROMPT : 'Receiving transmission'}
           </div>
         </button>
       </FundingVaultUnseal>

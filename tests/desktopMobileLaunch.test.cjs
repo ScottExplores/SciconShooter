@@ -113,11 +113,13 @@ test('entrypoint wraps the existing canonical App instead of creating a second g
   assert.match(componentSource, /<iframe[\s\S]*?src=\{frameUrl\}[\s\S]*?title="Scicon Shooter mobile game"/);
   assert.match(componentSource, /DONATION_CONFIG\.BASE_APP_INVITE_URL/);
   assert.match(componentSource, /window\.sessionStorage\.setItem\(DESKTOP_LAUNCH_SESSION_KEY, 'true'\)/);
-  assert.match(componentSource, />\s*Start Browser Run\s*</);
-  assert.match(
-    componentSource,
-    /scicon-desktop-mobile-launch__actions[\s\S]*?scicon-desktop-mobile-launch__play-action[\s\S]*?Start Browser Run[\s\S]*?scicon-desktop-mobile-launch__base-action[\s\S]*?Open in Base App/
-  );
+  // Desktop goes straight into the game: no "choose browser or Base App" gate.
+  assert.doesNotMatch(componentSource, /Start Browser Run/);
+  assert.doesNotMatch(componentSource, /recommend-mobile/);
+  assert.match(componentSource, /scicon-desktop-mobile-launch__controls[\s\S]*?WASD[\s\S]*?Space[\s\S]*?<kbd>B<\/kbd>/);
+  assert.match(componentSource, /FORWARDED_GAME_KEYS[\s\S]*?'ArrowLeft'[\s\S]*?'w'[\s\S]*?' '/);
+  assert.match(componentSource, /frameWindow\.dispatchEvent\(new frameWindow\.KeyboardEvent/);
+  assert.match(componentSource, /scicon-desktop-mobile-launch__side-qr/);
   assert.match(componentSource, /trackEvent\('desktop_launch_viewed'/);
   assert.match(componentSource, /trackEvent\('desktop_launch_selected'/);
   assert.match(componentSource, /readSocialCampaignAttribution\(window\.location\.search\)/);
@@ -139,4 +141,13 @@ test('local desktop launch art and QR manifest are hash-closed to the configured
     assert.equal(bytes.readUInt32BE(20), asset.height);
     assert.equal(crypto.createHash('sha256').update(bytes).digest('hex'), asset.sha256);
   }
+});
+
+test('keyboard steering fires like touch steering and transmissions explain desktop input', () => {
+  const gameLogic = fs.readFileSync(path.join(root, 'services', 'gameLogic.ts'), 'utf8');
+  assert.match(gameLogic, /const keyboardSteering = Boolean\([\s\S]*?ArrowLeft[\s\S]*?this\.keys\['w'\][\s\S]*?\);/);
+  assert.match(gameLogic, /primaryFireHeld = Boolean\([^\n]*keyboardSteering\)/);
+  const story = fs.readFileSync(path.join(root, 'components', 'StoryTransmission.tsx'), 'utf8');
+  assert.match(story, /Click or press Enter to deploy/);
+  assert.match(story, /'Tap to deploy'/);
 });
