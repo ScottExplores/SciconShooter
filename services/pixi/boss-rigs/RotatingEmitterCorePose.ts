@@ -28,6 +28,8 @@ export interface RotatingEmitterCorePoseInput {
   /** Phase-selected direction used while no action clip owns the rotor. */
   readonly baseSequence?: number;
   readonly action?: RotatingEmitterCoreActionPresentation | null;
+  /** A live beam entity is already in the arena, even if the clip cue is absent. */
+  readonly liveBeam?: boolean;
 }
 
 export interface RotatingEmitterCorePose {
@@ -93,7 +95,12 @@ export const sampleRotatingEmitterCorePose = (
   const stage = action?.stage ?? '';
   const motionCue = action?.motionCue;
   const rotorVolley = motionCue === 'rotor-volley';
-  const radialBeam = motionCue === 'radial-beam';
+  const authoredBeam = motionCue === 'radial-beam'
+    || action?.primitiveId === 'radial-beam-array'
+    || action?.primitiveId === 'cross-beam'
+    || action?.primitiveId === 'rail-sweep';
+  const radialBeam = authoredBeam;
+  const liveBeam = input.liveBeam === true;
   const gapRing = action?.primitiveId === 'gap-ring';
   const warning = stage === 'warning';
   const firing = stage === 'fire';
@@ -117,7 +124,9 @@ export const sampleRotatingEmitterCorePose = (
     : 0;
   const beamEnergy = radialBeam && firing
     ? 1 - smoothstep(Math.max(0, progress - 0.68) / 0.32) * 0.22
-    : 0;
+    : liveBeam
+      ? 0.82
+      : 0;
   const portalAlpha = rotorVolley
     ? warning
       ? smoothstep(progress) * 0.72
@@ -130,7 +139,8 @@ export const sampleRotatingEmitterCorePose = (
     rotorWarningEnergy,
     guideAlpha,
     beamEnergy,
-    gapRingEnergy
+    gapRingEnergy,
+    liveBeam ? 0.82 : 0
   );
   const rotorAngle = Number.isFinite(input.rotorAngleRadians)
     ? Number(input.rotorAngleRadians)
@@ -146,7 +156,9 @@ export const sampleRotatingEmitterCorePose = (
       : firing
         ? 1
         : 0.12
-    : 0.12 + rotorPulseEnvelope * 0.18;
+    : liveBeam
+      ? 0.92
+      : 0.12 + rotorPulseEnvelope * 0.18;
 
   return {
     chassisOffsetY: sampleChassisSettle(attackFrame, input.reducedMotion),

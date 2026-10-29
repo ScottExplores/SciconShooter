@@ -49,6 +49,7 @@ export class ArcadeEffectPool {
   private bossExplosionTextures: Texture[] = [];
   private maxEffects = 150;
   private maxLights = MAX_POOLED_LIGHTS;
+  private readonly deathBursts: { remainingMs: number; x: number; y: number; size: number }[] = [];
 
   constructor(private readonly layer: Container) {
     for (let index = 0; index < MAX_POOLED_LIGHTS; index++) {
@@ -218,6 +219,50 @@ export class ArcadeEffectPool {
     if (size > 80) {
       this.spawn('smoke', x - size * 0.2, y, size * 0.42, '#64748b', 900);
       this.spawn('smoke', x + size * 0.2, y + size * 0.08, size * 0.34, '#334155', 980);
+    }
+  }
+
+  /**
+   * A short, capped chain. The first burst is immediate. Later bursts and
+   * sprite-piece debris stay inside the pool so a boss death cannot allocate
+   * without bound.
+   */
+  spawnBossDeathChain(
+    x: number,
+    y: number,
+    size: number,
+    debris: readonly { texture: Texture; width: number; height: number; direction: number }[],
+    reduced: boolean
+  ) {
+    this.spawnBossExplosion(x, y, size, reduced ? 1.15 : 2.2);
+    const bursts = reduced
+      ? [{ ms: 140, ox: 0.16, oy: 0.04, scale: 0.62 }]
+      : [
+          { ms: 90, ox: -0.28, oy: -0.06, scale: 0.55 },
+          { ms: 180, ox: 0.26, oy: 0.08, scale: 0.64 },
+          { ms: 280, ox: 0.02, oy: 0.18, scale: 0.78 },
+          { ms: 400, ox: -0.1, oy: -0.14, scale: 0.48 }
+        ];
+    for (const burst of bursts) {
+      if (this.deathBursts.length >= 6) break;
+      this.deathBursts.push({
+        remainingMs: burst.ms,
+        x: x + size * burst.ox,
+        y: y + size * burst.oy,
+        size: size * burst.scale
+      });
+    }
+    const debrisCap = reduced ? 2 : 5;
+    for (let index = 0; index < debris.length && index < debrisCap; index += 1) {
+      const piece = debris[index];
+      this.spawnDetachedSprite(
+        piece.texture,
+        x + (index - 1) * size * 0.12,
+        y,
+        piece.width,
+        piece.height,
+        piece.direction
+      );
     }
   }
 
@@ -397,6 +442,15 @@ export class ArcadeEffectPool {
   }
 
   update(deltaMs: number) {
+    if (this.deathBursts.length > 0) {
+      for (let index = this.deathBursts.length - 1; index >= 0; index -= 1) {
+        const burst = this.deathBursts[index];
+        burst.remainingMs -= deltaMs;
+        if (burst.remainingMs > 0) continue;
+        this.deathBursts.splice(index, 1);
+        this.spawnBossExplosion(burst.x, burst.y, burst.size, 1.05);
+      }
+    }
     for (const effect of this.effects) {
       if (!effect.active) continue;
       effect.age += deltaMs;

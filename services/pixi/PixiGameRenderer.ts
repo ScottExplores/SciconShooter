@@ -11,6 +11,12 @@ import {
 } from 'pixi.js';
 import { ASSETS, GAME_CONFIG } from '../../constants';
 import { isIntactCampaignBossSprite } from './standaloneBossSprites';
+import {
+  intactBossBreakMask,
+  intactBossFamilyForSprite,
+  sampleIntactBossLivingPose,
+  type IntactBossPartPose
+} from './boss-rigs/IntactBossLivingPose';
 import { EntityType, PowerupType } from '../../types';
 import { BOSS_CANNON_SCALE, CROWNCLAW_ARM_SCALE, Entity, GameEngine, VisualEffect } from '../gameLogic';
 import type { BossComponentState, BossPartId, GameRuntimeState, StageTakeoffPresentation } from '../gameLogic';
@@ -213,6 +219,12 @@ type EntityView = {
   damageRecoilFrame: number;
   damageRecoilDirection: number;
   damageRecoilStrength: number;
+  intactParts?: {
+    sprites: readonly [Sprite, Sprite, Sprite];
+    sourceKey: string;
+    breakMask: number;
+  };
+  intactRigActive: boolean;
   lastMarkedForDeletion: boolean;
   hasFallbackBody: boolean;
   bossRig?: BossRigView;
@@ -1483,6 +1495,8 @@ export class PixiGameRenderer {
   private wavePresentationElapsedMs = 0;
   private currentWaveCounter = '1/1';
   private reducedMotion = false;
+  private livingEffectBudget = 0;
+  private readonly intactPartTextureCache = new Map<string, Texture>();
   private destroyed = false;
   private readonly previewBossArtwork?: PreviewBossArtwork;
   private readonly startupTextureUrls: readonly string[];
@@ -2884,6 +2898,7 @@ export class PixiGameRenderer {
       damageRecoilFrame: -999,
       damageRecoilDirection: 0,
       damageRecoilStrength: 0,
+      intactRigActive: false,
       lastMarkedForDeletion: false,
       hasFallbackBody: false,
       bossRig,
@@ -2913,6 +2928,15 @@ export class PixiGameRenderer {
     }
     view.label.text = '';
     view.hasFallbackBody = false;
+    view.intactRigActive = false;
+    if (view.intactParts) {
+      view.intactParts.breakMask = 0;
+      view.intactParts.sourceKey = '';
+      for (const sprite of view.intactParts.sprites) {
+        sprite.visible = false;
+        sprite.texture = Texture.WHITE;
+      }
+    }
     if (view.bossRig) {
       view.bossRig.parts.filters = null;
       view.bossRig.parts.visible = false;
@@ -4722,12 +4746,187 @@ export class PixiGameRenderer {
     return true;
   }
 
+  private ensureIntactBossParts(view: EntityView) {
+    if (view.intactParts) return view.intactParts;
+    const sprites = [0, 1, 2].map(() => {
+      const sprite = new Sprite(Texture.EMPTY);
+      sprite.anchor.set(0.5);
+      sprite.visible = false;
+      sprite.roundPixels = true;
+      sprite.eventMode = 'none';
+      view.root.addChild(sprite);
+      return sprite;
+    }) as [Sprite, Sprite, Sprite];
+    view.intactParts = { sprites, sourceKey: '', breakMask: 0 };
+    return view.intactParts;
+  }
+
+  private intactPartTexture(base: Texture, part: IntactBossPartPose) {
+    const frame = base.frame;
+    const source = base.source;
+    if (!source || frame.width < 8 || frame.height < 8) return null;
+    const cropX = Math.max(0, Math.min(frame.width - 1, Math.floor(part.crop.x * frame.width)));
+    const cropY = Math.max(0, Math.min(frame.height - 1, Math.floor(part.crop.y * frame.height)));
+    const cropW = Math.max(1, Math.min(frame.width - cropX, Math.floor(part.crop.w * frame.width)));
+    const cropH = Math.max(1, Math.min(frame.height - cropY, Math.floor(part.crop.h * frame.height)));
+    const key = `${source.uid}:${part.id}:${frame.x}:${frame.y}:${cropX}:${cropY}:${cropW}:${cropH}`;
+    const cached = this.intactPartTextureCache.get(key);
+    if (cached) return cached;
+    const created = new Texture({
+      source,
+      frame: new Rectangle(frame.x + cropX, frame.y + cropY, cropW, cropH)
+    });
+    this.intactPartTextureCache.set(key, created);
+    return created;
+  }
+
+  private hideIntactBossParts(view: EntityView) {
+    view.intactRigActive = false;
+    if (!view.intactParts) return;
+    for (const sprite of view.intactParts.sprites) sprite.visible = false;
+  }
+
+  private drawIntactBossLivingRig(view: EntityView, entity: Entity, engine: GameEngine) {
+    const family = intactBossFamilyForSprite(entity.spriteUrl);
+    if (!family) {
+      this.hideIntactBossParts(view);
+      return false;
+    }
+    const base = view.sprite.texture;
+    if (!base || base === Texture.EMPTY || base === Texture.WHITE || base.width < 8) {
+      this.hideIntactBossParts(view);
+      return false;
+    }
+    const healthRatio = entity.maxHp > 0 ? entity.hp / entity.maxHp : 1;
+    const pose = sampleIntactBossLivingPose({
+      spriteUrl: entity.spriteUrl,
+      frame: engine.frameCount,
+      healthRatio,
+      actionPose: entity.livingSignaturePose,
+      hurt: entity.flashFrames > 0,
+      reducedMotion: this.reducedMotion
+    });
+    if (!pose) {
+      this.hideIntactBossParts(view);
+      return false;
+    }
+    const parts = this.ensureIntactBossParts(view);
+    const sourceKey = `${base.source?.uid ?? 0}:${base.frame.width}x${base.frame.height}`;
+    if (parts.sourceKey !== sourceKey) {
+      parts.sourceKey = sourceKey;
+      parts.breakMask = intactBossBreakMask(healthRatio);
+    }
+    const nextMask = intactBossBreakMask(healthRatio);
+    if (healthRatio > 0.66) parts.breakMask = 0;
+    const newlyBroken = nextMask & ~parts.breakMask;
+    const texW = Math.max(1, base.frame.width);
+    const texH = Math.max(1, base.frame.height);
+    const scaleX = view.sprite.width / texW;
+    const scaleY = view.sprite.height / texH;
+    pose.parts.forEach((part, index) => {
+      const sprite = parts.sprites[index];
+      const texture = this.intactPartTexture(base, part);
+      if (!texture) {
+        sprite.visible = false;
+        return;
+      }
+      sprite.texture = texture;
+      const broke = (part.id === 'left' && (newlyBroken & 1) !== 0)
+        || (part.id === 'right' && (newlyBroken & 2) !== 0);
+      if (broke && !this.reducedMotion) {
+        this.effectPool.spawnDetachedSprite(
+          texture,
+          entity.x + entity.width / 2 + part.offsetX,
+          entity.y + entity.height / 2,
+          part.crop.w * view.sprite.width,
+          part.crop.h * view.sprite.height,
+          part.id === 'left' ? -1 : 1
+        );
+        this.effectPool.spawnBossExplosion(
+          entity.x + entity.width / 2 + part.offsetX,
+          entity.y + entity.height / 2,
+          Math.max(48, entity.width * 0.28),
+          1.1
+        );
+      }
+      sprite.visible = part.visible;
+      sprite.position.set(
+        ((part.crop.x + part.crop.w / 2) - 0.5) * texW * scaleX + part.offsetX,
+        ((part.crop.y + part.crop.h / 2) - 0.5) * texH * scaleY + part.offsetY
+      );
+      sprite.width = part.crop.w * texW * scaleX * part.scaleX;
+      sprite.height = part.crop.h * texH * scaleY * part.scaleY;
+      sprite.rotation = part.rotation;
+      sprite.alpha = part.alpha;
+      sprite.tint = part.tint;
+    });
+    parts.breakMask = healthRatio > 0.66 ? 0 : nextMask;
+    view.sprite.visible = false;
+    view.sprite.y = 0;
+    view.intactRigActive = true;
+    return true;
+  }
+
+  private collectBossDebris(view: EntityView) {
+    const pieces: { texture: Texture; width: number; height: number; direction: number }[] = [];
+    if (view.intactParts) {
+      view.intactParts.sprites.forEach((sprite, index) => {
+        if (sprite.texture === Texture.EMPTY || sprite.texture === Texture.WHITE) return;
+        pieces.push({
+          texture: sprite.texture,
+          width: Math.max(12, sprite.width),
+          height: Math.max(12, sprite.height),
+          direction: index === 0 ? -1 : index === 2 ? 1 : 0.35
+        });
+      });
+    }
+    if (pieces.length > 0) return pieces;
+    const base = view.sprite.texture;
+    if (!base || base === Texture.EMPTY || base === Texture.WHITE || !base.source) return pieces;
+    const frame = base.frame;
+    const crops = [
+      [0, 0],
+      [0.5, 0],
+      [0, 0.5],
+      [0.5, 0.5]
+    ] as const;
+    crops.forEach(([nx, ny], index) => {
+      const cropW = Math.max(1, Math.floor(frame.width / 2));
+      const cropH = Math.max(1, Math.floor(frame.height / 2));
+      const cropX = Math.min(frame.width - cropW, Math.floor(nx * frame.width));
+      const cropY = Math.min(frame.height - cropH, Math.floor(ny * frame.height));
+      const key = `${base.source.uid}:q${index}:${frame.x}:${frame.y}:${cropX}:${cropY}`;
+      let texture = this.intactPartTextureCache.get(key);
+      if (!texture) {
+        texture = new Texture({
+          source: base.source,
+          frame: new Rectangle(frame.x + cropX, frame.y + cropY, cropW, cropH)
+        });
+        this.intactPartTextureCache.set(key, texture);
+      }
+      pieces.push({
+        texture,
+        width: Math.max(16, view.sprite.width * 0.46),
+        height: Math.max(16, view.sprite.height * 0.46),
+        direction: index % 2 === 0 ? -1 : 1
+      });
+    });
+    return pieces;
+  }
+
   private drawRotatingEmitterCorePreviewBossAtlas(
     rig: Extract<PreviewBossAtlasRigView, { kind: 'rotating-emitter-core-v1' }>,
-    entity: Entity
+    entity: Entity,
+    engine: GameEngine
   ) {
     const action: RotatingEmitterCoreActionPresentation | undefined =
       this.getPreviewBossActionPresentation(entity);
+    const liveBeam = engine.entities.some((candidate) => (
+      !candidate.markedForDeletion
+      && candidate.isBeam
+      && !candidate.isTelegraph
+      && candidate.bossOwnerId === entity.id
+    ));
     const pose = sampleRotatingEmitterCorePose({
       attackFrame: entity.attackTimer,
       reducedMotion: this.reducedMotion,
@@ -4735,7 +4934,8 @@ export class PixiGameRenderer {
         ? entity.bossRotorAngleRadians
         : undefined,
       baseSequence: Math.max(0, entity.activeBossPhaseIndex),
-      action
+      action,
+      liveBeam
     });
     const parts = rig.parts;
 
@@ -4904,7 +5104,7 @@ export class PixiGameRenderer {
       case 'transforming-orbiter-v1':
         return this.drawTransformingOrbiterPreviewBossAtlas(rig, entity, engine);
       case 'rotating-emitter-core-v1':
-        return this.drawRotatingEmitterCorePreviewBossAtlas(rig, entity);
+        return this.drawRotatingEmitterCorePreviewBossAtlas(rig, entity, engine);
     }
   }
 
@@ -6283,7 +6483,9 @@ export class PixiGameRenderer {
     for (let index = 0; index < engine.entities.length && lightCount < lightLimit; index++) {
       const entity = engine.entities[index];
       if (entity.markedForDeletion) continue;
-      if (entity.type === EntityType.BOSS && entity.isCharging) {
+      const bossTelegraph = entity.type === EntityType.BOSS && entity.isCharging
+        || entity.type === EntityType.BOSS && entity.livingSignaturePose === 'warning';
+      if (bossTelegraph) {
         lightCount = this.configureCombatLight(
           lightCount,
           entity.x + entity.width / 2,
@@ -6635,6 +6837,7 @@ export class PixiGameRenderer {
       if (this.isPreviewBossEntity(entity) && this.previewBossArtwork?.modularRig) {
         view.sprite.visible = !modularPreviewReady;
       }
+      this.drawIntactBossLivingRig(view, entity, engine);
     } else if (entity.type === EntityType.MINI_BOSS) {
       const state = entity.miniBossLabVisualState;
       const phase = engine.frameCount + entity.variant * 11;
@@ -6795,6 +6998,68 @@ export class PixiGameRenderer {
       }
     }
 
+    if (
+      !this.reducedMotion
+      && !entity.formationState
+      && (
+        entity.type === EntityType.ENEMY_DRONE
+        || entity.type === EntityType.ENEMY_SWARM
+        || entity.type === EntityType.ENEMY_BRICK
+        || entity.type === EntityType.ENEMY_JOURNAL
+      )
+      && (entity.spriteFrames?.length ?? 0) < 2
+    ) {
+      const phase = engine.frameCount + entity.variant;
+      const squash = 1 + Math.sin(phase * 0.17) * 0.04;
+      view.sprite.y += Math.sin(phase * 0.11) * 1.5;
+      view.root.scale.set(2 - squash, squash);
+      if (entity.type === EntityType.ENEMY_DRONE || entity.type === EntityType.ENEMY_JOURNAL) {
+        view.root.rotation += Math.sin(phase * 0.2) * 0.05;
+      }
+    }
+    if (
+      !this.reducedMotion
+      && entity.flashFrames > 0
+      && isEnemyType(entity.type)
+      && entity.type !== EntityType.BOSS
+      && entity.type !== EntityType.MINI_BOSS
+    ) {
+      view.root.scale.x *= 1.07;
+      view.root.scale.y *= 0.9;
+    }
+    if (
+      this.livingEffectBudget > 0
+      && isEnemyType(entity.type)
+      && entity.type !== EntityType.BOSS
+      && entity.type !== EntityType.MINI_BOSS
+      && entity.campaignLastFireFrame === engine.frameCount
+    ) {
+      this.livingEffectBudget -= 1;
+      this.effectPool.spawn(
+        'muzzle',
+        entity.x + entity.width / 2,
+        entity.y + entity.height * 0.78,
+        Math.max(8, entity.width * 0.18),
+        entity.color || '#67e8f9',
+        90
+      );
+    }
+    if (
+      this.livingEffectBudget > 0
+      && (entity.type === EntityType.COIN || entity.type === EntityType.POWERUP)
+      && (engine.frameCount + entity.variant) % 24 === 0
+    ) {
+      this.livingEffectBudget -= 1;
+      this.effectPool.spawn(
+        'spark',
+        entity.x + entity.width / 2,
+        entity.y + entity.height * 0.2,
+        3.2,
+        entity.type === EntityType.COIN ? '#fef08a' : '#67e8f9',
+        180
+      );
+    }
+
     if (entity.isElite && isEnemyType(entity.type)) {
       const pulse = 0.74 + Math.sin((engine.frameCount + entity.variant) * 0.09) * 0.16;
       view.aura.ellipse(0, 0, entity.width * 0.58, entity.height * 0.52)
@@ -6829,6 +7094,7 @@ export class PixiGameRenderer {
 
   private syncEntities(engine: GameEngine) {
     const entities = engine.entities;
+    this.livingEffectBudget = this.reducedMotion ? 0 : (engine.performanceMode ? 3 : 6);
     const tracksPreviewBosses = (
       this.previewBossArtworkReady
       || this.previewBossAtlasReady
@@ -6876,8 +7142,15 @@ export class PixiGameRenderer {
         && !(view.type === EntityType.BOSS && engine.lastBossTerminalOutcome === 'escaped')
       ) {
         const size = view.type === EntityType.BOSS ? 180 : view.type === EntityType.MINI_BOSS ? 110 : 46;
-        if (view.type === EntityType.BOSS) this.effectPool.spawnBossExplosion(view.root.x, view.root.y, size, 2.2);
-        else if (view.type === EntityType.MINI_BOSS) this.effectPool.spawnExplosion(view.root.x, view.root.y, size, '#67e8f9', 0.85);
+        if (view.type === EntityType.BOSS) {
+          this.effectPool.spawnBossDeathChain(
+            view.root.x,
+            view.root.y,
+            size,
+            this.collectBossDebris(view),
+            this.reducedMotion || engine.performanceMode
+          );
+        } else if (view.type === EntityType.MINI_BOSS) this.effectPool.spawnExplosion(view.root.x, view.root.y, size, '#67e8f9', 0.85);
         // Ordinary deaths are received from the simulation, not a stale view HP.
       }
       this.views.delete(id);
@@ -7026,6 +7299,23 @@ export class PixiGameRenderer {
     const texture = this.textureBank.get(ASSETS.PIXI_THRUSTER_FRAMES[Math.floor(engine.frameCount / frameDelay) % frameCount]);
     const visible = Boolean(texture && engine.lives > 0 && engine.playerDrawAlpha > 0.02);
     this.playerThrusterRoot.visible = visible;
+    if (!this.reducedMotion && engine.lives > 0 && engine.frameCount === engine.lastShotFrame) {
+      const muzzleColor = engine.playerShipId === 'btc'
+        ? '#facc15'
+        : engine.playerShipId === 'eth'
+          ? '#a5b4fc'
+          : engine.playerShipId === 'bio'
+            ? '#a3e635'
+            : '#34d399';
+      this.effectPool.spawn(
+        'muzzle',
+        engine.player.x + engine.player.width / 2,
+        engine.player.y + engine.player.height * 0.08,
+        Math.max(10, engine.player.width * 0.16),
+        muzzleColor,
+        80
+      );
+    }
     if (!visible || !texture) return;
 
     const [, configuredEdge] = PLAYER_THRUSTER_COLORS[speedLevel];

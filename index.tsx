@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { inject as injectVercelAnalytics } from '@vercel/analytics';
 import './styles/tailwind.generated.css';
+import './components/living-ui.css';
 import App from './App';
 import DesktopMobileLaunchShell from './components/DesktopMobileLaunchShell';
 import AppErrorBoundary from './components/AppErrorBoundary';

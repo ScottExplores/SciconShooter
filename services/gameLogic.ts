@@ -361,6 +361,11 @@ import {
   type BossGapRouteDirectionPolicy
 } from './gameplay/bosses/BossPatternRuntime';
 import {
+  stepLivingBossSignature,
+  type LivingBossSignatureKey,
+  type LivingBossSignatureMemory
+} from './gameplay/bosses/LivingBossSignatureRuntime';
+import {
   HELIOS_MACHINE_GUN_CHANNEL_MOTION_CUE,
   resolveHeliosClampPlan,
   resolveHeliosCornerClampPlacement,
@@ -905,6 +910,11 @@ export class Entity {
   bossUmbraBlackoutRamDue: boolean = false;
   bossUmbraDualCornerActive: boolean = false;
   bossUmbraDualCornerPhase: number = -1;
+  livingSignatureMainStart: number = -1;
+  livingSignatureDesperationStart: number = -1;
+  livingSignaturePose: 'idle' | 'warning' | 'fire' = 'idle';
+  livingSignaturePoseUntil: number = -1;
+  livingSignatureOwnsCharge: boolean = false;
   /**
    * While a guaranteed charge is in flight, timeline cues stay on this frame
    * and the phase clock rewinds here when the charge ends.
@@ -2628,6 +2638,8 @@ export class GameEngine {
   shakeX: number = 0;
   shakeY: number = 0;
   flashAlpha: number = 0;
+  /** Follow-up shakes and flashes after a boss death. Presentation only. */
+  bossDeathSpectacleFrames: number = 0;
   hitStopFrames: number = 0;
   coinCombo: number = 0;
   coinComboTimer: number = 0;
@@ -5027,6 +5039,7 @@ export class GameEngine {
     this.playerSquashVelocity = 0;
     this.playerAfterimages = [];
     this.shakeStrength = 0;
+    this.bossDeathSpectacleFrames = 0;
     this.shakeX = 0;
     this.shakeY = 0;
     this.flashAlpha = 0;
@@ -5735,6 +5748,7 @@ export class GameEngine {
     this.playerSquashVelocity = 0;
     this.playerAfterimages = [];
     this.shakeStrength = 0;
+    this.bossDeathSpectacleFrames = 0;
     this.shakeX = 0;
     this.shakeY = 0;
     this.flashAlpha = 0;
@@ -6709,6 +6723,13 @@ export class GameEngine {
     }
 
     this.flashAlpha = moveToward(this.flashAlpha, 0, GAME_FEEL.flashDecay);
+    if (this.bossDeathSpectacleFrames > 0) {
+      this.bossDeathSpectacleFrames -= 1;
+      if (this.polishSettings.screenShake && this.bossDeathSpectacleFrames % 6 === 0) {
+        this.addShake(6);
+      }
+      this.flashAlpha = Math.max(this.flashAlpha, 0.34);
+    }
 
     if (this.coinComboTimer > 0) {
       this.coinComboTimer--;
@@ -9613,9 +9634,10 @@ export class GameEngine {
       const reward = Number.isFinite(target.scoreReward) ? Math.max(0, target.scoreReward as number) : 1000 * waveMult;
       this.stats.score += reward;
       this.spawnFloatingText(centerX, centerY - 52, `+${reward}`, '#fef08a', 24);
-      this.flashAlpha = Math.max(this.flashAlpha, 0.26);
+      this.flashAlpha = Math.max(this.flashAlpha, 0.62);
       this.addHitStop(12);
-      this.addShake(6.5);
+      this.addShake(12);
+      this.bossDeathSpectacleFrames = 36;
       this.bossRef = null;
       this.mainBossDefeated = true;
       this.lastBossTerminalOutcome = 'destroyed';
@@ -22769,8 +22791,67 @@ export class GameEngine {
     this.updateAbyssalOctarchActionRuntime(boss);
     this.updateAbyssalOctarchAttackFlow(boss);
     this.updateUmbraDualCornerAmbush(boss);
+    this.updateLivingBossSignature(boss);
     this.holdBossChargeBeforeUpcomingAttack(boss);
     return true;
+  }
+
+  private livingBossSignatureKey(boss: Entity): LivingBossSignatureKey | null {
+    const id = String(boss.sourceItemId ?? '');
+    if (id.endsWith('cinderjaw-siege-beetle')) return 'cinderjaw';
+    if (id.endsWith('vesperglass-mothmother')) return 'vesperglass';
+    return null;
+  }
+
+  private livingBossSignatureMemory(boss: Entity): LivingBossSignatureMemory {
+    return {
+      mainStart: boss.livingSignatureMainStart,
+      desperationStart: boss.livingSignatureDesperationStart,
+      pose: boss.livingSignaturePose,
+      poseUntil: boss.livingSignaturePoseUntil
+    };
+  }
+
+  private updateLivingBossSignature(boss: Entity) {
+    const bossKey = this.livingBossSignatureKey(boss);
+    if (!bossKey) return;
+    const stage = boss.bossActionPresentation?.stage;
+    const step = stepLivingBossSignature({
+      bossKey,
+      attackTimer: boss.attackTimer,
+      healthRatio: boss.maxHp > 0 ? boss.hp / boss.maxHp : 1,
+      actionBusy: stage === 'warning' || stage === 'fire',
+      memory: this.livingBossSignatureMemory(boss)
+    });
+    boss.livingSignatureMainStart = step.memory.mainStart;
+    boss.livingSignatureDesperationStart = step.memory.desperationStart;
+    boss.livingSignaturePose = step.memory.pose;
+    boss.livingSignaturePoseUntil = step.memory.poseUntil;
+    if (step.charging) {
+      boss.isCharging = true;
+      boss.livingSignatureOwnsCharge = true;
+    } else if (boss.livingSignatureOwnsCharge) {
+      boss.livingSignatureOwnsCharge = false;
+      if (stage !== 'warning' && stage !== 'fire') boss.isCharging = false;
+    }
+    if (step.announce) {
+      const color = step.announce === 'FURNACE JAW'
+        ? '#fb923c'
+        : step.announce === 'LAST LIGHT'
+          ? '#f9a8d4'
+          : '#c4b5fd';
+      this.spawnFloatingText(
+        boss.x + boss.width / 2,
+        Math.max(28, boss.y - 8),
+        step.announce,
+        color,
+        this.mobileProfile ? 14 : 16
+      );
+      this.playSound('siren', 0.55);
+    }
+    if (step.spawn?.pattern === 'weave-wall') {
+      this.spawnBossWeaveWall(boss, step.spawn.sequence, step.spawn.projectileCount);
+    }
   }
 
   private holdBossChargeBeforeUpcomingAttack(boss: Entity) {

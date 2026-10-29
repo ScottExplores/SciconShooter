@@ -1,0 +1,83 @@
+/*
+ * Living menu motion. Imported after styles/tailwind.generated.css so the
+ * generated sheet can stay untouched while the home backdrop moves again.
+ */
+
+.scicon-start-screen[data-dashboard-tab='home'] .scicon-home-backdrop__image {
+  animation: sci-home-backdrop-breathe 18s ease-in-out infinite;
+}
+
+.scicon-start-screen[data-dashboard-tab='home'] .scicon-home-backdrop__nebula--a {
+  display: block;
+  animation: sci-home-nebula-drift-a 26s ease-in-out infinite;
+}
+
+.scicon-start-screen[data-dashboard-tab='home'] .scicon-home-backdrop__nebula--b {
+  display: block;
+  animation: sci-home-nebula-drift-b 32s ease-in-out infinite;
+}
+
+.scicon-start-screen[data-dashboard-tab='home'] .scicon-home-backdrop__stars {
+  animation: sci-home-stars-drift 48s linear infinite;
+}
+
+.scicon-start-screen[data-dashboard-tab='home'] .scicon-home-backdrop__pixel-fade {
+  animation: sci-home-pixel-drift 18s linear infinite;
+}
+
+.sci-ship-carousel-item--active .sci-ship-carousel-image--pixel,
+.sci-ship-carousel-item--active .sci-ship-carousel-image--researchhub,
+.sci-hangar-weapon-preview__ship {
+  animation: sci-living-ship-hover 1.6s steps(4, end) infinite;
+  transform-origin: 50% 70%;
+}
+
+@keyframes sci-living-ship-hover {
+  0%, 100% {
+    transform: translate3d(0, 0, 0);
+    filter: drop-shadow(0 10px 0 rgb(34 211 238 / 0.18));
+  }
+  50% {
+    transform: translate3d(0, -7px, 0);
+    filter: drop-shadow(0 18px 0 rgb(250 204 21 / 0.45)) drop-shadow(0 8px 0 rgb(52 211 153 / 0.55));
+  }
+}
+
+.sci-pixel-action:hover:not(:disabled),
+.sci-pixel-action:focus-visible:not(:disabled) {
+  animation: sci-pixel-hover-step 160ms steps(2, end) forwards;
+}
+
+.sci-pixel-action:active:not(:disabled),
+.sci-dashboard-nav-button:active,
+.sci-weekly-run-entry:active:not(:disabled),
+.sci-ship-carousel-control:active {
+  transform: translateY(2px) scale(0.985);
+  filter: brightness(1.08);
+}
+
+.sci-dashboard-nav-button,
+.sci-weekly-run-entry,
+.sci-ship-carousel-control {
+  transition: transform 80ms steps(2, end), filter 80ms steps(2, end);
+}
+
+@keyframes sci-pixel-hover-step {
+  from { transform: translateY(0); }
+  to { transform: translateY(-2px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scicon-start-screen[data-dashboard-tab='home'] .scicon-home-backdrop__image,
+  .scicon-start-screen[data-dashboard-tab='home'] .scicon-home-backdrop__nebula--a,
+  .scicon-start-screen[data-dashboard-tab='home'] .scicon-home-backdrop__nebula--b,
+  .scicon-start-screen[data-dashboard-tab='home'] .scicon-home-backdrop__stars,
+  .scicon-start-screen[data-dashboard-tab='home'] .scicon-home-backdrop__pixel-fade,
+  .sci-ship-carousel-item--active .sci-ship-carousel-image--pixel,
+  .sci-ship-carousel-item--active .sci-ship-carousel-image--researchhub,
+  .sci-hangar-weapon-preview__ship,
+  .sci-pixel-action:hover:not(:disabled),
+  .sci-pixel-action:focus-visible:not(:disabled) {
+    animation: none;
+  }
+}
