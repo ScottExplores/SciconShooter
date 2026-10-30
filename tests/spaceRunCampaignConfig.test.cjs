@@ -51,6 +51,8 @@ const spaceRuns = [
   }
 ];
 
+const MEGASTRUCTURE_STAGES = { 9: 'mega-hull-corridor', 13: 'mega-ring-gate', 16: 'mega-girder-lab', 19: 'mega-archive-deck' };
+
 test('campaign revision 24 restores opening scenery while preserving later space runs', () => {
   assert.equal(campaign.revision, 24);
   assert.deepEqual(
@@ -63,6 +65,11 @@ test('campaign revision 24 restores opening scenery while preserving later space
     for (let order = run.firstStage; order <= run.lastStage; order += 1) {
       const level = campaign.levels.find((candidate) => candidate.order === order);
       assert.ok(level, `Stage ${order} exists`);
+      // Megastructure sectors intentionally replace one stage inside each run.
+      if (MEGASTRUCTURE_STAGES[order]) {
+        assert.equal(level.backgroundId, MEGASTRUCTURE_STAGES[order]);
+        continue;
+      }
       assert.equal(level.backgroundId, run.backgroundId, `Stage ${order} uses ${run.backgroundId}`);
       assert.ok(level.waves.length > 0, `Stage ${order} contains waves`);
       assert.ok(

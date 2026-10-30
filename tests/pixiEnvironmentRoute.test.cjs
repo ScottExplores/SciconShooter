@@ -33,9 +33,9 @@ test('campaign restores the original opening backgrounds and preserves the later
     mainLevels.map((level) => level.backgroundId),
     [
       'open-orbit', 'citation-storm', 'paywall-siege', 'open-galaxy', 'bastion-protocol',
-      'helix-redline', 'helix-redline', 'shattered-void', 'shattered-void', 'shattered-void',
-      'shattered-void', 'gravity-rift', 'gravity-rift', 'gravity-rift', 'ion-eclipse',
-      'ion-eclipse', 'ion-eclipse', 'terminus-frontier', 'terminus-frontier', 'terminus-frontier',
+      'helix-redline', 'helix-redline', 'shattered-void', 'mega-hull-corridor', 'shattered-void',
+      'shattered-void', 'gravity-rift', 'mega-ring-gate', 'gravity-rift', 'ion-eclipse',
+      'mega-girder-lab', 'ion-eclipse', 'terminus-frontier', 'mega-archive-deck', 'terminus-frontier',
       ...Array(5).fill('ion-eclipse'),
       ...Array(5).fill('helix-redline'),
       ...Array(5).fill('gravity-rift'),

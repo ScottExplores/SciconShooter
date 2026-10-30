@@ -575,6 +575,30 @@ const createBreakwaterProfile = (
 });
 
 const BACKGROUND_PROFILES = {
+  'mega-hull-corridor': {
+    tint: '#0b1a33', accent: '#67e8f9', family: 0, colorGradeAlpha: 0.04,
+    layers: createSpaceLayers('gravity-rift', 0.10, 1.0, ASSETS.PIXI_MEGA_HULL_CORRIDOR, [], 0),
+    horizonAlpha: 0, planetTint: '#ffffff', starSpeedMultiplier: SPACE_DYNAMIC_STAR_SPEED_MULTIPLIERS['gravity-rift'],
+    terrain: 'space', propSet: 'space', propAlpha: 0, propCount: 0, glyphAlpha: 0
+  },
+  'mega-ring-gate': {
+    tint: '#2a1040', accent: '#c4b5fd', family: 0, colorGradeAlpha: 0.04,
+    layers: createSpaceLayers('helix-redline', 0.30, 2.0, ASSETS.PIXI_MEGA_RING_GATE, [], 0),
+    horizonAlpha: 0, planetTint: '#ffffff', starSpeedMultiplier: SPACE_DYNAMIC_STAR_SPEED_MULTIPLIERS['helix-redline'],
+    terrain: 'space', propSet: 'space', propAlpha: 0, propCount: 0, glyphAlpha: 0
+  },
+  'mega-girder-lab': {
+    tint: '#062a2a', accent: '#5eead4', family: 0, colorGradeAlpha: 0.04,
+    layers: createSpaceLayers('gravity-rift', 0.50, 3.0, ASSETS.PIXI_MEGA_GIRDER_LAB, [], 0),
+    horizonAlpha: 0, planetTint: '#ffffff', starSpeedMultiplier: SPACE_DYNAMIC_STAR_SPEED_MULTIPLIERS['gravity-rift'],
+    terrain: 'space', propSet: 'space', propAlpha: 0, propCount: 0, glyphAlpha: 0
+  },
+  'mega-archive-deck': {
+    tint: '#2a1a08', accent: '#fbbf24', family: 0, colorGradeAlpha: 0.04,
+    layers: createSpaceLayers('terminus-frontier', 0.70, 4.0, ASSETS.PIXI_MEGA_ARCHIVE_DECK, [], 0),
+    horizonAlpha: 0, planetTint: '#ffffff', starSpeedMultiplier: SPACE_DYNAMIC_STAR_SPEED_MULTIPLIERS['terminus-frontier'],
+    terrain: 'space', propSet: 'space', propAlpha: 0, propCount: 0, glyphAlpha: 0
+  },
   'breakwater-approach': createBreakwaterProfile(ASSETS.PIXI_BREAKWATER_APPROACH, 1.8),
   'breakwater-wreckfield': createBreakwaterProfile(ASSETS.PIXI_BREAKWATER_WRECKFIELD, 2.4, LOOP_SEAM_CROSSFADE_PX),
   'breakwater-gate': createBreakwaterProfile(ASSETS.PIXI_BREAKWATER_GATE, 1.5, LOOP_SEAM_CROSSFADE_PX),
@@ -795,7 +819,7 @@ export const getEnvironmentProfileTextureUrls = (backgroundId: string): readonly
     ...(profile.horizonAlpha > 0 ? [ASSETS.GAME_BG_PLANET] : []),
     ...(profile.propCount > 0 ? [TERRAIN_PROP_ATLASES[profile.propSet]] : []),
     ...(perspectiveSheet ? [perspectiveSheet] : []),
-    ...(profile.terrain === 'space' ? SPACE_BODY_TEXTURES : [])
+    ...(profile.terrain === 'space' && !resolvedId.startsWith('mega-') ? SPACE_BODY_TEXTURES : [])
   ].filter(Boolean))]);
 };
 
@@ -1259,7 +1283,8 @@ export class PixiEnvironment {
     this.horizon.tint = profile.planetTint;
     this.terrainPropLayer.visible = profile.propAlpha > 0;
     this.terrainPropLayer.alpha = profile.propAlpha;
-    const spaceBodies = profile.terrain === 'space'
+    // Megastructure plates already fill both edges; a drifting planet would sit on the hull.
+    const spaceBodies = profile.terrain === 'space' && !resolvedId.startsWith('mega-')
       ? SPACE_BODY_LAYOUTS[resolvedId as keyof typeof SPACE_BODY_LAYOUTS] ?? buildSpaceBodyLayout(resolvedId)
       : [];
     this.activeSpaceBodies = spaceBodies;
