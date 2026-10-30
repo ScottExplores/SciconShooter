@@ -1368,6 +1368,8 @@ export interface PixiGameRendererOptions {
   readonly startupTexturePolicy?: 'required' | 'resilient-preview';
 }
 
+export const ELITE_ENEMY_TINT = '#ddd6fe';
+
 export class PixiGameRenderer {
   readonly app = new Application();
 
@@ -3064,6 +3066,24 @@ export class PixiGameRenderer {
       view.label.style.fill = '#fda4af';
       view.label.position.set(0, 0);
     }
+  }
+
+  /** Tiny horizontal bar above a damaged elite; hidden until it takes a hit. */
+  private drawEliteDamageBar(view: EntityView, entity: Entity) {
+    view.health.clear();
+    view.label.text = '';
+    const progress = clamp(entity.hp / Math.max(1, entity.maxHp), 0, 1);
+    if (entity.hp <= 0 || progress >= 1) return;
+    const width = clamp(entity.width * 0.6, 20, 44);
+    view.health.rect(-width / 2, 0, width, 3).fill({ color: '#020617', alpha: 0.7 });
+    view.health.rect(-width / 2, 0, width * progress, 3).fill({ color: '#67e8f9', alpha: 0.9 });
+    const rotation = view.root.rotation;
+    const sx = Math.max(0.001, Math.abs(view.root.scale.x));
+    const sy = Math.max(0.001, Math.abs(view.root.scale.y));
+    const offsetY = -entity.height * 0.5 - 7;
+    view.health.position.set(Math.sin(rotation) * offsetY / sx, Math.cos(rotation) * offsetY / sy);
+    view.health.rotation = -rotation;
+    view.health.scale.set(1 / sx, 1 / sy);
   }
 
   private alignMiniBossHealthOverlay(view: EntityView, entity: Entity) {
@@ -6961,9 +6981,10 @@ export class PixiGameRenderer {
       const isMaxShot = entity.text === PowerupType.MAX_SHOT;
       const phase = engine.frameCount + entity.variant;
       const maxShotPulse = 1 + Math.sin(phase * 0.16) * 0.055;
-      view.sprite.y = Math.sin(phase * 0.11) * 6;
+      // Pickups fall straight down: no bob or spin, only a gentle MAX pulse.
+      view.sprite.y = 0;
       view.root.scale.set(isMaxShot ? 1.4 * maxShotPulse : 1.22);
-      view.root.rotation = phase * 0.05;
+      view.root.rotation = 0;
       view.aura.clear();
     }
 
@@ -7000,25 +7021,6 @@ export class PixiGameRenderer {
 
     if (
       !this.reducedMotion
-      && !entity.formationState
-      && (
-        entity.type === EntityType.ENEMY_DRONE
-        || entity.type === EntityType.ENEMY_SWARM
-        || entity.type === EntityType.ENEMY_BRICK
-        || entity.type === EntityType.ENEMY_JOURNAL
-      )
-      && (entity.spriteFrames?.length ?? 0) < 2
-    ) {
-      const phase = engine.frameCount + entity.variant;
-      const squash = 1 + Math.sin(phase * 0.17) * 0.04;
-      view.sprite.y += Math.sin(phase * 0.11) * 1.5;
-      view.root.scale.set(2 - squash, squash);
-      if (entity.type === EntityType.ENEMY_DRONE || entity.type === EntityType.ENEMY_JOURNAL) {
-        view.root.rotation += Math.sin(phase * 0.2) * 0.05;
-      }
-    }
-    if (
-      !this.reducedMotion
       && entity.flashFrames > 0
       && isEnemyType(entity.type)
       && entity.type !== EntityType.BOSS
@@ -7044,26 +7046,9 @@ export class PixiGameRenderer {
         90
       );
     }
-    if (
-      this.livingEffectBudget > 0
-      && (entity.type === EntityType.COIN || entity.type === EntityType.POWERUP)
-      && (engine.frameCount + entity.variant) % 24 === 0
-    ) {
-      this.livingEffectBudget -= 1;
-      this.effectPool.spawn(
-        'spark',
-        entity.x + entity.width / 2,
-        entity.y + entity.height * 0.2,
-        3.2,
-        entity.type === EntityType.COIN ? '#fef08a' : '#67e8f9',
-        180
-      );
-    }
-
-    if (entity.isElite && isEnemyType(entity.type)) {
-      const pulse = 0.74 + Math.sin((engine.frameCount + entity.variant) * 0.09) * 0.16;
-      view.aura.ellipse(0, 0, entity.width * 0.58, entity.height * 0.52)
-        .stroke({ color: '#c4b5fd', width: 2, alpha: pulse });
+    // Elites keep their own sprite and read through a subtle tint, not a ring.
+    if (entity.isElite && isEnemyType(entity.type) && entity.type !== EntityType.MINI_BOSS && entity.type !== EntityType.BOSS && entity.flashFrames <= 0) {
+      view.sprite.tint = ELITE_ENEMY_TINT;
     }
 
     if (
@@ -7071,12 +7056,14 @@ export class PixiGameRenderer {
         ? engine.compactMiniBossHealthBarsVisible
           && entity.miniBossLabShowHealthBar
           && entity.hp > 0
-        : entity.isElite
+        : false
     ) {
       this.drawHealthBar(view, entity);
       if (entity.type === EntityType.MINI_BOSS) {
         this.alignMiniBossHealthOverlay(view, entity);
       }
+    } else if (entity.isElite && isEnemyType(entity.type) && entity.type !== EntityType.MINI_BOSS && entity.type !== EntityType.BOSS) {
+      this.drawEliteDamageBar(view, entity);
     } else if (entity.type === EntityType.MINI_BOSS) {
       view.health.clear();
       view.label.text = '';
