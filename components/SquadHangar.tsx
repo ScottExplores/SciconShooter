@@ -146,15 +146,43 @@ const traceFrames = Array.from({ length: TRACE_LABEL_FRAME_COUNT }, (_, index) =
   `${UI_ROOT}/trace-boxes/label/cyan/frames/trace-box-label-cyan-${String(index + 1).padStart(2, '0')}.png`
 ));
 
-const useAnimationFrame = (frameCount: number, delay = 120) => {
+const decodedFrameSets = new Map<string, Promise<void>>();
+
+/** Resolves once every frame is decoded, so a src swap never paints blank. */
+const decodeFrames = (frames: readonly string[]): Promise<void> => {
+  const key = frames.join('|');
+  let pending = decodedFrameSets.get(key);
+  if (!pending) {
+    pending = Promise.all(frames.map((url) => {
+      const image = new Image();
+      image.decoding = 'async';
+      image.src = url;
+      return image.decode().catch(() => undefined);
+    })).then(() => undefined);
+    decodedFrameSets.set(key, pending);
+  }
+  return pending;
+};
+
+const useAnimationFrame = (frames: readonly string[], delay = 120) => {
   const [frame, setFrame] = useState(0);
+  const frameCount = frames.length;
 
   useEffect(() => {
-    const timer = window.setInterval(() => {
-      setFrame((current) => (current + 1) % frameCount);
-    }, delay);
-    return () => window.clearInterval(timer);
-  }, [delay, frameCount]);
+    let timer = 0;
+    let cancelled = false;
+    void decodeFrames(frames).then(() => {
+      if (cancelled) return;
+      timer = window.setInterval(() => {
+        if (document.hidden) return;
+        setFrame((current) => (current + 1) % frameCount);
+      }, delay);
+    });
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [delay, frameCount, frames]);
 
   return frame;
 };
@@ -169,12 +197,12 @@ const AnimatedSelector = ({
   className?: string;
 }) => {
   const frames = useMemo(() => selectorFrames(size, color), [color, size]);
-  const frame = useAnimationFrame(frames.length);
+  const frame = useAnimationFrame(frames);
   return <img src={frames[frame]} alt="" draggable={false} className={`pointer-events-none select-none object-contain ${className}`} />;
 };
 
 const AnimatedTraceLabel = ({ children }: { children: React.ReactNode }) => {
-  const frame = useAnimationFrame(traceFrames.length, TRACE_LABEL_FRAME_DELAY_MS);
+  const frame = useAnimationFrame(traceFrames, TRACE_LABEL_FRAME_DELAY_MS);
   return (
     <div className="relative mx-auto h-14 w-full max-w-[24rem]">
       <img src={traceFrames[frame]} alt="" draggable={false} className="absolute inset-0 h-full w-full object-fill" />
@@ -196,26 +224,36 @@ const AnimatedMiniShip = ({
 
   useEffect(() => {
     let sequenceIndex = 0;
-    const timer = window.setInterval(() => {
-      sequenceIndex = (sequenceIndex + 1) % MINI_ANIMATION_SEQUENCE.length;
-      setFrame(MINI_ANIMATION_SEQUENCE[sequenceIndex]);
-    }, 210);
-    return () => window.clearInterval(timer);
-  }, [entry.id]);
+    let timer = 0;
+    let cancelled = false;
+    void decodeFrames(entry.frames).then(() => {
+      if (cancelled) return;
+      timer = window.setInterval(() => {
+        if (document.hidden) return;
+        sequenceIndex = (sequenceIndex + 1) % MINI_ANIMATION_SEQUENCE.length;
+        setFrame(MINI_ANIMATION_SEQUENCE[sequenceIndex]);
+      }, 210);
+    });
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [entry.frames, entry.id]);
 
   return <img src={entry.frames[frame]} alt="" draggable={false} className={`pointer-events-none object-contain ${className}`} />;
 };
 
 const AnimatedPlayerShip = ({
   shipId,
-  frame,
   className = ''
 }: {
   shipId: PlayerShipId;
-  frame: number;
   className?: string;
 }) => {
+  // Each ship owns its frame clock, so the idle loop re-renders one <img>
+  // instead of the whole hangar five times a second.
   const frames = PLAYER_SHIP_MOTION[shipId].selectionIdleFrames;
+  const frame = useAnimationFrame(frames, 1000 / PLAYER_SHIP_SELECTION_FPS);
   return (
     <img
       src={frames[frame % frames.length]}
@@ -301,10 +339,6 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
   const [supportPreviewId, setSupportPreviewId] = useState<MiniShipId | null>(null);
   const [lockedPlayerShipId, setLockedPlayerShipId] = useState<PlayerShipAccessId | null>(null);
   const [upgradeFeedback, setUpgradeFeedback] = useState<{ target: string; label: string; nonce: number } | null>(null);
-  const playerSelectionFrame = useAnimationFrame(
-    PLAYER_SELECTION_FRAME_COUNT,
-    1000 / PLAYER_SHIP_SELECTION_FPS
-  );
 
   useEffect(() => {
     preloadMiniShipTextures();
@@ -519,7 +553,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
                 <span className="mt-1 text-[0.46rem] text-yellow-200">View access</span>
               </span>
             ) : null}
-            <AnimatedPlayerShip shipId={shipId} frame={playerSelectionFrame} className="relative z-10 mx-auto mt-4 h-[52%] w-[86%] drop-shadow-[0_0_10px_rgba(34,211,238,0.4)]" />
+            <AnimatedPlayerShip shipId={shipId} className="relative z-10 mx-auto mt-4 h-[52%] w-[86%] drop-shadow-[0_0_10px_rgba(34,211,238,0.4)]" />
             <span className={`relative z-10 mt-1 block truncate text-[0.52rem] font-black uppercase ${selected ? 'text-yellow-200' : 'text-slate-300'}`}>{ship.name.replace(/ ship$/i, '')}</span>
             <div className="relative z-10 mt-1"><LevelPips level={shipTier} max={FIRE_RATE_TIER_COUNT} /></div>
           </button>
@@ -705,7 +739,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
                 <span className={`absolute inset-[14%] ${activePosition === 'main' ? 'sci-hangar-active-light' : ''}`}>
                   {activePosition === 'main' ? <AnimatedSelector size="ship" color="lime" className="absolute inset-0 h-full w-full scale-[1.8]" /> : <span className="absolute inset-0 rotate-45 border border-cyan-300/35 bg-cyan-300/5" />}
                 </span>
-                <AnimatedPlayerShip shipId={mainShipId} frame={playerSelectionFrame} className="relative z-10 h-[58%] w-[58%] drop-shadow-[0_0_16px_rgba(34,211,238,0.6)]" />
+                <AnimatedPlayerShip shipId={mainShipId} className="relative z-10 h-[58%] w-[58%] drop-shadow-[0_0_16px_rgba(34,211,238,0.6)]" />
               </button>
             </div>
             <div className="absolute bottom-0 right-[8%] sm:right-[10%]">

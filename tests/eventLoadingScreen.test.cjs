@@ -36,7 +36,7 @@ test('the Umbra loading screen follows the 25K event window and the existing loa
   ];
 
   assert.match(app, /const eventLoadingScreen = getPublicPrizeState\(\)\.phase === 'big-event'/);
-  assert.equal(app.match(/presentation=\{eventLoadingScreen && eventSplashReady \? 'event' : 'standard'\}/g)?.length, 2);
+  assert.equal(app.match(/presentation=\{eventLoadingScreen \? 'event' : 'standard'\}/g)?.length, 2);
   assert.match(app, /const STARTUP_LOADING_MINIMUM_MS = 650/);
   assert.match(app, /const STARTUP_LOADING_READY_HOLD_MS = 180/);
   assert.match(app, /EVENT_LOADING_ART_EXTRA_WAIT_MS/);

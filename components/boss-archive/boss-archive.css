@@ -261,7 +261,7 @@
   background:
     radial-gradient(ellipse at 50% 70%, color-mix(in srgb, var(--boss-accent) 17%, transparent), transparent 44%),
     linear-gradient(180deg, rgb(2 6 23 / 26%), rgb(2 6 23 / 71%));
-  perspective: 50rem;
+  contain: layout paint;
 }
 
 .boss-archive-carousel__toolbar {
@@ -386,11 +386,10 @@
     inset 0 0 1.7rem color-mix(in srgb, var(--boss-accent) 12%, transparent),
     0 .8rem 1.4rem rgb(0 0 0 / 56%);
   opacity: var(--boss-opacity);
-  transform: translate3d(calc(-50% + var(--boss-x)), var(--boss-y), 0) rotateY(var(--boss-angle)) scale(var(--boss-scale));
+  transform: translate3d(calc(-50% + var(--boss-x)), var(--boss-y), 0) scale(var(--boss-scale));
   transform-origin: 50% 62%;
   transition: transform .42s cubic-bezier(.2,.8,.2,1), opacity .3s ease, border-color .2s ease;
   will-change: transform;
-  backface-visibility: hidden;
   clip-path: polygon(9px 0, calc(100% - 9px) 0, 100% 9px, 100% calc(100% - 9px), calc(100% - 9px) 100%, 9px 100%, 0 calc(100% - 9px), 0 9px);
 }
 
@@ -507,28 +506,29 @@
   transform-origin: 50% 72%;
 }
 
-.boss-archive-carousel__portrait[data-idle-preview='active'][data-composed='true']
-  .boss-archive-portrait__assembly {
+/* The hover runs on the portrait element itself so it stays on the
+   compositor. Animating SVG-internal <g> nodes repaints the whole card every
+   frame, which starves Android raster and left the center slide blank. */
+.boss-archive-carousel__portrait[data-idle-preview='active'] {
   animation: boss-archive-intact-hover 4.8s ease-in-out infinite;
+  will-change: transform;
 }
 
-.boss-archive-carousel__portrait[data-idle-preview='active'][data-composed='true']
-  .boss-archive-portrait__layer[data-motion-role='port-limb'] {
-  animation: boss-archive-port-articulation 5.6s ease-in-out infinite;
-}
+@media (hover: hover) and (pointer: fine) {
+  .boss-archive-carousel__portrait[data-idle-preview='active'][data-composed='true']
+    .boss-archive-portrait__layer[data-motion-role='port-limb'] {
+    animation: boss-archive-port-articulation 5.6s ease-in-out infinite;
+  }
 
-.boss-archive-carousel__portrait[data-idle-preview='active'][data-composed='true']
-  .boss-archive-portrait__layer[data-motion-role='starboard-limb'] {
-  animation: boss-archive-starboard-articulation 5.6s ease-in-out infinite;
-}
+  .boss-archive-carousel__portrait[data-idle-preview='active'][data-composed='true']
+    .boss-archive-portrait__layer[data-motion-role='starboard-limb'] {
+    animation: boss-archive-starboard-articulation 5.6s ease-in-out infinite;
+  }
 
-.boss-archive-carousel__portrait[data-idle-preview='active'][data-composed='true']
-  .boss-archive-portrait__layer[data-motion-role='core'] {
-  animation: boss-archive-core-breathe 4.1s ease-in-out infinite;
-}
-
-img.boss-archive-carousel__portrait[data-idle-preview='active'][data-composed='false'] {
-  animation: boss-archive-intact-hover 4.8s ease-in-out infinite;
+  .boss-archive-carousel__portrait[data-idle-preview='active'][data-composed='true']
+    .boss-archive-portrait__layer[data-motion-role='core'] {
+    animation: boss-archive-core-breathe 4.1s ease-in-out infinite;
+  }
 }
 
 .boss-archive-carousel__unknown {
@@ -560,7 +560,7 @@ img.boss-archive-carousel__portrait[data-idle-preview='active'][data-composed='f
     radial-gradient(circle at 50% 30%, rgb(34 211 238 / 18%), transparent 24%),
     linear-gradient(145deg, transparent 0 16%, rgb(14 116 144 / 25%) 17% 29%, transparent 30% 70%, rgb(14 116 144 / 22%) 71% 83%, transparent 84%),
     rgb(2 6 23 / 72%);
-  filter: blur(.5px) drop-shadow(0 0 .65rem rgb(34 211 238 / 22%));
+  filter: drop-shadow(0 0 .65rem rgb(34 211 238 / 22%));
   clip-path: polygon(50% 0, 66% 19%, 90% 27%, 100% 64%, 72% 82%, 61% 100%, 39% 100%, 28% 82%, 0 64%, 10% 27%, 34% 19%);
 }
 

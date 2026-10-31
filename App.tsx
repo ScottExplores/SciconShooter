@@ -747,7 +747,7 @@ const App: React.FC = () => {
   const [startupLoading, setStartupLoading] = useState<StartupPreloadSnapshot | null>(
     getStartupPreloadSnapshot
   );
-  const [eventSplashReady, setEventSplashReady] = useState(false);
+  const [, setEventSplashReady] = useState(false);
   const [startupLoadingTip] = useState(getRandomMissionLoadingTip);
   const [missionLoading, setMissionLoading] = useState<MissionLoadingState | null>(null);
   const [onboardingRestartNonce, setOnboardingRestartNonce] = useState(0);
@@ -7888,14 +7888,14 @@ const App: React.FC = () => {
       {startupLoading || walletIdentityHydrating ? (
         <MissionLoadingScreen
           context="startup"
-          presentation={eventLoadingScreen && eventSplashReady ? 'event' : 'standard'}
+          presentation={eventLoadingScreen ? 'event' : 'standard'}
           progress={startupLoading?.progress ?? 96}
           phase={startupLoading?.phase ?? 'runtime-sync'}
           tip={startupLoadingTip}
         />
       ) : missionLoading ? (
         <MissionLoadingScreen
-          presentation={eventLoadingScreen && eventSplashReady ? 'event' : 'standard'}
+          presentation={eventLoadingScreen ? 'event' : 'standard'}
           progress={missionLoading.progress}
           phase={missionLoading.phase}
           tip={missionLoading.tip}

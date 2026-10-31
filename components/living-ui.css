@@ -22,7 +22,9 @@
 }
 
 .scicon-start-screen[data-dashboard-tab='home'] .scicon-home-backdrop__pixel-fade {
-  animation: sci-home-pixel-drift 18s linear infinite;
+  /* background-position under a mask repainted the full-screen layer every
+     frame (~40 paints/s on mobile); the grid stays put. */
+  animation: none;
 }
 
 /*
@@ -119,17 +121,17 @@
 @keyframes sci-home-backdrop-breathe{0%,to{transform:scale(1.04) translateZ(0);opacity:.9}50%{transform:scale(1.08) translate3d(-.5%,.65%,0);opacity:.9}}
 @keyframes sci-home-nebula-drift-a{0%,to{opacity:.4;transform:rotate(-2deg) translate3d(-1.5%,0,0) scale(1.02)}50%{opacity:.4;transform:rotate(3deg) translate3d(2.5%,-1.4%,0) scale(1.1)}}
 @keyframes sci-home-nebula-drift-b{0%,to{opacity:.32;transform:rotate(2deg) translate3d(1.5%,0,0) scale(1.06)}50%{opacity:.32;transform:rotate(-3deg) translate3d(-2.5%,1.2%,0) scale(.99)}}
-@keyframes sci-home-stars-drift{0%{background-position:0 0,21px 37px,51px 13px;opacity:.4}to{background-position:73px 89px,134px 164px,202px 186px;opacity:.4}}
+@keyframes sci-home-stars-drift{0%,to{opacity:.4}}
 @keyframes sci-home-planet-drift-red{0%,to{opacity:.48;transform:translate3d(0,-5%,0) scale(.96)}50%{opacity:.48;transform:translate3d(-7%,15%,0) scale(1.04)}}
 @keyframes sci-weekly-fixture-pulse-a{0%,to{opacity:.8}}
 @keyframes sci-weekly-fixture-pulse-b{0%,to{opacity:.75}}
 @keyframes sci-weekly-live-pulse{0%,to{opacity:1}}
 @keyframes sci-pixel-ready-interior{0%,to{opacity:.15}}
 @keyframes sci-pixel-fixture-breathe{0%,to{opacity:.7}}
-@keyframes sci-dashboard-active-frame{0%,to{border-color:rgba(103,232,249,.7);box-shadow:inset 0 0 1.3rem rgba(34,211,238,.16),0 0 .5rem rgba(34,211,238,.18)}}
+@keyframes sci-dashboard-active-frame{0%,to{transform:translateZ(0)}}
 @keyframes sci-dashboard-active-rail{0%,to{opacity:.85;transform:scaleX(.8)}}
-@keyframes sci-reward-edge-claimable{0%,to{border-color:rgba(250,204,21,.8);box-shadow:0 0 .9rem rgba(250,204,21,.35)}}
-@keyframes sci-dashboard-reward-frame{0%,to{box-shadow:0 0 .6rem rgba(250,204,21,.35);transform:scale(.98)}50%{box-shadow:0 0 .6rem rgba(250,204,21,.35);transform:scale(1.02)}}
+@keyframes sci-reward-edge-claimable{0%,to{transform:translateZ(0)}}
+@keyframes sci-dashboard-reward-frame{0%,to{transform:scale(.98)}50%{transform:scale(1.02)}}
 @keyframes sci-dashboard-reward-dot{0%,to{opacity:1;transform:scale(.9)}50%{opacity:1;transform:scale(1.1)}}
 .sci-pixel-action__shine{animation:none!important;opacity:0!important}
 
@@ -141,4 +143,35 @@ html[data-sci-overlay] .sci-dashboard-nav *,
 html[data-sci-overlay] [class*='sci-pixel-action__']:not(.boss-archive-overlay *),
 html[data-sci-overlay] [class*='sci-reward-edge'] {
   animation-play-state: paused !important;
+}
+
+/* Touch devices: backdrop blur re-samples everything behind each panel on
+   every frame and is the single biggest raster cost on Android menus. The
+   panels already carry dark translucent fills, so drop the blur there. */
+@media (pointer: coarse) {
+  [class*='backdrop-blur'],
+  [class*='backdrop-filter'] {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}
+
+/* Daily gift: the claimable card held a box-shadow pulse, a full repaint per
+   frame for the whole Reward Center sheet. Hold the glow steady instead. */
+.sci-daily-card.is-claimable {
+  animation: none !important;
+  box-shadow: 0 0 .8rem rgb(250 204 21 / .42), inset 0 0 0 1px rgb(254 240 138 / .34);
+}
+
+/* Upgrade-ready frame: the ring held a fading box-shadow/opacity pulse that
+   repainted every hangar slot each frame. Keep a steady gold rim. */
+.sci-upgrade-ready-frame[data-upgrade-ready='true']::after {
+  animation: none !important;
+  opacity: .9;
+  box-shadow:
+    2px 0 0 rgba(254, 240, 138, .9),
+    -2px 0 0 rgba(254, 240, 138, .9),
+    0 2px 0 rgba(250, 204, 21, .78),
+    0 -2px 0 rgba(250, 204, 21, .78),
+    0 0 .4rem rgba(250, 204, 21, .58);
 }
