@@ -62,7 +62,7 @@ import {
   type PixiEnvironmentWindow
 } from './PixiEnvironment';
 import { PixiTextureBank } from './PixiTextureBank';
-import { sampleFormationEnemyPresentation } from './FormationEnemyPresentation';
+import { sampleFormationIdleLife, sampleHitSquash, sampleFormationEnemyPresentation } from './FormationEnemyPresentation';
 import { resolveKamikazeSpinnerFrameIndex } from '../gameplay/enemies/KamikazeSpinnerRuntime';
 import {
   BOTTLENECK_DRONE_BOSS_ID,
@@ -6706,6 +6706,8 @@ export class PixiGameRenderer {
       return;
     }
     if (entity.flashFrames <= 0) return;
+    const squash = sampleHitSquash(entity.flashFrames, this.reducedMotion);
+    view.root.scale.set(view.root.scale.x * squash.scaleX, view.root.scale.y * squash.scaleY);
     if (view.sprite.visible && view.sprite.texture !== Texture.WHITE && !view.hasFallbackBody) {
       // Reuse the real silhouette/animation, including its transparent pixels.
       // One additive sprite avoids white hull bubbles and per-hit filters.
@@ -6915,7 +6917,16 @@ export class PixiGameRenderer {
         variant: entity.variant
       });
       view.aura.clear();
-      view.root.rotation = presentation.bankRadians;
+      // Presentation-only wing-flap + formation sway (transform-only, ~1 s period).
+      const idleLife = sampleFormationIdleLife({
+        currentFrame: engine.frameCount,
+        formationIndex: entity.formationIndex,
+        variant: entity.variant,
+        formationState: entity.formationState,
+        reducedMotion: this.reducedMotion
+      });
+      view.root.rotation = presentation.bankRadians + idleLife.swayRadians;
+      view.root.scale.set(idleLife.scaleX, idleLife.scaleY);
 
       // Tiny exhaust pixels belong to the rotating hull, not screen space.
       // Keep enemy wake length short so it cannot masquerade as a projectile.

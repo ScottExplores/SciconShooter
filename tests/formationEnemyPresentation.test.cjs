@@ -109,3 +109,18 @@ test('Pixi applies the shared presentation sample to every configured formation 
   assert.match(configured, /view\.aura\.rect\(/, 'the short flight exhaust remains visible');
   assert.doesNotMatch(configured, /entity\.[A-Za-z]+\s*=(?!=)/, 'Pixi must not mutate simulation state');
 });
+
+test('formation idle life is slow, transform-only, and honors reduced motion', () => {
+  const { sampleFormationIdleLife, sampleHitSquash, FORMATION_IDLE_LIFE_RADIANS_PER_FRAME } = loadPresentation();
+  // Period must be >= ~1 s at 60 fps so nothing strobes.
+  assert.ok((2 * Math.PI) / FORMATION_IDLE_LIFE_RADIANS_PER_FRAME >= 60);
+  for (let f = 0; f < 240; f += 7) {
+    const s = sampleFormationIdleLife({ currentFrame: f, formationIndex: 3, formationState: 'hold' });
+    assert.ok(s.scaleX <= 1 && s.scaleX >= 0.92);
+    assert.ok(Math.abs(s.scaleY - 1) <= 0.02);
+    assert.ok(Math.abs(s.swayRadians) <= 0.06);
+  }
+  assert.deepEqual(sampleFormationIdleLife({ currentFrame: 50, formationState: 'hold', reducedMotion: true }), { scaleX: 1, scaleY: 1, swayRadians: 0 });
+  assert.deepEqual(sampleHitSquash(6, true), { scaleX: 1, scaleY: 1 });
+  assert.ok(sampleHitSquash(12).scaleY < 1);
+});
