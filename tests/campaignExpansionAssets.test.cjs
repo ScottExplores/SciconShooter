@@ -71,9 +71,7 @@ test('promoted Test Bosses expose their exact assembled art through every asset 
   };
 
   for (const [key, bossId] of Object.entries(promotedAssets)) {
-    const relativePath = key === 'CAMPAIGN_BOSS_FRONTIER_CROWNCLAW'
-      ? 'bosses/astral-crownclaw/astral-crownclaw-intact.png'
-      : `bosses/campaign-packages/${bossId}/assembled.png`;
+    const relativePath = `bosses/campaign-packages/${bossId}/assembled.png`;
     assert.match(constantsSource, new RegExp(`${key}:\\s*"/game-art/generated/${relativePath.replaceAll('.', '\\.')}`));
     assert.match(typesSource, new RegExp(`'${key}'`));
     assert.match(catalogSource, new RegExp(`${key}: asset\\('${key}'`));

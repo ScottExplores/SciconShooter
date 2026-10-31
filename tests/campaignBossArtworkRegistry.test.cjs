@@ -22,7 +22,7 @@ const expectedPackages = Object.freeze({
   }),
   20: Object.freeze({
     bossId: 'frontier-crownclaw',
-    intactUrl: '/game-art/generated/bosses/astral-crownclaw/astral-crownclaw-intact.png'
+    rigId: 'frontier-crownclaw'
   }),
   25: Object.freeze({
     bossId: 'helios-clawcarrier',

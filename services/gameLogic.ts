@@ -14263,8 +14263,10 @@ export class GameEngine {
       if (boss.sourceItemId === 'frontier-crownclaw') {
         const previousWidth = boss.width;
         const previousHeight = boss.height;
-        boss.width = Math.round(this.width * 0.66);
-        boss.height = Math.round(boss.width * (512 / 640));
+        // Scott's modular Crownclaw rig (body, legs, chained claws) is authored
+        // on a 260x210 design plate; keep that aspect and a large on-screen size.
+        boss.width = Math.round(this.width * 0.72);
+        boss.height = Math.round(boss.width * (210 / 260));
         boss.x -= (boss.width - previousWidth) / 2;
         boss.y -= (boss.height - previousHeight) / 2;
       }

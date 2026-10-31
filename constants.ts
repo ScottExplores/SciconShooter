@@ -216,7 +216,7 @@ export const ASSETS = {
     (_, index) => `/game-art/generated/bosses/astral-crownclaw/animations/decay/frames/astral-crownclaw-decay-frame-0${index + 1}.png`
   ),
   CAMPAIGN_BOSS_ECLIPSE_ENGINE: "/game-art/generated/scicon-stage20-expansion-v1/bosses/frames/eclipse-engine.png",
-  CAMPAIGN_BOSS_FRONTIER_CROWNCLAW: "/game-art/generated/bosses/astral-crownclaw/astral-crownclaw-intact.png",
+  CAMPAIGN_BOSS_FRONTIER_CROWNCLAW: "/game-art/generated/bosses/campaign-packages/frontier-crownclaw/assembled.png",
   CAMPAIGN_BOSS_MERIDIAN_HARROWER: "/game-art/generated/bosses/meridian-harrower/meridian-harrower-intact.png",
   CAMPAIGN_BOSS_CINDERJAW_SIEGE_BEETLE: "/game-art/generated/bosses/cinderjaw-siege-beetle/cinderjaw-siege-beetle-intact.png",
   CAMPAIGN_BOSS_VESPERGLASS_MOTHMOTHER: "/game-art/generated/bosses/vesperglass-mothmother/vesperglass-mothmother-intact.png",
