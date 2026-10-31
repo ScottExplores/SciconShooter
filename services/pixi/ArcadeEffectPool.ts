@@ -289,6 +289,11 @@ export class ArcadeEffectPool {
     }
   }
 
+  /** Map a global (stage) point into this pool's effect layer space. */
+  toEffectSpace(globalX: number, globalY: number) {
+    return this.layer.toLocal({ x: globalX, y: globalY });
+  }
+
   spawnDetachedSprite(texture: Texture, x: number, y: number, width: number, height: number, direction: number) {
     if (texture === Texture.EMPTY) return;
     const effect = this.spawn('sprite-debris', x, y, Math.max(width, height), '#ffffff', 760);

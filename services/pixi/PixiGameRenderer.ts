@@ -3446,22 +3446,15 @@ export class PixiGameRenderer {
         view.root.rotation = entity.spriteFrameFixedRotationRadians;
       } else if (entity.projectileVisualKind === 'boss-ray') {
         const rayColor = entity.color || '#ff9d2e';
-        if (entity.isTelegraph) {
-          view.sprite.visible = false;
-          const muzzleY = -entity.height / 2 + 14;
-          view.aura.circle(0, muzzleY, 16).fill({ color: rayColor, alpha: 0.4 });
-          view.body.circle(0, muzzleY, 6).fill({ color: '#fff7ed', alpha: 0.85 });
-          return;
-        }
-        const coreWidth = Math.max(8, entity.width * 0.46);
+        const coreWidth = Math.max(8, entity.width * (entity.isTelegraph ? 0.34 : 0.46));
         const hotWidth = Math.max(3, coreWidth * 0.34);
-        const rayAlpha = entity.flashFrames > 0 ? 0.96 : 0.78;
+        const rayAlpha = entity.isTelegraph ? 0.34 : entity.flashFrames > 0 ? 0.96 : 0.78;
         view.body.roundRect(-coreWidth / 2, -entity.height / 2, coreWidth, entity.height, 4)
           .fill({ color: rayColor, alpha: rayAlpha });
         view.body.roundRect(-hotWidth / 2, -entity.height / 2, hotWidth, entity.height, 2)
-          .fill({ color: '#fff7ed', alpha: 0.94 });
+          .fill({ color: '#fff7ed', alpha: entity.isTelegraph ? 0.28 : 0.94 });
         view.aura.roundRect(-entity.width * 0.7, -entity.height * 0.5, entity.width * 1.4, entity.height, entity.width * 0.38)
-          .fill({ color: rayColor, alpha: 0.18 });
+          .fill({ color: rayColor, alpha: entity.isTelegraph ? 0.08 : 0.18 });
         view.aura.roundRect(-entity.width * 0.34, -entity.height * 0.5, entity.width * 0.68, entity.height, entity.width * 0.24)
           .stroke({ color: '#fef08a', width: entity.flashFrames > 0 ? 4 : 2, alpha: entity.flashFrames > 0 ? 1 : 0.86 });
       } else {
@@ -3485,14 +3478,15 @@ export class PixiGameRenderer {
       }
       const radius = Math.min(10, Math.min(width, height) * 0.45);
       if (entity.isTelegraph) {
-        // Warning is a short muzzle glow on the boss. The aim line itself is
-        // not drawn across the playfield.
-        view.sprite.visible = false;
-        const muzzle = 18;
-        const originX = entity.beamAngleRadians !== null ? (-width / 2) + muzzle : 0;
-        view.aura.circle(originX, 0, muzzle).fill({ color, alpha: 0.42 });
-        view.body.circle(originX, 0, 7).fill({ color: '#f8fdff', alpha: 0.88 });
-        return;
+        const matchedLane = Boolean(entity.beamFillRatio);
+        view.aura.roundRect(-width / 2, -height / 2, width, height, radius)
+          .fill({ color, alpha: matchedLane ? 0.72 : 0.08 });
+        if (matchedLane) {
+          view.body.roundRect(-width / 2, -height / 2, width, height, radius)
+            .fill({ color: '#ffffff', alpha: 0.62 });
+        }
+        view.body.roundRect(-width / 2, -height / 2, width, height, radius)
+          .stroke({ color, width: Math.max(1.5, Math.min(width, height) * 0.22), alpha: 0.95 });
       } else {
         view.aura.roundRect(-width / 2, -height / 2, width, height, radius)
           .fill({ color, alpha: cornerAmbushBeam ? 0.44 : 0.28 });
@@ -5470,17 +5464,25 @@ export class PixiGameRenderer {
             side: octarchComponentId.endsWith('-port') ? 'port' : 'starboard'
           })
         : null;
+      // Weapons and links that ride on a breakable limb (Crownclaw's chain
+      // links and spool, Helios's rotary guns) leave with that limb.
+      const limbCarriedPart = (
+        part.id.startsWith('chain.')
+        || part.id.startsWith('spool.')
+        || part.id.startsWith('rotary.')
+      );
       const sideBreakableRole = (
         part.role === 'arm'
         || part.role === 'armor'
         || part.role === 'pod'
+        || limbCarriedPart
       );
       const portComponentPart = (
         !abyssalOctarchModularPreview
         && (
           part.id === 'cannon.port'
           || part.id === 'muzzle.port'
-          || (sideBreakableRole && part.id.includes('.port'))
+          || (sideBreakableRole && (part.id.includes('.port') || part.id.includes('-port')))
         )
       );
       const starboardComponentPart = (
@@ -5488,7 +5490,7 @@ export class PixiGameRenderer {
         && (
           part.id === 'cannon.starboard'
           || part.id === 'muzzle.starboard'
-          || (sideBreakableRole && part.id.includes('.starboard'))
+          || (sideBreakableRole && (part.id.includes('.starboard') || part.id.includes('-starboard')))
         )
       );
       const leftComponentPart = prismMothModularPreview
@@ -5507,6 +5509,31 @@ export class PixiGameRenderer {
       const texture = part.frameId
         ? this.getModularPreviewBossTexture(part.frameId)
         : undefined;
+      if (
+        destroyedByComponent
+        && sprite.visible
+        && sprite.texture
+        && !this.reducedMotion
+        && !part.id.startsWith('chain.')
+      ) {
+        // The limb just broke: throw its last drawn piece off as debris so
+        // the part visibly leaves the boss instead of blinking out.
+        const bounds = sprite.getBounds();
+        const topLeft = this.effectPool.toEffectSpace(bounds.x, bounds.y);
+        const bottomRight = this.effectPool.toEffectSpace(
+          bounds.x + bounds.width,
+          bounds.y + bounds.height
+        );
+        const centerX = (topLeft.x + bottomRight.x) / 2;
+        this.effectPool.spawnDetachedSprite(
+          sprite.texture,
+          centerX,
+          (topLeft.y + bottomRight.y) / 2,
+          Math.max(4, Math.abs(bottomRight.x - topLeft.x)),
+          Math.max(4, Math.abs(bottomRight.y - topLeft.y)),
+          centerX < entity.x + entity.width / 2 ? -1 : 1
+        );
+      }
       sprite.visible = Boolean(
         part.visible
         && part.frame
