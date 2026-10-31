@@ -87,7 +87,7 @@ test('player motion catalog mirrors the four animated production PNG sets in the
   assert.doesNotMatch(motion, /previewGif|\.gif/);
 });
 
-test('ship selection loops preloaded PNG frames at 5 FPS and cleans up its timer', () => {
+test('ship selection holds a preloaded static PNG frame (no src swapping blink)', () => {
   const selector = read('components/ShipCarousel.tsx');
   const startScreen = read('components/StartScreen.tsx');
   const motion = read('services/playerShipMotion.ts');
@@ -95,10 +95,7 @@ test('ship selection loops preloaded PNG frames at 5 FPS and cleans up its timer
 
   assert.match(startScreen, /const playerShipOrder: PlayerShipId\[\] = \[\.\.\.PLAYABLE_PLAYER_SHIP_IDS\]/);
   assert.match(selector, /preloadPlayerShipCarouselFrames\(\)\.then/);
-  assert.match(selector, /window\.setInterval/);
-  assert.match(selector, /1000 \/ PLAYER_SHIP_SELECTION_FPS/);
-  assert.match(selector, /frameIndex = \(frameIndex \+ 1\) % frames\.length/);
-  assert.match(selector, /window\.clearInterval\(timer\)/);
+  assert.doesNotMatch(selector, /1000 \/ PLAYER_SHIP_SELECTION_FPS/);
   assert.match(selector, /data-selection-frame=/);
   assert.doesNotMatch(selector, /previewGif|\.gif/);
   assert.match(motion, /PLAYER_SHIP_SELECTION_FPS = 5/);

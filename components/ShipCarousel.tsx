@@ -95,15 +95,13 @@ const PlayerShipSelectionImage = ({
       return () => { disposed = true; };
     }
 
+    // Hold the first idle frame. Swapping <img src> ten times a second made
+    // the home ship blink on Android Chrome; CSS hover supplies the motion.
     preloadPlayerShipCarouselFrames().then(() => {
       if (disposed) return;
-      let frameIndex = 0;
-      setActiveFrame({ shipId, index: frameIndex });
-      timer = window.setInterval(() => {
-        frameIndex = (frameIndex + 1) % frames.length;
-        setActiveFrame({ shipId, index: frameIndex });
-      }, 1000 / PLAYER_SHIP_SELECTION_FPS);
+      setActiveFrame({ shipId, index: 0 });
     });
+    void frames;
 
     return () => {
       disposed = true;

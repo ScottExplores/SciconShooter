@@ -29,3 +29,14 @@ test('home reward glows pulse slower than once a second and stop under reduced m
     assert.ok(reduced.includes(selector), `${selector} stops under reduced motion`);
   }
 });
+
+test('home ship does not swap img src every tick and home loops keep brightness steady', () => {
+  const fsx = require('node:fs'); const px = require('node:path');
+  const carousel = fsx.readFileSync(px.join(__dirname, '../components/ShipCarousel.tsx'), 'utf8');
+  const body = carousel.slice(carousel.indexOf('const PlayerShipSelectionImage'), carousel.indexOf('interface ShipCarouselProps'));
+  assert.ok(!/setInterval/.test(body));
+  const css = fsx.readFileSync(px.join(__dirname, '../components/living-ui.css'), 'utf8');
+  for (const k of ['sci-home-nebula-drift-a', 'sci-pixel-fixture-breathe', 'sci-dashboard-active-frame', 'sci-weekly-fixture-pulse-a']) {
+    assert.ok(css.includes(`@keyframes ${k}{`), k);
+  }
+});

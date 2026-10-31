@@ -388,12 +388,14 @@
   opacity: var(--boss-opacity);
   transform: translate3d(calc(-50% + var(--boss-x)), var(--boss-y), 0) rotateY(var(--boss-angle)) scale(var(--boss-scale));
   transform-origin: 50% 62%;
-  transition: transform .42s cubic-bezier(.2,.8,.2,1), opacity .3s ease, border-color .2s ease, filter .2s ease;
+  transition: transform .42s cubic-bezier(.2,.8,.2,1), opacity .3s ease, border-color .2s ease;
+  will-change: transform;
+  backface-visibility: hidden;
   clip-path: polygon(9px 0, calc(100% - 9px) 0, 100% 9px, 100% calc(100% - 9px), calc(100% - 9px) 100%, 9px 100%, 0 calc(100% - 9px), 0 9px);
 }
 
 .boss-archive-carousel[data-dragging='true'] .boss-archive-carousel__card {
-  transition: opacity .12s linear, filter .12s linear;
+  transition: opacity .12s linear;
 }
 
 .boss-archive-carousel__card[data-selected='true'] {
@@ -1581,3 +1583,4 @@ img.boss-archive-carousel__portrait[data-idle-preview='active'][data-composed='f
     transition-duration: .01ms;
   }
 }
+

@@ -67,6 +67,9 @@ const BossArchiveCarousel: React.FC<BossArchiveCarouselProps> = ({
   const onSelectIndexRef = useRef(onSelectIndex);
   const preloadedArtRef = useRef(new Map<string, HTMLImageElement>());
   const suppressClickRef = useRef(false);
+  // Art that has been shown stays mounted (hidden) so wrapping back to a
+  // boss never remounts and re-decodes it, which flashed on Android.
+  const mountedArtRef = useRef(new Set<string>());
   const [dragX, setDragX] = useState(0);
   const [dragging, setDragging] = useState(false);
 
@@ -83,6 +86,7 @@ const BossArchiveCarousel: React.FC<BossArchiveCarouselProps> = ({
       const relative = getBossArchiveRelativePosition(index, selectedIndex, items.length);
       if (Math.abs(relative) > ART_PRELOAD_RADIUS) return;
       urls.add(item.presentation.portraitUrl ?? item.entry.artUrl);
+      if (item.presentation.backdropUrl) urls.add(item.presentation.backdropUrl);
       item.entry.preview.composition?.layers.forEach((layer) => urls.add(layer.url));
     });
     urls.forEach((url) => {
@@ -115,8 +119,10 @@ const BossArchiveCarousel: React.FC<BossArchiveCarouselProps> = ({
     if (items.length < 2 || typeof navigator.getGamepads !== 'function') return undefined;
     let frame = 0;
     let previousDirection = 0;
+    // Poll only while a pad is connected instead of a permanent 60 Hz loop.
     const poll = () => {
       const pad = Array.from(navigator.getGamepads()).find(Boolean);
+      if (!pad) { frame = 0; return; }
       const axis = pad?.axes?.[0] ?? 0;
       const direction = pad?.buttons?.[14]?.pressed || axis < -0.62
         ? -1
@@ -127,8 +133,13 @@ const BossArchiveCarousel: React.FC<BossArchiveCarouselProps> = ({
       previousDirection = direction;
       frame = window.requestAnimationFrame(poll);
     };
-    frame = window.requestAnimationFrame(poll);
-    return () => window.cancelAnimationFrame(frame);
+    const start = () => { if (!frame) frame = window.requestAnimationFrame(poll); };
+    if (Array.from(navigator.getGamepads()).some(Boolean)) start();
+    window.addEventListener('gamepadconnected', start);
+    return () => {
+      window.removeEventListener('gamepadconnected', start);
+      if (frame) window.cancelAnimationFrame(frame);
+    };
   }, [items.length, move]);
 
   const finishDrag = (event: React.PointerEvent<HTMLDivElement>, cancelled = false) => {
@@ -329,7 +340,7 @@ const BossArchiveCarousel: React.FC<BossArchiveCarouselProps> = ({
                 M-{String(item.entry.missionNumber).padStart(2, '0')}
               </span>
               <span className="boss-archive-carousel__artwell">
-                {isVisible ? (
+                {(isVisible || mountedArtRef.current.has(item.entry.eventId)) && mountedArtRef.current.add(item.entry.eventId) ? (
                   <BossPreviewArt
                     item={item}
                     selected={isSelected}

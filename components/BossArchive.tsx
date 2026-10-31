@@ -314,6 +314,13 @@ const BossArchive: React.FC<BossArchiveProps> = ({
     ?? (!onLaunch ? 'Boss Archive launching is not connected yet.' : null);
   const unlockedCount = archiveItems.filter((item) => item.unlocked).length;
 
+  // Freeze the home screen's loops while the Archive covers it.
+  useEffect(() => {
+    const root = document.documentElement;
+    root.dataset.sciOverlay = 'boss-archive';
+    return () => { delete root.dataset.sciOverlay; };
+  }, []);
+
   useEffect(() => {
     const query = window.matchMedia?.('(prefers-reduced-motion: reduce)');
     if (!query) return undefined;
@@ -483,7 +490,7 @@ const BossArchive: React.FC<BossArchiveProps> = ({
       >
         <div className="boss-archive-shell__backdrop" aria-hidden="true">
           {selectedItem?.unlocked && selectedItem.presentation.backdropUrl
-            ? <img src={selectedItem.presentation.backdropUrl} alt="" />
+            ? <img key={selectedItem.presentation.backdropUrl} src={selectedItem.presentation.backdropUrl} alt="" decoding="async" />
             : null}
           <i />
         </div>
