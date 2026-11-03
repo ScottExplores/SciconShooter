@@ -738,6 +738,8 @@ const defaultPowerupUses: Record<PowerupType, number> = {
 const RESUME_COUNTDOWN_START = 3;
 const RESUME_COUNTDOWN_STEP_MS = 1_000;
 
+const RANKED_HOOK_BANNER_KEY = 'scicon.rankedHookBanner.v1';
+
 const App: React.FC = () => {
   const [initialWalletAddress] = useState<Address | null>(readCachedBaseAccount);
   const [gameState, setGameState] = useState<GameState>(GameState.MENU);
@@ -756,6 +758,7 @@ const App: React.FC = () => {
   const [onboardingStepId, setOnboardingStepId] = useState<OnboardingStepId | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [monthlyLeaderboard, setMonthlyLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [rankedBoardLoaded, setRankedBoardLoaded] = useState(false);
   const [weeklyRecoveryLeaderboard, setWeeklyRecoveryLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [archivedWinners, setArchivedWinners] = useState<ArchivedWinner[]>([]);
   const [weeklyPresentationTime, setWeeklyPresentationTime] = useState(() => Date.now());
@@ -1952,6 +1955,7 @@ const App: React.FC = () => {
         }
         setMonthlyLeaderboard(presentedWeeklyScores);
         setArchivedWinners(archive.winners);
+        setRankedBoardLoaded(true);
         if (publicPrize.phase === 'weekly') {
           setWeeklyPresentationTime(publication.presentationTime);
         } else {
@@ -7805,6 +7809,55 @@ const App: React.FC = () => {
     };
   }, [isWeeklyCampaignRun, weeklySquadState.weeklyCampaignStreak]);
 
+  // Practice game over -> ranked hook. Founder runs, Weekly Runs and closed
+  // events never show it; placement only uses a leaderboard that loaded.
+  const rankedHookPlacement = gameState === GameState.GAMEOVER
+    && !isWeeklyCampaignRun
+    && !isFounderSandboxRun
+    && !isBossArchiveRun
+    && !isCampaignBranchRun
+    && rankedBoardLoaded
+    && stats.score > 0
+    && getPublicPrizeState().phase !== 'big-event-closed'
+    ? monthlyLeaderboard.filter((entry) => entry.score > stats.score).length + 1
+    : null;
+  const [rankedHookBannerShown, setRankedHookBannerShown] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (rankedHookPlacement === null || rankedHookBannerShown !== null) return;
+    let seen = false;
+    try {
+      seen = window.localStorage.getItem(RANKED_HOOK_BANNER_KEY) === '1';
+      if (!seen) window.localStorage.setItem(RANKED_HOOK_BANNER_KEY, '1');
+    } catch {
+      seen = false;
+    }
+    setRankedHookBannerShown(!seen);
+  }, [rankedHookBannerShown, rankedHookPlacement]);
+  useEffect(() => {
+    // The banner is a one-time note: once this game over closes it stays gone.
+    if (gameState !== GameState.GAMEOVER && rankedHookBannerShown) setRankedHookBannerShown(false);
+  }, [gameState, rankedHookBannerShown]);
+  const playRankedFromGameOver = () => {
+    resetGame();
+    window.setTimeout(() => { void startWeeklyRunFromHome(); }, 0);
+  };
+  const rankedHook = rankedHookPlacement !== null ? (
+    <div className="sci-ranked-hook" data-ranked-hook-placement={rankedHookPlacement}>
+      {rankedHookBannerShown ? (
+        <p className="sci-ranked-hook__banner" data-ranked-hook-banner="true">Your score counts next run</p>
+      ) : null}
+      <div className="sci-ranked-hook__row">
+        <p className="sci-ranked-hook__place">
+          <small>Would&apos;ve placed</small>
+          <strong>#{rankedHookPlacement}</strong>
+        </p>
+        <PixelActionButton tone="gold" ready shine onClick={playRankedFromGameOver} className="sci-ranked-hook__play">
+          Play Ranked
+        </PixelActionButton>
+      </div>
+    </div>
+  ) : null;
+
   const missionResultBanner = (
     <div className="relative overflow-hidden border border-cyan-200/30 bg-[radial-gradient(circle_at_82%_48%,rgba(59,130,246,0.24),transparent_27%),linear-gradient(180deg,rgba(15,23,42,0.98),rgba(2,6,23,0.98))] px-4 py-3 shadow-[0_0_36px_rgba(34,211,238,0.12)] [clip-path:polygon(18px_0,calc(50%_-_26px)_0,calc(50%_-_16px)_8px,calc(50%_+_16px)_8px,calc(50%_+_26px)_0,calc(100%_-_18px)_0,100%_18px,100%_calc(100%_-_18px),calc(100%_-_18px)_100%,18px_100%,0_calc(100%_-_18px),0_18px)]">
       <div className="pointer-events-none absolute left-0 top-5 h-12 w-24 -translate-x-10 -skew-x-[24deg] border-y border-r border-yellow-200/35 bg-yellow-300/10" />
@@ -8496,6 +8549,7 @@ const App: React.FC = () => {
                 </div>
               ) : null}
               {weeklyRunResultSummary ? null : missionResultBanner}
+              {weeklyRunResultSummary ? null : rankedHook}
 
               {showNameInput ? (
                 <>

@@ -1543,11 +1543,18 @@ const StartScreen: React.FC<StartScreenProps> = ({
       ? `${weeklyRunAttemptsRemaining}/${weeklyRunAttemptLimit} runs`
       : `${weeklyRunAttemptsRemaining} Attempt${weeklyRunAttemptsRemaining === 1 ? '' : 's'} Left`;
 
+    // Ranked hero: aim at the live #1 score, or invite the first one.
+    const heroTopScore = weeklyLeader?.score ?? 0;
+    const heroTitle = heroTopScore > 0 ? `Beat ${formatNumber(heroTopScore)}` : 'Set the High Score';
+    const heroPrizeRsc = weeklyAllocation.allocationRsc > 0 ? weeklyAllocation.allocationRsc : 0;
+
     return onStartWeeklyRun ? (
       <>
         <button
           type="button"
           className="sci-weekly-run-entry"
+          data-hero="true"
+          data-weekly-hero-title={heroTitle}
           data-onboarding-target="weekly-run"
           data-event={eventCard ? 'true' : 'false'}
           data-state={weeklyRunEntryState}
@@ -1555,17 +1562,25 @@ const StartScreen: React.FC<StartScreenProps> = ({
           onClick={onStartWeeklyRun}
           disabled={attemptsExhausted}
           aria-label={eventCard
-            ? '25K RSC Event. Try here.'
+            ? `${heroTitle}. Play ranked for the ${heroPrizeRsc > 0 ? `${heroPrizeRsc.toLocaleString()} RSC ` : ''}high score.`
             : weeklyRunAttemptsRemaining > 0
             ? `Play Weekly Run. ${weeklyRunAttemptsRemaining} attempt${weeklyRunAttemptsRemaining === 1 ? '' : 's'} remain, with endless escalating waves and bosses scored on the weekly board. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`
             : needsServerVerification
               ? `Check Weekly Run attempts with the server. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`
               : `Weekly Run attempts used. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`}
         >
+          <span className="sci-weekly-run-entry__marquee" aria-hidden="true">
+            <span className="sci-weekly-run-entry__sweep" />
+          </span>
           <span className="sci-weekly-run-entry__copy">
-            <span className="sci-weekly-run-entry__title">
-              {eventCard ? '25K RSC Event' : 'Weekly Run'}
-            </span>
+            <span className="sci-weekly-run-entry__title">{heroTitle}</span>
+            <span className="sci-weekly-run-entry__meta">
+            {heroPrizeRsc > 0 ? (
+              <span className="sci-weekly-run-entry__prize" data-weekly-hero-prize={heroPrizeRsc}>
+                <img src={WEEKLY_EMPTY_TROPHY} alt="" aria-hidden="true" draggable={false} />
+                {heroPrizeRsc.toLocaleString()} RSC
+              </span>
+            ) : null}
             {weeklyRunAttemptsUnlimited ? null : (
               <span className="sci-weekly-run-entry__sub" data-event-tries={eventCard ? 'true' : 'false'}>
                 {weeklyRunAttemptsRemaining > 0
@@ -1577,10 +1592,11 @@ const StartScreen: React.FC<StartScreenProps> = ({
                       : 'No Attempts Left'}
               </span>
             )}
+            </span>
           </span>
           <span className="sci-weekly-run-entry__action" aria-hidden="true">
             <span>{weeklyRunEntryState === 'available'
-              ? 'Try Here'
+              ? 'Play Ranked'
               : weeklyRunEntryState === 'checking'
                 ? 'Check Entry'
                 : 'No Attempts'}</span>

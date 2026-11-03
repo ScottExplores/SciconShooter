@@ -175,3 +175,136 @@ html[data-sci-overlay] [class*='sci-reward-edge'] {
     0 -2px 0 rgba(250, 204, 21, .78),
     0 0 .4rem rgba(250, 204, 21, .58);
 }
+
+/* Ranked hero marquee: the high-score run is the biggest call to action on
+   Home. Gold arcade face, static marquee lights, steady glow. The only motion
+   is a slow transform-only light sweep, so it never repaints or blinks. */
+.sci-weekly-run-entry[data-hero='true'] {
+  --sci-weekly-entry-accent: 250 204 21;
+  --sci-weekly-entry-bright: 254 249 195;
+  --sci-weekly-entry-deep: 146 64 14;
+  min-height: 4.4rem;
+  gap: .5rem;
+  filter:
+    drop-shadow(0 .4rem .7rem rgb(0 0 0 / .5))
+    drop-shadow(0 0 .7rem rgb(250 204 21 / .42));
+}
+
+.sci-weekly-run-entry[data-hero='true'][data-state='checking'] {
+  --sci-weekly-entry-accent: 34 211 238;
+  --sci-weekly-entry-bright: 207 250 254;
+  --sci-weekly-entry-deep: 14 116 144;
+}
+
+.sci-weekly-run-entry[data-hero='true'][data-state='exhausted'] {
+  --sci-weekly-entry-accent: 248 113 113;
+  --sci-weekly-entry-bright: 254 226 226;
+  --sci-weekly-entry-deep: 153 27 27;
+}
+
+.sci-weekly-run-entry[data-hero='true']::after {
+  background:
+    radial-gradient(circle, rgb(var(--sci-weekly-entry-bright) / .95) 0 1.4px, transparent 2px) 6px calc(100% - 3px) / 12px 7px repeat-x,
+    radial-gradient(ellipse at 30% 50%, rgb(var(--sci-weekly-entry-accent) / .3), transparent 62%),
+    linear-gradient(180deg, rgb(66 32 6 / .98), rgb(28 13 4 / .98) 55%, rgb(var(--sci-weekly-entry-deep) / .9));
+  box-shadow:
+    inset 0 0 1.1rem rgb(var(--sci-weekly-entry-accent) / .34),
+    0 0 .9rem rgb(var(--sci-weekly-entry-accent) / .38);
+}
+
+.sci-weekly-run-entry__marquee {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  clip-path: polygon(5px 0, calc(100% - 5px) 0, 100% 5px, 100% calc(100% - 5px), calc(100% - 5px) 100%, 5px 100%, 0 calc(100% - 5px), 0 5px);
+}
+
+.sci-weekly-run-entry__sweep {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 28%;
+  background: linear-gradient(90deg, transparent, rgb(255 251 214 / .16), transparent);
+  transform: translate3d(-120%, 0, 0) skewX(-18deg);
+  animation: sci-hero-marquee-sweep 7s ease-in-out infinite;
+  will-change: transform;
+}
+
+@keyframes sci-hero-marquee-sweep {
+  0%, 55% { transform: translate3d(-120%, 0, 0) skewX(-18deg); }
+  100% { transform: translate3d(420%, 0, 0) skewX(-18deg); }
+}
+
+.sci-weekly-run-entry[data-hero='true'] .sci-weekly-run-entry__title {
+  color: rgb(255 251 214);
+  overflow: hidden;
+  font-size: 1.08rem;
+  line-height: 1.05;
+  text-overflow: ellipsis;
+  letter-spacing: .04em;
+  text-shadow: 0 2px 0 rgb(120 53 15), 0 0 .7rem rgb(250 204 21 / .6);
+}
+
+.sci-weekly-run-entry__meta {
+  display: flex;
+  margin-top: .3rem;
+  align-items: center;
+  gap: .5rem;
+  white-space: nowrap;
+}
+
+.sci-weekly-run-entry[data-hero='true'] .sci-weekly-run-entry__sub {
+  margin-top: 0;
+  color: rgb(var(--sci-weekly-entry-bright) / .82);
+  font-size: .62rem;
+  white-space: nowrap;
+}
+
+.sci-weekly-run-entry__prize {
+  display: inline-flex;
+  align-items: center;
+  gap: .22rem;
+  color: rgb(110 231 183);
+  font: 900 .7rem/1 inherit;
+  letter-spacing: .03em;
+}
+
+.sci-weekly-run-entry__prize > img {
+  width: 1.05rem;
+  height: 1.05rem;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.sci-weekly-run-entry[data-hero='true'] .sci-weekly-run-entry__action {
+  min-height: 2.3rem;
+  padding: .4rem .55rem;
+  color: rgb(41 18 3);
+  font-size: .62rem;
+  text-shadow: 0 1px 0 rgb(255 251 214 / .6);
+  background: linear-gradient(180deg, rgb(254 240 138), rgb(250 204 21) 55%, rgb(202 138 4));
+}
+
+@media (max-width: 360px) {
+  .sci-weekly-run-entry[data-hero='true'] { min-height: 4rem; }
+  .sci-weekly-run-entry[data-hero='true'] .sci-weekly-run-entry__title { font-size: .92rem; }
+  .sci-weekly-run-entry[data-hero='true'] .sci-weekly-run-entry__action { padding-inline: .42rem; font-size: .54rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sci-weekly-run-entry__sweep { animation: none; }
+}
+
+html[data-sci-overlay] .sci-weekly-run-entry__sweep { animation-play-state: paused; }
+
+/* Keep the Daily Gift edge tab below the taller ranked hero button. */
+.sci-reward-edge-trigger {
+  bottom: calc(max(0.5rem, env(safe-area-inset-bottom)) + 17.25rem);
+}
+
+.sci-weekly-run-entry[data-hero='true'] .sci-weekly-run-entry__copy {
+  padding: .5rem 0 .35rem .15rem;
+}

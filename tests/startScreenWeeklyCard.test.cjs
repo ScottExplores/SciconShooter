@@ -78,7 +78,7 @@ test('the Weekly Run drawer keeps its static quota-driven call to action compact
   assert.match(entry, /const weeklyRunEntryState = attemptsExhausted[\s\S]*'exhausted'[\s\S]*needsServerVerification[\s\S]*'checking'[\s\S]*'available'/);
   assert.match(entry, /data-state=\{weeklyRunEntryState\}/);
   assert.match(entry, /weeklyRunAttemptsRemaining > 0\s*\? attemptLabel/);
-  assert.match(entry, /\? 'Try Here'/);
+  assert.match(entry, /\? 'Play Ranked'/);
   assert.match(entry, /sci-weekly-run-entry__action/);
   assert.match(stylesSource, /\.sci-weekly-run-entry\[data-state='checking'\]/);
   assert.match(stylesSource, /\.sci-weekly-run-entry\[data-state='exhausted'\][\s\S]*--sci-weekly-entry-accent: 248 113 113/);
