@@ -1,3 +1,4 @@
+import { prefetchEligibleRfps } from './services/researchHubRfps';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Address } from 'viem';
 import StartScreen from './components/StartScreen';
@@ -2119,6 +2120,7 @@ const App: React.FC = () => {
   };
 
   const [stats, setStats] = useState<Stats>(getInitialStats);
+  const hasScorableWeeklyResult = stats.score > 0;
   const [pauseMissionPosition, setPauseMissionPosition] = useState<PauseMissionPosition | null>(null);
   const [polishSettings, setPolishSettings] = useState<GamePolishSettings>(getInitialPolishSettings);
   const [matchMusicTrackId, setMatchMusicTrackId] = useState<MatchMusicTrackId>(() => (
@@ -7193,9 +7195,11 @@ const App: React.FC = () => {
       }
 
       setScoreSubmitError('');
-      setShowNameInput(isWeeklyLeaderboardRun);
+      // A Weekly Run only becomes a scorable result once Depth 1 is cleared;
+      // the server rejects a proof with no score events, so no submit then.
+      setShowNameInput(isWeeklyLeaderboardRun && hasScorableWeeklyResult);
     }
-  }, [gameId, gameState, isBossArchiveRun, isCampaignRun, isNonCompetitiveRun, isWeeklyLeaderboardRun, stats.coins, stats.enemiesDefeated, stats.score, stats.wave, stats.highScore, updatePermanentSquadState, updateWeeklySquadState]);
+  }, [gameId, gameState, hasScorableWeeklyResult, isBossArchiveRun, isCampaignRun, isNonCompetitiveRun, isWeeklyLeaderboardRun, stats.coins, stats.enemiesDefeated, stats.score, stats.wave, stats.highScore, updatePermanentSquadState, updateWeeklySquadState]);
 
   const updateWeeklyCampaignSubmission = useCallback((
     status: 'pending' | 'submitted' | 'failed',
@@ -7809,8 +7813,15 @@ const App: React.FC = () => {
     };
   }, [isWeeklyCampaignRun, weeklySquadState.weeklyCampaignStreak]);
 
+  useEffect(() => {
+    // Warm the RFP list during a ranked run so the post-run picker is instant.
+    if (isWeeklyLeaderboardRun && gameState === GameState.PLAYING) prefetchEligibleRfps();
+  }, [gameState, isWeeklyLeaderboardRun]);
   // Practice game over -> ranked hook. Founder runs, Weekly Runs and closed
   // events never show it; placement only uses a leaderboard that loaded.
+  const weeklyUnscoredDeath = isWeeklyLeaderboardRun
+    && gameState === GameState.GAMEOVER
+    && stats.score <= 0;
   const rankedHookPlacement = gameState === GameState.GAMEOVER
     && !isWeeklyCampaignRun
     && !isFounderSandboxRun
@@ -8610,6 +8621,9 @@ const App: React.FC = () => {
                         </button>
                       </div>
                     ) : null}
+                    {weeklyUnscoredDeath ? (
+                      <p className="sci-weekly-unscored" data-weekly-unscored="true">Clear Depth 1 to score</p>
+                    ) : null}
                     {scoreSaved && !isFounderSandboxRun ? (
                       <p className="text-center text-[9px] font-black uppercase tracking-[0.14em] text-emerald-100">
                         Global score saved
@@ -8617,7 +8631,7 @@ const App: React.FC = () => {
                     ) : null}
                     <div className="sci-gameover-actions">
                       <button type="button" onClick={retryGame} className="scicon-btn sci-gameover-action sci-gameover-action--retry">
-                        {isWeeklyCampaignRun ? 'NEW WEEKLY RUN' : 'RETRY MISSION'}
+                        {weeklyUnscoredDeath ? 'PLAY RANKED' : isWeeklyCampaignRun ? 'NEW WEEKLY RUN' : 'RETRY MISSION'}
                       </button>
                       <button type="button" onClick={openSquadHangar} className="scicon-btn sci-gameover-action sci-gameover-action--hangar">HANGAR</button>
                       <button type="button" onClick={resetGame} className="scicon-btn sci-gameover-action sci-gameover-action--home">MAIN MENU</button>

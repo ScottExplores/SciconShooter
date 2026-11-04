@@ -152,7 +152,7 @@ test('founder wallet matches the donation recipient and stays non-competitive', 
   assert.match(appSource, /const isWeeklyLeaderboardRun = isWeeklyCampaignRun && !isNonCompetitiveRun/);
   assert.match(appSource, /testRun: isOwnerWallet/);
   assert.match(appSource, /if \(isFounderSandboxRun\) \{[\s\S]*?finalizeCurrentRun\(\)/);
-  assert.match(appSource, /setShowNameInput\(isWeeklyLeaderboardRun\)/);
+  assert.match(appSource, /setShowNameInput\(isWeeklyLeaderboardRun && hasScorableWeeklyResult\)/);
   assert.match(read('api/leaderboard.js'), /isFounderWalletAddress\(receiptWallet\)/);
   assert.match(read('api/_lib/runReceipts.js'), /isFounderWalletAddress\(walletSession\?\.walletAddress\)/);
   assert.match(read('api/_lib/weeklyCompetitionService.js'), /founderWalletAddress\(\)/);

@@ -11,13 +11,18 @@ const receiptClientSource = read('services/runReceiptService.ts');
 const receiptApiSource = read('api/run-receipts.js');
 const receiptServerSource = read('api/_lib/runReceipts.js');
 
-test('every weekly-eligible death can submit its score without a rank or personal-best gate', () => {
+test('every scorable weekly death can submit its score without a rank or personal-best gate', () => {
+  // A Weekly death before Depth 1 clears has no score event, so it offers a
+  // ranked retry instead of a submit the server would reject.
+  assert.match(appSource, /const hasScorableWeeklyResult = stats\.score > 0;/);
+  assert.match(appSource, /weeklyUnscoredDeath \? \(\s*<p className="sci-weekly-unscored"[^>]*>Clear Depth 1 to score<\/p>/);
+  assert.match(appSource, /weeklyUnscoredDeath \? 'PLAY RANKED'/);
   assert.match(appSource, /const isCompetitiveCampaignRun = activeRunMode === 'campaign' \|\| activeRunMode === 'campaign-replay';/);
   assert.match(appSource, /const isNonCompetitiveRun = isFounderSandboxRun \|\| isBossArchiveRun \|\| isCampaignLabRun \|\| isCampaignBranchRun;/);
   assert.match(appSource, /const finalizeCurrentRun = async[\s\S]*?if \(isBossArchiveRun\) return null;/);
   // Campaign Missions are progression and stay off the weekly board, so the
   // prompt follows leaderboard eligibility rather than isNonCompetitiveRun.
-  assert.match(appSource, /if \(gameState === GameState\.GAMEOVER\) \{[\s\S]*?if \(isBossArchiveRun\)[\s\S]*?setShowNameInput\(isWeeklyLeaderboardRun\);/);
+  assert.match(appSource, /if \(gameState === GameState\.GAMEOVER\) \{[\s\S]*?if \(isBossArchiveRun\)[\s\S]*?setShowNameInput\(isWeeklyLeaderboardRun && hasScorableWeeklyResult\);/);
   assert.match(appSource, /const score = stats\.score;[\s\S]*?saveScore\(name, score, wave/);
   // Submission is gated only on run eligibility, never on rank or a personal
   // best. isWeeklyLeaderboardRun is an eligibility flag, not a rank check, so

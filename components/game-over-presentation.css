@@ -510,3 +510,19 @@
   letter-spacing: .08em;
   text-transform: uppercase;
 }
+
+/* Weekly death before Depth 1 clears: nothing to submit, one short line. */
+.sci-weekly-unscored {
+  margin: 0;
+  padding: .34rem .6rem;
+  border: 1px solid rgb(250 204 21 / .5);
+  background: linear-gradient(90deg, rgb(66 32 6 / .9), rgb(28 13 4 / .9));
+  color: rgb(254 240 138);
+  font-size: .62rem;
+  font-weight: 900;
+  letter-spacing: .14em;
+  line-height: 1.1;
+  text-align: center;
+  text-transform: uppercase;
+  clip-path: polygon(8px 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 8px 100%, 0 50%);
+}

@@ -170,7 +170,7 @@ test('Campaign Missions never post to the weekly high-score board', () => {
     appSource,
     /if \(!isWeeklyLeaderboardRun \|\| !playerNameInput\.trim\(\)/
   );
-  assert.match(appSource, /setShowNameInput\(isWeeklyLeaderboardRun\)/);
+  assert.match(appSource, /setShowNameInput\(isWeeklyLeaderboardRun && hasScorableWeeklyResult\)/);
 
   // Campaign still records lifetime progression.
   assert.match(appSource, /if \(!isNonCompetitiveRun && permanentRunAppliedGameIdRef\.current !== gameId\)/);

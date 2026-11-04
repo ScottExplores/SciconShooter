@@ -313,7 +313,7 @@ test('App isolates Campaign reward grants and keeps Campaign off the weekly boar
   // submit path hang off leaderboard eligibility, which excludes Campaign,
   // while the payout paths above still run for it.
   assert.match(appSource, /const isWeeklyLeaderboardRun = isWeeklyCampaignRun && !isNonCompetitiveRun;/);
-  assert.match(appSource, /setShowNameInput\(isWeeklyLeaderboardRun\)/);
+  assert.match(appSource, /setShowNameInput\(isWeeklyLeaderboardRun && hasScorableWeeklyResult\)/);
   assert.match(
     appSource,
     /const persistHighScore\s*=\s*async\s*\([^)]*\)\s*=>\s*\{[\s\S]{0,200}?if\s*\(\s*!isWeeklyLeaderboardRun\s*\|\|/

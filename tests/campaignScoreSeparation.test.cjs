@@ -43,7 +43,7 @@ test('Campaign records no score and reaches no leaderboard', () => {
   // Score submission, and therefore the proposal pick that follows it, is
   // reachable only on a weekly-leaderboard run.
   assert.match(app, /if \(!isWeeklyLeaderboardRun \|\| !playerNameInput\.trim\(\)/);
-  assert.match(app, /setShowNameInput\(isWeeklyLeaderboardRun\)/);
+  assert.match(app, /setShowNameInput\(isWeeklyLeaderboardRun && hasScorableWeeklyResult\)/);
 });
 
 test('Campaign story transmissions never fire in the Weekly Run', () => {
