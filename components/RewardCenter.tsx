@@ -71,6 +71,15 @@ const RewardCenter: React.FC<RewardCenterProps> = ({
   ) ? 0 : permanentState.dailyGifts.currentDay;
 
   useEffect(() => {
+    // Freeze the Home animations hidden behind the dimmed backdrop so the
+    // collect celebration gets the whole frame budget on phones.
+    if (!open) return undefined;
+    const root = document.documentElement;
+    root.classList.add('sci-reward-open');
+    return () => root.classList.remove('sci-reward-open');
+  }, [open]);
+
+  useEffect(() => {
     if (!open) {
       setClaimNotice(null);
       return;

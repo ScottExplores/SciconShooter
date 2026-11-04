@@ -1,3 +1,4 @@
+import type { ResearchHubProposal } from './researchHubProposals';
 export interface ResearchHubRfp {
   id: string;
   poolId: string;
@@ -67,3 +68,21 @@ export const fetchEligibleRfps = (): Promise<ResearchHubRfp[]> => {
 export const prefetchEligibleRfps = (): void => {
   fetchEligibleRfps().catch(() => undefined);
 };
+
+
+export const rfpAsChoice = (rfp: ResearchHubRfp): ResearchHubProposal => ({
+  id: rfp.id,
+  title: rfp.title,
+  author: rfp.organization,
+  organization: rfp.organization,
+  backers: 0,
+  votes: 0,
+  comments: 0,
+  url: rfp.url,
+  imageUrl: rfp.imageUrl || undefined,
+  endDate: rfp.endDate,
+  status: rfp.status,
+  requestedUsd: rfp.goalUsd ?? undefined,
+  raisedRsc: rfp.raisedRsc ?? undefined,
+  fundingTargetKind: 'rfp'
+});

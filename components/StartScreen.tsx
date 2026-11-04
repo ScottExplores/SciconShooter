@@ -29,6 +29,7 @@ import {
 } from '../services/weeklyProposalReminder';
 import { ALL_TIME_SCORE_LIMIT, WEEKLY_SCORE_LIMIT } from '../services/leaderboardService';
 import { resolveProposalSelection } from '../services/weeklyProposalDisplay';
+import { fetchEligibleRfps, rfpAsChoice } from '../services/researchHubRfps';
 import { isProposalExplicitlyCompleted } from '../services/weeklyProposalLifecycle';
 import {
   getPublicPrizeState,
@@ -1209,12 +1210,23 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
   const weeklyLeaderName = leaderboardName(weeklyLeader);
   const weeklyLeaderScore = leaderboardScore(weeklyLeader);
+  // RFP picks are not in the proposal feed; the open RFP list carries their
+  // cover art so the selected-proposal card can show it.
+  const [rfpReferences, setRfpReferences] = useState<ResearchHubProposal[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    fetchEligibleRfps()
+      .then((rfps) => { if (!cancelled) setRfpReferences(rfps.map(rfpAsChoice)); })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []);
   const proposalReferencePool = useMemo(() => {
     const references = new Map<string, ResearchHubProposal>();
+    rfpReferences.forEach((proposal) => references.set(proposal.id, proposal));
     proposals.forEach((proposal) => references.set(proposal.id, proposal));
     proposalReferences.forEach((proposal) => references.set(proposal.id, proposal));
     return Array.from(references.values());
-  }, [proposalReferences, proposals]);
+  }, [proposalReferences, proposals, rfpReferences]);
   const weeklyProposalSelection = useMemo(
     () => resolveProposalSelection(weeklyLeader, proposalReferencePool),
     [proposalReferencePool, weeklyLeader]

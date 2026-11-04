@@ -308,3 +308,9 @@ html[data-sci-overlay] .sci-weekly-run-entry__sweep { animation-play-state: paus
 .sci-weekly-run-entry[data-hero='true'] .sci-weekly-run-entry__copy {
   padding: .5rem 0 .35rem .15rem;
 }
+
+/* Reward Center open: pause everything under its backdrop (measured 16 -> 32 fps
+   on the collect celebration at 6x CPU throttle). */
+html.sci-reward-open body *:not(.sci-reward-backdrop, .sci-reward-backdrop *) {
+  animation-play-state: paused !important;
+}

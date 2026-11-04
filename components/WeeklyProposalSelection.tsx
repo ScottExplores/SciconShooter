@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { ResearchHubProposal } from '../services/researchHubProposals';
 import { sortProposalsByFunding } from '../services/proposalFunding';
-import { fetchEligibleRfps, type ResearchHubRfp } from '../services/researchHubRfps';
+import { fetchEligibleRfps, rfpAsChoice, type ResearchHubRfp } from '../services/researchHubRfps';
 import { getPublicPrizeState } from '../shared/weeklyCompetitionBoundary.browser';
 import { sanitizeSearchQuery } from '../shared/publicText';
 
@@ -50,22 +50,7 @@ const pinFeaturedRfp = (rfps: ResearchHubRfp[]) => {
   return [featured, ...rfps.filter((rfp) => rfp.id !== FEATURED_RFP_ID)];
 };
 
-const rfpAsChoice = (rfp: ResearchHubRfp): ResearchHubProposal => ({
-  id: rfp.id,
-  title: rfp.title,
-  author: rfp.organization,
-  organization: rfp.organization,
-  backers: 0,
-  votes: 0,
-  comments: 0,
-  url: rfp.url,
-  imageUrl: rfp.imageUrl || undefined,
-  endDate: rfp.endDate,
-  status: rfp.status,
-  requestedUsd: rfp.goalUsd ?? undefined,
-  raisedRsc: rfp.raisedRsc ?? undefined,
-  fundingTargetKind: 'rfp'
-});
+
 
 const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
   pilotName,
