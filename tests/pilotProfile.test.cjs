@@ -59,7 +59,8 @@ test('App separates guest-local and authenticated wallet-cloud profiles', () => 
   assert.match(app, /readPilotStats\(pilotProfile\.id\)/);
   assert.match(app, /const walletProfileId = getWalletProfileId\(normalizedAddress\)/);
   assert.match(app, /loadAuthenticatedWalletProfile\(\s*activeWalletAddress as Address,\s*\{ interactive: interactiveAuthorization \}\s*\)/);
-  assert.match(app, /saveAuthenticatedWalletProfile\(\{/);
+  assert.match(walletProfiles, /saveAuthenticatedWalletProfile\(\{/);
+  assert.doesNotMatch(app, /expectedRevision: 0/);
   assert.match(app, /hydrateActiveProfile\(\{\s*profileId: pilotProfile\.id\s*\}\)/);
   assert.match(app, /savePilotStats\(activeProfileId/);
   assert.match(walletProfiles, /credentials: 'same-origin'/);

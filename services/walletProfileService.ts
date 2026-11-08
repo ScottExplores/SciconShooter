@@ -297,7 +297,8 @@ export const readWalletProfileSession = async (): Promise<WalletProfileResponse>
 
 const requestWalletProfileAuthentication = async (
   address: Address,
-  signMessage?: (address: Address, message: string) => Promise<import('viem').Hex>
+  signMessage?: (address: Address, message: string) => Promise<import('viem').Hex>,
+  shouldContinue: () => boolean = () => true
 ): Promise<WalletProfileResponse> => {
   const challenge = await requestWalletProfile<WalletProfileChallenge>({
     method: 'POST',
@@ -310,6 +311,13 @@ const requestWalletProfileAuthentication = async (
     : !session || session.method === 'base-account'
       ? await signBaseAccountMessage(address, challenge.message)
       : await signInjectedWalletMessage(session.provider, address, challenge.message);
+  if (!shouldContinue()) {
+    throw new WalletProfileRequestError(
+      'Wallet connection was superseded.',
+      409,
+      'wallet_attempt_superseded'
+    );
+  }
   const response = await requestWalletProfile<WalletProfileResponse>({
     method: 'POST',
     body: JSON.stringify({
@@ -345,10 +353,12 @@ export const loadAuthenticatedWalletProfile = async (
   address: Address,
   {
     interactive = true,
-    signMessage
+    signMessage,
+    shouldContinue
   }: {
     interactive?: boolean;
     signMessage?: (address: Address, message: string) => Promise<import('viem').Hex>;
+    shouldContinue?: () => boolean;
   } = {}
 ): Promise<AuthenticatedWalletProfileSession<WalletProfileRecord>> => (
   resolveWalletProfileSession({
@@ -357,7 +367,7 @@ export const loadAuthenticatedWalletProfile = async (
     authenticate: interactive
       ? () => (
         signMessage
-          ? requestWalletProfileAuthentication(address, signMessage)
+          ? requestWalletProfileAuthentication(address, signMessage, shouldContinue)
           : requestWalletProfileAuthentication(address)
       )
       : async () => {
@@ -679,6 +689,10 @@ export const flushDirtyWalletProfile = async (
       );
     }
 
+    if (!Number.isSafeInteger(dirty.expectedRevision) || dirty.expectedRevision < 1) {
+      // A local cache must not create the first cloud profile.
+      return latestSaved;
+    }
     try {
       const saved = await saveAuthenticatedWalletProfile({
         walletAddress,

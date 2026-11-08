@@ -90,6 +90,8 @@ test('the app does not upload the device guest save into the wallet profile', ()
   assert.doesNotMatch(app, /linkAuthenticatedGuestProgress/);
   assert.doesNotMatch(app, /prepareGuestLinkSnapshot/);
   assert.match(app, /walletSnapshotHasOwnedProgress/);
+  assert.match(app, /walletProfileCloudBackedRef/);
+  assert.doesNotMatch(app, /expectedRevision: 0/);
   assert.match(app, /profileId: pilotProfile\.id/);
   const seedStart = app.indexOf('const createWalletSeedSnapshot');
   const seed = app.slice(seedStart, app.indexOf('const transitionNonce', seedStart));

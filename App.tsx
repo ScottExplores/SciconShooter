@@ -247,7 +247,6 @@ import {
   getWalletProfileId,
   loadAuthenticatedWalletProfile,
   readCachedWalletProfile,
-  saveAuthenticatedWalletProfile,
   settleWalletCampaignBranch,
   settleWalletBossArchiveChallenge,
   startWalletCampaignBranch,
@@ -993,6 +992,7 @@ const App: React.FC = () => {
   const profileTransitionNonceRef = useRef(0);
   const walletProfileInteractiveAuthorizationRef = useRef(false);
   const walletProfileRevisionRef = useRef(0);
+  const walletProfileCloudBackedRef = useRef(false);
   const walletProfileAddressRef = useRef<string | null>(null);
   const activeProfileIdRef = useRef(activeProfileId);
   activeProfileIdRef.current = activeProfileId;
@@ -2650,6 +2650,7 @@ const App: React.FC = () => {
     walletProfileLocalBaselineRef.current = null;
 
     if (!normalizedAddress) {
+      walletProfileCloudBackedRef.current = false;
       setWalletProfileStatus('guest');
       walletProfileLocalBaselineRef.current = hydrateActiveProfile({
         profileId: pilotProfile.id
@@ -2721,20 +2722,30 @@ const App: React.FC = () => {
         if (flushedProfile) profile = flushedProfile;
         if (!isCurrent()) return;
         if (!profile) {
-          const seed = createWalletSeedSnapshot(
-            normalizedAddress,
-            walletProfileId
+          walletProfileCloudBackedRef.current = false;
+          const localView: WalletProfileSnapshot = {
+            stats: readPilotStats(walletProfileId),
+            weeklyState: loadWeeklySquadState(walletProfileId),
+            permanentState: {
+              ...loadPermanentSquadState(walletProfileId),
+              mintedMiniShips: []
+            },
+            selectedShipId: parsePlayerShipId(
+              localStorage.getItem(getSelectedShipStorageKey(walletProfileId))
+            )
+          };
+          // Legacy same-address cache stays on this device. It is not a cloud profile.
+          walletProfileLocalBaselineRef.current = hydrateActiveProfile(
+            walletSnapshotHasOwnedProgress(localView)
+              ? { profileId: walletProfileId, snapshot: localView }
+              : { profileId: pilotProfile.id }
           );
-          if (walletSnapshotHasOwnedProgress(seed)) {
-            profile = await saveAuthenticatedWalletProfile({
-              walletAddress: normalizedAddress,
-              expectedRevision: 0,
-              snapshot: seed
-            });
-          }
+          setWalletProfileStatus('ready');
+          return;
         }
         if (!isCurrent()) return;
-        if (!profile || !walletSnapshotHasOwnedProgress(profile.snapshot)) {
+        walletProfileCloudBackedRef.current = true;
+        if (!walletSnapshotHasOwnedProgress(profile.snapshot)) {
           // An empty wallet does not replace the device guest. Guest coins,
           // unlocks, and the unverified personal best stay on this device.
           walletProfileLocalBaselineRef.current = hydrateActiveProfile({
@@ -2972,6 +2983,7 @@ const App: React.FC = () => {
       !activeWalletAddress
       || walletProfileHydratingRef.current
       || isOwnerWallet
+      || !walletProfileCloudBackedRef.current
     ) return undefined;
 
     const normalizedAddress = activeWalletAddress.toLowerCase();

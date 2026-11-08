@@ -133,7 +133,7 @@ test('the connect entry keeps the homepage control and opens a chooser', () => {
   assert.match(runtime, /eip6963:requestProvider/);
   assert.match(runtime, /type: 'release'/);
   assert.doesNotMatch(app, /linkAuthenticatedGuestProgress/);
-  assert.match(runtime, /authorizeAddress\(address, generation, attempt\)/);
+  assert.match(runtime, /settleAttempt\(generation, outcome, attempt, address\)/);
   assert.match(runtime, /accountEvents\.on\?\.\('accountsChanged'/);
   assert.match(runtime, /accountEvents\.on\?\.\('disconnect'/);
   assert.match(app, /activeProfileIdRef\.current !== walletProfileId/);

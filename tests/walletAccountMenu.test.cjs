@@ -67,7 +67,7 @@ test('wallet transitions clear account-scoped state and disconnect locally even 
   assert.match(runtime, /onPlayerShipPurchaseStatus\?\.\(\{ status: 'idle' \}\)/);
   assert.match(
     runtime,
-    /const disconnectWallet = useCallback[\s\S]*finally \{[\s\S]*commitActiveWalletAddress\(null\)/
+    /const disconnectWallet = useCallback[\s\S]*finally \{[\s\S]*applySettledAttempt\(dropped\)/
   );
   assert.match(runtime, /This wallet was disconnected from the game/);
 });

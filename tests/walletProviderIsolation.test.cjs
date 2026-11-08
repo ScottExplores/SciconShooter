@@ -43,20 +43,20 @@ test('account listeners follow injected and WalletConnect and drop when leaving 
   assert.equal(session.accountEventProvider(null), null);
 });
 
-test('chooser authorization commits the provider only after the signature', () => {
+test('chooser completion goes through the generation ledger and does not restore a captured session', () => {
   const runtime = fs.readFileSync(path.join(root, 'components', 'WalletRuntime.tsx'), 'utf8');
+  const service = fs.readFileSync(path.join(root, 'services', 'walletProfileService.ts'), 'utf8');
   const select = runtime.slice(
     runtime.indexOf('const selectWalletChoice'),
     runtime.indexOf('const cancelChooser')
   );
-  assert.doesNotMatch(select, /setActiveEvmSession/);
-  assert.match(select, /authorizeAddress\(address, generation, attempt\)/);
-  assert.match(select, /restoreCommittedProvider\(committed\)/);
-  const authorize = runtime.slice(
-    runtime.indexOf('const authorizeAddress'),
-    runtime.indexOf('useEffect(() => {', runtime.indexOf('const authorizeAddress'))
+  assert.match(select, /settleAttempt\(generation, outcome, attempt, address\)/);
+  assert.doesNotMatch(select, /restoreCommittedProvider|pendingProviderRef|setActiveEvmSession/);
+  const auth = service.slice(
+    service.indexOf('const requestWalletProfileAuthentication'),
+    service.indexOf('export const authenticateWalletProfile')
   );
-  const signAt = authorize.indexOf('loadAuthenticatedWalletProfile');
-  const commitAt = authorize.indexOf('setActiveEvmSession');
-  assert.ok(signAt > -1 && commitAt > signAt);
+  const gate = auth.indexOf('if (!shouldContinue())');
+  const post = auth.indexOf("action: 'authenticate'");
+  assert.ok(gate > -1 && post > gate);
 });
