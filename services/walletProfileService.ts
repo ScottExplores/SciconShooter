@@ -22,6 +22,12 @@ import {
   type WalletProfileSessionResponse
 } from './walletProfileSession';
 import { getActiveEvmSession, signInjectedWalletMessage } from './evmWalletSession';
+import {
+  clearPendingWalletAttempt,
+  readPendingWalletAttempt,
+  recoverPendingWalletAttempt,
+  rememberPendingWalletAttempt
+} from './walletPendingAttempt';
 
 export interface WalletProfileSnapshot {
   stats: PilotStatsSnapshot;
@@ -302,38 +308,85 @@ const supersededWalletAttempt = () => new WalletProfileRequestError(
 );
 
 interface BrowserAuthPreparation {
-  status: 'ready' | 'retry' | 'fenced';
+  status: 'ready' | 'retry' | 'fenced' | 'pending' | 'empty';
   attemptId: string | null;
+  expiresAt?: string | null;
+  expired?: boolean;
   generation: number;
 }
 
 let trackedBrowserAttemptId: string | null = null;
 
+const currentTrackedAttemptId = () => {
+  if (trackedBrowserAttemptId) return trackedBrowserAttemptId;
+  trackedBrowserAttemptId = readPendingWalletAttempt()?.attemptId ?? null;
+  return trackedBrowserAttemptId;
+};
+
+const persistTrackedAttempt = (attemptId: string | null, expiresAt?: string | null) => {
+  trackedBrowserAttemptId = attemptId;
+  const expiresAtMs = expiresAt ? Date.parse(expiresAt) : Number.NaN;
+  if (attemptId && Number.isFinite(expiresAtMs)) {
+    rememberPendingWalletAttempt(attemptId, expiresAtMs);
+    return;
+  }
+  clearPendingWalletAttempt(attemptId);
+};
+
+const forgetTrackedAttempt = (attemptId?: string | null) => {
+  if (!attemptId || trackedBrowserAttemptId === attemptId) trackedBrowserAttemptId = null;
+  clearPendingWalletAttempt(attemptId);
+};
+
 const prepareBrowserAuth = async (
   shouldContinue: () => boolean
 ): Promise<BrowserAuthPreparation> => {
-  const replacesAttemptId = trackedBrowserAttemptId;
-  const requestPrepare = () => requestWalletProfile<BrowserAuthPreparation>({
+  const requestPrepare = (replacesAttemptId: string | null) => requestWalletProfile<BrowserAuthPreparation>({
     method: 'POST',
     body: JSON.stringify({
       action: 'prepare-auth',
       ...(replacesAttemptId ? { replacesAttemptId } : {})
     })
   });
-  let prepared = await requestPrepare();
+  const prepareOnce = async (replacesAttemptId: string | null) => {
+    try {
+      return await requestPrepare(replacesAttemptId);
+    } catch (error) {
+      if (
+        !(error instanceof WalletProfileRequestError)
+        || error.code !== 'wallet_attempt_superseded'
+      ) {
+        throw error;
+      }
+      const observed = await requestWalletProfile<BrowserAuthPreparation>({
+        method: 'POST',
+        body: JSON.stringify({ action: 'observe-auth' })
+      });
+      if (!shouldContinue()) throw supersededWalletAttempt();
+      const recovery = recoverPendingWalletAttempt({
+        triedAttemptId: replacesAttemptId,
+        observedAttemptId: observed.attemptId,
+        observedExpired: observed.expired === true || observed.status === 'empty'
+      });
+      if (!recovery) throw error;
+      if (!recovery.attemptId) forgetTrackedAttempt(replacesAttemptId);
+      return requestPrepare(recovery.attemptId);
+    }
+  };
+  let prepared = await prepareOnce(currentTrackedAttemptId());
   if (!shouldContinue()) {
     if (prepared.attemptId) await supersedeWalletBrowserAuth(prepared.attemptId);
     throw supersededWalletAttempt();
   }
   if (prepared.status === 'retry') {
-    prepared = await requestPrepare();
+    prepared = await prepareOnce(currentTrackedAttemptId());
     if (!shouldContinue()) {
       if (prepared.attemptId) await supersedeWalletBrowserAuth(prepared.attemptId);
       throw supersededWalletAttempt();
     }
   }
   if (!prepared.attemptId) throw supersededWalletAttempt();
-  trackedBrowserAttemptId = prepared.attemptId;
+  persistTrackedAttempt(prepared.attemptId, prepared.expiresAt);
   return prepared;
 };
 
@@ -345,9 +398,10 @@ export const supersedeWalletBrowserAuth = async (attemptId?: string | null) => {
       body: JSON.stringify({ action: 'supersede-auth', attemptId })
     });
   } catch {
-    // The server ignores a fence for an attempt that is no longer current.
+    // Keep the stored id so the next prepare can replace this attempt.
+    return;
   }
-  if (trackedBrowserAttemptId === attemptId) trackedBrowserAttemptId = null;
+  forgetTrackedAttempt(attemptId);
 };
 
 export const releaseWalletBrowserAuth = async (attemptId: string) => {
@@ -357,8 +411,9 @@ export const releaseWalletBrowserAuth = async (attemptId: string) => {
       body: JSON.stringify({ action: 'release-auth', attemptId })
     });
   } catch {
-    // A newer attempt owns the browser binding.
+    return;
   }
+  forgetTrackedAttempt(attemptId);
 };
 
 const requestWalletProfileAuthentication = async (
@@ -378,11 +433,17 @@ const requestWalletProfileAuthentication = async (
   }
   const session = getActiveEvmSession();
   const { signBaseAccountMessage } = await import('./baseAccountWallet');
-  const signature = signMessage
-    ? await signMessage(address, challenge.message)
-    : !session || session.method === 'base-account'
-      ? await signBaseAccountMessage(address, challenge.message)
-      : await signInjectedWalletMessage(session.provider, address, challenge.message);
+  let signature: import('viem').Hex;
+  try {
+    signature = signMessage
+      ? await signMessage(address, challenge.message)
+      : !session || session.method === 'base-account'
+        ? await signBaseAccountMessage(address, challenge.message)
+        : await signInjectedWalletMessage(session.provider, address, challenge.message);
+  } catch (error) {
+    await releaseWalletBrowserAuth(prepared.attemptId);
+    throw error;
+  }
   if (!shouldContinue()) {
     await releaseWalletBrowserAuth(prepared.attemptId);
     throw supersededWalletAttempt();
@@ -434,6 +495,7 @@ const requestWalletProfileAuthentication = async (
     await releaseWalletBrowserAuth(prepared.attemptId);
     throw supersededWalletAttempt();
   }
+  forgetTrackedAttempt(prepared.attemptId);
   return response;
 };
 
@@ -932,4 +994,5 @@ export const logoutWalletProfileSession = async (walletAddress?: string | null) 
   } catch {
     // Disconnecting the provider still returns the app to the guest profile.
   }
+  forgetTrackedAttempt();
 };

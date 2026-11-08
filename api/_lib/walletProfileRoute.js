@@ -6,6 +6,7 @@ const {
   clearBrowserAuth,
   fenceBrowserAuth,
   grantBrowserAuthAttempt,
+  observeBrowserAuth,
   readAuthoritativeWalletProfileSession,
   releaseBrowserAuthAttempt
 } = require('./browserWalletAuth');
@@ -174,6 +175,21 @@ module.exports = async (req, res) => {
     if (!rateLimit.allowed) {
       throw Object.assign(new Error('Too many wallet profile requests. Try again shortly.'), { statusCode: 429 });
     }
+    if (body.action === 'observe-auth') {
+      const guest = readGuestIdentity(req);
+      if (!guest) {
+        return sendJson(res, 200, { status: 'empty', attemptId: null, expiresAt: null, expired: false });
+      }
+      const pending = await observeBrowserAuth(guest.guestId);
+      return sendJson(res, 200, {
+        status: pending.attemptId && !pending.expired ? 'pending' : 'empty',
+        attemptId: pending.expired ? null : pending.attemptId,
+        expiresAt: pending.expired || !pending.expiresAt
+          ? null
+          : new Date(pending.expiresAt).toISOString(),
+        expired: pending.expired === true
+      });
+    }
     if (body.action === 'prepare-auth' || body.action === 'supersede-auth') {
       const guest = readGuestIdentityOrEstablish(req, res);
       if (!guest) return sendJson(res, 200, { status: 'retry' });
@@ -190,6 +206,9 @@ module.exports = async (req, res) => {
         return sendJson(res, 200, {
           status: 'ready',
           attemptId: result.binding.attempt,
+          expiresAt: result.binding.attemptExpiresAt
+            ? new Date(result.binding.attemptExpiresAt).toISOString()
+            : null,
           sessionGeneration: result.binding.sessionGeneration || 0
         });
       }

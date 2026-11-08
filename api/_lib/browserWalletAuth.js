@@ -13,6 +13,7 @@ const CHALLENGES_TABLE = process.env.SUPABASE_WALLET_PROFILE_CHALLENGES_TABLE
 const BINDING_PREFIX = 'scicon-browser-auth-v1';
 const ZERO_WALLET = '0x0000000000000000000000000000000000000000';
 const BINDING_LIFETIME_MS = 10 * 365 * 24 * 60 * 60 * 1000;
+const PENDING_ATTEMPT_TTL_MS = 10 * 60 * 1000;
 const MAX_CAS_ATTEMPTS = 8;
 const ATTEMPT_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -41,7 +42,8 @@ const encodeBinding = (binding) => [
   `bound=${token(binding.boundAttempt)}`,
   `grant=${token(binding.grantAttempt)}`,
   `grantWallet=${binding.grantWallet || ZERO_WALLET}`,
-  `session=${Number.isSafeInteger(binding.sessionGeneration) ? binding.sessionGeneration : 0}`
+  `session=${Number.isSafeInteger(binding.sessionGeneration) ? binding.sessionGeneration : 0}`,
+  `attemptExp=${Number.isSafeInteger(binding.attemptExpiresAt) ? binding.attemptExpiresAt : 0}`
 ].join(' ');
 
 const fromToken = (value) => (value && value !== '-' ? value : null);
@@ -67,6 +69,9 @@ const decodeBinding = (row) => {
     state: fields.state,
     wallet: wallet && wallet !== ZERO_WALLET ? wallet : null,
     attempt: fromToken(fields.attempt),
+    attemptExpiresAt: Number.isSafeInteger(Number(fields.attemptExp)) && Number(fields.attemptExp) > 0
+      ? Number(fields.attemptExp)
+      : null,
     boundAttempt: fromToken(fields.bound),
     grantAttempt: fromToken(fields.grant),
     grantWallet: grantWallet && grantWallet !== ZERO_WALLET ? grantWallet : null,
@@ -178,7 +183,22 @@ const keptSession = (current) => ({
     })
 });
 
-const attemptSlot = (current) => current?.attempt || null;
+const describePendingAttempt = (binding, now = Date.now()) => {
+  if (!binding?.attempt) {
+    return { attemptId: null, expiresAt: null, expired: false };
+  }
+  const expiresAt = binding.attemptExpiresAt || null;
+  return {
+    attemptId: binding.attempt,
+    expiresAt,
+    expired: !expiresAt || expiresAt <= now
+  };
+};
+
+const pendingSlotBlocksReplacement = (binding, replacing, now) => {
+  const pending = describePendingAttempt(binding, now);
+  return Boolean(pending.attemptId && !pending.expired && pending.attemptId !== replacing);
+};
 
 /**
  * Install a new attempt only when it replaces the attempt the client observed.
@@ -197,16 +217,14 @@ const beginBrowserAuthAttempt = (guestId, { replacesAttemptId = null } = {}, now
           state: 'open',
           wallet: null,
           attempt: crypto.randomUUID(),
+          attemptExpiresAt: now + PENDING_ATTEMPT_TTL_MS,
           boundAttempt: null,
           grantAttempt: null,
           grantWallet: null
         }
       };
     }
-    const slot = attemptSlot(current);
-    // A prepared attempt is replaced only by the client that observed it.
-    // An empty slot can accept a new attempt, including after disconnect or reload.
-    if (slot && slot !== replacing) return { type: 'reject' };
+    if (pendingSlotBlocksReplacement(current, replacing, now)) return { type: 'reject' };
     const kept = keptSession(current);
     return {
       type: 'write',
@@ -216,6 +234,7 @@ const beginBrowserAuthAttempt = (guestId, { replacesAttemptId = null } = {}, now
         state: kept.state === 'cleared' ? 'open' : kept.state,
         wallet: kept.state === 'bound' ? kept.wallet : null,
         attempt: crypto.randomUUID(),
+        attemptExpiresAt: now + PENDING_ATTEMPT_TTL_MS,
         boundAttempt: kept.state === 'bound' ? kept.boundAttempt : null,
         grantAttempt: null,
         grantWallet: null
@@ -245,6 +264,7 @@ const fenceBrowserAuth = (guestId, attemptId, now = Date.now()) => (
         state: kept.state,
         wallet: kept.wallet,
         attempt: matchesAttempt ? null : current.attempt,
+        attemptExpiresAt: matchesAttempt ? null : current.attemptExpiresAt || null,
         boundAttempt: kept.boundAttempt,
         grantAttempt: matchesGrant ? null : current.grantAttempt,
         grantWallet: matchesGrant ? null : current.grantWallet
@@ -255,17 +275,20 @@ const fenceBrowserAuth = (guestId, attemptId, now = Date.now()) => (
 
 const grantBrowserAuthAttempt = (guestId, { attemptId, wallet }, now = Date.now()) => (
   decide(guestId, (current) => {
+    const pending = describePendingAttempt(current, now);
     if (
       !current
       || current.state === 'cleared'
       || current.attempt !== attemptId
+      || pending.expired
     ) return { type: 'reject' };
     return {
       type: 'write',
       binding: {
         ...current,
         grantAttempt: attemptId,
-        grantWallet: wallet
+        grantWallet: wallet,
+        attemptExpiresAt: now + PENDING_ATTEMPT_TTL_MS
       }
     };
   }, now)
@@ -278,6 +301,7 @@ const adoptBrowserAuthAttempt = (guestId, attemptId, now = Date.now()) => (
       || current.state === 'cleared'
       || current.grantAttempt !== attemptId
       || !current.grantWallet
+      || (current.attemptExpiresAt && current.attemptExpiresAt <= now)
     ) {
       return { type: 'reject' };
     }
@@ -313,6 +337,7 @@ const releaseBrowserAuthAttempt = (guestId, attemptId, now = Date.now()) => (
             state: 'open',
             wallet: null,
             attempt: newerAttempt ? current.attempt : null,
+            attemptExpiresAt: newerAttempt ? current.attemptExpiresAt || null : null,
             boundAttempt: null,
             grantAttempt: newerGrant ? current.grantAttempt : null,
             grantWallet: newerGrant ? current.grantWallet : null
@@ -328,6 +353,7 @@ const releaseBrowserAuthAttempt = (guestId, attemptId, now = Date.now()) => (
           state: 'cleared',
           wallet: null,
           attempt: null,
+          attemptExpiresAt: null,
           boundAttempt: null,
           grantAttempt: null,
           grantWallet: null
@@ -335,6 +361,7 @@ const releaseBrowserAuthAttempt = (guestId, attemptId, now = Date.now()) => (
       };
     }
     if (current.grantAttempt === attemptId || current.attempt === attemptId) {
+      const attemptRemains = current.attempt !== attemptId;
       return {
         type: 'write',
         applied: true,
@@ -343,7 +370,8 @@ const releaseBrowserAuthAttempt = (guestId, attemptId, now = Date.now()) => (
           sessionGeneration: current.sessionGeneration || 0,
           state: current.state,
           wallet: current.wallet,
-          attempt: current.attempt === attemptId ? null : current.attempt,
+          attempt: attemptRemains ? current.attempt : null,
+          attemptExpiresAt: attemptRemains ? current.attemptExpiresAt || null : null,
           boundAttempt: current.boundAttempt,
           grantAttempt: current.grantAttempt === attemptId ? null : current.grantAttempt,
           grantWallet: current.grantAttempt === attemptId ? null : current.grantWallet
@@ -370,6 +398,7 @@ const clearBrowserAuth = (guestId, { sessionGeneration } = {}, now = Date.now())
         state: 'cleared',
         wallet: null,
         attempt: null,
+        attemptExpiresAt: null,
         boundAttempt: null,
         grantAttempt: null,
         grantWallet: null
@@ -377,6 +406,11 @@ const clearBrowserAuth = (guestId, { sessionGeneration } = {}, now = Date.now())
     };
   }, now)
 );
+
+const observeBrowserAuth = async (guestId, now = Date.now()) => {
+  const current = await readBrowserAuth(guestId);
+  return describePendingAttempt(current, now);
+};
 
 const authorizationRequired = (code = 'wallet_profile_authorization_required') => (
   browserAuthError('Wallet profile authorization is required.', 401, code)
@@ -445,6 +479,7 @@ const assertAttemptId = (attemptId) => {
 
 module.exports = {
   BINDING_PREFIX,
+  PENDING_ATTEMPT_TTL_MS,
   ZERO_WALLET,
   adoptBrowserAuthAttempt,
   assertAttemptId,
@@ -455,6 +490,7 @@ module.exports = {
   encodeBinding,
   fenceBrowserAuth,
   grantBrowserAuthAttempt,
+  observeBrowserAuth,
   readAuthoritativeWalletProfileSession,
   readOptionalAuthoritativeWalletProfileSession,
   releaseBrowserAuthAttempt

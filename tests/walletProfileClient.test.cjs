@@ -102,6 +102,9 @@ test('routine wallet disconnect revokes the browser session so a stale cookie ca
   assert.match(disconnect, /logoutWalletProfileSession\(previousAddress\)/);
   assert.match(service, /replacesAttemptId/);
   assert.match(service, /action: 'supersede-auth', attemptId/);
+  assert.match(service, /observe-auth/);
+  assert.match(service, /rememberPendingWalletAttempt/);
+  assert.match(service, /forgetTrackedAttempt\(prepared\.attemptId\)/);
   assert.doesNotMatch(runtime, /supersedeWalletBrowserAuth\(\)/);
 });
 

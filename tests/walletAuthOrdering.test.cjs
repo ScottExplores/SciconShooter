@@ -561,6 +561,95 @@ test('an in-flight authenticate cannot Set-Cookie over a newer browser wallet', 
   const legacyBesideGuest = await call(legacyWithGuest, 'GET', null);
   assert.equal(legacyBesideGuest.statusCode, 200);
   assert.equal(legacyBesideGuest.body.walletAddress, WALLET_A);
+
+  const {
+    beginBrowserAuthAttempt,
+    grantBrowserAuthAttempt,
+    PENDING_ATTEMPT_TTL_MS
+  } = require('../api/_lib/browserWalletAuth');
+  const recoveryJar = createJar();
+  const firstPending = await prepareAuth(recoveryJar);
+  assert.ok(firstPending.body.expiresAt);
+  const blockedReload = await prepareAuth(recoveryJar);
+  assert.equal(blockedReload.statusCode, 409);
+  const observedPending = await call(recoveryJar, 'POST', { action: 'observe-auth' });
+  assert.equal(observedPending.body.status, 'pending');
+  assert.equal(observedPending.body.attemptId, firstPending.body.attemptId);
+  const recovered = await prepareAuth(recoveryJar, observedPending.body.attemptId);
+  assert.equal(recovered.statusCode, 200);
+  assert.notEqual(recovered.body.attemptId, firstPending.body.attemptId);
+
+  const storedAttemptId = recovered.body.attemptId;
+  const afterModuleReset = await prepareAuth(recoveryJar, storedAttemptId);
+  assert.equal(afterModuleReset.statusCode, 200);
+  const rejectedSignature = await signAttempt(
+    recoveryJar,
+    WALLET_A,
+    firstPending.body.attemptId
+  );
+  assert.equal(rejectedSignature.statusCode, 409);
+  const retryAfterRejection = await prepareAuth(recoveryJar, afterModuleReset.body.attemptId);
+  assert.equal(retryAfterRejection.statusCode, 200);
+  const grantedAfterRetry = await signAttempt(
+    recoveryJar,
+    WALLET_A,
+    retryAfterRejection.body.attemptId
+  );
+  assert.equal(grantedAfterRetry.statusCode, 200);
+  const adoptedAfterRetry = await call(recoveryJar, 'POST', {
+    action: 'adopt-auth',
+    attemptId: retryAfterRejection.body.attemptId
+  });
+  assert.equal(adoptedAfterRetry.statusCode, 200);
+  applySetCookie(recoveryJar, adoptedAfterRetry.headers['Set-Cookie']);
+  const pendingAfterAdopt = await call(recoveryJar, 'POST', { action: 'observe-auth' });
+  assert.equal(pendingAfterAdopt.body.status, 'empty');
+  const prepareAfterAdopt = await prepareAuth(recoveryJar);
+  assert.equal(prepareAfterAdopt.statusCode, 200);
+  const cancelPending = await call(recoveryJar, 'POST', {
+    action: 'supersede-auth',
+    attemptId: prepareAfterAdopt.body.attemptId
+  });
+  assert.equal(cancelPending.body.applied, true);
+  const prepareAfterCancel = await prepareAuth(recoveryJar);
+  assert.equal(prepareAfterCancel.statusCode, 200);
+  const disconnected = await call(recoveryJar, 'POST', {
+    action: 'logout',
+    walletAddress: WALLET_A
+  });
+  assert.equal(disconnected.body.cleared, true);
+  const prepareAfterDisconnect = await prepareAuth(recoveryJar);
+  assert.equal(prepareAfterDisconnect.statusCode, 200);
+
+  const otherBrowser = createJar();
+  const otherPending = await prepareAuth(otherBrowser);
+  assert.equal(otherPending.statusCode, 200);
+  const otherView = await call(otherBrowser, 'POST', { action: 'observe-auth' });
+  assert.equal(otherView.body.attemptId, otherPending.body.attemptId);
+  assert.notEqual(otherView.body.attemptId, prepareAfterDisconnect.body.attemptId);
+  const crossedReplace = await prepareAuth(otherBrowser, prepareAfterDisconnect.body.attemptId);
+  assert.equal(crossedReplace.statusCode, 409);
+  const crossedFence = await call(otherBrowser, 'POST', {
+    action: 'supersede-auth',
+    attemptId: prepareAfterDisconnect.body.attemptId
+  });
+  assert.equal(crossedFence.body.applied, false);
+  const originalAfterCross = await call(recoveryJar, 'POST', { action: 'observe-auth' });
+  assert.equal(originalAfterCross.body.attemptId, prepareAfterDisconnect.body.attemptId);
+
+  const recoveryGuestId = verifyGuestIdentityToken(recoveryJar.get(GUEST_COOKIE_NAME)).guestId;
+  const expiredReplacement = await beginBrowserAuthAttempt(
+    recoveryGuestId,
+    {},
+    Date.now() + PENDING_ATTEMPT_TTL_MS + 1000
+  );
+  assert.equal(expiredReplacement.ok, true);
+  assert.notEqual(expiredReplacement.binding.attempt, prepareAfterDisconnect.body.attemptId);
+  const expiredGrant = await grantBrowserAuthAttempt(recoveryGuestId, {
+    attemptId: prepareAfterDisconnect.body.attemptId,
+    wallet: WALLET_A
+  }, Date.now() + PENDING_ATTEMPT_TTL_MS + 1000);
+  assert.equal(expiredGrant.ok, false);
 });
 
 test('a legacy same-address cache is archived once and does not replace the guest save', async () => {
@@ -588,5 +677,36 @@ test('a legacy same-address cache is archived once and does not replace the gues
   }), false);
   assert.equal(store.get(guestKey), 'guest-save');
   assert.match(store.get(walletLocalArchiveKey(address)), /1000000000/);
+  global.localStorage = original;
+
+  const pendingStore = new Map();
+  global.localStorage = {
+    getItem: (key) => (pendingStore.has(key) ? pendingStore.get(key) : null),
+    setItem: (key, value) => pendingStore.set(key, value),
+    removeItem: (key) => pendingStore.delete(key)
+  };
+  const pending = await import('../services/walletPendingAttempt.ts');
+  const attemptId = '11111111-1111-4111-8111-111111111111';
+  pending.rememberPendingWalletAttempt(attemptId, Date.now() + 60_000);
+  assert.equal(pending.readPendingWalletAttempt().attemptId, attemptId);
+  assert.equal(pending.readPendingWalletAttempt(Date.now() + 120_000), null);
+  pending.rememberPendingWalletAttempt(attemptId, Date.now() + 60_000);
+  pending.clearPendingWalletAttempt(attemptId);
+  assert.equal(pending.readPendingWalletAttempt(), null);
+  assert.deepEqual(pending.recoverPendingWalletAttempt({
+    triedAttemptId: null,
+    observedAttemptId: attemptId,
+    observedExpired: false
+  }), { attemptId });
+  assert.equal(pending.recoverPendingWalletAttempt({
+    triedAttemptId: attemptId,
+    observedAttemptId: attemptId,
+    observedExpired: false
+  }), null);
+  assert.deepEqual(pending.recoverPendingWalletAttempt({
+    triedAttemptId: attemptId,
+    observedAttemptId: null,
+    observedExpired: true
+  }), { attemptId: null });
   global.localStorage = original;
 });
