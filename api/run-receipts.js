@@ -7,9 +7,9 @@ const {
 const {
   assertSameOrigin,
   clearWalletProfileSessionCookie,
-  normalizeWalletAddress,
-  readOptionalWalletProfileSession
+  normalizeWalletAddress
 } = require('./_lib/walletProfileAuth');
+const { readOptionalAuthoritativeWalletProfileSession } = require('./_lib/browserWalletAuth');
 const { isFounderWalletAddress } = require('./_lib/founderWallet');
 
 const sendJson = (res, status, payload) => {
@@ -77,7 +77,7 @@ module.exports = async (req, res) => {
       }
       if (requestedWalletAddress) {
         try {
-          walletSession = readOptionalWalletProfileSession(req);
+          walletSession = await readOptionalAuthoritativeWalletProfileSession(req);
         } catch (error) {
           if (error?.statusCode !== 401) throw error;
           clearWalletProfileSessionCookie(res);

@@ -3388,6 +3388,20 @@ const saveWalletProfile = async ({
   if (!Number.isSafeInteger(revision) || revision < 0) {
     throw apiError('A valid expectedRevision is required.', 400);
   }
+  if (revision < 1) {
+    const existing = await fetchWalletProfile(walletAddress, now);
+    throw apiError(
+      existing
+        ? 'This wallet profile changed on another device. Reload it before saving again.'
+        : 'The server must create this wallet profile before it can be saved.',
+      409,
+      {
+        code: existing ? 'wallet_profile_conflict' : 'wallet_profile_bootstrap_required',
+        currentRevision: existing?.revision ?? 0,
+        currentProfile: existing
+      }
+    );
+  }
   let sanitizedSnapshot = sanitizeWalletSnapshot(snapshot, walletAddress, now);
   let current = null;
   if (revision > 0) {
@@ -3435,33 +3449,18 @@ const saveWalletProfile = async ({
   const updatedAt = isoNow(now);
   let rows;
 
-  if (revision === 0) {
-    rows = await fetchSupabaseJson(`${PROFILES_TABLE}?on_conflict=wallet_address`, {
-      method: 'POST',
-      headers: supabaseHeaders({
-        Prefer: 'resolution=ignore-duplicates,return=representation'
-      }),
+  rows = await fetchSupabaseJson(
+    `${PROFILES_TABLE}?wallet_address=eq.${encodeURIComponent(walletAddress)}&revision=eq.${revision}`,
+    {
+      method: 'PATCH',
+      headers: supabaseHeaders({ Prefer: 'return=representation' }),
       body: JSON.stringify({
-        wallet_address: walletAddress,
-        revision: 1,
+        revision: revision + 1,
         snapshot: sanitizedSnapshot,
         updated_at: updatedAt
       })
-    });
-  } else {
-    rows = await fetchSupabaseJson(
-      `${PROFILES_TABLE}?wallet_address=eq.${encodeURIComponent(walletAddress)}&revision=eq.${revision}`,
-      {
-        method: 'PATCH',
-        headers: supabaseHeaders({ Prefer: 'return=representation' }),
-        body: JSON.stringify({
-          revision: revision + 1,
-          snapshot: sanitizedSnapshot,
-          updated_at: updatedAt
-        })
-      }
-    );
-  }
+    }
+  );
 
   const saved = Array.isArray(rows) ? rows[0] : null;
   if (!saved) {

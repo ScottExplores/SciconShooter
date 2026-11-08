@@ -1,7 +1,5 @@
-const {
-  assertSameOrigin,
-  readWalletProfileSession
-} = require('./walletProfileAuth');
+const { assertSameOrigin } = require('./walletProfileAuth');
+const { readAuthoritativeWalletProfileSession } = require('./browserWalletAuth');
 const { checkRateLimit } = require('./rateLimit');
 const { applyWalletTokenSpend } = require('./walletTokenSpends');
 
@@ -56,7 +54,7 @@ module.exports = async (req, res) => {
   if (req.method !== 'POST') return sendJson(res, 405, { error: 'Method not allowed' });
   try {
     assertSameOrigin(req);
-    const session = readWalletProfileSession(req);
+    const session = await readAuthoritativeWalletProfileSession(req);
     const body = parseBody(req.body);
     const rateLimit = checkRateLimit(req, {
       scope: `wallet-token-spend:${session.walletAddress}`,

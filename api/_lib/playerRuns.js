@@ -1,7 +1,7 @@
 const { fetchSupabaseJson, supabaseHeaders } = require('./supabase');
 const { reissueStoredRunReceipt } = require('./runReceipts');
 const { getCurrentWeekRange } = require('../../shared/weeklyCompetitionBoundary.js');
-const { readWalletProfileSession } = require('./walletProfileAuth');
+const { readAuthoritativeWalletProfileSession } = require('./browserWalletAuth');
 
 const RECEIPTS_TABLE = process.env.SUPABASE_RUN_RECEIPTS_TABLE || 'scicon_run_receipts';
 const LEADERBOARD_TABLE = process.env.SUPABASE_LEADERBOARD_TABLE || 'scicon_leaderboard';
@@ -49,7 +49,7 @@ const handlePlayerRuns = async (req, res) => {
   try {
     const wallet = String(req.query?.wallet || '').trim().toLowerCase();
     if (!addressPattern.test(wallet)) return sendJson(res, 400, { error: 'Valid wallet is required' });
-    const walletSession = readWalletProfileSession(req);
+    const walletSession = await readAuthoritativeWalletProfileSession(req);
     if (walletSession.walletAddress !== wallet) {
       return sendJson(res, 403, { error: 'This wallet profile session belongs to another Base Account.' });
     }

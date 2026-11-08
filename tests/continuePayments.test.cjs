@@ -327,7 +327,7 @@ test('Continue API and client are authenticated, same-origin, resumable, and sha
   const runReceipts = read('api', '_lib', 'runReceipts.js');
 
   assert.match(routeSource, /assertSameOrigin\(req\)/);
-  assert.match(routeSource, /readWalletProfileSession\(req\)/);
+  assert.match(routeSource, /readAuthoritativeWalletProfileSession\(req\)/);
   assert.match(routeSource, /address: session\.walletAddress/);
   assert.match(serverSource, /verifyRunStart\(startToken\)/);
   assert.match(serverSource, /continueSequence\) \* BigInt|CONTINUE_COST_STEP_RAW \* BigInt\(continueSequence\)/);
@@ -354,8 +354,10 @@ test('Continue API and client are authenticated, same-origin, resumable, and sha
 
   const route = loadCommonJsModule('api/_lib/continuePaymentRoute.js', {
     './walletProfileAuth': {
-      assertSameOrigin: () => undefined,
-      readWalletProfileSession: () => ({ walletAddress: WALLET })
+      assertSameOrigin: () => undefined
+    },
+    './browserWalletAuth': {
+      readAuthoritativeWalletProfileSession: async () => ({ walletAddress: WALLET })
     },
     './rateLimit': { checkRateLimit: () => ({ allowed: true }) },
     './continuePayments': {

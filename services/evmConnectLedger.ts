@@ -66,11 +66,22 @@ const uniqueProviders = <P>(providers: P[]) => {
   return result;
 };
 
+const providersStillPending = <P>(
+  pending: Array<{ generation: number; provider: P }>,
+  generation: number
+) => {
+  const protectedProviders = new Set<P>();
+  pending.forEach((entry) => {
+    if (entry.generation > generation) protectedProviders.add(entry.provider);
+  });
+  return protectedProviders;
+};
+
 /**
  * Only the current generation may change the committed provider and address,
  * and it changes them together. An older completion disconnects only the
  * provider that attempt registered, and only when that object is not the
- * provider now in use.
+ * committed provider or still referenced by a newer pending attempt.
  */
 export const settleConnectAttempt = <P>(
   state: ConnectLedger<P>,
@@ -87,18 +98,21 @@ export const settleConnectAttempt = <P>(
     && input.outcome === 'authorized'
     && Boolean(input.session)
     && Boolean(input.address);
+  const stillPending = providersStillPending(pending, input.generation);
   if (!current) {
+    if (state.committed?.provider) stillPending.add(state.committed.provider);
     return {
       state: { ...state, pending },
       applied: false,
       disconnect: uniqueProviders(
         owns.map((entry) => entry.provider)
-          .filter((provider) => provider !== state.committed?.provider)
+          .filter((provider) => !stillPending.has(provider))
       )
     };
   }
   const session = input.session as LedgerSession<P>;
   const previous = state.committed?.provider;
+  stillPending.add(session.provider);
   return {
     state: {
       generation: state.generation,
@@ -108,8 +122,8 @@ export const settleConnectAttempt = <P>(
     },
     applied: true,
     disconnect: uniqueProviders([
-      ...owns.map((entry) => entry.provider).filter((provider) => provider !== session.provider),
-      ...(previous && previous !== session.provider ? [previous] : [])
+      ...owns.map((entry) => entry.provider).filter((provider) => !stillPending.has(provider)),
+      ...(previous && !stillPending.has(previous) ? [previous] : [])
     ])
   };
 };

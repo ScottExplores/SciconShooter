@@ -138,7 +138,7 @@ test('weekly streak proof and the server-issued run token are bound to Weekly mo
   assert.match(serverReceiptSource, /expectedBinding/);
   assert.match(serverReceiptSource, /startRunMode\s*===\s*'weekly-streak'\s*&&\s*!hasWeeklyProof/);
   assert.match(serverReceiptSource, /startRunMode\s*!==\s*'weekly-streak'\s*&&\s*hasWeeklyProof/);
-  assert.match(receiptRouteSource, /readOptionalWalletProfileSession\(req\)/);
+  assert.match(receiptRouteSource, /readOptionalAuthoritativeWalletProfileSession\(req\)/);
   assert.match(receiptRouteSource, /guestIdentityId:\s*guestIdentity\?\.guestId/);
   assert.doesNotMatch(
     receiptRouteSource,

@@ -89,13 +89,20 @@ test('the app does not upload the device guest save into the wallet profile', ()
   const app = fs.readFileSync(path.join(root, 'App.tsx'), 'utf8');
   assert.doesNotMatch(app, /linkAuthenticatedGuestProgress/);
   assert.doesNotMatch(app, /prepareGuestLinkSnapshot/);
-  assert.match(app, /walletSnapshotHasOwnedProgress/);
+  assert.match(
+    fs.readFileSync(path.join(root, 'services', 'walletLocalArchive.ts'), 'utf8'),
+    /walletSnapshotHasOwnedProgress/
+  );
   assert.match(app, /walletProfileCloudBackedRef/);
   assert.doesNotMatch(app, /expectedRevision: 0/);
+  assert.doesNotMatch(app, /createWalletSeedSnapshot/);
+  assert.match(app, /bootstrapAuthenticatedWalletProfile/);
+  assert.match(app, /archiveLocalWalletSnapshot/);
   assert.match(app, /profileId: pilotProfile\.id/);
-  const seedStart = app.indexOf('const createWalletSeedSnapshot');
-  const seed = app.slice(seedStart, app.indexOf('const transitionNonce', seedStart));
-  const guestBranch = seed.slice(seed.indexOf('migratedFromWallet'));
-  assert.doesNotMatch(guestBranch.split('else')[0], /readPilotStats\(pilotProfile\.id\)/);
-  assert.doesNotMatch(guestBranch.split('else')[0], /migrateLegacySquadProfile\(pilotProfile\.id/);
+  const bootstrap = app.slice(
+    app.indexOf('if (!profile)'),
+    app.indexOf('walletProfileCloudBackedRef.current = true', app.indexOf('if (!profile)'))
+  );
+  assert.match(bootstrap, /discardWalletProfileDirty/);
+  assert.doesNotMatch(bootstrap, /snapshot:/);
 });

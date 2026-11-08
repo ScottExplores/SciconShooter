@@ -33,19 +33,27 @@ const signEncodedPayload = (encoded) => crypto
 const createWalletProfileSession = (
   address,
   now = Date.now(),
-  lifetimeMs = SESSION_LIFETIME_MS
+  lifetimeMs = SESSION_LIFETIME_MS,
+  extras = {}
 ) => {
   const walletAddress = normalizeWalletAddress(address);
   if (!walletAddress) throw Object.assign(new Error('A valid Base wallet address is required.'), { statusCode: 400 });
   const issuedAt = Math.floor(Number(now));
   const expiresAt = issuedAt + Math.max(60_000, Math.floor(Number(lifetimeMs) || SESSION_LIFETIME_MS));
-  const encoded = encodePayload({
+  const payload = {
     type: SESSION_TOKEN_TYPE,
     walletAddress,
     issuedAt,
     expiresAt,
     sessionId: crypto.randomUUID()
-  });
+  };
+  if (/^[0-9a-f-]{36}$/i.test(String(extras.browserId || ''))) {
+    payload.browserId = String(extras.browserId).toLowerCase();
+  }
+  if (Number.isSafeInteger(extras.authGeneration) && extras.authGeneration > 0) {
+    payload.authGeneration = extras.authGeneration;
+  }
+  const encoded = encodePayload(payload);
   return `${encoded}.${signEncodedPayload(encoded)}`;
 };
 
@@ -88,7 +96,13 @@ const verifyWalletProfileSession = (token, now = Date.now()) => {
     profileId: walletProfileId(walletAddress),
     issuedAt: payload.issuedAt,
     expiresAt: payload.expiresAt,
-    sessionId: String(payload.sessionId || '')
+    sessionId: String(payload.sessionId || ''),
+    browserId: /^[0-9a-f-]{36}$/i.test(String(payload.browserId || ''))
+      ? String(payload.browserId).toLowerCase()
+      : null,
+    authGeneration: Number.isSafeInteger(payload.authGeneration)
+      ? payload.authGeneration
+      : null
   };
 };
 

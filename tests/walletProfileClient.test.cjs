@@ -72,10 +72,11 @@ test('same-device sync churn stays recoverable with bounded retry backoff', asyn
   assert.equal(getWalletProfileSyncFailurePolicy(conflict, 0).retryDelayMs, null);
 });
 
-test('routine wallet disconnect preserves the verified device session for seamless reconnects', () => {
+test('routine wallet disconnect revokes the browser session so a stale cookie cannot resurrect it', () => {
   const service = read('services', 'walletProfileService.ts');
   const sessionResolver = read('services', 'walletProfileSession.ts');
   const app = read('App.tsx');
+  const runtime = read('components', 'WalletRuntime.tsx');
 
   assert.match(
     service,
@@ -91,9 +92,15 @@ test('routine wallet disconnect preserves the verified device session for seamle
   );
   assert.match(
     app,
-    /if \(!normalizedAddress\) \{[\s\S]*HttpOnly profile session[\s\S]*return;[\s\S]*\}/
+    /if \(!normalizedAddress\) \{[\s\S]*Guest[\s\S]*return;[\s\S]*\}/
   );
   assert.doesNotMatch(app, /logoutWalletProfileSession/);
+  const disconnect = runtime.slice(
+    runtime.indexOf('const disconnectWallet'),
+    runtime.indexOf('useEffect(() => rscBalanceCoordinator')
+  );
+  assert.match(disconnect, /logoutWalletProfileSession\(previousAddress\)/);
+  assert.match(runtime, /supersedeWalletBrowserAuth\(\)/);
 });
 
 test('remembered wallets never open an authorization prompt during app startup', () => {

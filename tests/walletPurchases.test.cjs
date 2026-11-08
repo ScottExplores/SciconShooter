@@ -791,7 +791,7 @@ test('wallet purchase API is session-bound and same-origin, while runtime expose
   const rscPresentation = read('services', 'rscBalancePresentation.ts');
 
   assert.match(route, /assertSameOrigin\(req\)/);
-  assert.match(route, /readWalletProfileSession\(req\)/);
+  assert.match(route, /readAuthoritativeWalletProfileSession\(req\)/);
   assert.match(route, /address: session\.walletAddress/);
   assert.match(mintRouter, /route === 'wallet-purchases'/);
   assert.match(mintRouter, /walletPurchaseHandler/);
@@ -842,8 +842,10 @@ test('wallet purchase API is session-bound and same-origin, while runtime expose
 test('wallet purchase API never exposes raw Supabase failures', async () => {
   const route = loadCommonJsModule('api/_lib/walletPurchaseRoute.js', {
     './walletProfileAuth': {
-      assertSameOrigin: () => undefined,
-      readWalletProfileSession: () => ({ walletAddress: WALLET })
+      assertSameOrigin: () => undefined
+    },
+    './browserWalletAuth': {
+      readAuthoritativeWalletProfileSession: async () => ({ walletAddress: WALLET })
     },
     './rateLimit': {
       checkRateLimit: () => ({ allowed: true })

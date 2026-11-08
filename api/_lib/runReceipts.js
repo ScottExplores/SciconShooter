@@ -8,7 +8,7 @@ const {
   createWeeklyCampaignStreakRunBinding,
   validateFinalizedWeeklyCampaignStreakProof
 } = require('./walletProfiles');
-const { readOptionalWalletProfileSession } = require('./walletProfileAuth');
+const { readOptionalAuthoritativeWalletProfileSession } = require('./browserWalletAuth');
 const {
   attemptKeyFor,
   reserveWeeklyRunAttempt,
@@ -572,7 +572,7 @@ const finishRun = async (startToken, rawMetrics, req) => {
     throw error;
   }
   if (start.identity?.kind === 'wallet') {
-    const finishWalletSession = readOptionalWalletProfileSession(req, now);
+    const finishWalletSession = await readOptionalAuthoritativeWalletProfileSession(req, now);
     if (
       !finishWalletSession
       || finishWalletSession.walletAddress !== start.identity.walletAddress

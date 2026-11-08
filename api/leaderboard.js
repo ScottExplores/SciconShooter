@@ -10,10 +10,8 @@ const { isFounderWalletAddress } = require('./_lib/founderWallet');
 const { findEligibleProposal } = require('./_lib/researchHubEligibility');
 const { findEligibleRfp } = require('./_lib/researchHubRfps');
 const { verifyBaseMessage } = require('./_lib/baseSignatures');
-const {
-  clearWalletProfileSessionCookie,
-  readOptionalWalletProfileSession
-} = require('./_lib/walletProfileAuth');
+const { clearWalletProfileSessionCookie } = require('./_lib/walletProfileAuth');
+const { readOptionalAuthoritativeWalletProfileSession } = require('./_lib/browserWalletAuth');
 const crypto = require('crypto');
 const { checkRateLimit } = require('./_lib/rateLimit');
 const { sanitizePilotName, stripUnsafePublicText } = require('../shared/publicText.cjs');
@@ -901,7 +899,7 @@ module.exports = async (req, res) => {
       let proposalSession = null;
       if (isProposalAction) {
         try {
-          proposalSession = readOptionalWalletProfileSession(req);
+          proposalSession = await readOptionalAuthoritativeWalletProfileSession(req);
         } catch (error) {
           if (error?.statusCode !== 401) throw error;
           // An expired optional profile cookie is not proposal authorization.
@@ -956,7 +954,7 @@ module.exports = async (req, res) => {
         ? normalizeAddress(body.walletAddress)
         : null;
       const walletSession = walletAttributionRequested
-        ? readOptionalWalletProfileSession(req)
+        ? await readOptionalAuthoritativeWalletProfileSession(req)
         : null;
       const receiptWalletAddress = receipt.identity?.kind === 'wallet'
         ? normalizeAddress(receipt.identity.walletAddress)

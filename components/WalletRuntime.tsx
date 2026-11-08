@@ -42,7 +42,11 @@ import { claimWeeklyChampionProposal } from '../services/weeklyClaimService';
 import type { ResearchHubProposal } from '../services/researchHubProposals';
 import { mintMissionRecord } from '../services/recordMintService';
 import { createAddressResourceCoordinator } from '../services/addressResourceCoordinator';
-import { loadAuthenticatedWalletProfile } from '../services/walletProfileService';
+import {
+  loadAuthenticatedWalletProfile,
+  logoutWalletProfileSession,
+  supersedeWalletBrowserAuth
+} from '../services/walletProfileService';
 import { WalletChooser } from './WalletChooser';
 import {
   accountEventProvider,
@@ -534,6 +538,7 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
       const generation = started.generation;
       const attempt = getActiveEvmSession();
       if (!attempt || attempt.provider !== accountEvents) return;
+      void supersedeWalletBrowserAuth();
       void signAttempt(next, generation, attempt).then((address) => {
         const applied = settleAttempt(generation, 'authorized', attempt, address);
         if (!applied) return;
@@ -563,6 +568,7 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
     ledgerRef.current = started.state;
     const generation = started.generation;
     connectGenerationRef.current = generation;
+    void supersedeWalletBrowserAuth();
     setBusyChoiceId(choice.id);
     setChooserError('');
     setWalletConnectUri('');
@@ -632,6 +638,7 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
     const superseded = supersedeConnectAttempts(ledgerRef.current);
     connectGenerationRef.current = superseded.state.generation;
     applySettledAttempt(superseded);
+    void supersedeWalletBrowserAuth();
     finishChooser(null);
     onWalletError('');
   }, [applySettledAttempt, finishChooser, onWalletError]);
@@ -654,6 +661,7 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
     ledgerRef.current = started.state;
     const generation = started.generation;
     connectGenerationRef.current = generation;
+    void supersedeWalletBrowserAuth();
     const attempt: ActiveEvmSession = {
       method: 'base-account',
       name: 'Base Account',
@@ -707,7 +715,9 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
       // its own session teardown (for example during a wallet switch).
       const dropped = dropCommittedSession(ledgerRef.current);
       connectGenerationRef.current = dropped.state.generation;
+      const previousAddress = ledgerRef.current.address;
       applySettledAttempt(dropped);
+      void logoutWalletProfileSession(previousAddress);
       onWalletError(cleanupError
         ? 'This wallet was disconnected from the game, but the wallet could not confirm session cleanup. Choose your account when reconnecting.'
         : '');
@@ -1158,9 +1168,12 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
       } else if (currentAction.type === 'disconnect') {
         await disconnectWallet();
       } else if (currentAction.type === 'release') {
+        const previousAddress = ledgerRef.current.address;
         const dropped = dropCommittedSession(ledgerRef.current);
         connectGenerationRef.current = dropped.state.generation;
         applySettledAttempt(dropped);
+        void logoutWalletProfileSession(previousAddress);
+        void supersedeWalletBrowserAuth();
         finishChooser(null);
       } else if (currentAction.type === 'continue') {
         await continueWithRsc(currentAction);

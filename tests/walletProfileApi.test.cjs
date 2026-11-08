@@ -98,6 +98,13 @@ test('challenge authentication creates a secure session and profile saves use re
       return jsonResponse([challenge]);
     }
 
+    if (
+      table === 'scicon_boss_archive_challenge_results'
+      || table === 'scicon_wallet_entitlements'
+    ) {
+      return jsonResponse([]);
+    }
+
     if (table === 'scicon_wallet_profiles') {
       const address = String(parsed.searchParams.get('wallet_address') || '').replace(/^eq\./, '');
       if (options.method === 'POST') {
@@ -194,11 +201,28 @@ test('challenge authentication creates a secure session and profile saves use re
   assert.equal(spoofedLogoutResponse.statusCode, 403);
   assert.equal(spoofedLogoutResponse.headers['Set-Cookie'], undefined);
 
+  const tamperedBootstrap = makeResponse();
+  await walletProfileHandler(makeRequest('POST', {
+    action: 'bootstrap',
+    snapshot: {
+      weeklyState: { coins: 1_000_000_000 },
+      permanentState: { unlockedPlayerShips: ['btc'] }
+    }
+  }, cookie), tamperedBootstrap);
+  assert.equal(tamperedBootstrap.statusCode, 200);
+  assert.equal(tamperedBootstrap.body.profile.revision, 1);
+  assert.equal(tamperedBootstrap.body.profile.snapshot.weeklyState.coins, 0);
+  assert.equal(tamperedBootstrap.body.profile.snapshot.weeklyState.durableCampaignCoins, 0);
+  assert.deepEqual(
+    tamperedBootstrap.body.profile.snapshot.permanentState.unlockedPlayerShips,
+    []
+  );
+
   const saveResponse = makeResponse();
   await walletProfileHandler(makeRequest('POST', {
     action: 'save',
     walletAddress: WALLET,
-    expectedRevision: 0,
+    expectedRevision: 1,
     snapshot: {
       weeklyState: {
         profileId: 'pilot:wrong',
@@ -279,7 +303,7 @@ test('challenge authentication creates a secure session and profile saves use re
     }
   }, cookie), saveResponse);
   assert.equal(saveResponse.statusCode, 200);
-  assert.equal(saveResponse.body.profile.revision, 1);
+  assert.equal(saveResponse.body.profile.revision, 2);
   assert.equal(saveResponse.body.profile.profileId, `wallet:${WALLET}`);
   assert.equal(saveResponse.body.profile.snapshot.weeklyState.profileId, `wallet:${WALLET}`);
   assert.equal(saveResponse.body.profile.snapshot.weeklyState.coins, 50);
@@ -331,7 +355,7 @@ test('challenge authentication creates a secure session and profile saves use re
   const getResponse = makeResponse();
   await walletProfileHandler(makeRequest('GET', null, cookie), getResponse);
   assert.equal(getResponse.statusCode, 200);
-  assert.equal(getResponse.body.profile.revision, 1);
+  assert.equal(getResponse.body.profile.revision, 2);
   assert.equal(getResponse.body.profile.snapshot.stats.playerName, 'SCOTT');
   assert.equal(getResponse.body.profile.snapshot.weeklyState.coins, 50);
   assert.equal(getResponse.body.profile.snapshot.weeklyState.durableCampaignCoins, 35);
@@ -386,8 +410,8 @@ test('challenge authentication creates a secure session and profile saves use re
     console.error = originalConsoleError;
   }
   assert.equal(conflictResponse.statusCode, 409);
-  assert.equal(conflictResponse.body.currentRevision, 1);
-  assert.equal(conflictResponse.body.profile.revision, 1);
+  assert.equal(conflictResponse.body.currentRevision, 2);
+  assert.equal(conflictResponse.body.profile.revision, 2);
 });
 
 test('Boss Archive Challenge endpoints reject requests without a wallet-profile session', async () => {

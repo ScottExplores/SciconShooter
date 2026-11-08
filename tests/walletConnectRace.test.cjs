@@ -161,6 +161,36 @@ test('a stale cleanup does not disconnect the provider that is now committed', a
   assert.equal(lateA.state.address, addressB);
 });
 
+test('A cleanup while B is still awaiting a signature does not disconnect their shared provider', async () => {
+  const ledger = await import('../services/evmConnectLedger.ts');
+  const shared = { id: 'same-injected', disconnected: 0, disconnect() { this.disconnected += 1; } };
+  const addressA = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+  let state = ledger.createConnectLedger();
+  const startedA = ledger.startConnectAttempt(state);
+  state = ledger.trackPendingProvider(startedA.state, startedA.generation, shared);
+  const startedB = ledger.startConnectAttempt(state);
+  state = ledger.trackPendingProvider(startedB.state, startedB.generation, shared);
+  assert.equal(state.pending.length, 2);
+  const cleanupA = ledger.settleConnectAttempt(state, {
+    generation: startedA.generation,
+    outcome: 'rejected',
+    session: sessionFor('injected', shared, 'MetaMask'),
+    address: addressA
+  });
+  const committed = cleanupA.state.committed?.provider ?? null;
+  cleanupA.disconnect.forEach((provider) => {
+    if (provider === committed) return;
+    provider.disconnect?.();
+  });
+  assert.equal(cleanupA.applied, false);
+  assert.deepEqual(cleanupA.disconnect, []);
+  assert.equal(shared.disconnected, 0);
+  assert.equal(cleanupA.state.pending.length, 1);
+  assert.equal(cleanupA.state.pending[0].generation, startedB.generation);
+  assert.equal(cleanupA.state.pending[0].provider, shared);
+  assert.equal(cleanupA.state.address, null);
+});
+
 test('authentication is not posted after a newer attempt becomes current', async () => {
   const ledger = await import('../services/evmConnectLedger.ts');
   assert.equal(ledger.shouldCommitWalletAuthentication(1, 1), true);

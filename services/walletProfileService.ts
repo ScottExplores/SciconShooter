@@ -295,15 +295,72 @@ export const readWalletProfileSession = async (): Promise<WalletProfileResponse>
   requestWalletProfile<WalletProfileResponse>()
 );
 
+const supersededWalletAttempt = () => new WalletProfileRequestError(
+  'Wallet connection was superseded.',
+  409,
+  'wallet_attempt_superseded'
+);
+
+interface BrowserAuthPreparation {
+  status: 'ready' | 'retry' | 'fenced';
+  attemptId: string | null;
+  generation: number;
+}
+
+const prepareBrowserAuth = async (
+  shouldContinue: () => boolean
+): Promise<BrowserAuthPreparation> => {
+  const first = await requestWalletProfile<BrowserAuthPreparation>({
+    method: 'POST',
+    body: JSON.stringify({ action: 'prepare-auth' })
+  });
+  if (!shouldContinue()) throw supersededWalletAttempt();
+  if (first.status !== 'retry') return first;
+  const retried = await requestWalletProfile<BrowserAuthPreparation>({
+    method: 'POST',
+    body: JSON.stringify({ action: 'prepare-auth' })
+  });
+  if (!shouldContinue()) throw supersededWalletAttempt();
+  return retried;
+};
+
+export const supersedeWalletBrowserAuth = async () => {
+  try {
+    await requestWalletProfile({
+      method: 'POST',
+      body: JSON.stringify({ action: 'supersede-auth' })
+    });
+  } catch {
+    // A newer authenticate still has to match the server attempt id.
+  }
+};
+
+export const releaseWalletBrowserAuth = async (attemptId: string) => {
+  try {
+    await requestWalletProfile({
+      method: 'POST',
+      body: JSON.stringify({ action: 'release-auth', attemptId })
+    });
+  } catch {
+    // A newer attempt owns the browser binding.
+  }
+};
+
 const requestWalletProfileAuthentication = async (
   address: Address,
   signMessage?: (address: Address, message: string) => Promise<import('viem').Hex>,
   shouldContinue: () => boolean = () => true
 ): Promise<WalletProfileResponse> => {
+  const prepared = await prepareBrowserAuth(shouldContinue);
+  if (!prepared.attemptId) throw supersededWalletAttempt();
   const challenge = await requestWalletProfile<WalletProfileChallenge>({
     method: 'POST',
     body: JSON.stringify({ action: 'challenge', address })
   });
+  if (!shouldContinue()) {
+    await releaseWalletBrowserAuth(prepared.attemptId);
+    throw supersededWalletAttempt();
+  }
   const session = getActiveEvmSession();
   const { signBaseAccountMessage } = await import('./baseAccountWallet');
   const signature = signMessage
@@ -312,21 +369,56 @@ const requestWalletProfileAuthentication = async (
       ? await signBaseAccountMessage(address, challenge.message)
       : await signInjectedWalletMessage(session.provider, address, challenge.message);
   if (!shouldContinue()) {
-    throw new WalletProfileRequestError(
-      'Wallet connection was superseded.',
-      409,
-      'wallet_attempt_superseded'
-    );
+    await releaseWalletBrowserAuth(prepared.attemptId);
+    throw supersededWalletAttempt();
   }
-  const response = await requestWalletProfile<WalletProfileResponse>({
-    method: 'POST',
-    body: JSON.stringify({
-      action: 'authenticate',
-      address,
-      challengeId: challenge.challengeId,
-      signature
-    })
-  });
+  let granted: WalletProfileResponse & { status?: string; attemptId?: string };
+  try {
+    granted = await requestWalletProfile({
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'authenticate',
+        address,
+        challengeId: challenge.challengeId,
+        signature,
+        attemptId: prepared.attemptId
+      })
+    });
+  } catch (error) {
+    if (
+      !shouldContinue()
+      || (error instanceof WalletProfileRequestError && error.code === 'wallet_attempt_superseded')
+    ) {
+      await releaseWalletBrowserAuth(prepared.attemptId);
+    }
+    throw error;
+  }
+  if (!shouldContinue() || granted.status === 'superseded') {
+    await releaseWalletBrowserAuth(prepared.attemptId);
+    throw supersededWalletAttempt();
+  }
+  let response: WalletProfileResponse;
+  try {
+    response = await requestWalletProfile<WalletProfileResponse>({
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'adopt-auth',
+        attemptId: prepared.attemptId
+      })
+    });
+  } catch (error) {
+    if (
+      !shouldContinue()
+      || (error instanceof WalletProfileRequestError && error.code === 'wallet_attempt_superseded')
+    ) {
+      await releaseWalletBrowserAuth(prepared.attemptId);
+    }
+    throw error;
+  }
+  if (!shouldContinue()) {
+    await releaseWalletBrowserAuth(prepared.attemptId);
+    throw supersededWalletAttempt();
+  }
   return response;
 };
 
@@ -783,13 +875,43 @@ export const flushDirtyWalletProfile = async (
   return latestSaved;
 };
 
-export const logoutWalletProfileSession = async (walletAddress: string) => {
+export const bootstrapAuthenticatedWalletProfile = async (
+  walletAddress: string
+): Promise<WalletProfileRecord> => {
+  const normalizedAddress = normalizeWalletAddress(walletAddress);
+  const response = await requestWalletProfile<WalletProfileResponse>({
+    method: 'POST',
+    body: JSON.stringify({ action: 'bootstrap' })
+  });
+  if (!response.profile) {
+    throw new WalletProfileRequestError(
+      'Wallet profile bootstrap returned no profile.',
+      500
+    );
+  }
+  if (
+    response.walletAddress?.toLowerCase() !== normalizedAddress
+    || response.profile.walletAddress.toLowerCase() !== normalizedAddress
+    || response.profile.profileId !== getWalletProfileId(normalizedAddress)
+    || response.profile.revision < 1
+  ) {
+    throw new WalletProfileRequestError(
+      'Wallet profile bootstrap returned a different wallet.',
+      409,
+      'wallet_mismatch'
+    );
+  }
+  cacheWalletProfile(response.profile);
+  return response.profile;
+};
+
+export const logoutWalletProfileSession = async (walletAddress?: string | null) => {
   try {
     await requestWalletProfile<{ ok: boolean }>({
       method: 'POST',
       body: JSON.stringify({
         action: 'logout',
-        walletAddress: normalizeWalletAddress(walletAddress)
+        ...(walletAddress ? { walletAddress: normalizeWalletAddress(walletAddress) } : {})
       })
     });
   } catch {

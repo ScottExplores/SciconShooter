@@ -5,7 +5,8 @@ const { reserveRunWalletAssociation } = require('./_lib/runWalletAssociation');
 const { recoverPendingMissionMint } = require('./_lib/missionMintRecovery');
 const { fetchSupabaseJson, supabaseHeaders } = require('./_lib/supabase');
 const { checkRateLimit } = require('./_lib/rateLimit');
-const { assertSameOrigin, readWalletProfileSession } = require('./_lib/walletProfileAuth');
+const { assertSameOrigin } = require('./_lib/walletProfileAuth');
+const { readAuthoritativeWalletProfileSession } = require('./_lib/browserWalletAuth');
 const { hasTrustedReceiptProvenance } = require('./_lib/runReceiptProvenance');
 
 const RECEIPTS_TABLE = process.env.SUPABASE_RUN_RECEIPTS_TABLE || 'scicon_run_receipts';
@@ -76,7 +77,7 @@ module.exports = async (req, res) => {
     if (body.recordType !== 'mission') return sendJson(res, 400, { error: 'Unsupported record type' });
     const address = normalizeAddress(body.address);
     if (!address) return sendJson(res, 400, { error: 'A valid Base wallet is required' });
-    const walletSession = readWalletProfileSession(req);
+    const walletSession = await readAuthoritativeWalletProfileSession(req);
     if (walletSession.walletAddress !== address) {
       return sendJson(res, 403, { error: 'This wallet profile session belongs to another Base Account.' });
     }

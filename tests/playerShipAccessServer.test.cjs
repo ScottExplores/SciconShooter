@@ -682,7 +682,7 @@ test('player ship access API shares the existing Vercel function and requires wa
   const vercel = read('vercel.json');
   assert.match(mintRouter, /route === 'player-ship-access'/);
   assert.match(mintRouter, /playerShipAccessHandler\(req, res\)/);
-  assert.match(route, /readWalletProfileSession\(req\)/);
+  assert.match(route, /readAuthoritativeWalletProfileSession\(req\)/);
   assert.match(route, /assertSameOrigin\(req\)/);
   assert.match(vercel, /"source": "\/api\/player-ship-access"[\s\S]*?"destination": "\/api\/mint-records\?route=player-ship-access"/);
 });
