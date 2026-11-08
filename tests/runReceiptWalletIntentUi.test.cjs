@@ -24,6 +24,6 @@ test('only a ready wallet profile becomes run identity intent', () => {
 });
 
 test('mission and Weekly Run launch paths wait during wallet identity hydration', () => {
-  assert.match(appSource, /const launchGame = async[\s\S]*?walletIdentityHydrating[\s\S]*?Base Account is still loading/);
+  assert.match(appSource, /const launchGame = async[\s\S]*?walletIdentityHydrating[\s\S]*?wallet is still loading/);
   assert.match(appSource, /const startWeeklyRunFromHome = useCallback[\s\S]*?walletIdentityHydrating[\s\S]*?Weekly Run again/);
 });

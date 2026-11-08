@@ -2734,6 +2734,65 @@ const sanitizeStats = (rawValue) => {
   };
 };
 
+const GUEST_PROFILE_ID_PATTERN = /^pilot:[a-z0-9-]{8,80}$/;
+const MAX_GUEST_IMPORTS = 24;
+
+const sanitizeGuestImports = (rawValue) => {
+  const entries = Array.isArray(rawValue) ? rawValue : [];
+  const seen = new Set();
+  const imports = [];
+  entries.forEach((entry) => {
+    if (imports.length >= MAX_GUEST_IMPORTS) return;
+    const value = asObject(entry);
+    const id = text(value.id, 90).toLowerCase();
+    if (!GUEST_PROFILE_ID_PATTERN.test(id) || seen.has(id)) return;
+    const importedAt = typeof value.at === 'string' && Number.isFinite(Date.parse(value.at))
+      ? new Date(value.at).toISOString()
+      : null;
+    if (!importedAt) return;
+    seen.add(id);
+    imports.push({
+      id,
+      at: importedAt,
+      highScore: integer(value.highScore, 0, 1_000_000_000)
+    });
+  });
+  return imports;
+};
+
+/**
+ * Ordinary profile saves cannot add or erase guest-import receipts. A link
+ * passes its ledger explicitly; anything else keeps the server ledger so a
+ * browser cannot replay a guest import by omitting the receipt.
+ */
+const mergeGuestImportLedger = (current, incoming, { allowAdditions = false } = {}) => {
+  const currentEntries = sanitizeGuestImports(current);
+  const incomingEntries = sanitizeGuestImports(incoming);
+  if (!allowAdditions) {
+    const incomingById = new Map(incomingEntries.map((entry) => [entry.id, entry]));
+    return currentEntries.map((entry) => {
+      const update = incomingById.get(entry.id);
+      return update
+        ? { ...entry, highScore: Math.max(entry.highScore, update.highScore) }
+        : entry;
+    });
+  }
+  const byId = new Map(currentEntries.map((entry) => [entry.id, entry]));
+  incomingEntries.forEach((entry) => {
+    const prior = byId.get(entry.id);
+    if (!prior) {
+      byId.set(entry.id, entry);
+      return;
+    }
+    byId.set(entry.id, {
+      ...prior,
+      highScore: Math.max(prior.highScore, entry.highScore),
+      at: entry.at > prior.at ? entry.at : prior.at
+    });
+  });
+  return Array.from(byId.values()).slice(0, MAX_GUEST_IMPORTS);
+};
+
 const sanitizeWalletSnapshot = (rawSnapshot, address, now = Date.now()) => {
   const walletAddress = normalizeWalletAddress(address);
   if (!walletAddress) throw apiError('A valid Base wallet address is required.', 400);
@@ -2745,7 +2804,8 @@ const sanitizeWalletSnapshot = (rawSnapshot, address, now = Date.now()) => {
     stats: sanitizeStats(snapshot.stats),
     selectedShipId: PLAYER_SHIP_ID_SET.has(snapshot.selectedShipId)
       ? snapshot.selectedShipId
-      : 'researchhub'
+      : 'researchhub',
+    guestImports: sanitizeGuestImports(snapshot.guestImports)
   };
   if (Buffer.byteLength(JSON.stringify(sanitized), 'utf8') > MAX_SNAPSHOT_BYTES) {
     throw apiError('The wallet profile snapshot is too large.', 413);
@@ -3319,7 +3379,8 @@ const saveWalletProfile = async ({
   address,
   expectedRevision,
   snapshot,
-  now = Date.now()
+  now = Date.now(),
+  guestImportLedger
 }) => {
   const walletAddress = normalizeWalletAddress(address);
   if (!walletAddress) throw apiError('A valid Base wallet address is required.', 400);
@@ -3363,6 +3424,14 @@ const saveWalletProfile = async ({
     incomingSnapshot: sanitizedSnapshot,
     now
   });
+  sanitizedSnapshot = {
+    ...sanitizedSnapshot,
+    guestImports: mergeGuestImportLedger(
+      current?.snapshot?.guestImports,
+      guestImportLedger,
+      { allowAdditions: guestImportLedger !== undefined }
+    )
+  };
   const updatedAt = isoNow(now);
   let rows;
 
@@ -3431,6 +3500,7 @@ module.exports = {
   sanitizePermanentState,
   sanitizePlayerShipEntitlements,
   sanitizeStats,
+  sanitizeGuestImports,
   sanitizeWalletSnapshot,
   sanitizeWeeklyState,
   validateFinalizedWeeklyCampaignStreakProof,

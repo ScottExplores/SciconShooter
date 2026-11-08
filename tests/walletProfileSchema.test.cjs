@@ -111,11 +111,13 @@ test('wallet snapshots whitelist fields, normalize profile IDs, and strip minted
   }, WALLET, now);
 
   assert.deepEqual(Object.keys(sanitized).sort(), [
+    'guestImports',
     'permanentState',
     'selectedShipId',
     'stats',
     'weeklyState'
   ]);
+  assert.deepEqual(sanitized.guestImports, []);
   assert.equal(sanitized.weeklyState.profileId, PROFILE_ID);
   assert.equal(sanitized.weeklyState.coins, 42);
   assert.equal(sanitized.weeklyState.durableCampaignCoins, 42);

@@ -43,11 +43,30 @@ import type { ResearchHubProposal } from '../services/researchHubProposals';
 import { mintMissionRecord } from '../services/recordMintService';
 import { createAddressResourceCoordinator } from '../services/addressResourceCoordinator';
 import { loadAuthenticatedWalletProfile } from '../services/walletProfileService';
+import { WalletChooser } from './WalletChooser';
+import {
+  buildWalletChoices,
+  shouldApplyWalletResult,
+  walletConnectProjectId,
+  type WalletChoice
+} from '../services/evmWalletDiscovery';
+import {
+  clearActiveEvmSession,
+  connectInjectedProvider,
+  connectWalletConnect,
+  getActiveEvmSession,
+  readCachedWalletConnector,
+  readProviderAccounts,
+  restoreWalletConnectSession,
+  setActiveEvmSession,
+  type Eip1193Provider
+} from '../services/evmWalletSession';
 
 export type WalletRuntimeAction =
   | { nonce: number; type: 'connect' }
   | { nonce: number; type: 'switch-account' }
   | { nonce: number; type: 'disconnect' }
+  | { nonce: number; type: 'release' }
   | {
       nonce: number;
       type: 'continue';
@@ -183,8 +202,26 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
   onMissionMintStatus
 }) => {
   const [activeWalletAddress, setActiveWalletAddress] = useState<Address | null>(readCachedBaseAccount);
+  const [connectorName, setConnectorName] = useState<string | undefined>(
+    () => readCachedWalletConnector()?.name || (readCachedBaseAccount() ? 'Base Account' : undefined)
+  );
   const [isConnecting, setIsConnecting] = useState(false);
+  const [chooserOpen, setChooserOpen] = useState(false);
+  const [chooserError, setChooserError] = useState('');
+  const [busyChoiceId, setBusyChoiceId] = useState<string | null>(null);
+  const [walletConnectUri, setWalletConnectUri] = useState('');
+  const [announcedWallets, setAnnouncedWallets] = useState<Array<{
+    uuid: string;
+    name: string;
+    rdns: string;
+    icon?: string;
+    provider: Eip1193Provider;
+  }>>([]);
   const startedActionNonceRef = useRef<number | null>(null);
+  const connectGenerationRef = useRef(0);
+  const chooserResolverRef = useRef<((address: Address | null) => void) | null>(null);
+  const announcedProvidersRef = useRef(new Map<string, Eip1193Provider>());
+  const walletConnectProviderRef = useRef<Eip1193Provider | null>(null);
   const purchaseBusyRef = useRef(false);
   const playerShipPurchaseBusyRef = useRef(false);
   const activeWalletAddressRef = useRef<Address | null>(activeWalletAddress);
@@ -217,6 +254,10 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
 
     activeWalletAddressRef.current = nextAddress;
     setActiveWalletAddress(nextAddress);
+    setConnectorName(nextAddress
+      ? getActiveEvmSession()?.name || readCachedWalletConnector()?.name || 'Base Account'
+      : undefined);
+    if (!nextAddress) clearActiveEvmSession();
 
     if (previousAddress !== normalizedNextAddress) {
       rscBalanceCoordinator.setOwner(nextAddress);
@@ -247,9 +288,9 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
     chainId: activeWalletAddress ? DONATION_CONFIG.BASE_CHAIN_ID : null,
     status: isConnecting ? 'connecting' : activeWalletAddress ? 'connected' : walletError ? 'error' : 'idle',
     error: walletError,
-    connectorName: activeWalletAddress ? 'Base Account' : undefined,
+    connectorName: activeWalletAddress ? connectorName || 'Base Account' : undefined,
     hasDonated: activeWalletAddress ? Boolean(donatedWallets[activeWalletAddress.toLowerCase()]) : false
-  }), [activeWalletAddress, donatedWallets, isConnecting, walletError]);
+  }), [activeWalletAddress, connectorName, donatedWallets, isConnecting, walletError]);
 
   useEffect(() => {
     onWalletChange(wallet);
@@ -287,59 +328,296 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
     };
   }, [commitActiveWalletAddress, onWalletError]);
 
+  const [injectedProvider, setInjectedProvider] = useState<Eip1193Provider | null>(null);
+
+  const finishChooser = useCallback((address: Address | null) => {
+    setChooserOpen(false);
+    setBusyChoiceId(null);
+    setWalletConnectUri('');
+    setIsConnecting(false);
+    const resolve = chooserResolverRef.current;
+    chooserResolverRef.current = null;
+    resolve?.(address);
+  }, []);
+
+  const openChooser = useCallback(() => {
+    setChooserError('');
+    setWalletConnectUri('');
+    setChooserOpen(true);
+    onWalletError('');
+    return new Promise<Address | null>((resolve) => {
+      const previous = chooserResolverRef.current;
+      chooserResolverRef.current = (address) => {
+        previous?.(address);
+        resolve(address);
+      };
+    });
+  }, [onWalletError]);
+
+  const authorizeAddress = useCallback(async (address: Address, generation: number) => {
+    const session = await loadAuthenticatedWalletProfile(address, { interactive: true });
+    if (!shouldApplyWalletResult(generation, connectGenerationRef.current)) return null;
+    if (session.walletAddress.toLowerCase() !== address.toLowerCase()) {
+      throw new Error('The wallet session did not match the account you chose.');
+    }
+    if (!shouldApplyWalletResult(generation, connectGenerationRef.current)) return null;
+    commitActiveWalletAddress(address);
+    return address;
+  }, [commitActiveWalletAddress]);
+
+  useEffect(() => {
+    const cached = readCachedWalletConnector();
+    if (cached?.method === 'base-account' || (!cached && readCachedBaseAccount())) {
+      setActiveEvmSession({
+        method: 'base-account',
+        name: 'Base Account',
+        provider: baseAccountProvider
+      });
+    }
+    if (cached?.method !== 'walletconnect') return undefined;
+    const projectId = walletConnectProjectId();
+    if (!projectId) return undefined;
+    let cancelled = false;
+    void restoreWalletConnectSession(projectId).then((restored) => {
+      if (cancelled || !restored) return;
+      if (readCachedBaseAccount()?.toLowerCase() !== restored.address.toLowerCase()) return;
+      walletConnectProviderRef.current = restored.provider;
+      setActiveEvmSession({
+        method: 'walletconnect',
+        name: 'WalletConnect',
+        provider: restored.provider
+      });
+    }).catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    const onAnnounce = (event: Event) => {
+      const detail = (event as CustomEvent).detail as {
+        info?: { uuid?: string; name?: string; rdns?: string; icon?: string };
+        provider?: Eip1193Provider;
+      } | undefined;
+      const rdns = detail?.info?.rdns?.trim().toLowerCase();
+      if (!rdns || !detail?.provider) return;
+      const record = {
+        uuid: detail.info?.uuid || rdns,
+        name: detail.info?.name || rdns,
+        rdns,
+        icon: detail.info?.icon,
+        provider: detail.provider
+      };
+      announcedProvidersRef.current.set(rdns, detail.provider);
+      setAnnouncedWallets((current) => {
+        const next = current.filter((entry) => entry.rdns !== rdns);
+        next.push(record);
+        return next;
+      });
+      const cached = readCachedWalletConnector();
+      if (cached?.method === 'injected' && cached.rdns === rdns) {
+        setActiveEvmSession({
+          method: 'injected',
+          name: cached.name,
+          rdns,
+          provider: detail.provider
+        });
+        setInjectedProvider(detail.provider);
+      }
+    };
+    window.addEventListener('eip6963:announceProvider', onAnnounce);
+    window.dispatchEvent(new Event('eip6963:requestProvider'));
+    return () => window.removeEventListener('eip6963:announceProvider', onAnnounce);
+  }, []);
+
+  useEffect(() => {
+    if (!injectedProvider) return undefined;
+    let active = true;
+    const handleInjectedAccountsChanged = (accounts: unknown) => {
+      if (!active) return;
+      const parsed = readProviderAccounts(accounts);
+      if (!parsed) {
+        commitActiveWalletAddress(null);
+        onWalletError('The wallet sent an invalid account update. Choose your wallet again.');
+        return;
+      }
+      const next = parsed[0] || null;
+      if (!next) {
+        commitActiveWalletAddress(null);
+        onWalletError('');
+        return;
+      }
+      if (next.toLowerCase() === activeWalletAddressRef.current?.toLowerCase()) return;
+      const generation = connectGenerationRef.current + 1;
+      connectGenerationRef.current = generation;
+      void authorizeAddress(next, generation).catch((error: any) => {
+        if (!shouldApplyWalletResult(generation, connectGenerationRef.current)) return;
+        console.error('Wallet account switch failed', error);
+        commitActiveWalletAddress(null);
+        onWalletError(getUserFacingMessage(error, 'Wallet switch was cancelled.'));
+      });
+    };
+    const handleInjectedDisconnect = () => {
+      if (!active) return;
+      commitActiveWalletAddress(null);
+      onWalletError('');
+    };
+    injectedProvider.on?.('accountsChanged', handleInjectedAccountsChanged);
+    injectedProvider.on?.('disconnect', handleInjectedDisconnect);
+    return () => {
+      active = false;
+      injectedProvider.removeListener?.('accountsChanged', handleInjectedAccountsChanged);
+      injectedProvider.removeListener?.('disconnect', handleInjectedDisconnect);
+    };
+  }, [authorizeAddress, commitActiveWalletAddress, injectedProvider, onWalletError]);
+
+  const selectWalletChoice = useCallback(async (choice: WalletChoice) => {
+    const generation = connectGenerationRef.current + 1;
+    connectGenerationRef.current = generation;
+    setBusyChoiceId(choice.id);
+    setChooserError('');
+    setWalletConnectUri('');
+    try {
+      if (choice.method === 'handoff' && choice.handoffUrl) {
+        window.location.assign(choice.handoffUrl);
+        return;
+      }
+      let address: Address;
+      if (choice.method === 'base-account') {
+        setActiveEvmSession({
+          method: 'base-account',
+          name: 'Base Account',
+          provider: baseAccountProvider
+        });
+        address = await connectBaseAccount();
+      } else if (choice.method === 'walletconnect') {
+        const projectId = walletConnectProjectId();
+        if (!projectId) throw new Error('WalletConnect is not configured.');
+        const connected = await connectWalletConnect({
+          projectId,
+          onDisplayUri: (uri) => {
+            if (shouldApplyWalletResult(generation, connectGenerationRef.current)) setWalletConnectUri(uri);
+          }
+        });
+        walletConnectProviderRef.current = connected.provider;
+        setActiveEvmSession({
+          method: 'walletconnect',
+          name: 'WalletConnect',
+          provider: connected.provider
+        });
+        address = connected.address;
+      } else {
+        const provider = choice.rdns ? announcedProvidersRef.current.get(choice.rdns) : undefined;
+        if (!provider) throw new Error('That wallet is no longer available in this browser.');
+        address = await connectInjectedProvider(provider);
+        setActiveEvmSession({
+          method: 'injected',
+          name: choice.title,
+          rdns: choice.rdns,
+          provider
+        });
+        setInjectedProvider(provider);
+      }
+      if (!shouldApplyWalletResult(generation, connectGenerationRef.current)) return;
+      const authorized = await authorizeAddress(address, generation);
+      if (!authorized || !shouldApplyWalletResult(generation, connectGenerationRef.current)) return;
+      finishChooser(authorized);
+    } catch (error: any) {
+      if (!shouldApplyWalletResult(generation, connectGenerationRef.current)) return;
+      console.error('Wallet connection failed', error);
+      const message = getUserFacingMessage(error, 'Wallet connection was cancelled.');
+      setChooserError(message);
+      onWalletError(message);
+      setBusyChoiceId(null);
+      setIsConnecting(false);
+      if (!activeWalletAddressRef.current) {
+        void walletConnectProviderRef.current?.disconnect?.().catch(() => undefined);
+        walletConnectProviderRef.current = null;
+        clearActiveEvmSession();
+      }
+    }
+  }, [authorizeAddress, finishChooser, onWalletError]);
+
+  const cancelChooser = useCallback(() => {
+    connectGenerationRef.current += 1;
+    void walletConnectProviderRef.current?.disconnect?.().catch(() => undefined);
+    walletConnectProviderRef.current = null;
+    if (!activeWalletAddressRef.current) clearActiveEvmSession();
+    finishChooser(null);
+    onWalletError('');
+  }, [finishChooser, onWalletError]);
+
   const connectWallet = useCallback(async () => {
     if (activeWalletAddress) {
       onWalletError('');
       return activeWalletAddress;
     }
-
-    setIsConnecting(true);
-    try {
-      onWalletError('');
-      const address = await connectBaseAccount();
-      commitActiveWalletAddress(address);
-      return address;
-    } catch (error: any) {
-      console.error('Base Account connection failed', error);
-      onWalletError(getUserFacingMessage(error, 'Base Account connection was cancelled.'));
-      return null;
-    } finally {
-      setIsConnecting(false);
-    }
-  }, [activeWalletAddress, commitActiveWalletAddress, onWalletError]);
+    return openChooser();
+  }, [activeWalletAddress, onWalletError, openChooser]);
 
   const switchWallet = useCallback(async () => {
+    const session = getActiveEvmSession();
+    if (session && session.method !== 'base-account') {
+      return openChooser();
+    }
     setIsConnecting(true);
+    const generation = connectGenerationRef.current + 1;
+    connectGenerationRef.current = generation;
     try {
       onWalletError('');
-      const address = await switchBaseAccount();
-      commitActiveWalletAddress(address);
+      let address: Address;
+      try {
+        address = await switchBaseAccount();
+      } catch (error: any) {
+        if (!shouldApplyWalletResult(generation, connectGenerationRef.current)) return null;
+        console.error('Base Account switch failed', error);
+        onWalletError(getUserFacingMessage(error, 'Wallet switch was cancelled.'));
+        return null;
+      }
+      if (!shouldApplyWalletResult(generation, connectGenerationRef.current)) return null;
+      setActiveEvmSession({
+        method: 'base-account',
+        name: 'Base Account',
+        provider: baseAccountProvider
+      });
+      const authorized = await authorizeAddress(address, generation);
+      if (!authorized) return null;
       if (activeWalletAddress && address.toLowerCase() === activeWalletAddress.toLowerCase()) {
         onWalletError('Base kept the same account. Disconnect, then sign out of Base Account before reconnecting with a different identity.');
       }
-      return address;
+      return authorized;
     } catch (error: any) {
+      if (!shouldApplyWalletResult(generation, connectGenerationRef.current)) return null;
       console.error('Base Account switch failed', error);
+      commitActiveWalletAddress(null);
       onWalletError(getUserFacingMessage(error, 'Wallet switch was cancelled.'));
       return null;
     } finally {
       setIsConnecting(false);
     }
-  }, [activeWalletAddress, commitActiveWalletAddress, onWalletError]);
+  }, [activeWalletAddress, authorizeAddress, commitActiveWalletAddress, onWalletError, openChooser]);
 
   const disconnectWallet = useCallback(async () => {
+    connectGenerationRef.current += 1;
     let cleanupError: unknown = null;
+    const session = getActiveEvmSession();
     try {
-      await disconnectBaseAccount();
+      if (!session || session.method === 'base-account') {
+        await disconnectBaseAccount();
+      } else {
+        await session.provider.disconnect?.();
+      }
     } catch (error: any) {
       console.error('Base Account disconnect failed', error);
       cleanupError = error;
     } finally {
-      // Local cleanup must succeed even when the Base host cannot acknowledge
+      // Local cleanup must succeed even when the wallet host cannot acknowledge
       // its own session teardown (for example during a wallet switch).
+      walletConnectProviderRef.current = null;
+      setInjectedProvider(null);
       commitActiveWalletAddress(null);
       onWalletError(cleanupError
-        ? 'This wallet was disconnected from the game, but Base could not confirm session cleanup. Choose your account when reconnecting.'
+        ? 'This wallet was disconnected from the game, but the wallet could not confirm session cleanup. Choose your account when reconnecting.'
         : '');
     }
   }, [commitActiveWalletAddress, onWalletError]);
@@ -775,11 +1053,22 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
 
     const runAction = async () => {
       if (currentAction.type === 'connect') {
-        await connectWallet();
+        // The chooser stays open after this action is marked handled, so the
+        // home button does not sit on Loading underneath the dialog.
+        void connectWallet();
       } else if (currentAction.type === 'switch-account') {
-        await switchWallet();
+        const session = getActiveEvmSession();
+        if (session && session.method !== 'base-account') {
+          void switchWallet();
+        } else {
+          await switchWallet();
+        }
       } else if (currentAction.type === 'disconnect') {
         await disconnectWallet();
+      } else if (currentAction.type === 'release') {
+        connectGenerationRef.current += 1;
+        finishChooser(null);
+        commitActiveWalletAddress(null);
       } else if (currentAction.type === 'continue') {
         await continueWithRsc(currentAction);
       } else if (currentAction.type === 'refresh-rsc-balance') {
@@ -803,9 +1092,11 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
   }, [
     action,
     claimChampion,
+    commitActiveWalletAddress,
     connectWallet,
     continueWithRsc,
     disconnectWallet,
+    finishChooser,
     mintMission,
     onActionHandled,
     purchasePlayerShip,
@@ -815,7 +1106,25 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
     switchWallet
   ]);
 
-  return null;
+  const walletChoices = buildWalletChoices({
+    announced: announcedWallets,
+    mobile: typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches,
+    pageUrl: typeof window === 'undefined' ? 'https://www.sciconshooter.xyz/' : window.location.href,
+    walletConnectProjectId: walletConnectProjectId()
+  });
+
+  return chooserOpen ? (
+    <WalletChooser
+      choices={walletChoices}
+      busyId={busyChoiceId}
+      error={chooserError}
+      walletConnectUri={walletConnectUri}
+      onSelect={(choice) => {
+        void selectWalletChoice(choice);
+      }}
+      onCancel={cancelChooser}
+    />
+  ) : null;
 };
 
 export default WalletRuntime;

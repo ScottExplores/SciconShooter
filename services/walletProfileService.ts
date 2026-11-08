@@ -21,6 +21,7 @@ import {
   type AuthenticatedWalletProfileSession,
   type WalletProfileSessionResponse
 } from './walletProfileSession';
+import { getActiveEvmSession, signInjectedWalletMessage } from './evmWalletSession';
 
 export interface WalletProfileSnapshot {
   stats: PilotStatsSnapshot;
@@ -239,6 +240,57 @@ export const cacheWalletProfile = (record: WalletProfileRecord) => {
   }
 };
 
+export interface GuestWalletLinkResult {
+  walletAddress: string;
+  profile: WalletProfileRecord | null;
+  guestLink: {
+    applied: boolean;
+    reason: string;
+  };
+}
+
+export const linkAuthenticatedGuestProgress = async ({
+  walletAddress,
+  guestProfileId,
+  guestSnapshot
+}: {
+  walletAddress: string;
+  guestProfileId: string;
+  guestSnapshot: WalletProfileSnapshot;
+}): Promise<GuestWalletLinkResult> => {
+  const normalizedAddress = normalizeWalletAddress(walletAddress);
+  const response = await requestWalletProfile<GuestWalletLinkResult>({
+    method: 'POST',
+    body: JSON.stringify({
+      action: 'link-guest',
+      guestProfileId,
+      guestSnapshot
+    })
+  });
+  if (response.walletAddress?.toLowerCase() !== normalizedAddress) {
+    throw new WalletProfileRequestError(
+      'Wallet profile link returned a different wallet.',
+      409,
+      'wallet_mismatch'
+    );
+  }
+  if (
+    response.profile
+    && (
+      response.profile.walletAddress.toLowerCase() !== normalizedAddress
+      || response.profile.profileId !== getWalletProfileId(normalizedAddress)
+    )
+  ) {
+    throw new WalletProfileRequestError(
+      'Wallet profile link returned a different wallet.',
+      409,
+      'wallet_mismatch'
+    );
+  }
+  if (response.profile) cacheWalletProfile(response.profile);
+  return response;
+};
+
 export const readWalletProfileSession = async (): Promise<WalletProfileResponse> => (
   requestWalletProfile<WalletProfileResponse>()
 );
@@ -250,8 +302,11 @@ const requestWalletProfileAuthentication = async (
     method: 'POST',
     body: JSON.stringify({ action: 'challenge', address })
   });
+  const session = getActiveEvmSession();
   const { signBaseAccountMessage } = await import('./baseAccountWallet');
-  const signature = await signBaseAccountMessage(address, challenge.message);
+  const signature = !session || session.method === 'base-account'
+    ? await signBaseAccountMessage(address, challenge.message)
+    : await signInjectedWalletMessage(session.provider, address, challenge.message);
   const response = await requestWalletProfile<WalletProfileResponse>({
     method: 'POST',
     body: JSON.stringify({

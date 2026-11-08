@@ -18,6 +18,10 @@ import {
   PLAYER_SHIP_PURCHASE_SKUS,
   STORAGE_KEYS
 } from '../constants';
+import {
+  getActiveEvmSession,
+  sendBaseTransaction
+} from './evmWalletSession';
 
 type CallsStatusResponse = {
   status?: number;
@@ -232,6 +236,32 @@ export const switchBaseAccount = async (): Promise<Address> => {
   return address;
 };
 
+const sendCallsWithActiveWallet = async ({
+  from,
+  calls,
+  onSubmitted
+}: {
+  from: Address;
+  calls: BaseCall[];
+  onSubmitted?: (callsId: Hex) => void;
+}): Promise<Hex | null> => {
+  const session = getActiveEvmSession();
+  if (!session || session.method === 'base-account') return null;
+  let lastHash: Hex | null = null;
+  for (const call of calls) {
+    const hash = await sendBaseTransaction(session.provider, {
+      from,
+      to: call.to,
+      data: call.data,
+      value: call.value
+    });
+    onSubmitted?.(hash);
+    lastHash = hash;
+  }
+  if (!lastHash) throw new Error('The wallet did not return a Base transaction.');
+  return waitForBaseTransactionReceipt(lastHash);
+};
+
 export const sendAttributedBaseCalls = async ({
   from,
   calls,
@@ -243,6 +273,8 @@ export const sendAttributedBaseCalls = async ({
   sponsorGas?: boolean;
   onSubmitted?: (callsId: Hex) => void;
 }): Promise<Hex> => {
+  const injectedHash = await sendCallsWithActiveWallet({ from, calls, onSubmitted });
+  if (injectedHash) return injectedHash;
   const paymasterProxyUrl = (import.meta.env.VITE_PAYMASTER_PROXY_URL as string | undefined)?.trim();
   const capabilities: Record<string, unknown> = {
     dataSuffix: {
@@ -325,6 +357,12 @@ export const sendEthShipPurchaseTransfer = async ({
   if (amountRaw !== BigInt(PLAYER_SHIP_PURCHASE_SKUS['eth-ship'].amountRaw)) {
     throw new Error('The ETH ship payment does not match the published 0.001 ETH price.');
   }
+  const injectedHash = await sendCallsWithActiveWallet({
+    from,
+    calls: [{ to: recipient, value: toHex(amountRaw), data: '0x' }],
+    onSubmitted
+  });
+  if (injectedHash) return injectedHash;
   await assertBaseMainnetProvider();
   const response = await baseAccountProvider.request({
     method: 'wallet_sendCalls',

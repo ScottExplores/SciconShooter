@@ -245,6 +245,7 @@ import {
   flushDirtyWalletProfile,
   getSelectedShipStorageKey,
   getWalletProfileId,
+  linkAuthenticatedGuestProgress,
   loadAuthenticatedWalletProfile,
   readCachedWalletProfile,
   saveAuthenticatedWalletProfile,
@@ -261,6 +262,10 @@ import {
   getWalletProfileSyncFailurePolicy,
   WALLET_PROFILE_SYNC_BUSY_MESSAGE
 } from './services/walletProfileSyncPolicy';
+import {
+  isCurrentGuestLinkResult,
+  prepareGuestLinkSnapshot
+} from './services/guestWalletLink';
 import {
   discardWalletProfileDirty,
   markWalletProfileDirty,
@@ -818,6 +823,7 @@ const App: React.FC = () => {
   const [showLabGlow, setShowLabGlow] = useState<boolean>(true);
   const [walletError, setWalletError] = useState<string>('');
   const [localHangarSaveError, setLocalHangarSaveError] = useState('');
+  const [walletReleaseNonce, setWalletReleaseNonce] = useState(0);
   const [walletProfileStatus, setWalletProfileStatus] = useState<
     'guest' | 'authenticating' | 'ready' | 'syncing' | 'error'
   >(initialWalletAddress ? 'authenticating' : 'guest');
@@ -992,6 +998,8 @@ const App: React.FC = () => {
   const walletProfileInteractiveAuthorizationRef = useRef(false);
   const walletProfileRevisionRef = useRef(0);
   const walletProfileAddressRef = useRef<string | null>(null);
+  const activeProfileIdRef = useRef(activeProfileId);
+  activeProfileIdRef.current = activeProfileId;
   const walletProfileSessionAddressRef = useRef<string | null>(null);
   const walletProfileHydratingRef = useRef(false);
   const walletProfileSyncedSnapshotRef = useRef<WalletProfileSnapshot | null>(null);
@@ -2668,11 +2676,13 @@ const App: React.FC = () => {
       walletProfileSyncedSnapshotRef.current = dirty?.baseSnapshot
         ?? cached?.snapshot
         ?? null;
-      walletProfileLocalBaselineRef.current = hydrateActiveProfile({
-        profileId: walletProfileId,
-        snapshot: dirty?.snapshot ?? cached?.snapshot,
-        founderSandbox: isOwnerWallet
-      });
+      // Keep the device guest profile on screen until this wallet session is
+      // verified. A reload with a live session replaces it after the check.
+      if (activeProfileIdRef.current !== walletProfileId) {
+        walletProfileLocalBaselineRef.current = hydrateActiveProfile({
+          profileId: pilotProfile.id
+        });
+      }
     }
     preloadMiniShipTextures();
     // The address-owned device snapshot above is already coherent and safe to
@@ -2718,6 +2728,36 @@ const App: React.FC = () => {
         const flushedProfile = await flushDirtyWalletProfile(normalizedAddress);
         if (!isCurrent()) return;
         if (flushedProfile) profile = flushedProfile;
+        if (!isOwnerWallet) {
+          const guestSnapshot = prepareGuestLinkSnapshot(
+            {
+              stats: readPilotStats(pilotProfile.id),
+              weeklyState: loadWeeklySquadState(pilotProfile.id),
+              permanentState: {
+                ...loadPermanentSquadState(pilotProfile.id),
+                mintedMiniShips: []
+              },
+              selectedShipId: parsePlayerShipId(
+                localStorage.getItem(getSelectedShipStorageKey(pilotProfile.id))
+              )
+            },
+            createWalletSeedSnapshot(normalizedAddress, walletProfileId)
+          );
+          const linked = await linkAuthenticatedGuestProgress({
+            walletAddress: normalizedAddress,
+            guestProfileId: pilotProfile.id,
+            guestSnapshot
+          });
+          if (!isCurrentGuestLinkResult({
+            requestGeneration: transitionNonce,
+            currentGeneration: profileTransitionNonceRef.current,
+            requestWallet: normalizedAddress,
+            activeWallet: walletProfileAddressRef.current,
+            resultWallet: linked.walletAddress
+          })) return;
+          if (linked.profile) profile = linked.profile;
+        }
+        if (!isCurrent()) return;
         if (!profile) {
           const seed = createWalletSeedSnapshot(
             normalizedAddress,
@@ -2753,6 +2793,8 @@ const App: React.FC = () => {
           walletProfileSessionAddressRef.current = null;
           setWalletProfileStatus('guest');
           setWalletError('');
+          hydrateActiveProfile({ profileId: pilotProfile.id });
+          setWalletReleaseNonce((current) => current + 1);
           return;
         }
         if (
@@ -3181,7 +3223,7 @@ const App: React.FC = () => {
       walletIdentityHydrating
       || (activeWalletAddress && walletProfileStatus === 'authenticating')
     ) {
-      const message = 'Your Base Account is still loading. Wait a moment, then try the mission again.';
+      const message = 'Your wallet is still loading. Wait a moment, then try the mission again.';
       setWalletError(message);
       if (campaignRequest || branchRequest || campaignLabRequest) {
         setCampaignMapError(message);
@@ -4263,7 +4305,7 @@ const App: React.FC = () => {
       walletIdentityHydrating
       || (activeWalletAddress && walletProfileStatus === 'authenticating')
     ) {
-      const message = 'Your Base Account is still loading. Wait a moment, then try Weekly Run again.';
+      const message = 'Your wallet is still loading. Wait a moment, then try Weekly Run again.';
       setWalletError(message);
       setWeeklyRunLaunchError(message);
       return;
@@ -6267,7 +6309,7 @@ const App: React.FC = () => {
     setGameState(GameState.GAMEOVER);
   };
 
-  const requestWalletRuntimeAction = useCallback((type: 'connect' | 'switch-account' | 'disconnect') => {
+  const requestWalletRuntimeAction = useCallback((type: 'connect' | 'switch-account' | 'disconnect' | 'release') => {
     // Kick the chunk off immediately as well, so a first-ever click does not
     // have to wait on a cold network fetch before the popup can open.
     deploymentReloadSafeRef.current = false;
@@ -6276,6 +6318,11 @@ const App: React.FC = () => {
     walletActionNonceRef.current += 1;
     setWalletRuntimeAction({ type, nonce: walletActionNonceRef.current });
   }, []);
+
+  useEffect(() => {
+    if (walletReleaseNonce === 0) return;
+    requestWalletRuntimeAction('release');
+  }, [requestWalletRuntimeAction, walletReleaseNonce]);
 
   const connectWallet = useCallback(() => {
     deploymentReloadSafeRef.current = false;

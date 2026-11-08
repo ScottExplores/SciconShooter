@@ -1,4 +1,5 @@
 const { verifyBaseMessage } = require('./baseSignatures');
+const { linkGuestWalletProfile } = require('./guestWalletLink');
 const {
   assertSameOrigin,
   clearWalletProfileSessionCookie,
@@ -175,6 +176,19 @@ module.exports = async (req, res) => {
       return sendJson(res, 200, {
         walletAddress: session.walletAddress,
         ...result
+      });
+    }
+    if (body.action === 'link-guest') {
+      const session = readWalletProfileSession(req);
+      const linked = await linkGuestWalletProfile({
+        address: session.walletAddress,
+        guestProfileId: body.guestProfileId,
+        guestSnapshot: body.guestSnapshot
+      });
+      return sendJson(res, 200, {
+        walletAddress: session.walletAddress,
+        profile: linked.profile,
+        guestLink: linked.guestLink
       });
     }
     if (body.action === 'save') {

@@ -78,6 +78,7 @@ const comparableSnapshot = (snapshot: WalletProfileSnapshot) => {
   // Ignore them while comparing saves so a normal v1 -> v2 migration cannot be
   // mistaken for a second-device progression conflict.
   delete (comparable.permanentState.bossArchive as { version?: unknown }).version;
+  delete (comparable as { guestImports?: unknown }).guestImports;
   return comparable;
 };
 

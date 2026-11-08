@@ -12,7 +12,7 @@ test('the connected wallet menu exposes switch and disconnect actions without cl
 
   assert.match(control, /Choose Base Account/);
   assert.match(control, /Disconnect wallet/);
-  assert.match(control, /Connect for onchain features/);
+  assert.match(control, /Connect Wallet/);
   assert.doesNotMatch(control, />\s*Sign out\s*</);
   assert.match(control, /bottom-full/);
   assert.match(control, /role="menu"/);

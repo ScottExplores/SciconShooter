@@ -35,7 +35,7 @@ export const WalletControl: React.FC<WalletControlProps> = ({
     ? `${wallet.address!.slice(0, 6)}...${wallet.address!.slice(-4)}`
     : wallet.status === 'connecting'
       ? 'Loading'
-      : 'Connect for onchain features';
+      : 'Connect Wallet';
 
   useEffect(() => {
     if (!isMenuOpen) return undefined;
@@ -72,7 +72,7 @@ export const WalletControl: React.FC<WalletControlProps> = ({
         }}
         className="rounded-full border border-cyan-300/40 bg-black/75 px-4 py-2 text-[11px] font-black uppercase tracking-[0.16em] text-cyan-100 shadow-[0_0_24px_rgba(34,211,238,0.18)] backdrop-blur-md transition hover:border-cyan-100 disabled:cursor-wait disabled:opacity-70"
         disabled={wallet.status === 'connecting'}
-        aria-label={isConnected ? `Base Account ${wallet.address}. Open wallet menu` : 'Connect for onchain features'}
+        aria-label={isConnected ? `${wallet.connectorName || 'Wallet'} ${wallet.address}. Open wallet menu` : 'Connect Wallet'}
         aria-controls={isConnected ? menuId : undefined}
         aria-expanded={isConnected ? isMenuOpen : undefined}
         aria-haspopup={isConnected ? 'menu' : undefined}
@@ -95,7 +95,7 @@ export const WalletControl: React.FC<WalletControlProps> = ({
             }}
             className="block w-full px-3.5 py-3 text-left text-sm font-bold text-cyan-50 transition hover:bg-cyan-300/10"
           >
-            Choose Base Account
+            {wallet.connectorName && wallet.connectorName !== 'Base Account' ? 'Choose another wallet' : 'Choose Base Account'}
           </button>
           <button
             type="button"
