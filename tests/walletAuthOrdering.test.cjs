@@ -7,8 +7,12 @@ process.env.SUPABASE_URL = 'https://example.supabase.co';
 process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-key';
 process.env.RUN_RECEIPT_SECRET = 'wallet-profile-api-test-secret';
 
-const { GUEST_COOKIE_NAME, createGuestIdentityToken } = require('../api/_lib/guestIdentity');
-const { SESSION_COOKIE_NAME } = require('../api/_lib/walletProfileAuth');
+const { GUEST_COOKIE_NAME, createGuestIdentityToken, verifyGuestIdentityToken } = require('../api/_lib/guestIdentity');
+const {
+  SESSION_COOKIE_NAME,
+  createWalletProfileSession,
+  verifyWalletProfileSession
+} = require('../api/_lib/walletProfileAuth');
 const signatures = require('../api/_lib/baseSignatures');
 const originalVerify = signatures.verifyBaseMessage;
 signatures.verifyBaseMessage = async ({ signature }) => signature === '0xverified';
@@ -152,7 +156,10 @@ test('an in-flight authenticate cannot Set-Cookie over a newer browser wallet', 
   const preparedA = await call(jar, 'POST', { action: 'prepare-auth' });
   assert.equal(preparedA.body.status, 'ready');
   const challengeA = await call(jar, 'POST', { action: 'challenge', address: WALLET_A });
-  const preparedB = await call(jar, 'POST', { action: 'prepare-auth' });
+  const preparedB = await call(jar, 'POST', {
+    action: 'prepare-auth',
+    replacesAttemptId: preparedA.body.attemptId
+  });
   assert.notEqual(preparedB.body.attemptId, preparedA.body.attemptId);
 
   const authenticateA = await call(jar, 'POST', {
@@ -240,17 +247,22 @@ test('an in-flight authenticate cannot Set-Cookie over a newer browser wallet', 
   applySetCookie(browser, second.adopted.headers['Set-Cookie']);
   applySetCookie(browser, first.adopted.headers['Set-Cookie']);
   const switchedSession = await call(browser, 'GET', null);
-  assert.equal(switchedSession.body.walletAddress, WALLET_B);
+  assert.equal(switchedSession.statusCode, 401);
+  assert.equal(switchedSession.body.code, 'wallet_session_superseded');
   assert.equal(walletCookieCount(switchedSession.headers['Set-Cookie']), 0);
 
   const loggedOut = await call(browser, 'POST', { action: 'logout', walletAddress: WALLET_A });
   assert.equal(loggedOut.statusCode, 200);
+  assert.equal(loggedOut.body.cleared, false);
   applySetCookie(browser, loggedOut.headers['Set-Cookie']);
   applySetCookie(browser, first.adopted.headers['Set-Cookie']);
-  applySetCookie(browser, second.adopted.headers['Set-Cookie']);
   const resurrected = await call(browser, 'GET', null);
   assert.equal(resurrected.statusCode, 401);
   assert.equal(resurrected.body.code, 'wallet_session_superseded');
+  applySetCookie(browser, second.adopted.headers['Set-Cookie']);
+  const restoredSession = await call(browser, 'GET', null);
+  assert.equal(restoredSession.statusCode, 200);
+  assert.equal(restoredSession.body.walletAddress, WALLET_B);
 
   const cancelled = createJar();
   const prepared = await call(cancelled, 'POST', { action: 'prepare-auth' });
@@ -263,8 +275,12 @@ test('an in-flight authenticate cannot Set-Cookie over a newer browser wallet', 
     attemptId: prepared.body.attemptId
   });
   assert.equal(granted.statusCode, 200);
-  const fenced = await call(cancelled, 'POST', { action: 'supersede-auth' });
+  const fenced = await call(cancelled, 'POST', {
+    action: 'supersede-auth',
+    attemptId: prepared.body.attemptId
+  });
   assert.equal(fenced.body.status, 'fenced');
+  assert.equal(fenced.body.applied, true);
   const adopted = await call(cancelled, 'POST', {
     action: 'adopt-auth',
     attemptId: prepared.body.attemptId
@@ -339,6 +355,212 @@ test('an in-flight authenticate cannot Set-Cookie over a newer browser wallet', 
   assert.equal(again.body.profile.revision, 2);
   assert.equal(again.body.profile.snapshot.weeklyState.coins, 40);
   assert.equal(again.body.walletAddress, WALLET_A);
+
+  // Threat table. Each row is a server processing order, not only a cookie-jar order.
+  // Stale fence/prepare must not move a newer attempt. Disconnect clears only the
+  // session generation presented by its own cookie. Browser-scoped cookies require
+  // that same generation plus the matching guest; a binding alone is not a session.
+  const clearsSessionCookie = (setCookie) => {
+    const headers = Array.isArray(setCookie) ? setCookie : setCookie ? [setCookie] : [];
+    return headers.some((header) => (
+      String(header).startsWith(`${SESSION_COOKIE_NAME}=`)
+      && /Max-Age=0(?:;|$)/.test(String(header))
+    ));
+  };
+  const prepareAuth = (target, replacesAttemptId) => call(target, 'POST', {
+    action: 'prepare-auth',
+    ...(replacesAttemptId ? { replacesAttemptId } : {})
+  });
+  const signAttempt = async (target, address, attemptId) => {
+    const challenge = await call(target, 'POST', { action: 'challenge', address });
+    return call(target, 'POST', {
+      action: 'authenticate',
+      address,
+      challengeId: challenge.body.challengeId,
+      signature: '0xverified',
+      attemptId
+    });
+  };
+
+  const race = createJar();
+  const attemptA = await prepareAuth(race);
+  const attemptB = await prepareAuth(race, attemptA.body.attemptId);
+  const fenceAfterPrepare = await call(race, 'POST', {
+    action: 'supersede-auth',
+    attemptId: attemptA.body.attemptId
+  });
+  assert.equal(fenceAfterPrepare.body.applied, false);
+  const grantAfterFence = await signAttempt(race, WALLET_B, attemptB.body.attemptId);
+  assert.equal(grantAfterFence.statusCode, 200);
+  const fenceAfterGrant = await call(race, 'POST', {
+    action: 'supersede-auth',
+    attemptId: attemptA.body.attemptId
+  });
+  assert.equal(fenceAfterGrant.body.applied, false);
+  const adoptAfterGrant = await call(race, 'POST', {
+    action: 'adopt-auth',
+    attemptId: attemptB.body.attemptId
+  });
+  assert.equal(adoptAfterGrant.statusCode, 200);
+  applySetCookie(race, adoptAfterGrant.headers['Set-Cookie']);
+  const fenceAfterAdopt = await call(race, 'POST', {
+    action: 'supersede-auth',
+    attemptId: attemptA.body.attemptId
+  });
+  assert.equal(fenceAfterAdopt.body.applied, false);
+  assert.equal(clearsSessionCookie(fenceAfterAdopt.headers['Set-Cookie']), false);
+  const stalePrepare = await prepareAuth(race);
+  assert.equal(stalePrepare.statusCode, 200);
+  const staleGrant = await signAttempt(race, WALLET_A, attemptA.body.attemptId);
+  assert.equal(staleGrant.statusCode, 409);
+  await call(race, 'POST', {
+    action: 'supersede-auth',
+    attemptId: stalePrepare.body.attemptId
+  });
+  const stillBound = await call(race, 'GET', null);
+  assert.equal(stillBound.statusCode, 200);
+  assert.equal(stillBound.body.walletAddress, WALLET_B);
+  const reissued = verifyWalletProfileSession(race.get(SESSION_COOKIE_NAME));
+  if (stillBound.headers['Set-Cookie']) {
+    applySetCookie(race, stillBound.headers['Set-Cookie']);
+    assert.equal(
+      verifyWalletProfileSession(race.get(SESSION_COOKIE_NAME)).expiresAt,
+      reissued.expiresAt
+    );
+  }
+
+  const previousJar = new Map(race);
+  const next = await prepareAuth(race, attemptB.body.attemptId);
+  const nextGrant = await signAttempt(race, WALLET_A, next.body.attemptId);
+  assert.equal(nextGrant.statusCode, 200);
+  const disconnectDuringGrant = await call(previousJar, 'POST', {
+    action: 'logout',
+    walletAddress: WALLET_B
+  });
+  assert.equal(disconnectDuringGrant.body.cleared, true);
+  assert.equal(clearsSessionCookie(disconnectDuringGrant.headers['Set-Cookie']), true);
+  const adoptAfterDisconnect = await call(race, 'POST', {
+    action: 'adopt-auth',
+    attemptId: next.body.attemptId
+  });
+  assert.equal(adoptAfterDisconnect.statusCode, 409);
+  assert.equal(walletCookieCount(adoptAfterDisconnect.headers['Set-Cookie']), 0);
+
+  const reconnected = createJar();
+  const firstSession = await (async () => {
+    const prepared = await prepareAuth(reconnected);
+    const granted = await signAttempt(reconnected, WALLET_A, prepared.body.attemptId);
+    assert.equal(granted.statusCode, 200);
+    const adopted = await call(reconnected, 'POST', {
+      action: 'adopt-auth',
+      attemptId: prepared.body.attemptId
+    });
+    applySetCookie(reconnected, adopted.headers['Set-Cookie']);
+    return { prepared, adopted };
+  })();
+  const beforeNextAdopt = new Map(reconnected);
+  const previousGeneration = verifyWalletProfileSession(
+    beforeNextAdopt.get(SESSION_COOKIE_NAME)
+  ).authGeneration;
+  const replacement = await prepareAuth(reconnected, firstSession.prepared.body.attemptId);
+  const replacementGrant = await signAttempt(reconnected, WALLET_B, replacement.body.attemptId);
+  assert.equal(replacementGrant.statusCode, 200);
+  const replacementAdopt = await call(reconnected, 'POST', {
+    action: 'adopt-auth',
+    attemptId: replacement.body.attemptId
+  });
+  assert.equal(replacementAdopt.statusCode, 200);
+  applySetCookie(reconnected, replacementAdopt.headers['Set-Cookie']);
+  assert.notEqual(
+    verifyWalletProfileSession(reconnected.get(SESSION_COOKIE_NAME)).authGeneration,
+    previousGeneration
+  );
+  const lateDisconnect = await call(beforeNextAdopt, 'POST', {
+    action: 'logout',
+    walletAddress: WALLET_A
+  });
+  assert.equal(lateDisconnect.body.cleared, false);
+  assert.equal(clearsSessionCookie(lateDisconnect.headers['Set-Cookie']), false);
+  applySetCookie(reconnected, lateDisconnect.headers['Set-Cookie']);
+  const keptReplacement = await call(reconnected, 'GET', null);
+  assert.equal(keptReplacement.statusCode, 200);
+  assert.equal(keptReplacement.body.walletAddress, WALLET_B);
+
+  const liveCookie = reconnected.get(SESSION_COOKIE_NAME);
+  const liveGuest = reconnected.get(GUEST_COOKIE_NAME);
+  const withoutGuest = new Map([[SESSION_COOKIE_NAME, liveCookie]]);
+  const missingGuest = await call(withoutGuest, 'GET', null);
+  assert.equal(missingGuest.statusCode, 401);
+  assert.equal(missingGuest.body.code, 'wallet_session_superseded');
+  const otherGuest = createJar();
+  otherGuest.set(SESSION_COOKIE_NAME, liveCookie);
+  const changedGuest = await call(otherGuest, 'GET', null);
+  assert.equal(changedGuest.statusCode, 401);
+  assert.equal(changedGuest.body.code, 'wallet_session_superseded');
+
+  const disconnectNow = await call(reconnected, 'POST', {
+    action: 'logout',
+    walletAddress: WALLET_B
+  });
+  assert.equal(disconnectNow.body.cleared, true);
+  const replayWithoutGuest = new Map([[SESSION_COOKIE_NAME, liveCookie]]);
+  const replayChangedGuest = createJar();
+  replayChangedGuest.set(SESSION_COOKIE_NAME, liveCookie);
+  const replaySameGuest = new Map([
+    [GUEST_COOKIE_NAME, liveGuest],
+    [SESSION_COOKIE_NAME, liveCookie]
+  ]);
+  for (const replay of [replayWithoutGuest, replayChangedGuest, replaySameGuest]) {
+    const replayed = await call(replay, 'GET', null);
+    assert.equal(replayed.statusCode, 401);
+    assert.equal(replayed.body.code, 'wallet_session_superseded');
+  }
+
+  const fresh = createJar();
+  const freshPrepared = await prepareAuth(fresh);
+  const freshGranted = await signAttempt(fresh, WALLET_A, freshPrepared.body.attemptId);
+  assert.equal(freshGranted.statusCode, 200);
+  const freshAdopted = await call(fresh, 'POST', {
+    action: 'adopt-auth',
+    attemptId: freshPrepared.body.attemptId
+  });
+  applySetCookie(fresh, freshAdopted.headers['Set-Cookie']);
+  const currentSession = verifyWalletProfileSession(fresh.get(SESSION_COOKIE_NAME));
+  const guestId = verifyGuestIdentityToken(fresh.get(GUEST_COOKIE_NAME)).guestId;
+  assert.equal(currentSession.browserId, guestId);
+  const expiredJar = new Map(fresh);
+  expiredJar.set(SESSION_COOKIE_NAME, createWalletProfileSession(
+    WALLET_A,
+    Date.now() - 120_000,
+    60_000,
+    { browserId: guestId, authGeneration: currentSession.authGeneration }
+  ));
+  const expired = await call(expiredJar, 'GET', null);
+  assert.equal(expired.statusCode, 401);
+  const missingCookie = new Map(fresh);
+  missingCookie.delete(SESSION_COOKIE_NAME);
+  const absent = await call(missingCookie, 'GET', null);
+  assert.equal(absent.statusCode, 401);
+
+  const legacyJar = new Map();
+  const legacyChallenge = await call(legacyJar, 'POST', { action: 'challenge', address: WALLET_A });
+  const legacyAuth = await call(legacyJar, 'POST', {
+    action: 'authenticate',
+    address: WALLET_A,
+    challengeId: legacyChallenge.body.challengeId,
+    signature: '0xverified'
+  });
+  assert.equal(legacyAuth.statusCode, 200);
+  applySetCookie(legacyJar, legacyAuth.headers['Set-Cookie']);
+  assert.equal(verifyWalletProfileSession(legacyJar.get(SESSION_COOKIE_NAME)).browserId, null);
+  const legacyLoad = await call(legacyJar, 'GET', null);
+  assert.equal(legacyLoad.statusCode, 200);
+  assert.equal(legacyLoad.body.walletAddress, WALLET_A);
+  const legacyWithGuest = createJar();
+  legacyWithGuest.set(SESSION_COOKIE_NAME, legacyJar.get(SESSION_COOKIE_NAME));
+  const legacyBesideGuest = await call(legacyWithGuest, 'GET', null);
+  assert.equal(legacyBesideGuest.statusCode, 200);
+  assert.equal(legacyBesideGuest.body.walletAddress, WALLET_A);
 });
 
 test('a legacy same-address cache is archived once and does not replace the guest save', async () => {

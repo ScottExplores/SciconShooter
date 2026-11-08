@@ -79,7 +79,7 @@ const installAuthoritativeSession = (res, walletAddress, binding, guestId) => {
     undefined,
     {
       browserId: guestId,
-      authGeneration: binding.generation
+      authGeneration: binding.sessionGeneration
     }
   ));
 };
@@ -146,7 +146,12 @@ module.exports = async (req, res) => {
       }
       // Reissue only a cookie that already names the authoritative wallet.
       // Rewriting a stale cookie here would itself be a delayed Set-Cookie.
-      if (cookieSession && cookieSession.walletAddress === session.walletAddress) {
+      if (
+        cookieSession
+        && cookieSession.walletAddress === session.walletAddress
+        && cookieSession.expiresAt === session.expiresAt
+      ) {
+        // Reissue the same signed token. A new token would extend its lifetime.
         setWalletProfileSessionCookie(res, token);
       }
       return sendJson(res, 200, {
@@ -172,13 +177,27 @@ module.exports = async (req, res) => {
     if (body.action === 'prepare-auth' || body.action === 'supersede-auth') {
       const guest = readGuestIdentityOrEstablish(req, res);
       if (!guest) return sendJson(res, 200, { status: 'retry' });
-      const result = body.action === 'prepare-auth'
-        ? await beginBrowserAuthAttempt(guest.guestId)
-        : await fenceBrowserAuth(guest.guestId);
+      if (body.action === 'supersede-auth' && !body.attemptId) {
+        return sendJson(res, 200, { status: 'fenced', applied: false });
+      }
+      const attemptId = body.attemptId ? assertAttemptId(body.attemptId) : null;
+      const replacesAttemptId = body.replacesAttemptId
+        ? assertAttemptId(body.replacesAttemptId)
+        : null;
+      if (body.action === 'prepare-auth') {
+        const result = await beginBrowserAuthAttempt(guest.guestId, { replacesAttemptId });
+        if (!result.ok || !result.binding?.attempt) throw superseded();
+        return sendJson(res, 200, {
+          status: 'ready',
+          attemptId: result.binding.attempt,
+          sessionGeneration: result.binding.sessionGeneration || 0
+        });
+      }
+      const result = await fenceBrowserAuth(guest.guestId, attemptId);
       return sendJson(res, 200, {
-        status: body.action === 'prepare-auth' ? 'ready' : 'fenced',
-        attemptId: result.binding?.attempt || null,
-        generation: result.binding?.generation || 0
+        status: 'fenced',
+        applied: result.applied === true,
+        attemptId: result.binding?.attempt || null
       });
     }
     if (body.action === 'adopt-auth') {
@@ -190,6 +209,7 @@ module.exports = async (req, res) => {
       installAuthoritativeSession(res, adopted.binding.wallet, adopted.binding, guest.guestId);
       return sendJson(res, 200, {
         walletAddress: adopted.binding.wallet,
+        authGeneration: adopted.binding.sessionGeneration,
         profile: await fetchWalletProfile(adopted.binding.wallet)
       });
     }
@@ -198,11 +218,9 @@ module.exports = async (req, res) => {
       const attemptId = assertAttemptId(body.attemptId);
       if (!guest) return sendJson(res, 200, { released: false });
       const released = await releaseBrowserAuthAttempt(guest.guestId, attemptId);
-      if (released.ok && released.binding?.state === 'cleared') {
-        clearWalletProfileSessionCookie(res);
-      }
+      if (released.cleared) clearWalletProfileSessionCookie(res);
       return sendJson(res, 200, {
-        released: Boolean(released.ok && released.binding?.state === 'cleared')
+        released: released.cleared === true
       });
     }
     if (body.action === 'bootstrap') {
@@ -310,30 +328,41 @@ module.exports = async (req, res) => {
     }
     if (body.action === 'logout') {
       const guest = readGuestIdentity(req);
-      if (guest) {
-        // Same-browser disconnect invalidates every in-flight grant. A late
-        // Set-Cookie can still arrive, but the cleared binding rejects it.
-        await clearBrowserAuth(guest.guestId);
-        clearWalletProfileSessionCookie(res);
-        return sendJson(res, 200, { ok: true });
+      const token = readWalletProfileSessionToken(req);
+      let cookieSession = null;
+      if (token) {
+        try {
+          cookieSession = verifyWalletProfileSession(token);
+        } catch {
+          cookieSession = null;
+        }
       }
-      const session = await readAuthoritativeWalletProfileSession(req);
+      if (guest && cookieSession?.browserId) {
+        if (cookieSession.browserId !== guest.guestId) {
+          return sendJson(res, 200, { ok: true, cleared: false });
+        }
+        const cleared = await clearBrowserAuth(guest.guestId, {
+          sessionGeneration: cookieSession.authGeneration
+        });
+        if (cleared.cleared) clearWalletProfileSessionCookie(res);
+        return sendJson(res, 200, { ok: true, cleared: cleared.cleared === true });
+      }
+      if (!cookieSession || cookieSession.browserId) {
+        return sendJson(res, 200, { ok: true, cleared: false });
+      }
       const expectedWalletAddress = normalizeWalletAddress(body.walletAddress);
-      if (!expectedWalletAddress || expectedWalletAddress !== session.walletAddress) {
+      if (!expectedWalletAddress || expectedWalletAddress !== cookieSession.walletAddress) {
         throw Object.assign(
           new Error('The wallet profile logout does not match the authorized wallet.'),
           { statusCode: 403 }
         );
       }
       clearWalletProfileSessionCookie(res);
-      return sendJson(res, 200, { ok: true });
+      return sendJson(res, 200, { ok: true, cleared: true });
     }
     return sendJson(res, 400, { error: 'Unknown wallet profile action' });
   } catch (error) {
     console.error('Wallet profile API error:', error);
-    if (error.code === 'wallet_session_superseded') {
-      clearWalletProfileSessionCookie(res);
-    }
     const payload = { error: error.message || 'Wallet profile request failed' };
     if (typeof error.code === 'string' && error.code) payload.code = error.code;
     if (Number.isSafeInteger(error.currentRevision)) payload.currentRevision = error.currentRevision;

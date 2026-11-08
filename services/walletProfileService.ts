@@ -307,32 +307,47 @@ interface BrowserAuthPreparation {
   generation: number;
 }
 
+let trackedBrowserAttemptId: string | null = null;
+
 const prepareBrowserAuth = async (
   shouldContinue: () => boolean
 ): Promise<BrowserAuthPreparation> => {
-  const first = await requestWalletProfile<BrowserAuthPreparation>({
+  const replacesAttemptId = trackedBrowserAttemptId;
+  const requestPrepare = () => requestWalletProfile<BrowserAuthPreparation>({
     method: 'POST',
-    body: JSON.stringify({ action: 'prepare-auth' })
+    body: JSON.stringify({
+      action: 'prepare-auth',
+      ...(replacesAttemptId ? { replacesAttemptId } : {})
+    })
   });
-  if (!shouldContinue()) throw supersededWalletAttempt();
-  if (first.status !== 'retry') return first;
-  const retried = await requestWalletProfile<BrowserAuthPreparation>({
-    method: 'POST',
-    body: JSON.stringify({ action: 'prepare-auth' })
-  });
-  if (!shouldContinue()) throw supersededWalletAttempt();
-  return retried;
+  let prepared = await requestPrepare();
+  if (!shouldContinue()) {
+    if (prepared.attemptId) await supersedeWalletBrowserAuth(prepared.attemptId);
+    throw supersededWalletAttempt();
+  }
+  if (prepared.status === 'retry') {
+    prepared = await requestPrepare();
+    if (!shouldContinue()) {
+      if (prepared.attemptId) await supersedeWalletBrowserAuth(prepared.attemptId);
+      throw supersededWalletAttempt();
+    }
+  }
+  if (!prepared.attemptId) throw supersededWalletAttempt();
+  trackedBrowserAttemptId = prepared.attemptId;
+  return prepared;
 };
 
-export const supersedeWalletBrowserAuth = async () => {
+export const supersedeWalletBrowserAuth = async (attemptId?: string | null) => {
+  if (!attemptId) return;
   try {
     await requestWalletProfile({
       method: 'POST',
-      body: JSON.stringify({ action: 'supersede-auth' })
+      body: JSON.stringify({ action: 'supersede-auth', attemptId })
     });
   } catch {
-    // A newer authenticate still has to match the server attempt id.
+    // The server ignores a fence for an attempt that is no longer current.
   }
+  if (trackedBrowserAttemptId === attemptId) trackedBrowserAttemptId = null;
 };
 
 export const releaseWalletBrowserAuth = async (attemptId: string) => {

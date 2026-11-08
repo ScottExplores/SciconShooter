@@ -3,8 +3,8 @@ const { fetchSupabaseJson, supabaseHeaders } = require('./supabase');
 const { readGuestIdentity } = require('./guestIdentity');
 const {
   normalizeWalletAddress,
-  readOptionalWalletProfileSession,
-  readWalletProfileSession,
+  readWalletProfileSessionToken,
+  verifyWalletProfileSession,
   walletProfileId
 } = require('./walletProfileAuth');
 
@@ -40,7 +40,8 @@ const encodeBinding = (binding) => [
   `attempt=${token(binding.attempt)}`,
   `bound=${token(binding.boundAttempt)}`,
   `grant=${token(binding.grantAttempt)}`,
-  `grantWallet=${binding.grantWallet || ZERO_WALLET}`
+  `grantWallet=${binding.grantWallet || ZERO_WALLET}`,
+  `session=${Number.isSafeInteger(binding.sessionGeneration) ? binding.sessionGeneration : 0}`
 ].join(' ');
 
 const fromToken = (value) => (value && value !== '-' ? value : null);
@@ -55,10 +56,14 @@ const decodeBinding = (row) => {
   const generation = Number(fields.gen);
   const wallet = normalizeWalletAddress(fields.wallet);
   const grantWallet = normalizeWalletAddress(fields.grantWallet);
+  const explicitSession = Number(fields.session);
   if (!Number.isSafeInteger(generation) || generation < 1) return null;
   if (!['open', 'bound', 'cleared'].includes(fields.state)) return null;
   return {
     generation,
+    sessionGeneration: Number.isSafeInteger(explicitSession) && explicitSession >= 0
+      ? explicitSession
+      : generation,
     state: fields.state,
     wallet: wallet && wallet !== ZERO_WALLET ? wallet : null,
     attempt: fromToken(fields.attempt),
@@ -132,12 +137,24 @@ const decide = async (guestId, recipe, now = Date.now()) => {
   for (let attempt = 0; attempt < MAX_CAS_ATTEMPTS; attempt += 1) {
     const current = await readBrowserAuth(guestId);
     const decision = recipe(current);
-    if (decision.type === 'reject') return { ok: false, binding: current };
-    if (decision.type === 'unchanged') return { ok: true, binding: current };
+    if (decision.type === 'reject') {
+      return { ok: false, applied: false, cleared: false, binding: current };
+    }
+    if (decision.type === 'unchanged') {
+      return { ok: true, applied: false, cleared: false, binding: current };
+    }
     const written = current
       ? await swapBrowserAuth(guestId, current.rawMessage, decision.binding, now)
       : await insertBrowserAuth(guestId, decision.binding, now);
-    if (written) return { ok: true, binding: written };
+    if (written) {
+      return {
+        ok: true,
+        applied: true,
+        cleared: decision.cleared === true,
+        preservedAttempt: decision.preservedAttempt === true,
+        binding: written
+      };
+    }
   }
   throw browserAuthError(
     'Browser wallet session changed. Retry the connection.',
@@ -146,8 +163,9 @@ const decide = async (guestId, recipe, now = Date.now()) => {
   );
 };
 
-const keptWallet = (current) => (
-  current?.state === 'bound' && current.wallet
+const keptSession = (current) => ({
+  sessionGeneration: current?.sessionGeneration || 0,
+  ...(current?.state === 'bound' && current.wallet
     ? {
       state: 'bound',
       wallet: current.wallet,
@@ -157,40 +175,83 @@ const keptWallet = (current) => (
       state: current?.state === 'cleared' ? 'cleared' : 'open',
       wallet: null,
       boundAttempt: null
+    })
+});
+
+const attemptSlot = (current) => current?.attempt || null;
+
+/**
+ * Install a new attempt only when it replaces the attempt the client observed.
+ * A delayed prepare whose observed attempt is no longer current does not write.
+ */
+const beginBrowserAuthAttempt = (guestId, { replacesAttemptId = null } = {}, now = Date.now()) => (
+  decide(guestId, (current) => {
+    const replacing = replacesAttemptId || null;
+    if (!current) {
+      if (replacing) return { type: 'reject' };
+      return {
+        type: 'write',
+        binding: {
+          generation: 1,
+          sessionGeneration: 0,
+          state: 'open',
+          wallet: null,
+          attempt: crypto.randomUUID(),
+          boundAttempt: null,
+          grantAttempt: null,
+          grantWallet: null
+        }
+      };
     }
+    const slot = attemptSlot(current);
+    // A prepared attempt is replaced only by the client that observed it.
+    // An empty slot can accept a new attempt, including after disconnect or reload.
+    if (slot && slot !== replacing) return { type: 'reject' };
+    const kept = keptSession(current);
+    return {
+      type: 'write',
+      binding: {
+        generation: current.generation + 1,
+        sessionGeneration: kept.sessionGeneration,
+        state: kept.state === 'cleared' ? 'open' : kept.state,
+        wallet: kept.state === 'bound' ? kept.wallet : null,
+        attempt: crypto.randomUUID(),
+        boundAttempt: kept.state === 'bound' ? kept.boundAttempt : null,
+        grantAttempt: null,
+        grantWallet: null
+      }
+    };
+  }, now)
 );
 
-const beginBrowserAuthAttempt = (guestId, now = Date.now()) => decide(guestId, (current) => {
-  const kept = keptWallet(current);
-  return {
-    type: 'write',
-    binding: {
-      generation: (current?.generation || 0) + 1,
-      state: kept.state === 'cleared' ? 'open' : kept.state,
-      wallet: kept.state === 'bound' ? kept.wallet : null,
-      attempt: crypto.randomUUID(),
-      boundAttempt: kept.state === 'bound' ? kept.boundAttempt : null,
-      grantAttempt: null,
-      grantWallet: null
-    }
-  };
-}, now);
-
-const fenceBrowserAuth = (guestId, now = Date.now()) => decide(guestId, (current) => {
-  const kept = keptWallet(current);
-  return {
-    type: 'write',
-    binding: {
-      generation: (current?.generation || 0) + 1,
-      state: kept.state,
-      wallet: kept.wallet,
-      attempt: null,
-      boundAttempt: kept.boundAttempt,
-      grantAttempt: null,
-      grantWallet: null
-    }
-  };
-}, now);
+/**
+ * Drop one attempt's pending slot and grant. A fence for an attempt that is
+ * no longer current is a no-op, including when a newer attempt has already
+ * been prepared, granted, or adopted.
+ */
+const fenceBrowserAuth = (guestId, attemptId, now = Date.now()) => (
+  decide(guestId, (current) => {
+    if (!current || !attemptId) return { type: 'unchanged' };
+    const matchesAttempt = current.attempt === attemptId;
+    const matchesGrant = current.grantAttempt === attemptId;
+    if (!matchesAttempt && !matchesGrant) return { type: 'unchanged' };
+    const kept = keptSession(current);
+    return {
+      type: 'write',
+      applied: true,
+      binding: {
+        generation: current.generation + 1,
+        sessionGeneration: kept.sessionGeneration,
+        state: kept.state,
+        wallet: kept.wallet,
+        attempt: matchesAttempt ? null : current.attempt,
+        boundAttempt: kept.boundAttempt,
+        grantAttempt: matchesGrant ? null : current.grantAttempt,
+        grantWallet: matchesGrant ? null : current.grantWallet
+      }
+    };
+  }, now)
+);
 
 const grantBrowserAuthAttempt = (guestId, { attemptId, wallet }, now = Date.now()) => (
   decide(guestId, (current) => {
@@ -212,13 +273,19 @@ const grantBrowserAuthAttempt = (guestId, { attemptId, wallet }, now = Date.now(
 
 const adoptBrowserAuthAttempt = (guestId, attemptId, now = Date.now()) => (
   decide(guestId, (current) => {
-    if (!current || current.grantAttempt !== attemptId || !current.grantWallet) {
+    if (
+      !current
+      || current.state === 'cleared'
+      || current.grantAttempt !== attemptId
+      || !current.grantWallet
+    ) {
       return { type: 'reject' };
     }
     return {
       type: 'write',
       binding: {
-        generation: current.generation,
+        generation: current.generation + 1,
+        sessionGeneration: (current.sessionGeneration || 0) + 1,
         state: 'bound',
         wallet: current.grantWallet,
         attempt: null,
@@ -234,10 +301,30 @@ const releaseBrowserAuthAttempt = (guestId, attemptId, now = Date.now()) => (
   decide(guestId, (current) => {
     if (!current) return { type: 'unchanged' };
     if (current.boundAttempt === attemptId) {
+      const newerAttempt = current.attempt && current.attempt !== attemptId;
+      const newerGrant = current.grantAttempt && current.grantAttempt !== attemptId;
+      if (newerAttempt || newerGrant) {
+        return {
+          type: 'write',
+          preservedAttempt: true,
+          binding: {
+            generation: current.generation + 1,
+            sessionGeneration: (current.sessionGeneration || 0) + 1,
+            state: 'open',
+            wallet: null,
+            attempt: newerAttempt ? current.attempt : null,
+            boundAttempt: null,
+            grantAttempt: newerGrant ? current.grantAttempt : null,
+            grantWallet: newerGrant ? current.grantWallet : null
+          }
+        };
+      }
       return {
         type: 'write',
+        cleared: true,
         binding: {
           generation: current.generation + 1,
+          sessionGeneration: (current.sessionGeneration || 0) + 1,
           state: 'cleared',
           wallet: null,
           attempt: null,
@@ -247,17 +334,19 @@ const releaseBrowserAuthAttempt = (guestId, attemptId, now = Date.now()) => (
         }
       };
     }
-    if (current.grantAttempt === attemptId) {
+    if (current.grantAttempt === attemptId || current.attempt === attemptId) {
       return {
         type: 'write',
+        applied: true,
         binding: {
           generation: current.generation + 1,
+          sessionGeneration: current.sessionGeneration || 0,
           state: current.state,
           wallet: current.wallet,
           attempt: current.attempt === attemptId ? null : current.attempt,
           boundAttempt: current.boundAttempt,
-          grantAttempt: null,
-          grantWallet: null
+          grantAttempt: current.grantAttempt === attemptId ? null : current.grantAttempt,
+          grantWallet: current.grantAttempt === attemptId ? null : current.grantWallet
         }
       };
     }
@@ -265,84 +354,86 @@ const releaseBrowserAuthAttempt = (guestId, attemptId, now = Date.now()) => (
   }, now)
 );
 
-const clearBrowserAuth = (guestId, now = Date.now()) => decide(guestId, (current) => ({
-  type: 'write',
-  binding: {
-    generation: (current?.generation || 0) + 1,
-    state: 'cleared',
-    wallet: null,
-    attempt: null,
-    boundAttempt: null,
-    grantAttempt: null,
-    grantWallet: null
-  }
-}), now);
-
-const sessionFromBinding = (binding, guestId) => {
-  if (!binding) return { kind: 'legacy' };
-  if (binding.state === 'cleared') return { kind: 'cleared', browserId: guestId, authGeneration: binding.generation };
-  if (binding.state === 'bound' && binding.wallet) {
+const clearBrowserAuth = (guestId, { sessionGeneration } = {}, now = Date.now()) => (
+  decide(guestId, (current) => {
+    if (!current || current.state === 'cleared') return { type: 'unchanged' };
+    const currentSession = current.sessionGeneration || 0;
+    if (sessionGeneration == null || currentSession !== sessionGeneration) {
+      return { type: 'unchanged' };
+    }
     return {
-      kind: 'bound',
-      walletAddress: binding.wallet,
-      profileId: walletProfileId(binding.wallet),
-      browserId: guestId,
-      authGeneration: binding.generation,
-      source: 'browser-binding'
+      type: 'write',
+      cleared: true,
+      binding: {
+        generation: current.generation + 1,
+        sessionGeneration: currentSession + 1,
+        state: 'cleared',
+        wallet: null,
+        attempt: null,
+        boundAttempt: null,
+        grantAttempt: null,
+        grantWallet: null
+      }
     };
-  }
-  return { kind: 'legacy' };
-};
+  }, now)
+);
 
-const readBrowserSession = async (req, now = Date.now()) => {
-  const guest = readGuestIdentity(req, now);
-  if (!guest) return { kind: 'legacy', guest: null };
-  let cookieSession = null;
-  try {
-    cookieSession = readOptionalWalletProfileSession(req, now);
-  } catch {
-    cookieSession = null;
-  }
-  try {
-    const binding = await readBrowserAuth(guest.guestId);
-    return { ...sessionFromBinding(binding, guest.guestId), guest };
-  } catch (error) {
-    // A cookie issued before browser bindings existed has no browserId.
-    // Keep that session available when the binding store cannot be read.
-    // A browser-scoped cookie fails closed so a stale Set-Cookie cannot win.
-    if (!cookieSession?.browserId) return { kind: 'legacy', guest };
-    throw error;
-  }
-};
+const authorizationRequired = (code = 'wallet_profile_authorization_required') => (
+  browserAuthError('Wallet profile authorization is required.', 401, code)
+);
 
-const readAuthoritativeWalletProfileSession = async (req, now = Date.now()) => {
-  const browser = await readBrowserSession(req, now);
-  if (browser.kind === 'cleared') {
-    throw browserAuthError(
-      'Wallet profile authorization is required.',
-      401,
-      'wallet_session_superseded'
-    );
-  }
-  if (browser.kind === 'bound') return browser;
+const readPresentedWalletSession = (req, now) => {
+  const token = readWalletProfileSessionToken(req);
+  if (!token) return null;
   return {
-    ...readWalletProfileSession(req, now),
-    source: 'legacy-cookie'
+    token,
+    session: verifyWalletProfileSession(token, now)
+  };
+};
+
+/**
+ * A browser-scoped cookie is authoritative only together with the same guest
+ * and a bound binding for that exact wallet and session generation. A binding
+ * never authorizes by itself, and a browser-scoped cookie never falls back to
+ * the legacy cookie path. Cookies without a browser id remain legacy sessions.
+ */
+const readAuthoritativeWalletProfileSession = async (req, now = Date.now()) => {
+  const presented = readPresentedWalletSession(req, now);
+  if (!presented) throw authorizationRequired();
+  const { session } = presented;
+  if (!session.browserId) {
+    return { ...session, source: 'legacy-cookie' };
+  }
+  if (!Number.isSafeInteger(session.authGeneration) || session.authGeneration < 1) {
+    throw authorizationRequired('wallet_session_superseded');
+  }
+  const guest = readGuestIdentity(req, now);
+  if (!guest || guest.guestId !== session.browserId) {
+    throw authorizationRequired('wallet_session_superseded');
+  }
+  const binding = await readBrowserAuth(guest.guestId);
+  if (
+    !binding
+    || binding.state !== 'bound'
+    || binding.wallet !== session.walletAddress
+    || (binding.sessionGeneration || 0) !== session.authGeneration
+  ) {
+    throw authorizationRequired('wallet_session_superseded');
+  }
+  return {
+    walletAddress: binding.wallet,
+    profileId: walletProfileId(binding.wallet),
+    browserId: guest.guestId,
+    authGeneration: binding.sessionGeneration,
+    issuedAt: session.issuedAt,
+    expiresAt: session.expiresAt,
+    source: 'browser-binding'
   };
 };
 
 const readOptionalAuthoritativeWalletProfileSession = async (req, now = Date.now()) => {
-  const browser = await readBrowserSession(req, now);
-  if (browser.kind === 'cleared') {
-    throw browserAuthError(
-      'Wallet profile authorization is required.',
-      401,
-      'wallet_session_superseded'
-    );
-  }
-  if (browser.kind === 'bound') return browser;
-  const cookieSession = readOptionalWalletProfileSession(req, now);
-  return cookieSession ? { ...cookieSession, source: 'legacy-cookie' } : null;
+  if (!readWalletProfileSessionToken(req)) return null;
+  return readAuthoritativeWalletProfileSession(req, now);
 };
 
 const assertAttemptId = (attemptId) => {

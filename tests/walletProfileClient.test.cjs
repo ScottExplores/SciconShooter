@@ -100,7 +100,9 @@ test('routine wallet disconnect revokes the browser session so a stale cookie ca
     runtime.indexOf('useEffect(() => rscBalanceCoordinator')
   );
   assert.match(disconnect, /logoutWalletProfileSession\(previousAddress\)/);
-  assert.match(runtime, /supersedeWalletBrowserAuth\(\)/);
+  assert.match(service, /replacesAttemptId/);
+  assert.match(service, /action: 'supersede-auth', attemptId/);
+  assert.doesNotMatch(runtime, /supersedeWalletBrowserAuth\(\)/);
 });
 
 test('remembered wallets never open an authorization prompt during app startup', () => {
