@@ -245,7 +245,6 @@ import {
   flushDirtyWalletProfile,
   getSelectedShipStorageKey,
   getWalletProfileId,
-  linkAuthenticatedGuestProgress,
   loadAuthenticatedWalletProfile,
   readCachedWalletProfile,
   saveAuthenticatedWalletProfile,
@@ -262,10 +261,7 @@ import {
   getWalletProfileSyncFailurePolicy,
   WALLET_PROFILE_SYNC_BUSY_MESSAGE
 } from './services/walletProfileSyncPolicy';
-import {
-  isCurrentGuestLinkResult,
-  prepareGuestLinkSnapshot
-} from './services/guestWalletLink';
+import { walletSnapshotHasOwnedProgress } from './services/guestWalletLink';
 import {
   discardWalletProfileDirty,
   markWalletProfileDirty,
@@ -2597,17 +2593,12 @@ const App: React.FC = () => {
   ): WalletProfileSnapshot => {
     const normalizedAddress = walletAddress.toLowerCase();
 
-    // Only import saves that already belong to this exact verified wallet.
+    // Only a same-address legacy cache can seed this wallet's local keys.
+    // The device guest save is not authenticated and is not copied.
     migrateLegacySquadProfile(normalizedAddress, walletProfileId);
     if (pilotProfile.migratedFromWallet === normalizedAddress) {
-      migrateLegacySquadProfile(pilotProfile.id, walletProfileId);
-      const pilotStats = readPilotStats(pilotProfile.id);
       const walletStats = readPilotStats(walletProfileId);
-      savePilotStats(walletProfileId, {
-        highScore: Math.max(walletStats.highScore, pilotStats.highScore),
-        totalCoins: Math.max(walletStats.totalCoins, pilotStats.totalCoins),
-        playerName: walletStats.playerName || pilotStats.playerName
-      });
+      savePilotStats(walletProfileId, walletStats);
     } else {
       const legacyStats = readPilotStats(normalizedAddress);
       const walletStats = readPilotStats(walletProfileId);
@@ -2728,48 +2719,30 @@ const App: React.FC = () => {
         const flushedProfile = await flushDirtyWalletProfile(normalizedAddress);
         if (!isCurrent()) return;
         if (flushedProfile) profile = flushedProfile;
-        if (!isOwnerWallet) {
-          const guestSnapshot = prepareGuestLinkSnapshot(
-            {
-              stats: readPilotStats(pilotProfile.id),
-              weeklyState: loadWeeklySquadState(pilotProfile.id),
-              permanentState: {
-                ...loadPermanentSquadState(pilotProfile.id),
-                mintedMiniShips: []
-              },
-              selectedShipId: parsePlayerShipId(
-                localStorage.getItem(getSelectedShipStorageKey(pilotProfile.id))
-              )
-            },
-            createWalletSeedSnapshot(normalizedAddress, walletProfileId)
-          );
-          const linked = await linkAuthenticatedGuestProgress({
-            walletAddress: normalizedAddress,
-            guestProfileId: pilotProfile.id,
-            guestSnapshot
-          });
-          if (!isCurrentGuestLinkResult({
-            requestGeneration: transitionNonce,
-            currentGeneration: profileTransitionNonceRef.current,
-            requestWallet: normalizedAddress,
-            activeWallet: walletProfileAddressRef.current,
-            resultWallet: linked.walletAddress
-          })) return;
-          if (linked.profile) profile = linked.profile;
-        }
         if (!isCurrent()) return;
         if (!profile) {
           const seed = createWalletSeedSnapshot(
             normalizedAddress,
             walletProfileId
           );
-          profile = await saveAuthenticatedWalletProfile({
-            walletAddress: normalizedAddress,
-            expectedRevision: 0,
-            snapshot: seed
-          });
+          if (walletSnapshotHasOwnedProgress(seed)) {
+            profile = await saveAuthenticatedWalletProfile({
+              walletAddress: normalizedAddress,
+              expectedRevision: 0,
+              snapshot: seed
+            });
+          }
         }
         if (!isCurrent()) return;
+        if (!profile || !walletSnapshotHasOwnedProgress(profile.snapshot)) {
+          // An empty wallet does not replace the device guest. Guest coins,
+          // unlocks, and the unverified personal best stay on this device.
+          walletProfileLocalBaselineRef.current = hydrateActiveProfile({
+            profileId: pilotProfile.id
+          });
+          setWalletProfileStatus('ready');
+          return;
+        }
         cacheWalletProfile(profile);
         walletProfileRevisionRef.current = profile.revision;
         walletProfileSyncedSnapshotRef.current = profile.snapshot;

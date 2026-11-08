@@ -7,114 +7,41 @@ const normalizeAddress = (value: string | null | undefined) => {
   return ADDRESS_PATTERN.test(address) ? address : '';
 };
 
-const upgradeLevel = (value: unknown) => Math.max(0, Math.floor(Number(value) || 0));
-
-const mergeUpgradeTracks = (
-  guest: WalletProfileSnapshot['weeklyState']['shipUpgrades'],
-  device: WalletProfileSnapshot['weeklyState']['shipUpgrades']
-) => {
-  const shipIds = new Set([
-    ...Object.keys(guest || {}),
-    ...Object.keys(device || {})
-  ]);
-  return Object.fromEntries([...shipIds].map((shipId) => {
-    const left = guest?.[shipId as keyof typeof guest];
-    const right = device?.[shipId as keyof typeof device];
-    return [shipId, {
-      fireRate: Math.max(upgradeLevel(left?.fireRate), upgradeLevel(right?.fireRate)),
-      speed: Math.max(upgradeLevel(left?.speed), upgradeLevel(right?.speed)),
-      ability: Math.max(upgradeLevel(left?.ability), upgradeLevel(right?.ability)),
-      startingHearts: Math.max(upgradeLevel(left?.startingHearts), upgradeLevel(right?.startingHearts))
-    }];
-  })) as WalletProfileSnapshot['weeklyState']['shipUpgrades'];
-};
-
-const mergeMiniShips = (
-  guest: WalletProfileSnapshot['weeklyState']['ownedMiniShips'],
-  device: WalletProfileSnapshot['weeklyState']['ownedMiniShips']
-) => {
-  const ids = new Set([
-    ...Object.keys(guest || {}),
-    ...Object.keys(device || {})
-  ]);
-  return Object.fromEntries([...ids].map((id) => [
-    id,
-    Math.max(upgradeLevel(guest?.[id as keyof typeof guest]), upgradeLevel(device?.[id as keyof typeof device]))
-  ])) as WalletProfileSnapshot['weeklyState']['ownedMiniShips'];
-};
-
 /**
- * One device-local view of guest play plus this browser's older wallet-keyed
- * save. Coins use the higher balance once. They are not added together.
- * The server still decides whether an existing wallet may accept any of it.
+ * Guest economy is not a wallet upload. The device snapshot stays untouched
+ * and is not merged into the authenticated profile.
  */
 export const prepareGuestLinkSnapshot = (
-  guest: WalletProfileSnapshot,
+  _guest: WalletProfileSnapshot,
   deviceWallet: WalletProfileSnapshot
-): WalletProfileSnapshot => {
-  const highScore = Math.max(
-    upgradeLevel(guest.stats.highScore),
-    upgradeLevel(deviceWallet.stats.highScore)
-  );
-  const coins = Math.max(
-    upgradeLevel(guest.weeklyState.coins),
-    upgradeLevel(deviceWallet.weeklyState.coins)
-  );
-  const durableCampaignCoins = Math.min(
-    coins,
-    Math.max(
-      upgradeLevel(guest.weeklyState.durableCampaignCoins),
-      upgradeLevel(deviceWallet.weeklyState.durableCampaignCoins)
-    )
-  );
-  return {
-    ...guest,
-    stats: {
-      highScore,
-      totalCoins: Math.max(
-        upgradeLevel(guest.stats.totalCoins),
-        upgradeLevel(deviceWallet.stats.totalCoins)
-      ),
-      playerName: guest.stats.playerName || deviceWallet.stats.playerName
-    },
-    weeklyState: {
-      ...guest.weeklyState,
-      coins,
-      durableCampaignCoins,
-      unlockedSlots: {
-        left: Boolean(guest.weeklyState.unlockedSlots.left || deviceWallet.weeklyState.unlockedSlots.left),
-        right: false
-      },
-      ownedMiniShips: mergeMiniShips(
-        guest.weeklyState.ownedMiniShips,
-        deviceWallet.weeklyState.ownedMiniShips
-      ),
-      shipUpgrades: mergeUpgradeTracks(
-        guest.weeklyState.shipUpgrades,
-        deviceWallet.weeklyState.shipUpgrades
-      ),
-      weeklyStats: {
-        ...guest.weeklyState.weeklyStats,
-        score: 0,
-        weeklyRunAttempts: 0
-      }
-    },
-    permanentState: {
-      ...guest.permanentState,
-      mintedMiniShips: [],
-      lifetimeStats: {
-        ...guest.permanentState.lifetimeStats,
-        bestScore: Math.max(
-          upgradeLevel(guest.permanentState.lifetimeStats.bestScore),
-          upgradeLevel(deviceWallet.permanentState.lifetimeStats.bestScore),
-          highScore
-        )
-      },
-      unlockedPlayerShips: guest.permanentState.unlockedPlayerShips.filter(
-        (shipId) => shipId === 'researchhub' || shipId === 'btc'
-      )
-    }
-  };
+): WalletProfileSnapshot => deviceWallet;
+
+const positive = (value: unknown) => Math.max(0, Math.floor(Number(value) || 0)) > 0;
+
+/**
+ * True when the authenticated profile already has its own progress.
+ * An empty profile must not be treated as a place to store the guest save.
+ */
+export const walletSnapshotHasOwnedProgress = (
+  snapshot: WalletProfileSnapshot | null | undefined
+) => {
+  if (!snapshot) return false;
+  const weekly = snapshot.weeklyState;
+  const permanent = snapshot.permanentState;
+  if (positive(snapshot.stats?.highScore) || positive(snapshot.stats?.totalCoins)) return true;
+  if (!weekly || !permanent) return false;
+  if (positive(weekly.coins) || positive(weekly.weeklyStats?.score) || positive(weekly.weeklyStats?.runs)) {
+    return true;
+  }
+  if (weekly.unlockedSlots?.left || weekly.unlockedSlots?.right) return true;
+  if (Object.values(weekly.ownedMiniShips || {}).some((level) => positive(level))) return true;
+  const upgrades = Object.values(weekly.shipUpgrades || {});
+  if (upgrades.some((levels) => Object.values(levels || {}).some((level) => positive(level)))) return true;
+  if (positive(permanent.lifetimeStats?.bestScore) || positive(permanent.lifetimeStats?.runs)) return true;
+  if (Object.values(permanent.achievementTiers || {}).some((tier) => positive(tier))) return true;
+  if ((permanent.campaignProgress?.completedMissionIds?.length || 0) > 0) return true;
+  if ((permanent.unlockedPlayerShips || []).some((shipId) => shipId !== 'researchhub')) return true;
+  return false;
 };
 
 export const isCurrentGuestLinkResult = ({

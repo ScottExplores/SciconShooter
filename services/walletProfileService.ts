@@ -296,7 +296,8 @@ export const readWalletProfileSession = async (): Promise<WalletProfileResponse>
 );
 
 const requestWalletProfileAuthentication = async (
-  address: Address
+  address: Address,
+  signMessage?: (address: Address, message: string) => Promise<import('viem').Hex>
 ): Promise<WalletProfileResponse> => {
   const challenge = await requestWalletProfile<WalletProfileChallenge>({
     method: 'POST',
@@ -304,9 +305,11 @@ const requestWalletProfileAuthentication = async (
   });
   const session = getActiveEvmSession();
   const { signBaseAccountMessage } = await import('./baseAccountWallet');
-  const signature = !session || session.method === 'base-account'
-    ? await signBaseAccountMessage(address, challenge.message)
-    : await signInjectedWalletMessage(session.provider, address, challenge.message);
+  const signature = signMessage
+    ? await signMessage(address, challenge.message)
+    : !session || session.method === 'base-account'
+      ? await signBaseAccountMessage(address, challenge.message)
+      : await signInjectedWalletMessage(session.provider, address, challenge.message);
   const response = await requestWalletProfile<WalletProfileResponse>({
     method: 'POST',
     body: JSON.stringify({
@@ -341,16 +344,22 @@ export const authenticateWalletProfile = async (
 export const loadAuthenticatedWalletProfile = async (
   address: Address,
   {
-    interactive = true
+    interactive = true,
+    signMessage
   }: {
     interactive?: boolean;
+    signMessage?: (address: Address, message: string) => Promise<import('viem').Hex>;
   } = {}
 ): Promise<AuthenticatedWalletProfileSession<WalletProfileRecord>> => (
   resolveWalletProfileSession({
     walletAddress: address,
     readSession: readWalletProfileSession,
     authenticate: interactive
-      ? () => requestWalletProfileAuthentication(address)
+      ? () => (
+        signMessage
+          ? requestWalletProfileAuthentication(address, signMessage)
+          : requestWalletProfileAuthentication(address)
+      )
       : async () => {
           throw new WalletProfileRequestError(
             'Wallet profile authorization is required.',

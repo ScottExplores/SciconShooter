@@ -83,41 +83,41 @@ test('stale wallet results and guest-link responses are rejected', async () => {
   }), false);
 });
 
-test('guest coin preparation uses the higher device balance once', async () => {
+test('guest economy is not merged into a wallet snapshot', async () => {
   const linking = await import('../services/guestWalletLink.ts');
-  const base = {
-    stats: { highScore: 10, totalCoins: 4, playerName: '' },
+  const wallet = {
+    stats: { highScore: 10, totalCoins: 4, playerName: 'Wallet' },
     weeklyState: {
       coins: 30,
-      durableCampaignCoins: 12,
-      unlockedSlots: { left: false, right: true },
-      ownedMiniShips: { scout: 1 },
-      shipUpgrades: { researchhub: { fireRate: 1, speed: 0, ability: 0, startingHearts: 0 } },
-      weeklyStats: { score: 99, weeklyRunAttempts: 2, runs: 1, enemiesDefeated: 0, coinsEarned: 0 }
+      unlockedSlots: { left: false, right: false },
+      weeklyStats: { score: 0, runs: 0 }
     },
     permanentState: {
-      mintedMiniShips: ['forged'],
-      lifetimeStats: { bestScore: 10 },
-      unlockedPlayerShips: ['researchhub', 'eth', 'bio']
+      lifetimeStats: { bestScore: 10, runs: 0 },
+      unlockedPlayerShips: ['researchhub']
     },
     selectedShipId: 'researchhub'
   };
-  const other = structuredClone(base);
-  other.stats.highScore = 25;
-  other.weeklyState.coins = 12;
-  other.weeklyState.ownedMiniShips = { scout: 3 };
-  other.weeklyState.shipUpgrades.researchhub.fireRate = 4;
-  const prepared = linking.prepareGuestLinkSnapshot(base, other);
-  assert.equal(prepared.stats.highScore, 25);
+  const guest = structuredClone(wallet);
+  guest.stats.highScore = 1_000_000_000;
+  guest.stats.totalCoins = 1_000_000_000;
+  guest.weeklyState.coins = 1_000_000_000;
+  guest.weeklyState.unlockedSlots.right = true;
+  const prepared = linking.prepareGuestLinkSnapshot(guest, wallet);
+  assert.equal(prepared, wallet);
   assert.equal(prepared.weeklyState.coins, 30);
-  assert.notEqual(prepared.weeklyState.coins, 42);
-  assert.equal(prepared.weeklyState.unlockedSlots.right, false);
-  assert.equal(prepared.weeklyState.weeklyStats.score, 0);
-  assert.equal(prepared.weeklyState.ownedMiniShips.scout, 3);
-  assert.equal(prepared.weeklyState.shipUpgrades.researchhub.fireRate, 4);
-  assert.deepEqual(prepared.permanentState.mintedMiniShips, []);
-  assert.equal(prepared.permanentState.unlockedPlayerShips.includes('eth'), false);
-  assert.equal(prepared.permanentState.unlockedPlayerShips.includes('bio'), false);
+  assert.equal(prepared.stats.highScore, 10);
+  assert.equal(linking.walletSnapshotHasOwnedProgress(wallet), true);
+  assert.equal(linking.walletSnapshotHasOwnedProgress({
+    ...wallet,
+    stats: { highScore: 0, totalCoins: 0, playerName: '' },
+    weeklyState: { ...wallet.weeklyState, coins: 0 },
+    permanentState: {
+      lifetimeStats: { bestScore: 0, runs: 0 },
+      unlockedPlayerShips: ['researchhub'],
+      campaignProgress: { completedMissionIds: [] }
+    }
+  }), false);
 });
 
 test('the connect entry keeps the homepage control and opens a chooser', () => {
@@ -132,8 +132,10 @@ test('the connect entry keeps the homepage control and opens a chooser', () => {
   assert.match(runtime, /shouldApplyWalletResult/);
   assert.match(runtime, /eip6963:requestProvider/);
   assert.match(runtime, /type: 'release'/);
-  assert.match(app, /linkAuthenticatedGuestProgress/);
-  assert.match(app, /isCurrentGuestLinkResult/);
+  assert.doesNotMatch(app, /linkAuthenticatedGuestProgress/);
+  assert.match(runtime, /authorizeAddress\(address, generation, attempt\)/);
+  assert.match(runtime, /accountEvents\.on\?\.\('accountsChanged'/);
+  assert.match(runtime, /accountEvents\.on\?\.\('disconnect'/);
   assert.match(app, /activeProfileIdRef\.current !== walletProfileId/);
   assert.match(wallet, /method: 'wallet_sendCalls'/);
   assert.match(wallet, /sendBaseTransaction/);

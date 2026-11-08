@@ -107,3 +107,24 @@ export const shouldApplyWalletResult = (
   requestGeneration: number,
   currentGeneration: number
 ) => requestGeneration === currentGeneration;
+
+/**
+ * The committed provider stays in place until a signature succeeds.
+ * Reject and cancel restore it, including when nothing was committed.
+ */
+export const providerAfterAttempt = <T>(
+  committed: T | null,
+  pending: T,
+  outcome: 'authorized' | 'rejected' | 'cancelled'
+): T | null => (
+  outcome === 'authorized' ? pending : committed
+);
+
+/** Base Account keeps its SDK listeners. Injected and WalletConnect need theirs. */
+export const accountEventProvider = <T extends { method: string; provider: unknown }>(
+  session: T | null
+): T['provider'] | null => {
+  if (!session || session.method === 'base-account') return null;
+  if (session.method !== 'injected' && session.method !== 'walletconnect') return null;
+  return session.provider;
+};
