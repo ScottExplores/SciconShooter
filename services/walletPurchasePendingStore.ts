@@ -1,5 +1,6 @@
 import type { Address, Hex } from 'viem';
 import { RSC_PURCHASE_SKUS, type RscPurchaseSkuId } from '../constants';
+export { selectPendingPurchaseConfirmation } from './walletPurchaseResume';
 
 const PENDING_PURCHASE_VERSION = 1;
 const STORAGE_PREFIX = 'scicon_pending_wallet_purchase_v1:';

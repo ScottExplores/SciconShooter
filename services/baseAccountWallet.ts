@@ -239,11 +239,13 @@ export const switchBaseAccount = async (): Promise<Address> => {
 const sendCallsWithActiveWallet = async ({
   from,
   calls,
-  onSubmitted
+  onSubmitted,
+  onTransactionHash
 }: {
   from: Address;
   calls: BaseCall[];
   onSubmitted?: (callsId: Hex) => void;
+  onTransactionHash?: (transactionHash: Hex) => void;
 }): Promise<Hex | null> => {
   const session = getActiveEvmSession();
   if (!session || session.method === 'base-account') return null;
@@ -255,7 +257,8 @@ const sendCallsWithActiveWallet = async ({
       data: call.data,
       value: call.value
     });
-    onSubmitted?.(hash);
+    if (onTransactionHash) onTransactionHash(hash);
+    else onSubmitted?.(hash);
     lastHash = hash;
   }
   if (!lastHash) throw new Error('The wallet did not return a Base transaction.');
@@ -266,14 +269,21 @@ export const sendAttributedBaseCalls = async ({
   from,
   calls,
   sponsorGas = false,
-  onSubmitted
+  onSubmitted,
+  onTransactionHash
 }: {
   from: Address;
   calls: BaseCall[];
   sponsorGas?: boolean;
   onSubmitted?: (callsId: Hex) => void;
+  onTransactionHash?: (transactionHash: Hex) => void;
 }): Promise<Hex> => {
-  const injectedHash = await sendCallsWithActiveWallet({ from, calls, onSubmitted });
+  const injectedHash = await sendCallsWithActiveWallet({
+    from,
+    calls,
+    onSubmitted,
+    onTransactionHash
+  });
   if (injectedHash) return injectedHash;
   const paymasterProxyUrl = (import.meta.env.VITE_PAYMASTER_PROXY_URL as string | undefined)?.trim();
   const capabilities: Record<string, unknown> = {
@@ -471,12 +481,14 @@ export const sendRscPurchaseTransfer = async ({
   from,
   recipient,
   amountRaw,
-  onSubmitted
+  onSubmitted,
+  onTransactionHash
 }: {
   from: Address;
   recipient: Address;
   amountRaw: bigint;
   onSubmitted?: (callsId: Hex) => void;
+  onTransactionHash?: (transactionHash: Hex) => void;
 }): Promise<Hex> => {
   if (amountRaw <= 0n) throw new Error('The RSC purchase amount must be positive.');
   const contractAddress = DONATION_CONFIG.RSC_CONTRACT_ADDRESS as Address;
@@ -501,6 +513,7 @@ export const sendRscPurchaseTransfer = async ({
         args: [recipient, amountRaw]
       })
     }],
-    onSubmitted
+    onSubmitted,
+    onTransactionHash
   });
 };

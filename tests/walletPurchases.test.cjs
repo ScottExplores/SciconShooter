@@ -803,6 +803,8 @@ test('wallet purchase API is session-bound and same-origin, while runtime expose
   );
   assert.match(runtime, /type: 'purchase-rsc'; skuId: RscPurchaseSkuId/);
   assert.match(runtime, /activeWalletAddress \|\| await connectWallet\(\)/);
+  assert.match(runtime, /Connect a wallet before purchasing with Research Coin/);
+  assert.doesNotMatch(runtime, /Connect a Base Account before purchasing with Research Coin/);
   assert.match(runtime, /onWalletPurchaseSuccess\?: \(settlement: WalletPurchaseSettlement\)/);
   assert.match(runtime, /const isCurrentWalletAddress = useCallback/);
   assert.match(runtime, /if \(!isCurrentWalletAddress\(address\)\) return/);

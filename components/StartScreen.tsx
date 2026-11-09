@@ -909,6 +909,9 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const [leaderboardRecordStatus, setLeaderboardRecordStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [weeklyWinnerSlide, setWeeklyWinnerSlide] = useState<'pilot' | 'proposal'>('pilot');
   const [weeklyWinnerAutoPaused, setWeeklyWinnerAutoPaused] = useState(false);
+  const [desktopDeck, setDesktopDeck] = useState(() => (
+    typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches
+  ));
   const proposalReminderShownRef = useRef(new Map<string, number>());
   const weeklyProposalReminderRef = useRef<HTMLElement>(null);
   const weeklyProposalReminderPrimaryRef = useRef<HTMLButtonElement>(null);
@@ -1158,6 +1161,14 @@ const StartScreen: React.FC<StartScreenProps> = ({
         : 'This ship is ready.';
 
   const requestHangar = () => setDashboardTab('hangar');
+
+  useEffect(() => {
+    const media = window.matchMedia('(min-width: 1024px)');
+    const syncDeck = () => setDesktopDeck(media.matches);
+    syncDeck();
+    media.addEventListener('change', syncDeck);
+    return () => media.removeEventListener('change', syncDeck);
+  }, []);
 
   const requestFocusedShip = () => {
     if (focusedShipLocked) {
@@ -2413,38 +2424,40 @@ const StartScreen: React.FC<StartScreenProps> = ({
     </HudPanel>
   );
 
+  const renderHangar = () => (
+    <SquadHangar
+      state={weeklySquadState}
+      mainShipId={shipFocusId}
+      mainShipName={focusedShip.name}
+      shipUnlocks={shipUnlocks}
+      walletConnected={Boolean(walletAddress)}
+      rscBalance={rscBalance}
+      rscBalanceStatus={rscBalanceStatus}
+      walletPurchaseStatus={walletPurchaseStatus}
+      playerShipPurchaseStatus={playerShipPurchaseStatus}
+      founderSandbox={founderSandbox}
+      onSelectMainShip={(shipId) => {
+        setShipFocusId(shipId);
+        onSelectShip(shipId);
+      }}
+      onUnlockSlot={onUnlockSquadSlot}
+      onPurchaseWithRsc={onPurchaseWithRsc}
+      onPurchasePlayerShip={onPurchasePlayerShip}
+      onRefreshPlayerShipAccess={onRefreshPlayerShipAccess}
+      onRefreshRscBalance={onRefreshRscBalance}
+      onOpenRscSwap={() => setShowRscAcquire(true)}
+      onPurchaseMini={onPurchaseMiniShip}
+      onUpgradeMini={onUpgradeMiniShip}
+      onDowngradeMini={onDowngradeMiniShip}
+      onEquipMini={onEquipMiniShip}
+      onUpgradeMainShip={onUpgradeMainShip}
+      onDowngradeMainShip={onDowngradeMainShip}
+    />
+  );
+
   const renderMobileDashboardContent = () => {
     if (dashboardTab === 'hangar') {
-      return (
-        <SquadHangar
-          state={weeklySquadState}
-          mainShipId={shipFocusId}
-          mainShipName={focusedShip.name}
-          shipUnlocks={shipUnlocks}
-          walletConnected={Boolean(walletAddress)}
-          rscBalance={rscBalance}
-          rscBalanceStatus={rscBalanceStatus}
-          walletPurchaseStatus={walletPurchaseStatus}
-          playerShipPurchaseStatus={playerShipPurchaseStatus}
-          founderSandbox={founderSandbox}
-          onSelectMainShip={(shipId) => {
-            setShipFocusId(shipId);
-            onSelectShip(shipId);
-          }}
-          onUnlockSlot={onUnlockSquadSlot}
-          onPurchaseWithRsc={onPurchaseWithRsc}
-          onPurchasePlayerShip={onPurchasePlayerShip}
-          onRefreshPlayerShipAccess={onRefreshPlayerShipAccess}
-          onRefreshRscBalance={onRefreshRscBalance}
-          onOpenRscSwap={() => setShowRscAcquire(true)}
-          onPurchaseMini={onPurchaseMiniShip}
-          onUpgradeMini={onUpgradeMiniShip}
-          onDowngradeMini={onDowngradeMiniShip}
-          onEquipMini={onEquipMiniShip}
-          onUpgradeMainShip={onUpgradeMainShip}
-          onDowngradeMainShip={onDowngradeMainShip}
-        />
-      );
+      return desktopDeck ? null : renderHangar();
     }
     if (dashboardTab === 'proposals') return <ProposalsDashboard />;
     if (dashboardTab === 'trophies') return <TrophiesDashboard />;
@@ -2460,36 +2473,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
   const renderSelectedDashboard = () => {
     if (dashboardTab === 'hangar') {
-      return (
-        <SquadHangar
-          state={weeklySquadState}
-          mainShipId={shipFocusId}
-          mainShipName={focusedShip.name}
-          shipUnlocks={shipUnlocks}
-          walletConnected={Boolean(walletAddress)}
-          rscBalance={rscBalance}
-          rscBalanceStatus={rscBalanceStatus}
-          walletPurchaseStatus={walletPurchaseStatus}
-          playerShipPurchaseStatus={playerShipPurchaseStatus}
-          founderSandbox={founderSandbox}
-          onSelectMainShip={(shipId) => {
-            setShipFocusId(shipId);
-            onSelectShip(shipId);
-          }}
-          onUnlockSlot={onUnlockSquadSlot}
-          onPurchaseWithRsc={onPurchaseWithRsc}
-          onPurchasePlayerShip={onPurchasePlayerShip}
-          onRefreshPlayerShipAccess={onRefreshPlayerShipAccess}
-          onRefreshRscBalance={onRefreshRscBalance}
-          onOpenRscSwap={() => setShowRscAcquire(true)}
-          onPurchaseMini={onPurchaseMiniShip}
-          onUpgradeMini={onUpgradeMiniShip}
-          onDowngradeMini={onDowngradeMiniShip}
-          onEquipMini={onEquipMiniShip}
-          onUpgradeMainShip={onUpgradeMainShip}
-          onDowngradeMainShip={onDowngradeMainShip}
-        />
-      );
+      return desktopDeck ? renderHangar() : null;
     }
     if (dashboardTab === 'proposals') return <ProposalsDashboard />;
     if (dashboardTab === 'trophies') return <TrophiesDashboard />;

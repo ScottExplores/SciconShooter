@@ -6,7 +6,8 @@ import {
 } from '../constants';
 import {
   sendRscPurchaseTransfer,
-  waitForBaseCallsTransaction
+  waitForBaseCallsTransaction,
+  waitForBaseTransactionReceipt
 } from './baseAccountWallet';
 import {
   loadAuthenticatedWalletProfile,
@@ -19,6 +20,7 @@ import {
   recordPendingWalletPurchaseCallsId,
   recordPendingWalletPurchaseHash
 } from './walletPurchasePendingStore';
+import { selectPendingPurchaseConfirmation } from './walletPurchaseResume';
 
 export interface WalletPurchaseQuote {
   orderId: string;
@@ -296,6 +298,10 @@ export const executeWalletPurchase = async ({
       onSubmitted: (callsId) => {
         recordPendingWalletPurchaseCallsId(walletAddress, quote.orderId, callsId);
         onBatchSubmitted?.(callsId, quote);
+      },
+      onTransactionHash: (hash) => {
+        recordPendingWalletPurchaseHash(walletAddress, quote.orderId, hash);
+        onSubmitted?.(hash, quote);
       }
     });
   } catch (error) {
@@ -317,9 +323,12 @@ export const resumePendingWalletPurchase = async (
 ): Promise<WalletPurchaseSettlement | null> => {
   const pending = readPendingWalletPurchase(walletAddress);
   if (!pending) return null;
-  let transactionHash = pending.transactionHash;
-  if (!transactionHash && pending.callsId) {
-    transactionHash = await waitForBaseCallsTransaction(pending.callsId);
+  const confirmation = selectPendingPurchaseConfirmation(pending);
+  let transactionHash = confirmation.kind === 'hash' ? confirmation.transactionHash : undefined;
+  if (confirmation.kind === 'receipt') {
+    transactionHash = await waitForBaseTransactionReceipt(confirmation.transactionHash);
+  } else if (confirmation.kind === 'calls') {
+    transactionHash = await waitForBaseCallsTransaction(confirmation.callsId);
     recordPendingWalletPurchaseHash(walletAddress, pending.orderId, transactionHash);
   }
   if (!transactionHash) {

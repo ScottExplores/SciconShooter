@@ -333,6 +333,8 @@ test('Hangar render helpers preserve the active upgrade view across parent state
   assert.match(startScreen, /const renderSelectedDashboard = \(\) =>/);
   assert.match(startScreen, /\{renderMobileDashboardContent\(\)\}/);
   assert.match(startScreen, /\{renderSelectedDashboard\(\)\}/);
+  assert.match(startScreen, /desktopDeck \? null : renderHangar\(\)/);
+  assert.match(startScreen, /desktopDeck \? renderHangar\(\) : null/);
   assert.doesNotMatch(startScreen, /<MobileDashboardContent\b|const MobileDashboardContent|function MobileDashboardContent/);
   assert.doesNotMatch(startScreen, /<SelectedDashboard\b|const SelectedDashboard|function SelectedDashboard/);
   assert.match(hangar, /setMode\('catalog'\);\s*\}, \[activePosition\]\);/);

@@ -805,7 +805,7 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
         onWalletPurchaseStatus?.({
           status: 'error',
           skuId,
-          error: 'Connect a Base Account before purchasing with Research Coin.'
+          error: 'Connect a wallet before purchasing with Research Coin.'
         });
         return;
       }
