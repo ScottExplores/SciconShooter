@@ -176,9 +176,20 @@ const builderCodeSuffix = Attribution.toDataSuffix({
   codes: [DONATION_CONFIG.BUILDER_CODE]
 });
 
+/**
+ * RainbowKit's Base Account connector owns a separate SDK provider. Calls and
+ * status checks follow that provider once it is the committed session, and
+ * fall back to the game SDK when the player connected through it directly.
+ */
+const baseCallsProvider = () => {
+  const session = getActiveEvmSession();
+  if (session?.method === 'base-account') return session.provider;
+  return baseAccountProvider;
+};
+
 export const waitForBaseCallsTransaction = async (callsId: Hex): Promise<Hex> => {
   for (let attempt = 0; attempt < 90; attempt += 1) {
-    const result = await baseAccountProvider.request({
+    const result = await baseCallsProvider().request({
       method: 'wallet_getCallsStatus',
       params: [callsId]
     }) as CallsStatusResponse;
@@ -228,6 +239,19 @@ export const signBaseAccountMessage = async (address: Address, message: string):
 
 export const switchBaseAccount = async (): Promise<Address> => {
   const result = await baseAccountProvider.request({
+    method: 'wallet_connect',
+    params: [{ version: '1' }]
+  });
+  const address = parseWalletConnectAddress(result);
+  if (!address) throw new Error('Base Account did not return a wallet address.');
+  return address;
+};
+
+export const switchBaseAccountOnProvider = async (
+  provider: { request: (args: { method: string; params?: unknown[] }) => Promise<unknown> }
+): Promise<Address> => {
+  if (provider === baseAccountProvider) return switchBaseAccount();
+  const result = await provider.request({
     method: 'wallet_connect',
     params: [{ version: '1' }]
   });
@@ -297,7 +321,7 @@ export const sendAttributedBaseCalls = async ({
     capabilities.paymasterService = { url: paymasterProxyUrl };
   }
 
-  const response = await baseAccountProvider.request({
+  const response = await baseCallsProvider().request({
     method: 'wallet_sendCalls',
     params: [{
       version: '2.0.0',
@@ -322,7 +346,7 @@ export const sendAttributedBaseCalls = async ({
 };
 
 const assertBaseMainnetProvider = async () => {
-  const providerChainId = await baseAccountProvider.request({ method: 'eth_chainId' });
+  const providerChainId = await baseCallsProvider().request({ method: 'eth_chainId' });
   let chainId: bigint;
   try {
     chainId = BigInt(String(providerChainId));
@@ -374,7 +398,7 @@ export const sendEthShipPurchaseTransfer = async ({
   });
   if (injectedHash) return injectedHash;
   await assertBaseMainnetProvider();
-  const response = await baseAccountProvider.request({
+  const response = await baseCallsProvider().request({
     method: 'wallet_sendCalls',
     params: [{
       version: '2.0.0',

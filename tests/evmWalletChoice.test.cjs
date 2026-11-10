@@ -120,15 +120,19 @@ test('guest economy is not merged into a wallet snapshot', async () => {
   }), false);
 });
 
-test('the connect entry keeps the homepage control and opens a chooser', () => {
+test('the connect entry keeps the homepage control and opens RainbowKit', () => {
   const control = fs.readFileSync(path.join(root, 'components', 'WalletControl.tsx'), 'utf8');
   const runtime = fs.readFileSync(path.join(root, 'components', 'WalletRuntime.tsx'), 'utf8');
   const app = fs.readFileSync(path.join(root, 'App.tsx'), 'utf8');
   const wallet = fs.readFileSync(path.join(root, 'services', 'baseAccountWallet.ts'), 'utf8');
+  const rainbow = fs.readFileSync(path.join(root, 'services', 'rainbowWalletConfig.ts'), 'utf8');
+  const provider = fs.readFileSync(path.join(root, 'components', 'RainbowWalletProvider.tsx'), 'utf8');
 
   assert.match(control, /Connect Wallet/);
   assert.match(control, /rounded-full border border-cyan-300\/40/);
-  assert.match(runtime, /data-testid="wallet-chooser"|WalletChooser/);
+  assert.match(runtime, /useConnectModal/);
+  assert.match(runtime, /openConnectModal/);
+  assert.match(runtime, /selectWalletChoice/);
   assert.match(runtime, /shouldApplyWalletResult/);
   assert.match(runtime, /eip6963:requestProvider/);
   assert.match(runtime, /type: 'release'/);
@@ -138,6 +142,22 @@ test('the connect entry keeps the homepage control and opens a chooser', () => {
   assert.match(runtime, /accountEvents\.on\?\.\('disconnect'/);
   assert.match(app, /activeProfileIdRef\.current !== walletProfileId/);
   assert.match(wallet, /method: 'wallet_sendCalls'/);
+  assert.match(wallet, /baseCallsProvider\(\)/);
   assert.match(wallet, /sendBaseTransaction/);
-  assert.doesNotMatch(runtime, /solana|phantom/i);
+  assert.doesNotMatch(runtime, /solana/i);
+  assert.match(rainbow, /rabbyWallet/);
+  assert.match(rainbow, /metaMaskWallet/);
+  assert.match(rainbow, /baseAccount/);
+  assert.match(rainbow, /coinbaseWallet/);
+  assert.match(rainbow, /rainbowWallet/);
+  assert.match(rainbow, /phantomWallet/);
+  assert.match(rainbow, /trustWallet/);
+  assert.match(rainbow, /okxWallet/);
+  assert.match(rainbow, /walletConnectWallet/);
+  assert.match(rainbow, /walletConnectProjectId\(\)/);
+  assert.match(rainbow, /chains: \[base\]/);
+  assert.doesNotMatch(rainbow, /solana/i);
+  assert.doesNotMatch(rainbow, /projectId:\s*['"][0-9a-f]{32}['"]/);
+  assert.match(provider, /modalSize="compact"/);
+  assert.match(provider, /Orbitron/);
 });

@@ -1,0 +1,7 @@
+[data-rk] {
+  font-family: 'Orbitron', 'Inter', ui-sans-serif, system-ui, sans-serif;
+}
+
+[data-rk] [role="dialog"] {
+  touch-action: pan-y;
+}
