@@ -3,6 +3,8 @@
 // Usage: npm run analytics:stats            -> aggregate player/run counts
 //        npm run analytics:stats -- --reports[=20] [--all] [--tests]
 //                                            -> newest Feedback / Report a Bug submissions
+//        npm run analytics:stats -- --ratings[=20] [--tests]
+//                                            -> recent star ratings plus the average
 const url = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
 const key = String(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || '').trim();
 if (!url || !key) {
@@ -11,13 +13,19 @@ if (!url || !key) {
 }
 const args = process.argv.slice(2);
 const reportsArg = args.find((arg) => arg.startsWith('--reports'));
+const ratingsArg = args.find((arg) => arg.startsWith('--ratings'));
 const [fn, body] = reportsArg
   ? ['scicon_recent_player_reports', {
       p_limit: Number(reportsArg.split('=')[1]) || 20,
       p_include_automatic: args.includes('--all'),
       p_include_tests: args.includes('--tests')
     }]
-  : ['scicon_player_stats', {}];
+  : ratingsArg
+    ? ['scicon_recent_player_ratings', {
+        p_limit: Number(ratingsArg.split('=')[1]) || 20,
+        p_include_tests: args.includes('--tests')
+      }]
+    : ['scicon_player_stats', {}];
 const response = await fetch(`${url}/rest/v1/rpc/${fn}`, {
   method: 'POST',
   headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },

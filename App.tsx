@@ -77,6 +77,7 @@ import {
   recordPlayerReportBreadcrumb,
   updatePlayerReportContext
 } from './services/playerReportService';
+import { syncMissionFeedbackProfile } from './services/missionFeedbackService';
 import { getWalletRecordsStrict } from './services/recordService';
 import { getWalletRunsStrict, type WalletRunRecord } from './services/playerRunService';
 import { createAddressResourceCoordinator, resolveWalletTransitionReloadSafety, shouldHydrateWalletIdentityTransition } from './services/addressResourceCoordinator';
@@ -1433,6 +1434,12 @@ const App: React.FC = () => {
     };
   }, [donatedWallets, walletError, walletRuntimeAction?.type, walletSession]);
   const activeWalletAddress = wallet.address ?? null;
+  useEffect(() => {
+    if (!activeWalletAddress || walletProfileStatus !== 'ready') return;
+    void syncMissionFeedbackProfile().catch(() => {
+      // The device flag still hides the card when the profile write is offline.
+    });
+  }, [activeWalletAddress, walletProfileStatus]);
   // A visible wallet address is not proof that its retained server session is
   // ready. Fall back to explicit guest intent while authentication is stale or
   // recovering; the resulting guest receipt can be associated later.
@@ -8160,6 +8167,7 @@ const App: React.FC = () => {
                 )
               : undefined}
             onReturnHome={isCampaignRun ? resetGame : undefined}
+            walletConnected={Boolean(activeWalletAddress)}
           />
         </React.Suspense>
       ) : null}

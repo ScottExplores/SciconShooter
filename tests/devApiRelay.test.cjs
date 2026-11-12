@@ -49,6 +49,12 @@ test('player reports share the events Vercel function and keep the Hobby functio
 
   assert.match(eventsApi, /const playerReportsHandler = require\('\.\/_lib\/playerReportsRoute'\)/);
   assert.match(eventsApi, /req\.query\?\.route === 'player-reports'/);
+  assert.match(eventsApi, /req\.query\?\.route === 'player-ratings'/);
+  assert.match(
+    vercelConfig,
+    /"source": "\/api\/player-ratings"[\s\S]*?"destination": "\/api\/events\?route=player-ratings"/
+  );
+  assert.match(viteConfig, /return playerRatingsHandler\(req, res\)/);
   assert.match(eventsApi, /req\.query\?\.route === 'social-agent'/);
   assert.match(
     vercelConfig,

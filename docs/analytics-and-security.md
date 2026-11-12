@@ -133,13 +133,18 @@ The accepted-report count is durable across serverless instances, but its count 
   Web Analytics must be enabled once in the Vercel project's **Analytics** tab.
 - **`public.scicon_player_stats()`** returns production-only aggregates (visitors and
   run-starting players today / 7 days / all time, new visitors today, runs started and
-  finished, by mode, last 7 days daily). "Today" is America/Los_Angeles.
+  finished, by mode, last 7 days daily, plus a `ratings` count and average). "Today"
+  is America/Los_Angeles. Founder ratings stay test-only and are left out of that average.
 - **`public.scicon_recent_player_reports(limit, include_automatic, include_tests)`** lists
   the newest Feedback / Report a Bug submissions with the optional contact the player chose
   to give, game version, coarse browser/OS, run mode, mission and wave.
-- Both functions are `service_role` only; `anon` and `authenticated` cannot execute them.
-  Call them with `npm run analytics:stats` (add `-- --reports=20` for reports) using
-  server-only Supabase keys in `.env.local`, or from the Supabase SQL editor.
+- **`public.scicon_recent_player_ratings(limit, include_tests)`** returns the average
+  and the newest mission-win star ratings. Comments are trimmed to 500 characters.
+  The stored device id is a keyed hash, never the raw anonymous id.
+- The stats and report functions are `service_role` only; `anon` and `authenticated`
+  cannot execute them. Call them with `npm run analytics:stats` (add `-- --reports=20`
+  for reports, or `-- --ratings=20` for star ratings) using server-only Supabase keys
+  in `.env.local`, or from the Supabase SQL editor.
 - Player reports now also store an optional player-typed contact (≤120 chars), a coarse
   browser/OS family (never the full user agent), and the same keyed device hash used by
   analytics. Requests with `testReport: true` are stored with `test_run: true` and never

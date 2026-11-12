@@ -1,0 +1,202 @@
+.mission-feedback-card {
+  position: absolute;
+  left: 50%;
+  bottom: 96px;
+  z-index: 14;
+  width: min(92%, 300px);
+  transform: translateX(-50%);
+  padding: 7px 12px 8px;
+  color: #f8fbff;
+  background: linear-gradient(180deg, #0c1e36 0%, #07111f 100%);
+  border: 1px solid rgba(103, 245, 255, 0.62);
+  box-shadow:
+    0 0 0 2px rgba(2, 8, 23, 0.86),
+    0 14px 28px rgba(0, 0, 0, 0.46),
+    0 0 18px rgba(34, 211, 238, 0.16);
+  clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
+  pointer-events: auto;
+}
+
+.mission-feedback-scan {
+  display: block;
+  width: 100%;
+  height: 4px;
+  margin-bottom: 4px;
+  object-fit: cover;
+  image-rendering: pixelated;
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+.mission-feedback-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.mission-feedback-heading h2 {
+  margin: 0;
+  color: #ffe55f;
+  font-family: 'Orbitron', 'Rajdhani', sans-serif;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  line-height: 1.15;
+  text-transform: uppercase;
+  text-shadow: 0 0 10px rgba(250, 204, 21, 0.35), 1px 1px 0 #052e3c;
+}
+
+.mission-feedback-close,
+.mission-feedback-send,
+.mission-feedback-later,
+.mission-feedback-star {
+  font-family: 'Orbitron', 'Rajdhani', sans-serif;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.mission-feedback-close {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid rgba(103, 245, 255, 0.45);
+  background: rgba(8, 31, 56, 0.92);
+  color: #dffeff;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.mission-feedback-close:focus-visible,
+.mission-feedback-send:focus-visible,
+.mission-feedback-later:focus-visible,
+.mission-feedback-star:focus-visible {
+  outline: 2px solid rgba(255, 229, 95, 0.8);
+  outline-offset: 2px;
+}
+
+.mission-feedback-stars {
+  display: flex;
+  justify-content: center;
+  gap: 2px;
+  margin: 2px 0 4px;
+}
+
+.mission-feedback-star {
+  width: 36px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: rgba(157, 223, 245, 0.42);
+  font-size: 22px;
+  line-height: 1;
+  text-shadow: none;
+}
+
+.mission-feedback-star.is-on {
+  color: #ffe55f;
+  text-shadow: 0 0 8px rgba(255, 229, 95, 0.45);
+}
+
+.mission-feedback-comment {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 32px;
+  max-height: 48px;
+  margin: 0;
+  padding: 4px 8px;
+  resize: none;
+  border: 1px solid rgba(103, 245, 255, 0.35);
+  background: rgba(2, 8, 23, 0.72);
+  color: #f8fbff;
+  font-family: 'Rajdhani', system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.mission-feedback-comment::placeholder {
+  color: rgba(223, 254, 255, 0.55);
+}
+
+.mission-feedback-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.mission-feedback-send,
+.mission-feedback-later {
+  min-height: 34px;
+  border: 1px solid rgba(151, 255, 215, 0.72);
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+  text-transform: uppercase;
+}
+
+.mission-feedback-send {
+  flex: 1;
+  background: linear-gradient(135deg, rgba(6, 78, 59, 0.95), rgba(8, 145, 178, 0.9));
+  box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.82), 0 0 16px rgba(45, 212, 191, 0.22);
+  color: #fff3a6;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+.mission-feedback-send:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.mission-feedback-later {
+  padding: 0 10px;
+  border-color: rgba(148, 163, 184, 0.5);
+  background: linear-gradient(145deg, rgba(17, 24, 39, 0.98), rgba(30, 41, 59, 0.94));
+  color: #9ddff5;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.mission-feedback-error,
+.mission-feedback-thanks {
+  margin: 8px 0 2px;
+  text-align: center;
+  font-family: 'Orbitron', 'Rajdhani', sans-serif;
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.mission-feedback-thanks {
+  color: #7fffc8;
+}
+
+.mission-feedback-error {
+  color: #ffe55f;
+  font-size: 11px;
+}
+
+@media (max-height: 670px) {
+  .mission-feedback-card {
+    bottom: 88px;
+    padding-top: 8px;
+  }
+
+  .mission-feedback-comment {
+    min-height: 36px;
+  }
+}
+
+@media (min-width: 900px) {
+  .mission-feedback-card {
+    width: min(92%, 312px);
+  }
+}

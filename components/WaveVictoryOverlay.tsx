@@ -1,6 +1,7 @@
 import React from 'react';
 import type { CampaignCompletionSettlement } from '../services/campaignProgression';
 import type { WaveVictorySummary } from '../services/gameLogic';
+import MissionFeedbackCard from './MissionFeedbackCard';
 import './wave-victory.css';
 
 const CHAMPION_PARTS = '/game-art/generated/ui/scicon-ui-system-v2/animations/weekly-champion-reveal/parts';
@@ -15,6 +16,7 @@ export interface WaveVictoryOverlayProps {
   onOpenHangar?: () => void;
   onOpenCampaignMap?: () => void;
   onReturnHome?: () => void;
+  walletConnected?: boolean;
 }
 
 const formatFlightTime = (elapsedSeconds: number) => {
@@ -35,7 +37,8 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
   guideRequiresHome = false,
   onOpenHangar,
   onOpenCampaignMap,
-  onReturnHome
+  onReturnHome,
+  walletConnected = false
 }) => {
   const campaignResult = Boolean(campaignSettlement);
   const campaignComplete = summary.campaignComplete || !summary.hasNextStage;
@@ -270,6 +273,12 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
             </button>
           ) : null}
         </div>
+        {bossArchiveReplay ? null : (
+          <MissionFeedbackCard
+            walletConnected={walletConnected}
+            missionId={summary.levelId}
+          />
+        )}
       </div>
     </div>
   );
