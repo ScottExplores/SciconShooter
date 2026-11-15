@@ -7,7 +7,7 @@ process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-key';
 
 const { signPayload } = require('../api/_lib/runReceipts');
 const leaderboardHandler = require('../api/leaderboard');
-const { getCurrentWeekRange, getWeekRange } = require('../shared/weeklyCompetitionBoundary.js');
+const { getCurrentWeekRange, getPublicPrizeState, getWeekRange } = require('../shared/weeklyCompetitionBoundary.js');
 
 const makeReceipt = (runId = crypto.randomUUID(), overrides = {}) => signPayload({
   type: 'run-receipt',
@@ -188,8 +188,7 @@ test('leaderboard rejects a score finished at the SciCon Big Event close', async
 
 test('leaderboard rejects an unexpired receipt after its weekly score cutoff without touching storage', async () => {
   const runId = crypto.randomUUID();
-  const { start } = getCurrentWeekRange(new Date());
-  const finishedAt = start.getTime() - 1;
+  const finishedAt = getPublicPrizeState().scoreWindow.start.getTime() - 1;
   const originalFetch = global.fetch;
   let fetchCalled = false;
   global.fetch = async () => {
@@ -933,15 +932,25 @@ test('the exact verified current leader cannot replace its saved proposal', asyn
     const value = String(url);
     if (value.includes('backend.prod.researchhub.com')) {
       return jsonResponse({
-        results: [{
-          content_object: {
-            id: 654,
-            title: 'Replacement Target',
-            slug: 'replacement-target',
-            fundraise: { status: 'OPEN', end_date: '2099-01-01T00:00:00.000Z' }
+        results: [
+          {
+            content_object: {
+              id: 321,
+              title: 'Original Target',
+              slug: 'original-target',
+              fundraise: { status: 'OPEN', end_date: '2099-01-01T00:00:00.000Z' }
+            }
           },
-          author: { first_name: 'Ada', last_name: 'Researcher' }
-        }]
+          {
+            content_object: {
+              id: 654,
+              title: 'Replacement Target',
+              slug: 'replacement-target',
+              fundraise: { status: 'OPEN', end_date: '2099-01-01T00:00:00.000Z' }
+            },
+            author: { first_name: 'Ada', last_name: 'Researcher' }
+          }
+        ]
       });
     }
     if (options.method === 'PATCH') {
@@ -1334,13 +1343,21 @@ test('a saved research pick cannot be replaced to clear a stale image', async ()
   global.fetch = async (url, options = {}) => {
     const value = String(url);
     if (value.includes('backend.prod.researchhub.com')) {
-      return jsonResponse({ results: [{
-        content_object: {
-          id: 654, title: 'Replacement Target', slug: 'replacement-target',
-          fundraise: { status: 'OPEN', end_date: '2099-01-01T00:00:00.000Z' }
+      return jsonResponse({ results: [
+        {
+          content_object: {
+            id: 321, title: 'Original Target', slug: 'original-target',
+            fundraise: { status: 'OPEN', end_date: '2099-01-01T00:00:00.000Z' }
+          }
         },
-        author: { first_name: 'Ada', last_name: 'Researcher' }
-      }] });
+        {
+          content_object: {
+            id: 654, title: 'Replacement Target', slug: 'replacement-target',
+            fundraise: { status: 'OPEN', end_date: '2099-01-01T00:00:00.000Z' }
+          },
+          author: { first_name: 'Ada', last_name: 'Researcher' }
+        }
+      ] });
     }
     if (options.method === 'PATCH') {
       const body = JSON.parse(options.body);
@@ -1364,6 +1381,114 @@ test('a saved research pick cannot be replaced to clear a stale image', async ()
     assert.equal(res.statusCode, 409);
     assert.equal(res.body.code, 'WEEKLY_PROPOSAL_ALREADY_SELECTED');
     assert.equal(patchBodies.length, 0);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('during the event a closed saved RFP can be replaced and the same closed id is rejected', async () => {
+  const runId = crypto.randomUUID();
+  const originalFetch = global.fetch;
+  const eventActive = getPublicPrizeState().phase !== 'weekly';
+  let patchUrl = '';
+  let patchBody;
+  const leaderboardRow = (proposalId = '33131') => ({
+    name: 'PILOT',
+    score: 4321,
+    wave: 4,
+    date: new Date().toISOString(),
+    wallet_address: null,
+    donated: false,
+    proposal_id: proposalId,
+    proposal_title: proposalId === '44000' ? 'Open RFP' : 'Closed RFP',
+    proposal_url: proposalId === '44000'
+      ? 'https://www.researchhub.com/rfp/44000/open-rfp'
+      : 'https://www.researchhub.com/rfp/33131/closed-rfp',
+    proposal_author: 'ResearchHub',
+    proposal_image_url: null,
+    run_id: runId,
+    verified: true,
+    receipt_hash: 'hash'
+  });
+  let storedId = '33131';
+
+  global.fetch = async (url, options = {}) => {
+    const value = String(url);
+    if (value.includes('/api/grant_feed/')) {
+      return jsonResponse({
+        results: [{
+          content_object: {
+            id: 44000,
+            type: 'GRANT',
+            slug: 'open-rfp',
+            title: 'Open RFP',
+            grant: {
+              status: 'OPEN',
+              is_active: true,
+              organization: 'ResearchHub',
+              amount: { rsc: 100, usd: 1000 },
+              funding_pool: { id: 'pool-44000', amount_raised: { rsc: 40 } }
+            }
+          }
+        }]
+      });
+    }
+    if (value.includes('/api/researchhubpost/')) {
+      return jsonResponse({
+        unified_document: { grant: { end_date: '2099-01-01T00:00:00.000Z' } },
+        renderable_text: 'Open pool'
+      });
+    }
+    if (options.method === 'PATCH') {
+      patchUrl = value;
+      patchBody = JSON.parse(options.body);
+      storedId = patchBody.proposal_id;
+      return jsonResponse([leaderboardRow(storedId)]);
+    }
+    return jsonResponse([leaderboardRow(storedId)]);
+  };
+
+  try {
+    const closedResave = makeResponse();
+    await leaderboardHandler({
+      method: 'POST',
+      body: {
+        action: 'select-proposal',
+        proposalId: '33131',
+        targetKind: 'rfp',
+        receiptToken: makeReceipt(runId)
+      },
+      headers: {},
+      socket: { remoteAddress: '127.0.0.41' }
+    }, closedResave);
+
+    const replacement = makeResponse();
+    await leaderboardHandler({
+      method: 'POST',
+      body: {
+        action: 'select-proposal',
+        proposalId: '44000',
+        targetKind: 'rfp',
+        receiptToken: makeReceipt(runId)
+      },
+      headers: {},
+      socket: { remoteAddress: '127.0.0.42' }
+    }, replacement);
+
+    if (!eventActive) {
+      assert.equal(closedResave.statusCode, 200);
+      assert.equal(replacement.statusCode, 409);
+      assert.equal(replacement.body.code, 'WEEKLY_PROPOSAL_ALREADY_SELECTED');
+      return;
+    }
+
+    assert.equal(closedResave.statusCode, 409);
+    assert.equal(closedResave.body.code, 'RESEARCH_PICK_CLOSED');
+    assert.match(closedResave.body.error, /choose an open one/i);
+    assert.equal(replacement.statusCode, 200);
+    assert.equal(replacement.body.selectedProposal.id, '44000');
+    assert.match(patchUrl, /proposal_id=eq\.33131/);
+    assert.equal(patchBody.proposal_id, '44000');
   } finally {
     global.fetch = originalFetch;
   }

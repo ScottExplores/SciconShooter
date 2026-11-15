@@ -18,7 +18,7 @@ const SCICON_BIG_EVENT = Object.freeze({
   winnerAnnouncedLabel: 'Nov 30',
   weeklyResumesWeekKey: '2026-12-06'
 });
-const SCICON_EVENT_CHOICE_COPY = 'The winner picks the Airborne Disease Resilience RFP pool, a proposal under it, or any open ResearchHub proposal or RFP.';
+const SCICON_EVENT_CHOICE_COPY = 'The winner picks an open ResearchHub proposal or RFP.';
 const SCICON_EVENT_PAUSE_COPY = 'Weekly prizes return Dec 6 at 100 RSC.';
 // One allowance for the whole high-score event. Weekly play goes back to
 // five free attempts when the Sunday board resumes.

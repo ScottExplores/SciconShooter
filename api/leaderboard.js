@@ -9,6 +9,7 @@ const { verifyRunReceipt } = require('./_lib/runReceipts');
 const { isFounderWalletAddress } = require('./_lib/founderWallet');
 const { findEligibleProposal } = require('./_lib/researchHubEligibility');
 const { findEligibleRfp } = require('./_lib/researchHubRfps');
+const { classifyStoredPick, closedPickError } = require('./_lib/eventResearchPick');
 const { verifyBaseMessage } = require('./_lib/baseSignatures');
 const { clearWalletProfileSessionCookie } = require('./_lib/walletProfileAuth');
 const { readOptionalAuthoritativeWalletProfileSession } = require('./_lib/browserWalletAuth');
@@ -435,12 +436,14 @@ const createProposalSelectionChallenge = async (
   }
 
   const { currentLeader } = await getVerifiedWeeklyLeaderForReceipt(receipt);
-  if (currentLeader.proposalId && currentLeader.proposalId !== normalizedProposalId) {
+  const decision = await classifyStoredPick(currentLeader, normalizedProposalId);
+  if (decision === 'reject-locked') {
     throw Object.assign(new Error('This winning run already submitted its research pick.'), {
       statusCode: 409,
       code: 'WEEKLY_PROPOSAL_ALREADY_SELECTED'
     });
   }
+  if (decision === 'reject-closed') throw closedPickError();
   const leaderWallet = normalizeAddress(currentLeader.walletAddress);
   if (!leaderWallet) return { signatureRequired: false };
 
@@ -581,15 +584,16 @@ const selectProposalForWeeklyLeader = async (
     throw Object.assign(new Error('Invalid ResearchHub proposal ID.'), { statusCode: 400 });
   }
   const { currentLeader, currentScores } = await getVerifiedWeeklyLeaderForReceipt(receipt);
-
-  if (currentLeader.proposalId && currentLeader.proposalId !== requestedProposalId) {
+  const decision = await classifyStoredPick(currentLeader, requestedProposalId);
+  if (decision === 'reject-locked') {
     throw Object.assign(new Error('This winning run already submitted its research pick.'), {
       statusCode: 409,
       code: 'WEEKLY_PROPOSAL_ALREADY_SELECTED'
     });
   }
+  if (decision === 'reject-closed') throw closedPickError();
 
-  if (currentLeader.proposalId === requestedProposalId) {
+  if (decision === 'keep') {
     // A signed request must still consume its one-time challenge even when the
     // chosen proposal is unchanged. Otherwise that valid signature could be
     // replayed after a later edit to restore this proposal.
@@ -650,7 +654,9 @@ const selectProposalForWeeklyLeader = async (
     `${SUPABASE_TABLE}?run_id=eq.${encodeURIComponent(receipt.runId)}`
     + `&verified=eq.true&score=eq.${receipt.metrics.score}&wave=eq.${receipt.metrics.wave}`
   );
-  const firstWriteUrl = `${selectionUrl}&proposal_id=is.null`;
+  const firstWriteUrl = decision === 'replace'
+    ? `${selectionUrl}&proposal_id=eq.${encodeURIComponent(currentLeader.proposalId)}`
+    : `${selectionUrl}&proposal_id=is.null`;
   const proposalRow = {
     proposal_id: proposal.id,
     proposal_title: proposal.title,
@@ -730,7 +736,16 @@ const selectProposalForWeeklyLeader = async (
       code: 'WEEKLY_LEADER_CHANGED'
     });
   }
-  if (proposal.fundingTargetKind === 'rfp') {
+  if (decision === 'replace') {
+    console.info(JSON.stringify({
+      event: 'closed_research_pick_replaced',
+      previousProposalId: currentLeader.proposalId,
+      proposalId: proposal.id,
+      runId: receipt.runId,
+      fundsRedirected: false,
+      note: 'The closed pick was replaced with an open one. Funds were not redirected.'
+    }));
+  } else if (proposal.fundingTargetKind === 'rfp') {
     console.info(JSON.stringify({
       event: 'rfp_pool_pick_logged',
       rfpId: proposal.id,

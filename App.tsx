@@ -1,4 +1,4 @@
-import { prefetchEligibleRfps } from './services/researchHubRfps';
+import { fetchEligibleRfps, prefetchEligibleRfps } from './services/researchHubRfps';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Address } from 'viem';
 import StartScreen from './components/StartScreen';
@@ -1576,14 +1576,47 @@ const App: React.FC = () => {
     getCampaignNotificationCount(permanentSquadState.campaignProgress)
   ), [permanentSquadState.campaignProgress]);
   const previewPilotName = missionRecordPilotName || playerNameInput || 'PILOT';
-  const missionRecordWeeklyFunding = useMemo(() => runReceipt ? getMissionRecordWeeklyFunding({
-    receipt: runReceipt,
-    pilotName: previewPilotName,
-    weeklyLeaderboard: monthlyLeaderboard,
-    archivedWinners
-  }) : null, [archivedWinners, monthlyLeaderboard, previewPilotName, runReceipt]);
   const weeklyLeaderProposalId = monthlyLeaderboard[0]?.proposalId?.trim() || null;
   weeklyLeaderProposalIdRef.current = weeklyLeaderProposalId;
+  const [eligibleRfpIds, setEligibleRfpIds] = useState<string[] | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetchEligibleRfps()
+      .then((rfps) => {
+        if (!cancelled) setEligibleRfpIds(rfps.map((rfp) => rfp.id));
+      })
+      .catch(() => {
+        if (!cancelled) setEligibleRfpIds(null);
+      });
+    return () => { cancelled = true; };
+  }, []);
+  const eventPickWindow = getPublicPrizeState().phase !== 'weekly';
+  const proposalsKnown = proposalStatus === 'ready' || proposalStatus === 'empty';
+  const pickEligibility = !eventPickWindow || !weeklyLeaderProposalId
+    ? 'open' as const
+    : !proposalsKnown || eligibleRfpIds === null
+      ? 'unknown' as const
+      : (fundingProposals.some((proposal) => proposal.id === weeklyLeaderProposalId)
+        || eligibleRfpIds.includes(weeklyLeaderProposalId))
+        ? 'open' as const
+        : 'closed' as const;
+  const missionRecordWeeklyFunding = useMemo(() => {
+    if (!runReceipt) return null;
+    const funding = getMissionRecordWeeklyFunding({
+      receipt: runReceipt,
+      pilotName: previewPilotName,
+      weeklyLeaderboard: monthlyLeaderboard,
+      archivedWinners
+    });
+    if (
+      funding?.status === 'selected'
+      && pickEligibility === 'closed'
+      && funding.proposalId === weeklyLeaderProposalId
+    ) {
+      return { ...funding, canEditProposal: true };
+    }
+    return funding;
+  }, [archivedWinners, monthlyLeaderboard, pickEligibility, previewPilotName, runReceipt, weeklyLeaderProposalId]);
   const weeklyProposalLifecycle = useMemo(() => getWeeklyProposalLifecycle({
     selectedProposalId: weeklyLeaderProposalId,
     referencedProposals: proposalReferences
@@ -1592,8 +1625,9 @@ const App: React.FC = () => {
     weeklyLeaderboard: monthlyLeaderboard,
     walletRuns,
     walletAddress: activeWalletAddress,
-    proposalLifecycle: weeklyProposalLifecycle
-  }), [activeWalletAddress, monthlyLeaderboard, walletRuns, weeklyProposalLifecycle]);
+    proposalLifecycle: weeklyProposalLifecycle,
+    pickEligibility
+  }), [activeWalletAddress, monthlyLeaderboard, pickEligibility, walletRuns, weeklyProposalLifecycle]);
   useEffect(() => {
     // Never invalidate a durable guest receipt against the optimistic row or a
     // stale board from before its score request. Only a completed leaderboard

@@ -209,3 +209,32 @@ test('a selected proposal stays locked to the current leader receipt', () => {
   });
   assert.equal(displaced, null);
 });
+
+test('an event pick that is no longer eligible asks the leader to choose an open one', () => {
+  const result = getWeeklyProposalRecovery({
+    weeklyLeaderboard: [leader({ proposalId: '33131', proposalTitle: 'Closed RFP' })],
+    walletRuns: [{ pilotName: 'PILOT', receipt: receipt() }],
+    walletAddress: wallet,
+    pickEligibility: 'closed'
+  });
+
+  assert.equal(result?.needsProposal, true);
+  assert.equal(result?.attentionReason, 'closed');
+  assert.equal(result?.canEditProposal, true);
+  assert.equal(
+    result?.reminderStorageKey,
+    'scicon.weekly-proposal-reminder:verified-leading-run:closed:33131'
+  );
+});
+
+test('unknown eligibility does not reopen a stored pick', () => {
+  const result = getWeeklyProposalRecovery({
+    weeklyLeaderboard: [leader({ proposalId: '33131', proposalTitle: 'Closed RFP' })],
+    walletRuns: [{ pilotName: 'PILOT', receipt: receipt() }],
+    walletAddress: wallet,
+    pickEligibility: 'unknown'
+  });
+
+  assert.equal(result?.needsProposal, false);
+  assert.equal(result?.canEditProposal, false);
+});

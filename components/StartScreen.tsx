@@ -1224,11 +1224,19 @@ const StartScreen: React.FC<StartScreenProps> = ({
   // RFP picks are not in the proposal feed; the open RFP list carries their
   // cover art so the selected-proposal card can show it.
   const [rfpReferences, setRfpReferences] = useState<ResearchHubProposal[]>([]);
+  const [rfpFeedStatus, setRfpFeedStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   useEffect(() => {
     let cancelled = false;
     fetchEligibleRfps()
-      .then((rfps) => { if (!cancelled) setRfpReferences(rfps.map(rfpAsChoice)); })
-      .catch(() => undefined);
+      .then((rfps) => {
+        if (cancelled) return;
+        setRfpReferences(rfps.map(rfpAsChoice));
+        setRfpFeedStatus('ready');
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setRfpFeedStatus('error');
+      });
     return () => { cancelled = true; };
   }, []);
   const proposalReferencePool = useMemo(() => {
@@ -1249,6 +1257,13 @@ const StartScreen: React.FC<StartScreenProps> = ({
     ? isProposalExplicitlyCompleted(weeklyProposalSelection.liveProposal)
     : false;
   const weeklyProposalSelectionId = weeklyProposalSelection?.id ?? null;
+  const savedPickId = weeklyLeader?.proposalId?.trim() || '';
+  const savedPickClosed = weeklyAllocation.phase !== 'weekly'
+    && (proposalStatus === 'ready' || proposalStatus === 'empty')
+    && rfpFeedStatus === 'ready'
+    && Boolean(savedPickId)
+    && !proposals.some((proposal) => proposal.id === savedPickId)
+    && !rfpReferences.some((proposal) => proposal.id === savedPickId);
 
   useEffect(() => {
     setWeeklyWinnerSlide('pilot');
@@ -1772,6 +1787,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
                 tabIndex={weeklyWinnerSlide === 'proposal' ? 0 : -1}
                 aria-hidden={weeklyWinnerSlide !== 'proposal'}
                 aria-label={`${weeklyProposalSelection.title}, selected weekly research proposal.`}
+                data-pick-closed={savedPickClosed ? 'true' : 'false'}
               >
                 <span
                   className={`relative z-10 grid gap-3 ${compact ? '' : 'grid-cols-[5.25rem_minmax(0,1fr)]'}`}
@@ -1796,8 +1812,12 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
                   <span className="min-w-0 self-center">
                     <span className="flex items-center justify-between gap-2">
-                      <span className="text-[0.6rem] font-black uppercase text-yellow-200">Selected research proposal</span>
-                      {weeklyProposalCompleted ? (
+                      <span className="text-[0.6rem] font-black uppercase text-yellow-200">
+                        {savedPickClosed ? 'Pick closed' : 'Selected research proposal'}
+                      </span>
+                      {savedPickClosed ? (
+                        <span className="shrink-0 text-[0.58rem] font-black uppercase text-yellow-200">Choose an open one</span>
+                      ) : weeklyProposalCompleted ? (
                         <span className="shrink-0 text-[0.58rem] font-black uppercase text-yellow-200">
                           Goal reached
                         </span>
@@ -2263,12 +2283,14 @@ const StartScreen: React.FC<StartScreenProps> = ({
                   }}
                   aria-label={isEditableWeeklyLeader
                     ? `${
-                      proposalReplacementRequired
-                        ? 'Choose a replacement'
-                        : weeklyProposalNeedsAttention
-                          ? 'Choose'
-                          : 'Change'
-                    } proposal for ${weeklyAllocation.phase === 'weekly' ? 'weekly high score' : 'event high score'} ${formatNumber(run.receipt.metrics.score)}`
+                      weeklyProposalAttentionReason === 'closed'
+                        ? 'Pick closed. Choose an open one'
+                        : proposalReplacementRequired
+                          ? 'Choose a replacement'
+                          : weeklyProposalNeedsAttention
+                            ? 'Choose'
+                            : 'Change'
+                    } for ${weeklyAllocation.phase === 'weekly' ? 'weekly high score' : 'event high score'} ${formatNumber(run.receipt.metrics.score)}`
                     : undefined}
                   className={`group relative grid w-full grid-cols-[3.25rem_minmax(0,1fr)_auto] items-center gap-3 overflow-hidden rounded-[8px] border border-cyan-300/18 bg-[linear-gradient(135deg,rgba(8,47,73,0.36),rgba(15,23,42,0.72)_48%,rgba(2,6,23,0.82))] px-3 py-2.5 text-left shadow-[inset_0_0_1.25rem_rgba(34,211,238,0.035)] transition hover:border-cyan-200/45 hover:bg-cyan-300/8 ${proposalNeedsAttention ? 'sci-proposal-attention' : ''}`}
                 >
@@ -2291,11 +2313,13 @@ const StartScreen: React.FC<StartScreenProps> = ({
                   </div>
                   <span className={`max-w-[5.25rem] text-right text-[9px] font-black uppercase leading-tight tracking-wide ${proposalNeedsAttention ? 'text-yellow-200' : minted ? 'text-emerald-200' : 'text-cyan-200'}`}>
                     {isEditableWeeklyLeader
-                      ? proposalReplacementRequired
-                        ? 'Choose new pick'
-                        : weeklyProposalNeedsAttention
-                          ? 'Choose proposal'
-                        : 'Change proposal'
+                      ? weeklyProposalAttentionReason === 'closed'
+                        ? 'Pick closed'
+                        : proposalReplacementRequired
+                          ? 'Choose new pick'
+                          : weeklyProposalNeedsAttention
+                            ? 'Choose proposal'
+                            : 'Change proposal'
                       : minted
                         ? 'Minted'
                         : 'View'}
@@ -2555,16 +2579,20 @@ const StartScreen: React.FC<StartScreenProps> = ({
           >
             <p className="sci-weekly-proposal-reminder__eyebrow">{weeklyAllocation.phase === 'weekly' ? 'Weekly high score alert' : '25K High Score alert'}</p>
             <h2 id="weekly-proposal-reminder-title">
-              {weeklyProposalAttentionReason === 'completed'
-                ? 'Your research pick reached its goal'
-                : 'Your research pick is waiting'}
+              {weeklyProposalAttentionReason === 'closed'
+                ? 'Pick closed'
+                : weeklyProposalAttentionReason === 'completed'
+                  ? 'Your research pick reached its goal'
+                  : 'Your research pick is waiting'}
             </h2>
             <p id="weekly-proposal-reminder-description">
-              {weeklyAllocation.phase === 'weekly'
-                ? weeklyProposalAttentionReason === 'completed'
-                  ? `Your selected proposal was fully funded before the weekly cutoff. You are still the current #1 pilot with ${formatNumber(weeklyProposalRecovery.leader.score)} points, so choose another open proposal for this week's allocation.`
-                  : `You are still the current #1 pilot with ${formatNumber(weeklyProposalRecovery.leader.score)} points, but no ResearchHub proposal is attached to this run yet. Choose one now so your weekly funding pick is ready.`
-                : `You hold the current #1 score of ${formatNumber(weeklyProposalRecovery.leader.score)}. Choose the research this prize follows.`}
+              {weeklyProposalAttentionReason === 'closed'
+                ? 'Choose an open one.'
+                : weeklyAllocation.phase === 'weekly'
+                  ? weeklyProposalAttentionReason === 'completed'
+                    ? `Your selected proposal was fully funded before the weekly cutoff. You are still the current #1 pilot with ${formatNumber(weeklyProposalRecovery.leader.score)} points, so choose another open proposal for this week's allocation.`
+                    : `You are still the current #1 pilot with ${formatNumber(weeklyProposalRecovery.leader.score)} points, but no ResearchHub proposal is attached to this run yet. Choose one now so your weekly funding pick is ready.`
+                  : `You hold the current #1 score of ${formatNumber(weeklyProposalRecovery.leader.score)}. Choose the research this prize follows.`}
             </p>
             <div className="sci-weekly-proposal-reminder__actions">
               <button
@@ -2582,11 +2610,13 @@ const StartScreen: React.FC<StartScreenProps> = ({
                 className="sci-weekly-proposal-reminder__choose"
                 onClick={openRecoverableWeeklyProposal}
               >
-                {weeklyAllocation.phase === 'weekly'
-                  ? weeklyProposalAttentionReason === 'completed'
-                    ? 'Choose new proposal'
-                    : 'Choose proposal'
-                  : 'Choose research'}
+                {weeklyProposalAttentionReason === 'closed'
+                  ? 'Choose open'
+                  : weeklyAllocation.phase === 'weekly'
+                    ? weeklyProposalAttentionReason === 'completed'
+                      ? 'Choose new proposal'
+                      : 'Choose proposal'
+                    : 'Choose research'}
               </PixelActionButton>
             </div>
           </section>

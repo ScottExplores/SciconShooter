@@ -15,11 +15,14 @@ export interface WeeklyProposalRecovery {
   canEditProposal: boolean;
 }
 
+type PickEligibility = 'unknown' | 'open' | 'closed';
+
 interface WeeklyProposalRecoveryInput {
   weeklyLeaderboard: LeaderboardEntry[];
   walletRuns: WalletRunRecord[];
   walletAddress?: string | null;
   proposalLifecycle?: WeeklyProposalLifecycle | null;
+  pickEligibility?: PickEligibility | null;
 }
 
 const addressesMatch = (left?: string | null, right?: string | null) => (
@@ -34,7 +37,8 @@ const addressesMatch = (left?: string | null, right?: string | null) => (
 export const getWeeklyProposalRecovery = ({
   weeklyLeaderboard,
   walletRuns,
-  walletAddress
+  walletAddress,
+  pickEligibility = 'unknown'
 }: WeeklyProposalRecoveryInput): WeeklyProposalRecovery | null => {
   const leader = weeklyLeaderboard[0];
   if (!leader?.runId || leader.verified !== true) return null;
@@ -51,14 +55,18 @@ export const getWeeklyProposalRecovery = ({
   if (!record) return null;
 
   const selectedProposalId = leader.proposalId?.trim();
-  // A stored pick is final, including when the chosen proposal later fills.
-  const attentionReason: WeeklyProposalReminderReason | null = selectedProposalId
-    ? null
-    : 'missing';
+  // Outside the event, a stored pick stays final. During the event, a pick
+  // that the eligible feeds no longer contain can be replaced.
+  const pickClosed = pickEligibility === 'closed' && Boolean(selectedProposalId);
+  const attentionReason: WeeklyProposalReminderReason | null = pickClosed
+    ? 'closed'
+    : selectedProposalId
+      ? null
+      : 'missing';
   const reminderStorageKey = getWeeklyProposalReminderStorageKey({
     runId: leader.runId,
     reason: attentionReason,
-    proposalId: attentionReason === 'completed' ? selectedProposalId : null
+    proposalId: pickClosed ? selectedProposalId : null
   });
 
   return {
@@ -67,6 +75,6 @@ export const getWeeklyProposalRecovery = ({
     needsProposal: attentionReason !== null,
     attentionReason,
     reminderStorageKey,
-    canEditProposal: !selectedProposalId
+    canEditProposal: !selectedProposalId || pickClosed
   };
 };

@@ -45,7 +45,49 @@ const safeNextGrantUrl = (value) => {
   return parsed.toString();
 };
 
-const FEATURED_RFP_ID = '33131';
+const fundingProgress = (rfp) => {
+  const raised = rfp?.raisedRsc;
+  const goal = rfp?.goalRsc;
+  if (typeof raised !== 'number' || typeof goal !== 'number' || !(goal > 0)) return null;
+  return raised / goal;
+};
+
+// Best eligible RFP: furthest toward its RSC goal, then the most RSC raised,
+// then the deadline that stays open longest past payout. Ties break by title, then id.
+const compareEligibleRfps = (left, right) => {
+  const leftProgress = fundingProgress(left);
+  const rightProgress = fundingProgress(right);
+  if (leftProgress !== null || rightProgress !== null) {
+    if (leftProgress === null) return 1;
+    if (rightProgress === null) return -1;
+    if (leftProgress !== rightProgress) return rightProgress - leftProgress;
+  }
+  const leftRaised = typeof left?.raisedRsc === 'number' ? left.raisedRsc : null;
+  const rightRaised = typeof right?.raisedRsc === 'number' ? right.raisedRsc : null;
+  if (leftRaised !== null || rightRaised !== null) {
+    if (leftRaised === null) return 1;
+    if (rightRaised === null) return -1;
+    if (leftRaised !== rightRaised) return rightRaised - leftRaised;
+  }
+  const leftEnd = Date.parse(left?.endDate || '');
+  const rightEnd = Date.parse(right?.endDate || '');
+  if (leftEnd !== rightEnd) {
+    return (Number.isFinite(rightEnd) ? rightEnd : 0) - (Number.isFinite(leftEnd) ? leftEnd : 0);
+  }
+  const titleOrder = String(left?.title || '').localeCompare(String(right?.title || ''), 'en', { sensitivity: 'base' });
+  return titleOrder || String(left?.id || '').localeCompare(String(right?.id || ''));
+};
+
+const featureBestEligibleRfp = (rfps) => {
+  const eligible = Array.isArray(rfps) ? rfps.filter(Boolean) : [];
+  if (eligible.length === 0) return [];
+  const best = [...eligible].sort(compareEligibleRfps)[0];
+  const rest = eligible.filter((rfp) => rfp.id !== best.id);
+  return [
+    { ...best, featured: true },
+    ...rest.map((rfp) => ({ ...rfp, featured: false }))
+  ];
+};
 
 const plainDescription = (value) => {
   const text = asText(value, 2000);
@@ -83,16 +125,6 @@ const detailsFromPost = (payload) => {
 
 const deadlineFromPost = (payload) => detailsFromPost(payload).endDate;
 
-const orderFeaturedRfpFirst = (rfps) => {
-  const featured = [];
-  const rest = [];
-  for (const rfp of rfps) {
-    if (rfp?.id === FEATURED_RFP_ID) featured.push(rfp);
-    else rest.push(rfp);
-  }
-  return [...featured, ...rest];
-};
-
 const inspectGrantEntry = (entry, endDate, requiredOpenUntil, description = null) => {
   const content = entry?.content_object || {};
   const grant = content.grant || {};
@@ -123,7 +155,7 @@ const inspectGrantEntry = (entry, endDate, requiredOpenUntil, description = null
   };
 };
 
-const eligibleRfpsFromEntries = (entries, deadlinesById, requiredOpenUntil) => orderFeaturedRfpFirst(
+const eligibleRfpsFromEntries = (entries, deadlinesById, requiredOpenUntil) => featureBestEligibleRfp(
   entries
     .map((entry) => {
       const id = String(entry?.content_object?.id ?? entry?.id ?? '');
@@ -248,10 +280,11 @@ const handleResearchHubRfpRequest = async (req, res) => {
 module.exports = {
   deadlineFromPost,
   detailsFromPost,
+  compareEligibleRfps,
   eligibleRfpsFromEntries,
+  featureBestEligibleRfp,
   findEligibleRfp,
   handleResearchHubRfpRequest,
   inspectGrantEntry,
-  loadEligibleRfps,
-  orderFeaturedRfpFirst
+  loadEligibleRfps
 };

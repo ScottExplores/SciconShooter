@@ -12,6 +12,7 @@ export interface ResearchHubRfp {
   raisedRsc: number | null;
   description?: string | null;
   imageUrl?: string | null;
+  featured?: boolean;
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> => (
@@ -39,7 +40,8 @@ const asRfp = (value: unknown): ResearchHubRfp | null => {
     goalRsc: typeof value.goalRsc === 'number' ? value.goalRsc : null,
     raisedRsc: typeof value.raisedRsc === 'number' ? value.raisedRsc : null,
     description: typeof value.description === 'string' ? value.description : null,
-    imageUrl: typeof value.imageUrl === 'string' ? value.imageUrl : null
+    imageUrl: typeof value.imageUrl === 'string' ? value.imageUrl : null,
+    featured: value.featured === true
   };
 };
 

@@ -2,6 +2,10 @@ const crypto = require('crypto');
 const { fetchSupabaseJson, supabaseHeaders } = require('./_lib/supabase');
 const { findEligibleProposal } = require('./_lib/researchHubEligibility');
 const { findEligibleRfp } = require('./_lib/researchHubRfps');
+const {
+  classifyStoredPick,
+  CLOSED_PICK_MESSAGE
+} = require('./_lib/eventResearchPick');
 const { sendBaseNotificationBroadcast } = require('./_lib/baseNotifications');
 const { verifyBaseMessage } = require('./_lib/baseSignatures');
 const { checkRateLimit } = require('./_lib/rateLimit');
@@ -57,14 +61,21 @@ const proposalFromCompetition = (competition) => ({
   imageUrl: competition?.proposal_image_url || null
 });
 
-const assertStoredPickIsUnchanged = (competition, proposalId) => {
-  const stored = String(competition?.proposal_id || '').trim();
-  if (!stored || stored === String(proposalId || '').trim()) return;
-  throw apiError(
-    'This winner already submitted a research pick.',
-    409,
-    'WEEKLY_PROPOSAL_ALREADY_SELECTED'
-  );
+const assertStoredPickCanChange = async (competition, proposalId) => {
+  const decision = await classifyStoredPick({
+    proposalId: competition?.proposal_id,
+    proposalUrl: competition?.proposal_url
+  }, proposalId);
+  if (decision === 'reject-locked') {
+    throw apiError(
+      'This winner already submitted a research pick.',
+      409,
+      'WEEKLY_PROPOSAL_ALREADY_SELECTED'
+    );
+  }
+  if (decision === 'reject-closed') {
+    throw apiError(CLOSED_PICK_MESSAGE, 409, 'RESEARCH_PICK_CLOSED');
+  }
 };
 
 const isSameStoredClaim = (competition, wallet, proposalId) => (
@@ -228,7 +239,7 @@ const createChallenge = async ({ weekKey, proposalId, address, targetKind }) => 
   if (!wallet) throw apiError('A valid Base wallet is required.', 400, 'WEEKLY_CLAIM_WALLET_INVALID');
   const competition = await getCompetition(weekKey);
   await assertCompetitionIsClaimable(competition, wallet);
-  assertStoredPickIsUnchanged(competition, proposalId);
+  await assertStoredPickCanChange(competition, proposalId);
   const kind = targetKind === 'rfp' ? 'rfp' : 'proposal';
   const proposal = await findCurrentWeekEligibleProposal(proposalId, kind);
   const challengeId = crypto.randomUUID();
@@ -332,7 +343,7 @@ const completeClaim = async ({ weekKey, proposalId, address, challengeId, signat
   }
 
   await assertCompetitionIsClaimable(competition, wallet);
-  assertStoredPickIsUnchanged(competition, proposalId);
+  await assertStoredPickCanChange(competition, proposalId);
   if (
     !challenge
     || challenge.used_at

@@ -651,7 +651,9 @@ test('policy routes sensitive support, ignores hostility, and validates X length
   assert.equal(classifyMention('How do the RSC Funding Credits work?').reason, 'funding_question');
   assert.equal(classifyMention('When does the weekly leaderboard reset?').reason, 'competition_question');
   assert.match(deterministicReply('play_question'), /sciconshooter\.xyz/);
-  assert.match(deterministicReply('funding_question'), /Airborne Disease Resilience RFP pool/);
+  const fundingReply = deterministicReply('funding_question');
+  assert.match(fundingReply, /ResearchHub/);
+  assert.doesNotMatch(fundingReply, /Airborne Disease Resilience/);
   assert.match(
     deterministicReply('sensitive_support', 'Was funding sent?'),
     /transaction evidence is verified/

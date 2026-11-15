@@ -1,7 +1,7 @@
 export const WEEKLY_PROPOSAL_REMINDER_STORAGE_KEY = 'scicon.weekly-proposal-reminder';
 export const WEEKLY_PROPOSAL_REMINDER_INTERVAL_MS = 4 * 60 * 60 * 1000;
 
-export type WeeklyProposalReminderReason = 'missing' | 'completed';
+export type WeeklyProposalReminderReason = 'missing' | 'completed' | 'closed';
 
 interface WeeklyProposalReminderStorageValue {
   version: 1;
@@ -28,14 +28,16 @@ export const getWeeklyProposalReminderStorageKey = ({
   if (!normalizedRunId || !reason) return null;
 
   const normalizedProposalId = proposalId?.trim();
-  if (reason === 'completed' && !normalizedProposalId) return null;
+  if ((reason === 'completed' || reason === 'closed') && !normalizedProposalId) return null;
 
   const keyParts = [
     WEEKLY_PROPOSAL_REMINDER_STORAGE_KEY,
     encodeURIComponent(normalizedRunId),
     reason
   ];
-  if (reason === 'completed') keyParts.push(encodeURIComponent(normalizedProposalId as string));
+  if (reason === 'completed' || reason === 'closed') {
+    keyParts.push(encodeURIComponent(normalizedProposalId as string));
+  }
   return keyParts.join(':');
 };
 
