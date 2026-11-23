@@ -27,7 +27,7 @@ SciCon Shooter is community-built and is not an official ResearchHub product.
 
 Contact: sciconshooter@gmail.com
 
-Privacy policy: https://play.sciconshooter.xyz/android-privacy.html
+Privacy policy: https://scicon-play.vercel.app/android-privacy.html
 
 Graphics in this folder:
 

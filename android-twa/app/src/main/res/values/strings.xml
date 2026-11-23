@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">SciCon Shooter</string>
-    <string name="launch_url">https://play.sciconshooter.xyz/</string>
+    <string name="launch_url">https://scicon-play.vercel.app/</string>
 </resources>

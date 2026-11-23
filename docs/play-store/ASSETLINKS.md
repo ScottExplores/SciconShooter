@@ -2,7 +2,7 @@
 
 File: `public/.well-known/assetlinks.json`
 
-Served from `https://play.sciconshooter.xyz/.well-known/assetlinks.json`.
+Served from `https://scicon-play.vercel.app/.well-known/assetlinks.json`.
 
 `vercel.json` lists that path before the single-page rewrite and sets `Content-Type: application/json`.
 

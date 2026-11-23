@@ -1,6 +1,6 @@
 # Play Console answers
 
-Use these answers for the SciCon Shooter Play app, package `xyz.sciconshooter.play`. They describe the Trusted Web Activity on `https://play.sciconshooter.xyz`, not the browser site on `www.sciconshooter.xyz`.
+Use these answers for the SciCon Shooter Play app, package `xyz.sciconshooter.play`. They describe the Trusted Web Activity on `https://scicon-play.vercel.app`, not the browser site on `www.sciconshooter.xyz`.
 
 ## Ads
 

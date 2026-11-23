@@ -54,7 +54,8 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data
-                    android:host="play.sciconshooter.xyz"
+                    android:host="scicon-play.vercel.app"
+                    android:pathPrefix="/"
                     android:scheme="https" />
             </intent-filter>
         </activity>

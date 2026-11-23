@@ -45,7 +45,7 @@ test('the Play shell is the default on this branch', () => {
   const play = loadPlayBuild();
   assert.equal(play.PLAY_BUILD, true);
   assert.equal(play.PLAY_ANDROID_PACKAGE, 'xyz.sciconshooter.play');
-  assert.equal(play.PLAY_ORIGIN, 'https://play.sciconshooter.xyz');
+  assert.equal(play.PLAY_ORIGIN, 'https://scicon-play.vercel.app');
   assert.equal(play.playShipLabel('researchhub', 'RSC ship'), 'Research ship');
   assert.equal(play.playShipLabel('eth', 'ETH ship'), 'Prism ship');
   assert.equal(play.playShipLabel('btc', 'BTC ship'), 'Solar ship');
@@ -118,11 +118,13 @@ test('Digital Asset Links and the Play host are wired for the new package', () =
     && entry.headers.some((header) => header.key === 'Content-Type' && header.value === 'application/json')
   )));
   assert.match(privacy, /xyz\.sciconshooter\.play/);
-  assert.match(privacy, /play\.sciconshooter\.xyz/);
+  assert.match(privacy, /scicon-play\.vercel\.app/);
   assert.match(privacy, /sciconshooter@gmail\.com/);
   assert.match(privacy, /Trusted Web Activity/);
   assert.match(manifest, /xyz\.sciconshooter\.play/);
-  assert.match(read('android-twa/app/src/main/res/values/strings.xml'), /https:\/\/play\.sciconshooter\.xyz\//);
+  assert.match(read('android-twa/app/src/main/res/values/strings.xml'), /https:\/\/scicon-play\.vercel\.app\//);
+  assert.match(manifest, /android:host="scicon-play\.vercel\.app"/);
+  assert.match(manifest, /android:pathPrefix="\/"/);
   assert.match(manifest, /android:screenOrientation="portrait"/);
   assert.match(gradle, /applicationId "xyz\.sciconshooter\.play"/);
   assert.match(gradle, /targetSdk 36/);
