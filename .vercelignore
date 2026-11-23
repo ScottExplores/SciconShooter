@@ -1,3 +1,13 @@
 # Scicon Director is a local-only development application.
 director/
 director-data/
+
+# The Play project is a new Hobby deployment, which allows 12 serverless
+# functions. Node middleware plus every api route exceeds that, and this
+# origin must not mint, claim, or finalize the live competition. The source
+# files stay in git so the handlers and their tests remain.
+middleware.js
+api/mint-authorization.js
+api/finalize-weekly-competition.js
+api/weekly-claim.js
+api/run-claims.js

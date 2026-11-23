@@ -21,7 +21,7 @@ Create a **new** Vercel project. Do not attach it to the existing `www.sciconsho
 
 Domain: `play.sciconshooter.xyz` only.
 
-Do **not** copy wallet, mint, cron, or X credentials onto this project. Cron routes in `vercel.json` reject calls unless `CRON_SECRET` is set, and the social worker stays off unless `X_AUTONOMY_ENABLED=true`. Leave both unset here so this project cannot post or finalize the live competition.
+Do **not** copy wallet, mint, cron, or X credentials onto this project. This branch removes the cron schedules and excludes the finalizer, claim, and mint-authorization routes from the upload (`.vercelignore`). A new Hobby project allows only 12 serverless functions, and the live site's project is already at that cap once Node middleware is included. The social worker route is not scheduled here.
 
 Optional, only if you want leaderboard reads and feedback email on the Play origin:
 

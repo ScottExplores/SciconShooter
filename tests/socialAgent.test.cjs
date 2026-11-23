@@ -1179,18 +1179,7 @@ test('deployment configuration keeps the worker private, scheduled, and disabled
   );
   const xClientSource = fs.readFileSync(path.join(root, 'api', '_lib', 'xApi.js'), 'utf8');
 
-  const dailyCrons = vercel.crons.filter((entry) => entry.path === '/api/social-agent?mode=daily');
-  assert.deepEqual(
-    dailyCrons.map((entry) => entry.schedule).sort(),
-    ['0 0 * * *', '0 16 * * *', '0 17 * * *', '0 23 * * *'].sort()
-  );
-  assert.deepEqual(
-    vercel.crons
-      .filter((entry) => entry.path === '/api/social-agent?mode=weekly')
-      .map((entry) => entry.schedule)
-      .sort(),
-    ['15 21 * * 0', '15 22 * * 0'].sort()
-  );
+  assert.equal(vercel.crons, undefined);
   assert.match(environment, /^X_AUTONOMY_ENABLED=false$/m);
   assert.match(installMigration, /alter table public\.scicon_social_actions enable row level security/i);
   assert.match(installMigration, /revoke all on table public\.scicon_social_actions from public, anon, authenticated/i);
