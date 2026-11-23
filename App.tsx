@@ -1,5 +1,6 @@
 import { fetchEligibleRfps, prefetchEligibleRfps } from './services/researchHubRfps';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { PLAY_BUILD } from './services/playBuild';
 import type { Address } from 'viem';
 import StartScreen from './components/StartScreen';
 import SciconOnboarding, { type OnboardingSurface } from './components/SciconOnboarding';
@@ -745,7 +746,7 @@ const RESUME_COUNTDOWN_STEP_MS = 1_000;
 const RANKED_HOOK_BANNER_KEY = 'scicon.rankedHookBanner.v1';
 
 const App: React.FC = () => {
-  const [initialWalletAddress] = useState<Address | null>(readCachedBaseAccount);
+  const [initialWalletAddress] = useState<Address | null>(PLAY_BUILD ? null : readCachedBaseAccount);
   const [gameState, setGameState] = useState<GameState>(GameState.MENU);
   const [gameId, setGameId] = useState<number>(0);
   const [activeRunLifeCapacity, setActiveRunLifeCapacity] = useState(GAME_CONFIG.PLAYER_LIVES);
@@ -1288,7 +1289,7 @@ const App: React.FC = () => {
 
   // Warm the wallet chunk during idle so the first Connect click can open its
   // popup while the browser still honours the user activation.
-  useEffect(() => { warmWalletRuntime(); }, []);
+  useEffect(() => { if (!PLAY_BUILD) warmWalletRuntime(); }, []);
 
   useEffect(() => {
     weeklySquadStateRef.current = weeklySquadState;
@@ -1446,7 +1447,7 @@ const App: React.FC = () => {
   const runWalletIntent = activeWalletAddress && walletProfileStatus === 'ready'
     ? activeWalletAddress
     : null;
-  const isOwnerWallet = activeWalletAddress?.toLowerCase() === DONATION_CONFIG.RECIPIENT_ADDRESS.toLowerCase();
+  const isOwnerWallet = !PLAY_BUILD && activeWalletAddress?.toLowerCase() === DONATION_CONFIG.RECIPIENT_ADDRESS.toLowerCase();
   const founderPresentedWeeklySquadState = useMemo(
     () => isOwnerWallet ? createFounderSquadSandboxState(weeklySquadState) : weeklySquadState,
     [isOwnerWallet, weeklySquadState]
@@ -1466,7 +1467,7 @@ const App: React.FC = () => {
   const founderAuthorizationRef = useRef(Boolean(isOwnerWallet));
   founderAuthorizationRef.current = Boolean(isOwnerWallet);
   const openFounderBossLab = useCallback(() => {
-    if (!founderAuthorizationRef.current) return;
+    if (!PLAY_BUILD && !founderAuthorizationRef.current) return;
     const url = new URL(window.location.href);
     url.searchParams.set('bosslab', '');
     window.location.assign(url.toString());
@@ -1732,7 +1733,8 @@ const App: React.FC = () => {
       campaignProgress: permanentSquadState.campaignProgress,
       accessStatus: playerShipAccessUpdate.status,
       accessError: playerShipAccessUpdate.error,
-      unlockAll: isOwnerWallet
+      unlockAll: isOwnerWallet,
+      playShell: PLAY_BUILD
     });
   }, [
     isOwnerWallet,
@@ -1746,7 +1748,9 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const prize = getPublicPrizeState();
-    const description = prize.phase === 'weekly'
+    const description = PLAY_BUILD
+      ? 'SciCon Shooter is a portrait arcade flight game. Campaign missions, bosses, and ships stay on this device.'
+      : prize.phase === 'weekly'
       ? 'Play games. Fund science. Scicon Shooter is a DeSci-inspired, community-built Base arcade game where the finalized weekly winner can direct RSC funding credits toward an eligible science proposal.'
       : 'Top score by Nov 29 wins 25,000 RSC for ResearchHub science.';
     for (const selector of ['meta[name="description"]', 'meta[property="og:description"]', 'meta[name="twitter:description"]']) {
@@ -6303,6 +6307,7 @@ const App: React.FC = () => {
   };
 
   const requestWalletRuntimeAction = useCallback((type: 'connect' | 'switch-account' | 'disconnect' | 'release') => {
+    if (PLAY_BUILD) return;
     // Kick the chunk off immediately as well, so a first-ever click does not
     // have to wait on a cold network fetch before the popup can open.
     deploymentReloadSafeRef.current = false;
@@ -7814,7 +7819,7 @@ const App: React.FC = () => {
       ) : null}
     </div>
   );
-  const gameOverContinueControls = !campaignCompletedRun && !isCampaignRun && !isNonCompetitiveRun && !runReceipt && runReceiptStatus !== 'finalizing'
+  const gameOverContinueControls = !PLAY_BUILD && !campaignCompletedRun && !isCampaignRun && !isNonCompetitiveRun && !runReceipt && runReceiptStatus !== 'finalizing'
     ? continueRunControls
     : null;
   const resultEncounter = getStageName(stats.wave);
@@ -7965,7 +7970,7 @@ const App: React.FC = () => {
           <button type="button" className="mt-2 min-h-11 px-3 font-bold" onClick={() => setLocalHangarSaveError('')}>Dismiss</button>
         </div>
       ) : null}
-      {walletRuntimeEnabled ? (
+      {!PLAY_BUILD && walletRuntimeEnabled ? (
         <React.Suspense fallback={null}>
           <WalletRuntime
             action={walletRuntimeAction}
@@ -8299,7 +8304,7 @@ const App: React.FC = () => {
             )
           )}
           founderSandbox={isOwnerWallet}
-          onOpenBossLab={isOwnerWallet ? openFounderBossLab : undefined}
+          onOpenBossLab={PLAY_BUILD || isOwnerWallet ? openFounderBossLab : undefined}
           onUnlockSquadSlot={handleUnlockSquadSlot}
           onPurchaseMiniShip={handlePurchaseMiniShip}
           onUpgradeMiniShip={handleUpgradeMiniShip}
@@ -8324,7 +8329,7 @@ const App: React.FC = () => {
           onClaimWeeklyChampion={claimWeeklyChampion}
           requestedChampionWinner={scorecardChampionWinner}
           onCloseRequestedChampion={() => setScorecardChampionWinner(null)}
-          walletControl={!activeStoryBeat ? (
+          walletControl={PLAY_BUILD || activeStoryBeat ? null : (
             <WalletControl
               wallet={wallet}
               onConnect={connectWallet}
@@ -8333,7 +8338,7 @@ const App: React.FC = () => {
               onOpenSwap={openRscSwap}
               placement="mission"
             />
-          ) : null}
+          )}
         />
       )}
 
@@ -8401,7 +8406,7 @@ const App: React.FC = () => {
             onMusicVolumeChange={setGameMusicVolume}
             onMatchMusicTrackChange={setGameMatchMusicTrack}
             founderSandbox={isOwnerWallet}
-            onOpenBossLab={isOwnerWallet ? openFounderBossLab : undefined}
+            onOpenBossLab={PLAY_BUILD || isOwnerWallet ? openFounderBossLab : undefined}
             onUnlockSquadSlot={handleUnlockSquadSlot}
             onPurchaseMiniShip={handlePurchaseMiniShip}
             onUpgradeMiniShip={handleUpgradeMiniShip}

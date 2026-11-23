@@ -31,16 +31,12 @@ test('weekly proposal snapshot/finalization cron rejects requests without the cr
   assert.equal(res.body.error, 'Unauthorized');
 });
 
-test('Vercel config schedules a DST-safe early snapshot and post-settlement finalizers', () => {
+test('the Play deployment does not schedule weekly finalization', () => {
   const vercel = require('../vercel.json');
-  const weeklyCrons = vercel.crons.filter(
-    (entry) => entry.path === '/api/finalize-weekly-competition'
-  );
-  assert.deepEqual(weeklyCrons.map((entry) => entry.schedule), [
-    '0 18 * * 0',
-    '10 19 * * 0',
-    '10 20 * * 0'
-  ]);
+  const ignored = fs.readFileSync(path.resolve(__dirname, '..', '.vercelignore'), 'utf8');
+  assert.equal(vercel.crons, undefined);
+  assert.match(ignored, /^middleware\.js$/m);
+  assert.doesNotMatch(ignored, /^api\//m);
 });
 
 test('a late cutoff capture fails closed and later invocations run recent-week recovery', () => {

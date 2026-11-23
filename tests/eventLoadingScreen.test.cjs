@@ -54,8 +54,11 @@ test('the Umbra loading screen follows the 25K event window and the existing loa
   assert.match(art, /nih-ship\.png/);
   assert.match(screen, /EVENT_LOADING_BOSS/);
   assert.match(screen, /EVENT_LOADING_SHIPS/);
-  assert.match(screen, /25,000 <span>RSC<\/span>/);
-  assert.match(screen, /Ends Nov 29/);
+  assert.match(screen, /<h1>Launch<\/h1>/);
+  assert.match(screen, /Campaign flight/);
+  assert.doesNotMatch(screen, /25,000 <span>RSC<\/span>/);
+  assert.match(html, /<h1>Launch<\/h1>/);
+  assert.doesNotMatch(html, /25,000 <span>RSC<\/span>/);
   assert.match(screen, /Play Campaign first to upgrade your ship\./);
   assert.match(screen, /data-event-loading-progress=\{safeProgress\}>\{safeProgress\}%/);
   assert.match(screen, /style=\{\{ width: `\$\{safeProgress\}%` \}\}/);

@@ -9,7 +9,7 @@ const appSource = fs.readFileSync(path.join(root, 'App.tsx'), 'utf8');
 test('Boss Archive founder controls follow the live connected wallet lifecycle', () => {
   assert.match(
     appSource,
-    /const isOwnerWallet = activeWalletAddress\?\.toLowerCase\(\) === DONATION_CONFIG\.RECIPIENT_ADDRESS\.toLowerCase\(\)/
+    /const isOwnerWallet = !PLAY_BUILD && activeWalletAddress\?\.toLowerCase\(\) === DONATION_CONFIG\.RECIPIENT_ADDRESS\.toLowerCase\(\)/
   );
   assert.match(
     appSource,

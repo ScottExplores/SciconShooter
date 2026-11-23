@@ -8,10 +8,10 @@ const read = (...parts) => fs.readFileSync(path.join(root, ...parts), 'utf8');
 
 test('a remembered Base Account hydrates underneath the startup splash', () => {
   const app = read('App.tsx');
-  assert.match(app, /\{walletRuntimeEnabled \? \(/);
+  assert.match(app, /\{!PLAY_BUILD && walletRuntimeEnabled \? \(/);
   assert.doesNotMatch(app, /walletRuntimeEnabled && !startupLoading/);
   assert.ok(
-    app.indexOf('{walletRuntimeEnabled ? (') < app.indexOf('{startupLoading || walletIdentityHydrating ? ('),
+    app.indexOf('{!PLAY_BUILD && walletRuntimeEnabled ? (') < app.indexOf('{startupLoading || walletIdentityHydrating ? ('),
     'wallet runtime mounts before the startup overlay branch'
   );
   assert.doesNotMatch(app, /walletIdentityTransitionNonce/);

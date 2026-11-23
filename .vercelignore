@@ -1,3 +1,8 @@
 # Scicon Director is a local-only development application.
 director/
 director-data/
+
+# A new Hobby project allows 12 serverless functions. The twelve api routes
+# are that budget. Node middleware is the extra function, and vite.config.ts
+# requires the api handlers while it loads, so those files have to be uploaded.
+middleware.js

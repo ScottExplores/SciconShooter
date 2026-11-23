@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { PLAY_BUILD, playShipLabel } from '../services/playBuild';
 import { ArchivedWinner, LeaderboardEntry, MintRecord } from '../types';
 import { ResearchHubProposal } from '../services/researchHubProposals';
 import {
@@ -511,7 +512,7 @@ const getProposalTag = (proposal: ResearchHubProposal, index: number) => {
   if (text.includes('protein') || text.includes('health') || text.includes('clinical')) return 'Health';
   if (text.includes('battery') || text.includes('fusion') || text.includes('energy')) return 'Energy';
   if (text.includes('open') || text.includes('software') || text.includes('ai')) return 'Open Science';
-  return ['Research', 'Biotech', 'Materials', 'Base Native'][index % 4];
+  return ['Research', 'Biotech', 'Materials', PLAY_BUILD ? 'Survey' : 'Base Native'][index % 4];
 };
 
 const leaderboardName = (entry?: LeaderboardEntry) => entry?.name || 'Open pilot slot';
@@ -1152,13 +1153,21 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
   const focusedShip = PLAYER_SHIPS[shipFocusId];
   const focusedShipLocked = !isPlayerShipUnlocked(shipFocusId, shipUnlocks);
-  const getShipUnlockMessage = (shipId: PlayerShipId) => shipId === 'bio'
-    ? 'NIH is unlocked.'
-    : shipId === 'eth'
-      ? 'Unlock permanently for 0.001 ETH on Base.'
-      : shipId === 'btc'
-        ? `Earn all ${shipUnlocks.campaignStarsTotal} Campaign stars or unlock for 0.00008 cbBTC on Base.`
-        : 'This ship is ready.';
+  const getShipUnlockMessage = (shipId: PlayerShipId) => {
+    if (PLAY_BUILD) {
+      if (shipId === 'bio') return 'NIH is unlocked.';
+      if (shipId === 'eth') return 'Prism ship is ready.';
+      if (shipId === 'btc') return `Earn all ${shipUnlocks.campaignStarsTotal} Campaign stars.`;
+      return 'This ship is ready.';
+    }
+    return shipId === 'bio'
+      ? 'NIH is unlocked.'
+      : shipId === 'eth'
+        ? 'Unlock permanently for 0.001 ETH on Base.'
+        : shipId === 'btc'
+          ? `Earn all ${shipUnlocks.campaignStarsTotal} Campaign stars or unlock for 0.00008 cbBTC on Base.`
+          : 'This ship is ready.';
+  };
 
   const requestHangar = () => setDashboardTab('hangar');
 
@@ -1173,7 +1182,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const requestFocusedShip = () => {
     if (focusedShipLocked) {
       setShipLockNudgeRevision((revision) => revision + 1);
-      if (shipFocusId !== 'researchhub') setHomeShipAccessId(shipFocusId);
+      if (!PLAY_BUILD && shipFocusId !== 'researchhub') setHomeShipAccessId(shipFocusId);
       return;
     }
 
@@ -1356,7 +1365,9 @@ const StartScreen: React.FC<StartScreenProps> = ({
             </div>
           </div>
           <div className="min-w-[6.75rem] text-right">
-            {funding.currency ? (
+            {PLAY_BUILD ? (
+              <p className="text-[0.54rem] font-bold uppercase text-slate-500">Research proposal</p>
+            ) : funding.currency ? (
               <>
                 <p className="whitespace-nowrap text-xs font-black text-white">
                   {formatFundingAmount(funding.raisedAmount, funding.currency)} / {formatFundingAmount(funding.goalAmount, funding.currency)}
@@ -1423,7 +1434,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
               <span>Shooter</span>
             </div>
             <p className="mx-auto max-w-xl text-xs font-bold uppercase text-cyan-50/85 md:text-sm">
-              Fund research. Upgrade science. Win together.
+              {PLAY_BUILD ? 'Fly the research frontier.' : 'Fund research. Upgrade science. Win together.'}
             </p>
           </div>
         )}
@@ -1443,9 +1454,10 @@ const StartScreen: React.FC<StartScreenProps> = ({
             getLockedMessage={getShipUnlockMessage}
             getShipAriaLabel={(shipId) => {
               const ship = PLAYER_SHIPS[shipId];
+              const shipName = playShipLabel(ship.id, ship.name);
               return isPlayerShipUnlocked(shipId, shipUnlocks)
-                ? `Open ${ship.name} Squad Hangar`
-                : `${ship.name} locked. ${getShipUnlockMessage(shipId)}`;
+                ? `Open ${shipName} Squad Hangar`
+                : `${shipName} locked. ${getShipUnlockMessage(shipId)}`;
             }}
             onFocusShip={setShipFocusId}
             onSettleShip={(shipId) => {
@@ -1520,7 +1532,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
               ) : <span className="col-start-3" aria-hidden="true" />}
             </div>
           ) : null}
-          {founderSandbox && onOpenBossLab ? (
+          {(founderSandbox || PLAY_BUILD) && onOpenBossLab ? (
             <button
               type="button"
               onClick={onOpenBossLab}
@@ -1555,7 +1567,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
               <span>{campaignCheckpoint.action}</span>
             </span>
           </PixelActionButton>
-          {!compact ? <p className="text-sm font-bold text-emerald-200">Complete. Earn. Fund.</p> : null}
+          {!compact ? <p className="text-sm font-bold text-emerald-200">{PLAY_BUILD ? 'Complete the mission.' : 'Complete. Earn. Fund.'}</p> : null}
         </div>
       </div>
     </HudPanel>
@@ -1584,7 +1596,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
     // Ranked hero: aim at the live #1 score, or invite the first one.
     const heroTopScore = weeklyLeader?.score ?? 0;
     const heroTitle = heroTopScore > 0 ? `Beat ${formatNumber(heroTopScore)}` : 'Set the High Score';
-    const heroPrizeRsc = weeklyAllocation.allocationRsc > 0 ? weeklyAllocation.allocationRsc : 0;
+    const heroPrizeRsc = !PLAY_BUILD && weeklyAllocation.allocationRsc > 0 ? weeklyAllocation.allocationRsc : 0;
 
     return onStartWeeklyRun ? (
       <>
@@ -1624,7 +1636,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
                 {weeklyRunAttemptsRemaining > 0
                   ? attemptLabel
                   : needsServerVerification
-                    ? 'Checking Wallet Attempts'
+                    ? (PLAY_BUILD ? 'Checking Attempts' : 'Checking Wallet Attempts')
                     : eventCard
                       ? `${weeklyRunAttemptsRemaining}/${weeklyRunAttemptLimit} runs`
                       : 'No Attempts Left'}
@@ -1689,7 +1701,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
         <div className={`sci-weekly-funding-summary ${compact ? 'mb-2 pb-2' : 'mb-3 pb-3'} grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 border-b border-cyan-200/14`}>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-lg font-black text-emerald-200">{weeklyAllocation.phase === 'weekly' ? 'Weekly Funding' : '25K High Score'}</h2>
+              <h2 className="text-lg font-black text-emerald-200">{PLAY_BUILD ? (weeklyAllocation.phase === 'weekly' ? 'Weekly Score' : 'High Score') : (weeklyAllocation.phase === 'weekly' ? 'Weekly Funding' : '25K High Score')}</h2>
               <StatusPill tone={weeklyAllocation.closed || weeklyAllocation.isFinalizing ? 'gold' : 'green'}>
                 {weeklyAllocation.phase === 'weekly'
                   ? (weeklyAllocation.isFinalizing ? 'Finalizing' : 'Live')
@@ -1703,10 +1715,16 @@ const StartScreen: React.FC<StartScreenProps> = ({
             ) : null}
           </div>
           <div className="text-right">
-            <p className="text-[0.62rem] font-bold uppercase text-slate-400">{weeklyAllocation.phase === 'weekly' ? 'Prize Pool' : 'Prize'}</p>
-            <p className="mt-0.5 text-2xl font-black leading-none text-emerald-300">
-              {weeklyAllocation.allocationRsc.toLocaleString()} <span className="text-sm">RSC</span>
-            </p>
+            {PLAY_BUILD ? (
+              <p className="text-[0.62rem] font-bold uppercase text-slate-400">Best score</p>
+            ) : (
+              <>
+                <p className="text-[0.62rem] font-bold uppercase text-slate-400">{weeklyAllocation.phase === 'weekly' ? 'Prize Pool' : 'Prize'}</p>
+                <p className="mt-0.5 text-2xl font-black leading-none text-emerald-300">
+                  {weeklyAllocation.allocationRsc.toLocaleString()} <span className="text-sm">RSC</span>
+                </p>
+              </>
+            )}
             <p className="mt-1 text-[0.68rem] font-semibold text-slate-300">
               {weeklyAllocation.countdownLabel}
             </p>
@@ -1821,7 +1839,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
                         <span className="shrink-0 text-[0.58rem] font-black uppercase text-yellow-200">
                           Goal reached
                         </span>
-                      ) : weeklyFunding?.progressPercent !== null && weeklyFunding?.progressPercent !== undefined ? (
+                      ) : !PLAY_BUILD && weeklyFunding?.progressPercent !== null && weeklyFunding?.progressPercent !== undefined ? (
                         <span className="shrink-0 text-[0.58rem] font-black uppercase text-emerald-200">
                           {formatFundingPercent(weeklyFunding.progressPercent)} funded
                         </span>
@@ -1941,7 +1959,9 @@ const StartScreen: React.FC<StartScreenProps> = ({
         <div className="mb-4 grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
           <div>
             <h2 className="text-2xl font-black text-white">Proposal Hangar</h2>
-            <p className="text-sm text-slate-300">Search eligible ResearchHub proposals sorted by their live funded percentage. USD values can move with the RSC market price.</p>
+            <p className="text-sm text-slate-300">{PLAY_BUILD
+              ? 'Read eligible ResearchHub proposals. This list is informational.'
+              : 'Search eligible ResearchHub proposals sorted by their live funded percentage. USD values can move with the RSC market price.'}</p>
           </div>
           <label className="relative block min-w-[15rem]">
             <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-cyan-200/70" />
@@ -1994,7 +2014,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
         <div className="mb-3 flex items-center justify-between gap-3 text-xs font-bold uppercase text-slate-400">
           <span>{filteredProposals.length} active proposal{filteredProposals.length === 1 ? '' : 's'}</span>
-          <span>{proposalSearch.trim() ? 'Search filtered · ' : ''}Most funded first</span>
+          <span>{PLAY_BUILD ? 'Open proposals' : `${proposalSearch.trim() ? 'Search filtered · ' : ''}Most funded first`}</span>
         </div>
 
         <div className="max-h-[min(62vh,48rem)] space-y-2 overflow-y-auto pr-1">
@@ -2169,8 +2189,14 @@ const StartScreen: React.FC<StartScreenProps> = ({
                         <p className="mt-0.5 text-[0.65rem] font-bold uppercase text-emerald-200">Weekly champion</p>
                       </div>
                       <div className="shrink-0 text-right">
-                        <p className="text-lg font-black leading-none text-white">{(winner.allocationRsc ?? weeklyAllocation.allocationRsc).toLocaleString('en-US')} <span className="text-xs text-emerald-200">RSC</span></p>
-                        <p className="mt-1 text-[0.58rem] font-bold uppercase tracking-wide text-cyan-200">{proposalClaimed ? 'Final allocation' : 'Claim pending'}</p>
+                        {PLAY_BUILD ? (
+                          <p className="text-lg font-black leading-none text-white">{formatNumber(winner.score)}</p>
+                        ) : (
+                          <>
+                            <p className="text-lg font-black leading-none text-white">{(winner.allocationRsc ?? weeklyAllocation.allocationRsc).toLocaleString('en-US')} <span className="text-xs text-emerald-200">RSC</span></p>
+                            <p className="mt-1 text-[0.58rem] font-bold uppercase tracking-wide text-cyan-200">{proposalClaimed ? 'Final allocation' : 'Claim pending'}</p>
+                          </>
+                        )}
                       </div>
                     </div>
 
@@ -2182,7 +2208,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
                       </div>
                       <div className="grid min-w-0 grid-cols-[3.5rem_minmax(0,1fr)] items-center gap-3 border-l-2 border-emerald-300/35 pl-3">
                         <div className="relative flex aspect-square items-center justify-center overflow-hidden rounded-[6px] border border-cyan-200/20 bg-cyan-300/[0.06]">
-                          <span className="text-[0.58rem] font-black uppercase tracking-wider text-cyan-200/55">RSC</span>
+                          {PLAY_BUILD ? null : <span className="text-[0.58rem] font-black uppercase tracking-wider text-cyan-200/55">RSC</span>}
                           {proposalSelection?.imageUrl ? (
                             <img
                               key={`${proposalSelection.id}:${proposalSelection.imageUrl}`}
@@ -2392,8 +2418,10 @@ const StartScreen: React.FC<StartScreenProps> = ({
           <MoreMenuTile
             label="ResearchHub"
             icon={`${MORE_MENU_ICON_ROOT}/research-proposals.png`}
-            onClick={onOpenFund}
+            onClick={PLAY_BUILD ? () => setDashboardTab('proposals') : onOpenFund}
           />
+          {PLAY_BUILD ? null : (
+            <>
           <MoreMenuTile
             label="Treasury"
             icon={`${MORE_MENU_ICON_ROOT}/funding-wallet.png`}
@@ -2409,6 +2437,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
             icon={`${COMMUNICATION_ICON_ROOT}/friends.png`}
             onClick={() => setShowReferral(true)}
           />
+            </>
+          )}
           <MoreMenuTile
             label="Feedback"
             icon={`${COMMUNICATION_ICON_ROOT}/feedback.png`}
@@ -2452,7 +2482,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
     <SquadHangar
       state={weeklySquadState}
       mainShipId={shipFocusId}
-      mainShipName={focusedShip.name}
+      mainShipName={playShipLabel(focusedShip.id, focusedShip.name)}
       shipUnlocks={shipUnlocks}
       walletConnected={Boolean(walletAddress)}
       rscBalance={rscBalance}
@@ -2736,7 +2766,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
         onClose={() => setPlayerReportKind(null)}
       />
 
-      {showTreasury && (
+      {showTreasury && !PLAY_BUILD && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
           <div className="w-full max-w-lg rounded-[8px] border border-cyan-300/25 bg-slate-950 p-5 shadow-[0_0_40px_rgba(34,211,238,0.22)]">
             <div className="mb-4 flex items-center justify-between">
@@ -2765,7 +2795,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
         </div>
       )}
 
-      {showRscAcquire && (
+      {showRscAcquire && !PLAY_BUILD && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
           <section
             ref={rscAcquireDialogRef}
@@ -2822,7 +2852,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
         </div>
       )}
 
-      {showReferral && (
+      {showReferral && !PLAY_BUILD && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
           <section
             ref={referralDialogRef}
@@ -2922,6 +2952,23 @@ const StartScreen: React.FC<StartScreenProps> = ({
             </div>
 
             <div className="mt-5 grid gap-5 text-sm leading-relaxed text-slate-300">
+              {PLAY_BUILD ? (
+                <>
+                  <section>
+                    <h3 className="font-black uppercase text-cyan-100">The game</h3>
+                    <p className="mt-2">
+                      SciCon Shooter on this app is an arcade flight game. Scores may appear on the leaderboard when you submit a pilot name. There is no account and nothing to buy.
+                    </p>
+                  </section>
+                  <section>
+                    <h3 className="font-black uppercase text-cyan-100">Privacy</h3>
+                    <p className="mt-2">
+                      Mission progress, ships, and settings stay on this device. Feedback and bug reports are sent only when you submit them, to sciconshooter@gmail.com. The full policy is at android-privacy.html. SciCon Shooter is community-built and is not an official ResearchHub product.
+                    </p>
+                  </section>
+                </>
+              ) : (
+              <>
               <section>
                 <h3 className="font-black uppercase text-cyan-100">{weeklyAllocation.phase === 'weekly' ? 'Weekly competition' : '25K High Score'}</h3>
                 <p className="mt-2">
@@ -2947,9 +2994,12 @@ const StartScreen: React.FC<StartScreenProps> = ({
                   The game records anonymous usage events and bounded crash diagnostics so reliability problems can be found. Gameplay analytics use a random device-local identifier, stored only as a one-way server hash, plus foreground-time samples to estimate new and returning players and active playtime. The owner view shows aggregate totals only; gameplay analytics do not store pilot names, wallet addresses, or IP addresses. Player reports may include game version, Mission and Wave, screen size, connection state, and recent technical events when diagnostics are enabled. Manual Feedback and Report a Bug submissions are processed by Resend and delivered to sciconshooter@gmail.com; automatic crash reports remain in the private owner report log. Reports never intentionally include wallet addresses, recovery phrases, private keys, authorization data, or browser storage.
                 </p>
               </section>
+              </>
+              )}
             </div>
 
             <div className="mt-6 flex flex-wrap gap-3 border-t border-cyan-200/15 pt-4">
+              {PLAY_BUILD ? null : (
               <button
                 type="button"
                 onClick={() => {
@@ -2961,6 +3011,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
                 <Icon name="wallet" className="h-4 w-4" />
                 View treasury
               </button>
+              )}
               <button type="button" onClick={() => setShowLegal(false)} className="sci-mini-cta">
                 Close
               </button>
@@ -2969,6 +3020,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
         </div>
       )}
 
+      {PLAY_BUILD ? null : (
       <PlayerShipAccessDialog
         shipId={homeShipAccessId}
         shipUnlocks={shipUnlocks}
@@ -2983,6 +3035,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
         }}
         unlockedActionLabel="Unlocked - select ship"
       />
+      )}
 
       <RewardCenter
         open={showRewardCenter}

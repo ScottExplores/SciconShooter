@@ -44,7 +44,7 @@ export const STORY_BEATS: StoryBeat[] = [
   {
     phase: 3,
     speaker: 'Patrick',
-    role: 'Funding Vector',
+    role: 'Course Vector',
     portrait: ASSETS.FOUNDER_PATRICK,
     accent: 'from-yellow-300 via-emerald-300 to-cyan-300',
     title: 'Gravity Rift',
@@ -80,11 +80,11 @@ export const STORY_BEATS: StoryBeat[] = [
   {
     phase: 7,
     speaker: 'Patrick',
-    role: 'Funding Vector',
+    role: 'Course Vector',
     portrait: ASSETS.FOUNDER_PATRICK,
     accent: 'from-amber-300 via-yellow-200 to-emerald-300',
     title: 'Singularity Reach',
-    text: '.... Funding capture. Grants keep flowing to whoever already has grants, and the interesting work starves out at the edges. RSC routes around it: the crowd funds the question directly.'
+    text: '.... The same labs keep the instruments, and the interesting work starves out at the edges. Open the lane so a new question can fly.'
   },
   {
     phase: 8,
@@ -111,7 +111,7 @@ export const STORY_BEATS: StoryBeat[] = [
     portrait: ASSETS.FOUNDER_JEFFREY,
     accent: 'from-emerald-300 via-yellow-200 to-cyan-300',
     title: 'Crownclaw Frontier',
-    text: '.... Last one, pilot. Open access, open data, open review, paid for by the people who actually want the answer. Clear this and science stops being a closed loop. Go finish it.'
+    text: '.... Last one, pilot. Open access, open data, open review, asked by the people who actually want the answer. Clear this and science stops being a closed loop. Go finish it.'
   }
 ];
 

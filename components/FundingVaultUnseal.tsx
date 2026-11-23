@@ -1,4 +1,5 @@
 import React from 'react';
+import { PLAY_BUILD } from '../services/playBuild';
 import '../styles/funding-vault-unseal.css';
 
 export const FUNDING_VAULT_UNSEAL_DURATION_MS = 2184;
@@ -13,7 +14,7 @@ const FundingVaultUnseal: React.FC<FundingVaultUnsealProps> = ({ open = false, c
     className={`sci-funding-vault sci-funding-vault--portrait ${open ? 'sci-funding-vault--open' : ''}`}
     role={open ? undefined : 'status'}
     aria-live={open ? undefined : 'polite'}
-    aria-label={open ? undefined : 'Opening secure funding vault transmission'}
+    aria-label={open ? undefined : (PLAY_BUILD ? 'Opening secure mission channel' : 'Opening secure funding vault transmission')}
   >
     <div className="sci-funding-vault__stage" aria-hidden="true">
       <div className="sci-funding-vault__aperture">
@@ -24,7 +25,7 @@ const FundingVaultUnseal: React.FC<FundingVaultUnsealProps> = ({ open = false, c
     </div>
     {open && children ? <div className="sci-funding-vault__content">{children}</div> : null}
     <div className="sci-funding-vault__readout" aria-hidden={open}>
-      <span>Funding vault</span>
+      <span>{PLAY_BUILD ? 'Mission channel' : 'Funding vault'}</span>
       <strong>Secure channel opening</strong>
     </div>
   </div>

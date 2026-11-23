@@ -42,7 +42,7 @@ test('returning sessions restore automatically and provider disconnect events cl
   const service = read('services', 'baseAccountWallet.ts');
   const runtime = read('components', 'WalletRuntime.tsx');
 
-  assert.match(app, /const \[initialWalletAddress\] = useState<Address \| null>\(readCachedBaseAccount\)/);
+  assert.match(app, /const \[initialWalletAddress\] = useState<Address \| null>\(PLAY_BUILD \? null : readCachedBaseAccount\)/);
   assert.match(runtime, /useState<Address \| null>\(readCachedBaseAccount\)/);
   assert.doesNotMatch(runtime, /getConnectedBaseAccount\(\)/);
   assert.match(runtime, /baseAccountProvider\.on\('accountsChanged', handleAccountsChanged\)/);

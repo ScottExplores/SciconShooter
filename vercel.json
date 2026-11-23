@@ -48,6 +48,19 @@
       ]
     },
     {
+      "source": "/.well-known/assetlinks.json",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=300"
+        }
+      ]
+    },
+    {
       "source": "/(.*)",
       "headers": [
         {
@@ -57,45 +70,11 @@
       ]
     }
   ],
-  "crons": [
-    {
-      "path": "/api/finalize-weekly-competition",
-      "schedule": "0 18 * * 0"
-    },
-    {
-      "path": "/api/finalize-weekly-competition",
-      "schedule": "10 19 * * 0"
-    },
-    {
-      "path": "/api/finalize-weekly-competition",
-      "schedule": "10 20 * * 0"
-    },
-    {
-      "path": "/api/social-agent?mode=daily",
-      "schedule": "0 16 * * *"
-    },
-    {
-      "path": "/api/social-agent?mode=daily",
-      "schedule": "0 17 * * *"
-    },
-    {
-      "path": "/api/social-agent?mode=daily",
-      "schedule": "0 23 * * *"
-    },
-    {
-      "path": "/api/social-agent?mode=daily",
-      "schedule": "0 0 * * *"
-    },
-    {
-      "path": "/api/social-agent?mode=weekly",
-      "schedule": "15 21 * * 0"
-    },
-    {
-      "path": "/api/social-agent?mode=weekly",
-      "schedule": "15 22 * * 0"
-    }
-  ],
   "rewrites": [
+    {
+      "source": "/.well-known/assetlinks.json",
+      "destination": "/.well-known/assetlinks.json"
+    },
     {
       "source": "/android-privacy.html",
       "destination": "/android-privacy.html"
