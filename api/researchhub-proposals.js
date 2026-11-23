@@ -1,8 +1,13 @@
 const { randomUUID } = require('node:crypto');
+// ResearchHub retired backend.prod.researchhub.com. The public API that still
+// serves the open preregistration funding feed (and the post lookup) is the
+// same origin the RFP route already uses.
+const RESEARCHHUB_API_ORIGIN = 'https://api.researchhub.com';
+const RESEARCHHUB_FUNDING_FEED_PATH = '/api/funding_feed/';
 const RESEARCHHUB_FUNDING_FEED =
-  'https://backend.prod.researchhub.com/api/funding_feed/?fundraise_status=OPEN&ordering=best&page_size=100&content_type=PREREGISTRATION';
+  `${RESEARCHHUB_API_ORIGIN}${RESEARCHHUB_FUNDING_FEED_PATH}?fundraise_status=OPEN&ordering=best&page_size=100&content_type=PREREGISTRATION`;
 const RESEARCHHUB_POST_API =
-  'https://backend.prod.researchhub.com/api/researchhubpost';
+  `${RESEARCHHUB_API_ORIGIN}/api/researchhubpost`;
 const MAX_PROPOSAL_PAGES = 5;
 const MAX_PROPOSALS = 100;
 const MAX_REFERENCED_PROPOSALS = 1;
@@ -94,14 +99,14 @@ const safeNextFeedUrl = (value) => {
   if (typeof value !== 'string' || !value) return null;
   let parsed;
   try {
-    parsed = new URL(value, 'https://backend.prod.researchhub.com');
+    parsed = new URL(value, RESEARCHHUB_API_ORIGIN);
   } catch {
     throw new Error('ResearchHub funding feed returned an invalid next-page URL');
   }
   if (
     parsed.protocol !== 'https:'
-    || parsed.hostname !== 'backend.prod.researchhub.com'
-    || parsed.pathname !== '/api/funding_feed/'
+    || parsed.hostname !== 'api.researchhub.com'
+    || parsed.pathname !== RESEARCHHUB_FUNDING_FEED_PATH
   ) {
     throw new Error('ResearchHub funding feed returned an unsafe next-page URL');
   }
@@ -256,7 +261,8 @@ module.exports = async (req, res) => {
     referencedProposalIds = parseReferencedProposalIds(req);
     const payload = await fetchResearchHubFeed();
     const referenced = await resolveReferencedProposals(payload.results, referencedProposalIds);
-    await writeProposalCache(payload).catch((error) => console.error('Proposal cache write failed:', error));
+    const fetchedAtDate = new Date();
+    await writeProposalCache(payload, { fetchedAtDate }).catch((error) => console.error('Proposal cache write failed:', error));
     res.setHeader(
       'Cache-Control',
       referencedProposalIds.length > 0
@@ -265,7 +271,9 @@ module.exports = async (req, res) => {
     );
     return sendJson(res, 200, {
       ...payload,
-      ...referenced
+      ...referenced,
+      cached: false,
+      fetchedAt: fetchedAtDate.toISOString()
     });
   } catch (error) {
     if (error.statusCode === 400) {
@@ -295,6 +303,9 @@ module.exports = async (req, res) => {
 };
 
 module.exports._test = {
+  RESEARCHHUB_API_ORIGIN,
+  RESEARCHHUB_FUNDING_FEED,
+  RESEARCHHUB_POST_API,
   parseReferencedProposalIds,
   normalizePostAsFundingEntry,
   proposalIdOf,

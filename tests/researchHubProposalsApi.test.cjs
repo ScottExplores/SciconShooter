@@ -135,8 +135,8 @@ test('open results stay unchanged while one exact completed proposal is returned
         ['20']
       );
       assert.deepEqual(res.body.missingReferencedProposalIds, []);
-      assert.equal(requestedUrls.filter((url) => url.includes('fundraise_status=OPEN')).length, 1);
-      assert.equal(requestedUrls.filter((url) => url.includes('/api/researchhubpost/20/')).length, 1);
+      assert.equal(requestedUrls.filter((url) => url === proposalsHandler._test.RESEARCHHUB_FUNDING_FEED).length, 1);
+      assert.equal(requestedUrls.filter((url) => url === `${proposalsHandler._test.RESEARCHHUB_POST_API}/20/`).length, 1);
       assert.equal(res.headers['Cache-Control'], 's-maxage=60, stale-while-revalidate=300');
     });
   } finally {
@@ -187,7 +187,7 @@ test('the public open-feed cache cannot overwrite the protected weekly cutoff sn
 
   global.fetch = async (url, options = {}) => {
     requests.push({ url: String(url), options });
-    if (String(url).includes('backend.prod.researchhub.com')) {
+    if (String(url).includes('api.researchhub.com')) {
       return jsonResponse({ count: 0, next: null, results: [] });
     }
     return jsonResponse([]);
@@ -198,18 +198,67 @@ test('the public open-feed cache cannot overwrite the protected weekly cutoff sn
     await proposalsHandler({ method: 'GET', query: {} }, res);
 
     assert.equal(res.statusCode, 200);
+    assert.equal(
+      requests.some((request) => request.url === proposalsHandler._test.RESEARCHHUB_FUNDING_FEED),
+      true
+    );
     const cacheWrite = requests.find((request) => request.options.method === 'POST');
     assert.ok(cacheWrite);
     const row = JSON.parse(cacheWrite.options.body);
     assert.equal(row.cache_key, 'researchhub-open-preregistrations');
     assert.doesNotMatch(row.cache_key, /:week:/);
     assert.equal(typeof row.fetched_at, 'string');
+    assert.equal(res.body.cached, false);
+    assert.equal(res.body.fetchedAt, row.fetched_at);
   } finally {
     global.fetch = originalFetch;
     if (originalUrl === undefined) delete process.env.SUPABASE_URL;
     else process.env.SUPABASE_URL = originalUrl;
     if (originalRoleKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
     else process.env.SUPABASE_SERVICE_ROLE_KEY = originalRoleKey;
+  }
+});
+
+test('the open funding feed uses api.researchhub.com and only follows that host', async () => {
+  const originalFetch = global.fetch;
+  const pageTwoUrl = 'https://api.researchhub.com/api/funding_feed/?content_type=PREREGISTRATION&fundraise_status=OPEN&ordering=best&page=2&page_size=100';
+  const requestedUrls = [];
+  global.fetch = async (url) => {
+    const requestedUrl = String(url);
+    requestedUrls.push(requestedUrl);
+    if (requestedUrl === proposalsHandler._test.RESEARCHHUB_FUNDING_FEED) {
+      return jsonResponse({
+        next: pageTwoUrl,
+        results: [{ content_object: { id: 32371, title: 'Current open proposal' } }]
+      });
+    }
+    if (requestedUrl === pageTwoUrl) {
+      return jsonResponse({
+        next: null,
+        results: [{ content_object: { id: 25383, title: 'Second open proposal' } }]
+      });
+    }
+    throw new Error(`Unexpected URL: ${requestedUrl}`);
+  };
+
+  try {
+    await withoutSupabase(async () => {
+      const res = makeResponse();
+      await proposalsHandler({ method: 'GET', query: {} }, res);
+
+      assert.equal(res.statusCode, 200);
+      assert.equal(res.body.cached, false);
+      assert.match(res.body.fetchedAt, /^\d{4}-\d{2}-\d{2}T/);
+      assert.deepEqual(res.body.results.map((entry) => entry.content_object.id), [32371, 25383]);
+      assert.deepEqual(requestedUrls, [proposalsHandler._test.RESEARCHHUB_FUNDING_FEED, pageTwoUrl]);
+      assert.equal(proposalsHandler._test.safeNextFeedUrl(pageTwoUrl), pageTwoUrl);
+      assert.throws(
+        () => proposalsHandler._test.safeNextFeedUrl('https://backend.prod.researchhub.com/api/funding_feed/?page=2'),
+        /unsafe next-page URL/
+      );
+    });
+  } finally {
+    global.fetch = originalFetch;
   }
 });
 
