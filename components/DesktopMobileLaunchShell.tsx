@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { DONATION_CONFIG } from '../constants';
+import { PLAY_BUILD } from '../services/playBuild';
 import { trackEvent } from '../services/analyticsService';
 import { readSocialCampaignAttribution } from '../shared/socialCampaignAttribution.mjs';
 import { isBossLabQueryEnabled } from '../services/gameplay/bossLabFlag.mjs';
@@ -178,6 +178,7 @@ const DesktopMobileLaunchShell: React.FC<DesktopMobileLaunchShellProps> = ({ chi
             onLoad={() => frameRef.current?.contentWindow?.focus()}
           />
         </div>
+        {PLAY_BUILD ? null : (
         <a
           className="scicon-desktop-mobile-launch__qr-card scicon-desktop-mobile-launch__side-qr"
           href={DONATION_CONFIG.BASE_APP_INVITE_URL}
@@ -190,6 +191,7 @@ const DesktopMobileLaunchShell: React.FC<DesktopMobileLaunchShellProps> = ({ chi
           <img src={BASE_APP_INVITE_QR} alt="QR code for the Scicon Shooter Base App invite" />
           <small>Scan for Base App</small>
         </a>
+        )}
       </section>
     </main>
   );

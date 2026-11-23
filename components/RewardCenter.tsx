@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ASSETS } from '../constants';
+import { PLAY_BUILD, playShipLabel } from '../services/playBuild';
 import { PLAYER_SHIPS } from '../services/playerShipService';
 import {
   ACHIEVEMENT_DEFINITIONS,
@@ -234,7 +235,7 @@ const RewardCenter: React.FC<RewardCenterProps> = ({
         <div className="sci-reward-connect-notice">
           <div>
             <strong>Pilot rewards save on this device</strong>
-            <span>Connect a wallet only for minted and onchain items.</span>
+            <span>{PLAY_BUILD ? 'Gifts and achievements stay on this device.' : 'Connect a wallet only for minted and onchain items.'}</span>
           </div>
         </div>
 
@@ -261,7 +262,7 @@ const RewardCenter: React.FC<RewardCenterProps> = ({
                   const isToday = reward.day === dailyStatus.claimableDay;
                   const ship = reward.shipId ? PLAYER_SHIPS[reward.shipId] : null;
                   const rewardName = ship
-                    ? `${ship.name} ship and ${formatTokenAmount(reward.coins)}`
+                    ? `${playShipLabel(ship.id, ship.name)} ship and ${formatTokenAmount(reward.coins)}`
                     : formatTokenAmount(reward.coins);
                   const cardState = isClaimed
                     ? 'claimed'
@@ -304,7 +305,7 @@ const RewardCenter: React.FC<RewardCenterProps> = ({
                       <div className="sci-daily-art">
                         <img src={ship?.assetUrl || ASSETS.RSC_TOKEN} alt="" />
                       </div>
-                      <strong>{ship ? `Unlock ${ship.name}` : formatTokenAmount(reward.coins)}</strong>
+                      <strong>{ship ? `Unlock ${playShipLabel(ship.id, ship.name)}` : formatTokenAmount(reward.coins)}</strong>
                       {ship && <small>+ {formatTokenAmount(reward.coins)}</small>}
                       {isClaimed && <span className="sci-daily-check" aria-label="Claimed">&#10003;</span>}
                     </button>

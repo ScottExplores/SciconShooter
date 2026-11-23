@@ -35,7 +35,7 @@ test('Campaign deaths restart the active Mission from Wave 1 and never expose pa
   assert.match(appSource, /const retryGame = \(\) => \{[\s\S]*?const mission = getCampaignMissionById\(activeCampaignLaunch\.missionId\)[\s\S]*?missionId: activeCampaignLaunch\.missionId,[\s\S]*?waveId: mission\?\.waveIds\[0\] \?\? activeCampaignLaunch\.waveId/);
   assert.match(appSource, /const normalizedCampaignRequest[\s\S]*?waveId: requestedCampaignMission\.waveIds\[0\]/);
   assert.match(appSource, /if \(isCampaignRun && waveVictorySummary\.nextLevelId\) \{[\s\S]*?setActiveCampaignLaunch\(\{[\s\S]*?missionId: nextMission\.id,[\s\S]*?waveId: nextWaveId/);
-  assert.match(appSource, /gameOverContinueControls = !campaignCompletedRun && !isCampaignRun && !isNonCompetitiveRun/);
+  assert.match(appSource, /gameOverContinueControls = !PLAY_BUILD && !campaignCompletedRun && !isCampaignRun && !isNonCompetitiveRun/);
   assert.match(appSource, /onClick=\{retryGame\}[\s\S]*?isWeeklyCampaignRun \? 'NEW WEEKLY RUN' : 'RETRY MISSION'/);
   assert.match(appSource, /onRetryRun=\{retryGame\}/);
 });

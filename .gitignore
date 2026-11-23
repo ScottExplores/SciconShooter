@@ -41,3 +41,11 @@ __pycache__/
 Legacy Collection/
 /sites/
 .vercel
+
+# Android upload keystore and signing secrets. Never commit.
+*.jks
+*.keystore
+android-twa/keystore.properties
+android-twa/local.properties
+android-twa/**/release/
+play-upload-secrets.txt

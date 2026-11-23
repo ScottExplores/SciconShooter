@@ -148,7 +148,8 @@ test('the live prize is one 25,000 RSC November event', () => {
   assert.doesNotMatch(claimSource, /fund manually|Scott funds/);
   assert.doesNotMatch(source, /fund manually|Scott funds|An RFP pool is logged/);
   assert.doesNotMatch(htmlSource, /fund manually|Scott funds|An RFP pool is logged/);
-  assert.match(htmlSource, /Top score by Nov 29 wins 25,000 RSC for ResearchHub science\./);
+  assert.match(htmlSource, /SciCon Shooter is a portrait arcade flight game\. Campaign missions, bosses, and ships stay on this device\./);
+  assert.doesNotMatch(htmlSource, /25,000 RSC/);
   assert.match(source, /Weekly Funding/);
   assert.match(source, /25K High Score/);
   assert.doesNotMatch(source, /SciCon Big Event/);

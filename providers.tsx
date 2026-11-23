@@ -1,10 +1,21 @@
 import React from 'react';
-import { RainbowWalletProvider } from './components/RainbowWalletProvider';
+import { PLAY_BUILD } from './services/playBuild';
 
 interface AppProvidersProps {
   children: React.ReactNode;
 }
 
-export const AppProviders: React.FC<AppProvidersProps> = ({ children }) => (
-  <RainbowWalletProvider>{children}</RainbowWalletProvider>
-);
+export const AppProviders: React.FC<AppProvidersProps> = ({ children }) => {
+  // The Play origin never mounts RainbowKit, wagmi, or WalletConnect.
+  if (PLAY_BUILD) return <>{children}</>;
+  const RainbowWalletProvider = React.lazy(() =>
+    import('./components/RainbowWalletProvider').then((module) => ({
+      default: module.RainbowWalletProvider
+    }))
+  );
+  return (
+    <React.Suspense fallback={null}>
+      <RainbowWalletProvider>{children}</RainbowWalletProvider>
+    </React.Suspense>
+  );
+};

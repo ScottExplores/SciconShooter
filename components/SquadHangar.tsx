@@ -1,4 +1,5 @@
 import React, { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { PLAY_BUILD, playShipLabel } from '../services/playBuild';
 import {
   ASSETS,
   RSC_PURCHASE_SKUS,
@@ -289,10 +290,10 @@ const CurrencyRail = ({
   value: number | string;
   label: string;
   tone: 'gold' | 'blue';
-  onOptions: () => void;
+  onOptions?: () => void;
   optionsLabel: string;
 }) => (
-  <div className={`grid min-w-0 grid-cols-[2.25rem_minmax(0,1fr)_2rem] items-center border px-1.5 py-1 ${tone === 'gold' ? 'border-yellow-200/35 bg-yellow-300/10' : 'border-cyan-200/35 bg-cyan-300/10'}`}>
+  <div className={`grid min-w-0 items-center border px-1.5 py-1 ${onOptions ? 'grid-cols-[2.25rem_minmax(0,1fr)_2rem]' : 'grid-cols-[2.25rem_minmax(0,1fr)]'} ${tone === 'gold' ? 'border-yellow-200/35 bg-yellow-300/10' : 'border-cyan-200/35 bg-cyan-300/10'}`}>
     <img src={icon} alt="" className="h-8 w-8 object-contain" />
     <div className="min-w-0 px-1 text-center">
       <p className="truncate text-base font-black leading-none text-white">
@@ -300,9 +301,11 @@ const CurrencyRail = ({
       </p>
       <p className="truncate text-[0.5rem] font-bold uppercase tracking-[0.08em] text-slate-400">{label}</p>
     </div>
+    {onOptions ? (
     <button type="button" onClick={onOptions} aria-label={optionsLabel} className={`flex h-7 w-7 items-center justify-center border text-xl font-black ${tone === 'gold' ? 'border-yellow-200/45 bg-yellow-300 text-slate-950' : 'border-cyan-200/45 bg-cyan-300 text-slate-950'}`}>
       <span aria-hidden="true">+</span>
     </button>
+    ) : null}
   </div>
 );
 
@@ -427,7 +430,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
 
   const choosePosition = (position: HangarPosition) => {
     if (position !== 'main' && !state.unlockedSlots[position]) {
-      if (position === 'right' && !founderSandbox) {
+      if (position === 'right' && !founderSandbox && !PLAY_BUILD) {
         onPurchaseWithRsc('right-support');
       } else {
         onUnlockSlot(position);
@@ -477,9 +480,9 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
     );
     const slotUnlockReady = !unlocked && (
       founderSandbox
-      || (slot === 'right' ? hasRightSupportRsc : state.coins >= unlockCost)
+      || (slot === 'right' && !PLAY_BUILD ? hasRightSupportRsc : state.coins >= unlockCost)
     );
-    const unlockLabel = slot === 'right' && !founderSandbox ? '10 RSC' : `${unlockCost} Tokens`;
+    const unlockLabel = slot === 'right' && !founderSandbox && !PLAY_BUILD ? '10 RSC' : `${unlockCost} Tokens`;
 
     return (
       <button
@@ -502,7 +505,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
           <span className="relative z-10 flex min-h-14 min-w-16 flex-col items-center justify-center border border-slate-400/55 bg-slate-800/90 px-2 text-slate-200" aria-hidden="true">
             <span className={`${rightPurchaseBusy ? 'text-[0.58rem]' : 'text-sm'} font-black`}>{slot === 'right' ? rightPurchaseStage : 'LOCK'}</span>
             <span className="mt-0.5 flex items-center gap-1 whitespace-nowrap text-[0.5rem] font-black uppercase text-yellow-200">
-              {slot === 'right' && !founderSandbox ? <img src={ASSETS.REAL_RSC_ICON} alt="" className="h-4 w-4 object-contain" /> : null}
+              {slot === 'right' && !founderSandbox && !PLAY_BUILD ? <img src={ASSETS.REAL_RSC_ICON} alt="" className="h-4 w-4 object-contain" /> : null}
               {unlockLabel}
             </span>
           </span>
@@ -529,7 +532,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
             type="button"
             onClick={() => {
               if (!unlocked) {
-                if (shipId !== 'researchhub') setLockedPlayerShipId(shipId);
+                if (!PLAY_BUILD && shipId !== 'researchhub') setLockedPlayerShipId(shipId);
                 return;
               }
               if (selected) {
@@ -550,11 +553,11 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
             {!unlocked ? (
               <span className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-950/66 px-1 text-center text-[0.54rem] font-black uppercase text-slate-200">
                 <span>Locked</span>
-                <span className="mt-1 text-[0.46rem] text-yellow-200">View access</span>
+                {PLAY_BUILD ? null : <span className="mt-1 text-[0.46rem] text-yellow-200">View access</span>}
               </span>
             ) : null}
             <AnimatedPlayerShip shipId={shipId} className="relative z-10 mx-auto mt-4 h-[52%] w-[86%] drop-shadow-[0_0_10px_rgba(34,211,238,0.4)]" />
-            <span className={`relative z-10 mt-1 block truncate text-[0.52rem] font-black uppercase ${selected ? 'text-yellow-200' : 'text-slate-300'}`}>{ship.name.replace(/ ship$/i, '')}</span>
+            <span className={`relative z-10 mt-1 block truncate text-[0.52rem] font-black uppercase ${selected ? 'text-yellow-200' : 'text-slate-300'}`}>{playShipLabel(ship.id, ship.name).replace(/ ship$/i, '')}</span>
             <div className="relative z-10 mt-1"><LevelPips level={shipTier} max={FIRE_RATE_TIER_COUNT} /></div>
           </button>
         );
@@ -613,15 +616,16 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_25%,rgba(34,211,238,0.15),transparent_30%),radial-gradient(circle_at_12%_44%,rgba(16,185,129,0.08),transparent_22%),linear-gradient(rgba(103,232,249,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(103,232,249,0.025)_1px,transparent_1px)] bg-[size:auto,auto,28px_28px,28px_28px]" />
 
       <header className="relative z-10 border-b border-cyan-200/18 bg-slate-950/88 p-2">
-        <div className="grid min-w-0 grid-cols-2 gap-2">
+        <div className={`grid min-w-0 gap-2 ${PLAY_BUILD ? 'grid-cols-1' : 'grid-cols-2'}`}>
           <CurrencyRail
             icon="/game-art/tokens/rsc-coin-pixel.png"
             value={state.coins}
             label="Tokens"
             tone="gold"
-            onOptions={() => setShowTokenExchange(true)}
+            onOptions={PLAY_BUILD ? undefined : () => setShowTokenExchange(true)}
             optionsLabel="Buy Tokens with Research Coin"
           />
+          {PLAY_BUILD ? null : (
           <CurrencyRail
             icon={ASSETS.REAL_RSC_ICON}
             value={rscBalanceStatus === 'loading'
@@ -636,6 +640,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
             onOptions={onOpenRscSwap}
             optionsLabel="Open Aerodrome to get Research Coin"
           />
+          )}
         </div>
         {rscBalanceStatus === 'error' ? (
           <button
@@ -646,7 +651,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
             Research Coin did not refresh · Tap to retry
           </button>
         ) : null}
-        {showTokenExchange ? (
+        {showTokenExchange && !PLAY_BUILD ? (
           <section className="mt-2 border border-cyan-200/30 bg-[#07152a]/98 p-2 shadow-[0_0_20px_rgba(34,211,238,0.16)]" aria-label="Token exchange">
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -708,7 +713,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
       </header>
 
       <main className="relative z-10">
-        {import.meta.env.DEV ? <a href="/?display=mobile-frame&lab=combat" style={{ display: 'block', margin: '10px 12px', padding: '13px', textAlign: 'center', border: '1px solid #a3e635', color: '#d9f99d', background: '#17251c', fontSize: '11px', fontWeight: 800 }}>COMBAT LAB · ALL SHIPS & UPGRADES UNLOCKED →</a> : null}
+        {import.meta.env.DEV && !PLAY_BUILD ? <a href="/?display=mobile-frame&lab=combat" style={{ display: 'block', margin: '10px 12px', padding: '13px', textAlign: 'center', border: '1px solid #a3e635', color: '#d9f99d', background: '#17251c', fontSize: '11px', fontWeight: 800 }}>COMBAT LAB · ALL SHIPS & UPGRADES UNLOCKED →</a> : null}
         <p className="sr-only" aria-live="polite">{upgradeFeedback?.label ?? ''}</p>
         <section className="relative overflow-hidden border-b border-cyan-200/18 bg-[#03081c] px-3 pb-3 pt-3 sm:px-6 sm:pb-4">
           <div className="sci-hangar-starfield pointer-events-none absolute inset-0" aria-hidden="true">
@@ -839,7 +844,9 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
               <span className="text-[0.6rem] font-black uppercase text-slate-500">Select a mini ship</span>
             )}
             <p className="mt-1 text-center text-[0.58rem] font-bold uppercase text-cyan-100/70">
-              {walletConnected
+              {PLAY_BUILD
+                ? 'Saved on this device'
+                : walletConnected
                 ? 'Saved on this device · onchain items linked'
                 : 'Saved on this device · connect for minted/onchain items'}
             </p>
@@ -1040,6 +1047,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
         </section>
         </main>
       </div>
+      {PLAY_BUILD ? null : (
       <PlayerShipAccessDialog
         shipId={lockedPlayerShipId}
         shipUnlocks={shipUnlocks}
@@ -1054,6 +1062,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
         }}
         unlockedActionLabel="Unlocked - preview fire"
       />
+      )}
       <ShipWeaponPreviewDialog
         shipId={weaponPreviewShipId}
         fireRateLevel={weaponPreviewShipId ? state.shipUpgrades[weaponPreviewShipId].fireRate : 0}

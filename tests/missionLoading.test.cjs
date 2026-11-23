@@ -40,7 +40,7 @@ test('app presents bounded startup loading while deferring the heavier gameplay 
   assert.match(app, /preloadStartupAssets\(\{/);
   assert.match(app, /STARTUP_LOADING_MINIMUM_MS/);
   assert.match(app, /context="startup"/);
-  assert.match(app, /\{walletRuntimeEnabled \? \(/);
+  assert.match(app, /\{!PLAY_BUILD && walletRuntimeEnabled \? \(/);
   assert.doesNotMatch(app, /walletRuntimeEnabled && !startupLoading/);
   assert.match(app, /if \(missionLaunchPendingRef\.current\) return/);
   assert.doesNotMatch(app, /missionLaunchPendingRef\.current \|\| !gameplayPreloadReady/);

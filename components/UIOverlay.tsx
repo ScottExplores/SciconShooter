@@ -10,7 +10,7 @@ import {
   getShipAbilityDefinition,
   getShipAbilityUpgradeProfile
 } from '../services/shipAbilityService';
-import { getFireRateTier, getFireRateTierProgress } from '../services/weaponTierProgression';
+import { PLAY_BUILD } from '../services/playBuild';
 
 export interface UIOverlayProps {
   stats: Stats;
@@ -420,7 +420,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
               ? 'border-yellow-200/70 bg-slate-950/70 text-white shadow-[0_0_34px_rgba(251,191,36,0.2)] hover:border-yellow-100 hover:brightness-110'
               : 'border-slate-400/20 bg-slate-900/54 text-slate-400 opacity-75'
           }`}
-          aria-label="Use RSC bomb"
+          aria-label={PLAY_BUILD ? 'Use bomb' : 'Use RSC bomb'}
         >
           <span className="absolute -left-1.5 -top-1.5 z-10 flex h-6 min-w-6 items-center justify-center rounded-full border border-cyan-100/60 bg-slate-950 px-1 text-xs font-black text-cyan-100">
             {unlimitedBombs ? '∞' : bombs}

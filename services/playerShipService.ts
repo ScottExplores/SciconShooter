@@ -37,6 +37,11 @@ export interface PlayerShipUnlockOptions {
   accessStatus?: PlayerShipAccessStatus;
   accessError?: string;
   unlockAll?: boolean;
+  /**
+   * Play shell only. The violet hull has no in-game purchase, so it is
+   * available without a wallet. Campaign mastery still gates the gold hull.
+   */
+  playShell?: boolean;
 }
 
 export const PLAYER_SHIPS: Readonly<Record<PlayerShipId, {
@@ -81,7 +86,7 @@ export const getPlayerShipUnlocks = (
 
   return {
     bio: true,
-    eth: unlockAll || (accessReady && paidUnlockIds.has('eth')),
+    eth: unlockAll || options.playShell === true || (accessReady && paidUnlockIds.has('eth')),
     btc: unlockAll || campaign.mastered || (accessReady && paidUnlockIds.has('btc')),
     bioBalanceRaw: typeof options.bioBalanceRaw === 'string' ? options.bioBalanceRaw : null,
     bioBalance: typeof options.bioBalance === 'string' ? options.bioBalance : null,

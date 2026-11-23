@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "xyz.sciconshooter.play",
+      "sha256_cert_fingerprints": [
+        "55:AB:13:B5:F8:21:1B:DB:ED:B7:60:A1:33:CB:FD:F5:64:CB:F6:FB:45:69:67:5E:F0:3D:4D:BC:0F:CC:FB:66"
+      ]
+    }
+  }
+]

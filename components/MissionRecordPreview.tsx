@@ -14,6 +14,7 @@ import { trackEvent } from '../services/analyticsService';
 import { shareScoreCardImage } from '../services/scoreCardShareService';
 import { openXScoreShare } from '../services/xScoreShareService';
 import { parsePlayerShipId, PLAYER_SHIPS } from '../services/playerShipService';
+import { PLAY_BUILD } from '../services/playBuild';
 import { getStageName } from '../services/stagePresentation';
 import { buildMissionRecordCardSvg, MissionRecordCard } from './MissionRecordCard';
 
@@ -179,7 +180,7 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
             ) : null}
           </div>
 
-          {weeklyFunding ? (
+          {!PLAY_BUILD && weeklyFunding ? (
             <div className="mt-3 rounded-[8px] border border-yellow-200/30 bg-yellow-300/10 p-3 shadow-[0_0_18px_rgba(250,204,21,0.18)]">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -226,7 +227,7 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
             </div>
           ) : null}
 
-          {!weeklyChoiceRequired && mintStatus !== 'confirmed' ? (
+          {!PLAY_BUILD && !weeklyChoiceRequired && mintStatus !== 'confirmed' ? (
             <div className="mt-3 overflow-hidden rounded-[8px] border border-cyan-100/25 bg-[linear-gradient(135deg,rgba(8,47,73,0.72),rgba(6,78,59,0.34))] p-3">
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -295,6 +296,7 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
                   Post score on X
                 </button>
                 <button type="button" onClick={() => void shareRecord()} className="min-h-11 rounded-[8px] border border-cyan-100/25 bg-cyan-300/10 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-cyan-50 transition hover:bg-cyan-300/20">Share image</button>
+                {PLAY_BUILD ? null : (
                 <button type="button" onClick={onMint} disabled={!walletAddress || !mintConfigured || mintStatus === 'authorizing' || mintStatus === 'confirming' || mintStatus === 'confirmed'} className="min-h-11 rounded-[8px] border border-yellow-100/30 bg-yellow-300/15 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-yellow-50 transition hover:bg-yellow-300/25 disabled:cursor-not-allowed disabled:opacity-55">
                   {mintStatus === 'confirmed'
                     ? 'NFT minted'
@@ -304,6 +306,7 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
                         ? needsBaseAccount ? 'Connect to mint' : 'Mint NFT'
                         : 'Mint setup awaiting approval'}
                 </button>
+                )}
               </div>
               {shareStatus || mintMessage ? <p className="mt-3 text-center text-[10px] font-semibold text-slate-400">{mintMessage || shareStatus}</p> : null}
             </>

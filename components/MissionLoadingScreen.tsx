@@ -95,9 +95,9 @@ const MissionLoadingScreen: React.FC<MissionLoadingScreenProps> = ({
             ))}
           </div>
           <div className="sci-event-loader__lockup">
-            <h1>25,000 <span>RSC</span></h1>
-            <p className="sci-event-loader__event">25K High Score</p>
-            <p className="sci-event-loader__ends">Ends Nov 29</p>
+            <h1>Launch</h1>
+            <p className="sci-event-loader__event">Campaign flight</p>
+            <p className="sci-event-loader__ends">Bosses ahead</p>
             <p className="sci-event-loader__campaign">Play Campaign first to upgrade your ship.</p>
             <p className="sci-event-loader__percent" data-event-loading-progress={safeProgress}>{safeProgress}%</p>
             <div

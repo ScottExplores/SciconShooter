@@ -160,7 +160,7 @@ test('the Hangar uses one position-driven squad bay and four-column fleet catalo
   assert.match(hangar, /const activeMainShipUpgrades = state\.shipUpgrades\[mainShipId\]/);
   assert.match(hangar, /const shipUpgrades = state\.shipUpgrades\[shipId\]/);
   assert.match(hangar, /const unlockCost = SQUAD_SLOT_UNLOCK_COST\[slot\]/);
-  assert.match(hangar, /slot === 'right' && !founderSandbox \? '10 RSC' : `\$\{unlockCost\} Tokens`/);
+  assert.match(hangar, /slot === 'right' && !founderSandbox && !PLAY_BUILD \? '10 RSC' : `\$\{unlockCost\} Tokens`/);
   assert.match(hangar, /onPurchaseWithRsc\('right-support'\)/);
   assert.match(hangar, /rightPurchaseStatus === 'connecting'[\s\S]*?'CONNECTING'/);
   assert.match(hangar, /rightPurchaseStatus === 'error'[\s\S]*?'TRY AGAIN'/);
