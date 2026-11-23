@@ -2,12 +2,7 @@
 director/
 director-data/
 
-# The Play project is a new Hobby deployment, which allows 12 serverless
-# functions. Node middleware plus every api route exceeds that, and this
-# origin must not mint, claim, or finalize the live competition. The source
-# files stay in git so the handlers and their tests remain.
+# A new Hobby project allows 12 serverless functions. The twelve api routes
+# are that budget. Node middleware is the extra function, and vite.config.ts
+# requires the api handlers while it loads, so those files have to be uploaded.
 middleware.js
-api/mint-authorization.js
-api/finalize-weekly-competition.js
-api/weekly-claim.js
-api/run-claims.js

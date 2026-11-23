@@ -21,7 +21,7 @@ Create a **new** Vercel project. Do not attach it to the existing `www.sciconsho
 
 Domain: `play.sciconshooter.xyz` only.
 
-Do **not** copy wallet, mint, cron, or X credentials onto this project. This branch removes the cron schedules and excludes the finalizer, claim, and mint-authorization routes from the upload (`.vercelignore`). A new Hobby project allows only 12 serverless functions, and the live site's project is already at that cap once Node middleware is included. The social worker route is not scheduled here.
+Do **not** copy wallet, mint, cron, or X credentials onto this project. This branch ships no cron schedules. Node middleware is excluded from the upload so the twelve API routes fit a new Hobby project's function limit. `vite.config.ts` requires those API files at build time, so they stay in the deployment. The social worker is not scheduled here.
 
 Optional, only if you want leaderboard reads and feedback email on the Play origin:
 

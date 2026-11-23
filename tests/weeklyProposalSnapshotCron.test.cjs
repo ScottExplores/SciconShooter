@@ -35,7 +35,8 @@ test('the Play deployment does not schedule weekly finalization', () => {
   const vercel = require('../vercel.json');
   const ignored = fs.readFileSync(path.resolve(__dirname, '..', '.vercelignore'), 'utf8');
   assert.equal(vercel.crons, undefined);
-  assert.match(ignored, /^api\/finalize-weekly-competition\.js$/m);
+  assert.match(ignored, /^middleware\.js$/m);
+  assert.doesNotMatch(ignored, /^api\//m);
 });
 
 test('a late cutoff capture fails closed and later invocations run recent-week recovery', () => {
