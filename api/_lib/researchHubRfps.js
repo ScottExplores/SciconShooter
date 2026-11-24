@@ -1,5 +1,12 @@
 const { getPublicPrizeState } = require('../../shared/weeklyCompetitionBoundary.js');
 const { isFundingDeadlineAfter } = require('../../shared/researchHubProposalEligibility.js');
+const { fetchSupabaseJson, hasSupabaseConfig, supabaseHeaders } = require('./supabase');
+
+const RFP_CACHE_TABLE = process.env.SUPABASE_PROPOSAL_CACHE_TABLE || 'scicon_proposal_cache';
+const RFP_CACHE_KEY = 'researchhub-open-rfps';
+// ResearchHub publishes a $1 USD amount on uncapped community pools. Treating
+// that placeholder as the goal would hide active RFPs as fully funded.
+const OPEN_ENDED_GOAL_USD = 1;
 
 const API_ORIGIN = 'https://api.researchhub.com';
 const GRANT_FEED_URL = `${API_ORIGIN}/api/grant_feed/?content_type=GRANT&status=OPEN&ordering=newest&page_size=20`;
@@ -125,6 +132,34 @@ const detailsFromPost = (payload) => {
 
 const deadlineFromPost = (payload) => detailsFromPost(payload).endDate;
 
+const publishGrantAmounts = (grant, pool) => {
+  const goalUsd = money(grant?.amount, 'usd');
+  const goalRsc = money(grant?.amount, 'rsc');
+  const raisedUsd = money(pool?.amount_raised, 'usd');
+  const raisedRsc = money(pool?.amount_raised, 'rsc');
+  const openEnded = typeof goalUsd === 'number' && goalUsd <= OPEN_ENDED_GOAL_USD;
+  const publishedGoalUsd = openEnded ? null : goalUsd;
+  const publishedGoalRsc = openEnded ? null : goalRsc;
+  const usdFullyFunded = typeof publishedGoalUsd === 'number'
+    && publishedGoalUsd > 0
+    && typeof raisedUsd === 'number'
+    && raisedUsd >= publishedGoalUsd;
+  const rscFullyFunded = publishedGoalUsd == null
+    && !openEnded
+    && typeof publishedGoalRsc === 'number'
+    && publishedGoalRsc > OPEN_ENDED_GOAL_USD
+    && typeof raisedRsc === 'number'
+    && raisedRsc >= publishedGoalRsc;
+
+  return {
+    fullyFunded: usdFullyFunded || rscFullyFunded,
+    goalUsd: publishedGoalUsd,
+    goalRsc: publishedGoalRsc,
+    raisedUsd,
+    raisedRsc
+  };
+};
+
 const inspectGrantEntry = (entry, endDate, requiredOpenUntil, description = null) => {
   const content = entry?.content_object || {};
   const grant = content.grant || {};
@@ -139,6 +174,11 @@ const inspectGrantEntry = (entry, endDate, requiredOpenUntil, description = null
   if (!slug) return null;
 
   const pool = grant.funding_pool || {};
+  const poolStatus = String(pool.status || '').trim().toUpperCase();
+  if (poolStatus && poolStatus !== 'OPEN') return null;
+  const amounts = publishGrantAmounts(grant, pool);
+  if (amounts.fullyFunded) return null;
+
   return {
     id,
     poolId: String(pool.id || grant.id || ''),
@@ -147,22 +187,32 @@ const inspectGrantEntry = (entry, endDate, requiredOpenUntil, description = null
     organization: asText(grant.organization, 120) || 'ResearchHub',
     status,
     endDate,
-    goalUsd: money(grant.amount, 'usd'),
-    goalRsc: money(grant.amount, 'rsc'),
-    raisedRsc: money(pool.amount_raised, 'rsc'),
+    goalUsd: amounts.goalUsd,
+    goalRsc: amounts.goalRsc,
+    raisedUsd: amounts.raisedUsd,
+    raisedRsc: amounts.raisedRsc,
     description: plainDescription(description),
     imageUrl: asText(content.image_url, 500)
   };
 };
 
-const eligibleRfpsFromEntries = (entries, deadlinesById, requiredOpenUntil) => featureBestEligibleRfp(
+const rfpFromEntry = (entry, deadlinesById, requiredOpenUntil) => {
+  const id = String(entry?.content_object?.id ?? entry?.id ?? '');
+  const details = postDetails(deadlinesById.get(id) || null);
+  return inspectGrantEntry(entry, details.endDate, requiredOpenUntil, details.description);
+};
+
+const openRfpsFromEntries = (entries, deadlinesById, now = new Date()) => (
   entries
-    .map((entry) => {
-      const id = String(entry?.content_object?.id ?? entry?.id ?? '');
-      const details = postDetails(deadlinesById.get(id) || null);
-      return inspectGrantEntry(entry, details.endDate, requiredOpenUntil, details.description);
-    })
+    .map((entry) => rfpFromEntry(entry, deadlinesById, now))
     .filter(Boolean)
+);
+
+const eligibleRfpsFromEntries = (entries, deadlinesById, requiredOpenUntil, now = new Date()) => (
+  featureBestEligibleRfp(
+    openRfpsFromEntries(entries, deadlinesById, now)
+      .filter((rfp) => isFundingDeadlineAfter(rfp.endDate, requiredOpenUntil))
+  )
 );
 
 const fetchJson = async (url) => {
@@ -206,9 +256,7 @@ const mapWithConcurrency = async (items, limit, worker) => {
   return results;
 };
 
-const loadEligibleRfps = async (
-  { requiredOpenUntil = getPublicPrizeState().proposalOpenUntil } = {}
-) => {
+const loadGrantEntriesWithDeadlines = async () => {
   const entries = await fetchOpenGrantEntries();
   const ids = [...new Set(entries.map((entry) => String(entry?.content_object?.id ?? entry?.id ?? '')).filter((id) => /^\d{1,20}$/.test(id)))];
   const deadlines = await mapWithConcurrency(ids, POST_CONCURRENCY, async (id) => {
@@ -219,8 +267,58 @@ const loadEligibleRfps = async (
       return [id, null];
     }
   });
-  return eligibleRfpsFromEntries(entries, new Map(deadlines), requiredOpenUntil);
+  return { entries, deadlinesById: new Map(deadlines) };
 };
+
+const loadOpenRfps = async ({ now = new Date() } = {}) => {
+  const { entries, deadlinesById } = await loadGrantEntriesWithDeadlines();
+  return openRfpsFromEntries(entries, deadlinesById, now);
+};
+
+const loadEligibleRfps = async (
+  { requiredOpenUntil = getPublicPrizeState().proposalOpenUntil, now = new Date() } = {}
+) => {
+  const openRfps = await loadOpenRfps({ now });
+  return featureBestEligibleRfp(
+    openRfps.filter((rfp) => isFundingDeadlineAfter(rfp.endDate, requiredOpenUntil))
+  );
+};
+
+const writeRfpCache = async (openRfps, fetchedAtDate = new Date()) => {
+  if (!hasSupabaseConfig()) return;
+  if (!(fetchedAtDate instanceof Date) || !Number.isFinite(fetchedAtDate.getTime())) {
+    throw new Error('Invalid RFP cache timestamp');
+  }
+  await fetchSupabaseJson(`${RFP_CACHE_TABLE}?on_conflict=cache_key`, {
+    method: 'POST',
+    headers: supabaseHeaders({ Prefer: 'resolution=merge-duplicates,return=minimal' }),
+    body: JSON.stringify({
+      cache_key: RFP_CACHE_KEY,
+      payload: { results: openRfps },
+      fetched_at: fetchedAtDate.toISOString()
+    })
+  });
+};
+
+const readRfpCache = async () => {
+  if (!hasSupabaseConfig()) return null;
+  const rows = await fetchSupabaseJson(
+    `${RFP_CACHE_TABLE}?select=payload,fetched_at&cache_key=eq.${encodeURIComponent(RFP_CACHE_KEY)}&limit=1`,
+    { headers: supabaseHeaders() }
+  );
+  const row = Array.isArray(rows) ? rows[0] : null;
+  const results = Array.isArray(row?.payload?.results) ? row.payload.results : null;
+  return results ? { results, fetchedAt: row.fetched_at } : null;
+};
+
+const stillOpenCachedRfps = (results, now) => (
+  results.filter((rfp) => (
+    rfp
+    && typeof rfp.id === 'string'
+    && typeof rfp.endDate === 'string'
+    && isFundingDeadlineAfter(rfp.endDate, now)
+  ))
+);
 
 const findEligibleRfp = async (
   rfpId,
@@ -246,31 +344,58 @@ const findEligibleRfp = async (
   };
 };
 
-const sendJson = (res, status, payload) => {
+const sendJson = (res, status, payload, cacheControl = 'no-store') => {
   res.statusCode = status;
   res.setHeader('Content-Type', 'application/json');
-  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Cache-Control', cacheControl);
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.end(JSON.stringify(payload));
 };
+
+const rfpPayload = (openRfps, requiredOpenUntil, { cached, fetchedAt }) => ({
+  source: 'researchhub-grant-feed',
+  funding: 'manual-record-only',
+  rfps: featureBestEligibleRfp(
+    openRfps.filter((rfp) => isFundingDeadlineAfter(rfp.endDate, requiredOpenUntil))
+  ),
+  openRfps,
+  cached,
+  fetchedAt
+});
 
 const handleResearchHubRfpRequest = async (req, res) => {
   if (req.method === 'OPTIONS') {
     res.statusCode = 204;
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     res.end();
     return;
   }
   if (req.method !== 'GET') return sendJson(res, 405, { error: 'Method not allowed' });
+
+  const now = new Date();
+  const requiredOpenUntil = getPublicPrizeState(now).proposalOpenUntil;
   try {
-    const rfps = await loadEligibleRfps({
-      requiredOpenUntil: getPublicPrizeState().proposalOpenUntil
-    });
-    return sendJson(res, 200, {
-      source: 'researchhub-grant-feed',
-      funding: 'manual-record-only',
-      rfps
-    });
+    const openRfps = await loadOpenRfps({ now });
+    const fetchedAt = now.toISOString();
+    await writeRfpCache(openRfps, now).catch((error) => console.error('RFP cache write failed:', error));
+    return sendJson(res, 200, rfpPayload(openRfps, requiredOpenUntil, {
+      cached: false,
+      fetchedAt
+    }), 's-maxage=300, stale-while-revalidate=1800');
   } catch (error) {
     console.error('ResearchHub RFP feed failed:', error);
+    const cached = await readRfpCache().catch(() => null);
+    if (cached) {
+      const openRfps = stillOpenCachedRfps(cached.results, now);
+      return sendJson(res, 200, rfpPayload(openRfps, requiredOpenUntil, {
+        cached: true,
+        fetchedAt: cached.fetchedAt
+      }), 's-maxage=60, stale-while-revalidate=900');
+    }
     return sendJson(res, error.statusCode || 502, {
       error: 'Open ResearchHub RFPs could not be loaded.'
     });
@@ -278,6 +403,7 @@ const handleResearchHubRfpRequest = async (req, res) => {
 };
 
 module.exports = {
+  RFP_CACHE_KEY,
   deadlineFromPost,
   detailsFromPost,
   compareEligibleRfps,
@@ -286,5 +412,8 @@ module.exports = {
   findEligibleRfp,
   handleResearchHubRfpRequest,
   inspectGrantEntry,
-  loadEligibleRfps
+  loadEligibleRfps,
+  loadOpenRfps,
+  openRfpsFromEntries,
+  publishGrantAmounts
 };

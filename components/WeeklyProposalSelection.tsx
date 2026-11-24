@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import type { ResearchHubProposal } from '../services/researchHubProposals';
-import { sortProposalsByFunding } from '../services/proposalFunding';
+import { isWeeklyProposalEligible, type ResearchHubProposal } from '../services/researchHubProposals';
+import { formatFundingAmount, getProposalFundingMetrics, sortProposalsByFunding } from '../services/proposalFunding';
 import { fetchEligibleRfps, rfpAsChoice, type ResearchHubRfp } from '../services/researchHubRfps';
+import { isFundingDeadlineAfter } from '../shared/researchHubProposalEligibility.browser';
 import { getPublicPrizeState } from '../shared/weeklyCompetitionBoundary.browser';
 import { sanitizeSearchQuery } from '../shared/publicText';
 
@@ -29,6 +30,16 @@ interface WeeklyProposalSelectionProps {
   onClose?: () => void;
 }
 
+const rfpChoiceLabel = (rfp: ResearchHubRfp) => {
+  const funding = getProposalFundingMetrics(rfpAsChoice(rfp));
+  const amount = funding.currency
+    ? `${formatFundingAmount(funding.raisedAmount, funding.currency)} / ${formatFundingAmount(funding.goalAmount, funding.currency)}`
+    : typeof rfp.raisedUsd === 'number'
+      ? formatFundingAmount(rfp.raisedUsd, 'USD')
+      : '';
+  return [amount, rfp.endDate.slice(0, 10)].filter(Boolean).join(' · ');
+};
+
 const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
   pilotName,
   score,
@@ -49,7 +60,7 @@ const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
   const bigEvent = getPublicPrizeState().phase !== 'weekly';
   const [query, setQuery] = useState('');
   const [tab, setTab] = useState<PickerTab>(
-    bigEvent ? (initialTab === 'proposals' ? 'proposals' : 'rfps') : 'proposals'
+    initialTab ?? (bigEvent ? 'rfps' : 'proposals')
   );
   const [selectedProposalId, setSelectedProposalId] = useState(() => initialProposalId?.trim() ?? '');
   const [selectedRfpId, setSelectedRfpId] = useState('');
@@ -62,7 +73,9 @@ const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const featuredRfpId = rfps.find((rfp) => rfp.featured)?.id ?? null;
   const sortedProposals = useMemo(() => {
-    const sorted = sortProposalsByFunding(proposals);
+    const cutoff = getPublicPrizeState().proposalOpenUntil;
+    const eligible = proposals.filter((proposal) => isWeeklyProposalEligible(proposal, cutoff));
+    const sorted = sortProposalsByFunding(eligible);
     if (!bigEvent || !featuredRfpId) return sorted;
     const underFeatured = sorted.filter((proposal) => proposal.rfpPostId === featuredRfpId);
     const others = sorted.filter((proposal) => proposal.rfpPostId !== featuredRfpId);
@@ -81,27 +94,27 @@ const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
       || proposal.organization?.toLowerCase().includes(normalizedQuery)
     ));
   }, [normalizedQuery, sortedProposals]);
+  const cutoffRfps = useMemo(() => {
+    const cutoff = getPublicPrizeState().proposalOpenUntil;
+    return rfps.filter((rfp) => isFundingDeadlineAfter(rfp.endDate, cutoff));
+  }, [rfps]);
   const filteredRfps = useMemo(() => {
-    if (!normalizedQuery) return rfps;
-    return rfps.filter((rfp) => (
+    if (!normalizedQuery) return cutoffRfps;
+    return cutoffRfps.filter((rfp) => (
       rfp.title.toLowerCase().includes(normalizedQuery)
       || rfp.organization.toLowerCase().includes(normalizedQuery)
       || (rfp.description || '').toLowerCase().includes(normalizedQuery)
     ));
-  }, [normalizedQuery, rfps]);
-  const selectedRfp = rfps.find((rfp) => rfp.id === selectedRfpId) ?? null;
+  }, [cutoffRfps, normalizedQuery]);
+  const selectedRfp = cutoffRfps.find((rfp) => rfp.id === selectedRfpId) ?? null;
   const savedPickId = initialProposalId?.trim() ?? '';
-  const savedPickClosed = bigEvent
-    && Boolean(savedPickId)
+  const savedPickClosed = Boolean(savedPickId)
     && rfpStatus !== 'loading'
     && proposalStatus !== 'loading'
     && rfpStatus !== 'error'
     && proposalStatus !== 'error'
-    && !rfps.some((rfp) => rfp.id === savedPickId)
-    && !proposals.some((proposal) => proposal.id === savedPickId);
-  const activeChoice = bigEvent && tab === 'rfps'
-    ? (selectedRfp ? rfpAsChoice(selectedRfp) : null)
-    : selectedProposal;
+    && !cutoffRfps.some((rfp) => rfp.id === savedPickId)
+    && !sortedProposals.some((proposal) => proposal.id === savedPickId);
   const isSaving = selectionStatus === 'saving';
 
   useEffect(() => {
@@ -125,7 +138,6 @@ const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
   }, []);
 
   useEffect(() => {
-    if (!bigEvent) return undefined;
     let cancelled = false;
     setRfpStatus('loading');
     fetchEligibleRfps()
@@ -142,7 +154,7 @@ const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [bigEvent, rfpRetry]);
+  }, [rfpRetry]);
 
   const handleDialogKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.key === 'Escape') {
@@ -228,30 +240,28 @@ const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
         </div>
 
         <div className="relative flex min-h-0 flex-1 flex-col p-3 sm:p-4">
-          {bigEvent ? (
-            <div className="mb-3 grid grid-cols-2 gap-2" role="tablist" aria-label="Research choice">
-              {(['rfps', 'proposals'] as const).map((id) => (
-                <button
-                  key={id}
-                  type="button"
-                  role="tab"
-                  data-event-tab={id}
-                  aria-selected={tab === id}
-                  onClick={() => {
-                    setTab(id);
-                    setQuery('');
-                  }}
-                  className={`min-h-10 rounded-[6px] border px-2 text-[10px] font-black uppercase tracking-[0.14em] ${tab === id
-                    ? 'border-yellow-200/70 bg-yellow-300/15 text-yellow-50'
-                    : 'border-cyan-200/20 bg-slate-950/70 text-slate-300'}`}
-                >
-                  {id === 'rfps' ? 'RFPs' : 'Proposals'}
-                </button>
-              ))}
-            </div>
-          ) : null}
+          <div className="mb-3 grid grid-cols-2 gap-2" role="tablist" aria-label="Research choice" data-research-toggle="picker">
+            {(['proposals', 'rfps'] as const).map((id) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                data-event-tab={id}
+                aria-selected={tab === id}
+                onClick={() => {
+                  setTab(id);
+                  setQuery('');
+                }}
+                className={`min-h-10 rounded-full border px-2 text-[10px] font-black uppercase tracking-[0.14em] ${tab === id
+                  ? 'border-yellow-200/70 bg-yellow-300/15 text-yellow-50'
+                  : 'border-cyan-200/20 bg-slate-950/70 text-slate-300'}`}
+              >
+                {id === 'rfps' ? 'RFPs' : 'Proposals'}
+              </button>
+            ))}
+          </div>
           <label className="sr-only" htmlFor="weekly-proposal-search">
-            {bigEvent && tab === 'rfps' ? 'Search eligible RFPs' : 'Search eligible proposals'}
+            {tab === 'rfps' ? 'Search eligible RFPs' : 'Search eligible proposals'}
           </label>
           <input
             ref={searchInputRef}
@@ -259,7 +269,7 @@ const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
             type="search"
             value={query}
             onChange={(event) => setQuery(sanitizeSearchQuery(event.target.value))}
-            placeholder={bigEvent && tab === 'rfps' ? 'Search RFP or organization' : 'Search proposal, researcher, or topic'}
+            placeholder={tab === 'rfps' ? 'Search RFP or organization' : 'Search proposal, researcher, or topic'}
             className="h-11 w-full rounded-[6px] border border-cyan-200/25 bg-slate-950/85 px-3 text-sm font-semibold text-white outline-none placeholder:text-slate-500 focus:border-yellow-200/60"
           />
 
@@ -269,8 +279,8 @@ const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
                 Pick closed. Choose an open one.
               </p>
             ) : null}
-            {bigEvent && tab === 'rfps' ? (
-              <div className="space-y-2" data-picker-tab="rfps">
+            {tab === 'rfps' ? (
+              <div className="space-y-2" data-picker-tab="rfps" data-picker-count={filteredRfps.length}>
                 {rfpStatus === 'loading' ? (
                   <p className="font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-slate-400">Loading open RFPs</p>
                 ) : null}
@@ -318,6 +328,9 @@ const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
                           <p className="mt-1 font-mono text-[8px] font-black uppercase tracking-[0.12em] text-yellow-200">Featured suggestion</p>
                         ) : null}
                         <p className="mt-1 truncate text-[10px] font-semibold text-cyan-100/75">{rfp.organization}</p>
+                        <p className="mt-1 font-mono text-[8px] font-black uppercase tracking-[0.1em] text-slate-400">
+                          {rfpChoiceLabel(rfp)}
+                        </p>
                       </div>
                     </button>
                   );
@@ -343,11 +356,13 @@ const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
                 ) : null}
 
                 {proposalStatus === 'ready' && filteredProposals.length === 0 ? (
-                  <p className="py-8 text-center text-sm font-semibold text-slate-400">No proposals match that search.</p>
+                  <p className="py-8 text-center text-sm font-semibold text-slate-400">
+                    {normalizedQuery ? 'No proposals match that search.' : 'No eligible proposals are open right now.'}
+                  </p>
                 ) : null}
 
                 {proposalStatus === 'ready' ? (
-                  <div className="space-y-2" data-picker-tab="proposals">
+                  <div className="space-y-2" data-picker-tab="proposals" data-picker-count={filteredProposals.length}>
                     {filteredProposals.map((proposal) => {
                       const selected = selectedProposal?.id === proposal.id;
                       const underFeatured = Boolean(featuredRfpId) && proposal.rfpPostId === featuredRfpId;

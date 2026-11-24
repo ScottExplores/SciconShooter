@@ -31,7 +31,12 @@ test('missing or malformed funding deadlines fail closed', () => {
 test('the client feed filters against the shared weekly boundary and explains the rule', () => {
   assert.match(proposalServiceSource, /getPublicPrizeState\(\)\.proposalOpenUntil/);
   assert.match(proposalServiceSource, /isFundingDeadlineAfter\(proposal\.endDate, requiredOpenUntil\)/);
+  assert.match(proposalServiceSource, /openProposals: proposals\.filter\(\(proposal\) => isOpenProposal\(proposal\)\)/);
+  assert.match(proposalServiceSource, /isWeeklyProposalEligible\(proposal, requiredOpenUntil\)/);
   assert.match(pickerSource, /Only proposals open past Sunday&apos;s noon-Pacific cutoff are eligible\./);
+  assert.match(pickerSource, /isWeeklyProposalEligible\(proposal, cutoff\)/);
+  assert.match(pickerSource, /isFundingDeadlineAfter\(rfp\.endDate, cutoff\)/);
+  assert.match(pickerSource, /data-research-toggle="picker"/);
   assert.match(leaderboardApiSource, /requiredOpenUntil: getPublicPrizeState\(\)\.proposalOpenUntil/);
   assert.match(weeklyClaimSource, /findCurrentWeekEligibleProposal/);
 });

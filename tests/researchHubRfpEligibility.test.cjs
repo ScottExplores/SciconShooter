@@ -1,11 +1,17 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const {
+  RFP_CACHE_KEY,
   eligibleRfpsFromEntries,
   featureBestEligibleRfp,
-  findEligibleRfp
+  findEligibleRfp,
+  handleResearchHubRfpRequest,
+  openRfpsFromEntries
 } = require('../api/_lib/researchHubRfps');
+const proposalsHandler = require('../api/researchhub-proposals');
 const {
   assessEventPayout,
   eventPickLockDecision
@@ -23,7 +29,9 @@ const grantEntry = ({
   expired = false,
   slug = `rfp-${id}`,
   raisedRsc = 0,
-  goalRsc = 100
+  raisedUsd = raisedRsc,
+  goalRsc = 100,
+  goalUsd = goalRsc
 }) => ({
   content_object: {
     id,
@@ -35,8 +43,8 @@ const grantEntry = ({
       is_active: active,
       is_expired: expired,
       organization: 'ResearchHub',
-      amount: { rsc: goalRsc, usd: goalRsc },
-      funding_pool: { id: `pool-${id}`, amount_raised: { rsc: raisedRsc } }
+      amount: { rsc: goalRsc, usd: goalUsd },
+      funding_pool: { id: `pool-${id}`, status: 'OPEN', amount_raised: { rsc: raisedRsc, usd: raisedUsd } }
     }
   }
 });
@@ -187,4 +195,188 @@ test('event payout flags a closed winning pick and does not redirect funds', asy
   } finally {
     global.fetch = originalFetch;
   }
+});
+
+test('the hangar keeps grants that are open now and the picker drops ones that end before allocation', () => {
+  const now = new Date('2026-11-24T16:00:00.000Z');
+  const cutoff = '2026-12-01T08:00:00.000Z';
+  const entries = [
+    grantEntry({ id: 1, title: 'Ends before cutoff' }),
+    grantEntry({ id: 2, title: 'Open past cutoff', raisedUsd: 10, goalUsd: 100 }),
+    grantEntry({ id: 3, title: 'Already ended' }),
+    grantEntry({ id: 4, title: 'Fully funded', goalUsd: 100, raisedUsd: 100 }),
+    grantEntry({ id: 5, title: 'Uncapped pool', goalUsd: 1, goalRsc: 24, raisedUsd: 5000, raisedRsc: 120000 }),
+    grantEntry({ id: 6, title: 'Closed status', status: 'CLOSED' })
+  ];
+  const dates = deadlines([
+    [1, '2026-11-29T17:00:00.000Z'],
+    [2, '2099-01-01T00:00:00.000Z'],
+    [3, '2026-11-01T00:00:00.000Z'],
+    [4, '2099-01-01T00:00:00.000Z'],
+    [5, '2099-06-01T00:00:00.000Z'],
+    [6, '2099-01-01T00:00:00.000Z']
+  ]);
+
+  const open = openRfpsFromEntries(entries, dates, now);
+  assert.deepEqual(open.map((rfp) => rfp.id), ['1', '2', '5']);
+  const eligible = eligibleRfpsFromEntries(entries, dates, cutoff, now);
+  assert.deepEqual(eligible.map((rfp) => rfp.id).sort(), ['2', '5']);
+  const uncapped = open.find((rfp) => rfp.id === '5');
+  assert.equal(uncapped.goalUsd, null);
+  assert.equal(uncapped.goalRsc, null);
+  assert.equal(uncapped.raisedUsd, 5000);
+  assert.equal(uncapped.endDate, '2099-06-01T00:00:00.000Z');
+});
+
+const makeResponse = () => ({
+  statusCode: 0,
+  headers: {},
+  setHeader(name, value) { this.headers[name] = value; },
+  end(body) { this.body = body ? JSON.parse(body) : null; }
+});
+
+const jsonResponse = (data, status = 200) => ({
+  ok: status >= 200 && status < 300,
+  status,
+  async text() { return JSON.stringify(data); },
+  async json() { return data; }
+});
+
+test('type=rfp reads the public grant feed and keeps the same cache fallback', async () => {
+  const originalFetch = global.fetch;
+  const originalUrl = process.env.SUPABASE_URL;
+  const originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const originalServiceKey = process.env.SUPABASE_SERVICE_KEY;
+  delete process.env.SUPABASE_URL;
+  delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+  delete process.env.SUPABASE_SERVICE_KEY;
+  const requested = [];
+  global.fetch = async (url) => {
+    const value = String(url);
+    requested.push(value);
+    if (value.includes('/api/grant_feed/')) {
+      return jsonResponse({
+        results: [
+          grantEntry({ id: 11, title: 'Still open' }),
+          grantEntry({ id: 12, title: 'Long expired' })
+        ]
+      });
+    }
+    if (value.includes('/api/researchhubpost/11')) {
+      return jsonResponse({ unified_document: { grant: { end_date: '2099-01-01T00:00:00.000Z' } } });
+    }
+    if (value.includes('/api/researchhubpost/12')) {
+      return jsonResponse({ unified_document: { grant: { end_date: '2000-01-01T00:00:00.000Z' } } });
+    }
+    throw new Error(`Unexpected URL ${value}`);
+  };
+
+  try {
+    const res = makeResponse();
+    await proposalsHandler({ method: 'GET', query: { type: 'rfp' } }, res);
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.cached, false);
+    assert.equal(res.body.source, 'researchhub-grant-feed');
+    assert.deepEqual(res.body.openRfps.map((rfp) => rfp.id), ['11']);
+    assert.deepEqual(res.body.rfps.map((rfp) => rfp.id), ['11']);
+    assert.match(res.headers['Cache-Control'], /s-maxage=300/);
+    assert.equal(requested.some((url) => url.includes('/api/grant_feed/')), true);
+
+    const alias = makeResponse();
+    await proposalsHandler({ method: 'GET', url: '/api/researchhub-proposals?feed=rfps' }, alias);
+    assert.equal(alias.statusCode, 200);
+    assert.deepEqual(alias.body.openRfps.map((rfp) => rfp.id), ['11']);
+    assert.equal(RFP_CACHE_KEY, 'researchhub-open-rfps');
+  } finally {
+    global.fetch = originalFetch;
+    if (originalUrl === undefined) delete process.env.SUPABASE_URL;
+    else process.env.SUPABASE_URL = originalUrl;
+    if (originalKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    else process.env.SUPABASE_SERVICE_ROLE_KEY = originalKey;
+    if (originalServiceKey === undefined) delete process.env.SUPABASE_SERVICE_KEY;
+    else process.env.SUPABASE_SERVICE_KEY = originalServiceKey;
+  }
+});
+
+test('an RFP upstream failure serves the Supabase cache without expired rows', async () => {
+  const originalFetch = global.fetch;
+  const originalUrl = process.env.SUPABASE_URL;
+  const originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  process.env.SUPABASE_URL = 'https://example.supabase.co';
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-key';
+  global.fetch = async (url) => {
+    const value = String(url);
+    if (value.includes('api.researchhub.com')) throw new Error('upstream down');
+    if (value.includes('scicon_proposal_cache')) {
+      return jsonResponse([{
+        fetched_at: '2026-11-24T00:00:00.000Z',
+        payload: {
+          results: [
+            {
+              id: '9',
+              title: 'Cached open',
+              url: 'https://www.researchhub.com/rfp/9/cached',
+              organization: 'ResearchHub',
+              status: 'OPEN',
+              endDate: '2099-01-01T00:00:00.000Z',
+              goalUsd: 100,
+              goalRsc: 100,
+              raisedUsd: 1,
+              raisedRsc: 1
+            },
+            {
+              id: '8',
+              title: 'Cached expired',
+              url: 'https://www.researchhub.com/rfp/8/old',
+              organization: 'ResearchHub',
+              status: 'OPEN',
+              endDate: '2000-01-01T00:00:00.000Z',
+              goalUsd: 100,
+              goalRsc: 100,
+              raisedUsd: 1,
+              raisedRsc: 1
+            }
+          ]
+        }
+      }]);
+    }
+    throw new Error(`Unexpected URL ${value}`);
+  };
+
+  try {
+    const res = makeResponse();
+    await handleResearchHubRfpRequest({ method: 'GET', query: { type: 'rfp' } }, res);
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.cached, true);
+    assert.deepEqual(res.body.openRfps.map((rfp) => rfp.id), ['9']);
+    assert.deepEqual(res.body.rfps.map((rfp) => rfp.id), ['9']);
+    assert.match(res.headers['Cache-Control'], /stale-while-revalidate=900/);
+  } finally {
+    global.fetch = originalFetch;
+    if (originalUrl === undefined) delete process.env.SUPABASE_URL;
+    else process.env.SUPABASE_URL = originalUrl;
+    if (originalKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    else process.env.SUPABASE_SERVICE_ROLE_KEY = originalKey;
+  }
+});
+
+test('the hangar browses open items and the picker keeps the allocation cutoff', () => {
+  const root = path.resolve(__dirname, '..');
+  const hangar = fs.readFileSync(path.join(root, 'components', 'StartScreen.tsx'), 'utf8');
+  const picker = fs.readFileSync(path.join(root, 'components', 'WeeklyProposalSelection.tsx'), 'utf8');
+  const client = fs.readFileSync(path.join(root, 'services', 'researchHubRfps.ts'), 'utf8');
+  const app = fs.readFileSync(path.join(root, 'App.tsx'), 'utf8');
+
+  assert.match(hangar, /data-research-toggle="hangar"/);
+  assert.match(hangar, /data-hangar-feed=\{id\}/);
+  assert.match(hangar, /Due \{proposal\.endDate\.slice\(0, 10\)\}/);
+  assert.match(hangar, /browseProposals\.filter\(\(proposal\) => isOpenProposal\(proposal\)\)/);
+  assert.match(hangar, /isWeeklyProposalEligible\(proposal, allocationOpenUntil\)/);
+  assert.match(picker, /data-research-toggle="picker"/);
+  assert.match(picker, /isWeeklyProposalEligible\(proposal, cutoff\)/);
+  assert.match(picker, /isFundingDeadlineAfter\(rfp\.endDate, cutoff\)/);
+  assert.doesNotMatch(picker, /if \(!bigEvent\) return undefined/);
+  assert.match(client, /\/api\/researchhub-proposals\?type=rfp/);
+  assert.match(app, /setBrowseProposals\(feed\.openProposals\)/);
+  assert.match(app, /setFundingProposals\(feed\.eligibleProposals\)/);
 });

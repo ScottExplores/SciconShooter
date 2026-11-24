@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ArchivedWinner, LeaderboardEntry, MintRecord } from '../types';
-import { ResearchHubProposal } from '../services/researchHubProposals';
+import { isOpenProposal, isWeeklyProposalEligible, type ResearchHubProposal } from '../services/researchHubProposals';
 import {
   formatFundingAmount,
   formatFundingPercent,
@@ -29,7 +29,7 @@ import {
 } from '../services/weeklyProposalReminder';
 import { ALL_TIME_SCORE_LIMIT, WEEKLY_SCORE_LIMIT } from '../services/leaderboardService';
 import { resolveProposalSelection } from '../services/weeklyProposalDisplay';
-import { fetchEligibleRfps, rfpAsChoice } from '../services/researchHubRfps';
+import { fetchEligibleRfps, fetchOpenRfps, rfpAsChoice } from '../services/researchHubRfps';
 import { isProposalExplicitlyCompleted } from '../services/weeklyProposalLifecycle';
 import {
   getPublicPrizeState,
@@ -116,6 +116,8 @@ interface StartScreenProps {
   onSelectShip: (shipId: PlayerShipId) => void;
   isLoading: boolean;
   proposals: ResearchHubProposal[];
+  /** Still-open proposals for hangar browsing. The picker keeps `proposals`. */
+  browseProposals?: ResearchHubProposal[];
   proposalReferences?: ResearchHubProposal[];
   proposalStatus: ProposalFeedStatus;
   onOpenReferral: () => void;
@@ -796,6 +798,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
   onSelectShip,
   isLoading,
   proposals,
+  browseProposals = proposals,
   proposalReferences = [],
   proposalStatus,
   onOpenReferral,
@@ -1184,15 +1187,18 @@ const StartScreen: React.FC<StartScreenProps> = ({
     () => getWeeklyAllocationMeta(new Date(weeklyPresentationTime ?? weeklyClock)),
     [weeklyClock, weeklyPresentationTime]
   );
-  const sortedProposals = useMemo(() => sortProposalsByFunding(proposals), [proposals]);
-
-  const filteredProposals = useMemo(() => {
-    const query = sanitizeSearchQuery(proposalSearch).trim().toLowerCase();
-    if (!query) return sortedProposals;
-    return sortedProposals.filter((proposal) => (
-      `${proposal.title} ${proposal.author} ${proposal.organization ?? ''}`.toLowerCase().includes(query)
-    ));
-  }, [proposalSearch, sortedProposals]);
+  const [hangarFeed, setHangarFeed] = useState<'proposals' | 'rfps'>('proposals');
+  const choosingResearch = Boolean(championClaimWinner || testChampionWinner);
+  const allocationOpenUntil = useMemo(
+    () => getPublicPrizeState().proposalOpenUntil,
+    [weeklyClock]
+  );
+  const hangarProposals = useMemo(() => {
+    const source = choosingResearch
+      ? proposals.filter((proposal) => isWeeklyProposalEligible(proposal, allocationOpenUntil))
+      : browseProposals.filter((proposal) => isOpenProposal(proposal));
+    return sortProposalsByFunding(source);
+  }, [allocationOpenUntil, browseProposals, choosingResearch, proposals]);
 
   const weeklyStartTime = weeklyAllocation.startsAt.getTime();
   const weeklyEndTime = weeklyAllocation.endsAt.getTime();
@@ -1223,14 +1229,16 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const weeklyLeaderScore = leaderboardScore(weeklyLeader);
   // RFP picks are not in the proposal feed; the open RFP list carries their
   // cover art so the selected-proposal card can show it.
+  const [openRfpChoices, setOpenRfpChoices] = useState<ResearchHubProposal[]>([]);
   const [rfpReferences, setRfpReferences] = useState<ResearchHubProposal[]>([]);
   const [rfpFeedStatus, setRfpFeedStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   useEffect(() => {
     let cancelled = false;
-    fetchEligibleRfps()
-      .then((rfps) => {
+    Promise.all([fetchOpenRfps(), fetchEligibleRfps()])
+      .then(([openRfps, eligibleRfps]) => {
         if (cancelled) return;
-        setRfpReferences(rfps.map(rfpAsChoice));
+        setOpenRfpChoices(openRfps.map(rfpAsChoice));
+        setRfpReferences(eligibleRfps.map(rfpAsChoice));
         setRfpFeedStatus('ready');
       })
       .catch(() => {
@@ -1239,6 +1247,22 @@ const StartScreen: React.FC<StartScreenProps> = ({
       });
     return () => { cancelled = true; };
   }, []);
+  const hangarRfps = useMemo(() => {
+    const source = (choosingResearch ? rfpReferences : openRfpChoices)
+      .filter((proposal) => (
+        choosingResearch
+          ? isWeeklyProposalEligible(proposal, allocationOpenUntil)
+          : isOpenProposal(proposal)
+      ));
+    return sortProposalsByFunding(source);
+  }, [allocationOpenUntil, choosingResearch, openRfpChoices, rfpReferences]);
+  const hangarQuery = sanitizeSearchQuery(proposalSearch).trim().toLowerCase();
+  const matchesHangarQuery = (proposal: ResearchHubProposal) => (
+    !hangarQuery
+    || `${proposal.title} ${proposal.author} ${proposal.organization ?? ''}`.toLowerCase().includes(hangarQuery)
+  );
+  const filteredProposals = hangarProposals.filter(matchesHangarQuery);
+  const filteredRfps = hangarRfps.filter(matchesHangarQuery);
   const proposalReferencePool = useMemo(() => {
     const references = new Map<string, ResearchHubProposal>();
     rfpReferences.forEach((proposal) => references.set(proposal.id, proposal));
@@ -1345,15 +1369,17 @@ const StartScreen: React.FC<StartScreenProps> = ({
                 </span>
               )}
             </div>
-            <div className="mt-2 flex items-center gap-2">
-              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-800">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-cyan-300 to-blue-400"
-                  style={{ width: `${funding.barPercent}%` }}
-                />
+            {funding.progressPercent !== null || proposal.fundingTargetKind !== 'rfp' ? (
+              <div className="mt-2 flex items-center gap-2">
+                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-800">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-cyan-300 to-blue-400"
+                    style={{ width: `${funding.barPercent}%` }}
+                  />
+                </div>
+                <span className="w-12 text-right text-[0.68rem] font-semibold text-cyan-100">{progressLabel}</span>
               </div>
-              <span className="w-12 text-right text-[0.68rem] font-semibold text-cyan-100">{progressLabel}</span>
-            </div>
+            ) : null}
           </div>
           <div className="min-w-[6.75rem] text-right">
             {funding.currency ? (
@@ -1363,12 +1389,20 @@ const StartScreen: React.FC<StartScreenProps> = ({
                 </p>
                 <p className="text-[0.54rem] font-bold uppercase text-cyan-200/70">{funding.currency} raised / goal</p>
               </>
+            ) : proposal.fundingTargetKind === 'rfp' && typeof proposal.raisedUsd === 'number' ? (
+              <>
+                <p className="whitespace-nowrap text-xs font-black text-white">{formatFundingAmount(proposal.raisedUsd, 'USD')}</p>
+                <p className="text-[0.54rem] font-bold uppercase text-cyan-200/70">Raised</p>
+              </>
             ) : (
               <>
                 <p className="text-xs font-black text-slate-300">Not reported</p>
                 <p className="text-[0.54rem] font-bold uppercase text-slate-500">Funding progress</p>
               </>
             )}
+            {proposal.fundingTargetKind === 'rfp' && proposal.endDate ? (
+              <p className="text-[0.54rem] font-bold uppercase text-cyan-200/70">Due {proposal.endDate.slice(0, 10)}</p>
+            ) : null}
           </div>
         </div>
       </button>
@@ -1938,21 +1972,35 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const ProposalsDashboard = () => (
     <HudPanel>
       <div className="p-4 md:p-5">
-        <div className="mb-4 grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
-          <div>
-            <h2 className="text-2xl font-black text-white">Proposal Hangar</h2>
-            <p className="text-sm text-slate-300">Search eligible ResearchHub proposals sorted by their live funded percentage. USD values can move with the RSC market price.</p>
-          </div>
-          <label className="relative block min-w-[15rem]">
-            <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-cyan-200/70" />
-            <input
-              value={proposalSearch}
-              onChange={(event) => setProposalSearch(sanitizeSearchQuery(event.target.value))}
-              placeholder="Search proposals"
-              className="w-full rounded-[6px] border border-cyan-300/20 bg-slate-950/75 py-2 pl-9 pr-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300/60"
-            />
-          </label>
+        <div className="mb-3">
+          <h2 className="text-2xl font-black text-white">Proposal Hangar</h2>
         </div>
+        <div className="mb-3 grid grid-cols-2 gap-2" role="tablist" aria-label="Research feed" data-research-toggle="hangar">
+          {(['proposals', 'rfps'] as const).map((id) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              data-hangar-feed={id}
+              aria-selected={hangarFeed === id}
+              onClick={() => setHangarFeed(id)}
+              className={`min-h-10 rounded-full border px-2 text-[10px] font-black uppercase tracking-[0.14em] ${hangarFeed === id
+                ? 'border-cyan-200/70 bg-cyan-300/15 text-cyan-50'
+                : 'border-cyan-200/20 bg-slate-950/70 text-slate-300'}`}
+            >
+              {id === 'rfps' ? 'RFPs' : 'Proposals'}
+            </button>
+          ))}
+        </div>
+        <label className="relative mb-3 block">
+          <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-cyan-200/70" />
+          <input
+            value={proposalSearch}
+            onChange={(event) => setProposalSearch(sanitizeSearchQuery(event.target.value))}
+            placeholder={hangarFeed === 'rfps' ? 'Search RFPs' : 'Search proposals'}
+            className="w-full rounded-[6px] border border-cyan-300/20 bg-slate-950/75 py-2 pl-9 pr-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300/60"
+          />
+        </label>
 
         {championClaimWinner ? (
           <div className="mb-4 rounded-[8px] border border-yellow-200/30 bg-yellow-300/10 p-3">
@@ -1993,21 +2041,37 @@ const StartScreen: React.FC<StartScreenProps> = ({
         ) : null}
 
         <div className="mb-3 flex items-center justify-between gap-3 text-xs font-bold uppercase text-slate-400">
-          <span>{filteredProposals.length} active proposal{filteredProposals.length === 1 ? '' : 's'}</span>
+          <span data-hangar-count={hangarFeed === 'rfps' ? filteredRfps.length : filteredProposals.length}>
+            {hangarFeed === 'rfps'
+              ? `${filteredRfps.length} active RFP${filteredRfps.length === 1 ? '' : 's'}`
+              : `${filteredProposals.length} active proposal${filteredProposals.length === 1 ? '' : 's'}`}
+          </span>
           <span>{proposalSearch.trim() ? 'Search filtered · ' : ''}Most funded first</span>
         </div>
 
-        <div className="max-h-[min(62vh,48rem)] space-y-2 overflow-y-auto pr-1">
-          {proposalStatus === 'loading' ? (
+        <div className="max-h-[min(62vh,48rem)] space-y-2 overflow-y-auto pr-1" data-hangar-mode={choosingResearch ? 'choose' : 'browse'}>
+          {hangarFeed === 'rfps' ? (
+            rfpFeedStatus === 'loading' ? (
+              <div className="rounded-[6px] border border-cyan-300/15 bg-cyan-300/8 p-4 text-sm text-slate-200 animate-pulse">
+                Loading RFPs...
+              </div>
+            ) : filteredRfps.length > 0 ? (
+              filteredRfps.map((proposal, index) => renderProposalRow(proposal, index))
+            ) : (
+              <div className="rounded-[6px] border border-cyan-300/15 bg-cyan-300/8 p-4 text-sm text-slate-200">
+                {rfpFeedStatus === 'error' ? 'RFP feed unavailable.' : 'No active RFP matches that search yet.'}
+              </div>
+            )
+          ) : proposalStatus === 'loading' ? (
             <div className="rounded-[6px] border border-cyan-300/15 bg-cyan-300/8 p-4 text-sm text-slate-200 animate-pulse">
-              Loading active ResearchHub proposals...
+              Loading proposals...
             </div>
           ) : filteredProposals.length > 0 ? (
             filteredProposals.map((proposal, index) => renderProposalRow(proposal, index))
           ) : (
             <div className="rounded-[6px] border border-cyan-300/15 bg-cyan-300/8 p-4 text-sm text-slate-200">
               {proposalStatus === 'error'
-                ? 'The live proposal feed is temporarily unavailable. No ineligible fallback choices are shown.'
+                ? 'Proposal feed unavailable.'
                 : 'No active proposal matches that search yet.'}
             </div>
           )}

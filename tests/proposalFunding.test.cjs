@@ -111,8 +111,8 @@ test('both proposal surfaces use the shared funding order and no synthetic RSC r
   const feed = fs.readFileSync(path.join(root, 'services', 'researchHubProposals.ts'), 'utf8');
   const app = fs.readFileSync(path.join(root, 'App.tsx'), 'utf8');
 
-  assert.match(startScreen, /sortProposalsByFunding\(proposals\)/);
-  assert.match(picker, /sortProposalsByFunding\(proposals\)/);
+  assert.match(startScreen, /sortProposalsByFunding\(source\)/);
+  assert.match(picker, /sortProposalsByFunding\(eligible\)/);
   assert.match(startScreen, /formatFundingAmount\(funding\.raisedAmount, funding\.currency\)/);
   assert.doesNotMatch(startScreen, /getProposalSignalRsc|signalRsc|proposal\.votes \* 20/);
   assert.doesNotMatch(startScreen, /Math\.max\(8, Math\.min\(100/);

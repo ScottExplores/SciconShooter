@@ -807,6 +807,7 @@ const App: React.FC = () => {
     setWeeklyRunStageCount(WEEKLY_RUN_INITIAL_STAGE_COUNT);
   }, [weeklySquadState.weekKey]);
   const [fundingProposals, setFundingProposals] = useState<ResearchHubProposal[]>([]);
+  const [browseProposals, setBrowseProposals] = useState<ResearchHubProposal[]>([]);
   const [proposalReferences, setProposalReferences] = useState<ResearchHubProposal[]>([]);
   const [proposalStatus, setProposalStatus] = useState<ProposalFeedStatus>('loading');
   const [playerNameInput, setPlayerNameInput] = useState<string>(() => (
@@ -2085,9 +2086,10 @@ const App: React.FC = () => {
         includeProposalIds: requestedProposalId ? [requestedProposalId] : []
       });
       if (!isCurrentRefresh()) return;
+      setBrowseProposals(feed.openProposals);
       setFundingProposals(feed.eligibleProposals);
       setProposalReferences(feed.referencedProposals);
-      setProposalStatus(feed.eligibleProposals.length > 0 ? 'ready' : 'empty');
+      setProposalStatus(feed.eligibleProposals.length > 0 || feed.openProposals.length > 0 ? 'ready' : 'empty');
     } catch (error) {
       if (!isCurrentRefresh()) return;
       console.error('ResearchHub proposal feed failed:', error);
@@ -2099,9 +2101,10 @@ const App: React.FC = () => {
         try {
           const openFeed = await getResearchHubProposalFeed();
           if (!isCurrentRefresh()) return;
+          setBrowseProposals(openFeed.openProposals);
           setFundingProposals(openFeed.eligibleProposals);
           setProposalReferences([]);
-          setProposalStatus(openFeed.eligibleProposals.length > 0 ? 'ready' : 'empty');
+          setProposalStatus(openFeed.eligibleProposals.length > 0 || openFeed.openProposals.length > 0 ? 'ready' : 'empty');
           return;
         } catch (openFeedError) {
           if (!isCurrentRefresh()) return;
@@ -2110,6 +2113,7 @@ const App: React.FC = () => {
       }
 
       if (!background && isCurrentRefresh()) {
+        setBrowseProposals([]);
         setFundingProposals([]);
         setProposalReferences([]);
         setProposalStatus('error');
@@ -8309,6 +8313,7 @@ const App: React.FC = () => {
           onDowngradeMainShip={handleDowngradeMainShip}
           isLoading={loadingLeaderboard}
           proposals={fundingProposals}
+          browseProposals={browseProposals}
           proposalReferences={proposalReferences}
           proposalStatus={proposalStatus}
           onOpenReferral={openReferral}
@@ -8411,6 +8416,7 @@ const App: React.FC = () => {
             onDowngradeMainShip={handleDowngradeMainShip}
             isLoading={loadingLeaderboard}
             proposals={fundingProposals}
+            browseProposals={browseProposals}
             proposalReferences={proposalReferences}
             proposalStatus={proposalStatus}
             onOpenReferral={openReferral}

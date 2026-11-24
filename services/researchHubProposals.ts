@@ -36,6 +36,9 @@ export interface ResearchHubProposalFeedOptions {
 }
 
 export interface ResearchHubProposalFeedResult {
+  /** Still open right now. The hangar browses this list. */
+  openProposals: ResearchHubProposal[];
+  /** Still open when the current allocation period ends. The picker uses this list. */
   eligibleProposals: ResearchHubProposal[];
   /**
    * Exact requested proposal snapshots, including proposals that are no
@@ -70,29 +73,47 @@ const getMoneyAmount = (value: unknown, currency: 'usd' | 'rsc'): number | undef
   return asNumber(value[currency]) ?? asNumber(value.amount);
 };
 
+const CLOSED_FUNDING_STATUSES = new Set([
+  'closed',
+  'complete',
+  'completed',
+  'funded',
+  'fulfilled',
+  'ended',
+  'expired',
+  'cancelled',
+  'canceled',
+  'inactive'
+]);
+
+const hasClosedFundingStatus = (status?: string) => {
+  const normalized = status?.trim().toLowerCase();
+  return Boolean(normalized && CLOSED_FUNDING_STATUSES.has(normalized));
+};
+
+const isFullyFundedProposal = (proposal: ResearchHubProposal) => {
+  const funding = getProposalFundingMetrics(proposal);
+  return funding.progressPercent !== null && funding.progressPercent >= 100;
+};
+
+/** Open for browsing: not closed, expired, or fully funded. Deadline may fall before the allocation cutoff. */
+export const isOpenProposal = (
+  proposal: ResearchHubProposal,
+  now: Date | string | number = Date.now()
+) => {
+  if (hasClosedFundingStatus(proposal.status)) return false;
+  if (!isFundingDeadlineAfter(proposal.endDate, now)) return false;
+  if (isFullyFundedProposal(proposal)) return false;
+  return true;
+};
+
 export const isWeeklyProposalEligible = (
   proposal: ResearchHubProposal,
   requiredOpenUntil: Date | string | number
 ) => {
-  const status = proposal.status?.trim().toLowerCase();
-  const closedStatuses = new Set([
-    'closed',
-    'complete',
-    'completed',
-    'funded',
-    'fulfilled',
-    'ended',
-    'expired',
-    'cancelled',
-    'canceled',
-    'inactive'
-  ]);
-
-  if (status && closedStatuses.has(status)) return false;
+  if (hasClosedFundingStatus(proposal.status)) return false;
   if (!isFundingDeadlineAfter(proposal.endDate, requiredOpenUntil)) return false;
-  const funding = getProposalFundingMetrics(proposal);
-  if (funding.progressPercent !== null && funding.progressPercent >= 100) return false;
-
+  if (isFullyFundedProposal(proposal)) return false;
   return true;
 };
 
@@ -257,6 +278,7 @@ export const getResearchHubProposalFeed = async ({
   });
 
   return {
+    openProposals: proposals.filter((proposal) => isOpenProposal(proposal)),
     eligibleProposals: proposals.filter((proposal) => (
       isWeeklyProposalEligible(proposal, requiredOpenUntil)
     )),

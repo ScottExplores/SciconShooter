@@ -243,8 +243,21 @@ const readProposalCache = async () => {
   return row?.payload ? { ...row.payload, cached: true, fetchedAt: row.fetched_at } : null;
 };
 
+const requestFeed = (req) => {
+  const queryValue = req.query?.type || req.query?.feed;
+  if (typeof queryValue === 'string' && queryValue.trim()) return queryValue.trim().toLowerCase();
+  if (typeof req.url !== 'string') return '';
+  try {
+    const params = new URL(req.url, 'http://localhost').searchParams;
+    return (params.get('type') || params.get('feed') || '').trim().toLowerCase();
+  } catch {
+    return '';
+  }
+};
+
 module.exports = async (req, res) => {
-  if (req.query?.feed === 'rfps') {
+  const feed = requestFeed(req);
+  if (feed === 'rfp' || feed === 'rfps') {
     return handleResearchHubRfpRequest(req, res);
   }
 
