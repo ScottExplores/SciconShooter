@@ -4,7 +4,7 @@ import { getProposalFundingMetrics } from './proposalFunding';
 
 const RESEARCHHUB_FUND_URL = 'https://www.researchhub.com/fund';
 const PROPOSAL_FEED_PATH = '/api/researchhub-proposals';
-const PROPOSAL_REQUEST_TIMEOUT_MS = 12_000;
+const PROPOSAL_REQUEST_TIMEOUT_MS = 25_000;
 
 type RawRecord = Record<string, any>;
 

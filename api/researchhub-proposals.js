@@ -8,8 +8,10 @@ const RESEARCHHUB_FUNDING_FEED =
   `${RESEARCHHUB_API_ORIGIN}${RESEARCHHUB_FUNDING_FEED_PATH}?fundraise_status=OPEN&ordering=best&page_size=100&content_type=PREREGISTRATION`;
 const RESEARCHHUB_POST_API =
   `${RESEARCHHUB_API_ORIGIN}/api/researchhubpost`;
-const MAX_PROPOSAL_PAGES = 5;
-const MAX_PROPOSALS = 100;
+const MAX_PROPOSAL_PAGES = 12;
+const MAX_PROPOSALS = 1200;
+const FEED_PAGE_SIZE = 100;
+const SPECULATIVE_PAGE_BATCH = 8;
 const MAX_REFERENCED_PROPOSALS = 1;
 const CUTOFF_SNAPSHOT_CAPTURE_WINDOW_MS = 61 * 60 * 1000;
 const { fetchSupabaseJson, hasSupabaseConfig, supabaseHeaders } = require('./_lib/supabase');
@@ -33,7 +35,7 @@ const sendJson = (res, status, payload) => {
   res.end(JSON.stringify(payload));
 };
 
-const fetchResearchHubFeedPage = async (url) => {
+const fetchResearchHubFeedPage = async (url, { missingOk = false } = {}) => {
   const response = await fetch(url, {
     headers: {
       Accept: 'application/json',
@@ -41,11 +43,30 @@ const fetchResearchHubFeedPage = async (url) => {
     }
   });
 
+  if (missingOk && (response.status === 404 || response.status === 400)) {
+    return { results: [], next: null };
+  }
+
   if (!response.ok) {
     throw new Error(`ResearchHub funding feed returned ${response.status}`);
   }
 
   return response.json();
+};
+
+const pageNumberFromFeedUrl = (value) => {
+  try {
+    const page = Number(new URL(value).searchParams.get('page'));
+    return Number.isInteger(page) && page > 0 ? page : null;
+  } catch {
+    return null;
+  }
+};
+
+const feedUrlForPage = (value, page) => {
+  const url = new URL(value);
+  url.searchParams.set('page', String(page));
+  return safeNextFeedUrl(url.toString());
 };
 
 const proposalIdOf = (entry) => String(entry?.content_object?.id ?? entry?.id ?? '');
@@ -123,23 +144,60 @@ const fetchResearchHubFeed = async ({
   const results = [];
   const remainingIds = new Set(stopWhenIdsFound);
 
-  for (let page = 0; nextUrl && page < MAX_PROPOSAL_PAGES && results.length < maxResults; page += 1) {
-    const payload = await fetchResearchHubFeedPage(nextUrl);
-    if (!firstPayload) {
-      firstPayload = payload;
+  if (stopWhenIdsFound.length > 0) {
+    for (let page = 0; nextUrl && page < MAX_PROPOSAL_PAGES && results.length < maxResults; page += 1) {
+      const payload = await fetchResearchHubFeedPage(nextUrl);
+      if (!firstPayload) firstPayload = payload;
+      if (Array.isArray(payload?.results)) {
+        const pageResults = payload.results.slice(0, maxResults - results.length);
+        results.push(...pageResults);
+        pageResults.forEach((entry) => remainingIds.delete(proposalIdOf(entry)));
+      }
+      if (remainingIds.size === 0) {
+        nextUrl = null;
+        break;
+      }
+      nextUrl = safeNextFeedUrl(payload?.next);
     }
 
-    if (Array.isArray(payload?.results)) {
-      const pageResults = payload.results.slice(0, maxResults - results.length);
-      results.push(...pageResults);
-      pageResults.forEach((entry) => remainingIds.delete(proposalIdOf(entry)));
+    return {
+      ...(firstPayload || {}),
+      next: nextUrl,
+      results
+    };
+  }
+
+  let pagesFetched = 0;
+  let waveStart = 1;
+  while (pagesFetched < MAX_PROPOSAL_PAGES && results.length < maxResults) {
+    const urls = [];
+    const waveEnd = Math.min(waveStart + SPECULATIVE_PAGE_BATCH - 1, MAX_PROPOSAL_PAGES);
+    for (let page = waveStart; page <= waveEnd; page += 1) {
+      urls.push(page === 1 ? startUrl : feedUrlForPage(startUrl, page));
+    }
+    const payloads = await Promise.all(urls.map((url, index) => (
+      fetchResearchHubFeedPage(url, { missingOk: !(waveStart === 1 && index === 0) })
+    )));
+
+    let reachedEnd = false;
+    for (const payload of payloads) {
+      if (!firstPayload) firstPayload = payload;
+      pagesFetched += 1;
+      const pageResults = Array.isArray(payload?.results) ? payload.results : [];
+      if (results.length < maxResults && pageResults.length > 0) {
+        results.push(...pageResults.slice(0, maxResults - results.length));
+      }
+      const following = safeNextFeedUrl(payload?.next);
+      if (pageResults.length === 0 || !following || results.length >= maxResults) {
+        nextUrl = results.length >= maxResults ? following : null;
+        reachedEnd = true;
+        break;
+      }
+      nextUrl = following;
     }
 
-    if (stopWhenIdsFound.length > 0 && remainingIds.size === 0) {
-      nextUrl = null;
-      break;
-    }
-    nextUrl = safeNextFeedUrl(payload?.next);
+    if (reachedEnd) break;
+    waveStart = waveEnd + 1;
   }
 
   return {

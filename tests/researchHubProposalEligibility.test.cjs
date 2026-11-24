@@ -55,7 +55,7 @@ test('the client feed requests and returns exact referenced proposals without ch
 });
 
 test('a stalled proposal request times out so gameplay preloading can continue', () => {
-  assert.match(proposalServiceSource, /const PROPOSAL_REQUEST_TIMEOUT_MS = 12_000/);
+  assert.match(proposalServiceSource, /const PROPOSAL_REQUEST_TIMEOUT_MS = 25_000/);
   assert.match(proposalServiceSource, /const controller = new AbortController\(\)/);
   assert.match(proposalServiceSource, /globalThis\.setTimeout\(\(\) => controller\.abort\(\), PROPOSAL_REQUEST_TIMEOUT_MS\)/);
   assert.match(proposalServiceSource, /signal: controller\.signal/);

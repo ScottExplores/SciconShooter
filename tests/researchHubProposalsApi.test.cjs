@@ -232,11 +232,14 @@ test('the open funding feed uses api.researchhub.com and only follows that host'
         results: [{ content_object: { id: 32371, title: 'Current open proposal' } }]
       });
     }
-    if (requestedUrl === pageTwoUrl) {
+    if (new URL(requestedUrl).searchParams.get('page') === '2') {
       return jsonResponse({
         next: null,
         results: [{ content_object: { id: 25383, title: 'Second open proposal' } }]
       });
+    }
+    if (requestedUrl.startsWith('https://api.researchhub.com/api/funding_feed/')) {
+      return jsonResponse({ next: null, results: [] });
     }
     throw new Error(`Unexpected URL: ${requestedUrl}`);
   };
@@ -250,12 +253,55 @@ test('the open funding feed uses api.researchhub.com and only follows that host'
       assert.equal(res.body.cached, false);
       assert.match(res.body.fetchedAt, /^\d{4}-\d{2}-\d{2}T/);
       assert.deepEqual(res.body.results.map((entry) => entry.content_object.id), [32371, 25383]);
-      assert.deepEqual(requestedUrls, [proposalsHandler._test.RESEARCHHUB_FUNDING_FEED, pageTwoUrl]);
+      assert.ok(requestedUrls.includes(proposalsHandler._test.RESEARCHHUB_FUNDING_FEED));
+      assert.ok(requestedUrls.some((url) => new URL(url).searchParams.get('page') === '2'));
       assert.equal(proposalsHandler._test.safeNextFeedUrl(pageTwoUrl), pageTwoUrl);
       assert.throws(
         () => proposalsHandler._test.safeNextFeedUrl('https://backend.prod.researchhub.com/api/funding_feed/?page=2'),
         /unsafe next-page URL/
       );
+    });
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('the open funding feed keeps paging after a full first page', async () => {
+  const originalFetch = global.fetch;
+  const pageTwoUrl = 'https://api.researchhub.com/api/funding_feed/?content_type=PREREGISTRATION&fundraise_status=OPEN&ordering=best&page=2&page_size=100';
+  const requestedUrls = [];
+  global.fetch = async (url) => {
+    const requestedUrl = String(url);
+    requestedUrls.push(requestedUrl);
+    const page = new URL(requestedUrl).searchParams.get('page');
+    if (requestedUrl === proposalsHandler._test.RESEARCHHUB_FUNDING_FEED) {
+      return jsonResponse({
+        next: pageTwoUrl,
+        results: Array.from({ length: 100 }, (_, index) => ({
+          content_object: { id: index + 1, title: `Open ${index + 1}` }
+        }))
+      });
+    }
+    if (page === '2') {
+      return jsonResponse({
+        next: null,
+        results: [{ content_object: { id: 101, title: 'Still open past the first page' } }]
+      });
+    }
+    return jsonResponse({ next: null, results: [] });
+  };
+
+  try {
+    await withoutSupabase(async () => {
+      const res = makeResponse();
+      await proposalsHandler({ method: 'GET', query: {} }, res);
+
+      assert.equal(res.statusCode, 200);
+      assert.equal(res.body.results.length, 101);
+      assert.equal(res.body.results.at(-1).content_object.id, 101);
+      assert.equal(res.body.next, null);
+      assert.equal(requestedUrls[0], proposalsHandler._test.RESEARCHHUB_FUNDING_FEED);
+      assert.ok(requestedUrls.some((url) => new URL(url).searchParams.get('page') === '2'));
     });
   } finally {
     global.fetch = originalFetch;

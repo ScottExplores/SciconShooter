@@ -95,6 +95,11 @@
       "schedule": "15 22 * * 0"
     }
   ],
+  "functions": {
+    "api/researchhub-proposals.js": {
+      "maxDuration": 30
+    }
+  },
   "rewrites": [
     {
       "source": "/android-privacy.html",
