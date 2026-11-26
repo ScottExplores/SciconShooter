@@ -98,6 +98,9 @@
   "functions": {
     "api/researchhub-proposals.js": {
       "maxDuration": 30
+    },
+    "api/leaderboard.js": {
+      "maxDuration": 60
     }
   },
   "rewrites": [
