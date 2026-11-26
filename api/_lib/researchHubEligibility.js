@@ -1,6 +1,10 @@
-const FEED_URL = 'https://backend.prod.researchhub.com/api/funding_feed/?fundraise_status=OPEN&ordering=best&page_size=100&content_type=PREREGISTRATION';
-const MAX_OPEN_FEED_PAGES = 5;
-const MAX_OPEN_PROPOSALS = 500;
+// ResearchHub retired backend.prod.researchhub.com (it no longer resolves).
+// Use the same public API origin as the proposals and RFP routes.
+const RESEARCHHUB_API_ORIGIN = 'https://api.researchhub.com';
+const FEED_URL = `${RESEARCHHUB_API_ORIGIN}/api/funding_feed/?fundraise_status=OPEN&ordering=best&page_size=100&content_type=PREREGISTRATION`;
+const MAX_OPEN_FEED_PAGES = 12;
+const MAX_OPEN_PROPOSALS = 1200;
+const SPECULATIVE_PAGE_BATCH = 8;
 const { getPublicPrizeState } = require('../../shared/weeklyCompetitionBoundary.js');
 const { isFundingDeadlineAfter } = require('../../shared/researchHubProposalEligibility.js');
 
@@ -38,13 +42,13 @@ const safeNextFeedUrl = (value) => {
   if (typeof value !== 'string' || !value) return null;
   let parsed;
   try {
-    parsed = new URL(value, 'https://backend.prod.researchhub.com');
+    parsed = new URL(value, RESEARCHHUB_API_ORIGIN);
   } catch {
     throw Object.assign(new Error('ResearchHub eligibility feed returned an invalid next-page URL.'), { statusCode: 502 });
   }
   if (
     parsed.protocol !== 'https:'
-    || parsed.hostname !== 'backend.prod.researchhub.com'
+    || parsed.hostname !== 'api.researchhub.com'
     || parsed.pathname !== '/api/funding_feed/'
   ) {
     throw Object.assign(new Error('ResearchHub eligibility feed returned an unsafe next-page URL.'), { statusCode: 502 });
@@ -52,31 +56,69 @@ const safeNextFeedUrl = (value) => {
   return parsed.toString();
 };
 
+const feedUrlForPage = (page) => {
+  const url = new URL(FEED_URL);
+  if (page > 1) url.searchParams.set('page', String(page));
+  return url.toString();
+};
+
+const fetchFeedPage = async (url, { missingOk = false } = {}) => {
+  let response;
+  try {
+    response = await fetch(url, {
+      headers: { Accept: 'application/json', 'User-Agent': 'SciconShooter/2.2 (+https://sciconshooter.xyz)' }
+    });
+  } catch (error) {
+    // A network/DNS failure must surface as an upstream outage, not as a
+    // generic 500 that callers label as leaderboard storage misconfiguration.
+    throw Object.assign(new Error('ResearchHub eligibility check is unavailable.'), {
+      statusCode: 502,
+      cause: error
+    });
+  }
+  if (missingOk && (response.status === 404 || response.status === 400)) {
+    return { results: [], next: null };
+  }
+  if (!response.ok) {
+    throw Object.assign(new Error('ResearchHub eligibility check is unavailable.'), { statusCode: 502 });
+  }
+  return response.json();
+};
+
+// ResearchHub pages are slow (several seconds each), so pages are requested in
+// parallel waves, mirroring the Proposal Hangar route. The result is still the
+// complete open set; an incomplete set fails closed.
 const fetchOpenProposalEntries = async () => {
   const entries = [];
   let nextUrl = FEED_URL;
   let resultLimitExceeded = false;
+  let reachedEnd = false;
 
   for (
-    let page = 0;
-    nextUrl && page < MAX_OPEN_FEED_PAGES && entries.length < MAX_OPEN_PROPOSALS;
-    page += 1
+    let waveStart = 1;
+    !reachedEnd && waveStart <= MAX_OPEN_FEED_PAGES;
+    waveStart += SPECULATIVE_PAGE_BATCH
   ) {
-    const response = await fetch(nextUrl, {
-      headers: { Accept: 'application/json', 'User-Agent': 'SciconShooter/2.2 (+https://sciconshooter.xyz)' }
-    });
-    if (!response.ok) {
-      throw Object.assign(new Error('ResearchHub eligibility check is unavailable.'), { statusCode: 502 });
-    }
-    const payload = await response.json();
-    if (Array.isArray(payload?.results)) {
+    const waveEnd = Math.min(waveStart + SPECULATIVE_PAGE_BATCH - 1, MAX_OPEN_FEED_PAGES);
+    const pages = [];
+    for (let page = waveStart; page <= waveEnd; page += 1) pages.push(page);
+    const payloads = await Promise.all(pages.map((page) => (
+      fetchFeedPage(feedUrlForPage(page), { missingOk: page > 1 })
+    )));
+
+    for (const payload of payloads) {
+      const pageResults = Array.isArray(payload?.results) ? payload.results : [];
       const remainingCapacity = MAX_OPEN_PROPOSALS - entries.length;
-      if (payload.results.length > remainingCapacity) {
+      if (pageResults.length > remainingCapacity) {
         resultLimitExceeded = true;
       }
-      entries.push(...payload.results.slice(0, remainingCapacity));
+      entries.push(...pageResults.slice(0, remainingCapacity));
+      nextUrl = safeNextFeedUrl(payload?.next);
+      if (pageResults.length === 0 || !nextUrl || resultLimitExceeded) {
+        reachedEnd = true;
+        break;
+      }
     }
-    nextUrl = safeNextFeedUrl(payload?.next);
   }
 
   if (nextUrl || resultLimitExceeded) {

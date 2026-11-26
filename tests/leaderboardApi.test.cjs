@@ -716,7 +716,7 @@ test('the current weekly leader can attach one eligible proposal to the verified
 
   global.fetch = async (url, options = {}) => {
     const value = String(url);
-    if (value.includes('backend.prod.researchhub.com')) {
+    if (value.includes('api.researchhub.com/api/funding_feed')) {
       return jsonResponse({
         results: [{
           content_object: {
@@ -786,7 +786,7 @@ test('proposal selection keeps current metadata working before the image column 
 
   global.fetch = async (url, options = {}) => {
     const value = String(url);
-    if (value.includes('backend.prod.researchhub.com')) {
+    if (value.includes('api.researchhub.com/api/funding_feed')) {
       return jsonResponse({
         results: [{
           content_object: {
@@ -847,7 +847,7 @@ test('the current weekly leader cannot select a proposal that closes before the 
 
   global.fetch = async (url, options = {}) => {
     const value = String(url);
-    if (value.includes('backend.prod.researchhub.com')) {
+    if (value.includes('api.researchhub.com/api/funding_feed')) {
       return jsonResponse({
         results: [{
           content_object: {
@@ -930,7 +930,7 @@ test('the exact verified current leader cannot replace its saved proposal', asyn
 
   global.fetch = async (url, options = {}) => {
     const value = String(url);
-    if (value.includes('backend.prod.researchhub.com')) {
+    if (value.includes('api.researchhub.com/api/funding_feed')) {
       return jsonResponse({
         results: [
           {
@@ -989,7 +989,7 @@ test('an empty exact proposal update is a terminal lead change with a stable cod
 
   global.fetch = async (url, options = {}) => {
     const value = String(url);
-    if (value.includes('backend.prod.researchhub.com')) {
+    if (value.includes('api.researchhub.com/api/funding_feed')) {
       return jsonResponse({ results: [{
         content_object: {
           id: 654, title: 'Replacement Target', slug: 'replacement-target',
@@ -1060,7 +1060,7 @@ test('proposal recovery rechecks the weekly leader after proposal eligibility lo
 
   global.fetch = async (url, options = {}) => {
     const value = String(url);
-    if (value.includes('backend.prod.researchhub.com')) {
+    if (value.includes('api.researchhub.com/api/funding_feed')) {
       return jsonResponse({ results: [{
         content_object: {
           id: 654, title: 'Replacement Target', slug: 'replacement-target',
@@ -1112,7 +1112,7 @@ test('proposal recovery rolls back its exact write if the lead changes during th
 
   global.fetch = async (url, options = {}) => {
     const value = String(url);
-    if (value.includes('backend.prod.researchhub.com')) {
+    if (value.includes('api.researchhub.com/api/funding_feed')) {
       return jsonResponse({ results: [{
         content_object: {
           id: 654, title: 'Replacement Target', slug: 'replacement-target',
@@ -1162,7 +1162,7 @@ test('a wallet-backed weekly leader cannot mutate its proposal without a wallet 
 
   global.fetch = async (url, options = {}) => {
     const value = String(url);
-    if (value.includes('backend.prod.researchhub.com')) {
+    if (value.includes('api.researchhub.com/api/funding_feed')) {
       return jsonResponse({ results: [{
         content_object: {
           id: 321, title: 'Open Science Target', slug: 'open-science-target',
@@ -1227,7 +1227,7 @@ test('a wallet-backed leader accepts PostgREST-normalized challenge timestamps o
         expires_at: nonceRow.expires_at.replace(/Z$/, '+00:00')
       }] : []);
     }
-    if (value.includes('backend.prod.researchhub.com')) {
+    if (value.includes('api.researchhub.com/api/funding_feed')) {
       return jsonResponse({ results: [{
         content_object: {
           id: 321, title: 'Open Science Target', slug: 'open-science-target',
@@ -1342,7 +1342,7 @@ test('a saved research pick cannot be replaced to clear a stale image', async ()
 
   global.fetch = async (url, options = {}) => {
     const value = String(url);
-    if (value.includes('backend.prod.researchhub.com')) {
+    if (value.includes('api.researchhub.com/api/funding_feed')) {
       return jsonResponse({ results: [
         {
           content_object: {

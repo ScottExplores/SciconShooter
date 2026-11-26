@@ -1,5 +1,5 @@
 $ErrorActionPreference = 'Stop'
-$feedUrl = 'https://backend.prod.researchhub.com/api/funding_feed/?fundraise_status=OPEN&ordering=best&page_size=100&content_type=PREREGISTRATION'
+$feedUrl = 'https://api.researchhub.com/api/funding_feed/?fundraise_status=OPEN&ordering=best&page_size=100&content_type=PREREGISTRATION'
 $headers = @{
   Accept = 'application/json'
   'User-Agent' = 'SciconShooter/2.2 (+https://sciconshooter.xyz)'

@@ -273,7 +273,7 @@ test('weekly finalization resolver fails closed when the OPEN feed is unavailabl
   }
 });
 
-test('eligibility feed fails closed when a next page would exceed the 500-proposal safety limit', async () => {
+test('eligibility feed fails closed when a next page would exceed the 1200-proposal safety limit', async () => {
   const originalFetch = global.fetch;
   let fetchCount = 0;
   global.fetch = async () => {
@@ -282,7 +282,7 @@ test('eligibility feed fails closed when a next page would exceed the 500-propos
       results: Array.from({ length: 100 }, (_, index) => ({
         content_object: { id: (fetchCount * 1000) + index }
       })),
-      next: `https://backend.prod.researchhub.com/api/funding_feed/?page=${fetchCount + 1}`
+      next: `https://api.researchhub.com/api/funding_feed/?page=${fetchCount + 1}`
     });
   };
 
@@ -295,7 +295,26 @@ test('eligibility feed fails closed when a next page would exceed the 500-propos
         && /incomplete proposal set/i.test(error.message)
       )
     );
-    assert.equal(fetchCount, 5);
+    assert.equal(fetchCount, 12);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('eligibility feed uses the live ResearchHub API origin and maps network failures to 502', async () => {
+  const eligibility = require('../api/_lib/researchHubEligibility.js');
+  const originalFetch = global.fetch;
+  const seen = [];
+  global.fetch = async (url) => {
+    seen.push(String(url));
+    throw new TypeError('fetch failed');
+  };
+  try {
+    await assert.rejects(
+      () => eligibility.fetchOpenProposalEntries(),
+      (error) => error.statusCode === 502 && /unavailable/i.test(error.message)
+    );
+    assert.equal(new URL(seen[0]).hostname, 'api.researchhub.com');
   } finally {
     global.fetch = originalFetch;
   }
