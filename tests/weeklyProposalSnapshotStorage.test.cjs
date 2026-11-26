@@ -33,7 +33,7 @@ test('cutoff captures append immutable rows instead of overwriting a weekly cach
   const originalFetch = global.fetch;
   const writes = [];
   global.fetch = async (url, options = {}) => {
-    if (String(url).includes('backend.prod.researchhub.com')) {
+    if (String(url).includes('api.researchhub.com/api/funding_feed')) {
       return response({
         results: [{ content_object: { id: 321 } }],
         next: null
