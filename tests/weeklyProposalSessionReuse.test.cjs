@@ -91,7 +91,7 @@ test('an authenticated wallet-profile session selects the weekly proposal withou
       nonceRequests += 1;
       return jsonResponse([], 500);
     }
-    if (value.includes('backend.prod.researchhub.com')) {
+    if (value.includes('api.researchhub.com/api/funding_feed')) {
       return jsonResponse({ results: [{
         content_object: {
           id: 321,

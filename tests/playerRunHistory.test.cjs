@@ -441,7 +441,7 @@ test('player run history pins the current verified weekly leader ahead of newer 
     });
     global.fetch = async (url, options = {}) => {
       const value = String(url);
-      if (value.includes('backend.prod.researchhub.com')) {
+      if (value.includes('api.researchhub.com/api/funding_feed')) {
         return {
           ok: true,
           status: 200,

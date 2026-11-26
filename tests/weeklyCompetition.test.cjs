@@ -1084,7 +1084,7 @@ test('cutoff snapshot capture is DST-safe across the reliable Hobby cron window 
   const writes = [];
 
   global.fetch = async (url, options = {}) => {
-    if (String(url).includes('backend.prod.researchhub.com')) {
+    if (String(url).includes('api.researchhub.com/api/funding_feed')) {
       return new Response(JSON.stringify({
         next: null,
         results: [{
@@ -1287,7 +1287,7 @@ test('finalization archives the winner even when proposal verification is pendin
     if (String(url).includes('scicon_proposal_cache')) {
       return new Response('[]', { status: 200 });
     }
-    if (String(url).includes('backend.prod.researchhub.com')) {
+    if (String(url).includes('api.researchhub.com/api/funding_feed')) {
       liveFeedCalled = true;
       return new Response(JSON.stringify({ error: 'unexpected' }), { status: 503 });
     }

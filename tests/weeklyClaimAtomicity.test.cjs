@@ -111,7 +111,7 @@ const makeScenario = ({
     const parsed = new URL(String(url));
     const method = options.method || 'GET';
 
-    if (parsed.hostname === 'backend.prod.researchhub.com') {
+    if (parsed.hostname === 'api.researchhub.com' && parsed.pathname === '/api/funding_feed/') {
       return jsonResponse({
         results: [
           proposalEntry(101, 'Open Alpha Research'),
