@@ -16,9 +16,41 @@ const { readOptionalAuthoritativeWalletProfileSession } = require('./_lib/browse
 const crypto = require('crypto');
 const { checkRateLimit } = require('./_lib/rateLimit');
 const { sanitizePilotName, stripUnsafePublicText } = require('../shared/publicText.cjs');
-const { getPublicPrizeState, getWeekRange } = require('../shared/weeklyCompetitionBoundary.js');
+const { AsyncLocalStorage } = require('node:async_hooks');
+const {
+  getPublicPrizeState,
+  getEventPickWindow,
+  getWeekRange,
+  WEEKLY_SCORE_SETTLEMENT_MS
+} = require('../shared/weeklyCompetitionBoundary.js');
 
-const getPublicScoreWindow = (now = new Date()) => getPublicPrizeState(now).scoreWindow;
+// After the 25K close the public board is the weekly round, but the event
+// winner may still change a closed pick until proposalOpenUntil. Those pick
+// requests run against the event board through this per-request context.
+const eventPickBoard = new AsyncLocalStorage();
+
+const getPublicScoreWindow = (now = new Date()) => (
+  eventPickBoard.getStore()?.scoreWindow || getPublicPrizeState(now).scoreWindow
+);
+
+const getPickRequiredOpenUntil = () => (
+  eventPickBoard.getStore()?.requiredOpenUntil || getPublicPrizeState().proposalOpenUntil
+);
+
+const eventPickBoardForReceipt = (receipt, now = new Date()) => {
+  const pick = getEventPickWindow(now);
+  if (!pick.pickOpen || pick.eventLive) return null;
+  const finishedAt = new Date(receipt?.finishedAt).getTime();
+  if (!Number.isFinite(finishedAt)
+    || finishedAt < pick.scoreWindow.start.getTime()
+    || finishedAt >= pick.scoreWindow.end.getTime()) return null;
+  return { scoreWindow: pick.scoreWindow, requiredOpenUntil: pick.requiredOpenUntil };
+};
+
+const withPickBoard = (receipt, fn) => {
+  const board = eventPickBoardForReceipt(receipt);
+  return board ? eventPickBoard.run(board, fn) : fn();
+};
 
 const LEGACY_SUPABASE_SELECT = 'name,score,wave,date,wallet_address,donated';
 const PROPOSAL_SUPABASE_SELECT = `${LEGACY_SUPABASE_SELECT},proposal_id,proposal_title,proposal_url,proposal_author`;
@@ -67,8 +99,13 @@ const sanitizeUrl = (value) => {
 const receiptFinishedInCurrentCompetitionWeek = (receipt, now = new Date()) => {
   const finishedAt = new Date(receipt?.finishedAt);
   if (!Number.isFinite(finishedAt.getTime())) return false;
-  const { start, end } = getPublicScoreWindow(now);
-  return finishedAt.getTime() >= start.getTime() && finishedAt.getTime() < end.getTime();
+  const instant = new Date(now).getTime();
+  // A run that finished before a cutoff may still be in flight for the short
+  // settlement window, so the board that was live then also accepts it.
+  return [instant, instant - WEEKLY_SCORE_SETTLEMENT_MS].some((at) => {
+    const { start, end } = getPublicScoreWindow(new Date(at));
+    return finishedAt.getTime() >= start.getTime() && finishedAt.getTime() < end.getTime();
+  });
 };
 
 const isSchemaColumnError = (error) => (
@@ -616,10 +653,10 @@ const selectProposalForWeeklyLeader = async (
 
   const proposal = targetKind === 'rfp'
     ? await findEligibleRfp(requestedProposalId, {
-      requiredOpenUntil: getPublicPrizeState().proposalOpenUntil
+      requiredOpenUntil: getPickRequiredOpenUntil()
     })
     : await findEligibleProposal(requestedProposalId, {
-      requiredOpenUntil: getPublicPrizeState().proposalOpenUntil
+      requiredOpenUntil: getPickRequiredOpenUntil()
     });
 
   // Eligibility lookup is remote and can take long enough for the weekly lead
@@ -927,20 +964,20 @@ module.exports = async (req, res) => {
       if (action === 'select-proposal-challenge' || action === 'select-proposal') {
         const targetKind = normalizeTargetKind(body.targetKind);
         if (action === 'select-proposal-challenge') {
-          const challenge = await createProposalSelectionChallenge(
+          const challenge = await withPickBoard(receipt, () => createProposalSelectionChallenge(
             receipt,
             body.proposalId,
             body.address,
             proposalSession?.walletAddress,
             targetKind
-          );
+          ));
           return sendJson(res, 200, { challenge });
         }
-        const result = await selectProposalForWeeklyLeader(receipt, body.proposalId, {
+        const result = await withPickBoard(receipt, () => selectProposalForWeeklyLeader(receipt, body.proposalId, {
           address: body.address,
           challengeId: body.challengeId,
           signature: body.signature
-        }, proposalSession?.walletAddress, targetKind);
+        }, proposalSession?.walletAddress, targetKind));
         return sendJson(res, 200, result);
       }
 

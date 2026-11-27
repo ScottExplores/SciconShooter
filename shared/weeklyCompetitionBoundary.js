@@ -1,14 +1,15 @@
 const createWeeklyCompetitionBoundary = () => {
 const WEEK_TIME_ZONE = 'America/Los_Angeles';
 const WEEK_BOUNDARY_HOUR = 12;
-// Live weekly prize from the 2026-12-06 resume week onward. Historical
+// Live weekly prize from the 2026-11-29 resume week onward. Historical
 // competition rows keep their recorded allocation instead of being rewritten.
 const WEEKLY_ALLOCATION_RSC = 500;
 // Weeks before the resume date that are finalized without a stored amount
 // keep the allocation those seasons actually used.
 const PRIOR_WEEKLY_ALLOCATION_RSC = 1_000;
-// One-time prize window. Weekly scoring stays in the code and turns back on
-// at weeklyResumesWeekKey (the first Sunday-noon Pacific week after Nov 30).
+// One-time prize window. Weekly scoring turns back on the moment the event
+// closes: the first weekly round is week weeklyResumesWeekKey, clipped to
+// start at closesAt and end at the normal Sunday-noon Pacific boundary.
 const SCICON_BIG_EVENT = Object.freeze({
   name: '25K High Score',
   allocationRsc: 25_000,
@@ -16,14 +17,13 @@ const SCICON_BIG_EVENT = Object.freeze({
   closesAt: '2026-11-30T00:00:00.000Z',
   proposalOpenUntil: '2026-12-01T08:00:00.000Z',
   winnerAnnouncedLabel: 'Nov 30',
-  weeklyResumesWeekKey: '2026-12-06'
+  weeklyResumesWeekKey: '2026-11-29',
+  // The event's payout check keeps reporting on the winner's pick until the
+  // first weekly round ends. Pick changes stop at proposalOpenUntil.
+  payoutReviewUntil: '2026-12-06T20:00:00.000Z'
 });
 const SCICON_EVENT_CHOICE_COPY = 'The winner picks an open ResearchHub proposal or RFP.';
-const SCICON_EVENT_PAUSE_COPY = 'Weekly prizes return Dec 6 at 500 RSC.';
-// Shown between the event close and the Dec 6 resume. It never names the
-// finished event so the site reads as the normal weekly game again.
-const SCICON_WEEKLY_RETURN_COPY = 'Weekly prizes return Dec 6 at 500 RSC.';
-const SCICON_WEEKLY_RETURN_LABEL = 'Returns Dec 6';
+const SCICON_EVENT_PAUSE_COPY = 'Weekly 500 RSC prizes start when it closes.';
 // One allowance for the whole high-score event. Weekly play goes back to
 // five free attempts when the Sunday board resumes.
 const SCICON_EVENT_ATTEMPT_LIMIT = 10;
@@ -134,12 +134,34 @@ const zonedDateTimeToUtc = ({ year, month, day, hour = WEEK_BOUNDARY_HOUR, minut
   return new Date(candidate);
 };
 
-const getWeekRange = (weekKey) => {
+// The first weekly round after the event starts at the event close, not at
+// that Sunday's noon boundary, so event scores never land on a weekly board.
+const clampResumeWeekStart = (weekKey, start) => {
+  const closesAt = Date.parse(SCICON_BIG_EVENT.closesAt);
+  return weekKey === SCICON_BIG_EVENT.weeklyResumesWeekKey && start.getTime() < closesAt
+    ? new Date(closesAt)
+    : start;
+};
+
+const getUnclampedWeekRange = (weekKey) => {
   const startCalendarDate = parseCalendarDateKey(weekKey);
   const endCalendarDate = shiftCalendarDate(startCalendarDate, 7);
   return {
     weekKey: calendarDateKey(startCalendarDate),
     start: zonedDateTimeToUtc(startCalendarDate),
+    end: zonedDateTimeToUtc(endCalendarDate),
+    startCalendarDate,
+    endCalendarDate
+  };
+};
+
+const getWeekRange = (weekKey) => {
+  const startCalendarDate = parseCalendarDateKey(weekKey);
+  const endCalendarDate = shiftCalendarDate(startCalendarDate, 7);
+  const key = calendarDateKey(startCalendarDate);
+  return {
+    weekKey: key,
+    start: clampResumeWeekStart(key, zonedDateTimeToUtc(startCalendarDate)),
     end: zonedDateTimeToUtc(endCalendarDate),
     startCalendarDate,
     endCalendarDate
@@ -158,9 +180,10 @@ const getCurrentWeekRange = (now = new Date()) => {
   }
 
   const endCalendarDate = shiftCalendarDate(startCalendarDate, 7);
+  const weekKey = calendarDateKey(startCalendarDate);
   return {
-    weekKey: calendarDateKey(startCalendarDate),
-    start,
+    weekKey,
+    start: clampResumeWeekStart(weekKey, start),
     end: zonedDateTimeToUtc(endCalendarDate),
     startCalendarDate,
     endCalendarDate
@@ -204,6 +227,16 @@ const resolveWeeklyDashboardPublication = (completedWeekKeys = [], now = new Dat
     };
   }
 
+  if (presentation.weekKey === SCICON_BIG_EVENT.weeklyResumesWeekKey) {
+    // The first round after the event follows the event, not a weekly board,
+    // so there is no weekly Past Pick to wait for.
+    return {
+      presentationTime: observedAt.getTime(),
+      visibleWeekKey: presentation.weekKey,
+      waitingForArchive: false,
+      requiredArchiveWeekKey: presentation.weekKey
+    };
+  }
   const immediatelyPriorWeekKey = getWeeklyBoundaryMeta(
     new Date(presentation.startsAt.getTime() - 1)
   ).weekKey;
@@ -252,12 +285,11 @@ const getPublicPrizeState = (now = new Date()) => {
   const weeklyResumesAt = getWeekRange(SCICON_BIG_EVENT.weeklyResumesWeekKey).start;
   const proposalDeadline = new Date(SCICON_BIG_EVENT.proposalOpenUntil);
   const time = instant.getTime();
+  // Weekly play resumes the instant the event closes; there is no gap phase.
   const phase = time >= startsAt.getTime() && time < closesAt.getTime()
     ? 'big-event'
-    : time >= closesAt.getTime() && time < weeklyResumesAt.getTime()
-      ? 'big-event-closed'
-      : 'weekly';
-  const eventBoard = phase !== 'weekly';
+    : 'weekly';
+  const eventBoard = phase === 'big-event';
   const week = getCurrentWeekRange(instant);
   const remainingMs = Math.max(0, closesAt.getTime() - time);
 
@@ -272,14 +304,29 @@ const getPublicPrizeState = (now = new Date()) => {
     scoreWindow: eventBoard
       ? { start: startsAt, end: closesAt }
       : { start: week.start, end: week.end },
-    snapshotFrozen: phase === 'big-event-closed',
-    statusLabel: phase === 'big-event-closed'
-      ? `winner announced ${SCICON_BIG_EVENT.winnerAnnouncedLabel}`
-      : null,
+    snapshotFrozen: false,
+    statusLabel: null,
     // Pacific calendar days until the close: 0 on closing day.
     daysLeft: phase === 'big-event' && remainingMs > 0
       ? pacificCalendarDaysBetween(instant, closesAt)
       : 0
+  };
+};
+
+// The event winner's pick window and payout review run on their own clock,
+// separate from the weekly round that starts at the close.
+const getEventPickWindow = (now = new Date()) => {
+  const time = toDate(now).getTime();
+  const startsAt = new Date(SCICON_BIG_EVENT.startsAt);
+  const closesAt = new Date(SCICON_BIG_EVENT.closesAt);
+  const requiredOpenUntil = new Date(SCICON_BIG_EVENT.proposalOpenUntil);
+  const reviewUntil = new Date(SCICON_BIG_EVENT.payoutReviewUntil);
+  return {
+    pickOpen: time >= startsAt.getTime() && time < requiredOpenUntil.getTime(),
+    reviewOpen: time >= startsAt.getTime() && time < reviewUntil.getTime(),
+    eventLive: time >= startsAt.getTime() && time < closesAt.getTime(),
+    scoreWindow: { start: startsAt, end: closesAt },
+    requiredOpenUntil
   };
 };
 
@@ -289,7 +336,7 @@ const eventPlayWeekKeys = () => {
   const keys = [];
   let cursor = getCurrentWeekRange(startsAt).weekKey;
   for (let guard = 0; guard < 12; guard += 1) {
-    const range = getWeekRange(cursor);
+    const range = getUnclampedWeekRange(cursor);
     if (range.start.getTime() >= closesAt) break;
     if (range.end.getTime() > startsAt) keys.push(range.weekKey);
     cursor = calendarDateKey(shiftCalendarDate(range.startCalendarDate, 7));
@@ -299,7 +346,7 @@ const eventPlayWeekKeys = () => {
 
 const weekKeyOverlapsPlayableEvent = (weekKey) => {
   try {
-    const range = getWeekRange(weekKey);
+    const range = getUnclampedWeekRange(weekKey);
     const startsAt = new Date(SCICON_BIG_EVENT.startsAt).getTime();
     const closesAt = new Date(SCICON_BIG_EVENT.closesAt).getTime();
     return range.start.getTime() < closesAt && range.end.getTime() > startsAt;
@@ -339,7 +386,7 @@ const resolveRunAttemptPolicy = (now = new Date()) => {
 
 const weekOverlapsBigEventPause = (start, end) => {
   const pauseStart = new Date(SCICON_BIG_EVENT.startsAt).getTime();
-  const pauseEnd = getWeekRange(SCICON_BIG_EVENT.weeklyResumesWeekKey).start.getTime();
+  const pauseEnd = new Date(SCICON_BIG_EVENT.closesAt).getTime();
   return start.getTime() < pauseEnd && end.getTime() > pauseStart;
 };
 
@@ -377,8 +424,6 @@ return {
   SCICON_EVENT_ATTEMPT_SCOPE_ID,
   SCICON_EVENT_CHOICE_COPY,
   SCICON_EVENT_PAUSE_COPY,
-  SCICON_WEEKLY_RETURN_COPY,
-  SCICON_WEEKLY_RETURN_LABEL,
   WEEKLY_RUN_FREE_ATTEMPT_LIMIT,
   resolveRunAttemptPolicy,
   weekKeyOverlapsPlayableEvent,
@@ -390,6 +435,7 @@ return {
   getWeeklyPresentationMeta,
   getWeeklyBoundaryMeta,
   getPublicPrizeState,
+  getEventPickWindow,
   weekOverlapsBigEventPause,
   getWeekRange
 };
