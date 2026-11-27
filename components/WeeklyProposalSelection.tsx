@@ -202,7 +202,7 @@ const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
         <div className="relative overflow-hidden border-b border-yellow-200/20 px-4 py-4 text-center sm:px-6">
           <div className="pointer-events-none absolute left-1/2 top-1/2 h-20 w-64 -translate-x-1/2 -translate-y-1/2 bg-yellow-300/10 blur-xl" />
           <p className="relative animate-pulse font-mono text-[10px] font-black uppercase tracking-[0.28em] text-yellow-200 drop-shadow-[0_0_12px_currentColor]" data-prize-preview={preview ? 'true' : 'false'}>
-            {preview ? 'PREVIEW' : bigEvent ? '25K High Score' : 'New weekly high score'}
+            {preview ? 'PREVIEW' : getPublicPrizeState().phase === 'big-event' ? '25K High Score' : bigEvent ? 'High score' : 'New weekly high score'}
           </p>
           <h2 id="weekly-proposal-selection-title" className="arcade-font relative mt-2 text-2xl font-black uppercase tracking-wider text-white sm:text-3xl">
             {preview ? 'Prize preview' : <>You&apos;re #1, {pilotName || 'Pilot'}</>}
