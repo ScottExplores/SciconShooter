@@ -3002,10 +3002,16 @@ const StartScreen: React.FC<StartScreenProps> = ({
                   Scicon Shooter is an arcade game. Scores, rankings, availability, rewards, and funding events may be reviewed or corrected for integrity. Wallet transactions and mints are optional, require the player's approval, and do not promise a financial return.
                 </p>
               </section>
+              <section data-legal-affiliation="true">
+                <h3 className="font-black uppercase text-cyan-100">Not affiliated with ResearchHub</h3>
+                <p className="mt-2">
+                  Scicon Shooter is a community-driven, open-source project. It is not affiliated with, endorsed by, or an official product of ResearchHub. ResearchHub names and proposal data appear only to show what players can fund.
+                </p>
+              </section>
               <section>
                 <h3 className="font-black uppercase text-cyan-100">Privacy &amp; disclosure</h3>
                 <p className="mt-2">
-                  Guest play does not require a wallet. Submitted pilot names and scores may appear publicly. Connected-wallet actions and minted records are public onchain. Scicon Shooter is community-built and open source; it is not represented as an official ResearchHub product.
+                  Guest play does not require a wallet. Submitted pilot names and scores may appear publicly. Connected-wallet actions and minted records are public onchain.
                 </p>
                 <p className="mt-2">
                   The game records anonymous usage events and bounded crash diagnostics so reliability problems can be found. Gameplay analytics use a random device-local identifier, stored only as a one-way server hash, plus foreground-time samples to estimate new and returning players and active playtime. The owner view shows aggregate totals only; gameplay analytics do not store pilot names, wallet addresses, or IP addresses. Player reports may include game version, Mission and Wave, screen size, connection state, and recent technical events when diagnostics are enabled. Manual Feedback and Report a Bug submissions are processed by Resend and delivered to sciconshooter@gmail.com; automatic crash reports remain in the private owner report log. Reports never intentionally include wallet addresses, recovery phrases, private keys, authorization data, or browser storage.
