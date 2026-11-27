@@ -586,7 +586,7 @@ const finalizeWeeklyCompetition = async (
       finalized: false,
       paused: true,
       weekKey,
-      reason: 'Weekly prize is paused until the Dec 6 week.'
+      reason: 'This week was played as the 25K High Score, not a weekly round.'
     };
   }
 

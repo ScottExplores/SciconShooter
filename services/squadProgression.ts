@@ -192,6 +192,12 @@ export interface WeeklySquadStats {
   runs: number;
   /** Weekly Run entries consumed this competition week. Resuming is free. */
   weeklyRunAttempts: number;
+  /**
+   * Attempt scope (event bucket or week key) the count above belongs to. The
+   * first weekly round shares its week key with the event's last hours, so the
+   * scope, not the week key, decides when the free attempts refill.
+   */
+  weeklyRunAttemptScopeId?: string;
   score: number;
   enemiesDefeated: number;
   coinsEarned: number;
@@ -516,11 +522,22 @@ const attemptLimitFor = (now?: Date | string | number) => (
   resolveRunAttemptPolicy(now ?? new Date()).freeAttempts
 );
 
+const attemptScopeFor = (now?: Date | string | number) => (
+  resolveRunAttemptPolicy(now ?? new Date()).scopeId
+);
+
+/** Attempts used in the current scope; a count from another scope is stale. */
+const attemptsUsedInScope = (state: WeeklySquadState, now?: Date | string | number) => {
+  const recordedScope = state.weeklyStats.weeklyRunAttemptScopeId;
+  if (recordedScope && recordedScope !== attemptScopeFor(now)) return 0;
+  return Math.max(0, Math.floor(state.weeklyStats.weeklyRunAttempts || 0));
+};
+
 export const getWeeklyRunAttemptsRemaining = (
   state: WeeklySquadState,
   now?: Date | string | number
 ): number => (
-  Math.max(0, attemptLimitFor(now) - Math.max(0, Math.floor(state.weeklyStats.weeklyRunAttempts || 0)))
+  Math.max(0, attemptLimitFor(now) - attemptsUsedInScope(state, now))
 );
 
 export const consumeWeeklyRunAttempt = (
@@ -532,7 +549,8 @@ export const consumeWeeklyRunAttempt = (
     ...state,
     weeklyStats: {
       ...state.weeklyStats,
-      weeklyRunAttempts: state.weeklyStats.weeklyRunAttempts + 1
+      weeklyRunAttempts: attemptsUsedInScope(state, now) + 1,
+      weeklyRunAttemptScopeId: attemptScopeFor(now)
     },
     updatedAt: nowIso()
   };
@@ -547,12 +565,17 @@ export const reconcileWeeklyRunAttempts = (
     0,
     Math.min(attemptLimitFor(now), Math.floor(Number(attemptsUsed) || 0))
   );
-  if (state.weeklyStats.weeklyRunAttempts === authoritativeAttempts) return state;
+  const scopeId = attemptScopeFor(now);
+  if (
+    state.weeklyStats.weeklyRunAttempts === authoritativeAttempts
+    && state.weeklyStats.weeklyRunAttemptScopeId === scopeId
+  ) return state;
   return {
     ...state,
     weeklyStats: {
       ...state.weeklyStats,
-      weeklyRunAttempts: authoritativeAttempts
+      weeklyRunAttempts: authoritativeAttempts,
+      weeklyRunAttemptScopeId: scopeId
     },
     updatedAt: nowIso()
   };
@@ -633,7 +656,10 @@ export const rollWeeklySquadStateForward = (
     weeklyStats: preserveEventTries
       ? {
         ...createWeeklySquadStats(),
-        weeklyRunAttempts: Math.max(0, Math.floor(state.weeklyStats.weeklyRunAttempts || 0))
+        weeklyRunAttempts: Math.max(0, Math.floor(state.weeklyStats.weeklyRunAttempts || 0)),
+        ...(state.weeklyStats.weeklyRunAttemptScopeId
+          ? { weeklyRunAttemptScopeId: state.weeklyStats.weeklyRunAttemptScopeId }
+          : {})
       }
       : createWeeklySquadStats(),
     updatedAt: nowIso()
@@ -738,9 +764,19 @@ const sanitizeWeeklyState = (
     weeklyStats: {
       runs: Math.max(0, Math.floor(Number(value.weeklyStats?.runs) || 0)),
       weeklyRunAttempts: Math.max(0, Math.min(
-        resolveRunAttemptPolicy(new Date()).freeAttempts,
+        // Upper bound only: an event count (10 tries) must survive load so
+        // its scope stamp can retire it instead of clamping it to 5.
+        Math.max(resolveRunAttemptPolicy(new Date()).freeAttempts, 10),
         Math.floor(Number(value.weeklyStats?.weeklyRunAttempts) || 0)
       )),
+      // Saves from before scope stamping carry the scope active when written.
+      weeklyRunAttemptScopeId: typeof value.weeklyStats?.weeklyRunAttemptScopeId === 'string'
+        && value.weeklyStats.weeklyRunAttemptScopeId.length > 0
+        && value.weeklyStats.weeklyRunAttemptScopeId.length <= 64
+        ? value.weeklyStats.weeklyRunAttemptScopeId
+        : resolveRunAttemptPolicy(
+          Number.isFinite(Date.parse(String(value.updatedAt))) ? String(value.updatedAt) : new Date()
+        ).scopeId,
       score: Math.max(0, Math.floor(Number(value.weeklyStats?.score) || 0)),
       enemiesDefeated: Math.max(0, Math.floor(Number(value.weeklyStats?.enemiesDefeated) || 0)),
       coinsEarned: Math.max(0, Math.floor(Number(value.weeklyStats?.coinsEarned) || 0))
@@ -1182,10 +1218,15 @@ const mergeWeeklySquadProfiles = (
     })(),
     weeklyStats: {
       runs: Math.max(target.weeklyStats.runs, source.weeklyStats.runs),
-      weeklyRunAttempts: Math.max(
-        target.weeklyStats.weeklyRunAttempts,
-        source.weeklyStats.weeklyRunAttempts
-      ),
+      ...(() => {
+        // Only counts from the live attempt scope compete; stale ones read 0.
+        const targetUsed = attemptsUsedInScope(target);
+        const sourceUsed = attemptsUsedInScope(source);
+        return {
+          weeklyRunAttempts: Math.max(targetUsed, sourceUsed),
+          weeklyRunAttemptScopeId: attemptScopeFor()
+        };
+      })(),
       score: Math.max(target.weeklyStats.score, source.weeklyStats.score),
       enemiesDefeated: Math.max(
         target.weeklyStats.enemiesDefeated,
