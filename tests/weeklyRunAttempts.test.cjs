@@ -134,3 +134,22 @@ test('production migration restores the free Weekly Run ledger without purchase 
   assert.doesNotMatch(sql, /scicon_settle_wallet_purchase/);
   assert.match(sql, /notify pgrst, 'reload schema'/);
 });
+
+test('the first weekly round after the 25K close refills five attempts in the same week key', () => {
+  const lastEventHour = '2026-11-29T23:00:00.000Z';
+  const firstWeekly = '2026-11-30T00:00:00.000Z';
+  let state = squad.createWeeklySquadState('pilot:event-close', '2026-11-29');
+  for (let attempt = 0; attempt < 7; attempt += 1) {
+    state = squad.consumeWeeklyRunAttempt(state, lastEventHour);
+  }
+  assert.equal(squad.getWeeklyRunAttemptsRemaining(state, lastEventHour), 3);
+  assert.equal(state.weekKey, '2026-11-29');
+  // Same week key, new scope: the weekly round starts with all five.
+  assert.equal(squad.getWeeklyRunAttemptsRemaining(state, firstWeekly), 5);
+  state = squad.consumeWeeklyRunAttempt(state, firstWeekly);
+  assert.equal(squad.getWeeklyRunAttemptsRemaining(state, firstWeekly), 4);
+  assert.equal(state.weeklyStats.weeklyRunAttemptScopeId, '2026-11-29');
+  // Server reconciliation stamps the scope it reconciled against.
+  const reconciled = squad.reconcileWeeklyRunAttempts(state, 2, firstWeekly);
+  assert.equal(squad.getWeeklyRunAttemptsRemaining(reconciled, firstWeekly), 3);
+});

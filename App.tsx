@@ -192,8 +192,7 @@ import {
   getPublicPrizeState,
   resolveRunAttemptPolicy,
   SCICON_EVENT_CHOICE_COPY,
-  SCICON_EVENT_PAUSE_COPY,
-  SCICON_WEEKLY_RETURN_COPY
+  SCICON_EVENT_PAUSE_COPY
 } from './shared/weeklyCompetitionBoundary.browser';
 import {
   CAMPAIGN_MISSIONS,
@@ -8733,7 +8732,7 @@ const App: React.FC = () => {
                   <p className="mt-1">
                     {getPublicPrizeState().phase === 'big-event'
                       ? `${SCICON_EVENT_CHOICE_COPY} ${SCICON_EVENT_PAUSE_COPY}`
-                      : `The weekly leaderboard drives the funding allocation. After the week closes, the No. 1 server-validated submission gets a claim window to connect a Base Account and choose an eligible ResearchHub proposal. Funding is only marked directed after its transaction confirms.${getPublicPrizeState().phase === 'weekly' ? '' : ` ${SCICON_WEEKLY_RETURN_COPY}`}`}
+                      : `The weekly leaderboard drives the funding allocation. After the week closes, the No. 1 server-validated submission gets a claim window to connect a Base Account and choose an eligible ResearchHub proposal. Funding is only marked directed after its transaction confirms.`}
                   </p>
                 </div>
                 <p className="mt-4 border-t border-gray-700 pt-2 text-xs italic text-gray-500">

@@ -1,4 +1,4 @@
-const { getPublicPrizeState } = require('../../shared/weeklyCompetitionBoundary.js');
+const { getPublicPrizeState, getEventPickWindow } = require('../../shared/weeklyCompetitionBoundary.js');
 const { findEligibleProposal } = require('./researchHubEligibility');
 const { findEligibleRfp } = require('./researchHubRfps');
 const { founderWalletAddress } = require('./founderWallet');
@@ -18,12 +18,28 @@ const storedPickKind = (record) => (
 
 const eventResearchWindow = (now = new Date()) => {
   const prize = getPublicPrizeState(now);
+  const pick = getEventPickWindow(now);
   return {
-    active: prize.phase !== 'weekly',
+    // Pick changes for the event winner stay open until proposalOpenUntil,
+    // even though weekly play starts at the close.
+    active: pick.pickOpen,
+    reviewOpen: pick.reviewOpen,
     phase: prize.phase,
-    requiredOpenUntil: prize.proposalOpenUntil,
+    requiredOpenUntil: pick.requiredOpenUntil,
+    scoreWindow: pick.scoreWindow,
     prize
   };
+};
+
+// Only a leaderboard row scored inside the event window follows event pick
+// rules. Weekly rows (and competition rows without a score date) do not.
+const recordIsEventScore = (record, window) => {
+  const raw = record?.date || record?.scoreDate || record?.score_date;
+  if (!raw) return window.prize.phase === 'big-event';
+  const time = new Date(raw).getTime();
+  return Number.isFinite(time)
+    && time >= window.scoreWindow.start.getTime()
+    && time < window.scoreWindow.end.getTime();
 };
 
 // A stored pick may be replaced only while the 25K event is the live prize
@@ -64,13 +80,14 @@ const storedPickIsEligible = async (record, requiredOpenUntil) => {
 
 const classifyStoredPick = async (record, requestedId, now = new Date()) => {
   const window = eventResearchWindow(now);
+  const eventActive = window.active && recordIsEventScore(record, window);
   const storedId = pickIdOf(record);
   let storedEligible = null;
-  if (window.active && storedId) {
+  if (eventActive && storedId) {
     storedEligible = await storedPickIsEligible(record, window.requiredOpenUntil);
   }
   return eventPickLockDecision({
-    eventActive: window.active,
+    eventActive,
     storedId,
     requestedId,
     storedEligible
@@ -83,8 +100,10 @@ const closedPickError = () => Object.assign(new Error(CLOSED_PICK_MESSAGE), {
 });
 
 const readEventLeader = async (prize) => {
-  const start = prize.scoreWindow.start.toISOString();
-  const end = prize.scoreWindow.end.toISOString();
+  // Always the event's own window, also after weekly play has resumed.
+  const { scoreWindow } = getEventPickWindow();
+  const start = scoreWindow.start.toISOString();
+  const end = scoreWindow.end.toISOString();
   const rows = await fetchSupabaseJson(
     [
       `${LEADERBOARD_TABLE}?select=name,score,wave,date,wallet_address,run_id,verified,proposal_id,proposal_title,proposal_url`,
@@ -105,7 +124,7 @@ const readEventLeader = async (prize) => {
 
 const assessEventPayout = async ({ now = new Date(), leader } = {}) => {
   const window = eventResearchWindow(now);
-  if (!window.active) {
+  if (!window.reviewOpen) {
     return {
       active: false,
       phase: window.phase,
@@ -168,6 +187,7 @@ module.exports = {
   closedPickError,
   eventPickLockDecision,
   eventResearchWindow,
+  recordIsEventScore,
   storedPickIsEligible,
   storedPickKind
 };

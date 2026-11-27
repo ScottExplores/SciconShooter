@@ -36,9 +36,6 @@ import {
   getWeeklyPresentationMeta,
   SCICON_EVENT_CHOICE_COPY,
   SCICON_EVENT_PAUSE_COPY,
-  SCICON_WEEKLY_RETURN_COPY,
-  SCICON_WEEKLY_RETURN_LABEL,
-  WEEKLY_ALLOCATION_RSC,
 } from '../shared/weeklyCompetitionBoundary.browser';
 import { buildMissionRecordCardPath } from '../shared/record-card/renderRecordCardSvg.mjs';
 import {
@@ -463,24 +460,20 @@ const FirstPlaceLivingRow = ({
 
 const getWeeklyAllocationMeta = (now = new Date()) => {
   const prize = getPublicPrizeState(now);
-  if (prize.phase !== 'weekly') {
+  if (prize.phase === 'big-event') {
     return {
       phase: prize.phase,
       startsAt: prize.scoreWindow.start,
       endsAt: prize.scoreWindow.end,
-      // After the close the site reads as the normal weekly game: show the
-      // returning weekly prize, not the finished event's pool.
-      allocationRsc: prize.phase === 'big-event-closed' ? WEEKLY_ALLOCATION_RSC : prize.allocationRsc,
-      closed: prize.phase === 'big-event-closed',
-      snapshotFrozen: prize.snapshotFrozen,
+      allocationRsc: prize.allocationRsc,
+      closed: false,
+      snapshotFrozen: false,
       isFinalizing: false,
       daysLeft: prize.daysLeft,
       endLabel: 'Nov 29',
-      countdownLabel: prize.phase === 'big-event-closed'
-        ? SCICON_WEEKLY_RETURN_LABEL
-        : prize.daysLeft === 0
-          ? 'Closes today, 4 PM PT'
-          : `Closes in ${prize.daysLeft} day${prize.daysLeft === 1 ? '' : 's'}`
+      countdownLabel: prize.daysLeft === 0
+        ? 'Closes today, 4 PM PT'
+        : `Closes in ${prize.daysLeft} day${prize.daysLeft === 1 ? '' : 's'}`
     };
   }
 
@@ -1616,15 +1609,16 @@ const StartScreen: React.FC<StartScreenProps> = ({
         ? 'checking'
         : 'available';
     const eventCard = weeklyAllocation.phase === 'big-event';
-    const attemptLabel = eventCard
+    // The hero row shares one line with the prize chip, so it uses the
+    // compact run count whenever a prize is shown.
+    const compactAttempts = eventCard || (!weeklyAllocation.closed && weeklyAllocation.allocationRsc > 0);
+    const attemptLabel = compactAttempts
       ? `${weeklyRunAttemptsRemaining}/${weeklyRunAttemptLimit} runs`
       : `${weeklyRunAttemptsRemaining} Attempt${weeklyRunAttemptsRemaining === 1 ? '' : 's'} Left`;
 
     // Ranked hero: aim at the live #1 score, or invite the first one.
     const heroTopScore = weeklyLeader?.score ?? 0;
     const heroTitle = heroTopScore > 0 ? `Beat ${formatNumber(heroTopScore)}` : 'Set the High Score';
-    // Between the event close and the Dec 6 resume no prize is live, so the
-    // ranked hero shows no prize chip.
     const heroPrizeRsc = !weeklyAllocation.closed && weeklyAllocation.allocationRsc > 0 ? weeklyAllocation.allocationRsc : 0;
 
     return onStartWeeklyRun ? (
@@ -1635,7 +1629,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
           data-hero="true"
           data-weekly-hero-title={heroTitle}
           data-onboarding-target="weekly-run"
-          data-event={eventCard ? 'true' : 'false'}
+          data-event={compactAttempts ? 'true' : 'false'}
           data-state={weeklyRunEntryState}
           data-attempts-remaining={weeklyRunAttemptsRemaining}
           onClick={onStartWeeklyRun}
@@ -2104,9 +2098,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
               ? 'Campaign progression: sectors cleared, Missions mastered, and bosses beaten.'
               : weeklyAllocation.phase === 'weekly'
                 ? 'Weekly Run scores, champion picks, confirmed funding, and your recent runs.'
-                : weeklyAllocation.phase === 'big-event'
-                  ? `${SCICON_EVENT_CHOICE_COPY} ${SCICON_EVENT_PAUSE_COPY}`
-                  : SCICON_WEEKLY_RETURN_COPY}
+                : `${SCICON_EVENT_CHOICE_COPY} ${SCICON_EVENT_PAUSE_COPY}`}
           </p>
         </div>
 
@@ -3000,9 +2992,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
                 <p className="mt-2">
                   {weeklyAllocation.phase === 'weekly'
                     ? 'Leaderboard positions remain provisional until the weekly cutoff. The finalized No. 1 pilot may choose an eligible ResearchHub proposal for the announced allocation. Selection and funding are separate steps; funding is only confirmed after a Base transaction reference is recorded.'
-                    : weeklyAllocation.snapshotFrozen
-                      ? `Final standings are locked. ${SCICON_WEEKLY_RETURN_COPY} Leaderboard positions stay provisional until each weekly cutoff, and the finalized No. 1 pilot may choose an eligible ResearchHub proposal.`
-                      : `Each player gets 10 runs for the whole event. The founder wallet is unlimited and is not ranked. ${SCICON_EVENT_CHOICE_COPY} ${SCICON_EVENT_PAUSE_COPY}`}
+                    : `Each player gets 10 runs for the whole event. The founder wallet is unlimited and is not ranked. ${SCICON_EVENT_CHOICE_COPY} ${SCICON_EVENT_PAUSE_COPY}`}
                 </p>
               </section>
               <section>
