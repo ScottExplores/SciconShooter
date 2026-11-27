@@ -33,18 +33,49 @@ test('the share card, its description, and the boot loader flip at closesAt', as
   assert.equal((html.match(new RegExp(CLOSE.replace(/\./g, '\\.'), 'g')) || []).length, 2);
 });
 
-test('after the close the prize state is the paused weekly game at 500 RSC', () => {
+test('after the close the live weekly board is the 500 RSC first round to Dec 6 noon PT', () => {
   assert.equal(boundary.getPublicPrizeState(justBefore).phase, 'big-event');
-  const gap = boundary.getPublicPrizeState(justAfter);
-  assert.equal(gap.phase, 'big-event-closed');
-  assert.equal(gap.snapshotFrozen, true);
-  // The winner flow and Dec 1 cutoff keep working through the gap.
-  assert.equal(gap.proposalOpenUntil.toISOString(), boundary.SCICON_BIG_EVENT.proposalOpenUntil);
-  assert.equal(boundary.SCICON_WEEKLY_RETURN_COPY, 'Weekly prizes return Dec 6 at 500 RSC.');
-  assert.doesNotMatch(`${boundary.SCICON_WEEKLY_RETURN_COPY} ${boundary.SCICON_WEEKLY_RETURN_LABEL}`, /25K|25,000|event/i);
-  const resumed = boundary.getPublicPrizeState('2026-12-06T20:00:00.000Z');
-  assert.equal(resumed.phase, 'weekly');
-  assert.equal(resumed.allocationRsc, 500);
+  const after = boundary.getPublicPrizeState(justAfter);
+  assert.equal(after.phase, 'weekly');
+  assert.equal(after.allocationRsc, 500);
+  assert.equal(after.snapshotFrozen, false);
+  assert.equal(after.scoreWindow.start.toISOString(), CLOSE);
+  assert.equal(after.scoreWindow.end.toISOString(), '2026-12-06T20:00:00.000Z');
+  const meta = boundary.getWeeklyPresentationMeta('2026-11-30T01:00:00.000Z', 'en-US');
+  assert.equal(meta.weekKey, '2026-11-29');
+  assert.equal(meta.isFinalizing, false);
+  assert.equal(meta.endsAt.toISOString(), '2026-12-06T20:00:00.000Z');
+  assert.equal(meta.endLabel, 'Dec 6');
+  // No weekly predecessor exists, so the board never waits on a Past Pick.
+  const publication = boundary.resolveWeeklyDashboardPublication([], '2026-11-30T01:00:00.000Z');
+  assert.equal(publication.waitingForArchive, false);
+  assert.equal(publication.visibleWeekKey, '2026-11-29');
+  assert.doesNotMatch(boundary.SCICON_EVENT_PAUSE_COPY, /Dec 6|paused|return/i);
+});
+
+test('ranked runs get five fresh weekly attempts at the close, not the event ten', () => {
+  const before = boundary.resolveRunAttemptPolicy(justBefore);
+  assert.equal(before.scopeId, boundary.SCICON_EVENT_ATTEMPT_SCOPE_ID);
+  assert.equal(before.freeAttempts, 10);
+  const after = boundary.resolveRunAttemptPolicy(justAfter);
+  assert.equal(after.scopeId, '2026-11-29');
+  assert.equal(after.freeAttempts, 5);
+  assert.deepEqual([...after.countedScopeIds], ['2026-11-29']);
+  assert.equal(after.resetAt.toISOString(), '2026-12-06T20:00:00.000Z');
+  const rolled = boundary.resolveRunAttemptPolicy('2026-12-06T20:00:00.000Z');
+  assert.equal(rolled.scopeId, '2026-12-06');
+  assert.equal(rolled.freeAttempts, 5);
+});
+
+test('the first weekly round never includes event scores and is not paused', () => {
+  const firstRound = boundary.getWeekRange('2026-11-29');
+  assert.equal(boundary.weekOverlapsBigEventPause(firstRound.start, firstRound.end), false);
+  const lastEventWeek = boundary.getWeekRange('2026-11-22');
+  assert.equal(boundary.weekOverlapsBigEventPause(lastEventWeek.start, lastEventWeek.end), true);
+  // The event attempt bucket is unchanged for the event's final hours.
+  assert.equal(boundary.weekKeyOverlapsPlayableEvent('2026-11-29'), true);
+  assert.equal(boundary.getPreviousWeekKey('2026-12-06T20:10:00.000Z'), '2026-11-29');
+  assert.equal(boundary.getPreviousWeekKey(firstRound.start), '2026-11-22');
 });
 
 test('static install metadata no longer names the event', () => {
