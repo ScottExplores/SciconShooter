@@ -10,6 +10,9 @@ const EVENT_VERSION = 'gen2-25k';
 const BASE_VERSION = 'gen2';
 
 export const SHARE_CARD_EVENT_ALT = 'Scicon Shooter: Play games. Fund science. The ResearchHub ship, the NIH ship, and the Bitcoin ship during the 25K RSC high score event, ending Nov 29.';
+export const SHARE_EVENT_DESCRIPTION = 'Top score by Nov 29 wins 25,000 RSC for ResearchHub science.';
+export const SHARE_BASE_DESCRIPTION = 'Play games. Fund science. Scicon Shooter is a DeSci-inspired, community-built Base arcade game where the finalized weekly winner can direct RSC funding credits toward an eligible science proposal.';
+
 export const SHARE_CARD_BASE_ALT = 'Scicon Shooter: Play games. Fund science. The ResearchHub ship, the NIH ship, and the Bitcoin ship in a neon pixel-art arena.';
 
 export const shareCardForTime = (time = Date.now()) => {
@@ -23,7 +26,8 @@ export const shareCardForTime = (time = Date.now()) => {
     height: 630,
     path: `/social/${file}`,
     url: `${ORIGIN}/social/${file}?v=${version}`,
-    alt: live ? SHARE_CARD_EVENT_ALT : SHARE_CARD_BASE_ALT
+    alt: live ? SHARE_CARD_EVENT_ALT : SHARE_CARD_BASE_ALT,
+    description: live ? SHARE_EVENT_DESCRIPTION : SHARE_BASE_DESCRIPTION
   };
 };
 
@@ -43,6 +47,13 @@ export const applyShareCardMeta = (html, card = shareCardForTime()) => {
   next = replaceMeta(next, 'property', 'og:image:height', String(card.height));
   next = replaceMeta(next, 'name', 'twitter:image', card.url);
   next = replaceMeta(next, 'name', 'twitter:image:alt', card.alt);
+  if (card.description) {
+    for (const [attribute, key] of [['name', 'description'], ['property', 'og:description'], ['name', 'twitter:description']]) {
+      if (html.includes(`<meta ${attribute}="${key}" content="`)) {
+        next = replaceMeta(next, attribute, key, card.description);
+      }
+    }
+  }
   if (!next.includes('name="twitter:card" content="summary_large_image"')) {
     throw new Error('twitter:card must stay summary_large_image');
   }

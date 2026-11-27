@@ -36,6 +36,9 @@ import {
   getWeeklyPresentationMeta,
   SCICON_EVENT_CHOICE_COPY,
   SCICON_EVENT_PAUSE_COPY,
+  SCICON_WEEKLY_RETURN_COPY,
+  SCICON_WEEKLY_RETURN_LABEL,
+  WEEKLY_ALLOCATION_RSC,
 } from '../shared/weeklyCompetitionBoundary.browser';
 import { buildMissionRecordCardPath } from '../shared/record-card/renderRecordCardSvg.mjs';
 import {
@@ -465,14 +468,16 @@ const getWeeklyAllocationMeta = (now = new Date()) => {
       phase: prize.phase,
       startsAt: prize.scoreWindow.start,
       endsAt: prize.scoreWindow.end,
-      allocationRsc: prize.allocationRsc,
+      // After the close the site reads as the normal weekly game: show the
+      // returning weekly prize, not the finished event's pool.
+      allocationRsc: prize.phase === 'big-event-closed' ? WEEKLY_ALLOCATION_RSC : prize.allocationRsc,
       closed: prize.phase === 'big-event-closed',
       snapshotFrozen: prize.snapshotFrozen,
       isFinalizing: false,
       daysLeft: prize.daysLeft,
       endLabel: 'Nov 29',
       countdownLabel: prize.phase === 'big-event-closed'
-        ? 'winner announced Nov 30'
+        ? SCICON_WEEKLY_RETURN_LABEL
         : prize.daysLeft === 0
           ? 'Closes today, 4 PM PT'
           : `Closes in ${prize.daysLeft} day${prize.daysLeft === 1 ? '' : 's'}`
@@ -1618,7 +1623,9 @@ const StartScreen: React.FC<StartScreenProps> = ({
     // Ranked hero: aim at the live #1 score, or invite the first one.
     const heroTopScore = weeklyLeader?.score ?? 0;
     const heroTitle = heroTopScore > 0 ? `Beat ${formatNumber(heroTopScore)}` : 'Set the High Score';
-    const heroPrizeRsc = weeklyAllocation.allocationRsc > 0 ? weeklyAllocation.allocationRsc : 0;
+    // Between the event close and the Dec 6 resume no prize is live, so the
+    // ranked hero shows no prize chip.
+    const heroPrizeRsc = !weeklyAllocation.closed && weeklyAllocation.allocationRsc > 0 ? weeklyAllocation.allocationRsc : 0;
 
     return onStartWeeklyRun ? (
       <>
@@ -1723,7 +1730,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
         <div className={`sci-weekly-funding-summary ${compact ? 'mb-2 pb-2' : 'mb-3 pb-3'} grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 border-b border-cyan-200/14`}>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-lg font-black text-emerald-200">{weeklyAllocation.phase === 'weekly' ? 'Weekly Funding' : '25K High Score'}</h2>
+              <h2 className="text-lg font-black text-emerald-200">{weeklyAllocation.phase === 'big-event' ? '25K High Score' : 'Weekly Funding'}</h2>
               <StatusPill tone={weeklyAllocation.closed || weeklyAllocation.isFinalizing ? 'gold' : 'green'}>
                 {weeklyAllocation.phase === 'weekly'
                   ? (weeklyAllocation.isFinalizing ? 'Finalizing' : 'Live')
@@ -1737,7 +1744,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
             ) : null}
           </div>
           <div className="text-right">
-            <p className="text-[0.62rem] font-bold uppercase text-slate-400">{weeklyAllocation.phase === 'weekly' ? 'Prize Pool' : 'Prize'}</p>
+            <p className="text-[0.62rem] font-bold uppercase text-slate-400">{weeklyAllocation.phase === 'big-event' ? 'Prize' : 'Prize Pool'}</p>
             <p className="mt-0.5 text-2xl font-black leading-none text-emerald-300">
               {weeklyAllocation.allocationRsc.toLocaleString()} <span className="text-sm">RSC</span>
             </p>
@@ -1751,7 +1758,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
           className={`sci-weekly-winner-card group relative w-full overflow-hidden rounded-[8px] border border-emerald-300/24 bg-slate-950/50 text-left transition hover:border-emerald-200/65 hover:bg-emerald-300/10 ${compact ? 'sci-weekly-winner-card--compact' : ''}`}
           role="region"
           aria-roledescription="carousel"
-          aria-label={weeklyAllocation.phase === 'weekly'
+          aria-label={weeklyAllocation.phase !== 'big-event'
             ? (weeklyProposalSelection ? 'Weekly leader and selected research proposal' : 'Weekly leader')
             : (weeklyProposalSelection ? '25K High Score leader and selected research proposal' : '25K High Score leader')}
           onMouseEnter={() => setWeeklyWinnerAutoPaused(true)}
@@ -1775,7 +1782,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
               onClick={() => setDashboardTab('trophies')}
               tabIndex={weeklyWinnerSlide === 'pilot' || !weeklyProposalSelection ? 0 : -1}
               aria-hidden={weeklyWinnerSlide === 'proposal' && Boolean(weeklyProposalSelection)}
-              aria-label={`${weeklyLeaderName}, ${weeklyAllocation.phase === 'weekly' ? 'weekly high score' : 'event high score'} ${formatNumber(weeklyLeaderScore)}. Open Trophy Deck.`}
+              aria-label={`${weeklyLeaderName}, ${weeklyAllocation.phase === 'big-event' ? 'event high score' : weeklyAllocation.phase === 'weekly' ? 'weekly high score' : 'high score'} ${formatNumber(weeklyLeaderScore)}. Open Trophy Deck.`}
             >
               <span
                 className={`relative z-10 grid gap-3 ${compact ? '' : 'grid-cols-[5.25rem_minmax(0,1fr)]'}`}
@@ -1794,7 +1801,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
                 <span className="min-w-0 self-center">
                   <span className="flex items-center gap-2">
                     <span className="sci-weekly-live-dot" />
-                    <span className="text-[0.62rem] font-black uppercase text-emerald-200">{weeklyAllocation.snapshotFrozen ? 'Final standings' : weeklyAllocation.phase === 'weekly' ? 'Weekly high score' : 'Event high score'}</span>
+                    <span className="text-[0.62rem] font-black uppercase text-emerald-200">{weeklyAllocation.snapshotFrozen ? 'Final standings' : weeklyAllocation.phase !== 'big-event' ? 'Weekly high score' : 'Event high score'}</span>
                   </span>
                   <span className="mt-2 grid grid-cols-[minmax(0,1fr)_auto] gap-2">
                     <span className="min-w-0">
@@ -2097,7 +2104,9 @@ const StartScreen: React.FC<StartScreenProps> = ({
               ? 'Campaign progression: sectors cleared, Missions mastered, and bosses beaten.'
               : weeklyAllocation.phase === 'weekly'
                 ? 'Weekly Run scores, champion picks, confirmed funding, and your recent runs.'
-                : `${SCICON_EVENT_CHOICE_COPY} ${SCICON_EVENT_PAUSE_COPY}`}
+                : weeklyAllocation.phase === 'big-event'
+                  ? `${SCICON_EVENT_CHOICE_COPY} ${SCICON_EVENT_PAUSE_COPY}`
+                  : SCICON_WEEKLY_RETURN_COPY}
           </p>
         </div>
 
@@ -2105,7 +2114,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
             Campaign is progression and records no score. */}
         <div className="sci-trophy-category" role="tablist" aria-label="Trophy deck category">
           {([
-            ['weeklyFunding', weeklyAllocation.phase === 'weekly' ? 'Weekly Funding' : '25K High Score'],
+            ['weeklyFunding', weeklyAllocation.phase === 'big-event' ? '25K High Score' : 'Weekly Funding'],
             ['campaign', 'Campaign']
           ] as const).map(([id, label]) => (
             <button
@@ -2144,7 +2153,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
         <div className="mb-4 grid grid-cols-4 rounded-[6px] border border-cyan-300/18 bg-slate-950/70 p-1">
             {[
-              ['weekly', weeklyAllocation.phase === 'weekly' ? 'Weekly' : 'Event'],
+              ['weekly', weeklyAllocation.phase === 'big-event' ? 'Event' : 'Weekly'],
               ['allTime', 'All-time'],
               ['pastPicks', 'Past picks'],
               ['records', 'My records']
@@ -2354,7 +2363,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
                           : weeklyProposalNeedsAttention
                             ? 'Choose'
                             : 'Change'
-                    } for ${weeklyAllocation.phase === 'weekly' ? 'weekly high score' : 'event high score'} ${formatNumber(run.receipt.metrics.score)}`
+                    } for ${weeklyAllocation.phase === 'big-event' ? 'event high score' : weeklyAllocation.phase === 'weekly' ? 'weekly high score' : 'high score'} ${formatNumber(run.receipt.metrics.score)}`
                     : undefined}
                   className={`group relative grid w-full grid-cols-[3.25rem_minmax(0,1fr)_auto] items-center gap-3 overflow-hidden rounded-[8px] border border-cyan-300/18 bg-[linear-gradient(135deg,rgba(8,47,73,0.36),rgba(15,23,42,0.72)_48%,rgba(2,6,23,0.82))] px-3 py-2.5 text-left shadow-[inset_0_0_1.25rem_rgba(34,211,238,0.035)] transition hover:border-cyan-200/45 hover:bg-cyan-300/8 ${proposalNeedsAttention ? 'sci-proposal-attention' : ''}`}
                 >
@@ -2641,7 +2650,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
             aria-describedby="weekly-proposal-reminder-description"
             onKeyDown={handleWeeklyProposalReminderKeyDown}
           >
-            <p className="sci-weekly-proposal-reminder__eyebrow">{weeklyAllocation.phase === 'weekly' ? 'Weekly high score alert' : '25K High Score alert'}</p>
+            <p className="sci-weekly-proposal-reminder__eyebrow">{weeklyAllocation.phase === 'big-event' ? '25K High Score alert' : weeklyAllocation.phase === 'weekly' ? 'Weekly high score alert' : 'High score alert'}</p>
             <h2 id="weekly-proposal-reminder-title">
               {weeklyProposalAttentionReason === 'closed'
                 ? 'Pick closed'
@@ -2987,12 +2996,12 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
             <div className="mt-5 grid gap-5 text-sm leading-relaxed text-slate-300">
               <section>
-                <h3 className="font-black uppercase text-cyan-100">{weeklyAllocation.phase === 'weekly' ? 'Weekly competition' : '25K High Score'}</h3>
+                <h3 className="font-black uppercase text-cyan-100">{weeklyAllocation.phase === 'big-event' ? '25K High Score' : 'Weekly competition'}</h3>
                 <p className="mt-2">
                   {weeklyAllocation.phase === 'weekly'
                     ? 'Leaderboard positions remain provisional until the weekly cutoff. The finalized No. 1 pilot may choose an eligible ResearchHub proposal for the announced allocation. Selection and funding are separate steps; funding is only confirmed after a Base transaction reference is recorded.'
                     : weeklyAllocation.snapshotFrozen
-                      ? `Final standings are frozen. winner announced Nov 30. Each player gets 10 runs for the whole event. The founder wallet is unlimited and is not ranked. ${SCICON_EVENT_CHOICE_COPY} ${SCICON_EVENT_PAUSE_COPY}`
+                      ? `Final standings are locked. ${SCICON_WEEKLY_RETURN_COPY} Leaderboard positions stay provisional until each weekly cutoff, and the finalized No. 1 pilot may choose an eligible ResearchHub proposal.`
                       : `Each player gets 10 runs for the whole event. The founder wallet is unlimited and is not ranked. ${SCICON_EVENT_CHOICE_COPY} ${SCICON_EVENT_PAUSE_COPY}`}
                 </p>
               </section>

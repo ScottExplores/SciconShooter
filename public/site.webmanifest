@@ -1,7 +1,7 @@
 {
   "name": "Scicon Shooter",
   "short_name": "Scicon",
-  "description": "Play games. Fund science. SciCon Big Event: one-time 25,000 RSC for the top score through November 29, 2026, toward a ResearchHub proposal.",
+  "description": "Play games. Fund science. A community-built Base arcade game where the weekly high score helps direct ResearchHub funding credits.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

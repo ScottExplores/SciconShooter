@@ -108,11 +108,11 @@ test('the live prize is one 25,000 RSC November event', () => {
   const fundingFlowSource = fs.readFileSync(path.join(__dirname, '..', 'services', 'weeklyFundingFlow.ts'), 'utf8');
   const pickerSource = fs.readFileSync(path.join(__dirname, '..', 'components', 'WeeklyProposalSelection.tsx'), 'utf8');
 
-  assert.match(boundarySource, /const WEEKLY_ALLOCATION_RSC = 100/);
+  assert.match(boundarySource, /const WEEKLY_ALLOCATION_RSC = 500/);
   assert.match(boundarySource, /const SCICON_BIG_EVENT = Object\.freeze\(\{[\s\S]*allocationRsc: 25_000[\s\S]*closesAt: '2026-11-30T00:00:00\.000Z'[\s\S]*weeklyResumesWeekKey: '2026-12-06'/);
   assert.match(boundarySource, /name: '25K High Score'/);
   assert.match(boundarySource, /const SCICON_EVENT_CHOICE_COPY = 'The winner picks an open ResearchHub proposal or RFP\.'/);
-  assert.match(boundarySource, /const SCICON_EVENT_PAUSE_COPY = 'Weekly prizes return Dec 6 at 100 RSC\.'/);
+  assert.match(boundarySource, /const SCICON_EVENT_PAUSE_COPY = 'Weekly prizes return Dec 6 at 500 RSC\.'/);
   assert.match(boundaryBrowserSource, /export const SCICON_BIG_EVENT = boundary\.SCICON_BIG_EVENT/);
   assert.match(boundaryBrowserSource, /export const SCICON_EVENT_CHOICE_COPY = boundary\.SCICON_EVENT_CHOICE_COPY/);
   assert.match(boundaryBrowserSource, /export const SCICON_EVENT_PAUSE_COPY = boundary\.SCICON_EVENT_PAUSE_COPY/);
@@ -120,7 +120,8 @@ test('the live prize is one 25,000 RSC November event', () => {
   assert.match(source, /SCICON_EVENT_CHOICE_COPY/);
   assert.match(source, /SCICON_EVENT_PAUSE_COPY/);
   assert.match(source, /phase === 'big-event'/);
-  assert.match(source, /winner announced Nov 30/);
+  assert.match(source, /SCICON_WEEKLY_RETURN_LABEL/);
+  assert.doesNotMatch(source, /winner announced Nov 30/);
   const previewChooser = appSource.slice(
     appSource.indexOf('prizePreviewOpen && prizePreviewRequest'),
     appSource.indexOf('showMissionRecordPreview && runReceipt')

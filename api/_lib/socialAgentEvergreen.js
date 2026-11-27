@@ -54,7 +54,9 @@ const VARIANTS = Object.freeze({
   funding: Object.freeze([
     getPublicPrizeState().phase === 'weekly'
       ? `Top the verified weekly board and choose an eligible ResearchHub proposal for the round's ${getPublicPrizeState().allocationRsc.toLocaleString('en-US')} RSC funding-credit allocation. Make the score useful.`
-      : '25K High Score runs through November 29, 2026. The winner picks an open ResearchHub proposal or RFP.',
+      : getPublicPrizeState().phase === 'big-event'
+        ? '25K High Score runs through 4 PM Pacific on November 29, 2026. The winner picks an open ResearchHub proposal or RFP.'
+        : 'Weekly high-score prizes return Dec 6 at 500 RSC. The verified weekly winner picks an eligible ResearchHub proposal.',
     'Scicon Shooter is a DeSci-inspired arcade game community-built on Base: play games, compete, and help direct ResearchHub Funding Credits.',
     getPublicPrizeState().phase === 'weekly'
       ? 'A weekly high score can do more than sit on a leaderboard. The winner chooses an eligible proposal for that round\'s RSC funding-credit allocation.'

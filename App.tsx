@@ -192,7 +192,8 @@ import {
   getPublicPrizeState,
   resolveRunAttemptPolicy,
   SCICON_EVENT_CHOICE_COPY,
-  SCICON_EVENT_PAUSE_COPY
+  SCICON_EVENT_PAUSE_COPY,
+  SCICON_WEEKLY_RETURN_COPY
 } from './shared/weeklyCompetitionBoundary.browser';
 import {
   CAMPAIGN_MISSIONS,
@@ -1747,7 +1748,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const prize = getPublicPrizeState();
-    const description = prize.phase === 'weekly'
+    const description = prize.phase !== 'big-event'
       ? 'Play games. Fund science. Scicon Shooter is a DeSci-inspired, community-built Base arcade game where the finalized weekly winner can direct RSC funding credits toward an eligible science proposal.'
       : 'Top score by Nov 29 wins 25,000 RSC for ResearchHub science.';
     for (const selector of ['meta[name="description"]', 'meta[property="og:description"]', 'meta[name="twitter:description"]']) {
@@ -8730,9 +8731,9 @@ const App: React.FC = () => {
                 <div>
                   <strong className="text-indigo-400">FUNDING EVENT:</strong>
                   <p className="mt-1">
-                    {getPublicPrizeState().phase === 'weekly'
-                      ? 'The weekly leaderboard drives the funding allocation. After the week closes, the No. 1 server-validated submission gets a claim window to connect a Base Account and choose an eligible ResearchHub proposal. Funding is only marked directed after its transaction confirms.'
-                      : `${SCICON_EVENT_CHOICE_COPY} ${SCICON_EVENT_PAUSE_COPY}`}
+                    {getPublicPrizeState().phase === 'big-event'
+                      ? `${SCICON_EVENT_CHOICE_COPY} ${SCICON_EVENT_PAUSE_COPY}`
+                      : `The weekly leaderboard drives the funding allocation. After the week closes, the No. 1 server-validated submission gets a claim window to connect a Base Account and choose an eligible ResearchHub proposal. Funding is only marked directed after its transaction confirms.${getPublicPrizeState().phase === 'weekly' ? '' : ` ${SCICON_WEEKLY_RETURN_COPY}`}`}
                   </p>
                 </div>
                 <p className="mt-4 border-t border-gray-700 pt-2 text-xs italic text-gray-500">
