@@ -41,7 +41,7 @@ test('weekly prizes from 2026-12-06 onward are 100 RSC', () => {
 });
 
 test('SciCon Big Event pauses the weekly prize and resumes the next Sunday noon after Nov 30', () => {
-  assert.equal(SCICON_BIG_EVENT.closesAt, '2026-11-30T07:59:00.000Z');
+  assert.equal(SCICON_BIG_EVENT.closesAt, '2026-11-30T00:00:00.000Z');
   assert.equal(SCICON_BIG_EVENT.allocationRsc, 25_000);
   assert.equal(SCICON_BIG_EVENT.weeklyResumesWeekKey, '2026-12-06');
   assert.equal(
@@ -52,7 +52,7 @@ test('SciCon Big Event pauses the weekly prize and resumes the next Sunday noon 
   const live = getPublicPrizeState(new Date('2026-10-27T04:00:00.000Z'));
   assert.equal(live.phase, 'big-event');
   assert.equal(live.allocationRsc, 25_000);
-  assert.equal(live.scoreWindow.end.toISOString(), '2026-11-30T07:59:00.000Z');
+  assert.equal(live.scoreWindow.end.toISOString(), '2026-11-30T00:00:00.000Z');
   assert.equal(live.snapshotFrozen, false);
 
   const closed = getPublicPrizeState(new Date('2026-11-30T08:00:00.000Z'));
