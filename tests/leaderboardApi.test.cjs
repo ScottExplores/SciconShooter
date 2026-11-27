@@ -155,7 +155,7 @@ test('leaderboard stores a pilot name with controls and markup removed', async (
 });
 
 test('leaderboard rejects a score finished at the SciCon Big Event close', async () => {
-  const finishedAt = Date.parse('2026-11-30T07:59:00.000Z');
+  const finishedAt = Date.parse('2026-11-30T00:00:00.000Z');
   const originalFetch = global.fetch;
   let fetchCalled = false;
   global.fetch = async () => {

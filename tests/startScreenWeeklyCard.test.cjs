@@ -109,7 +109,7 @@ test('the live prize is one 25,000 RSC November event', () => {
   const pickerSource = fs.readFileSync(path.join(__dirname, '..', 'components', 'WeeklyProposalSelection.tsx'), 'utf8');
 
   assert.match(boundarySource, /const WEEKLY_ALLOCATION_RSC = 100/);
-  assert.match(boundarySource, /const SCICON_BIG_EVENT = Object\.freeze\(\{[\s\S]*allocationRsc: 25_000[\s\S]*closesAt: '2026-11-30T07:59:00\.000Z'[\s\S]*weeklyResumesWeekKey: '2026-12-06'/);
+  assert.match(boundarySource, /const SCICON_BIG_EVENT = Object\.freeze\(\{[\s\S]*allocationRsc: 25_000[\s\S]*closesAt: '2026-11-30T00:00:00\.000Z'[\s\S]*weeklyResumesWeekKey: '2026-12-06'/);
   assert.match(boundarySource, /name: '25K High Score'/);
   assert.match(boundarySource, /const SCICON_EVENT_CHOICE_COPY = 'The winner picks an open ResearchHub proposal or RFP\.'/);
   assert.match(boundarySource, /const SCICON_EVENT_PAUSE_COPY = 'Weekly prizes return Dec 6 at 100 RSC\.'/);
