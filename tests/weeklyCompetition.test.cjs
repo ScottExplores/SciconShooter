@@ -32,10 +32,10 @@ const cutoffSnapshotRows = (weekKey, results) => [{
   }
 }];
 
-test('weekly prizes from 2026-12-06 onward are 100 RSC', () => {
-  assert.equal(WEEKLY_ALLOCATION_RSC, 100);
-  assert.equal(resolveWeeklyAllocationRsc('2026-12-06'), 100);
-  assert.equal(resolveWeeklyAllocationRsc('2026-12-13'), 100);
+test('weekly prizes from 2026-12-06 onward are 500 RSC', () => {
+  assert.equal(WEEKLY_ALLOCATION_RSC, 500);
+  assert.equal(resolveWeeklyAllocationRsc('2026-12-06'), 500);
+  assert.equal(resolveWeeklyAllocationRsc('2026-12-13'), 500);
   assert.equal(resolveWeeklyAllocationRsc('2026-11-29'), 1_000);
   assert.equal(resolveWeeklyAllocationRsc('2020-01-05'), 1_000);
 });
@@ -66,7 +66,7 @@ test('SciCon Big Event pauses the weekly prize and resumes the next Sunday noon 
   assert.equal(justBeforeResume.phase, 'big-event-closed');
   const resumed = getPublicPrizeState(new Date('2026-12-06T20:00:00.000Z'));
   assert.equal(resumed.phase, 'weekly');
-  assert.equal(resumed.allocationRsc, 100);
+  assert.equal(resumed.allocationRsc, 500);
 
   const beforeEvent = getPublicPrizeState(new Date('2026-10-01T20:00:00.000Z'));
   assert.equal(beforeEvent.phase, 'weekly');
@@ -529,14 +529,15 @@ test('finalization locks the top eligible score for a closed week', async (conte
   );
 });
 
-test('weeks from 2026-12-06 pay 100 RSC and a recorded allocation stays put', async (context) => {
+test('weeks from 2026-12-06 pay 500 RSC and a recorded allocation stays put', async (context) => {
   const originalFetch = global.fetch;
   const originalUrl = process.env.SUPABASE_URL;
   const originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const originalAllocation = process.env.WEEKLY_ALLOCATION_RSC;
   process.env.SUPABASE_URL = 'https://example.supabase.co';
   process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-key';
-  delete process.env.WEEKLY_ALLOCATION_RSC;
+  // A stale deployment override must not beat the 500 RSC weekly prize.
+  process.env.WEEKLY_ALLOCATION_RSC = '100';
 
   let existingRow = null;
   global.fetch = async (url, options = {}) => {
@@ -564,7 +565,7 @@ test('weeks from 2026-12-06 pay 100 RSC and a recorded allocation stays put', as
   const fresh = await finalizeWeeklyCompetition('2026-12-06', {
     observedAt: shortlyAfterCutoff('2026-12-06')
   });
-  assert.equal(fresh.competition.allocation_rsc, 100);
+  assert.equal(fresh.competition.allocation_rsc, 500);
 
   existingRow = {
     week_key: '2026-12-06',
