@@ -1,7 +1,7 @@
 // Share-card URLs follow the same 25K window as SCICON_BIG_EVENT.
 // Keep these two instants identical to shared/weeklyCompetitionBoundary.js.
 export const SHARE_EVENT_START = '2026-10-26T07:00:00.000Z';
-export const SHARE_EVENT_CLOSE = '2026-11-30T07:59:00.000Z';
+export const SHARE_EVENT_CLOSE = '2026-11-30T00:00:00.000Z';
 
 const ORIGIN = 'https://sciconshooter.xyz';
 const EVENT_FILE = 'scicon-share-25k.png';

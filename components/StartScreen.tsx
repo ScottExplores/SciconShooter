@@ -473,9 +473,9 @@ const getWeeklyAllocationMeta = (now = new Date()) => {
       endLabel: 'Nov 29',
       countdownLabel: prize.phase === 'big-event-closed'
         ? 'winner announced Nov 30'
-        : prize.daysLeft <= 1
-          ? 'Closes today, 11:59 PM PT'
-          : `Closes in ${prize.daysLeft} days`
+        : prize.daysLeft === 0
+          ? 'Closes today, 4 PM PT'
+          : `Closes in ${prize.daysLeft} day${prize.daysLeft === 1 ? '' : 's'}`
     };
   }
 

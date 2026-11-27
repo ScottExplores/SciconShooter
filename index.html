@@ -19,7 +19,7 @@
     <script>
       (function () {
         var startsAt = Date.parse('2026-10-26T07:00:00.000Z');
-        var closesAt = Date.parse('2026-11-30T07:59:00.000Z');
+        var closesAt = Date.parse('2026-11-30T00:00:00.000Z');
         var now = Date.now();
         if (!(now >= startsAt && now < closesAt)) return;
         var urls = [
@@ -2054,7 +2054,7 @@
       <script>
         (() => {
           const now = Date.now();
-          const live = now >= Date.parse('2026-10-26T07:00:00.000Z') && now < Date.parse('2026-11-30T07:59:00.000Z');
+          const live = now >= Date.parse('2026-10-26T07:00:00.000Z') && now < Date.parse('2026-11-30T00:00:00.000Z');
           const keep = document.getElementById(live ? 'sci-boot-event' : 'sci-boot-standard');
           const drop = document.getElementById(live ? 'sci-boot-standard' : 'sci-boot-event');
           if (drop) drop.remove();

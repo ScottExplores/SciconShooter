@@ -13,7 +13,7 @@ const SCICON_BIG_EVENT = Object.freeze({
   name: '25K High Score',
   allocationRsc: 25_000,
   startsAt: '2026-10-26T07:00:00.000Z',
-  closesAt: '2026-11-30T07:59:00.000Z',
+  closesAt: '2026-11-30T00:00:00.000Z',
   proposalOpenUntil: '2026-12-01T08:00:00.000Z',
   winnerAnnouncedLabel: 'Nov 30',
   weeklyResumesWeekKey: '2026-12-06'
@@ -233,6 +233,14 @@ const resolveWeeklyAllocationRsc = (weekKey) => (
     : PRIOR_WEEKLY_ALLOCATION_RSC
 );
 
+const pacificCalendarDaysBetween = (from, to) => {
+  const a = getZonedParts(from);
+  const b = getZonedParts(to);
+  return Math.max(0, Math.round(
+    (Date.UTC(b.year, b.month - 1, b.day) - Date.UTC(a.year, a.month - 1, a.day)) / 86_400_000
+  ));
+};
+
 const getPublicPrizeState = (now = new Date()) => {
   const instant = toDate(now);
   const startsAt = new Date(SCICON_BIG_EVENT.startsAt);
@@ -264,8 +272,9 @@ const getPublicPrizeState = (now = new Date()) => {
     statusLabel: phase === 'big-event-closed'
       ? `winner announced ${SCICON_BIG_EVENT.winnerAnnouncedLabel}`
       : null,
-    daysLeft: phase === 'big-event'
-      ? Math.max(1, Math.ceil(remainingMs / 86_400_000))
+    // Pacific calendar days until the close: 0 on closing day.
+    daysLeft: phase === 'big-event' && remainingMs > 0
+      ? pacificCalendarDaysBetween(instant, closesAt)
       : 0
   };
 };
