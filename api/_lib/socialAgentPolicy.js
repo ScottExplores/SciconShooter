@@ -119,7 +119,9 @@ const deterministicReply = (reason, mentionText = '') => {
   if (reason === 'competition_question') {
     return getPublicPrizeState().phase === 'weekly'
       ? 'The weekly board closes Sunday at noon Pacific. Put up a verified score before the cutoff: https://www.sciconshooter.xyz/'
-      : '25K High Score closes Sunday, November 29, 2026 at 4 PM Pacific. Put up a verified score before then: https://www.sciconshooter.xyz/';
+      : getPublicPrizeState().phase === 'big-event'
+        ? '25K High Score closes Sunday, November 29, 2026 at 4 PM Pacific. Put up a verified score before then: https://www.sciconshooter.xyz/'
+        : 'Weekly boards return Dec 6 with a 500 RSC prize, closing Sundays at noon Pacific: https://www.sciconshooter.xyz/';
   }
   if (reason === 'score') {
     return 'Score received. Which ship did you use, and where did the run start getting ugly?';

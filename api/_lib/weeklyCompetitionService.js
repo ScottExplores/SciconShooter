@@ -14,8 +14,19 @@ const {
   getWeekRange,
   weekOverlapsBigEventPause,
   resolveWeeklyAllocationRsc,
+  SCICON_BIG_EVENT,
   WEEKLY_SCORE_SETTLEMENT_MS
 } = require('../../shared/weeklyCompetitionBoundary.js');
+
+// Weeks from the Dec 6 resume onward use the code's weekly prize (500 RSC) so
+// a stale WEEKLY_ALLOCATION_RSC deployment variable cannot override it. Older
+// weeks keep the previous behavior. Stored rows always keep their amount.
+const newRowAllocationRsc = (weekKey) => (
+  typeof weekKey === 'string' && weekKey >= SCICON_BIG_EVENT.weeklyResumesWeekKey
+    ? resolveWeeklyAllocationRsc(weekKey)
+    : Number(process.env.WEEKLY_ALLOCATION_RSC) || resolveWeeklyAllocationRsc(weekKey)
+);
+
 
 const LEADERBOARD_TABLE = process.env.SUPABASE_LEADERBOARD_TABLE || 'scicon_leaderboard';
 const RUN_RECEIPTS_TABLE = process.env.SUPABASE_RUN_RECEIPTS_TABLE || 'scicon_run_receipts';
@@ -198,8 +209,7 @@ const buildCompetitionRow = ({
     ? existingDeadline
     : new Date(safeFinalizedAt.getTime() + CLAIM_WINDOW_MS);
   const allocationRsc = Number(existing?.allocation_rsc)
-    || Number(process.env.WEEKLY_ALLOCATION_RSC)
-    || resolveWeeklyAllocationRsc(weekKey);
+    || newRowAllocationRsc(weekKey);
 
   return {
     week_key: weekKey,
@@ -231,8 +241,7 @@ const buildCompetitionRow = ({
 const buildExpiredCompetitionRow = ({ weekKey, start, end, existing, observedAt }) => {
   const now = observedAt || new Date();
   const allocationRsc = Number(existing?.allocation_rsc)
-    || Number(process.env.WEEKLY_ALLOCATION_RSC)
-    || resolveWeeklyAllocationRsc(weekKey);
+    || newRowAllocationRsc(weekKey);
   return {
     week_key: weekKey,
     starts_at: start.toISOString(),
@@ -577,7 +586,7 @@ const finalizeWeeklyCompetition = async (
       finalized: false,
       paused: true,
       weekKey,
-      reason: 'Weekly prize is paused for the 25K High Score.'
+      reason: 'Weekly prize is paused until the Dec 6 week.'
     };
   }
 
