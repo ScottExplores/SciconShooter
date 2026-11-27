@@ -3,7 +3,7 @@ const WEEK_TIME_ZONE = 'America/Los_Angeles';
 const WEEK_BOUNDARY_HOUR = 12;
 // Live weekly prize from the 2026-12-06 resume week onward. Historical
 // competition rows keep their recorded allocation instead of being rewritten.
-const WEEKLY_ALLOCATION_RSC = 100;
+const WEEKLY_ALLOCATION_RSC = 500;
 // Weeks before the resume date that are finalized without a stored amount
 // keep the allocation those seasons actually used.
 const PRIOR_WEEKLY_ALLOCATION_RSC = 1_000;
@@ -19,7 +19,11 @@ const SCICON_BIG_EVENT = Object.freeze({
   weeklyResumesWeekKey: '2026-12-06'
 });
 const SCICON_EVENT_CHOICE_COPY = 'The winner picks an open ResearchHub proposal or RFP.';
-const SCICON_EVENT_PAUSE_COPY = 'Weekly prizes return Dec 6 at 100 RSC.';
+const SCICON_EVENT_PAUSE_COPY = 'Weekly prizes return Dec 6 at 500 RSC.';
+// Shown between the event close and the Dec 6 resume. It never names the
+// finished event so the site reads as the normal weekly game again.
+const SCICON_WEEKLY_RETURN_COPY = 'Weekly prizes return Dec 6 at 500 RSC.';
+const SCICON_WEEKLY_RETURN_LABEL = 'Returns Dec 6';
 // One allowance for the whole high-score event. Weekly play goes back to
 // five free attempts when the Sunday board resumes.
 const SCICON_EVENT_ATTEMPT_LIMIT = 10;
@@ -373,6 +377,8 @@ return {
   SCICON_EVENT_ATTEMPT_SCOPE_ID,
   SCICON_EVENT_CHOICE_COPY,
   SCICON_EVENT_PAUSE_COPY,
+  SCICON_WEEKLY_RETURN_COPY,
+  SCICON_WEEKLY_RETURN_LABEL,
   WEEKLY_RUN_FREE_ATTEMPT_LIMIT,
   resolveRunAttemptPolicy,
   weekKeyOverlapsPlayableEvent,
