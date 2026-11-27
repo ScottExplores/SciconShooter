@@ -37,7 +37,8 @@ test('the client feed filters against the shared weekly boundary and explains th
   assert.match(pickerSource, /isWeeklyProposalEligible\(proposal, cutoff\)/);
   assert.match(pickerSource, /isFundingDeadlineAfter\(rfp\.endDate, cutoff\)/);
   assert.match(pickerSource, /data-research-toggle="picker"/);
-  assert.match(leaderboardApiSource, /requiredOpenUntil: getPublicPrizeState\(\)\.proposalOpenUntil/);
+  assert.match(leaderboardApiSource, /requiredOpenUntil: getPickRequiredOpenUntil\(\)/);
+  assert.match(leaderboardApiSource, /eventPickBoard\.getStore\(\)\?\.requiredOpenUntil \|\| getPublicPrizeState\(\)\.proposalOpenUntil/);
   assert.match(weeklyClaimSource, /findCurrentWeekEligibleProposal/);
 });
 

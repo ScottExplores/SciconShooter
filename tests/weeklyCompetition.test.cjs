@@ -32,22 +32,22 @@ const cutoffSnapshotRows = (weekKey, results) => [{
   }
 }];
 
-test('weekly prizes from 2026-12-06 onward are 500 RSC', () => {
+test('weekly prizes from the 2026-11-29 first round onward are 500 RSC', () => {
   assert.equal(WEEKLY_ALLOCATION_RSC, 500);
+  assert.equal(resolveWeeklyAllocationRsc('2026-11-29'), 500);
   assert.equal(resolveWeeklyAllocationRsc('2026-12-06'), 500);
   assert.equal(resolveWeeklyAllocationRsc('2026-12-13'), 500);
-  assert.equal(resolveWeeklyAllocationRsc('2026-11-29'), 1_000);
+  assert.equal(resolveWeeklyAllocationRsc('2026-11-22'), 1_000);
   assert.equal(resolveWeeklyAllocationRsc('2020-01-05'), 1_000);
 });
 
-test('SciCon Big Event pauses the weekly prize and resumes the next Sunday noon after Nov 30', () => {
+test('weekly play resumes at the 25K close with a first round that ends Dec 6 noon PT', () => {
   assert.equal(SCICON_BIG_EVENT.closesAt, '2026-11-30T00:00:00.000Z');
   assert.equal(SCICON_BIG_EVENT.allocationRsc, 25_000);
-  assert.equal(SCICON_BIG_EVENT.weeklyResumesWeekKey, '2026-12-06');
-  assert.equal(
-    getWeekRange(SCICON_BIG_EVENT.weeklyResumesWeekKey).start.toISOString(),
-    '2026-12-06T20:00:00.000Z'
-  );
+  assert.equal(SCICON_BIG_EVENT.weeklyResumesWeekKey, '2026-11-29');
+  const firstRound = getWeekRange(SCICON_BIG_EVENT.weeklyResumesWeekKey);
+  assert.equal(firstRound.start.toISOString(), '2026-11-30T00:00:00.000Z');
+  assert.equal(firstRound.end.toISOString(), '2026-12-06T20:00:00.000Z');
 
   const live = getPublicPrizeState(new Date('2026-10-27T04:00:00.000Z'));
   assert.equal(live.phase, 'big-event');
@@ -55,18 +55,23 @@ test('SciCon Big Event pauses the weekly prize and resumes the next Sunday noon 
   assert.equal(live.scoreWindow.end.toISOString(), '2026-11-30T00:00:00.000Z');
   assert.equal(live.snapshotFrozen, false);
 
-  const closed = getPublicPrizeState(new Date('2026-11-30T08:00:00.000Z'));
-  assert.equal(closed.phase, 'big-event-closed');
-  assert.equal(closed.snapshotFrozen, true);
-  assert.equal(closed.statusLabel, 'winner announced Nov 30');
-  assert.equal(closed.scoreWindow.start.toISOString(), live.scoreWindow.start.toISOString());
-  assert.equal(closed.scoreWindow.end.toISOString(), live.scoreWindow.end.toISOString());
+  const lastEventInstant = getPublicPrizeState(new Date('2026-11-29T23:59:59.999Z'));
+  assert.equal(lastEventInstant.phase, 'big-event');
+  const firstWeeklyInstant = getPublicPrizeState(new Date('2026-11-30T00:00:00.000Z'));
+  assert.equal(firstWeeklyInstant.phase, 'weekly');
+  assert.equal(firstWeeklyInstant.allocationRsc, 500);
+  assert.equal(firstWeeklyInstant.snapshotFrozen, false);
+  assert.equal(firstWeeklyInstant.scoreWindow.start.toISOString(), '2026-11-30T00:00:00.000Z');
+  assert.equal(firstWeeklyInstant.scoreWindow.end.toISOString(), '2026-12-06T20:00:00.000Z');
+  assert.equal(firstWeeklyInstant.proposalOpenUntil.toISOString(), '2026-12-06T20:00:00.000Z');
 
-  const justBeforeResume = getPublicPrizeState(new Date('2026-12-06T19:59:59.000Z'));
-  assert.equal(justBeforeResume.phase, 'big-event-closed');
-  const resumed = getPublicPrizeState(new Date('2026-12-06T20:00:00.000Z'));
-  assert.equal(resumed.phase, 'weekly');
-  assert.equal(resumed.allocationRsc, 500);
+  const beforeRollover = getPublicPrizeState(new Date('2026-12-06T19:59:59.000Z'));
+  assert.equal(beforeRollover.scoreWindow.start.toISOString(), '2026-11-30T00:00:00.000Z');
+  const rolled = getPublicPrizeState(new Date('2026-12-06T20:00:00.000Z'));
+  assert.equal(rolled.phase, 'weekly');
+  assert.equal(rolled.allocationRsc, 500);
+  assert.equal(rolled.scoreWindow.start.toISOString(), '2026-12-06T20:00:00.000Z');
+  assert.equal(rolled.scoreWindow.end.toISOString(), '2026-12-13T20:00:00.000Z');
 
   const beforeEvent = getPublicPrizeState(new Date('2026-10-01T20:00:00.000Z'));
   assert.equal(beforeEvent.phase, 'weekly');
@@ -566,6 +571,15 @@ test('weeks from 2026-12-06 pay 500 RSC and a recorded allocation stays put', as
     observedAt: shortlyAfterCutoff('2026-12-06')
   });
   assert.equal(fresh.competition.allocation_rsc, 500);
+  // The first weekly round (event close to Dec 6 noon PT) stores 500 RSC too,
+  // even with a stale WEEKLY_ALLOCATION_RSC deployment override set.
+  const firstRound = await finalizeWeeklyCompetition('2026-11-29', {
+    observedAt: shortlyAfterCutoff('2026-11-29')
+  });
+  assert.equal(firstRound.paused, undefined);
+  assert.equal(firstRound.competition.allocation_rsc, 500);
+  assert.equal(firstRound.competition.starts_at, '2026-11-30T00:00:00.000Z');
+  assert.equal(firstRound.competition.ends_at, '2026-12-06T20:00:00.000Z');
 
   existingRow = {
     week_key: '2026-12-06',
